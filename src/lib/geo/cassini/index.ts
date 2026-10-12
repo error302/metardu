@@ -37,7 +37,7 @@ export type { EllipsoidParams } from './datum'
 export {
   COMMON_POINTS_148_1, COMMON_POINTS_148_2, COMMON_POINTS_148_2_1,
   COMMON_POINTS_148_3, COMMON_POINTS_148_4, COMMON_POINTS_148_4_1,
-  KENYA_TOPO_SHEETS, findTopoSheet,
+  KENYA_TOPO_SHEETS, findTopoSheet, getUtmZone,
 } from './sheets'
 
 export {
@@ -46,7 +46,7 @@ export {
 
 export {
   computeAffine6Params, computePoly12Params, KENYA_SUB_SHEETS, SHEETS_WITH_SUBSHEETS,
-  getUtmZone, getSubSheetGrid, findSubSheet,
+  getSubSheetGrid, findSubSheet,
   convertCassiniToUTM, convertUTMToCassini,
   estimateSubSheetAccuracy, verifyAffine6Params, verifyPoly12Params,
 } from './subsheets'

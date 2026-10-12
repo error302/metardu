@@ -102,12 +102,40 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result)
   } catch (error) {
+    const rawMsg = error instanceof Error ? error.message : String(error)
+    const isSingular = /singular|rank|determinant|invertible/i.test(rawMsg)
+    const isConvergence = /converge|iteration/i.test(rawMsg)
+    const isObs = /observation|insufficient|degree of freedom/i.test(rawMsg)
+
+    let code = 'ROBUST_ADJUSTMENT_FAILED'
+    let remedy = 'Review network geometry, check for gross observation blunders, or fix additional control stations.'
+    const status = 422
+
+    if (isSingular) {
+      code = 'MATRIX_SINGULARITY'
+      remedy = 'Normal equations matrix is singular. The network has unconstrained degrees of freedom. Ensure at least one known control point has fixed coordinates and network orientation is constrained.'
+    } else if (isConvergence) {
+      code = 'CONVERGENCE_FAILURE'
+      remedy = 'Iteratively Reweighted Least Squares (IRLS) failed to converge within maximum iterations. Check for large blunder outliers in distance or angle observations.'
+    } else if (isObs) {
+      code = 'INSUFFICIENT_OBSERVATIONS'
+      remedy = 'Insufficient redundant observations to form a least squares adjustment. Ensure the number of observations exceeds the number of unknown station coordinates (r = n - u > 0).'
+    }
+
     return NextResponse.json(
       {
-        error: 'Failed to run robust adjustment',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: isSingular
+          ? 'Network normal equations matrix is rank deficient (singular)'
+          : isConvergence
+          ? 'Robust adjustment did not converge'
+          : isObs
+          ? 'Insufficient redundant observations for adjustment'
+          : 'Robust survey adjustment failed',
+        code,
+        message: rawMsg,
+        remedy,
       },
-      { status: 500 },
+      { status },
     )
   }
 }

@@ -3,6 +3,12 @@ import { createSolutionV1, solveWithSteps, type Solved, type Solution } from '@/
 import { formatBearingWcbDms, formatDeltaMeters, formatDistanceMeters, fullNumber } from '@/lib/solution/format'
 
 export function distanceBearingSolvedFromCoords(input: { e1: number; n1: number; e2: number; n2: number }): Solved<ReturnType<typeof distanceBearing>> & { solution: Solution } {
+  if (!Object.values(input).every(Number.isFinite)) {
+    throw new Error('Enter finite numeric coordinates for both points.')
+  }
+  if (input.e1 === input.e2 && input.n1 === input.n2) {
+    throw new Error('Distance is 0 m; bearing is undefined because the two points coincide.')
+  }
   const r = distanceBearing({ easting: input.e1, northing: input.n1 }, { easting: input.e2, northing: input.n2 })
   const check = Math.abs(r.distance * r.distance - (r.deltaE * r.deltaE + r.deltaN * r.deltaN))
 

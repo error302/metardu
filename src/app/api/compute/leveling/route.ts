@@ -41,7 +41,7 @@ export const POST = apiHandler(
       : riseAndFall(input)
 
     const misclosureMm = Math.abs(result.misclosure) * 1000
-    const allowableMm = result.allowableMisclosure * 1000
+    const allowableMm = (result.allowableMisclosure ?? 0) * 1000
 
     return NextResponse.json({
       task: 'leveling',

@@ -4,6 +4,7 @@
  */
 
 import { createClient } from '@/lib/api-client/client'
+import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
 import redisCache from '@/lib/cache/redis'
 
@@ -263,14 +264,13 @@ export const recommendedIndexes = {
 
 // Migration script for indexes
 export async function applyRecommendedIndexes(): Promise<{ applied: string[]; skipped: string[] }> {
-  const dbClient = createClient()
   const applied: string[] = []
   const skipped: string[] = []
   
   for (const [, indexes] of Object.entries(recommendedIndexes)) {
     for (const sql of indexes) {
       try {
-        await dbClient.rpc('execute_sql', { sql })
+        await db.query(sql)
         applied.push(sql)
       } catch (error) {
         skipped.push(sql)

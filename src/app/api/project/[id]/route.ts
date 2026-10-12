@@ -22,7 +22,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
-  return NextResponse.json({ data: rows[0] })
+  return NextResponse.json({ data: rows[0] }, { headers: { 'Cache-Control': 'private, no-store' } })
 })
 
 /**

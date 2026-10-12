@@ -1,6 +1,6 @@
 'use client';
 
-import { to3857 } from '@/lib/map/projection';
+import { to3857, SRID_21037 } from '@/lib/map/projection';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -206,9 +206,9 @@ export async function createTraverseLayer(
 
     // Batch the three coordinate transforms for this leg
     const [fromCoord, toCoord, midCoord] = await Promise.all([
-      to3857(leg.fromE, leg.fromN),
-      to3857(leg.toE, leg.toN),
-      to3857(midE, midN),
+      to3857(leg.fromE, leg.fromN, SRID_21037),
+      to3857(leg.toE, leg.toN, SRID_21037),
+      to3857(midE, midN, SRID_21037),
     ]);
 
     // ── 1. Leg line (dashed) ───────────────────────────────────────────────
@@ -299,7 +299,7 @@ export async function createTraverseLayer(
   // ── Station labels ────────────────────────────────────────────────────────
   const stationTransforms = await Promise.all(
     Array.from(stations.entries()).map(async ([name, coord]) => {
-      const pos = await to3857(coord.e, coord.n);
+      const pos = await to3857(coord.e, coord.n, SRID_21037);
       return { name, pos };
     }),
   );

@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/api/handler'
 import { db } from '@/lib/db'
+import { verifyFieldbookChain } from '@/lib/audit/fieldbookChain'
 interface AuditEventRow {
   id: string
   table_name: string
@@ -22,11 +23,12 @@ import { z } from 'zod'
 /**
  * GET /api/fieldbook/audit?project_id=<uuid>&limit=100
  *   Returns the cross-table audit event stream for the requesting
- *   surveyor, optionally filtered by project. Newest first.
+ *   surveyor, or the team's events for an accessible project. Newest first.
  *
  * The events come from the fieldbook_audit_events table populated by
  * the fieldbook_signed_audit_func trigger (migration 015). Each event
- * contains a SHA-256 hash chain so tampering is detectable.
+ * records predecessor hashes; these are not digital signatures or proof
+ * that the underlying measurements are correct.
  */
 export const GET = apiHandler({
   requireAuth: true,
@@ -34,29 +36,16 @@ export const GET = apiHandler({
   handler: async (ctx) => {
     const url = new URL(ctx.req.url)
     const projectId = url.searchParams.get('project_id') || null
-    const limit = Math.min(
-      Number(url.searchParams.get('limit') || '100'),
-      500
-    )
-
-    const params: unknown[] = [ctx.userId]
-    let whereClause = 'WHERE fae.user_id = $1'
-    if (projectId) {
-      params.push(projectId)
-      whereClause += ` AND (
-        -- events on rows belonging to this project (fieldbook entries)
-        EXISTS (
-          SELECT 1 FROM project_fieldbook_entries pfe
-          WHERE pfe.id::TEXT = fae.row_id
-            AND pfe.project_id = $2
-        )
-        OR EXISTS (
-          SELECT 1 FROM survey_points sp
-          WHERE sp.id::TEXT = fae.row_id
-            AND sp.project_id = $2
-        )
-      )`
+    const rawLimit = url.searchParams.get('limit') || '100'
+    if ((projectId && !z.string().uuid().safeParse(projectId).success)
+      || !/^[0-9]+$/.test(rawLimit) || !Number.isSafeInteger(Number(rawLimit)) || Number(rawLimit) < 1) {
+      return NextResponse.json({ error: 'Provide a valid project UUID and positive integer limit.' }, { status: 400 })
     }
+    const limit = Math.min(Number(rawLimit), 500)
+
+    // RLS scopes the event's recorded project, including deleted source rows.
+    const params: unknown[] = [projectId || ctx.userId]
+    const whereClause = projectId ? 'WHERE fae.project_id = $1' : 'WHERE fae.user_id = $1'
     params.push(limit)
 
     const { rows } = await db.query<AuditEventRow>(
@@ -80,21 +69,22 @@ export const GET = apiHandler({
       params
     )
 
-    return NextResponse.json({ events: rows, count: rows.length })
+    return NextResponse.json({ events: rows, count: rows.length }, {
+      headers: { 'Cache-Control': 'private, no-store' },
+    })
   },
 })
 
 /**
  * POST /api/fieldbook/audit/verify
- *   Verifies the hash chain integrity of a given row's audit history.
+ *   Checks predecessor links of accessible audit history.
  *   Returns { valid: true } if every prev_hash matches the prior hash,
  *   otherwise { valid: false, broken_at: <event_id> }.
  *
- * This is the regulatory evidence-chain check that ISK / Survey of
- * Kenya auditors would request.
+ * Does not verify digital signatures, payload hashes, or survey acceptance.
  */
 const verifySchema = z.object({
-  row_id: z.string().min(1),
+  row_id: z.string().uuid(),
   table_name: z.enum(['project_fieldbook_entries', 'survey_points']),
 })
 
@@ -108,36 +98,12 @@ export const POST = apiHandler({
     const { rows } = await db.query<AuditEventRow>(
       `SELECT id, action, prev_hash, hash, created_at
        FROM fieldbook_audit_events
-       WHERE row_id = $1 AND table_name = $2
-       ORDER BY created_at ASC`,
+       WHERE row_id = $1 AND table_name = $2`,
       [row_id, table_name]
     )
 
-    if (rows.length === 0) {
-      return NextResponse.json({ valid: true, events: 0, message: 'No audit history found' })
-    }
-
-    // Walk the chain: each event's prev_hash must equal the previous event's hash
-    let prevHash = ''
-    for (const ev of rows) {
-      if (ev.prev_hash !== prevHash) {
-        return NextResponse.json({
-          valid: false,
-          broken_at: ev.id,
-          broken_at_action: ev.action,
-          expected_prev: prevHash,
-          actual_prev: ev.prev_hash,
-          events: rows.length,
-        })
-      }
-      prevHash = ev.hash
-    }
-
-    return NextResponse.json({
-      valid: true,
-      events: rows.length,
-      last_hash: prevHash,
-      last_action: rows[rows.length - 1].action,
+    return NextResponse.json(verifyFieldbookChain(rows), {
+      headers: { 'Cache-Control': 'private, no-store' },
     })
   },
 })

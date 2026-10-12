@@ -4,6 +4,7 @@
 
 import { proj4, WGS84_DEF, ARC1960_UTM37S_DEF, ARC1960_UTM36S_DEF } from './constants'
 import type { TopoSheetParams, VerificationResult } from './types'
+import { assertProjectedCrs, transformPoint, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { cassiniFeetToUTM } from './helmert'
 
 export function verifyWithCommonPoints(params: TopoSheetParams): VerificationResult[] {
@@ -53,4 +54,16 @@ export function estimateSheetAccuracy(params: TopoSheetParams): { rmseM: number;
   const rmseMM = rmseM * 1000
   const grade = rmseMM <= 10 ? 'EXCELLENT' : rmseMM <= 100 ? 'GOOD' : rmseMM <= 1000 ? 'MODERATE' : 'LOW'
   return { rmseM: Math.round(rmseM * 10000) / 10000, rmseMM: Math.round(rmseMM * 10) / 10, grade }
+}
+
+
+/** Geographic display requires the declared grid; no zone or hemisphere is inferred. */
+export function projectedResultToWgs84(easting: number, northing: number, crs: string): { lat: number; lon: number } {
+  const reference = assertProjectedCrs(crs)
+  if (reference.units !== 'metres') throw new RangeError('Geographic display needs a projected metre grid.')
+  const range = validateCoordinateRange(easting, northing, crs)
+  if (!range.valid) throw new RangeError(range.errors.join('; '))
+  const [lon, lat] = transformPoint(easting, northing, reference.code, 'EPSG:4326')
+  if (!Number.isFinite(lat) || !Number.isFinite(lon) || Math.abs(lat) > 90 || Math.abs(lon) > 180) throw new RangeError('The result is outside the geographic domain of this grid.')
+  return { lat, lon }
 }

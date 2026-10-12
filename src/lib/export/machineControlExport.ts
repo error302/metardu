@@ -392,10 +392,10 @@ export function exportMachineControl(
   if (coordinateSystem && format !== 'alignment_xml') {
     const csLine = `# Coordinate System: ${coordinateSystem}`;
     if (zone) {
-      const zoneLine = `# UTM Zone: ${zone}${datum === 'S' ? 'S' : datum === 'N' ? 'N' : ''}`;
+      const zoneLine = `# UTM Zone: ${zone}`;
       content = content.replace(
         '# Date:',
-        `${csLine}\n${zoneLine}\n# Datum: ${datum || 'WGS84'}\n# Date:`
+        `${csLine}\n${zoneLine}\n# Datum: ${datum || 'UNDECLARED (set project datum before exporting machine control)'}\n# Date:`
       );
     } else {
       content = content.replace('# Date:', `${csLine}\n# Date:`);

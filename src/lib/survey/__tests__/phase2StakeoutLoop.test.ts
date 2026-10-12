@@ -15,6 +15,7 @@ import {
 } from '../instrumentWriters'
 import {
   compareAsBuiltToDesign,
+  parseAsBuiltCsv,
   formatRowForDisplay,
   getVerdictColor,
   getVerdictIcon,
@@ -24,6 +25,7 @@ import type {
   DesignPoint,
   InstrumentStation,
 } from '@/lib/computations/settingOutEngine'
+import { computeSettingOut } from '@/lib/computations/settingOutEngine'
 
 // ─── Fixtures ───────────────────────────────────────────────────────────────
 
@@ -110,7 +112,7 @@ const settingOutResult: SettingOutResult = {
 
 describe('DXF Design Extractor', () => {
   it('extracts POINT entities from a DXF', () => {
-    const result = extractDesignPointsFromDXF(MINIMAL_DXF)
+    const result = extractDesignPointsFromDXF(MINIMAL_DXF, { defaultTH: 1.5 })
     expect(result.points.length).toBeGreaterThanOrEqual(2)
     expect(result.points[0].e).toBe(264000)
     expect(result.points[0].n).toBe(9861000)
@@ -118,14 +120,14 @@ describe('DXF Design Extractor', () => {
   })
 
   it('extracts LINE endpoint entities', () => {
-    const result = extractDesignPointsFromDXF(MINIMAL_DXF)
+    const result = extractDesignPointsFromDXF(MINIMAL_DXF, { defaultTH: 1.5 })
     // The LINE should produce 2 points (start + end)
     const linePoints = result.points.filter(p => p.description?.includes('Line'))
     expect(linePoints.length).toBe(2)
   })
 
   it('filters by layer when specified', () => {
-    const result = extractDesignPointsFromDXF(MINIMAL_DXF, { layerFilter: ['STAKEOUT'] })
+    const result = extractDesignPointsFromDXF(MINIMAL_DXF, { layerFilter: ['STAKEOUT'], defaultTH: 1.5 })
     // Should only get POINT entities from STAKEOUT layer
     expect(result.warnings.length).toBe(0)
   })
@@ -145,10 +147,45 @@ describe('DXF Design Extractor', () => {
     expect(result.entitiesScanned).toBeGreaterThan(0)
   })
 
+  it('preserves an explicit zero RL instead of applying the fallback', () => {
+    const dxf = MINIMAL_DXF.replace('1500.000', '0.000')
+    const result = extractDesignPointsFromDXF(dxf, { defaultRL: 2000, defaultTH: 1.5 })
+    expect(result.points[0].rl).toBe(0)
+  })
+
+  it('rejects 2D points when no explicit RL fallback is supplied', () => {
+    const dxf = MINIMAL_DXF.replace(/30\n1500\.000\n/g, '')
+    const result = extractDesignPointsFromDXF(dxf, { defaultTH: 1.5 })
+    expect(result.points).toHaveLength(0)
+    expect(result.warnings.some(w => w.includes('no finite RL'))).toBe(true)
+  })
+
+  it('rejects malformed horizontal coordinates instead of converting them to zero', () => {
+    const dxf = MINIMAL_DXF.replace('264000.000', 'bad')
+    const result = extractDesignPointsFromDXF(dxf, { defaultTH: 1.5 })
+    expect(result.points.some(point => point.e === 0)).toBe(false)
+    expect(result.warnings.some(w => w.includes('invalid'))).toBe(true)
+  })
+
   it('returns empty array with warning for empty DXF', () => {
     const result = extractDesignPointsFromDXF('')
     expect(result.points.length).toBe(0)
     expect(result.warnings.length).toBeGreaterThan(0)
+  })
+})
+
+describe('Setting-out vertical inputs', () => {
+  it('uses the entered instrument height in the vertical computation', () => {
+    const point: DesignPoint = { id: 'P1', e: 100, n: 100, rl: 101, th: 2 }
+    const withOneMetre = computeSettingOut({ e: 0, n: 0, rl: 100, ih: 1 }, { e: 0, n: 10 }, [point])
+    const withTwoMetres = computeSettingOut({ e: 0, n: 0, rl: 100, ih: 2 }, { e: 0, n: 10 }, [point])
+    expect(withOneMetre.rows[0].heightDiff).toBe(2)
+    expect(withTwoMetres.rows[0].heightDiff).toBe(1)
+  })
+
+  it('rejects a backsight or target that duplicates the station', () => {
+    expect(() => computeSettingOut({ e: 0, n: 0, rl: 100, ih: 1.5 }, { e: 0, n: 0 }, designPoints)).toThrow('Backsight')
+    expect(() => computeSettingOut({ e: 0, n: 0, rl: 100, ih: 1.5 }, { e: 0, n: 10 }, [{ ...designPoints[0], e: 0, n: 0 }])).toThrow('distinct')
   })
 })
 
@@ -223,6 +260,18 @@ describe('Instrument Writers', () => {
 // ─── As-Built Comparison ────────────────────────────────────────────────────
 
 describe('As-Built Comparison', () => {
+  it('parses explicit levels and preserves an omitted RL as unknown', () => {
+    const points = parseAsBuiltCsv('id,easting,northing,rl\nP1,264100,9861100,1500\nP2,264200,9861100,')
+    expect(points[0].rl).toBe(1500)
+    expect(points[1].rl).toBeUndefined()
+  })
+
+  it('rejects malformed required coordinates and supplied RL values', () => {
+    expect(() => parseAsBuiltCsv('P1,,9861100,1500')).toThrow('easting/northing')
+    expect(() => parseAsBuiltCsv('P1,264100,9861100,bad')).toThrow('malformed RL')
+    expect(() => parseAsBuiltCsv(',264100,9861100,1500')).toThrow('point ID')
+  })
+
   it('passes when as-built matches design within tolerance', () => {
     const report = compareAsBuiltToDesign({
       designPoints,
@@ -239,7 +288,8 @@ describe('As-Built Comparison', () => {
     expect(report.verdict).toBe('PASS')
     expect(report.totalFailed).toBe(0)
     expect(report.totalPassed).toBe(4)
-    expect(report.summary).toContain('within tolerance')
+    expect(report.summary).toContain('within tolerance under the configured numeric limits')
+    expect(report.summary).toContain('Confirm control')
   })
 
   it('fails when as-built is outside tolerance', () => {
@@ -294,6 +344,17 @@ describe('As-Built Comparison', () => {
     expect(report.unmatchedDesignPoints.length).toBe(3) // P2, P3, P4 not staked
     expect(report.verdict).toBe('INCOMPLETE')
     expect(report.summary).toContain('not yet staked')
+  })
+
+  it('does not report a 3D PASS when a matched point has no observed RL', () => {
+    const report = compareAsBuiltToDesign({
+      designPoints: [designPoints[0]],
+      asBuiltPoints: [{ id: 'P1', e: 264100, n: 9861100 }],
+    })
+    expect(report.rows[0].hStatus).toBe('PASS')
+    expect(report.rows[0].vStatus).toBe('N/A')
+    expect(report.verdict).toBe('INCOMPLETE')
+    expect(report.summary).toContain('Vertical verification is incomplete')
   })
 
   it('reports INCOMPLETE when no points match', () => {

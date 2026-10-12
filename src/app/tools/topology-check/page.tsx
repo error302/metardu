@@ -11,14 +11,6 @@ interface CoordRow {
 }
 
 
-const KENYA_MIN_AREAS = [
-  { label: 'Urban plot (commercial)', area: 100 },
-  { label: 'Residential plot', area: 250 },
-  { label: 'Agricultural plot', area: 500 },
-  { label: 'Agricultural (large scale)', area: 2000 },
-  { label: 'Custom', area: 0 },
-]
-
 export default function TopologyCheckPage() {
   const [rows, setRows] = useState<CoordRow[]>([
     { id: 1, easting: '274812.403', northing: '9856214.778' },
@@ -27,8 +19,9 @@ export default function TopologyCheckPage() {
     { id: 4, easting: '274818.586', northing: '9856092.547' },
   ])
   const [result, setResult] = useState<ValidationResult | null>(null)
-  const [minAreaSelection, setMinAreaSelection] = useState(0) // index into KENYA_MIN_AREAS
-  const [customArea, setCustomArea] = useState('100')
+  const [coordinateReference, setCoordinateReference] = useState('')
+  const [coordinatesConfirmed, setCoordinatesConfirmed] = useState(false)
+  const [reviewAreaThreshold, setReviewAreaThreshold] = useState('')
 
   const addRow = () => {
     setRows(prev => [...prev, { id: prev.length + 1, easting: '', northing: '' }])
@@ -43,27 +36,32 @@ export default function TopologyCheckPage() {
   }
 
   const runValidation = useCallback(() => {
-    const coords: [number, number][] = rows
-      .filter(r => r.easting && r.northing)
-      .map(r => [parseFloat(r.easting), parseFloat(r.northing)])
-
-    if (coords.length < 3) {
+    if (!coordinateReference.trim() || !coordinatesConfirmed) {
       setResult(null)
       return
     }
 
-    const minArea = minAreaSelection === KENYA_MIN_AREAS.length - 1
-      ? parseFloat(customArea) || 100
-      : KENYA_MIN_AREAS[minAreaSelection].area
+    const coords: [number, number][] = rows.map(r => [parseFloat(r.easting), parseFloat(r.northing)])
+
+    if (coords.length < 3 || coords.some(([easting, northing]) => !Number.isFinite(easting) || !Number.isFinite(northing))) {
+      setResult(null)
+      return
+    }
+
+    const enteredThreshold = reviewAreaThreshold.trim() ? Number(reviewAreaThreshold) : undefined
+    if (enteredThreshold !== undefined && (!Number.isFinite(enteredThreshold) || enteredThreshold <= 0)) {
+      setResult(null)
+      return
+    }
 
     const res = validateCadastralBoundary(coords, {
-      minAreaSqM: minArea,
+      minAreaSqM: enteredThreshold,
       sliverThresholdSqM: 5,
       sliverRatioThreshold: 0.01,
       minVertices: 4,
     })
     setResult(res)
-  }, [rows, minAreaSelection, customArea])
+  }, [rows, coordinateReference, coordinatesConfirmed, reviewAreaThreshold])
 
   const loadFromProject = async () => {
     const projectId = prompt('Enter project ID:')
@@ -90,10 +88,14 @@ export default function TopologyCheckPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-6 md:py-10">
       <PageHeader
         title="Topology pre-flight check"
-        subtitle="Validate cadastral boundary geometry before NLIMS / ArdhiSasa submission. Catches self-intersections, sliver polygons, area violations, and winding-order issues."
-        reference="Survey Act Cap 299 · NLIMS submission requirements · GeoJSON spec (RFC 7946)"
-        badge="ArdhiSasa"
+        subtitle="Check cadastral boundary geometry for self-intersections, sliver polygons, area values, and winding order. These geometry checks do not predict registry acceptance."
+        reference="METARDU geometry checks · GeoJSON spec (RFC 7946)"
+        badge="Geometry QA"
       />
+
+      <div className="mb-6 rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-100">
+        The preloaded polygon is fictional demonstration geometry, not field evidence. Results cover geometry only and do not determine legal validity or submission readiness.
+      </div>
 
       <div className="grid lg:grid-cols-[1fr_1fr] gap-6">
         {/* Left: input */}
@@ -110,7 +112,7 @@ export default function TopologyCheckPage() {
             </div>
             <div className="card-body">
               <p className="text-xs text-[var(--text-muted)] mb-4 font-mono">
-                Enter boundary vertices in UTM (Easting, Northing). Order matters — go clockwise or counter-clockwise around the parcel.
+                Enter boundary vertices in one declared projected coordinate reference system with metre units. METARDU does not transform or verify the CRS. Order matters — go clockwise or counter-clockwise around the parcel.
               </p>
               <div className="space-y-2">
                 <div className="grid grid-cols-[40px_1fr_1fr_32px] gap-2 items-center font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">
@@ -153,37 +155,53 @@ export default function TopologyCheckPage() {
             </div>
           </div>
 
-          {/* Minimum area selector */}
           <div className="card mb-4">
             <div className="card-header">
-              <span className="label">Minimum statutory area</span>
+              <span className="label">Coordinate reference declaration</span>
             </div>
-            <div className="card-body">
-              <select
-                aria-label="Minimum statutory area"
-                value={minAreaSelection}
-                onChange={(e) => setMinAreaSelection(parseInt(e.target.value))}
-                className="input text-sm mb-2"
-              >
-                {KENYA_MIN_AREAS.map((opt, i) => (
-                  <option key={opt.label} value={i}>
-                    {opt.label} {opt.area > 0 ? `(${opt.area} m²)` : ''}
-                  </option>
-                ))}
-              </select>
-              {minAreaSelection === KENYA_MIN_AREAS.length - 1 && (
+            <div className="card-body space-y-3">
+              <label className="block text-sm" htmlFor="topology-crs">Projected CRS identifier</label>
+              <input
+                id="topology-crs"
+                className="input font-mono text-sm"
+                value={coordinateReference}
+                onChange={(event) => { setCoordinateReference(event.target.value); setResult(null) }}
+                placeholder="Enter the project's declared CRS (for example, an EPSG code)"
+                autoComplete="off"
+              />
+              <label className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
                 <input
-                  className="input font-mono text-sm"
-                  type="number"
-                  value={customArea}
-                  onChange={(e) => setCustomArea(e.target.value)}
-                  aria-label="Custom minimum area (m²)" placeholder="100"
+                  type="checkbox"
+                  checked={coordinatesConfirmed}
+                  onChange={(event) => { setCoordinatesConfirmed(event.target.checked); setResult(null) }}
+                  className="mt-0.5"
                 />
-              )}
+                <span>I confirm these coordinates use the declared projected CRS and metres. This declaration is not independently verified.</span>
+              </label>
             </div>
           </div>
 
-          <button onClick={runValidation} className="btn btn-primary w-full">
+          <div className="card mb-4">
+            <div className="card-header">
+              <span className="label">Optional area review threshold</span>
+            </div>
+            <div className="card-body">
+              <label htmlFor="topology-area-threshold" className="block text-xs text-[var(--text-muted)] mb-2">Leave blank to skip area screening. Entered values are local review thresholds, not legal minimums.</label>
+              <input
+                id="topology-area-threshold"
+                className="input font-mono text-sm"
+                type="number"
+                min="0"
+                step="any"
+                value={reviewAreaThreshold}
+                onChange={(event) => { setReviewAreaThreshold(event.target.value); setResult(null) }}
+                aria-label="Optional area review threshold in square metres"
+                placeholder="No threshold"
+              />
+            </div>
+          </div>
+
+          <button onClick={runValidation} disabled={!coordinateReference.trim() || !coordinatesConfirmed} className="btn btn-primary w-full disabled:opacity-50">
             Run pre-flight check
           </button>
         </div>
@@ -220,7 +238,7 @@ export default function TopologyCheckPage() {
                     </div>
                     <div>
                       <h2 className={`font-display text-xl tracking-[-0.015em] ${result.isValid ? 'text-[var(--success)]' : 'text-[var(--error)]'}`}>
-                        {result.isValid ? 'Ready for submission' : 'Will be rejected'}
+                  {result.isValid ? 'No geometry errors flagged' : 'Geometry issues found'}
                       </h2>
                       <p className="text-xs text-[var(--text-muted)] font-mono mt-0.5">
                         {result.errors.length} error{result.errors.length !== 1 ? 's' : ''} · {result.warnings.length} warning{result.warnings.length !== 1 ? 's' : ''}
@@ -229,6 +247,8 @@ export default function TopologyCheckPage() {
                   </div>
                 </div>
               </div>
+
+              <p className="text-xs text-[var(--text-muted)]">Geometry result for declared CRS {coordinateReference}. This does not certify the coordinate reference system, boundary, legal compliance or registry acceptance.</p>
 
               {/* Stats */}
               <div className="card">

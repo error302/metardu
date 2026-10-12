@@ -6,7 +6,7 @@
  * Integrates:
  *   - UniversalMobileObservationForm (multi-survey-type entry)
  *   - GNSSConnectionPanel (BLE/Web Bluetooth instrument streaming)
- *   - BeaconPhotoCapture (evidence-chain photos with EXIF GPS)
+ *   - BeaconPhotoCapture (field photos with optional device EXIF metadata)
  *   - offlineStorage + syncService (IndexedDB offline-first + auto sync)
  *   - instrumentStore (reactive instrument connection state)
  *
@@ -26,6 +26,7 @@ import {
 } from 'lucide-react'
 import { offlineStorage, type FieldObservation } from '@/lib/mobile/offlineStorage'
 import { syncService } from '@/lib/mobile/syncService'
+import { prepareCapturedPhotoData } from '@/lib/mobile/capturedPhotoData'
 import { createClient } from '@/lib/api-client/client'
 import {
   UniversalMobileObservationForm,
@@ -134,32 +135,53 @@ function MobileFieldContent() {
   }
 
   // ─── Observation handling ─────────────────────────────
-  const handleAddObservation = useCallback(async (row: Record<string, string>, _photos: CapturedBeaconPhoto[]) => {
+  const handleAddObservation = useCallback(async (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => {
     if (!projectId) return
 
+    const optionalNumber = (value: string | undefined): number | undefined => {
+      if (!value?.trim()) return undefined
+      const parsed = Number(value)
+      return Number.isFinite(parsed) ? parsed : undefined
+    }
+    const pointName = row.station?.trim() || row.pointId?.trim() || row.soundingId?.trim()
+    if (!pointName) throw new Error('Enter a station or point identifier before saving this observation.')
+
+    const observationId = crypto.randomUUID()
     const observation: FieldObservation = {
+      id: observationId,
       projectId,
-      pointName: row.station || row.pointId || row.soundingId || `PT${Date.now()}`,
-      observationType: activeSurveyType === 'leveling' ? 'level' : 'gps',
-      northing: parseFloat(row.northing || row.easting || '0'),
-      easting: parseFloat(row.easting || '0'),
-      elevation: parseFloat(row.elevation || row.depth || '0') || undefined,
+      pointName,
+      observationType: activeSurveyType === 'leveling'
+        ? 'level'
+        : activeSurveyType === 'traverse'
+          ? 'total_station'
+          : 'manual',
+      northing: optionalNumber(row.northing),
+      easting: optionalNumber(row.easting),
+      elevation: optionalNumber(row.elevation),
       latitude: undefined,
       longitude: undefined,
       accuracy: undefined,
-      rodHeight: parseFloat(row.ih || row.instrumentHeight || row.th || row.targetHeight || '0') || undefined,
+      rodHeight: optionalNumber(row.ih || row.instrumentHeight || row.th || row.targetHeight),
       notes: row.remarks || undefined,
     }
 
     try {
-      await offlineStorage.saveFieldObservation(observation)
+      const photoData = await prepareCapturedPhotoData(photos, projectId, {
+        pointId: row.pointId?.trim() || pointName,
+        pointName,
+        observationClientId: observationId,
+      })
+      await offlineStorage.saveFieldObservationWithPhotos(observation, photoData)
+      if (isOnline) await syncService.forceSync()
       await loadObservations()
       await loadStats()
     } catch (error) {
       logger.error('Save error:', { error: error })
-      alert('Failed to save observation')
+      alert(error instanceof Error ? `Could not save the observation and its photos: ${error.message}` : 'Could not save the observation and its photos.')
+      throw error
     }
-  }, [projectId, activeSurveyType, loadObservations, loadStats])
+  }, [projectId, activeSurveyType, isOnline, loadObservations, loadStats])
 
   // ─── Pull from instrument ─────────────────────────────
   const handlePullFromInstrument = useCallback(async (): Promise<Partial<Record<string, string>>> => {

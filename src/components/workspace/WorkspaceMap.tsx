@@ -1,9 +1,38 @@
 'use client';
 
-import React, { useEffect, useRef, useState, Component } from 'react';
+import React, { useEffect, useRef, useState, useCallback, useMemo, Component } from 'react';
 import { useUIStore } from '@/stores/uiStore';
 import { logger } from '@/lib/logger'
-import { SRID_21037 } from '@/lib/map/projection'
+import { useSelectionStore } from '@/lib/surveyMapEngine/ol/selection';
+import { switchBasemapById } from '@/lib/surveyMapEngine/ol/layers';
+import { exportMapPDF } from '@/lib/surveyMapEngine/io/exportSurface';
+import { SurveyMapEngineProvider } from '@/lib/surveyMapEngine/react/SurveyMapEngineContext';
+import { useSurveyMapEngine } from '@/lib/surveyMapEngine/react/useSurveyMapEngine';
+
+/** Stable DOM id so the engine export surface can capture this map canvas. */
+const WORKSPACE_MAP_CONTAINER_ID = 'metardu-workspace-map';
+
+/**
+ * WorkspacePrintButton — print affordance driven by the survey map engine
+ * context (plan Phase 5 consumer rewiring). The generator is reached through
+ * the engine io surface, never imported by this component.
+ */
+function WorkspacePrintButton({ className }: { className: string }) {
+  const { exportApi } = useSurveyMapEngine();
+  const handlePrint = useCallback(() => {
+    void exportApi.exportMapPDF(WORKSPACE_MAP_CONTAINER_ID, {
+      paperSize: 'a4',
+      orientation: 'landscape',
+    });
+  }, [exportApi]);
+  return (
+    <button onClick={handlePrint} title="Print / PDF" className={className}>
+      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2M6 14h12v8H6v-8z" />
+      </svg>
+    </button>
+  );
+}
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -26,8 +55,8 @@ interface WorkspaceMapProps {
     adjustedStations?: Array<StationCoord> | null;
     stations?: StationCoord[];
   } | null;
-  /** T1.5 FIX (2026-07-09): UTM EPSG for coordinate transforms (default 'EPSG:21037') */
-  epsg?: string;
+  /** Project UTM EPSG (e.g. 'EPSG:21037') — required; never defaulted (plan F3) */
+  epsg: string;
 }
 
 // ── Error Boundary ────────────────────────────────────────────────────
@@ -68,13 +97,17 @@ function extractCoord(s: StationCoord): [number, number] | null {
 
 // ── Component ─────────────────────────────────────────────────────────
 
-export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:21037' }: WorkspaceMapProps) {
+export default function WorkspaceMap({ projectId, projectName, boundaryData, epsg }: WorkspaceMapProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import('ol/Map').default | null>(null);
+  const projectExtentRef = useRef<[number, number, number, number] | null>(null);
   const coordBarRef = useRef<HTMLDivElement>(null);
   const throttleRef = useRef(0);
   const [ready, setReady] = useState(false);
+  const [initError, setInitError] = useState<string | null>(null);
   const [stationCount, setStationCount] = useState(0);
+  const [pointStatus, setPointStatus] = useState('Loading survey points in view…');
+  const [boundaryPartial, setBoundaryPartial] = useState(false);
 
   // Sync active tool from uiStore
   const setViewport = useUIStore(s => s.setViewport);
@@ -106,14 +139,15 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
     if (!containerRef.current || mapRef.current) return;
     let map: import('ol/Map').default | null = null;
     let cancelled = false;
+    let viewportRequest: AbortController | null = null;
+    let disposeViewportListeners: (() => void) | null = null;
+    const extentRequest = new AbortController();
 
     async function init() {
       try {
-        // Register EPSG:21037 projection
-        try {
-          const { registerProjections } = await import('@/lib/map/projection');
-          await registerProjections();
-        } catch { /* projection registration optional */ }
+        // Register the actual project CRS with OpenLayers before plotting any points.
+        const { registerProjectProjection } = await import('@/lib/map/projection');
+        await registerProjectProjection(epsg);
 
         // Load only core OL modules needed
         const [Map, View, TileLayer, OSM, XYZ, VectorLayer, VectorSource,
@@ -160,39 +194,66 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
         });
         satLayer.set('basemapId', 'satellite');
 
-        // ── Station layer ──
+        // ── Bounded boundary display and viewport survey points ──
         const stationSource = new VectorSource();
-        const stations = boundaryData?.adjustedStations || [];
+        const viewportSource = new VectorSource();
+        const allBoundaryStations = boundaryData?.adjustedStations ?? [];
+        const isBoundaryPartial = allBoundaryStations.length > 500;
+        setBoundaryPartial(isBoundaryPartial);
+        // Never draw a traverse from a truncated boundary: that would imply a
+        // closed parcel where no complete geometry has been established.
+        const stations = allBoundaryStations.slice(0, 500);
         const validCoords: Array<[number, number, string]> = [];
-
         for (const s of stations) {
-          const c = extractCoord(s as StationCoord);
+          const c = extractCoord(s);
           if (!c) continue;
           try {
             const [e3857, n3857] = proj.transform(c, epsg, 'EPSG:3857');
-            const name = (s as StationCoord).pointName || `P${validCoords.length + 1}`;
+            if (!Number.isFinite(e3857) || !Number.isFinite(n3857)) continue;
+            const name = s.pointName || `P${validCoords.length + 1}`;
             validCoords.push([e3857, n3857, name]);
-
             const feat = new Feature({ geometry: new Point([e3857, n3857]) });
             feat.set('name', name);
             stationSource.addFeature(feat);
-          } catch { /* skip bad coords */ }
+          } catch { /* skip bad coordinates */ }
         }
-        setStationCount(validCoords.length);
 
-        // ── Traverse line layer ──
         const lineSource = new VectorSource();
-        if (validCoords.length >= 2) {
+        if (!isBoundaryPartial && validCoords.length >= 2) {
           const coords = validCoords.map(([e, n]) => [e, n]);
-          // Auto-close polygon
           if (coords.length >= 3) coords.push([...coords[0]]);
-          const lineFeat = new Feature({ geometry: new LineString(coords) });
-          lineSource.addFeature(lineFeat);
+          lineSource.addFeature(new Feature({ geometry: new LineString(coords) }));
         }
 
-        const stationLayer = new VectorLayer({
-          source: stationSource,
-          style: (feature: import('ol/Feature').FeatureLike) => {
+        let surveyExtent: [number, number, number, number] | null = null;
+        try {
+          const response = await fetch(`/api/project/${encodeURIComponent(projectId)}/map-points?mode=extent`, {
+            signal: extentRequest.signal,
+          });
+          if (!response.ok) throw new Error(`Project extent request failed (${response.status})`);
+          const overview: unknown = await response.json();
+          const rawExtent = (overview as { extent?: unknown } | null)?.extent;
+          if (Array.isArray(rawExtent) && rawExtent.length === 4 &&
+              rawExtent.every((value: unknown) => typeof value === 'number' && Number.isFinite(value))) {
+            const [minE, minN, maxE, maxN] = rawExtent as [number, number, number, number];
+            // A one-point project still needs a finite area for OpenLayers fit.
+            const padded: [number, number, number, number] = [
+              minE === maxE ? minE - 1 : minE,
+              minN === maxN ? minN - 1 : minN,
+              minE === maxE ? maxE + 1 : maxE,
+              minN === maxN ? maxN + 1 : maxN,
+            ];
+            const transformed = proj.transformExtent(padded, epsg, 'EPSG:3857', 8);
+            if (transformed.every(Number.isFinite)) surveyExtent = transformed as [number, number, number, number];
+          }
+        } catch (error) {
+          if (!cancelled && !extentRequest.signal.aborted) {
+            logger.warn('[WorkspaceMap] extent unavailable', { error });
+          }
+        }
+        if (cancelled || !containerRef.current) return;
+
+        const pointStyle = (feature: import('ol/Feature').FeatureLike) => {
             const name = (feature.get('name') as string | undefined) || '';
             return new Style({
               image: new CircleStyle({
@@ -208,9 +269,9 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
                 offsetY: -16,
               }),
             });
-          },
-          zIndex: 10,
-        });
+        };
+        const stationLayer = new VectorLayer({ source: stationSource, style: pointStyle, zIndex: 10 });
+        const viewportLayer = new VectorLayer({ source: viewportSource, style: pointStyle, zIndex: 11 });
 
         const lineLayer = new VectorLayer({
           source: lineSource,
@@ -231,10 +292,14 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
         // ── Create map ──
         map = new Map({
           target: containerRef.current,
-          layers: [osmLayer, satLayer, lineLayer, stationLayer],
+          layers: [osmLayer, satLayer, lineLayer, stationLayer, viewportLayer],
           view: new View({
-            center: proj.fromLonLat([37.0, -1.0]),
-            zoom: validCoords.length > 0 ? 16 : 7,
+            center: surveyExtent
+              ? [(surveyExtent[0] + surveyExtent[2]) / 2, (surveyExtent[1] + surveyExtent[3]) / 2]
+              : validCoords.length > 0
+                ? [validCoords[0][0], validCoords[0][1]]
+                : proj.fromLonLat([36.8219, -1.2921]),
+            zoom: surveyExtent || validCoords.length > 0 ? 17 : 8,
             maxZoom: 22, minZoom: 2,
           }),
           controls: [
@@ -267,7 +332,7 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
                         document.createTextNode(' '),
                         span(n.toFixed(1), 'text-[#D17B47] font-mono'),
                         document.createTextNode(' '),
-                        span(SRID_21037, 'text-gray-600 text-[9px]')
+                        span(epsg, 'text-gray-600 text-[9px]')
                       );
                     }
                   }
@@ -290,13 +355,14 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
           style: new Style({
             image: new CircleStyle({ radius: 9, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
           }),
-          hitTolerance: 8, layers: [stationLayer],
+          hitTolerance: 8, layers: [stationLayer, viewportLayer],
         });
         select.on('select', (evt: import('ol/interaction/Select').SelectEvent) => {
           if (evt.selected.length > 0) {
             const f = evt.selected[0];
             const coord = f.getGeometry()?.getClosestPoint(evt.mapBrowserEvent.coordinate);
             const name = (f.get('name') as string | undefined) || 'Station';
+            useSelectionStore.getState().setSelection({ kind: 'station', surface: 'workspace', ids: [name] });
             // VULN-002 FIX (security review 2026-08-03): station names are
             // user-entered — render with textContent, never innerHTML.
             popupEl.replaceChildren();
@@ -313,6 +379,7 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
             popupEl.className = '';
             if (coord) popup.setPosition(coord);
           } else {
+            useSelectionStore.getState().clearSelectionFrom('workspace');
             popupEl.className = 'hidden';
             popup.setPosition(undefined);
           }
@@ -322,15 +389,86 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
         // ── Click on map to select ──
         map.on('click', () => { /* popup handled by select */ });
 
-        // ── Fit to project extent ──
-        if (validCoords.length > 0) {
+        // ── Fit to complete project extent, then load only visible points ──
+        const boundaryExtent = !isBoundaryPartial && validCoords.length > 0
+          ? stationSource.getExtent() as [number, number, number, number]
+          : null;
+        projectExtentRef.current = surveyExtent ?? boundaryExtent;
+        if (projectExtentRef.current) {
           try {
-            const extent = stationSource.getExtent();
-            if (extent && extent[0] !== Infinity) {
-              map.getView().fit(extent, { padding: [40, 40, 40, 40], maxZoom: 18, duration: 500 });
-            }
-          } catch { /* keep default */ }
+            map.getView().fit(projectExtentRef.current, {
+              padding: [40, 40, 40, 40], maxZoom: 18, duration: 0,
+            });
+          } catch { /* keep initial center */ }
         }
+
+        const activeMap = map;
+        const loadViewportPoints = async () => {
+          const size = activeMap.getSize();
+          if (!size || size[0] === 0 || size[1] === 0) return;
+          viewportRequest?.abort();
+          const request = new AbortController();
+          viewportRequest = request;
+          viewportSource.clear();
+          setStationCount(0);
+          setPointStatus('Loading survey points in view…');
+          try {
+            const bbox = proj.transformExtent(
+              activeMap.getView().calculateExtent(size), 'EPSG:3857', epsg, 8,
+            );
+            if (bbox.length !== 4 || bbox.some(value => !Number.isFinite(value)) ||
+                bbox[0] >= bbox[2] || bbox[1] >= bbox[3]) {
+              setPointStatus('Zoom in to a valid project area to load survey points.');
+              return;
+            }
+            const response = await fetch(
+              `/api/project/${encodeURIComponent(projectId)}/map-points?bbox=${encodeURIComponent(bbox.join(','))}`,
+              { signal: request.signal },
+            );
+            if (!response.ok) throw new Error(`Survey point request failed (${response.status})`);
+            const data: unknown = await response.json();
+            const payload = data as { points?: unknown; truncated?: unknown } | null;
+            if (!Array.isArray(payload?.points) || typeof payload.truncated !== 'boolean') {
+              throw new Error('Invalid survey point response');
+            }
+            if (cancelled || viewportRequest !== request) return;
+            let displayed = 0;
+            const points = payload.points as unknown[];
+            for (const rawPoint of points.slice(0, 500)) {
+              if (!rawPoint || typeof rawPoint !== 'object') continue;
+              const point = rawPoint as { name?: unknown; easting?: unknown; northing?: unknown };
+              const e = Number(point.easting);
+              const n = Number(point.northing);
+              if (!Number.isFinite(e) || !Number.isFinite(n)) continue;
+              try {
+                const coordinate = proj.transform([e, n], epsg, 'EPSG:3857');
+                if (!coordinate.every(Number.isFinite)) continue;
+                const feature = new Feature({ geometry: new Point(coordinate) });
+                feature.set('name', typeof point.name === 'string' && point.name ? point.name : 'Survey point');
+                viewportSource.addFeature(feature);
+                displayed++;
+              } catch { /* skip unprojectable point */ }
+            }
+            setStationCount(displayed);
+            setPointStatus(payload.truncated
+              ? `Showing the first ${displayed} of more than 500 points in view. Zoom in for the rest.`
+              : `Showing all ${displayed} survey points in view.`);
+          } catch (error) {
+            if (!request.signal.aborted && !cancelled) {
+              logger.warn('[WorkspaceMap] viewport points unavailable', { error });
+              setPointStatus('Survey points could not load for this view. Pan or zoom to retry.');
+            }
+          }
+        };
+        const onViewportChange = () => { void loadViewportPoints(); };
+        activeMap.on('moveend', onViewportChange);
+        activeMap.on('change:size', onViewportChange);
+        disposeViewportListeners = () => {
+          activeMap.un('moveend', onViewportChange);
+          activeMap.un('change:size', onViewportChange);
+        };
+        activeMap.updateSize();
+        void loadViewportPoints();
 
         // ── Expose toggleBasemap ──
         ;(map as MapWithWsMeta)._wsMeta = { projectName };
@@ -338,6 +476,7 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
         if (!cancelled) setReady(true);
       } catch (err: unknown) {
         logger.error('[WorkspaceMap] init failed:', { error: err });
+        if (!cancelled) setInitError(err instanceof Error ? err.message : 'Map could not load');
       }
     }
 
@@ -349,24 +488,27 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
 
     return () => {
       cancelled = true;
+      extentRequest.abort();
+      viewportRequest?.abort();
+      disposeViewportListeners?.();
+      projectExtentRef.current = null;
       ro.disconnect();
       if (map) { try { map.setTarget(undefined); } catch {} mapRef.current = null; }
     };
-  }, [boundaryData, epsg, projectName]);
+  }, [boundaryData, epsg, projectName, projectId]);
 
   // ── Basemap toggle ──
   const toggleBasemap = (mode: 'osm' | 'satellite') => {
     if (!mapRef.current) return;
-    for (const layer of mapRef.current.getLayers().getArray()) {
-      const id = layer.get('basemapId') as string | undefined;
-      if (id) layer.setVisible(id === mode);
-    }
+    switchBasemapById(mapRef.current, mode);
   };
 
-  // ── Fit to project ──
+  // ── Fit to the complete server-reported project extent ──
   const fitProject = () => {
-    if (!mapRef.current) return;
-    mapRef.current.getView().animate({ center: mapRef.current.getView().getCenter(), zoom: 16, duration: 400 });
+    if (!mapRef.current || !projectExtentRef.current) return;
+    mapRef.current.getView().fit(projectExtentRef.current, {
+      padding: [40, 40, 40, 40], maxZoom: 18, duration: 400,
+    });
   };
 
   const zoomBy = (delta: number) => {
@@ -377,16 +519,45 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
 
   const BTN = 'w-7 h-7 flex items-center justify-center rounded-md bg-[#14141e]/90 border border-white/[0.08] hover:bg-[#14141e] text-gray-400 hover:text-white transition-colors';
 
+  // Phase 5: export/print entries exposed through the engine context. The
+  // workspace surface has no sheet-layout overlay, so only the print entry is
+  // bound; the button reads it back via useSurveyMapEngine().
+  const printApi = useMemo(
+    () => ({
+      sheetLayoutOpen: false,
+      openSheetLayout: () => {},
+      closeSheetLayout: () => {},
+      toggleSheetLayout: () => {},
+      print: () => {
+        void exportMapPDF(WORKSPACE_MAP_CONTAINER_ID, {
+          paperSize: 'a4',
+          orientation: 'landscape',
+        });
+      },
+    }),
+    []
+  );
+
   return (
+    <SurveyMapEngineProvider printApi={printApi}>
     <MapEB>
       <div className="h-full w-full relative bg-[#0a0a0f]">
-        <div ref={containerRef} className="w-full h-full" />
+        <div id={WORKSPACE_MAP_CONTAINER_ID} ref={containerRef} className="w-full h-full" />
 
         {!ready && (
           <div className="absolute inset-0 flex items-center justify-center bg-[#0a0a0f]/80 z-10">
-            <div className="text-center">
-              <div className="w-6 h-6 border-2 border-[#D17B47] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-              <p className="text-xs text-gray-500">Loading map...</p>
+            <div className="max-w-xs px-5 text-center">
+              {initError ? (
+                <>
+                  <p className="text-sm font-medium text-red-400">Map could not load</p>
+                  <p className="mt-1 text-xs text-gray-400">{initError}</p>
+                </>
+              ) : (
+                <>
+                  <div className="w-6 h-6 border-2 border-[#D17B47] border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <p className="text-xs text-gray-500">Loading map...</p>
+                </>
+              )}
             </div>
           </div>
         )}
@@ -395,7 +566,7 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
           <>
             {/* Controls - top right */}
             <div className="absolute top-2 right-2 z-10 flex flex-col gap-1">
-              <button onClick={fitProject} title="Fit to project" className={BTN}>
+              <button onClick={fitProject} title="Fit to project extent" disabled={!projectExtentRef.current} className={BTN}>
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" />
                 </svg>
@@ -421,16 +592,18 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                 </svg>
               </button>
+              <div className="w-full h-px bg-white/[0.06] my-0.5" />
+              <WorkspacePrintButton className={BTN} />
             </div>
 
-            {/* Station badge - top left */}
-            {stationCount > 0 && (
-              <div className="absolute top-2 left-2 z-10">
-                <div className="bg-[#14141e]/90 border border-white/[0.08] rounded-full px-2.5 py-1">
-                  <span className="text-xs text-[#D17B47] font-semibold">{stationCount} beacon{stationCount > 1 ? 's' : ''}</span>
-                </div>
+            {/* Viewport point count and explicit partial-loading status */}
+            <div className="absolute top-2 left-2 z-10 max-w-[min(28rem,calc(100%-5rem))]">
+              <div className="bg-[#14141e]/95 border border-white/[0.08] rounded-lg px-3 py-2 shadow-lg" role="status" aria-live="polite">
+                <span className="text-xs text-[#D17B47] font-semibold">{stationCount} survey points loaded</span>
+                <p className="text-[11px] leading-4 text-gray-300">{pointStatus}</p>
+                {boundaryPartial && <p className="text-[11px] leading-4 text-amber-300">Boundary station display is limited to the first 500; traverse line omitted.</p>}
               </div>
-            )}
+            </div>
 
             {/* Coordinate bar - bottom */}
             <div className="absolute bottom-0 left-0 right-0 z-10">
@@ -442,5 +615,6 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
         )}
       </div>
     </MapEB>
+    </SurveyMapEngineProvider>
   );
 }

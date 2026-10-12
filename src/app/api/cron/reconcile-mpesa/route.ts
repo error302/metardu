@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { logger } from '@/lib/logger'
 import type { PlanId } from '@/lib/subscription/catalog'
@@ -46,6 +46,7 @@ export async function POST(req: NextRequest) {
   if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  setCurrentRlsServiceRole('billing_reconciliation')
 
   const mpesa = getMpesaService()
   if (!mpesa) {

@@ -52,7 +52,7 @@ export default function CutFillPage() {
 
       <ComputeLimitNotice
         tool="Cut & fill volumes"
-        message="The web tool computes a fixed grid TIN for quick estimates. For large earthworks projects, dense TINs, or mass-haul runs, the METARDU desktop app computes everything locally — no size limits, no uploads."
+        message="This tool computes a fixed-grid TIN for preliminary estimates. Verify source levels, boundaries and the comparison surface before using the quantities for construction or pricing."
       />
 
       <div className="flex gap-2 mb-4">

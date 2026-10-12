@@ -1,14 +1,36 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, DragEvent } from 'react'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  getListings, searchListings, postListing,
-  sendInquiry, getInquiriesFor,
   InstrumentListing, ListingType, InstrumentCategory, Currency, Condition,
   CATEGORIES, CONDITIONS, BRANDS, COUNTRIES, CURRENCIES, fmtPrice,
 } from '@/lib/marketplace/instruments'
+import {
+  fetchListings, createListing, sendInquiry, fetchInquiries
+} from '@/lib/marketplace/apiClient'
 import { compressImage, isImageFile, MAX_IMAGES, base64Bytes } from '@/lib/marketplace/imageUtils'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
+import { getPlanPrice } from '@/lib/subscription/catalog'
+
+interface MarketplaceInquiry {
+  id: string
+  buyerName?: string
+  buyerContact?: string
+  contactEmail?: string
+  contactPhone?: string
+  sentAt?: string
+  createdAt?: string
+  message: string
+}
+
+function isMarketplaceInquiry(value: unknown): value is MarketplaceInquiry {
+  if (!value || typeof value !== 'object') return false
+  const inquiry = value as Record<string, unknown>
+  return typeof inquiry.id === 'string' && typeof inquiry.message === 'string' &&
+    ['buyerName', 'buyerContact', 'contactEmail', 'contactPhone', 'sentAt', 'createdAt']
+      .every(key => inquiry[key] === undefined || typeof inquiry[key] === 'string')
+}
 
 // ── tiny helpers ─────────────────────────────────────────────────────────────
 
@@ -40,6 +62,7 @@ function typeBadge(t: ListingType) {
 function typeLabel(t: ListingType) {
   if (t === 'sale') return 'For sale'
   if (t === 'rent') return 'For rent'
+  if (t === 'trade') return 'For trade'
   return 'Wanted'
 }
 
@@ -280,19 +303,6 @@ function ImageGallery({ images }: { images: string[] }) {
 
 // ── Post listing modal ────────────────────────────────────────────────────────
 
-// ── Verified badge ───────────────────────────────────────────────────────────
-
-function VerifiedBadge({ small = false }: { small?: boolean }) {
-  return (
-    <span className={`inline-flex items-center gap-1 bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-full font-medium ${small ? 'text-[9px] px-1.5 py-0.5' : 'text-xs px-2 py-0.5'}`}>
-      <svg className={small ? 'w-2.5 h-2.5' : 'w-3 h-3'} viewBox="0 0 24 24" fill="currentColor">
-        <path fillRule="evenodd" d="M8.603 3.799A4.49 4.49 0 0112 2.25c1.357 0 2.573.6 3.397 1.549a4.49 4.49 0 013.498 1.307 4.491 4.491 0 011.307 3.497A4.49 4.49 0 0121.75 12a4.49 4.49 0 01-1.549 3.397 4.491 4.491 0 01-1.307 3.497 4.491 4.491 0 01-3.497 1.307A4.49 4.49 0 0112 21.75a4.49 4.49 0 01-3.397-1.549 4.49 4.49 0 01-3.498-1.307 4.491 4.491 0 01-1.307-3.497A4.49 4.49 0 012.25 12c0-1.357.6-2.573 1.549-3.397a4.49 4.49 0 011.307-3.497 4.49 4.49 0 013.497-1.307zm7.007 6.387a.75.75 0 10-1.22-.872l-3.236 4.53L9.53 12.22a.75.75 0 00-1.06 1.06l2.25 2.25a.75.75 0 001.14-.094l3.75-5.25z" clipRule="evenodd" />
-      </svg>
-      Verified Pro
-    </span>
-  )
-}
-
 // ── Upgrade prompt ────────────────────────────────────────────────────────────
 
 function UpgradeToPost({ onClose }: { onClose: () => void }) {
@@ -304,19 +314,17 @@ function UpgradeToPost({ onClose }: { onClose: () => void }) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
           </svg>
         </div>
-        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Pro required to post</h2>
+        <h2 className="text-xl font-bold text-[var(--text-primary)] mb-2">Posting requires Pro</h2>
         <p className="text-sm text-[var(--text-secondary)] mb-3 leading-relaxed">
           Posting listings on the equipment marketplace is a <strong className="text-[var(--text-primary)]">Pro feature</strong>. 
-          Upgrade to list your instruments for sale or rent — and get a <strong className="text-[var(--accent)]">Verified Pro</strong> badge 
-          that builds buyer trust.
+          Upgrade to list instruments for sale or rent. A subscription does not verify identity, ownership, or calibration.
         </p>
 
         {/* What Pro gets you */}
         <div className="bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] p-4 mb-6 text-left space-y-2">
           {[
             'Post unlimited sale and rental listings',
-            'Verified Pro badge on every listing',
-            'Buyers see your listings first',
+            'Post wanted ads and receive inquiries',
             'Unlimited survey projects',
             'Full PDF + DXF reports',
             'GPS stakeout mode',
@@ -333,27 +341,54 @@ function UpgradeToPost({ onClose }: { onClose: () => void }) {
         <div className="flex gap-3">
           <button onClick={onClose} className="btn btn-secondary flex-1">Cancel</button>
           <a href="/pricing" className="btn btn-primary flex-1">
-            Upgrade — KSh 500/mo
+            View Pro pricing
           </a>
         </div>
-        <p className="text-xs text-[var(--text-muted)] mt-3">14-day free trial · No card needed to start</p>
+        <p className="text-xs text-[var(--text-muted)] mt-3">Pro is KSh {getPlanPrice('pro', 'KES').toLocaleString('en-KE')}/month in Kenya. Check the available method and final amount before payment.</p>
       </div>
     </div>
   )
 }
 
-const BLANK: Omit<InstrumentListing, 'id' | 'postedAt' | 'sold'> = {
+const BLANK: Omit<InstrumentListing, 'id' | 'postedAt' | 'sold' | 'verified'> = {
   type: 'sale', category: 'total_station', title: '', brand: '', model: '',
   condition: 'good', year: undefined, description: '', price: 0,
   currency: 'KES', rentPeriod: undefined, location: '', country: 'Kenya',
-  sellerName: '', sellerContact: '', images: [], verified: false,
+  sellerName: '', sellerContact: '', images: [],
 }
 
-function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListing) => void; onClose: () => void; verified: boolean }) {
-  const [form, setForm] = useState<typeof BLANK>({ ...BLANK })
+function PostModal({ onSave, onClose }: { onSave: (l: InstrumentListing) => void; onClose: () => void }) {
+  const [form, setForm] = useState<typeof BLANK>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const saved = localStorage.getItem('metardu_marketplace_draft')
+        if (saved) return JSON.parse(saved) as typeof BLANK
+      } catch {}
+    }
+    return { ...BLANK }
+  })
   const [err, setErr] = useState('')
-  const [submitting, setSubmitting] = useState(false)
-  const f = <V,>(k: keyof typeof form, v: V) => setForm(p => ({ ...p, [k]: v }))
+
+  const createMutation = useMutation({
+    mutationFn: (data: Parameters<typeof createListing>[0]) => createListing(data),
+    onSuccess: (res) => {
+      if (res) {
+        localStorage.removeItem('metardu_marketplace_draft')
+        onSave(res)
+      } else {
+        setErr('Failed to save listing')
+      }
+    },
+    onError: (e: Error) => {
+      setErr(e.message || 'Failed to save. Try removing some photos.')
+    }
+  })
+
+  const f = <V,>(k: keyof typeof form, v: V) => setForm(p => {
+    const next = { ...p, [k]: v }
+    localStorage.setItem('metardu_marketplace_draft', JSON.stringify(next))
+    return next
+  })
 
   const submit = async () => {
     if (!form.title.trim())         { setErr('Give the listing a title'); return }
@@ -363,16 +398,12 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
     if (!form.price || Number(form.price) <= 0) { setErr('Set a price'); return }
     if (!form.location.trim())      { setErr('Location is required'); return }
     if (!form.sellerName.trim())    { setErr('Your name is required'); return }
-    if (!form.sellerContact.trim()) { setErr('Contact details required so buyers can reach you'); return }
+    if (!form.sellerContact?.trim()) { setErr('Contact details required so buyers can reach you'); return }
     setErr('')
-    setSubmitting(true)
-    try {
-      onSave(postListing({ ...form, price: Number(form.price), verified }))
-    } catch (e: unknown) {
-      setErr((e as Error).message || 'Failed to save. Try removing some photos.')
-      setSubmitting(false)
-    }
+
+    createMutation.mutate({ ...form, price: Number(form.price) })
   }
+
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
@@ -505,8 +536,8 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
 
         <div className="flex gap-3 px-6 pb-5 pt-2 border-t border-[var(--border-color)]">
           <button onClick={onClose} className="btn btn-secondary flex-1">Cancel</button>
-          <button onClick={submit} disabled={submitting} className="btn btn-primary flex-1">
-            {submitting ? 'Saving…' : form.type === 'wanted' ? 'Post wanted ad' : 'Post listing'}
+          <button onClick={submit} disabled={createMutation.isPending} className="btn btn-primary flex-1">
+            {createMutation.isPending ? 'Saving…' : form.type === 'wanted' ? 'Post wanted ad' : 'Post listing'}
           </button>
         </div>
       </div>
@@ -519,12 +550,28 @@ function PostModal({ onSave, onClose, verified }: { onSave: (l: InstrumentListin
 function ListingDetail({ listing, onClose }: {
   listing: InstrumentListing; onClose: () => void; onRefresh: () => void
 }) {
-  const [inquiries, setInquiries] = useState(getInquiriesFor(listing.id))
+  const { data: inquiries = [], refetch } = useQuery({
+    queryKey: ['inquiries', listing.id],
+    queryFn: () => fetchInquiries(listing.id)
+  })
   const [showForm, setShowForm] = useState(false)
   const [sent, setSent] = useState(false)
   const [iqErr, setIqErr] = useState('')
   const [form, setForm] = useState({ buyerName: '', buyerContact: '', message: '' })
   const fq = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }))
+
+  const inquiryMutation = useMutation({
+    mutationFn: async (data: { message: string, contactEmail?: string, contactPhone?: string }) => {
+      const ok = await sendInquiry(listing.id, data)
+      if (!ok) throw new Error('Failed to send inquiry')
+      return ok
+    },
+    onSuccess: () => {
+      setSent(true)
+      refetch()
+    },
+    onError: (e: Error) => setIqErr(e.message)
+  })
 
   // Close the detail drawer on Escape (document-level, works regardless of focus)
   useEffect(() => {
@@ -540,9 +587,13 @@ function ListingDetail({ listing, onClose }: {
     if (!form.buyerName)      { setIqErr('Your name is required');    return }
     if (!form.buyerContact)   { setIqErr('Your contact is required'); return }
     if (!form.message.trim()) { setIqErr('Write a message to the seller'); return }
-    sendInquiry({ listingId: listing.id, ...form })
-    setSent(true)
-    setInquiries(getInquiriesFor(listing.id))
+
+    const isEmail = form.buyerContact.includes('@')
+    inquiryMutation.mutate({
+      message: `${form.buyerName} says: ${form.message}`,
+      contactEmail: isEmail ? form.buyerContact : undefined,
+      contactPhone: !isEmail ? form.buyerContact : undefined,
+    })
   }
 
   return (
@@ -611,9 +662,9 @@ function ListingDetail({ listing, onClose }: {
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <p className="text-sm font-medium text-[var(--text-primary)]">{listing.sellerName}</p>
-              {listing.verified && <VerifiedBadge />}
             </div>
-            <p className="text-sm text-[var(--accent)] mt-0.5">{listing.sellerContact}</p>
+            <p className="text-sm text-[var(--text-secondary)] mt-0.5">Contact is shared after you send an inquiry through METARDU.</p>
+            <p className="text-xs text-[var(--text-muted)] mt-3">Listings are supplied by posters. Confirm identity, ownership, and calibration records before a transaction.</p>
           </div>
 
           {/* Contact form */}
@@ -656,7 +707,9 @@ function ListingDetail({ listing, onClose }: {
               </div>
               <div className="flex gap-2">
                 <button onClick={() => setShowForm(false)} className="btn btn-secondary flex-1 text-sm py-2">Cancel</button>
-                <button onClick={submit} className="btn btn-primary flex-1 text-sm py-2">Send</button>
+                <button onClick={submit} disabled={inquiryMutation.isPending} className="btn btn-primary flex-1 text-sm py-2">
+                  {inquiryMutation.isPending ? 'Sending...' : 'Send'}
+                </button>
               </div>
             </div>
           )}
@@ -668,13 +721,13 @@ function ListingDetail({ listing, onClose }: {
                 Messages received ({inquiries.length})
               </p>
               <div className="space-y-2">
-                {inquiries.map((iq) => (
+                {inquiries.filter(isMarketplaceInquiry).map((iq) => (
                   <div key={iq.id} className="bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] p-3 text-sm">
                     <div className="flex justify-between items-baseline mb-1">
-                      <span className="font-medium text-[var(--text-primary)]">{iq.buyerName}</span>
-                      <span className="text-xs text-[var(--text-muted)]">{relTime(iq.sentAt)}</span>
+                      <span className="font-medium text-[var(--text-primary)]">{iq.buyerName || iq.contactEmail || iq.contactPhone || 'Buyer'}</span>
+                      <span className="text-xs text-[var(--text-muted)]">{relTime(iq.sentAt || iq.createdAt || new Date().toISOString())}</span>
                     </div>
-                    <p className="text-xs text-[var(--accent)] mb-1">{iq.buyerContact}</p>
+                    <p className="text-xs text-[var(--accent)] mb-1">{iq.buyerContact || iq.contactPhone || iq.contactEmail}</p>
                     <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{iq.message}</p>
                   </div>
                 ))}
@@ -750,7 +803,6 @@ function ListingCard({ listing, onClick }: { listing: InstrumentListing; onClick
           </span>
           <div className="text-right">
             <div className="flex items-center gap-1 justify-end">
-              {listing.verified && <VerifiedBadge small />}
               <p className="text-xs text-[var(--text-muted)]">{listing.sellerName}</p>
             </div>
             <p className="text-[10px] text-[var(--text-muted)]">{relTime(listing.postedAt)}</p>
@@ -767,69 +819,84 @@ export default function MarketplacePage() {
   const { plan, isAdmin, isTrialing, loading: subLoading } = useSubscription()
   const isPro = isAdmin || plan === 'pro' || plan === 'team' || plan === 'firm' || plan === 'enterprise' || isTrialing
 
-  const [listings, setListings]       = useState<InstrumentListing[]>([])
   const [search, setSearch]           = useState('')
-  const [filterType, setFilterType]   = useState<'' | ListingType>('sale')
+  const [filterType, setFilterType]   = useState<'' | ListingType>('')
   const [filterCat, setFilterCat]     = useState<'' | InstrumentCategory>('')
   const [filterCountry, setFilterCountry] = useState('')
   const [showPost, setShowPost]       = useState(false)
   const [showUpgrade, setShowUpgrade] = useState(false)
   const [active, setActive]           = useState<InstrumentListing | null>(null)
 
-  const reload = useCallback(() => {
-    if (search.trim()) {
-      setListings(searchListings(search))
-    } else {
-      setListings(getListings({
-        type: filterType || undefined,
-        category: filterCat || undefined,
-        country: filterCountry || undefined,
-      }))
-    }
-  }, [search, filterType, filterCat, filterCountry])
+  const queryClient = useQueryClient()
 
-  useEffect(() => { reload() }, [reload])
+  // Fetch all to derive counts
+  const { data: allListings = [] } = useQuery({
+    queryKey: ['listings-all'],
+    queryFn: () => fetchListings()
+  })
+
+  const { data: listings = [], isPending: listingsPending, isError: listingsError, refetch: refetchListings } = useQuery({
+    queryKey: ['listings', filterType, filterCat, filterCountry, search],
+    queryFn: () => fetchListings({
+      type: filterType || undefined,
+      category: filterCat || undefined,
+      country: filterCountry || undefined,
+      q: search || undefined
+    })
+  })
+
+  const reload = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ['listings'] })
+    queryClient.invalidateQueries({ queryKey: ['listings-all'] })
+  }, [queryClient])
 
   const counts = {
-    sale:   getListings({ type: 'sale'   }).length,
-    rent:   getListings({ type: 'rent'   }).length,
-    wanted: getListings({ type: 'wanted' }).length,
+    sale:   allListings.filter((l: InstrumentListing) => l.type === 'sale').length,
+    rent:   allListings.filter((l: InstrumentListing) => l.type === 'rent').length,
+    wanted: allListings.filter((l: InstrumentListing) => l.type === 'wanted').length,
+    trade:  allListings.filter((l: InstrumentListing) => l.type === 'trade').length,
   }
+  const hasFilters = Boolean(filterType || filterCat || filterCountry || search.trim())
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
 
         {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Equipment marketplace</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">
-              Buy, sell and rent survey instruments — directly between surveyors.
-            </p>
+        <div className="mb-8 border-b border-[var(--border-color)] pb-7">
+          <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Survey equipment / peer listings</p>
+          <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+            <div>
+              <h1 className="text-3xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-4xl">Equipment marketplace</h1>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
+                Find instruments for sale or rent, or post what your crew needs. Listings come from their posters; confirm identity, ownership, condition, and calibration before arranging a transaction.
+              </p>
+            </div>
+            <button
+              onClick={() => isPro ? setShowPost(true) : setShowUpgrade(true)}
+              className="btn btn-primary flex-shrink-0 flex items-center justify-center gap-2 self-start"
+            >
+              {!isPro && !subLoading && (
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                </svg>
+              )}
+              Post a listing <span aria-hidden>↗</span>
+            </button>
           </div>
-          <button
-            onClick={() => isPro ? setShowPost(true) : setShowUpgrade(true)}
-            className="btn btn-primary flex-shrink-0 flex items-center gap-2"
-          >
-            {!isPro && !subLoading && (
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
-              </svg>
-            )}
-            + Post listing
-          </button>
         </div>
 
         {/* Type tabs */}
         <div className="flex gap-2 mb-5 flex-wrap">
           {([
-            { key: '',       label: 'All',        count: counts.sale + counts.rent + counts.wanted },
+            { key: '',       label: 'All',        count: allListings.length },
             { key: 'sale',   label: 'For sale',   count: counts.sale },
             { key: 'rent',   label: 'For rent',   count: counts.rent },
             { key: 'wanted', label: 'Wanted',     count: counts.wanted },
+            ...(counts.trade > 0 ? [{ key: 'trade' as const, label: 'For trade', count: counts.trade }] : []),
           ] as const).map(({ key, label, count }) => (
-            <button key={key} onClick={() => setFilterType(key as ListingType)}
+            <button key={key} onClick={() => setFilterType(key)}
+              aria-pressed={filterType === key}
               className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
                 filterType === key
                   ? 'bg-[var(--accent)] text-black border-[var(--accent)]'
@@ -844,21 +911,45 @@ export default function MarketplacePage() {
         <div className="flex flex-wrap gap-2 mb-6">
           <input value={search} onChange={e => setSearch(e.target.value)}
             aria-label="Search by brand, model, location…"
+            placeholder="Search instruments, brands, models, or towns"
             className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:border-[var(--accent)]" />
           <select value={filterCat} onChange={e => setFilterCat(e.target.value as InstrumentCategory)}
+            aria-label="Filter by category"
             className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg px-3 py-2 text-sm">
             <option value="">All categories</option>
             {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
           </select>
           <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
+            aria-label="Filter by country"
             className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg px-3 py-2 text-sm">
             <option value="">All countries</option>
             {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
           </select>
         </div>
 
-        {/* Empty state */}
-        {listings.length === 0 && (
+        {/* Loading, error, and empty states describe different outcomes. */}
+        {listingsPending && (
+          <div aria-label="Loading listings" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((item) => (
+              <div key={item} className="overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]">
+                <div className="h-44 animate-pulse bg-[var(--bg-tertiary)]" />
+                <div className="space-y-3 p-4">
+                  <div className="h-4 w-3/4 animate-pulse rounded bg-[var(--bg-tertiary)]" />
+                  <div className="h-3 w-1/2 animate-pulse rounded bg-[var(--bg-tertiary)]" />
+                  <div className="h-3 w-2/3 animate-pulse rounded bg-[var(--bg-tertiary)]" />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        {listingsError && (
+          <div role="alert" className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-12 text-center">
+            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Listings could not be loaded</h2>
+            <p className="mx-auto mt-2 max-w-md text-sm text-[var(--text-secondary)]">We could not retrieve listings right now. Please try again in a moment.</p>
+            <button onClick={() => void refetchListings()} className="btn btn-secondary mt-5">Try again</button>
+          </div>
+        )}
+        {!listingsPending && !listingsError && listings.length === 0 && (
           <div className="text-center py-24 border border-dashed border-[var(--border-color)] rounded-2xl">
             <div className="w-14 h-14 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-center mx-auto mb-5">
               <svg className="w-7 h-7 text-[var(--text-muted)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
@@ -866,21 +957,23 @@ export default function MarketplacePage() {
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">
-              {search || filterCat || filterCountry ? 'No matching listings' : 'No listings yet'}
+              {hasFilters ? 'No matching listings' : 'No listings yet'}
             </h2>
             <p className="text-sm text-[var(--text-muted)] mb-6 max-w-sm mx-auto">
-              {search || filterCat || filterCountry
-                ? 'Try adjusting your filters'
+              {hasFilters
+                ? 'Try another listing type, category, country, or search term.'
                 : 'Be the first to list a survey instrument. Sell, rent out, or post a wanted ad.'}
             </p>
-            {!search && !filterCat && !filterCountry && (
+            {hasFilters ? (
+              <button onClick={() => { setFilterType(''); setFilterCat(''); setFilterCountry(''); setSearch('') }} className="btn btn-secondary">Clear filters</button>
+            ) : (
               <button onClick={() => isPro ? setShowPost(true) : setShowUpgrade(true)} className="btn btn-primary">Post a listing</button>
             )}
           </div>
         )}
 
         {/* Grid */}
-        {listings.length > 0 && (
+        {!listingsPending && !listingsError && listings.length > 0 && (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {listings.map((l) => (
               <ListingCard key={l.id} listing={l} onClick={() => setActive(l)} />
@@ -893,7 +986,6 @@ export default function MarketplacePage() {
 
       {showPost && (
         <PostModal
-          verified={isPro}
           onSave={l => { reload(); setShowPost(false); setActive(l) }}
           onClose={() => setShowPost(false)}
         />

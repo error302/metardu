@@ -31,6 +31,7 @@ import { shoelaceArea } from '@/lib/engine/area'
 
 interface ProjectRow {
   id: string
+  boundary_data?: Record<string,any>
   survey_type: string | null
   utm_zone: number | null
   hemisphere: string | null
@@ -68,7 +69,8 @@ interface ParcelRow {
 function normalizeSurveyType(raw: string | null): SurveyType {
   const v = (raw ?? '').toLowerCase()
   if (v.includes('cadastral') || v.includes('boundary')) return 'cadastral'
-  if (v.includes('engineering') || v.includes('road') || v.includes('construction')) return 'engineering'
+  if (v.includes('construction') || v.includes('building') || v.includes('pile')) return 'construction'
+  if (v.includes('engineering') || v.includes('road')) return 'engineering'
   if (v.includes('geodetic') || v.includes('control')) return 'geodetic'
   if (v.includes('drone') || v.includes('uav')) return 'drone'
   if (v.includes('deformation') || v.includes('monitor')) return 'deformation'
@@ -147,7 +149,7 @@ export async function loadGateInputForProject(
 ): Promise<StatutoryGateInput | null> {
   // 1. Project row
   const projectRes = await db.query(
-    'SELECT id, survey_type, utm_zone, hemisphere FROM projects WHERE id = $1',
+    'SELECT id, survey_type, utm_zone, hemisphere, boundary_data FROM projects WHERE id = $1',
     [projectId]
   )
   if (projectRes.rows.length === 0) return null
@@ -205,11 +207,19 @@ export async function loadGateInputForProject(
     // traverse tables may not exist — skip
   }
 
+  const boundary=project.boundary_data;
+  if(boundary?.computation?.source==='field-observations') {
+    const ratioText=String(boundary.precision_ratio ?? '').replace(/,/g,'').replace(/^1\s*:\s*/,'').trim();
+    const ratio=ratioText==='∞'?Number.MAX_SAFE_INTEGER:Number(ratioText);
+    traverse={stationCount:boundary.adjustedStations?.length ?? 0,angularMisclosureSeconds:undefined,
+      linearErrorM:Number(boundary.linear_misclosure),totalDistanceM:Number(boundary.perimeter_m),precisionRatio:ratio};
+  }
+
   // 3. Field book entries (for station count fallback if no traverse)
   if (!traverse) {
     try {
       const fbRes = await db.query(
-        'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+        'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',
         [projectId]
       )
       const entries = fbRes.rows as FieldBookEntryRow[]

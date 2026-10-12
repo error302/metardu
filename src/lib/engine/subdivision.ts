@@ -14,7 +14,7 @@
  * - Full floating point precision throughout
  * - Round only at final display layer
  * - Bearings: WCB 0-360° clockwise from North
- * - Coordinates: EPSG:21037 (Kenya Arc 1960 / UTM 37S), meters
+ * - Coordinates: Project CRS, meters
  */
 
 import { Point2D } from './types'

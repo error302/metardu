@@ -9,6 +9,8 @@
 
 import { useInstrumentStore } from '@/stores/instrumentStore'
 import { type ToleranceCheckResult } from '@/lib/survey/liveToleranceChecker'
+import { logger } from '@/lib/logger'
+import { readFieldPointId } from '@/lib/field/pointIds'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -129,6 +131,11 @@ class FieldSession {
       return null
     }
 
+    if (this.state.measurements.some(measurement => measurement.pointId === params.pointId)) {
+      logger.warn('[field-session] Duplicate point ID was rejected.', { pointId: params.pointId })
+      return null
+    }
+
     const instrumentStore = useInstrumentStore.getState()
     const latestPoint = instrumentStore.latestPoint
 
@@ -191,8 +198,9 @@ class FieldSession {
         createdAt: new Date(measurement.timestamp).toISOString(),
         syncedAt: null,
       })
-    } catch {
-      /* ignore offline save error */
+    } catch (error) {
+      logger.warn('[field-session] Point was not stored locally; capture was not accepted.', { error })
+      return null
     }
 
     // Add to session state
@@ -262,14 +270,14 @@ class FieldSession {
   /**
    * Load existing measurements from IndexedDB (for session resume).
    */
-  async loadMeasurements() {
+  async loadMeasurements(): Promise<boolean> {
     try {
       const { getObservations } = await import('@/lib/offline/fieldBookDB')
       const observations = await getObservations(this.state.projectId)
       const measurements: FieldMeasurement[] = observations.map((obs) => ({
         id: obs.id,
         timestamp: new Date(obs.createdAt).getTime(),
-        pointId: '',
+        pointId: readFieldPointId(obs.notes),
         stationFrom: obs.station || '',
         stationTo: obs.foresight || undefined,
         latitude: obs.latitude,
@@ -286,8 +294,10 @@ class FieldSession {
         measurements,
         pendingSyncCount: measurements.filter(m => !m.synced).length,
       })
+      return true
     } catch {
-      /* ignore load error */
+      logger.warn('[field-session] Saved observations could not be loaded.')
+      return false
     }
   }
 

@@ -57,7 +57,7 @@ export const GET = apiHandler(
     const gateInput = mergeGateInput(loadedInput, {
       surveyor: {
         name: profile.surveyorName || loadedInput.surveyor.name,
-        licenseNumber: profile.iskNumber || loadedInput.surveyor.licenseNumber,
+        licenseNumber: profile.licenseNumber || loadedInput.surveyor.licenseNumber,
       },
     })
 

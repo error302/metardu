@@ -20,6 +20,7 @@ interface AuthUserRow {
   verified_isk: boolean
   role: string | null
   provider: string | null
+  oauth_provider_id: string | null
   oauth_avatar_url: string | null
   email_verified: boolean | null
 }
@@ -35,15 +36,16 @@ interface NewUserRow {
 /**
  * Find or create a user record when they sign in via OAuth for the first time.
  *
- * - If a user with the same email already exists, link the OAuth account
- *   by updating the provider info (but keep their existing role/password).
+ * - Reuse an already linked provider subject even if its email changes.
+ * - Linking by email requires verified ownership from both the existing
+ *   account and provider (and preserves the existing role/password).
  * - If no user exists, create a new record with role='user' and the
  *   OAUTH_NO_PASSWORD sentinel so that password login is impossible.
  *
  * SECURITY (audit C-06, 2026-08-30): OAuth identity linking no longer trusts a
  * bare email match. Linking into a pre-existing PASSWORD account additionally
  * requires (a) the OAuth provider to have verified the email AND (b) the
- * pre-existing account to be already email-verified (or itself OAuth-created).
+ * pre-existing account to be already email-verified.
  * This kills the classic pre-hijacking chain: attacker registers a victim's
  * email with a password, victim later signs in with Google, and their OAuth
  * identity is silently welded onto the attacker's account. New OAuth accounts
@@ -69,27 +71,38 @@ async function findOrCreateOAuthUser(params: {
   const { email, name, image, provider, providerAccountId, emailVerified } = params
   const normalisedEmail = email.toLowerCase().trim()
 
-  // Try to find existing user by email
+  // Resolve the provider's stable subject before considering an email link.
+  // A changed/unverified provider email must not move an existing identity to
+  // another user's project account.
   const { rows } = await db.query<AuthUserRow>(
-    'SELECT id, email, password_hash, full_name, isk_number, verified_isk, role, provider, oauth_avatar_url, email_verified FROM users WHERE email = $1 LIMIT 1',
-    [normalisedEmail]
+    `SELECT id, email, password_hash, full_name, isk_number, verified_isk, role, provider, oauth_provider_id, oauth_avatar_url, email_verified FROM users
+     WHERE (provider = $2 AND oauth_provider_id = $3) OR email = $1
+     ORDER BY CASE WHEN provider = $2 AND oauth_provider_id = $3 THEN 0 ELSE 1 END
+     LIMIT 2`,
+    [normalisedEmail, provider, providerAccountId]
   )
 
   if (rows.length > 0) {
     // ── Existing user — link OAuth account ──
     const user = rows[0]
+    if (rows.filter((row) => row.provider === provider && row.oauth_provider_id === providerAccountId).length > 1) {
+      throw new Error('Multiple accounts are linked to this provider identity. Contact support to resolve the account records.')
+    }
 
     // SECURITY (audit C-06): refuse to weld an OAuth identity onto a password
     // account that has not proven ownership of the address. Existing accounts
     // created before migration 056 are grandfathered as email_verified.
-    const isOAuthOnlyAccount = user.password_hash === OAUTH_NO_PASSWORD
+    const linkedIdentity = user.provider === provider && user.oauth_provider_id === providerAccountId
     const accountEmailVerified = user.email_verified === true
-    if (!isOAuthOnlyAccount && !accountEmailVerified) {
+    if (user.provider === provider && user.oauth_provider_id && !linkedIdentity) {
+      throw new Error('This provider is already linked to a different identity.')
+    }
+    if (!linkedIdentity && (!emailVerified || !accountEmailVerified)) {
       logger.warn(
         `[auth] Refusing OAuth link onto unverified password account: ${normalisedEmail} via ${provider}`
       )
       throw new Error(
-        'This email address belongs to an existing password account whose ownership has not been verified. Sign in with your password first, or contact support to link this identity.'
+        'Linking an existing account requires verified ownership of the email address from both the account and provider. Sign in with the existing method to manage your account.'
       )
     }
 
@@ -120,7 +133,7 @@ async function findOrCreateOAuthUser(params: {
     // Update provider info and avatar (don't override password_hash or role)
     await db.query(
       `UPDATE users SET
-         provider = COALESCE(provider, $1),
+         provider = CASE WHEN oauth_provider_id IS NULL THEN $1 ELSE provider END,
          oauth_provider_id = COALESCE(oauth_provider_id, $2),
          oauth_avatar_url = COALESCE(oauth_avatar_url, $3),
          updated_at = NOW()
@@ -147,7 +160,7 @@ async function findOrCreateOAuthUser(params: {
       role,
       isk_number: user.isk_number || '',
       verified_isk: user.verified_isk || false,
-      provider: user.provider || provider,
+      provider,
       image: image || user.oauth_avatar_url || null,
     }
   }
@@ -356,29 +369,29 @@ export const authOptions: AuthOptions = {
       },
     }),
 
-    // ── Google OAuth ────────────────────────────────────────────────────────
-    // SECURITY FIX (ByteByteGo audit): allowDangerousEmailAccountLinking was true,
-    // which let an attacker register a Google account with a victim's email and
-    // gain access. Now false — OAuth accounts must be explicitly linked.
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID || '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
-      allowDangerousEmailAccountLinking: false,
-    }),
-
-    // ── Microsoft / Azure AD OAuth ──────────────────────────────────────────
-    AzureADProvider({
-      clientId: process.env.AZURE_AD_CLIENT_ID || '',
-      clientSecret: process.env.AZURE_AD_CLIENT_SECRET || '',
-      tenantId: 'common', // Allow both work/school and personal Microsoft accounts
-      allowDangerousEmailAccountLinking: false,
-    }),
+    // Show OAuth providers only when both credentials exist. This prevents
+    // NextAuth from advertising an empty-config provider that cannot complete.
+    ...(process.env.GOOGLE_CLIENT_ID?.trim() && process.env.GOOGLE_CLIENT_SECRET?.trim()
+      ? [GoogleProvider({
+          clientId: process.env.GOOGLE_CLIENT_ID,
+          clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+          allowDangerousEmailAccountLinking: false,
+        })]
+      : []),
+    ...(process.env.AZURE_AD_CLIENT_ID?.trim() && process.env.AZURE_AD_CLIENT_SECRET?.trim()
+      ? [AzureADProvider({
+          clientId: process.env.AZURE_AD_CLIENT_ID,
+          clientSecret: process.env.AZURE_AD_CLIENT_SECRET,
+          tenantId: 'common', // Allow both work/school and personal Microsoft accounts
+          allowDangerousEmailAccountLinking: false,
+        })]
+      : []),
   ],
   callbacks: {
     /**
      * signIn callback — controls whether a sign-in is allowed.
-     * For OAuth providers, we verify the email is present (OAuth providers
-     * guarantee email verification). We also create/link the user record.
+     * Resolve stable provider identities, and require verified email ownership
+     * on both sides before linking accounts by email.
      */
     async signIn({ user, account, profile }) {
       // Credentials provider handles its own auth in authorize() — always allow
@@ -388,28 +401,28 @@ export const authOptions: AuthOptions = {
 
       // OAuth providers (google, azure-ad)
       if (account?.provider === 'google' || account?.provider === 'azure-ad') {
-        // OAuth providers guarantee email_verified, but double-check
-        if (!user.email) {
+        if (!user.email || !account.providerAccountId?.trim()) {
           logger.warn(`[auth] OAuth sign-in rejected: no email from ${account.provider}`)
           return false
         }
 
         // Google specifically provides email_verified in the profile
         const oauthProfile = profile as Record<string, unknown> | undefined
-        if (account.provider === 'google' && oauthProfile?.email_verified === false) {
+        if (account.provider === 'google' && oauthProfile?.email_verified !== true) {
           logger.warn(`[auth] Google OAuth sign-in rejected: email not verified for ${user.email}`)
           return false
         }
 
-        // SECURITY (audit C-06, 2026-08-30): resolve whether the PROVIDER
-        // actually verified the email, and fail closed when it didn't say.
-        // Google exposes email_verified on the profile; Azure AD work/school
-        // identities are tenant-verified but personal accounts (tenant
-        // 'common') are not guaranteed — without an explicit verified claim
-        // we treat the address as unverified for linking/grant purposes.
-        // Sign-in itself still succeeds; only privileged grants and identity
-        // linking are gated.
-        const providerEmailVerified = oauthProfile?.email_verified === true
+        // Microsoft email claims are mutable, including tenant-provided
+        // claims. Google is authoritative for Gmail/hosted Workspace addresses;
+        // email_verified alone can reflect old ownership of a third-party
+        // mailbox. Other addresses require a separate account-owner challenge
+        // before linking. Previously linked subjects can still sign in.
+        const emailDomain = user.email.trim().toLowerCase().split('@').pop()
+        const hostedDomain = typeof oauthProfile?.hd === 'string' ? oauthProfile.hd.toLowerCase() : ''
+        const providerEmailVerified = account.provider === 'google'
+          && oauthProfile?.email_verified === true
+          && (emailDomain === 'gmail.com' || Boolean(hostedDomain && hostedDomain === emailDomain))
 
         try {
           const oauthUser = await findOrCreateOAuthUser({
@@ -423,6 +436,7 @@ export const authOptions: AuthOptions = {
 
           // Attach DB fields to the user object so jwt callback can access them
           user.id = oauthUser.id
+          user.email = oauthUser.email
           user.name = oauthUser.name
           user.role = oauthUser.role
           user.isk_number = oauthUser.isk_number
@@ -440,8 +454,9 @@ export const authOptions: AuthOptions = {
               logger.warn(`[auth] Suspended OAuth account login attempt: ${user.email}`)
               return false
             }
-          } catch {
-            // surveyor_profiles may not exist — allow sign-in
+          } catch (profileErr) {
+            logger.error('[auth] OAuth suspension check failed — denying sign-in:', { error: profileErr })
+            return false
           }
 
           return true
@@ -467,10 +482,46 @@ export const authOptions: AuthOptions = {
         token.role = (user as { role?: string }).role || 'user'
         token.provider = (user as { provider?: string }).provider || account?.provider || 'credentials'
       }
+
+      // JWTs are otherwise valid until expiry. Compare their per-user session
+      // version on every server session read so password/account-wide revocation
+      // takes effect across devices without relying on a process-local cache.
+      const userId = typeof token.id === 'string' ? token.id : ''
+      if (!userId || token.metarduSessionRevoked) {
+        token.metarduSessionRevoked = true
+        return token
+      }
+
+      const { rows } = await db.query<{ session_version: string | number; is_suspended: boolean }>(
+        `SELECT u.session_version, COALESCE(sp.is_suspended, FALSE) AS is_suspended
+           FROM users u LEFT JOIN surveyor_profiles sp ON sp.user_id = u.id
+          WHERE u.id = $1 LIMIT 1`,
+        [userId],
+      )
+      const currentVersion = Number(rows[0]?.session_version)
+      if (rows[0]?.is_suspended !== false || !Number.isSafeInteger(currentVersion) || currentVersion < 1) {
+        token.metarduSessionRevoked = true
+        return token
+      }
+
+      // Tokens created before migration 081 intentionally fail closed and
+      // require one fresh sign-in; silently adopting the current version here
+      // would let an old, offline token survive a revocation.
+      if (user) {
+        token.sessionVersion = currentVersion
+      } else if (Number(token.sessionVersion) !== currentVersion) {
+        token.metarduSessionRevoked = true
+        return token
+      }
       return token
     },
 
     async session({ session, token }) {
+      if (token.metarduSessionRevoked) {
+        // NextAuth's session endpoint and getServerSession both treat a null
+        // callback result as no authenticated session.
+        return null as unknown as typeof session
+      }
       if (session.user) {
         session.user.id = token.id as string
         session.user.email = token.email as string
@@ -485,6 +536,7 @@ export const authOptions: AuthOptions = {
   },
   pages: {
     signIn: '/login',
+    error: '/login',
   },
   session: {
     strategy: 'jwt',

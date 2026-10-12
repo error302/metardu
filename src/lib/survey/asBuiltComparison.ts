@@ -93,6 +93,8 @@ export interface ComparisonReport {
   totalMatched: number
   totalPassed: number
   totalFailed: number
+  /** Matched points without an observed RL; horizontal PASS is not 3D proof. */
+  verticalIncompletePoints: ComparisonRow[]
 
   /** Overall verdict */
   verdict: 'PASS' | 'FAIL' | 'INCOMPLETE'
@@ -116,6 +118,33 @@ export interface ComparisonInput {
   toleranceV?: number
   /** Max distance for proximity matching in meters (default: 5.0) */
   proximityMaxM?: number
+}
+
+/**
+ * Parse the operator's as-built CSV without inventing levels. IDs, eastings
+ * and northings are required; RL is optional only when the shot is explicitly
+ * horizontal-only. A supplied but malformed RL is rejected.
+ */
+export function parseAsBuiltCsv(csv: string): AsBuiltPoint[] {
+  const lines = csv.split(/\r?\n/)
+  const points: AsBuiltPoint[] = []
+  for (let index = 0; index < lines.length; index++) {
+    const line = lines[index].trim()
+    if (!line) continue
+    const columns = line.split(',').map(value => value.trim())
+    if (index === 0 && /^id\s*,/i.test(line)) continue
+    if (columns.length < 3) throw new Error(`As-built line ${index + 1} requires ID, easting and northing.`)
+    const [id, easting, northing, level] = columns
+    if (!id) throw new Error(`As-built line ${index + 1} is missing a point ID.`)
+    if (easting === '' || northing === '') throw new Error(`As-built line ${index + 1} has non-finite easting/northing.`)
+    const e = Number(easting)
+    const n = Number(northing)
+    if (!Number.isFinite(e) || !Number.isFinite(n)) throw new Error(`As-built line ${index + 1} has non-finite easting/northing.`)
+    const rl = level === undefined || level === '' ? undefined : Number(level)
+    if (level !== undefined && level !== '' && !Number.isFinite(rl)) throw new Error(`As-built line ${index + 1} has a malformed RL.`)
+    points.push({ id, e, n, rl, description: columns[4] || undefined })
+  }
+  return points
 }
 
 // ─── Main Function ──────────────────────────────────────────────────────────
@@ -198,6 +227,7 @@ export function compareAsBuiltToDesign(input: ComparisonInput): ComparisonReport
   // ─── Summary ───
   const passedPoints = rows.filter(r => r.passed)
   const failedPoints = rows.filter(r => !r.passed)
+  const verticalIncompletePoints = rows.filter(r => r.vStatus === 'N/A')
 
   let verdict: 'PASS' | 'FAIL' | 'INCOMPLETE'
   let summary: string
@@ -211,9 +241,12 @@ export function compareAsBuiltToDesign(input: ComparisonInput): ComparisonReport
   } else if (unmatchedDesignPoints.length > 0) {
     verdict = 'INCOMPLETE'
     summary = `${passedPoints.length}/${rows.length} matched points PASS. ${unmatchedDesignPoints.length} design points not yet staked. Continue staking remaining points.`
+  } else if (verticalIncompletePoints.length > 0) {
+    verdict = 'INCOMPLETE'
+    summary = `Horizontal checks pass for all ${passedPoints.length} matched points, but ${verticalIncompletePoints.length} point${verticalIncompletePoints.length === 1 ? '' : 's'} lack an observed RL. Vertical verification is incomplete; do not leave site on a 3D PASS.`
   } else {
     verdict = 'PASS'
-    summary = `All ${passedPoints.length} points within tolerance (±${(toleranceH * 1000).toFixed(0)}mm H / ±${(toleranceV * 1000).toFixed(0)}mm V). Safe to leave site.`
+    summary = `All ${passedPoints.length} supplied points are within tolerance under the configured numeric limits (±${(toleranceH * 1000).toFixed(0)}mm H / ±${(toleranceV * 1000).toFixed(0)}mm V). Confirm control, specification acceptance, remaining observations and surveyor sign-off separately.`
   }
 
   return {
@@ -227,6 +260,7 @@ export function compareAsBuiltToDesign(input: ComparisonInput): ComparisonReport
     totalMatched: rows.length,
     totalPassed: passedPoints.length,
     totalFailed: failedPoints.length,
+    verticalIncompletePoints,
     verdict,
     summary,
     toleranceH,

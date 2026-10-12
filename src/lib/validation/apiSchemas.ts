@@ -298,9 +298,16 @@ export const SearchBenchmarksSchema = z.object({
   country: z.string().max(100).trim().optional(),
   region: z.string().max(100).trim().optional(),
   type: z.enum(['BM', 'CP', 'TRIG', 'TIDAL', 'ALL']).optional(),
-  radiusKm: z.number().positive().max(500).optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  q: z.string().trim().max(100).optional(),
+  types: z.array(z.enum(['BM','CP','TRIG','TIDAL'])).min(1).max(4).optional(),
+  radiusKm: z.number().finite().min(0).max(500).optional(),
+  latitude: z.number().finite().min(-90).max(90).optional(),
+  longitude: z.number().finite().min(-180).max(180).optional(),
+  limit: z.number().int().min(1).max(200).default(100),
+  offset: z.number().int().min(0).max(1000000).default(0),
+}).strict().superRefine((value,ctx)=>{
+  if((value.latitude===undefined)!==(value.longitude===undefined))ctx.addIssue({code:'custom',message:'Both navigation coordinates are required'})
+  if(value.radiusKm!==undefined&&value.latitude===undefined)ctx.addIssue({code:'custom',message:'A radius requires a navigation location'})
 })
 
 export const NearbyBenchmarksSchema = z.object({

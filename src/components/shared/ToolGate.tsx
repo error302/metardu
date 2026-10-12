@@ -25,6 +25,7 @@
 import Link from 'next/link'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { getToolGate, PLAN_RANK } from '@/lib/subscription/toolGates'
+import { getPlanPrice } from '@/lib/subscription/catalog'
 import { Lock, ArrowRight } from 'lucide-react'
 
 interface ToolGateProps {
@@ -104,7 +105,7 @@ export function ToolGate({ toolPath, children }: ToolGateProps) {
         </div>
 
         <p className="text-xs text-[var(--text-muted)] pt-4 border-t border-[var(--border-color)]">
-          From KES 500/month · Cancel anytime · Used by surveyors across East Africa
+          Pro is KES {getPlanPrice('pro', 'KES').toLocaleString('en-KE')}/month. See the pricing page for current plan terms.
         </p>
       </div>
     </div>

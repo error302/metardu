@@ -55,7 +55,11 @@ import logging
 from typing import Optional
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
-from .spatial_cache import SpatialCache
+try:
+    from .spatial_cache import SpatialCache
+except ImportError:
+    # The production worker runs flat modules from /app, not as a package.
+    from spatial_cache import SpatialCache
 
 logger = logging.getLogger(__name__)
 

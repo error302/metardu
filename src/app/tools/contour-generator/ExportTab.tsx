@@ -6,23 +6,30 @@
 
 import type { Bounds, VolumeResult } from './types';
 import { fmt } from './helpers';
+import type { ContourExportMetadata } from './generators';
 
 interface ExportTabProps {
   exportDXF: () => void;
+  exportPDF: () => void;
   exportSVG: () => void;
   exportCSV: () => void;
-  exportGeoJSON: () => void;
   volumeResult: VolumeResult | null;
   bounds: Bounds | null;
+  metadata: ContourExportMetadata;
+  referenceIssue: string | null;
+  exportError: string;
 }
 
 export function ExportTab({
   exportDXF,
+  exportPDF,
   exportSVG,
   exportCSV,
-  exportGeoJSON,
   volumeResult,
   bounds,
+  metadata,
+  referenceIssue,
+  exportError,
 }: ExportTabProps) {
   return (
     <div className="space-y-6">
@@ -32,7 +39,26 @@ export function ExportTab({
           Download contour data in your preferred format. All exports use the generated contour data.
         </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {referenceIssue && <p role="status" className="mb-4 rounded border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200">{referenceIssue}</p>}
+        {exportError && <p role="alert" className="mb-4 rounded border border-red-700 bg-red-950/30 p-3 text-sm text-red-200">{exportError}</p>}
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {/* Print-ready PDF */}
+          <div className="bg-[var(--bg-tertiary)] border border-zinc-700 rounded-lg p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center text-red-400 text-sm font-bold flex-shrink-0">PDF</div>
+              <div>
+                <h3 className="text-sm font-semibold text-white">A3 landscape plan</h3>
+                <p className="text-xs text-zinc-500">Print-ready vector PDF</p>
+              </div>
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed">
+              Includes a map key, equal-scale coordinate frame, scale bar, spot heights, interval, and explicit CRS / datum provenance.
+            </p>
+            <button disabled={referenceIssue != null} onClick={exportPDF} className="min-h-11 px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed">
+              Download A3 PDF
+            </button>
+          </div>
+
           {/* DXF Export */}
           <div className="bg-[var(--bg-tertiary)] border border-zinc-700 rounded-lg p-5">
             <div className="flex items-center gap-3 mb-3">
@@ -41,16 +67,16 @@ export function ExportTab({
               </div>
               <div>
                 <h3 className="text-sm font-semibold text-white">AutoCAD DXF</h3>
-                <p className="text-xs text-zinc-500">LWPOLYLINE per contour, layers by elevation</p>
+              <p className="text-xs text-zinc-500">Elevated LWPOLYLINE on indexed contour layers</p>
               </div>
             </div>
             <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed">
-              Compatible with AutoCAD, Civil 3D, MicroSurvey, QGIS. Each contour placed on its own
-              elevation layer (e.g., C100.0, C101.0).
+              Coordinates remain in metres; each line carries its contour elevation and layer. CRS and datum are noted in the file.
             </p>
             <button
               onClick={exportDXF}
-              className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full"
+              disabled={referenceIssue != null}
+              className="min-h-11 px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Download DXF
             </button>
@@ -68,12 +94,12 @@ export function ExportTab({
               </div>
             </div>
             <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed">
-              Scalable vector graphic of the contour map. Includes coordinate labels, north arrow,
-              scale bar, and elevation coloring. Edit in Inkscape or Illustrator.
+              Equal-scale projected geometry with coordinate graticule, north arrow, key, scale bar, and source-reference labels. Edit in Inkscape or Illustrator.
             </p>
             <button
               onClick={exportSVG}
-              className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full"
+              disabled={referenceIssue != null}
+              className="min-h-11 px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Download SVG
             </button>
@@ -91,44 +117,27 @@ export function ExportTab({
               </div>
             </div>
             <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed">
-              Columns: contour_id, elevation, is_index, point_index, easting, northing.
-              Import into Excel, Google Sheets, or any spreadsheet software.
+              Contour vertices with metre units, index flags, and horizontal / vertical reference columns.
             </p>
             <button
               onClick={exportCSV}
-              className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full"
+              disabled={referenceIssue != null}
+              className="min-h-11 px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Download CSV
             </button>
           </div>
 
-          {/* GeoJSON Export */}
-          <div className="bg-[var(--bg-tertiary)] border border-zinc-700 rounded-lg p-5">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center text-amber-400 text-sm font-bold flex-shrink-0">
-                GEO
-              </div>
-              <div>
-                <h3 className="text-sm font-semibold text-white">GeoJSON</h3>
-                <p className="text-xs text-zinc-500">MultiLineString per contour with properties</p>
-              </div>
-            </div>
-            <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed">
-              Standard GeoJSON FeatureCollection. Each contour is a MultiLineString with
-              elevation and is_index properties. Drop into QGIS, Mapbox, or Leaflet.
-            </p>
-            <button
-              onClick={exportGeoJSON}
-              className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full"
-            >
-              Download GeoJSON
-            </button>
-          </div>
+        </div>
+        <div className="mt-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 text-xs text-[var(--text-secondary)]">
+          <p><strong>Horizontal CRS:</strong> {metadata.horizontalCrs.trim() || 'Not specified in source data'}</p>
+          <p className="mt-1"><strong>Vertical datum:</strong> {metadata.verticalDatum.trim() || 'Not specified in source data'}</p>
+          <p className="mt-2 text-amber-300">GeoJSON export is withheld until a verified WGS 84 coordinate transformation is available. Projected Easting/Northing must not be labelled as RFC 7946 longitude/latitude.</p>
         </div>
       </div>
 
       {/* Volume information */}
-      {volumeResult && bounds && (
+      {volumeResult && bounds && referenceIssue == null && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
           <h2 className="text-sm font-semibold text-white mb-4">Volume Summary</h2>
           <p className="text-xs text-[var(--text-secondary)] mb-4">

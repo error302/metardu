@@ -10,7 +10,7 @@ import path from 'path'
 import crypto from 'crypto'
 import { logger } from '@/lib/logger'
 
-const STORAGE_ROOT = process.env.STORAGE_ROOT || path.join(process.cwd(), 'uploads')
+const STORAGE_ROOT = process.env.STORAGE_ROOT || path.join(process.cwd(), 'upload')
 const USE_GCS = !!(process.env.GCS_PROJECT_ID && process.env.GCS_BUCKET_NAME)
 
 async function ensureDir(dirPath: string) {
@@ -28,6 +28,10 @@ export async function uploadFile(
   contentType: string,
   folder: string = 'uploads'
 ): Promise<string> {
+  const hash = crypto.randomBytes(8).toString('hex')
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/[. ]+$/g, '') || 'upload'
+  const storagePath = `${folder}/${hash}-${safeName}`
+
   if (USE_GCS) {
     const { Storage } = await import('@google-cloud/storage')
     const gcs = new Storage({
@@ -37,23 +41,20 @@ export async function uploadFile(
         : undefined,
     })
     const bucket = gcs.bucket(process.env.GCS_BUCKET_NAME || 'metardu-storage')
-    const storagePath = `${folder}/${Date.now()}-${filename}`
     const fileRef = bucket.file(storagePath)
     await fileRef.save(file, {
       contentType,
-      metadata: { CacheControl: 'public, max-age=31536000' },
+      // Uploaded survey files, reports, and project evidence are private data.
+      metadata: { CacheControl: 'private, no-store' },
     })
-    return `https://storage.googleapis.com/${bucket.name}/${storagePath}`
+    return storagePath
   }
 
   // Local filesystem fallback
-  const hash = crypto.randomBytes(4).toString('hex')
-  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const relativePath = `${folder}/${hash}-${safeName}`
-  const fullPath = path.join(STORAGE_ROOT, relativePath)
+  const fullPath = path.join(STORAGE_ROOT, storagePath)
   await ensureDir(path.dirname(fullPath))
   await fs.writeFile(fullPath, file)
-  return relativePath
+  return storagePath
 }
 
 export async function downloadFile(filePath: string): Promise<Buffer> {

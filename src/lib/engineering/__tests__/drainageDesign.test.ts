@@ -10,23 +10,28 @@ describe('manningPipeCapacity', () => {
     // Q = 1.40 * 0.0707 ≈ 0.099 m³/s
     expect(result.fullBoreVelocity).toBeGreaterThan(1.0)
     expect(result.fullBoreCapacity).toBeGreaterThan(0.05)
-    expect(result.isSelfCleansing).toBe(true) // V > 0.6
+    expect(result.fullBoreVelocity).toBeGreaterThan(0.6)
+    expect(result.fullBoreCapacity).toBeCloseTo(0.0967007585335561, 12)
+    expect(result.fullBoreVelocity).toBeCloseTo(1.3680358863423319, 12)
   })
 
-  it('velocity < 0.6 for very flat slope', () => {
+  it('returns the calculated velocity for a shallow positive slope', () => {
     const result = manningPipeCapacity({ diameter: 150, manningN: 0.013, slope: 0.0001 })
-    expect(result.isSelfCleansing).toBe(false)
-  })
-
-  it('min self-cleansing gradient is positive', () => {
-    const result = manningPipeCapacity({ diameter: 300, manningN: 0.013, slope: 0.01 })
-    expect(result.minSelfCleansingGradient).toBeGreaterThan(0)
+    expect(result.fullBoreVelocity).toBeGreaterThan(0)
+    expect(result.fullBoreVelocity).toBeLessThan(0.6)
   })
 
   it('larger pipe has more capacity at same slope', () => {
     const r300 = manningPipeCapacity({ diameter: 300, manningN: 0.013, slope: 0.01 })
     const r600 = manningPipeCapacity({ diameter: 600, manningN: 0.013, slope: 0.01 })
     expect(r600.fullBoreCapacity).toBeGreaterThan(r300.fullBoreCapacity)
+  })
+
+  it('rejects missing or non-physical hydraulic inputs', () => {
+    expect(() => manningPipeCapacity({ diameter: 0, manningN: 0.013, slope: 0.01 })).toThrow(/diameter/i)
+    expect(() => manningPipeCapacity({ diameter: 300, manningN: 0, slope: 0.01 })).toThrow(/roughness/i)
+    expect(() => manningPipeCapacity({ diameter: 300, manningN: 0.013, slope: -0.01 })).toThrow(/positive/i)
+    expect(() => manningChannelCapacity({ bedWidth: 1, sideSlope: 1, manningN: 0.015, slope: 0, flowDepth: 0.5 })).toThrow(/slope/i)
   })
 })
 
@@ -49,32 +54,17 @@ describe('rationalMethodCatchment', () => {
   it('computes peak flow correctly', () => {
     // Q = C * I * A / 360 = 0.5 * 50 * 10 / 360 = 0.694 m³/s
     const result = rationalMethodCatchment({
-      area: 10, runoffCoefficient: 0.5, rainfallIntensity: 50, timeOfConcentration: 10,
+      area: 10, runoffCoefficient: 0.5, rainfallIntensity: 50,
     })
     expect(result.peakFlow).toBeCloseTo(0.694, 2)
     expect(result.catchmentArea).toBe(10)
     expect(result.effectiveArea).toBe(5)
   })
 
-  it('urban catchment gets 50-year return period', () => {
-    const result = rationalMethodCatchment({
-      area: 5, runoffCoefficient: 0.85, rainfallIntensity: 75, timeOfConcentration: 10,
-    })
-    expect(result.returnPeriod).toContain('50')
-  })
-
-  it('rural catchment gets 25-year return period', () => {
-    const result = rationalMethodCatchment({
-      area: 50, runoffCoefficient: 0.15, rainfallIntensity: 30, timeOfConcentration: 15,
-    })
-    expect(result.returnPeriod).toContain('25')
-  })
-
-  it('zero area gives zero flow', () => {
-    const result = rationalMethodCatchment({
-      area: 0, runoffCoefficient: 0.5, rainfallIntensity: 50, timeOfConcentration: 10,
-    })
-    expect(result.peakFlow).toBe(0)
+  it('does not infer a return period or silently accept zero catchment area', () => {
+    const result = rationalMethodCatchment({ area: 5, runoffCoefficient: 0.85, rainfallIntensity: 75 })
+    expect(result).not.toHaveProperty('returnPeriod')
+    expect(() => rationalMethodCatchment({ area: 0, runoffCoefficient: 0.5, rainfallIntensity: 50 })).toThrow(/area/i)
   })
 })
 
@@ -110,7 +100,7 @@ describe('sizePipe', () => {
     const result = sizePipe(0.01, 0.013, 0.01) // very small flow
     expect(result).not.toBeNull()
     expect(defined(result).diameter).toBeLessThanOrEqual(300) // should be small pipe
-    expect(defined(result).isSelfCleansing || true) // may or may not be self-cleansing at this size
+    expect(defined(result).capacity).toBeGreaterThanOrEqual(0.01)
   })
 
   it('selects larger diameter for larger flow', () => {

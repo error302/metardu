@@ -2,8 +2,8 @@
  * Generative Lot Subdivision Engine — v0.3
  *
  * Algorithmically subdivides a parent parcel into standard rectangular plots
- * with a road reserve spine. NOT Voronoi — produces regular plots that fit
- * Kenya's standard templates (50×100, 100×100, etc.).
+ * with a road reserve spine. NOT Voronoi — produces regular plots from
+ * user-selected dimensions. Presets are examples, not authority standards.
  *
  * Algorithm:
  * 1. Compute the parent polygon's longest axis (or use user-specified road direction)
@@ -18,7 +18,9 @@
  */
 
 import * as turf from '@turf/turf'
-import type { Feature, Polygon } from 'geojson'
+import type { Feature, MultiPolygon, Polygon } from 'geojson'
+import { isSimplePolygonRing } from '@/lib/spatial/simplePolygon'
+import { coordinateArea } from '@/lib/engine/area'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -63,6 +65,7 @@ export interface SubdivisionResult {
   plots: SubdividedPlot[]
   roadReserve: {
     coordinates: [number, number][]
+    boundaryRings: [number, number][][]
     areaSqM: number
   }
   beacons: BeaconCoordinate[]
@@ -77,21 +80,36 @@ export interface SubdivisionResult {
   warnings: string[]
 }
 
-// ─── Kenya standard plot presets ────────────────────────────────────────────
+function planarRingArea(ring: number[][]): number {
+  return coordinateArea(ring.map(([easting, northing]) => ({ easting, northing }))).areaSqm
+}
+
+function planarGeometryArea(feature: Feature<Polygon | MultiPolygon>): number {
+  const polygons = feature.geometry.type === 'Polygon'
+    ? [feature.geometry.coordinates]
+    : feature.geometry.coordinates
+  return polygons.reduce((total, polygon) => {
+    const [outer, ...holes] = polygon
+    if (!outer) return total
+    return total + Math.max(0, planarRingArea(outer) - holes.reduce((sum, hole) => sum + planarRingArea(hole), 0))
+  }, 0)
+}
+
+// ─── Reference plot dimensions; verify any proposal with the responsible authority. ──
 
 export const KENYA_PLOT_PRESETS = [
-  { label: '50×100 ft (0.045 ha)', width: 15.24, depth: 30.48 },
-  { label: '100×100 ft (0.092 ha)', width: 30.48, depth: 30.48 },
-  { label: '50×50 ft (urban)', width: 15.24, depth: 15.24 },
-  { label: '40×80 ft (0.030 ha)', width: 12.19, depth: 24.38 },
+  { label: '50×100 ft · 0.046 ha', width: 15.24, depth: 30.48 },
+  { label: '100×100 ft · 0.093 ha', width: 30.48, depth: 30.48 },
+  { label: '50×50 ft · 0.023 ha', width: 15.24, depth: 15.24 },
+  { label: '40×80 ft · 0.030 ha', width: 12.19, depth: 24.38 },
   { label: 'Custom', width: 0, depth: 0 },
 ] as const
 
 export const KENYA_ROAD_PRESETS = [
-  { label: '9m (residential access)', width: 9 },
-  { label: '12m (commercial access)', width: 12 },
-  { label: '15m (collector road)', width: 15 },
-  { label: '20m (minor arterial)', width: 20 },
+  { label: '9 m', width: 9 },
+  { label: '12 m', width: 12 },
+  { label: '15 m', width: 15 },
+  { label: '20 m', width: 20 },
 ] as const
 
 // ─── Main subdivision function ──────────────────────────────────────────────
@@ -109,9 +127,17 @@ export function generateSubdivision(input: SubdivisionInput): SubdivisionResult 
   const warnings: string[] = []
 
   // ─── 1. Build parent polygon ─────────────────────────────────────────────
-  const closedBoundary = ensureClosedRing(parentBoundary)
+  const openBoundary = parentBoundary.length > 1
+    && parentBoundary[0][0] === parentBoundary[parentBoundary.length - 1][0]
+    && parentBoundary[0][1] === parentBoundary[parentBoundary.length - 1][1]
+    ? parentBoundary.slice(0, -1)
+    : parentBoundary
+  if (!isSimplePolygonRing(openBoundary.map(([easting, northing]) => ({ easting, northing })))) {
+    throw new Error('Parent boundary must be a finite, non-self-intersecting ring with distinct vertices.')
+  }
+  const closedBoundary = ensureClosedRing(openBoundary)
   const parentPolygon = turf.polygon([closedBoundary]) as Feature<Polygon>
-  const parentArea = turf.area(parentPolygon)
+  const parentArea = planarRingArea(closedBoundary)
 
   // ─── 2. Determine grid rotation ──────────────────────────────────────────
   const rotation = gridRotation !== 0 ? gridRotation : detectLongestAxis(closedBoundary)
@@ -194,7 +220,7 @@ export function generateSubdivision(input: SubdivisionInput): SubdivisionResult 
       const intersection = turf.intersect(turf.featureCollection([plotPolygon, parentPolygon]))
       if (intersection && intersection.geometry.type === 'Polygon') {
         const clippedCoords = (intersection.geometry as Polygon).coordinates[0] as [number, number][]
-        const clippedArea = turf.area(intersection)
+        const clippedArea = planarGeometryArea(intersection as Feature<Polygon | MultiPolygon>)
         if (clippedArea > 1) { // skip tiny slivers from clipping
           clippedPlots.push({
             ...plot,
@@ -218,11 +244,17 @@ export function generateSubdivision(input: SubdivisionInput): SubdivisionResult 
     bbox.origin,
   )
   let roadArea = 0
+  let roadBoundaryRings: [number, number][][] = []
   try {
     const roadPolygon = turf.polygon([roadCoords]) as Feature<Polygon>
     const roadIntersection = turf.intersect(turf.featureCollection([roadPolygon, parentPolygon]))
     if (roadIntersection) {
-      roadArea = turf.area(roadIntersection)
+      roadArea = planarGeometryArea(roadIntersection as Feature<Polygon | MultiPolygon>)
+      if (roadIntersection.geometry.type === 'Polygon') {
+        roadBoundaryRings = [roadIntersection.geometry.coordinates[0] as [number, number][]]
+      } else if (roadIntersection.geometry.type === 'MultiPolygon') {
+        roadBoundaryRings = roadIntersection.geometry.coordinates.map((polygon) => polygon[0] as [number, number][])
+      }
     }
   } catch {
     // ignore
@@ -238,6 +270,7 @@ export function generateSubdivision(input: SubdivisionInput): SubdivisionResult 
     plots: clippedPlots,
     roadReserve: {
       coordinates: roadCoords,
+      boundaryRings: roadBoundaryRings,
       areaSqM: roadArea,
     },
     beacons,
@@ -266,7 +299,7 @@ function ensureClosedRing(coords: [number, number][]): [number, number][] {
 function emptyResult(parentArea: number, warnings: string[]): SubdivisionResult {
   return {
     plots: [],
-    roadReserve: { coordinates: [], areaSqM: 0 },
+    roadReserve: { coordinates: [], boundaryRings: [], areaSqM: 0 },
     beacons: [],
     stats: {
       totalPlots: 0,
@@ -281,22 +314,20 @@ function emptyResult(parentArea: number, warnings: string[]): SubdivisionResult 
 }
 
 /**
- * Detect the longest axis of the polygon by finding the two vertices
- * that are farthest apart. Returns the angle in degrees.
+ * Use the longest parcel edge as the subdivision axis. A farthest-vertex
+ * diagonal on a rectangle is not a road or lot direction.
  */
 function detectLongestAxis(coords: [number, number][]): number {
   let maxDist = 0
   let bestAngle = 0
 
   for (let i = 0; i < coords.length - 1; i++) {
-    for (let j = i + 1; j < coords.length; j++) {
-      const [x1, y1] = coords[i]
-      const [x2, y2] = coords[j]
-      const dist = Math.sqrt((x2 - x1) ** 2 + (y2 - y1) ** 2)
-      if (dist > maxDist) {
-        maxDist = dist
-        bestAngle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI)
-      }
+    const [x1, y1] = coords[i]
+    const [x2, y2] = coords[i + 1]
+    const dist = Math.hypot(x2 - x1, y2 - y1)
+    if (dist > maxDist) {
+      maxDist = dist
+      bestAngle = Math.atan2(y2 - y1, x2 - x1) * (180 / Math.PI)
     }
   }
 

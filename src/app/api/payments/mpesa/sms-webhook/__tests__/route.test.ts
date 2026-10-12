@@ -24,7 +24,17 @@ import { mr } from '@/test-utils/mock-rows'
 jest.mock('@/lib/db', () => {
   const query = jest.fn()
   const getClient = jest.fn()
-  return { __esModule: true, default: { query, getClient }, db: { query, getClient } }
+  const setCurrentRlsServiceRole = jest.fn()
+  const setCurrentUserId = jest.fn()
+  const setRlsContext = jest.fn().mockResolvedValue(undefined)
+  return {
+    __esModule: true,
+    default: { query, getClient },
+    db: { query, getClient },
+    setCurrentRlsServiceRole,
+    setCurrentUserId,
+    setRlsContext,
+  }
 })
 jest.mock('@/lib/email', () => ({
   sendEmail: jest.fn().mockResolvedValue(undefined),
@@ -37,18 +47,19 @@ jest.mock('@/lib/logger', () => ({
 }))
 
 import { POST } from '../route'
-import db from '@/lib/db'
+import db, { setCurrentRlsServiceRole } from '@/lib/db'
 import type { PlanId } from '@/lib/subscription/catalog'
 
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockGetClient = db.getClient as jest.MockedFunction<typeof db.getClient>
+const mockSetCurrentRlsServiceRole = setCurrentRlsServiceRole as jest.MockedFunction<typeof setCurrentRlsServiceRole>
 
 const SECRET = 'test-webhook-secret-3f2a'
 const CLAIM_USER = '22222222-2222-2222-2222-222222222222'
 
 /** Canonical customer-confirmation SMS shape (from smsParser.test.ts). */
-const SMS_OK_500 = {
-  sms: 'SHK489XZY1 Confirmed. Ksh500.00 paid to METARDU BUILDERS AND ENGINEERS on 15/8/26 at 2:30 PM. For balance dial *234#.',
+const SMS_OK_2500 = {
+  sms: 'SHK489XZY1 Confirmed. Ksh2500.00 paid to METARDU BUILDERS AND ENGINEERS on 15/8/26 at 2:30 PM. For balance dial *234#.',
 }
 const SMS_WRONG_AMOUNT = {
   sms: 'QHK389XZY1 Confirmed. Ksh100.00 paid to METARDU BUILDERS AND ENGINEERS on 15/8/26 at 2:30 PM.',
@@ -103,25 +114,27 @@ afterEach(() => {
 describe('POST /api/payments/mpesa/sms-webhook — auth fails CLOSED', () => {
   test('no secret configured → 401 (previously: ANY bearer was accepted)', async () => {
     delete process.env.MPESA_SMS_WEBHOOK_SECRET
-    const res = await POST(webhookRequest(SMS_OK_500, 'attacker-guesses-anything'))
+    const res = await POST(webhookRequest(SMS_OK_2500, 'attacker-guesses-anything'))
     expect(res.status).toBe(401)
     expect(mockDbQuery).not.toHaveBeenCalled()
+    expect(mockSetCurrentRlsServiceRole).not.toHaveBeenCalled()
   })
 
   test('no bearer at all → 401', async () => {
-    const res = await POST(webhookRequest(SMS_OK_500))
+    const res = await POST(webhookRequest(SMS_OK_2500))
     expect(res.status).toBe(401)
   })
 
   test('wrong secret → 401', async () => {
-    const res = await POST(webhookRequest(SMS_OK_500, 'wrong-secret'))
+    const res = await POST(webhookRequest(SMS_OK_2500, 'wrong-secret'))
     expect(res.status).toBe(401)
   })
 
   test('correct bearer secret → processed', async () => {
     mockDbQuery.mockResolvedValue(mr([])) // no pending claim, no existing payment
-    const res = await POST(webhookRequest(SMS_OK_500, SECRET))
+    const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
+    expect(mockSetCurrentRlsServiceRole).toHaveBeenCalledWith('payment_provider')
     const body = await res.json()
     expect(body.action).toBe('recorded_unclaimed_payment')
   })
@@ -131,7 +144,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auth fails CLOSED', () => {
     const req = makeRequest(`/api/payments/mpesa/sms-webhook?secret=${encodeURIComponent(SECRET)}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: SMS_OK_500,
+      body: SMS_OK_2500,
     }) as NextRequest
     const res = await POST(req)
     expect(res.status).toBe(200)
@@ -157,11 +170,14 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
   test('matching amounts: claim completed + subscription granted in ONE transaction', async () => {
     mockDbQuery
       .mockResolvedValueOnce(
+        mr([{ user_id: CLAIM_USER }])
+      ) // provider receipt lookup establishes the RLS owner without exposing payment details
+      .mockResolvedValueOnce(
         mr([
           {
             id: 'claim-1',
             user_id: CLAIM_USER,
-            amount: '500',
+            amount: '2500',
             currency: 'KES',
             metadata: { planId: 'pro', mpesaCode: 'SHK489XZY1' },
           },
@@ -171,7 +187,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
 
     const clientQuery = txClient({ claimRowCount: 1 })
 
-    const res = await POST(webhookRequest(SMS_OK_500, SECRET))
+    const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.action).toBe('activated_pending_claim')
@@ -192,17 +208,19 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
   })
 
   test('SMS amount ≠ claimed plan price → routed to manual review, NOTHING credited', async () => {
-    mockDbQuery.mockResolvedValueOnce(
-      mr([
-        {
-          id: 'claim-1',
-          user_id: CLAIM_USER,
-          amount: '100',
-          currency: 'KES',
-          metadata: { planId: 'pro', mpesaCode: 'QHK389XZY1' },
-        },
-      ])
-    )
+    mockDbQuery
+      .mockResolvedValueOnce(mr([{ user_id: CLAIM_USER }]))
+      .mockResolvedValueOnce(
+        mr([
+          {
+            id: 'claim-1',
+            user_id: CLAIM_USER,
+            amount: '100',
+            currency: 'KES',
+            metadata: { planId: 'pro', mpesaCode: 'QHK389XZY1' },
+          },
+        ])
+      )
 
     const res = await POST(webhookRequest(SMS_WRONG_AMOUNT, SECRET))
     expect(res.status).toBe(200)
@@ -225,11 +243,14 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
   test('duplicate SMS (claim already processed) → already_processed, no double credit', async () => {
     mockDbQuery
       .mockResolvedValueOnce(
+        mr([{ user_id: CLAIM_USER }])
+      ) // provider receipt lookup
+      .mockResolvedValueOnce(
         mr([
           {
             id: 'claim-1',
             user_id: CLAIM_USER,
-            amount: '500',
+            amount: '2500',
             currency: 'KES',
             metadata: { planId: 'pro' as PlanId },
           },
@@ -239,7 +260,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
 
     const clientQuery = txClient({ claimRowCount: 0 }) // someone else claimed it first
 
-    const res = await POST(webhookRequest(SMS_OK_500, SECRET))
+    const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
     const body = await res.json()
     expect(body.action).toBe('already_processed')
@@ -254,10 +275,20 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
 })
 
 describe('POST /api/payments/mpesa/sms-webhook — unclaimed payment recording', () => {
+  test('missing SMS amount is rejected without recording invented money', async () => {
+    mockDbQuery.mockResolvedValue(mr([]))
+    const res = await POST(webhookRequest({ sms: 'SHK489XZY1 Confirmed. Payment received.' }, SECRET))
+    expect(res.status).toBe(422)
+    expect(mockDbQuery).not.toHaveBeenCalled()
+  })
+  test('null body is rejected as a client error', async () => {
+    const res = await POST(webhookRequest(null, SECRET))
+    expect(res.status).toBe(400)
+  })
   test('records an unclaimed payment with a per-transaction provider_id', async () => {
     mockDbQuery.mockResolvedValue(mr([])) // no claim, no existing payment
 
-    const res = await POST(webhookRequest(SMS_OK_500, SECRET))
+    const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
 
     const insertCall = mockDbQuery.mock.calls.find(
@@ -268,7 +299,7 @@ describe('POST /api/payments/mpesa/sms-webhook — unclaimed payment recording',
     // collided on the second SMS (migration 055 unique index).
     const params = JSON.stringify(insertCall?.[1])
     expect(params).toMatch(/TILL_3370347_SHK489XZY1/)
-    expect(params).toContain('500') // amount recorded
+    expect(params).toContain('2500') // amount recorded
   })
 
   test('already-known transaction code is NOT re-inserted', async () => {
@@ -276,7 +307,7 @@ describe('POST /api/payments/mpesa/sms-webhook — unclaimed payment recording',
       .mockResolvedValueOnce(mr([])) // no pending claim
       .mockResolvedValueOnce(mr([{ id: 'existing', status: 'completed' }])) // known payment
 
-    const res = await POST(webhookRequest(SMS_OK_500, SECRET))
+    const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
 
     const insertCall = mockDbQuery.mock.calls.find(

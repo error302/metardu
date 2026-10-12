@@ -1,50 +1,67 @@
 'use client';
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import {
-  FolderKanban, LayoutDashboard, MapPinned, UserRound, UsersRound, Wrench, FileText,
+  FolderKanban, LayoutDashboard, MapPinned, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X,
-  BookOpen, Compass, MapPin, ShieldCheck, type LucideIcon
+  BookOpen, Compass, MapPin, ShieldCheck
 } from 'lucide-react'
-import { PRIMARY_NAV_ITEMS, isNavItemActive } from '@/lib/navigation-shell'
-
-const iconMap: Record<string, LucideIcon> = {
-  dashboard: LayoutDashboard,
-  projects: FolderKanban,
-  tools: Wrench,
-  map: MapPinned,
-  reports: FileText,
-  community: UsersRound,
-  profile: UserRound,
-}
+import { isNavItemActive } from '@/lib/navigation-shell'
 
 /** Pages hidden from the bottom tab bar — shown in the "More" drawer */
 const MORE_PAGES = [
-  { href: '/fieldbook', label: 'Field Book', icon: BookOpen, color: 'text-orange-400' },
+  { href: '/projects', label: 'Projects', icon: FolderKanban, color: 'text-blue-400' },
+  { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
+  { href: '/reports', label: 'Documents & Reports', icon: FileText, color: 'text-purple-400' },
   { href: '/field', label: 'Field Mode', icon: Compass, color: 'text-cyan-400' },
   { href: '/beacons', label: 'Beacon Registry', icon: MapPin, color: 'text-amber-400' },
   { href: '/schedule', label: 'Job Schedule', icon: CalendarDays, color: 'text-blue-400' },
-  { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
-  { href: '/marketplace', label: 'Equipment Marketplace', icon: Store, color: 'text-amber-400' },
 ]
 
 export default function MobileNav() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const moreButtonRef = useRef<HTMLButtonElement>(null)
+  const closeButtonRef = useRef<HTMLButtonElement>(null)
+  const moreDialogRef = useRef<HTMLDivElement>(null)
   const { data: session } = useSession()
   const isAuthenticated = !!session
 
   useEffect(() => { setMounted(true) }, [])
 
-  // Show the unified 5-item navigation + "More" button
-  const mobileNavItems = PRIMARY_NAV_ITEMS
+  useEffect(() => {
+    if (showMore) closeButtonRef.current?.focus()
+  }, [showMore])
+
+  useEffect(() => { setShowMore(false) }, [pathname])
 
   // Check if current page is in the "More" drawer (for active highlighting)
   const isMoreActive = MORE_PAGES.some(p => pathname === p.href || pathname.startsWith(p.href + '/'))
+
+  const handleMoreKeyDown = (event: React.KeyboardEvent) => {
+    if (event.key === 'Escape') {
+      setShowMore(false)
+      moreButtonRef.current?.focus()
+      return
+    }
+    if (event.key !== 'Tab') return
+
+    const focusable = moreDialogRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
+    if (!focusable?.length) return
+    const first = focusable[0]
+    const last = focusable[focusable.length - 1]
+    if (event.shiftKey && document.activeElement === first) {
+      event.preventDefault()
+      last.focus()
+    } else if (!event.shiftKey && document.activeElement === last) {
+      event.preventDefault()
+      first.focus()
+    }
+  }
 
   return (
     <>
@@ -60,14 +77,20 @@ export default function MobileNav() {
         aria-label="Primary mobile navigation"
       >
         <div className="flex justify-around items-stretch">
-          {mobileNavItems.slice(0, 4).map((item) => {
+          {[
+            { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+            { href: '/map', label: 'Map', icon: MapPinned },
+            { href: '/fieldbook', label: 'Field Book', icon: BookOpen },
+            { href: '/marketplace', label: 'Market', icon: Store },
+            { href: '/tools', label: 'Tools', icon: Wrench },
+          ].map((item) => {
             const isActive = isNavItemActive(pathname, item.href)
-            const iconName = item.icon || item.href.replace('/', '')
-            const Icon = iconMap[iconName] || LayoutDashboard
+            const Icon = item.icon
             return (
-              <Link
+            <Link
                 key={item.href}
                 href={item.href}
+                aria-label={item.href === '/marketplace' ? 'Marketplace' : undefined}
                 aria-current={isActive ? 'page' : undefined}
                 className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
@@ -79,31 +102,13 @@ export default function MobileNav() {
             )
           })}
 
-          {/* Reports */}
-          {(() => {
-            const reportsItem = mobileNavItems[4]
-            const isActive = isNavItemActive(pathname, reportsItem.href)
-            const Icon = iconMap['reports'] || FileText
-            return (
-              <Link
-                key={reportsItem.href}
-                href={reportsItem.href}
-                aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
-                  isActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
-                }`}
-              >
-                <Icon className={`h-5 w-5 transition-colors ${isActive ? 'text-[var(--accent)]' : 'text-gray-400'}`} strokeWidth={1.9} />
-                <span className="truncate">{reportsItem.label}</span>
-              </Link>
-            )
-          })()}
-
           {/* More button */}
           <button
+            ref={moreButtonRef}
             onClick={() => setShowMore(true)}
             aria-label="Show more navigation options"
             aria-expanded={showMore}
+            aria-controls="mobile-nav-more"
             className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
               isMoreActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
             }`}
@@ -120,13 +125,18 @@ export default function MobileNav() {
 
       {/* More Drawer */}
       {showMore && (
-        <div className="fixed inset-0 z-[60] flex md:hidden" onKeyDown={(e) => { if (e.key === 'Escape') setShowMore(false) }}>
+        <div className="fixed inset-0 z-[60] flex flex-col justify-end md:hidden" onKeyDown={handleMoreKeyDown}>
           {/* Backdrop */}
-          <button type="button" aria-label="Close menu" tabIndex={-1} className="flex-1 bg-black/60 backdrop-blur-sm cursor-pointer border-0 p-0" onClick={() => setShowMore(false)} />
+          <button type="button" aria-label="Close menu" tabIndex={-1} className="absolute inset-0 bg-black/60 cursor-pointer border-0 p-0" onClick={() => { setShowMore(false); moreButtonRef.current?.focus() }} />
 
           {/* Panel slides up from bottom */}
           <div
-            className="w-full bg-[var(--bg-primary)] border-t border-[var(--border-color)] rounded-t-2xl max-h-[70vh] overflow-y-auto animate-slide-up"
+            ref={moreDialogRef}
+            id="mobile-nav-more"
+            role="dialog"
+            aria-modal="true"
+            aria-label="More navigation options"
+            className="relative w-full bg-[var(--bg-primary)] border-t border-[var(--border-color)] rounded-t-2xl max-h-[70dvh] overflow-y-auto animate-slide-up"
             onClick={e => e.stopPropagation()}
           >
             {/* Handle bar */}
@@ -136,15 +146,15 @@ export default function MobileNav() {
 
             {/* Header */}
             <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-color)]">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">More Tools</h2>
-              <button onClick={() => setShowMore(false)} className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">More</h2>
+              <button ref={closeButtonRef} onClick={() => { setShowMore(false); moreButtonRef.current?.focus() }} aria-label="Close more navigation" className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
             {/* Quick Actions Section */}
             <div className="px-5 pt-4 pb-2">
-              <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Field Operations</p>
+              <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Workspace</p>
               <div className="space-y-1">
                 {MORE_PAGES.map((page) => {
                   const isActive = pathname === page.href || pathname.startsWith(page.href + '/')
@@ -216,8 +226,7 @@ export default function MobileNav() {
               <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Settings</p>
               <div className="space-y-1">
                 {[
-                  { href: '/account', label: 'Account & Billing', icon: 'account' },
-                  { href: '/pricing', label: 'Pricing Plans', icon: 'pricing' },
+                { href: '/account', label: 'Account & Billing', icon: 'account' },
                   { href: '/docs', label: 'Documentation', icon: 'docs' },
                 ].map((item) => (
                   <Link

@@ -6,8 +6,16 @@
  */
 
 import * as Y from 'yjs'
-import { WebrtcProvider } from 'y-webrtc'
 import { IndexeddbPersistence } from 'y-indexeddb'
+// Type-only import: erased at compile time, so the runtime bundle never pulls
+// y-webrtc (and its Node polyfill deps) into the client graph.
+import type { WebrtcProvider } from 'y-webrtc'
+
+// WebrtcProvider is imported dynamically (see attachWebRTCProvider): y-webrtc
+// pulls simple-peer → buffer@6 + readable-stream Node polyfills (~200 KB) into
+// the client graph. The mesh is opt-in (audit H-10), so static import made
+// every workspace page pay polyfill bytes for a provider that is usually
+// never constructed.
 
 export interface PresenceUser {
   userId: string
@@ -50,21 +58,32 @@ class YjsMeshNetwork {
     // authenticated collaboration WebSocket (/api/realtime/ticket) are
     // unaffected.
     if (typeof window !== 'undefined') {
-      const customSignaling = process.env.NEXT_PUBLIC_COLLAB_SIGNALING_URL
-      if (customSignaling) {
-        try {
-          const provider = new WebrtcProvider(`metardu-mesh-${projectId}`, doc, {
-            signaling: [customSignaling],
-            password: `metardu-${projectId}`, // per-room, not a real secret — see audit H-10
-          })
-          this.providers.set(projectId, provider)
-        } catch {
-          // Fallback gracefully if WebRTC is blocked
-        }
-      }
+      // Fire-and-forget: the provider attaches a moment after first paint and
+      // only when the mesh is actually configured. getDoc() stays synchronous.
+      void this.attachWebRTCProvider(projectId, doc)
     }
 
     return doc
+  }
+
+  /**
+   * Dynamically loads y-webrtc and attaches a WebrtcProvider when (and only
+   * when) a self-hosted signaling URL is configured. Idempotent per doc —
+   * getDoc() only calls this once per project.
+   */
+  private async attachWebRTCProvider(projectId: string, doc: Y.Doc): Promise<void> {
+    const customSignaling = process.env.NEXT_PUBLIC_COLLAB_SIGNALING_URL
+    if (!customSignaling) return
+    try {
+      const { WebrtcProvider } = await import('y-webrtc')
+      const provider = new WebrtcProvider(`metardu-mesh-${projectId}`, doc, {
+        signaling: [customSignaling],
+        password: `metardu-${projectId}`, // per-room, not a real secret — see audit H-10
+      })
+      this.providers.set(projectId, provider)
+    } catch {
+      // Fallback gracefully if WebRTC is blocked or the chunk fails to load
+    }
   }
 
   public getProvider(projectId: string): WebrtcProvider | undefined {

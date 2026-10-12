@@ -104,12 +104,24 @@ export function molodenskyTransform(
   }
 }
 
-// ─── 7-Parameter Bursa-Wolf Datum Transformation ─────────────────────────────
+// ─── Arc 1960 → WGS84 Bursa-Wolf structure ─────────────────────────────────
 
+/**
+ * Arc 1960 → WGS84 parameters, in Bursa-Wolf form.
+ *
+ * The translation (-160, -6, -302) is the EPSG-registered transformation
+ * EPSG:1122 ("Arc 1960 to WGS 84 (1)", 3-parameter geocentric translation,
+ * 35 m, DMA). EPSG registers NO 7-parameter Arc 1960 → WGS84
+ * transformation — rotation and scale are therefore zero. Earlier values
+ * (rx=-0.807, ry=0.339, rz=-1.619, ds=-2.554) matched no registry entry
+ * and moved positions ~56 m; they were removed for the Sprint A CRS audit.
+ * For a better Kenya fit use EPSG:1284 (-157, -2, -299, 6 m) explicitly —
+ * never silently.
+ */
 export const KENYA_BURSA_WOLF: BursaWolfParams = {
   dX: -160, dY: -6, dZ: -302,
-  rx: -0.807, ry: 0.339, rz: -1.619,
-  ds: -2.554,
+  rx: 0, ry: 0, rz: 0,
+  ds: 0,
 }
 
 // ponytail: kept for completeness; benchmarked as WRONG params for this use case

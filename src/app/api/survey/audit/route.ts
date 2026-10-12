@@ -11,7 +11,10 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { NextRequest, NextResponse } from 'next/server';
-import { getToken } from 'next-auth/jwt';
+import { getServerSession } from 'next-auth';
+import { authOptions } from '@/lib/auth';
+import { setCurrentUserId } from '@/lib/db';
+import { checkProjectAccess } from '@/lib/security/projectAccess';
 import {
   storeAuditEntry,
   getAuditEntriesBySurvey,
@@ -31,7 +34,7 @@ import { logger } from '@/lib/logger'
 interface AuditEntryBody {
   surveyId: string
   projectId: string
-  userId: string
+  userId?: string
   operation: AuditOperation
   inputs: Record<string, unknown>
   outputs: Record<string, unknown>
@@ -47,10 +50,14 @@ interface AuditEntryBody {
 
 export async function GET(request: NextRequest) {
   // Auth check
-  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
-  if (!token?.email) {
+  const session = await getServerSession(authOptions);
+  const userId = session?.user?.id;
+  if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  setCurrentUserId(userId);
+  const canReadProject = async (projectId: string) =>
+    (await checkProjectAccess(userId, projectId)).allowed;
 
   const { searchParams } = new URL(request.url);
 
@@ -59,6 +66,9 @@ export async function GET(request: NextRequest) {
   if (id) {
     const entry = await getAuditEntryById(id);
     if (!entry) {
+      return NextResponse.json({ error: 'Audit entry not found' }, { status: 404 });
+    }
+    if (!(await canReadProject(entry.projectId))) {
       return NextResponse.json({ error: 'Audit entry not found' }, { status: 404 });
     }
     return NextResponse.json(entry);
@@ -70,6 +80,9 @@ export async function GET(request: NextRequest) {
     if (!projectId) {
       return NextResponse.json({ error: 'projectId required for verification' }, { status: 400 });
     }
+    if (!(await canReadProject(projectId))) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
     const result = await verifyAuditChain(projectId);
     return NextResponse.json(result);
   }
@@ -80,6 +93,9 @@ export async function GET(request: NextRequest) {
     if (!projectId) {
       return NextResponse.json({ error: 'projectId required for stats' }, { status: 400 });
     }
+    if (!(await canReadProject(projectId))) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
     const stats = await getAuditStats(projectId);
     return NextResponse.json(stats);
   }
@@ -89,6 +105,9 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId');
     if (!projectId) {
       return NextResponse.json({ error: 'projectId required for export' }, { status: 400 });
+    }
+    if (!(await canReadProject(projectId))) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
     const format = searchParams.get('format') || 'json';
 
@@ -150,10 +169,17 @@ export async function GET(request: NextRequest) {
 
   if (surveyId) {
     const entries = await getAuditEntriesBySurvey(surveyId);
-    return NextResponse.json({ entries, count: entries.length });
+    const projectIds = [...new Set(entries.map((entry) => entry.projectId))]
+    const accessByProject = new Map<string, boolean>()
+    await Promise.all(projectIds.map(async (id) => accessByProject.set(id, await canReadProject(id))))
+    const visibleEntries = entries.filter((entry) => accessByProject.get(entry.projectId))
+    return NextResponse.json({ entries: visibleEntries, count: visibleEntries.length });
   }
 
   if (projectId) {
+    if (!(await canReadProject(projectId))) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
+    }
     const entries = await getAuditEntriesByProject(projectId);
     return NextResponse.json({ entries, count: entries.length });
   }
@@ -168,20 +194,26 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   // Auth check
-  const token = await getToken({ req: request, secret: process.env.AUTH_SECRET });
-  if (!token?.email) {
+  const session = await getServerSession(authOptions);
+  const authenticatedUserId = session?.user?.id;
+  if (!authenticatedUserId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  setCurrentUserId(authenticatedUserId);
 
   try {
     const body = (await request.json()) as AuditEntryBody;
 
     // Validate required fields
-    const required = ['surveyId', 'projectId', 'userId', 'operation', 'inputs', 'outputs', 'formula', 'reference'];
+    const required = ['surveyId', 'projectId', 'operation', 'inputs', 'outputs', 'formula', 'reference'];
     for (const field of required) {
       if (!body[field]) {
         return NextResponse.json({ error: `Missing required field: ${field}` }, { status: 400 });
       }
+    }
+
+    if (!(await checkProjectAccess(authenticatedUserId, body.projectId)).allowed) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 });
     }
 
     // Create audit entry with checksums
@@ -189,7 +221,7 @@ export async function POST(request: NextRequest) {
     const entry = trail.record({
       surveyId: body.surveyId,
       projectId: body.projectId,
-      userId: body.userId,
+      userId: authenticatedUserId,
       operation: body.operation,
       inputs: body.inputs,
       outputs: body.outputs,

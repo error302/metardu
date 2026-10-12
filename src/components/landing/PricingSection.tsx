@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
 import Link from 'next/link'
+import { PLAN_CATALOG } from '@/lib/subscription/catalog'
 
 /* ────────────────────────────────────────────────────────────── */
 /*  Data                                                          */
@@ -11,10 +11,8 @@ const PRICING = [
   {
     tier: 'Free',
     description: 'For students & occasional use',
-    priceMonthly: 0,
-    priceAnnual: 0,
     period: '/month',
-    features: ['All quick calculation tools', '1 survey project', 'Up to 50 survey points', 'Basic PDF report', 'CSV import', 'Offline calculations'],
+    features: ['All quick calculation tools', '1 survey project', 'Up to 50 survey points', 'Watermarked PDF report', 'CSV import'],
     cta: 'Start Free',
     href: '/register',
     highlighted: false,
@@ -22,10 +20,8 @@ const PRICING = [
   {
     tier: 'Pro',
     description: 'For licensed surveyors',
-    priceMonthly: 500,
-    priceAnnual: 5000,
     period: '/month',
-    features: ['Everything in Free', 'Unlimited projects', 'Unlimited survey points', 'GNSS baseline processing', 'Deed plan generation', 'NLIMS exports', 'Priority support'],
+    features: ['Everything in Free', 'Unlimited projects', 'Unlimited survey points', 'PDF reports for professional review', 'DXF & LandXML export', 'GPS navigation to survey points', 'Priority email support'],
     cta: 'Start Pro',
     href: '/checkout?plan=pro',
     highlighted: true,
@@ -33,15 +29,19 @@ const PRICING = [
   {
     tier: 'Team',
     description: 'For surveying firms',
-    priceMonthly: 2000,
-    priceAnnual: 20000,
     period: '/month',
-    features: ['Everything in Pro', '5 team members', 'Real-time collaboration', 'Role-based access', 'Audit trail', 'Branded reports'],
+    features: ['Everything in Pro', `${requirePlan('team').includedSeats} included seats`, 'Shared project workspace', 'Role-based access', 'Audit trail'],
     cta: 'Start Team',
     href: '/checkout?plan=team',
     highlighted: false,
   },
 ]
+
+function requirePlan(planId: string) {
+  const plan = PLAN_CATALOG.find(candidate => candidate.id === planId)
+  if (!plan) throw new Error(`Pricing content references an unknown plan: ${planId}`)
+  return plan
+}
 
 function MPesaBadge() {
   return (
@@ -55,7 +55,6 @@ function MPesaBadge() {
 }
 
 export function PricingSection() {
-  const [annual, setAnnual] = useState(false)
 
   return (
     <section aria-labelledby="pricing-heading" className="py-32 md:py-40 bg-[var(--bg-secondary)] border-t border-[var(--border-color)]">
@@ -69,42 +68,16 @@ export function PricingSection() {
             <span className="text-[var(--accent)]">scale as you grow</span>
           </h2>
           <p className="max-w-xl mx-auto text-[var(--text-primary)] text-base lg:text-lg">
-            No hidden fees. Pay via M-Pesa, card, or PayPal.
+            Try a survey project free. Upgrade for more projects and reviewable reports and CAD exports. Available payment methods appear at checkout.
           </p>
         </div>
 
-        {/* Billing interval toggle */}
-        <div className="flex justify-center mb-12">
-          <div
-            role="radiogroup"
-            aria-label="Billing interval"
-            className="inline-flex items-center bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-full p-1"
-          >
-            <button
-              type="button"
-              onClick={() => setAnnual(false)}
-              className={`px-4 py-2 text-sm rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-                !annual ? 'bg-[var(--accent)] text-black font-semibold' : 'text-[var(--text-primary)]'
-              }`}
-            >
-              Monthly
-            </button>
-            <button
-              type="button"
-              onClick={() => setAnnual(true)}
-              className={`px-4 py-2 text-sm rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
-                annual ? 'bg-[var(--accent)] text-black font-semibold' : 'text-[var(--text-primary)]'
-              }`}
-            >
-              Annual <span className="text-xs opacity-80">· 2 months free</span>
-            </button>
-          </div>
-        </div>
+        <p className="text-center mb-12 text-sm text-[var(--text-secondary)]">Monthly billing in KES. Team pricing includes the seats shown; additional seats cost extra.</p>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8 items-start max-w-5xl mx-auto">
           {PRICING.map((plan, i) => {
-            const price = annual ? plan.priceAnnual : plan.priceMonthly
-            const periodLabel = annual ? '/year' : plan.period
+            const price = requirePlan(plan.tier.toLowerCase()).prices.KES
+            const periodLabel = plan.period
             return (
               <div
                 key={i}
@@ -116,7 +89,7 @@ export function PricingSection() {
               >
                 {plan.highlighted && (
                   <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-4 py-1 bg-[var(--accent)] text-black text-xs font-bold rounded-full uppercase tracking-wider">
-                    Most Popular
+                    For individual surveyors
                   </div>
                 )}
 
@@ -124,7 +97,7 @@ export function PricingSection() {
                 <p className="text-sm text-[var(--text-primary)] mb-4">{plan.description}</p>
                 <div className="flex items-baseline gap-1 mb-2">
                   <span className="text-4xl font-bold text-[var(--text-primary)]">
-                    KSh {price.toLocaleString()}
+                    KSh {price.toLocaleString('en-KE')}
                   </span>
                   <span className="text-[var(--text-primary)] text-sm">{periodLabel}</span>
                 </div>
@@ -162,7 +135,7 @@ export function PricingSection() {
 
         <p className="text-center text-xs text-[var(--text-primary)] mt-8">
           Need 20+ seats, a white-label license, or on-premise deployment?{' '}
-          <Link href="/enterprise" className="text-[var(--accent)] underline underline-offset-2 hover:no-underline">Talk to us about Firm & Enterprise tiers.</Link>
+          <a href="mailto:enterprise@metardu.com?subject=METARDU%20Firm%20and%20Enterprise%20Pricing" className="text-[var(--accent)] underline underline-offset-2 hover:no-underline">Talk to us about Firm & Enterprise tiers.</a>
         </p>
       </div>
     </section>

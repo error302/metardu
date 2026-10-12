@@ -21,15 +21,13 @@ import {
   generateValidationChecklist,
   exportForPix4D,
   exportForWebODM,
-  DEFAULT_UTM_ZONE,
-  DEFAULT_HEMISPHERE,
   type GCPPlan,
 } from '@/lib/engine/gcpOptimizer'
 
 export function GCPOptimizerPanel() {
   const [areaHa, setAreaHa] = useState('')
-  const [utmZone, setUtmZone] = useState<number>(DEFAULT_UTM_ZONE)
-  const [hemisphere, setHemisphere] = useState<'N' | 'S'>(DEFAULT_HEMISPHERE)
+  const [utmZone, setUtmZone] = useState<number>(37)
+  const [hemisphere, setHemisphere] = useState<'N' | 'S'>('S')
   const [plan, setPlan] = useState<GCPPlan | null>(null)
   const [generating, setGenerating] = useState(false)
 

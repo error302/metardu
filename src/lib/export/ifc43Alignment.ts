@@ -22,6 +22,7 @@
  */
 
 import type { AlignmentPoint } from './machineControl'
+import { horizontalCrsFor } from '@/lib/spatial/projectReferenceSystem'
 
 export interface IFC43ExportOptions {
   projectName: string
@@ -30,6 +31,8 @@ export interface IFC43ExportOptions {
   verticalPoints: AlignmentPoint[]
   utmZone: number
   hemisphere: 'N' | 'S'
+  /** Declared project datum (e.g. 'Arc 1960', 'WGS 84') — drives the EPSG code written into the file. */
+  datum: string
   surveyorName?: string
   surveyorLicense?: string
 }
@@ -44,7 +47,7 @@ export function generateIFC43Alignment(opts: IFC43ExportOptions): string {
   const {
     projectName, alignmentName,
     horizontalPoints, verticalPoints,
-    utmZone, hemisphere,
+    utmZone, hemisphere, datum,
     surveyorName, surveyorLicense,
   } = opts
 
@@ -71,8 +74,12 @@ export function generateIFC43Alignment(opts: IFC43ExportOptions): string {
   lines.push(`${unitAssignment} = IFCUNITASSIGNMENT((${lengthUnit},${angleUnit}));`)
 
   // ─── Coordinate system ──────────────────────────────────────────────────
-  // EPSG code for UTM zone
-  const epsg = hemisphere === 'N' ? 32600 + utmZone : 32700 + utmZone
+  // Authority EPSG code for the DECLARED datum + zone — derived via the
+  // one CRS path (horizontalCrsFor), never arithmetic. Arc 1960 lands on
+  // 21036/21037; WGS 84 on the 326xx/327xx family. Throws CrsError for
+  // unregistered datum/zone combos (fail closed — never mislabel a
+  // statutory export). The route catches it and returns 400.
+  const epsg = horizontalCrsFor(datum, utmZone, hemisphere).replace('EPSG:', '')
   const crs = id()
   lines.push(`${crs} = IFCCOORDINATESYSTEMREFERENCE('UTM Zone ${utmZone}${hemisphere}','EPSG','${epsg}',$);`)
 
@@ -118,7 +125,7 @@ export function generateIFC43Alignment(opts: IFC43ExportOptions): string {
   for (const p of horizontalPoints) {
     const elev = interpolateElevation(p.chainage, verticalPoints)
     const cp = id()
-    lines.push(`${cp} = IFCCARTESIANPOINT(($p.easting.toFixed(3)},${p.northing.toFixed(3)},${elev.toFixed(3)}));`)
+    lines.push(`${cp} = IFCCARTESIANPOINT((${p.easting.toFixed(3)},${p.northing.toFixed(3)},${elev.toFixed(3)}));`)
     cartPoints.push(cp)
   }
   const polyline = id()
@@ -138,7 +145,7 @@ export function generateIFC43Alignment(opts: IFC43ExportOptions): string {
   const horizPoints: string[] = []
   for (const p of horizontalPoints) {
     const cp = id()
-    lines.push(`${cp} = IFCCARTESIANPOINT(($p.easting.toFixed(3)},${p.northing.toFixed(3)}));`)
+    lines.push(`${cp} = IFCCARTESIANPOINT((${p.easting.toFixed(3)},${p.northing.toFixed(3)}));`)
     horizPoints.push(cp)
   }
   const horizPolyline = id()
@@ -159,7 +166,7 @@ export function generateIFC43Alignment(opts: IFC43ExportOptions): string {
     for (const p of verticalPoints) {
       const cp = id()
       // Vertical alignment uses (chainage, elevation) as 2D points
-      lines.push(`${cp} = IFCCARTESIANPOINT(($p.chainage.toFixed(3)},${p.elevation.toFixed(3)}));`)
+      lines.push(`${cp} = IFCCARTESIANPOINT((${p.chainage.toFixed(3)},${p.elevation.toFixed(3)}));`)
       vertProfilePoints.push(cp)
     }
     const vertPolyline = id()

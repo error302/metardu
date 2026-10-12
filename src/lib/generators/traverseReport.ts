@@ -2,6 +2,7 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import db from '@/lib/db';
 import { drawTitleBlock, addPageFooter } from './pdfTitleBlock';
+import { computeDeedPlanGeometry } from './deedPlanGeometry';
 
 export async function generateTraverseReport(
   projectId: string
@@ -14,12 +15,14 @@ export async function generateTraverseReport(
   const project = projectRes.rows[0];
 
   const entriesRes = await db.query<{ row_index: number; raw_data: Record<string, unknown> }>(
-    'SELECT row_index, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    'SELECT row_index, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',
     [projectId]
   );
   const entries = entriesRes.rows;
 
   const rows = (entries ?? []).map((e: { row_index: number; raw_data: Record<string, unknown> }) => e.raw_data);
+  if (!rows.length) throw new Error('No saved traverse observations are available.');
+  const geometry = await computeDeedPlanGeometry(projectId);
 
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
   const today = new Date().toLocaleDateString('en-KE');
@@ -75,9 +78,12 @@ export async function generateTraverseReport(
     body: [
       ['Total number of stations', String(rows.length)],
       ['Total traverse distance', `${totalDistance.toFixed(3)} m`],
-      ['Adjustment method', 'Bowditch (Compass Rule)'],
-      ['Regulatory standard', 'Survey Act Cap 299 / Kenya Survey Regulations 1994'],
-      ['Note', 'Angular and linear closure computed by Metardu math engine'],
+      ['Coordinate source', geometry.coordinateSource === 'pre_adjusted' ? 'Saved adjusted coordinates' : 'Computed from field book'],
+      ['Linear closure', Number.isFinite(geometry.misclosureMm) ? `${geometry.misclosureMm.toFixed(3)} mm` : 'Unverified'],
+      ['Precision ratio', geometry.precisionRatio],
+      ['Area', `${geometry.areaM2.toFixed(3)} m2`],
+      ['Angular closure', 'Not verified by this report; independent angular observations required'],
+      ['Review status', 'Draft for independent surveyor review'],
     ],
     styles: { fontSize: 8, cellPadding: 2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },

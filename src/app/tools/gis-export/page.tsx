@@ -5,7 +5,8 @@ import { createClient } from '@/lib/api-client/client'
 import { generateGeoJSON } from '@/lib/export/generateGeoJSON'
 import type { SurveyPoint } from '@/types/surveyPoint'
 import { generateLandXML } from '@/lib/export/generateLandXML'
-import { utmToGeographic } from '@/lib/geodesy/coordinates'
+import { reportCrs, type VerifiedReportCrs } from '@/lib/generators/reportCrs'
+import { utmToWgs84 } from '@/lib/spatial/projectReferenceSystem'
 import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
@@ -17,13 +18,18 @@ function download(content: string, filename: string, mime = 'text/plain') {
 }
 
 // ── WKT projection string generator ─────────────────────────────────────────
-function getWKT(utmZone: number, hemisphere: 'N' | 'S'): string {
-  const zoneNum = utmZone
-  const isNorth = hemisphere === 'N'
+// Datum/ellipsoid come from the declared project CRS — never assumed WGS 84.
+function getWKT(crs: VerifiedReportCrs): string {
+  const isArc = crs.ellipsoid === 'Clarke 1880 (RGS)'
+  const geogName = isArc ? 'Arc 1960' : 'WGS 84'
+  const datumName = isArc ? 'Arc_1960' : 'WGS_1984'
+  const spheroidName = isArc ? 'Clarke 1880 (RGS)' : 'WGS 84'
+  const isNorth = crs.hemi === 'N'
+  const zoneNum = crs.zone
   const centralMeridian = -183 + zoneNum * 6
-  return `PROJCS["WGS 84 / UTM zone ${zoneNum}${hemisphere}",
-  GEOGCS["WGS 84",
-    DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],
+  return `PROJCS["${crs.crsName}",
+  GEOGCS["${geogName}",
+    DATUM["${datumName}",SPHEROID["${spheroidName}",${crs.ellipsoidA},${crs.ellipsoidInvF}]],
     PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],
   PROJECTION["Transverse_Mercator"],
   PARAMETER["latitude_of_origin",0],
@@ -31,12 +37,12 @@ function getWKT(utmZone: number, hemisphere: 'N' | 'S'): string {
   PARAMETER["scale_factor",0.9996],
   PARAMETER["false_easting",500000],
   PARAMETER["false_northing",${isNorth ? 0 : 10000000}],
-  UNIT["metre",1],AUTHORITY["EPSG","${isNorth ? 32600 + zoneNum : 32700 + zoneNum}"]]`
+  UNIT["metre",1],AUTHORITY["EPSG","${crs.epsg}"]]`
 }
 
 // ── PRJ file for shapefiles ──────────────────────────────────────────────────
-function getPRJ(utmZone: number, hemisphere: 'N' | 'S'): string {
-  return getWKT(utmZone, hemisphere)
+function getPRJ(crs: VerifiedReportCrs): string {
+  return getWKT(crs)
 }
 
 // ── MapInfo TAB-compatible CSV ───────────────────────────────────────────────
@@ -44,23 +50,31 @@ function getPRJ(utmZone: number, hemisphere: 'N' | 'S'): string {
 interface ProjectRow {
   id: string
   name: string
-  utm_zone: number
-  hemisphere: 'N' | 'S'
+  utm_zone: number | null
+  hemisphere: 'N' | 'S' | null
+  datum: string | null
 }
 
-function generateMapInfoCSV(points: SurveyPoint[], utmZone: number, hemisphere: 'N' | 'S', _projectName: string): string {
+interface PrsRow {
+  vertical_datum: string | null
+  vertical_reference: string | null
+  geoid_model: string | null
+  benchmark_basis: string | null
+}
+
+function generateMapInfoCSV(points: SurveyPoint[], utmZone: number, hemisphere: 'N' | 'S', datum: string, _projectName: string): string {
   const lines = [`"Name","Easting","Northing","Elevation","Type","Lat_WGS84","Lon_WGS84"`]
   points.forEach((p) => {
-    const { lat, lon } = utmToGeographic(p.easting, p.northing, utmZone, hemisphere)
+    const { lat, lon } = utmToWgs84(p.easting, p.northing, utmZone, hemisphere, datum)
     lines.push(`"${p.name}",${p.easting.toFixed(4)},${p.northing.toFixed(4)},${(p.elevation||0).toFixed(4)},"${p.is_control?'Control':'Survey'}",${lat.toFixed(8)},${lon.toFixed(8)}`)
   })
   return lines.join('\n')
 }
 
 // ── KML for Google Earth / Maps ──────────────────────────────────────────────
-function generateKML(points: SurveyPoint[], utmZone: number, hemisphere: 'N' | 'S', projectName: string): string {
+function generateKML(points: SurveyPoint[], utmZone: number, hemisphere: 'N' | 'S', datum: string, projectName: string): string {
   const placemarks = points.map((p) => {
-    const { lat, lon } = utmToGeographic(p.easting, p.northing, utmZone, hemisphere)
+    const { lat, lon } = utmToWgs84(p.easting, p.northing, utmZone, hemisphere, datum)
     const color = p.is_control ? 'ff0080ff' : 'ff00ff80'
     return `  <Placemark>
     <name>${p.name}</name>
@@ -84,6 +98,7 @@ function GISExportPage() {
   const [projects, setProjects]   = useState<ProjectRow[]>([])
   const [projectId, setProjectId] = useState('')
   const [points, setPoints]       = useState<SurveyPoint[]>([])
+  const [prs, setPrs]             = useState<PrsRow | null>(null)
   const [loading, setLoading]     = useState(false)
   const [exports, setExports]     = useState<Set<string>>(new Set())
 
@@ -92,19 +107,32 @@ function GISExportPage() {
     sb.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user
       if (!user) return
-      sb.from('projects').select('id,name,utm_zone,hemisphere').eq('user_id', user.id)
+      sb.from('projects').select('id,name,utm_zone,hemisphere,datum').eq('user_id', user.id)
         .order('created_at', { ascending: false }).then(({ data }) => { if (data) setProjects(data as ProjectRow[]) })
     })
   }, [])
 
   useEffect(() => {
-    if (!projectId) { setPoints([]); return }
+    if (!projectId) { setPoints([]); setPrs(null); return }
     setLoading(true)
-    createClient().from('survey_points').select('*').eq('project_id', projectId)
-      .then(({ data }) => { if (data) setPoints(data as SurveyPoint[]); setLoading(false) })
+    const sb = createClient()
+    Promise.all([
+      sb.from('survey_points').select('*').eq('project_id', projectId),
+      sb.from('project_reference_systems').select('vertical_datum, vertical_reference, geoid_model, benchmark_basis').eq('project_id', projectId).limit(1),
+    ]).then(([ptsRes, prsRes]) => {
+      if (ptsRes.data) setPoints(ptsRes.data as SurveyPoint[])
+      const rows = (prsRes.data ?? []) as PrsRow[]
+      setPrs(rows[0] ?? null)
+      setLoading(false)
+    })
   }, [projectId])
 
   const project = projects.find((p) => p.id === projectId)
+  const crs = reportCrs({
+    utmZone: project?.utm_zone ?? undefined,
+    hemisphere: project?.hemisphere ?? undefined,
+    datum: project?.datum ?? undefined,
+  })
   const ptsMapped = points.map((p) => ({
     name: p.name, easting: p.easting, northing: p.northing,
     elevation: p.elevation ?? 0, is_control: p.is_control ?? false,
@@ -114,27 +142,46 @@ function GISExportPage() {
 
   const doExport = (type: string) => {
     if (!project || !points.length) return
-    const z = project.utm_zone; const h = project.hemisphere as 'N'|'S'
+    // Fail closed: converting UTM to lat/lon without a declared zone would
+    // silently assume one and produce wrong coordinates.
+    if (!crs.verified) {
+      alert('Set the project CRS (datum, UTM zone, hemisphere) in Project Settings before exporting.')
+      return
+    }
+    const z = crs.zone; const h = crs.hemi as 'N'|'S'
     const name = project.name
+    const datum = crs.datum
+    const vertical = {
+      datum: prs?.vertical_datum ?? undefined,
+      reference: prs?.vertical_reference ?? undefined,
+      geoidModel: prs?.geoid_model ?? undefined,
+      benchmarkBasis: prs?.benchmark_basis ?? undefined,
+    }
 
     switch(type) {
       case 'geojson':
-        download(generateGeoJSON(ptsMapped, name, z, h), `${name}_WGS84.geojson`, 'application/geo+json')
+        download(generateGeoJSON(ptsMapped, name, z, h, datum, vertical), `${name}_WGS84.geojson`, 'application/geo+json')
         break
       case 'kml':
-        download(generateKML(ptsMapped, z, h, name), `${name}.kml`, 'application/vnd.google-earth.kml+xml')
+        download(generateKML(ptsMapped, z, h, datum, name), `${name}.kml`, 'application/vnd.google-earth.kml+xml')
         break
       case 'landxml':
-        download(generateLandXML({ name, utm_zone: z, hemisphere: h }, ptsMapped), `${name}.xml`, 'application/xml')
+        download(generateLandXML({
+          name, utm_zone: z, hemisphere: h, datum,
+          vertical_datum: vertical.datum,
+          vertical_reference: vertical.reference,
+          geoid_model: vertical.geoidModel,
+          benchmark_basis: vertical.benchmarkBasis,
+        }, ptsMapped), `${name}.xml`, 'application/xml')
         break
       case 'csv':
-        download(generateMapInfoCSV(ptsMapped, z, h, name), `${name}_points.csv`)
+        download(generateMapInfoCSV(ptsMapped, z, h, datum, name), `${name}_points.csv`)
         break
       case 'prj':
-        download(getPRJ(z, h), `${name}_UTM${z}${h}.prj`)
+        download(getPRJ(crs), `${name}_UTM${z}${h}.prj`)
         break
       case 'wkt':
-        download(getWKT(z, h), `${name}_CRS.wkt`)
+        download(getWKT(crs), `${name}_CRS.wkt`)
         break
       // AUDIT FIX (2026-07-03): Added DXF + Shapefile exports.
       // The API routes existed but weren't exposed in the UI.
@@ -226,7 +273,7 @@ function GISExportPage() {
       key: 'wkt', icon: '◻',
       title: 'WKT Projection String',
       desc: 'Well-Known Text definition of your project coordinate system for database import.',
-      note: `EPSG:${project ? (project.hemisphere === 'S' ? 32700 : 32600) + project.utm_zone : '327xx'}`,
+      note: crs.verified ? crs.epsgCode : 'CRS not declared',
       software: 'PostGIS · SpatiaLite · Oracle Spatial',
     },
   ]
@@ -254,8 +301,9 @@ function GISExportPage() {
             </div>
             {project && (
               <div className="text-sm text-[var(--text-muted)] flex-shrink-0">
-                UTM Zone {project.utm_zone}{project.hemisphere} ·
-                EPSG:{(project.hemisphere === 'S' ? 32700 : 32600) + project.utm_zone} ·
+                {crs.verified
+                  ? <>UTM Zone {crs.zone}{crs.hemi} · {crs.epsgCode} · </>
+                  : <>CRS not declared · </>}
                 {loading ? ' loading…' : ` ${points.length} points`}
               </div>
             )}
@@ -312,12 +360,12 @@ function GISExportPage() {
             <h2 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Coordinate system for this project</h2>
             <div className="grid md:grid-cols-3 gap-4 text-sm">
               {[
-                { label: 'Projected CRS', value: `UTM Zone ${project.utm_zone}${project.hemisphere}` },
-                { label: 'EPSG code', value: `EPSG:${(project.hemisphere === 'S' ? 32700 : 32600) + project.utm_zone}` },
+                { label: 'Projected CRS', value: crs.verified ? crs.crsName : 'Not declared' },
+                { label: 'EPSG code', value: crs.verified ? crs.epsgCode : 'UNVERIFIED' },
                 { label: 'Geographic CRS', value: 'WGS84 (EPSG:4326)' },
                 { label: 'Units', value: 'Metres (projected) / Degrees (geographic)' },
                 { label: 'False Easting', value: '500,000 m' },
-                { label: 'False Northing', value: project.hemisphere === 'S' ? '10,000,000 m' : '0 m' },
+                { label: 'False Northing', value: crs.verified && crs.hemi === 'S' ? '10,000,000 m' : crs.verified ? '0 m' : 'UNVERIFIED' },
               ].map(({ label, value }) => (
                 <div key={label} className="bg-[var(--bg-secondary)] rounded-lg p-3">
                   <p className="text-xs text-[var(--text-muted)]">{label}</p>

@@ -4,8 +4,8 @@
  * context, area and perimeter (instead of the "As Noted" fallback).
  *
  * The draw layer stores geometries in the map projection (EPSG:3857). We
- * transform each vertex to the active UTM CRS (Kenya: EPSG:21037 / 32737) so
- * distances, area and scale are metric and correct.
+ * transform each vertex to the active project survey CRS so distances, area
+ * and scale are computed in the declared metric grid.
  */
 
 import type { PlanGeometry, AdjustedStation } from '@/lib/engine/planGeometry'
@@ -14,7 +14,7 @@ import { SRID_3857 } from '@/lib/map/projection'
 
 /**
  * @param drawSource  OpenLayers VectorSource holding the drawn features.
- * @param utmEpsg     Target metric CRS, e.g. 'EPSG:21037' or 'EPSG:32737'.
+ * @param utmEpsg     Required target projected CRS declared for this survey.
  * @returns PlanGeometry for the largest polygon, or null if none is drawable.
  */
 export async function derivePlanGeometryFromDrawSource(

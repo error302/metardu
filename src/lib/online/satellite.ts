@@ -1,192 +1,41 @@
-/**
- * Sentinel-2 Satellite Imagery Service
- * Phase 7 - Online Power Features
- * Provides satellite imagery overlay for survey projects
- */
+import { z } from 'zod'
 
-export interface ImageryTile {
-  url: string
-  attribution: string
-  maxZoom: number
-  minZoom: number
+export const imageryProviderIdSchema = z.enum(['esri-world', 'nasa-modis-terra'])
+export const imageryDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {
+  const date = new Date(`${value}T00:00:00Z`)
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value
+}, 'Use a valid calendar date')
+export const imageryDateRangeSchema = z.object({ start: imageryDateSchema, end: imageryDateSchema }).refine(range => range.start <= range.end)
+export type ImageryDateRange = z.infer<typeof imageryDateRangeSchema>
+export const imageryViewSchema = z.object({
+  latitude: z.number().finite().min(-85.0511287798066).max(85.0511287798066),
+  longitude: z.number().finite().min(-180).max(180),
+  zoom: z.number().int().min(0).max(20),
+}).strict()
+export type ImageryView = z.infer<typeof imageryViewSchema>
+export const imageryProviderSchema = z.object({
+  id: imageryProviderIdSchema, name: z.string(), available: z.boolean(), error: z.string().nullable(),
+  tileTemplate: z.string().nullable(), tileSize: z.number().int().positive().nullable(),
+  minZoom: z.number().int().min(0).nullable(), maxZoom: z.number().int().max(20).nullable(),
+  dated: z.boolean(), defaultDate: imageryDateSchema.nullable(), dateRanges: z.array(imageryDateRangeSchema).max(1000),
+  acquisitionDate: z.null(), sourceResolution: z.string(), credits: z.string(),
+  sourceUrl: z.string().url(), termsUrl: z.string().url(), exportAllowed: z.boolean(), exportReason: z.string().nullable(),
+})
+export type ImageryProvider = z.infer<typeof imageryProviderSchema>
+export const imageryCatalogueSchema = z.object({ retrievedAt: z.string().datetime(), providers: z.array(imageryProviderSchema).length(2) })
+export type ImageryCatalogue = z.infer<typeof imageryCatalogueSchema>
+
+/** The published calendar may contain gaps; never substitute a nearby data day. */
+export function isImageryDateAvailable(date: string, ranges: ImageryDateRange[]): boolean {
+  return imageryDateSchema.safeParse(date).success && ranges.some(range => date >= range.start && date <= range.end)
 }
 
-export interface ImagerySearchParams {
-  latitude: number
-  longitude: number
-  zoom: number
-}
-
-export interface ImageryResult {
-  provider: string
-  tiles: ImageryTile
-  date: string
-  resolution: number
-  coverage: string
-}
-
-const IMAGERY_PROVIDERS: Record<string, ImageryTile> = {
-  sentinel: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri World Imagery',
-    maxZoom: 19,
-    minZoom: 1
-  },
-  sentinelRecent: {
-    url: 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri World Imagery (Contains modified Copernicus Sentinel data 2024)',
-    maxZoom: 19,
-    minZoom: 1
-  },
-  esri: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attribution: 'Esri',
-    maxZoom: 18,
-    minZoom: 1
-  },
-  openstreetmap: {
-    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    attribution: '(c) OpenStreetMap contributors',
-    maxZoom: 19,
-    minZoom: 1
-  },
-  satellite: {
-    url: 'https://mt1.google.com/vt/lyrs=s&x={x}&y={y}&z={z}',
-    attribution: 'Google Satellite',
-    maxZoom: 20,
-    minZoom: 1
-  },
-  terrain: {
-    url: 'https://mt1.google.com/vt/lyrs=p&x={x}&y={y}&z={z}',
-    attribution: 'Google Terrain',
-    maxZoom: 16,
-    minZoom: 1
-  },
-  topographic: {
-    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
-    attribution: 'OpenTopoMap',
-    maxZoom: 17,
-    minZoom: 1
-  }
-}
-
-export function getImageryLayers(): { id: string; name: string; tile: ImageryTile }[] {
-  return [
-    { id: 'sentinelRecent', name: 'Sentinel-2 Satellite (Recent)', tile: IMAGERY_PROVIDERS.sentinelRecent },
-    { id: 'sentinel', name: 'Sentinel-2 Satellite', tile: IMAGERY_PROVIDERS.sentinel },
-    { id: 'esri', name: 'Esri World Imagery', tile: IMAGERY_PROVIDERS.esri },
-    { id: 'satellite', name: 'Google Satellite', tile: IMAGERY_PROVIDERS.satellite },
-    { id: 'terrain', name: 'Google Terrain', tile: IMAGERY_PROVIDERS.terrain },
-    { id: 'topographic', name: 'OpenTopoMap', tile: IMAGERY_PROVIDERS.topographic },
-    { id: 'openstreetmap', name: 'OpenStreetMap', tile: IMAGERY_PROVIDERS.openstreetmap }
-  ]
-}
-
-export async function getImageryForLocation(params: ImagerySearchParams): Promise<ImageryResult[]> {
-  const { latitude, longitude } = params
-  
-  const isAfrica = latitude >= -35 && latitude <= 35 && longitude >= -20 && longitude <= 55
-  const isEurope = latitude >= 35 && latitude <= 71 && longitude >= -25 && longitude <= 45
-  const isAsia = latitude >= -10 && latitude <= 55 && longitude >= 60 && longitude <= 150
-  const isAmericas = latitude >= -60 && latitude <= 70 && longitude >= -170 && longitude <= -30
-  
-  let coverage = 'Global'
-  if (isAfrica) coverage = 'Africa - High Resolution'
-  else if (isEurope) coverage = 'Europe - High Resolution'
-  else if (isAsia) coverage = 'Asia - Regional'
-  else if (isAmericas) coverage = 'Americas - Regional'
-  
-  const imageryDate = new Date().toISOString().split('T')[0]
-  
-  const results: ImageryResult[] = [
-    {
-      provider: 'Sentinel-2 (Esri)',
-      tiles: IMAGERY_PROVIDERS.sentinelRecent,
-      date: imageryDate,
-      resolution: 10,
-      coverage
-    },
-    {
-      provider: 'Esri World Imagery',
-      tiles: IMAGERY_PROVIDERS.esri,
-      date: imageryDate,
-      resolution: 0.5,
-      coverage: 'Global'
-    }
-  ]
-  
-  return results
-}
-
-export function getImageryById(id: string): ImageryTile | null {
-  return IMAGERY_PROVIDERS[id] || null
-}
-
-export function getSentinel2TileUrl(): string {
-  return IMAGERY_PROVIDERS.sentinelRecent.url
-}
-
-export interface NDVIResult {
-  ndvi: number
-  classification: 'vegetation' | 'bare' | 'water' | 'urban'
-  health: 'healthy' | 'moderate' | 'sparse'
-}
-
-export function calculateNDVI(nir: number, red: number): NDVIResult {
-  const ndvi = (nir - red) / (nir + red)
-  
-  let classification: NDVIResult['classification']
-  if (ndvi > 0.2) classification = 'vegetation'
-  else if (ndvi > -0.1) classification = 'bare'
-  else if (ndvi > -0.5) classification = 'water'
-  else classification = 'urban'
-  
-  let health: NDVIResult['health']
-  if (ndvi > 0.6) health = 'healthy'
-  else if (ndvi > 0.3) health = 'moderate'
-  else health = 'sparse'
-  
-  return { ndvi, classification, health }
-}
-
-export function getImageryMetadata(imageryId: string): {
-  provider: string
-  resolution: string
-  updateFrequency: string
-  coverage: string
-} | null {
-  const metadata: Record<string, { provider: string; resolution: string; updateFrequency: string; coverage: string }> = {
-    sentinelRecent: {
-      provider: 'Copernicus Sentinel-2 via Esri',
-      resolution: '10m (Sentinel-2)',
-      updateFrequency: '5-10 days',
-      coverage: 'Global land'
-    },
-    sentinel: {
-      provider: 'Copernicus Sentinel-2',
-      resolution: '10m',
-      updateFrequency: '5-10 days',
-      coverage: 'Global land'
-    },
-    esri: {
-      provider: 'Esri',
-      resolution: '0.5m - 15m',
-      updateFrequency: 'Varies',
-      coverage: 'Global'
-    },
-    satellite: {
-      provider: 'Google',
-      resolution: '1m or better',
-      updateFrequency: 'Monthly',
-      coverage: 'Global'
-    },
-    terrain: {
-      provider: 'Google',
-      resolution: ' varies',
-      updateFrequency: 'As needed',
-      coverage: 'Global'
-    }
-  }
-  
-  return metadata[imageryId] || null
+export function imageryTileTemplate(provider: ImageryProvider, date: string | null): string {
+  if (!provider.available || !provider.tileTemplate) throw new Error('This imagery source is unavailable. Retry loading its metadata.')
+  const expected = provider.id === 'nasa-modis-terra'
+    ? 'https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/MODIS_Terra_CorrectedReflectance_TrueColor/default/{Time}/GoogleMapsCompatible_Level9/{z}/{y}/{x}.jpeg'
+    : 'https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'
+  if (provider.tileTemplate !== expected) throw new Error('The imagery source has an unapproved tile template.')
+  if (provider.dated && (!date || !isImageryDateAvailable(date, provider.dateRanges))) throw new Error('The selected data day is outside the source’s published availability calendar.')
+  return provider.tileTemplate.replace('{Time}', date ?? '')
 }

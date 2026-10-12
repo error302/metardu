@@ -319,12 +319,37 @@ export default function ExportToolbar({
         is_control: i === 0,
       }))
 
+      // The export endpoint fails closed without a declared CRS — fetch the
+      // project's datum/zone/hemisphere and surface a clear error if unset
+      // instead of silently assuming a default zone.
+      const crsRes = await fetch(`/api/project/${projectId}`)
+      if (!crsRes.ok) throw new Error('Could not load the project CRS for export')
+      const crsBody = (await crsRes.json()) as {
+        data?: { utm_zone?: number | null; hemisphere?: string | null; datum?: string | null }
+      }
+      const utmZone = crsBody.data?.utm_zone
+      const hemisphere = crsBody.data?.hemisphere
+      const datum = crsBody.data?.datum
+      if (
+        typeof utmZone !== 'number' ||
+        !Number.isInteger(utmZone) ||
+        (hemisphere !== 'N' && hemisphere !== 'S') ||
+        typeof datum !== 'string' ||
+        datum.trim() === ''
+      ) {
+        setError('Set the project CRS (datum, UTM zone, hemisphere) in Project Settings before exporting GeoJSON.')
+        return
+      }
+
       const data = await apiPost(
         '/api/compute/export/geojson',
         geojsonExportSchema,
         {
           projectName,
           points,
+          utmZone,
+          hemisphere,
+          datum,
         },
       )
 
@@ -341,7 +366,7 @@ export default function ExportToolbar({
     } finally {
       setGeojsonLoading(false)
     }
-  }, [projectName, traverseResult, downloadBlob, clearError])
+  }, [projectId, projectName, traverseResult, downloadBlob, clearError])
 
   // -----------------------------------------------------------------------
   // Render

@@ -20,7 +20,7 @@ export const dynamic = 'force-dynamic'
  */
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { sendTemplatedEmail } from '@/lib/email-templates'
 import { PLAN_CATALOG, type CurrencyCode } from '@/lib/subscription/catalog'
 
@@ -43,6 +43,7 @@ export async function POST(req: NextRequest) {
   if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  setCurrentRlsServiceRole('billing_reconciliation')
 
   const { rows } = await db.query<TrialReminderRow>(
     `SELECT u.id AS user_id, u.email, u.full_name, s.trial_ends_at, s.currency
@@ -62,7 +63,7 @@ export async function POST(req: NextRequest) {
   const planPriceNote = (currency: string | null): string => {
     const code = (currency || 'KES').toUpperCase() as CurrencyCode
     const price = proPlan?.prices[code] ?? proPlan?.prices.KES
-    return price ? `${code} ${price}/month` : 'KES 500/month'
+    return price ? `${code} ${price}/month` : 'View current pricing at metardu.space/pricing'
   }
 
   let sent = 0

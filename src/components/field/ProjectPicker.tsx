@@ -24,35 +24,57 @@ interface ProjectPickerProps {
   onPick: (projectId: string, surveyType?: string) => void
   title: string
   subtitle: string
+  initialProjectId?: string | null
+  initialSurveyType?: string
 }
 
-export function ProjectPicker({ onPick, title, subtitle }: ProjectPickerProps) {
+export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initialSurveyType }: ProjectPickerProps) {
   const [projects, setProjects] = useState<Project[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
+    let current = true
     async function loadProjects() {
       try {
         const db = createClient()
+        if (initialProjectId) {
+          const selected = await db
+            .from('projects')
+            .select('id, name, survey_type, county, created_at')
+            .eq('id', initialProjectId)
+            .limit(1) as unknown as { data: Project[] | null; error: unknown }
+
+          if (selected.error) throw selected.error
+          const matchingProject = selected.data?.[0]
+          if (matchingProject) {
+            if (current) {
+              setProjects([matchingProject])
+              onPick(matchingProject.id, initialSurveyType || matchingProject.survey_type)
+            }
+            return
+          }
+        }
+
         const { data, error } = await db
           .from('projects')
           .select('id, name, survey_type, county, created_at')
           .order('created_at', { ascending: false })
-                    .limit(50) as unknown as { data: Project[] | null; error: unknown }
+          .limit(50) as unknown as { data: Project[] | null; error: unknown }
 
         if (error) throw error
-        setProjects((data ?? []) as Project[])
+        if (current) setProjects((data ?? []) as Project[])
       } catch (err) {
         logger.error('[project-picker] Failed to load projects:', { error: err })
-        setError('Failed to load projects. Check your connection.')
+        if (current) setError('Failed to load projects. Check your connection.')
       } finally {
-        setLoading(false)
+        if (current) setLoading(false)
       }
     }
 
-    loadProjects()
-  }, [])
+    void loadProjects()
+    return () => { current = false }
+  }, [initialProjectId, initialSurveyType, onPick])
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">

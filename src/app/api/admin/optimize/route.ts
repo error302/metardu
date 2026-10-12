@@ -14,7 +14,7 @@ import {
 } from '@/lib/db/optimization'
 import redisCache from '@/lib/cache/redis'
 
-export const POST = apiHandler({ auth: true, roles: ['super_admin', 'org_admin'], rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
+export const POST = apiHandler({ auth: true, roles: ['super_admin'], rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const { action } = ctx.body as { action?: string }
 
   switch (action) {
@@ -40,6 +40,7 @@ async function applyIndexes(): Promise<NextResponse> {
 
   return NextResponse.json({
     action: 'apply_indexes',
+    status: skipped.length === 0 ? 'success' : applied.length > 0 ? 'partial' : 'failed',
     summary: { total: applied.length + skipped.length, applied: applied.length, skipped: skipped.length },
     applied,
     skipped,
@@ -87,9 +88,10 @@ async function runFullOptimization(): Promise<NextResponse> {
   const queryResult = await analyzeQueries()
   results.queries = await queryResult.json()
 
+  const indexStatus = (results.indexes as { status?: string } | undefined)?.status
   return NextResponse.json({
     action: 'full_optimization',
-    status: 'success',
+    status: indexStatus === 'success' ? 'success' : indexStatus === 'failed' ? 'failed' : 'partial',
     timestamp: new Date().toISOString(),
     results,
   })

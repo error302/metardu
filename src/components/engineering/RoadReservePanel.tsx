@@ -10,23 +10,15 @@ import {
 } from '@/components/ui/card'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
-import { Progress } from '@/components/ui/progress'
 import {
   ROAD_RESERVE_STANDARDS,
   getRoadReserveWidth,
-  checkRoadReserveCompliance,
   estimateAcquisitionArea,
-  determineAcquisitionType,
-  type AcquisitionType,
 } from '@/lib/engineering/roadReserve'
 import {
   Ruler,
-  CheckCircle2,
-  XCircle,
   AlertTriangle,
-  LandPlot,
   Building2,
   ArrowRightLeft,
   Zap,
@@ -45,29 +37,6 @@ interface RoadReservePanelProps {
 // ────────────────────────────────────────────────────────────
 // Helpers
 // ────────────────────────────────────────────────────────────
-
-const ACQUISITION_STYLES: Record<AcquisitionType, { label: string; color: string; bg: string }> = {
-  full: {
-    label: 'Full Acquisition',
-    color: 'text-red-700 dark:text-red-400',
-    bg: 'bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800',
-  },
-  partial: {
-    label: 'Partial Acquisition',
-    color: 'text-amber-700 dark:text-amber-400',
-    bg: 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800',
-  },
-  wayleave: {
-    label: 'Wayleave / Easement',
-    color: 'text-sky-700 dark:text-sky-400',
-    bg: 'bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800',
-  },
-  none: {
-    label: 'No Acquisition',
-    color: 'text-emerald-700 dark:text-emerald-400',
-    bg: 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800',
-  },
-}
 
 function formatNumber(n: number, decimals = 2): string {
   return n.toLocaleString('en-KE', {
@@ -300,26 +269,6 @@ function CrossSectionDiagram({
 }
 
 // ────────────────────────────────────────────────────────────
-// Placeholder parcel list for future integration
-// ────────────────────────────────────────────────────────────
-
-interface PlaceholderParcel {
-  id: string
-  lrNo: string
-  owner: string
-  overlapPct: number
-  hasBuilding: boolean
-}
-
-const PLACEHOLDER_PARCELS: PlaceholderParcel[] = [
-  { id: '1', lrNo: 'LR 12345/456', owner: 'Kamau J.', overlapPct: 95, hasBuilding: true },
-  { id: '2', lrNo: 'LR 12345/457', owner: 'Ochieng W.', overlapPct: 45, hasBuilding: false },
-  { id: '3', lrNo: 'LR 12345/458', owner: 'Wanjiku M.', overlapPct: 12, hasBuilding: false },
-  { id: '4', lrNo: 'LR 12345/459', owner: 'Kipruto D.', overlapPct: 62, hasBuilding: true },
-  { id: '5', lrNo: 'LR 12345/460', owner: 'Hassan A.', overlapPct: 5, hasBuilding: false },
-]
-
-// ────────────────────────────────────────────────────────────
 // Main Component
 // ────────────────────────────────────────────────────────────
 
@@ -332,32 +281,28 @@ export default function RoadReservePanel({
   const standards = ROAD_RESERVE_STANDARDS[roadClass]
   const reserveInfo = getRoadReserveWidth(roadClass)
 
-  const [proposedWidth, setProposedWidth] = useState<string>(
-    String(reserveInfo.standard),
-  )
+  const [proposedWidth, setProposedWidth] = useState<string>('')
   const [roadLengthInput, setRoadLengthInput] = useState<string>(
-    String(roadLength ?? 1000),
+    roadLength == null ? '' : String(roadLength),
   )
   const [existingWidth, setExistingWidth] = useState<string>(
-    String(propExistingWidth ?? 0),
+    propExistingWidth == null ? '' : String(propExistingWidth),
   )
-  const [wayleaveWidth, setWayleaveWidth] = useState<string>('3.0')
+  const [wayleaveWidth, setWayleaveWidth] = useState<string>('')
   const [showWayleave, setShowWayleave] = useState(true)
 
   // ── Computed values ──
-  const proposedNum = parseFloat(proposedWidth) || 0
-  const roadLengthNum = parseFloat(roadLengthInput) || 0
-  const existingNum = parseFloat(existingWidth) || 0
-  const wayleaveNum = parseFloat(wayleaveWidth) || 0
+  const proposedNum = proposedWidth.trim() === '' ? Number.NaN : Number(proposedWidth)
+  const roadLengthNum = roadLengthInput.trim() === '' ? Number.NaN : Number(roadLengthInput)
+  const existingNum = existingWidth.trim() === '' ? Number.NaN : Number(existingWidth)
+  const wayleaveNum = wayleaveWidth.trim() === '' ? Number.NaN : Number(wayleaveWidth)
+  const hasProposedWidth = Number.isFinite(proposedNum) && proposedNum > 0
+  const hasRoadLength = Number.isFinite(roadLengthNum) && roadLengthNum > 0
+  const hasExistingWidth = Number.isFinite(existingNum) && existingNum >= 0
 
-  const compliance = useMemo(
-    () => checkRoadReserveCompliance(roadClass, proposedNum),
-    [roadClass, proposedNum],
-  )
-
-  const acquisition = useMemo(
-    () => estimateAcquisitionArea(roadLengthNum, proposedNum, existingNum),
-    [roadLengthNum, proposedNum, existingNum],
+  const envelope = useMemo(
+    () => estimateAcquisitionArea(roadLengthNum, proposedNum, hasExistingWidth ? existingNum : 0),
+    [roadLengthNum, proposedNum, existingNum, hasExistingWidth],
   )
 
   const handleProposedWidthChange = useCallback(
@@ -422,20 +367,20 @@ export default function RoadReservePanel({
         <CardHeader>
           <div className="flex items-center gap-2">
             <Ruler className="h-4 w-4 text-primary" />
-            <CardTitle>Road Reserve Standard</CardTitle>
+            <CardTitle>Built-In Road-Class Guide</CardTitle>
           </div>
           <CardDescription>
-            Class {roadClass} — {standards.description}
+            Class {roadClass} — {standards.description}. Verify the current governing project standard and legal corridor.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground mb-1">Minimum Reserve</p>
+              <p className="text-xs text-muted-foreground mb-1">Reference floor only</p>
               <p className="text-lg font-bold">{standards.reserveWidthMin}m</p>
             </div>
             <div className="rounded-lg border p-3">
-              <p className="text-xs text-muted-foreground mb-1">Standard Reserve</p>
+              <p className="text-xs text-muted-foreground mb-1">Reference value only</p>
               <p className="text-lg font-bold">{standards.reserveWidthStd}m</p>
             </div>
             <div className="rounded-lg border p-3">
@@ -485,31 +430,19 @@ export default function RoadReservePanel({
               </table>
             </div>
           </details>
+          <p className="text-xs text-amber-700 dark:text-amber-300">Generic class guides do not establish a project's legal right-of-way. Use the gazetted or cadastral-surveyed reserve and current approved design documents.</p>
         </CardContent>
       </Card>
 
       {/* ────────────────────────────────────────────────── */}
-      {/* Card 2: Compliance Check                          */}
+      {/* Card 2: Reference guide comparison                */}
       {/* ────────────────────────────────────────────────── */}
       <Card>
         <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <CheckCircle2 className="h-4 w-4 text-primary" />
-              <CardTitle>Reserve Width Compliance</CardTitle>
-            </div>
-            {compliance.compliant ? (
-              <Badge className="bg-emerald-100 text-emerald-800 dark:bg-emerald-900/40 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800">
-                <CheckCircle2 className="h-3 w-3 mr-1" />
-                Compliant
-              </Badge>
-            ) : (
-              <Badge className="bg-red-100 text-red-800 dark:bg-red-900/40 dark:text-red-300 border-red-200 dark:border-red-800">
-                <XCircle className="h-3 w-3 mr-1" />
-                Non-Compliant
-              </Badge>
-            )}
-          </div>
+          <CardTitle>Reference Width Guide</CardTitle>
+          <CardDescription>
+            Built-in class values are planning context only. They do not establish the legal or approved reserve for this project.
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -521,32 +454,21 @@ export default function RoadReservePanel({
                 inputMode="decimal"
                 value={proposedWidth}
                 onChange={handleProposedWidthChange}
-                placeholder={String(reserveInfo.standard)}
+                placeholder={`Reference ${reserveInfo.standard}`}
               />
               <p className="text-xs text-muted-foreground">
-                Minimum required: <span className="font-semibold">{standards.reserveWidthMin}m</span>
-                {' · '}Standard: <span className="font-semibold">{standards.reserveWidthStd}m</span>
+                Built-in reference range: <span className="font-semibold">{standards.reserveWidthMin}–{standards.reserveWidthStd}m</span>
               </p>
             </div>
             <div className="space-y-2">
-              <Label>Compliance Status</Label>
-              <div className="h-9 flex items-center">
-                {compliance.compliant ? (
-                  <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-400">
-                    <CheckCircle2 className="h-5 w-5" />
-                    <span className="text-sm font-medium">
-                      Meets minimum ({formatNumber(proposedNum)}m ≥ {standards.reserveWidthMin}m)
-                    </span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 text-red-700 dark:text-red-400">
-                    <XCircle className="h-5 w-5" />
-                    <span className="text-sm font-medium">
-                      Deficit of {formatNumber(compliance.deficit)}m
-                    </span>
-                  </div>
-                )}
-              </div>
+              <Label>Comparison to built-in guide</Label>
+              <p className="min-h-9 flex items-center text-sm text-muted-foreground">
+                {!hasProposedWidth ? 'Enter a candidate width to compare.' : proposedNum < standards.reserveWidthMin
+                  ? `${formatNumber(proposedNum)}m is below the built-in reference floor (${standards.reserveWidthMin}m).`
+                  : proposedNum > standards.reserveWidthStd
+                    ? `${formatNumber(proposedNum)}m is above the built-in reference value (${standards.reserveWidthStd}m).`
+                    : `${formatNumber(proposedNum)}m is within the built-in reference values.`}
+              </p>
             </div>
           </div>
 
@@ -554,8 +476,8 @@ export default function RoadReservePanel({
           <div className="space-y-1">
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>0m</span>
-              <span>Min: {standards.reserveWidthMin}m</span>
-              <span>Std: {standards.reserveWidthStd}m</span>
+              <span>Guide floor: {standards.reserveWidthMin}m</span>
+              <span>Guide value: {standards.reserveWidthStd}m</span>
             </div>
             <div className="relative h-3 rounded-full bg-muted overflow-hidden">
               {/* Standard zone marker */}
@@ -574,11 +496,9 @@ export default function RoadReservePanel({
               />
               {/* Fill */}
               <div
-                className={`h-full rounded-full transition-all duration-300 ${
-                  compliance.compliant ? 'bg-emerald-500' : 'bg-red-500'
-                }`}
+                className="h-full rounded-full bg-sky-500 transition-all duration-300"
                 style={{
-                  width: `${Math.min(100, (proposedNum / (standards.reserveWidthStd * 1.5)) * 100)}%`,
+                  width: `${Math.min(100, (hasProposedWidth ? proposedNum / (standards.reserveWidthStd * 1.5) : 0) * 100)}%`,
                 }}
               />
             </div>
@@ -596,12 +516,12 @@ export default function RoadReservePanel({
             <CardTitle>Corridor Cross-Section</CardTitle>
           </div>
           <CardDescription>
-            Visual representation of the road reserve, carriageway, and shoulders
+            Schematic only; with no candidate width entered, the built-in guide value is shown.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <CrossSectionDiagram
-            reserveWidth={proposedNum || standards.reserveWidthStd}
+            reserveWidth={hasProposedWidth ? proposedNum : standards.reserveWidthStd}
             carriagewayWidth={standards.carriagewayStd}
             shoulderWidth={standards.shoulderStd}
             wayleaveWidth={showWayleave ? wayleaveNum : undefined}
@@ -615,11 +535,11 @@ export default function RoadReservePanel({
       <Card>
         <CardHeader>
           <div className="flex items-center gap-2">
-            <LandPlot className="h-4 w-4 text-primary" />
-            <CardTitle>Land Acquisition Estimate</CardTitle>
+            <Ruler className="h-4 w-4 text-primary" />
+            <CardTitle>Gross Corridor Envelope</CardTitle>
           </div>
           <CardDescription>
-            Estimated area required for the road reserve corridor
+            Rectangle-based area context only. This is not a parcel take, legal acquisition, compensation, or corridor geometry calculation.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -632,7 +552,7 @@ export default function RoadReservePanel({
                 inputMode="decimal"
                 value={roadLengthInput}
                 onChange={handleLengthChange}
-                placeholder="1000"
+                placeholder="Enter surveyed/design length"
               />
             </div>
             <div className="space-y-2">
@@ -643,59 +563,58 @@ export default function RoadReservePanel({
                 inputMode="decimal"
                 value={existingWidth}
                 onChange={handleExistingWidthChange}
-                placeholder="0"
+                placeholder="Enter verified existing corridor width"
               />
               <p className="text-xs text-muted-foreground">
-                Width of existing carriageway + shoulders already acquired
+                Use the verified existing corridor width, not simply carriageway width.
               </p>
             </div>
             <div className="space-y-2">
               <Label>Reserve Width</Label>
               <div className="h-9 flex items-center rounded-md border bg-muted/50 px-3">
-                <span className="text-sm font-medium">{formatNumber(proposedNum)}m</span>
+                <span className="text-sm font-medium">{hasProposedWidth ? `${formatNumber(proposedNum)}m` : 'Not entered'}</span>
               </div>
             </div>
           </div>
 
           <Separator />
 
-          {roadLengthNum > 0 && proposedNum > 0 ? (
+          {hasRoadLength && hasProposedWidth ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="rounded-lg border p-4 bg-muted/30">
-                <p className="text-xs text-muted-foreground mb-1">Total Reserve Area</p>
-                <p className="text-xl font-bold">{formatNumber(acquisition.totalReserveArea)}</p>
-                <p className="text-xs text-muted-foreground">sqm</p>
+                <p className="text-xs text-muted-foreground mb-1">Rectangular envelope area</p>
+                <p className="text-xl font-bold">{formatNumber(envelope.totalReserveArea)}</p>
+                <p className="text-xs text-muted-foreground">m²</p>
               </div>
               <div className="rounded-lg border p-4 bg-muted/30">
-                <p className="text-xs text-muted-foreground mb-1">New Acquisition</p>
+                <p className="text-xs text-muted-foreground mb-1">Gross difference from entered existing width</p>
                 <p className="text-xl font-bold text-amber-700 dark:text-amber-400">
-                  {formatNumber(acquisition.newAcquisitionArea)}
+                  {hasExistingWidth ? formatNumber(envelope.newAcquisitionArea) : '—'}
                 </p>
-                <p className="text-xs text-muted-foreground">sqm</p>
+                <p className="text-xs text-muted-foreground">m² · context only</p>
               </div>
               <div className="rounded-lg border p-4 bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Total Acres</p>
-                <p className="text-xl font-bold">{formatNumber(acquisition.totalAcres)}</p>
+                <p className="text-xl font-bold">{formatNumber(envelope.totalAcres)}</p>
                 <p className="text-xs text-muted-foreground">ac</p>
               </div>
               <div className="rounded-lg border p-4 bg-muted/30">
                 <p className="text-xs text-muted-foreground mb-1">Total Hectares</p>
-                <p className="text-xl font-bold">{formatNumber(acquisition.totalHectares)}</p>
+                <p className="text-xl font-bold">{formatNumber(envelope.totalHectares)}</p>
                 <p className="text-xs text-muted-foreground">ha</p>
               </div>
             </div>
           ) : (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Enter road length and reserve width to see acquisition estimates.
+              Enter measured/design length and candidate width to see the simple rectangular envelope area.
             </p>
           )}
 
-          {existingNum > 0 && acquisition.newAcquisitionArea > 0 && (
+          {hasExistingWidth && hasRoadLength && hasProposedWidth && envelope.newAcquisitionArea > 0 && (
             <div className="rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-3 flex items-start gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-800 dark:text-amber-200">
-                {formatNumber(acquisition.newAcquisitionArea)} sqm of new land acquisition required beyond the
-                existing {formatNumber(existingNum)}m road width.
+                The rectangular candidate envelope exceeds the entered existing corridor width by {formatNumber(envelope.newAcquisitionArea)}m². Parcel-level impact requires surveyed parcel and corridor boundaries.
               </p>
             </div>
           )}
@@ -712,72 +631,14 @@ export default function RoadReservePanel({
             <CardTitle>Property Impact Assessment</CardTitle>
           </div>
           <CardDescription>
-            Affected parcels and acquisition classification
+            Parcel impact is calculated only after verified parcel boundaries and a project corridor are loaded.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="rounded-lg border overflow-hidden">
-            <div className="max-h-72 overflow-y-auto custom-scrollbar">
-              <table className="w-full text-sm">
-                <thead className="sticky top-0 bg-muted/80 backdrop-blur-sm">
-                  <tr>
-                    <th className="text-left px-4 py-2.5 font-medium text-xs text-muted-foreground">LR No.</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-xs text-muted-foreground">Owner</th>
-                    <th className="text-right px-4 py-2.5 font-medium text-xs text-muted-foreground">Overlap</th>
-                    <th className="text-center px-4 py-2.5 font-medium text-xs text-muted-foreground">Structure</th>
-                    <th className="text-left px-4 py-2.5 font-medium text-xs text-muted-foreground">Classification</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {PLACEHOLDER_PARCELS.map((parcel) => {
-                    const acqType = determineAcquisitionType(parcel.overlapPct, parcel.hasBuilding)
-                    const style = ACQUISITION_STYLES[acqType]
-                    return (
-                      <tr key={parcel.id} className="border-t hover:bg-muted/30 transition-colors">
-                        <td className="px-4 py-2.5 font-mono text-xs">{parcel.lrNo}</td>
-                        <td className="px-4 py-2.5">{parcel.owner}</td>
-                        <td className="text-right px-4 py-2.5">
-                          <div className="flex items-center justify-end gap-2">
-                            <Progress value={parcel.overlapPct} className="w-16 h-1.5" />
-                            <span className="text-xs tabular-nums w-10 text-right">
-                              {parcel.overlapPct}%
-                            </span>
-                          </div>
-                        </td>
-                        <td className="text-center px-4 py-2.5">
-                          {parcel.hasBuilding ? (
-                            <Building2 className="h-3.5 w-3.5 inline text-muted-foreground" />
-                          ) : (
-                            <LandPlot className="h-3.5 w-3.5 inline text-muted-foreground/50" />
-                          )}
-                        </td>
-                        <td className="px-4 py-2.5">
-                          <span
-                            className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-medium ${style.bg} ${style.color}`}
-                          >
-                            {style.label}
-                          </span>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            </div>
+          <div className="rounded-lg border border-dashed p-5 text-sm text-muted-foreground">
+            <p className="font-medium text-foreground">No parcel impact result is available.</p>
+            <p className="mt-1">Import or survey cadastral parcel polygons, verify their source and coordinate reference system, then compare them with the approved/gazetted corridor. Owner names and acquisition classes are intentionally not inferred here.</p>
           </div>
-          <div className="flex flex-wrap gap-3 mt-3">
-            {(
-              Object.entries(ACQUISITION_STYLES) as [AcquisitionType, (typeof ACQUISITION_STYLES)[AcquisitionType]][]
-            ).map(([key, style]) => (
-              <div key={key} className="flex items-center gap-1.5">
-                <div className={`h-2.5 w-2.5 rounded-sm border ${style.bg}`} />
-                <span className="text-xs text-muted-foreground">{style.label}</span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-muted-foreground mt-2 italic">
-            Parcel data is placeholder for future GIS integration.
-          </p>
         </CardContent>
       </Card>
 
@@ -815,69 +676,23 @@ export default function RoadReservePanel({
                 inputMode="decimal"
                 value={wayleaveWidth}
                 onChange={handleWayleaveChange}
-                placeholder="3.0"
+                placeholder="Enter utility owner's specified width"
               />
             </div>
             <div className="space-y-2">
-              <Label>Typical Wayleave Widths</Label>
-              <div className="flex flex-wrap gap-2">
-                {[
-                  { label: 'Water', width: 3 },
-                  { label: 'Power', width: 4 },
-                  { label: 'Fibre', width: 3 },
-                  { label: 'Gas', width: 6 },
-                  { label: 'Sewer', width: 5 },
-                ].map((w) => (
-                  <button
-                    key={w.label}
-                    type="button"
-                    onClick={() => setWayleaveWidth(String(w.width))}
-                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs hover:bg-muted/50 transition-colors cursor-pointer"
-                  >
-                    {w.label}
-                    <span className="text-muted-foreground">{w.width}m</span>
-                  </button>
-                ))}
-              </div>
+              <p className="text-xs text-muted-foreground">Use the utility owner's design requirement. This value only changes the schematic.</p>
             </div>
           </div>
 
           <div className="rounded-lg border border-sky-200 dark:border-sky-800 bg-sky-50 dark:bg-sky-950/30 p-3 flex items-start gap-2">
             <Zap className="h-4 w-4 text-sky-600 dark:text-sky-400 mt-0.5 shrink-0" />
             <div className="text-xs text-sky-800 dark:text-sky-200 space-y-1">
-              <p>
-                Wayleaves are utility easements within the road reserve. They do not require separate
-                land acquisition but must be within the gazetted reserve width.
-              </p>
-              <p>
-                Standard wayleave widths: 3–6m depending on utility type. Multiple utilities
-                may share a common wayleave corridor.
-              </p>
+              <p>Utility placement, easement width, approvals, and land rights depend on the utility owner and project approvals.</p>
+              <p>The schematic does not verify clearance, clashes, reserve fit, or legal rights. Confirm surveyed offsets, depths, and utility-owner requirements.</p>
             </div>
           </div>
 
-          {/* Wayleave vs reserve check */}
-          {wayleaveNum > 0 && proposedNum > 0 && (
-            <div className="text-xs">
-              {wayleaveNum * 2 <= proposedNum ? (
-                <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-400">
-                  <CheckCircle2 className="h-3.5 w-3.5" />
-                  <span>
-                    Wayleave ({wayleaveNum}m × 2 = {formatNumber(wayleaveNum * 2)}m) fits within
-                    reserve ({formatNumber(proposedNum)}m)
-                  </span>
-                </div>
-              ) : (
-                <div className="flex items-center gap-1.5 text-red-700 dark:text-red-400">
-                  <XCircle className="h-3.5 w-3.5" />
-                  <span>
-                    Wayleave ({wayleaveNum}m × 2 = {formatNumber(wayleaveNum * 2)}m) exceeds reserve width ({formatNumber(proposedNum)}m).
-                    Reserve may need widening.
-                  </span>
-                </div>
-              )}
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground">No spatial fit result is available until the utility route and approved reserve boundaries are surveyed or imported.</p>
         </CardContent>
       </Card>
     </div>

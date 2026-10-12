@@ -24,7 +24,7 @@ interface HealthData {
       connectionsMax: number
     }
     uptime: number
-    uptimePercent: number
+    uptimePercent: number | null
     memory: {
       heapUsedMb: number
       heapTotalMb: number
@@ -204,12 +204,9 @@ export default function SystemHealthPanel() {
           <div className="flex items-center gap-3 p-2.5 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
             <div className="w-2.5 h-2.5 rounded-full shrink-0 bg-green-400" />
             <div className="min-w-0">
-              <p className="text-xs text-[var(--text-muted)]">Uptime</p>
+              <p className="text-xs text-[var(--text-muted)]">Process uptime</p>
               <p className="text-sm font-medium text-[var(--text-primary)]">
-                {d.uptimePercent}%
-                <span className="text-[var(--text-muted)] text-xs ml-1">
-                  ({formatUptime(d.uptime)})
-                </span>
+                {formatUptime(d.uptime)}
               </p>
             </div>
           </div>
@@ -268,7 +265,11 @@ export default function SystemHealthPanel() {
                 </button>
               </div>
             </div>
-            <UptimeChart data={uptimeTrends} />
+            {uptimeTrends.length > 0 ? <UptimeChart data={uptimeTrends} /> : (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">
+                Historical uptime is not recorded yet, so no SLA percentage is available.
+              </p>
+            )}
           </div>
 
           {/* Response Time P95/P99 */}
@@ -276,7 +277,11 @@ export default function SystemHealthPanel() {
             <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
               Response Time (p50 / p95 / p99)
             </h3>
-            <ResponseTimeChart data={data.trends.responseTime} />
+            {data.trends.responseTime.length > 0 ? <ResponseTimeChart data={data.trends.responseTime} /> : (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">
+                Historical latency samples are not retained yet. The current request measurement appears above.
+              </p>
+            )}
           </div>
 
           {/* Error Rate */}
@@ -284,7 +289,11 @@ export default function SystemHealthPanel() {
             <h3 className="text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
               Error Rate
             </h3>
-            <ErrorRateChart data={data.trends.errorRate} />
+            {data.trends.errorRate.length > 0 ? <ErrorRateChart data={data.trends.errorRate} /> : (
+              <p className="py-8 text-center text-xs text-[var(--text-muted)]">
+                Historical request error rates are not recorded yet.
+              </p>
+            )}
           </div>
 
           {/* Recent Errors */}

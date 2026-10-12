@@ -1,12 +1,8 @@
 'use client'
 
 // ComputeLimitNotice — reusable banner explaining that a web tool is
-// resource-constrained and pointing surveyors toward the METARDU desktop
-// app for heavy jobs (large point clouds, big TINs, batch processing).
-//
-// Web tools run in the browser / lightweight cloud worker and are capped at
-// a point count to protect performance. The desktop app ships the full
-// survey engine locally — no caps, no uploads, fully offline-capable.
+// resource-constrained. State actual limits without claiming an unverified
+// unlimited desktop runtime, offline coverage or data-delivery behavior.
 
 import { MonitorDown, X } from 'lucide-react'
 import { useState } from 'react'
@@ -44,7 +40,7 @@ export function ComputeLimitNotice({
         </div>
         <div className="min-w-0">
           <h4 className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
-            Heavy compute requires METARDU Desktop
+            Large dataset limits
             {maxPoints && (
               <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase tracking-wider border border-sky-500/30 bg-sky-500/10 text-sky-400">
                 Limit {maxPoints.toLocaleString()} pts
@@ -53,10 +49,10 @@ export function ComputeLimitNotice({
           </h4>
           <p className="text-xs text-[var(--text-muted)] leading-relaxed mt-1">
             {message ??
-              `${tool} is capped on the web to keep every session fast. The METARDU desktop app runs the full survey engine on your machine — no point caps, no uploads, works offline.`}
+              `${tool} uses device and server resources.${maxPoints ? ` This workflow accepts up to ${maxPoints.toLocaleString()} points.` : ''} Review the data size and the tool's stated limits before starting a large job.`}
           </p>
           <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed mt-2">
-            For large datasets or batch processing, use the desktop app. Your project data stays on your device.
+            Check the resulting surface and exported records before relying on them for field or construction work.
           </p>
         </div>
       </div>

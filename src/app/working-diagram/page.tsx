@@ -3,10 +3,11 @@ import { redirect } from 'next/navigation';
 import WorkingDiagramClient, { type ProjectInfo, type FieldbookEntry } from './WorkingDiagramClient';
 
 interface Props {
-  searchParams: { projectId?: string };
+  searchParams: Promise<{ projectId?: string }>;
 }
 
-export default async function WorkingDiagramPage({ searchParams }: Props) {
+export default async function WorkingDiagramPage({ searchParams: searchParamsPromise }: Props) {
+  const searchParams = await searchParamsPromise;
   const { projectId } = searchParams;
   if (!projectId) redirect('/projects');
 

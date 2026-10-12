@@ -13,6 +13,7 @@ import type { EngineeringData, StepStatus } from '@/types/engineering'
 
 export type EngineeringStepId =
   | 'setup'
+  | 'field_plan'
   | 'horizontal'
   | 'vertical'
   | 'cross_section'

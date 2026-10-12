@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/api-client/client'
 import { z } from 'zod'
 import { apiGet, apiPost } from '@/lib/api/client'
+import { saveProjectEngineeringData } from '@/lib/engineering/projectEngineeringPersistence'
 import type {
   EngineeringData,
   EngineeringMode,
@@ -139,9 +140,11 @@ export default function EngineeringWorkspacePage() {
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
   const [, setAlignmentId] = useState<string | null>(null)
+  const appliedStepRef = useRef<string | null>(null)
 
   // Sub-tab for quick compute panels
   const activeTab = searchParams.get('tab') || 'workflow'
+  const requestedStep = searchParams.get('step')
 
   // --- Load engineering data from the relational DB backend ---
   const loadEngineeringData = useCallback(async (projectId: string) => {
@@ -294,6 +297,14 @@ export default function EngineeringWorkspacePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId, loading, loadEngineeringData])
 
+  useEffect(() => {
+    if (!project || !requestedStep || appliedStepRef.current === requestedStep) return
+    appliedStepRef.current = requestedStep
+    const matchingStep = getEngineeringSteps(project.engineering_data || null)
+      .find(step => step.id === requestedStep)
+    if (matchingStep) setActiveStep(matchingStep.id)
+  }, [project, requestedStep])
+
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
@@ -313,10 +324,7 @@ export default function EngineeringWorkspacePage() {
         standard: current.standard || 'KRDM2017'
       }
 
-      await dbClient
-        .from('projects')
-        .update({ engineering_data: updated })
-        .eq('id', project.id)
+      await saveProjectEngineeringData(dbClient, project.id, updated)
 
       setProject({ ...project, engineering_data: updated })
       setActiveStep('setup')
@@ -421,7 +429,7 @@ export default function EngineeringWorkspacePage() {
   }, [project])
 
   const handleSave = async (data: Partial<EngineeringData>) => {
-    if (!project) return
+    if (!project) return false
     setSaving(true)
 
     try {
@@ -439,21 +447,19 @@ export default function EngineeringWorkspacePage() {
           ...current,
           mode: current.mode || 'road',
           standard: current.standard || 'KRDM2017',
-          road: { ...current.road, ...data.road } as RoadDesignData,
-          drainage: { ...current.drainage, ...data.drainage } as DrainageData
+          road: data.road ? { ...current.road, ...data.road } as RoadDesignData : current.road,
+          roadFieldPlan: data.roadFieldPlan ?? current.roadFieldPlan,
+          drainage: data.drainage ? { ...current.drainage, ...data.drainage } as DrainageData : current.drainage,
         }
       }
 
       // Save to database (engineering_data JSONB column)
-      await dbClient
-        .from('projects')
-        .update({ engineering_data: updated })
-        .eq('id', project.id)
+      await saveProjectEngineeringData(dbClient, project.id, updated)
 
       setProject({ ...project, engineering_data: updated })
 
       // Also persist to relational backend for road mode
-      if (updated.road) {
+      if (data.road && updated.road) {
         const backendOk = await saveToBackend(updated)
         if (backendOk) {
           showToast('Saved successfully')
@@ -463,8 +469,10 @@ export default function EngineeringWorkspacePage() {
       } else {
         showToast('Saved successfully')
       }
+      return true
     } catch {
       showToast('Failed to save. Check your connection and try again.', 'error')
+      return false
     } finally {
       setSaving(false)
     }
@@ -476,12 +484,9 @@ export default function EngineeringWorkspacePage() {
     setSaving(true)
     try {
       // First ensure local state is up to date
-      await dbClient
-        .from('projects')
-        .update({ engineering_data: project.engineering_data })
-        .eq('id', project.id)
+      await saveProjectEngineeringData(dbClient, project.id, project.engineering_data)
 
-      if (project.engineering_data.road) {
+      if (project.engineering_data.mode === 'road' && project.engineering_data.road) {
         const backendOk = await saveToBackend(project.engineering_data)
         if (backendOk) {
           showToast('All engineering data saved to backend')
@@ -554,6 +559,12 @@ export default function EngineeringWorkspacePage() {
           >
             Quick Compute →
           </button>
+          <button
+            onClick={() => router.push(`/tools/pipe-network?projectId=${encodeURIComponent(params.id)}`)}
+            className="text-xs px-3 py-1 bg-cyan-500/15 text-cyan-300 rounded hover:bg-cyan-500/25"
+          >
+            Drainage Pipe Network →
+          </button>
         </div>
       </div>
 
@@ -585,7 +596,7 @@ export default function EngineeringWorkspacePage() {
                 return (
                   <li key={step.id}>
                     <button
-                      disabled={isLocked}
+                      disabled={isLocked || saving}
                       onClick={() => setActiveStep(step.id)}
                       className={`w-full text-left rounded-lg px-3 py-2.5 flex items-start gap-3 ${
                         isActive ? 'bg-zinc-800 border border-zinc-700' :

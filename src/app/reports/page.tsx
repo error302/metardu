@@ -14,7 +14,7 @@ const reportTypes = [
   { name: 'Deed Plan', icon: MapIcon, href: '/deed-plan', description: 'Form No. 4 — legal document showing property boundaries and beacons' },
   { name: 'Beacon Certificate', icon: Award, href: '/tools/beacon-certificate', description: 'Official beacon coordinates, descriptions, and condition records' },
   { name: 'Field Book', icon: BookOpen, href: '/fieldbook', description: 'Raw field observations and measurements with rise & fall' },
-  { name: 'Statutory Workbook', icon: FileSpreadsheet, href: '/tools/statutory-workbook', description: 'Regulatory compliance workbook for NLIMS submissions' },
+  { name: 'Survey Review Workbook', icon: FileSpreadsheet, href: '/tools/statutory-workbook', description: 'METARDU checks and project data for surveyor review; not a registry acceptance certificate' },
 ]
 
 export default function ReportsPage() {

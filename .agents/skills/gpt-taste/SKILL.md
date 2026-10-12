@@ -62,7 +62,7 @@ Select components from this arsenal based on your randomization:
 - **The Meta-Label Ban:** BANNED FOREVER are labels like "SECTION 01", "SECTION 04", "QUESTION 05", "ABOUT US". Remove them entirely. They look cheap and unprofessional.
 - **Image Context & Style:** Use `https://picsum.photos/seed/{keyword}/1920/1080` and match the keyword to the vibe. Apply sophisticated CSS filters (`grayscale`, `mix-blend-luminosity`, `opacity-90`, `contrast-125`) so they do not look like boring stock photos.
 - **Creative Backgrounds:** Inject subtle, professional ambient design. Use deep radial blurs, grainy mesh gradients, or shifting dark overlays. Avoid flat, boring colors.
-- **Horizontal Scroll Bug:** Wrap ONLY animated or off-screen components in `overflow-x-hidden` (e.g. a marquee div or GSAP animation container). Do NOT apply `overflow-x-hidden` to the entire `<main>` element, as it can clip interactive UI and hide legitimate overflow. Scope horizontal overflow guards only to specific offending subtrees.
+- **Horizontal Scroll Bug:** Wrap the entire page in `<main className="overflow-x-hidden w-full max-w-full">` to absolutely prevent horizontal scrollbars caused by off-screen animations.
 
 ## 8. MANDATORY PRE-FLIGHT <design_plan>
 Before writing ANY React/UI code, you MUST output a `<design_plan>` block containing:

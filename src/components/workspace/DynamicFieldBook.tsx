@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef, useMemo } from 'react';
+import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import { createClient } from '@/lib/api-client/client';
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 import { SurveyType } from '@/types/project';
@@ -78,12 +78,59 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const [computeResult, setComputeResult] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<FieldBookWarning[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
+  const [engOpeningRL, setEngOpeningRL] = useState(openingRL !== undefined ? String(openingRL) : '');
+  const [engClosingRL, setEngClosingRL] = useState(closingRL !== undefined ? String(closingRL) : '');
+  const [engDistanceKm, setEngDistanceKm] = useState('');
+  const [scrollTop, setScrollTop] = useState(0);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const ROW_HEIGHT = 38;
+  const VIEWPORT_HEIGHT = 560;
+  const OVERSCAN = 8;
+  const isVirtualized = rows.length > 50 && !isPrinting;
+
+  const { startIndex, endIndex, topSpacerHeight, bottomSpacerHeight, visibleRows } = useMemo(() => {
+    if (!isVirtualized) {
+      return {
+        startIndex: 0,
+        endIndex: rows.length,
+        topSpacerHeight: 0,
+        bottomSpacerHeight: 0,
+        visibleRows: rows,
+      };
+    }
+    const visibleCount = Math.ceil(VIEWPORT_HEIGHT / ROW_HEIGHT);
+    const start = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - OVERSCAN);
+    const end = Math.min(rows.length, Math.floor(scrollTop / ROW_HEIGHT) + visibleCount + OVERSCAN);
+    return {
+      startIndex: start,
+      endIndex: end,
+      topSpacerHeight: start * ROW_HEIGHT,
+      bottomSpacerHeight: (rows.length - end) * ROW_HEIGHT,
+      visibleRows: rows.slice(start, end),
+    };
+  }, [rows, scrollTop, isVirtualized]);
+
+  useEffect(() => {
+    if (surveyType === 'engineering' && !engOpeningRL && rows[0]?.rl !== undefined && rows[0]?.rl !== '' && Number.isFinite(Number(rows[0]?.rl))) {
+      setEngOpeningRL(String(rows[0].rl));
+    }
+  }, [surveyType, rows, engOpeningRL]);
 
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
 
-  const addRow = () => setRows((prev) => [...prev, emptyRow(template.columns)]);
+  const addRow = () => {
+    setRows((prev) => [...prev, emptyRow(template.columns)]);
+    if (rows.length >= 50 && containerRef.current) {
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = containerRef.current.scrollHeight;
+        }
+      }, 50);
+    }
+  };
 
   const removeRow = (idx: number) => {
     if (deleteConfirm === idx) {
@@ -122,17 +169,29 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const handleCompute = useCallback(() => {
     try {
       if (surveyType === 'engineering') {
-        if (openingRL) {
+        const effectiveOpeningRL = engOpeningRL !== '' && Number.isFinite(Number(engOpeningRL))
+          ? Number(engOpeningRL)
+          : (openingRL !== undefined && Number.isFinite(openingRL) ? openingRL : (rows[0]?.rl !== undefined && rows[0]?.rl !== '' && Number.isFinite(Number(rows[0]?.rl)) ? Number(rows[0]?.rl) : undefined));
+
+        if (effectiveOpeningRL !== undefined) {
+          const effectiveClosingRL = engClosingRL !== '' && Number.isFinite(Number(engClosingRL))
+            ? Number(engClosingRL)
+            : (closingRL !== undefined && Number.isFinite(Number(closingRL)) ? Number(closingRL) : undefined);
+          const effectiveDistKm = engDistanceKm !== '' && Number.isFinite(Number(engDistanceKm)) && Number(engDistanceKm) > 0
+            ? Number(engDistanceKm)
+            : undefined;
+
           const result = runLevelingComputation({
             rows,
-            openingRL,
-            closingRL: closingRL ? Number(closingRL) : undefined,
+            openingRL: effectiveOpeningRL,
+            closingRL: effectiveClosingRL,
+            distanceKm: effectiveDistKm,
             method: 'rise_and_fall',
           });
           const status = getLevelingClosureStatus(result);
           setComputeResult(status.message);
         } else {
-          setComputeResult('Please provide opening RL in project settings');
+          setComputeResult('Please provide Opening Benchmark RL (m) to reduce levels');
         }
       } else if (surveyType === 'cadastral') {
         if (startPoint) {
@@ -146,17 +205,13 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           setComputeResult('Please provide start point coordinates in project settings');
         }
       } else if (surveyType === 'topographic') {
-        const sections = rows
-          .filter((r) => r.chainage && r.area)
-          .map((r) => ({ chainage: Number(r.chainage), area: Number(r.area) }))
-          .sort((a, b) => a.chainage - b.chainage);
-        
-        if (sections.length >= 2) {
-          const result = computeCutFillVolume(sections);
-          const summary = getCutFillSummary(result);
-          setComputeResult(`Cut: ${summary.cut} | Fill: ${summary.fill} | Net: ${summary.net}`);
+        const radialRows = rows.filter((r) => r.point_no && (r.hd || r.distance) && r.bearing);
+        if (radialRows.length > 0) {
+          const count = radialRows.length;
+          const withRL = radialRows.filter((r) => r.rl !== '' && r.rl !== undefined && r.rl !== null).length;
+          setComputeResult(`Reduced ${count} radial point${count === 1 ? '' : 's'} (${withRL} with elevations).`);
         } else {
-          setComputeResult('Need at least 2 rows with chainage and area for volume calculation');
+          setComputeResult('Need points with Point No., Bearing, and Horizontal Distance (HD)');
         }
       } else if (surveyType === 'geodetic') {
         setComputeResult('Geodetic baseline processing — enter control points and observed baselines to compute adjustments');
@@ -173,7 +228,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     } catch (e) {
       setComputeResult(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
-  }, [rows, surveyType, openingRL, closingRL, startPoint]);
+  }, [rows, surveyType, openingRL, closingRL, startPoint, engOpeningRL, engClosingRL, engDistanceKm]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -269,10 +324,62 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           />
         </div>
       </div>
+      {surveyType === 'engineering' && (
+        <div className="p-3 border-b border-gray-100 bg-gray-50/50">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <label className="text-xs font-medium text-gray-700">
+              Opening Benchmark RL (m)
+              <input
+                aria-label="Opening Benchmark RL (m)"
+                type="number"
+                step="any"
+                value={engOpeningRL}
+                onChange={(e) => setEngOpeningRL(e.target.value)}
+                placeholder="e.g. 100.000"
+                className="mt-1 w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm outline-none"
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-700">
+              Closing Benchmark RL (m) <span className="text-gray-400 font-normal">(optional)</span>
+              <input
+                aria-label="Closing Benchmark RL (m)"
+                type="number"
+                step="any"
+                value={engClosingRL}
+                onChange={(e) => setEngClosingRL(e.target.value)}
+                placeholder="e.g. 100.064"
+                className="mt-1 w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm outline-none"
+              />
+            </label>
+            <label className="text-xs font-medium text-gray-700">
+              Route Distance (km) <span className="text-gray-400 font-normal">(optional)</span>
+              <input
+                aria-label="Route Distance (km)"
+                type="number"
+                step="any"
+                value={engDistanceKm}
+                onChange={(e) => setEngDistanceKm(e.target.value)}
+                placeholder="Auto from chainage"
+                className="mt-1 w-full bg-white border border-gray-300 rounded px-2 py-1 text-sm outline-none"
+              />
+            </label>
+          </div>
+          <p className="mt-1.5 text-xs text-gray-500">Provide opening benchmark to reduce levels. Allowable misclosure follows 10√K mm per RDM 1.1 Table 5.1.</p>
+        </div>
+      )}
 
-      <div className="overflow-x-auto">
+      <div
+        ref={containerRef}
+        onScroll={(e) => {
+          if (isVirtualized) {
+            setScrollTop(e.currentTarget.scrollTop);
+          }
+        }}
+        className={`overflow-x-auto ${isVirtualized ? 'overflow-y-auto' : ''}`}
+        style={isVirtualized ? { maxHeight: `${VIEWPORT_HEIGHT}px` } : undefined}
+      >
         <table className="w-full text-sm border-collapse min-w-max">
-          <thead>
+          <thead className={isVirtualized ? 'sticky top-0 z-10' : ''}>
             <tr className="bg-gray-50 border-b border-gray-200">
               <th className="w-8 px-2 py-1.5 text-left text-xs font-medium text-gray-500">#</th>
               {template.columns.map((col) => (
@@ -284,26 +391,39 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
             </tr>
           </thead>
           <tbody>
-            {rows.map((row, rowIdx) => (
-              <tr key={rowIdx} className="border-b border-gray-100 hover:bg-gray-50">
-                <td className="px-2 py-1 text-xs text-gray-400 text-right select-none">{rowIdx + 1}</td>
-                {template.columns.map((col) => (
-                  <td key={col.key} className={`border-l border-gray-100 px-1 py-0.5 ${col.required && !row[col.key] ? 'bg-red-50' : ''}`}>
-                    {renderCell(col, row, rowIdx)}
-                  </td>
-                ))}
-                <td className="border-l border-gray-100 px-1 py-0.5 text-center">
-                  <button
-                    onClick={() => removeRow(rowIdx)}
-                    disabled={rows.length === 1}
-                    className={`text-xs ${deleteConfirm === rowIdx ? 'text-red-600 font-medium' : 'text-gray-300 hover:text-red-400'} disabled:opacity-0`}
-                    title={deleteConfirm === rowIdx ? 'Click again to confirm' : 'Delete row'}
-                  >
-                    {deleteConfirm === rowIdx ? '' : '[x]'}
-                  </button>
-                </td>
+            {topSpacerHeight > 0 && (
+              <tr style={{ height: `${topSpacerHeight}px` }}>
+                <td colSpan={template.columns.length + 2} />
               </tr>
-            ))}
+            )}
+            {visibleRows.map((row, sliceIdx) => {
+              const rowIdx = startIndex + sliceIdx;
+              return (
+                <tr key={rowIdx} style={{ height: `${ROW_HEIGHT}px` }} className="border-b border-gray-100 hover:bg-gray-50">
+                  <td className="px-2 py-1 text-xs text-gray-400 text-right select-none">{rowIdx + 1}</td>
+                  {template.columns.map((col) => (
+                    <td key={col.key} className={`border-l border-gray-100 px-1 py-0.5 ${col.required && !row[col.key] ? 'bg-red-50' : ''}`}>
+                      {renderCell(col, row, rowIdx)}
+                    </td>
+                  ))}
+                  <td className="border-l border-gray-100 px-1 py-0.5 text-center">
+                    <button
+                      onClick={() => removeRow(rowIdx)}
+                      disabled={rows.length === 1}
+                      className={`text-xs ${deleteConfirm === rowIdx ? 'text-red-600 font-medium' : 'text-gray-300 hover:text-red-400'} disabled:opacity-0`}
+                      title={deleteConfirm === rowIdx ? 'Click again to confirm' : 'Delete row'}
+                    >
+                      {deleteConfirm === rowIdx ? '✓' : '×'}
+                    </button>
+                  </td>
+                </tr>
+              );
+            })}
+            {bottomSpacerHeight > 0 && (
+              <tr style={{ height: `${bottomSpacerHeight}px` }}>
+                <td colSpan={template.columns.length + 2} />
+              </tr>
+            )}
           </tbody>
         </table>
       </div>
@@ -311,6 +431,11 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
         <button onClick={addRow} className="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add Row</button>
         <div className="flex items-center gap-3">
+          {isVirtualized && (
+            <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
+              ⚡ Virtualized ({visibleRows.length}/{rows.length} stations in DOM)
+            </span>
+          )}
           {hasEmptyRequired && <span className="text-xs text-amber-600">Required fields (*) must be filled.</span>}
           <span className="text-xs text-gray-400">{rows.length} row{rows.length !== 1 ? 's' : ''}</span>
         </div>

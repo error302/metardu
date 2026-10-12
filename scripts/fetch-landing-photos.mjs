@@ -1,89 +1,82 @@
 #!/usr/bin/env node
 /**
- * Fetch real survey photography for the landing page backgrounds.
+ * Fetch the licensed field photographs used on the METARDU landing page.
+ * The Commons file page is queried for its current thumbnail, author, and
+ * license metadata before the image is converted to a small WebP asset.
  *
- * The landing page currently uses the project's own generated/screenshot
- * assets (public/landing/*.webp) which the owner wanted replaced with high
- * quality photos of real surveying scenes. External free-photo APIs were
- * rate-limiting during the 2026-08-14 pass (Wikimedia 429, Pexels 403,
- * Unsplash 401/503), so this script fetches a curated set of free-licensed
- * (Wikimedia Commons) survey photos once the rate limit clears.
+ * Usage: node scripts/fetch-landing-photos.mjs [--force]
  *
- * Usage:
- *   node scripts/fetch-landing-photos.mjs
- *
- * It downloads each image at 1920px into public/landing/ and prints the
- * author + license so you can add attribution to public/landing/CREDITS.md.
- *
- * After downloading, wire them into src/app/page.tsx by pointing the section
- * backgrounds at the new files:
- *   hero        -> public/landing/hero-survey.jpg
- *   GNSS card   -> public/landing/bg-gnss.jpg
- *   workflow    -> public/landing/bg-field.jpg
- *   deed plan   -> public/landing/bg-cadastral.jpg
+ * Image files are distributed under their source licenses. See
+ * public/landing/CREDITS.md for attribution and change details.
  */
 
-const https = require('https')
-const fs = require('fs')
-const path = require('path')
+import { writeFile } from 'node:fs/promises'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import sharp from 'sharp'
 
-const OUT_DIR = path.join(__dirname, '..', 'public', 'landing')
-const UA = 'METARDU-asset-fetcher/1.0 (contact: support@metardu.space)'
+const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
+const OUT_DIR = path.join(ROOT, 'public', 'landing')
+const USER_AGENT = 'METARDU landing image fetcher/1.0 (https://metardu.space)'
+const FORCE = process.argv.includes('--force')
 
-// [filename, Commons file title]
 const TARGETS = [
-  ['hero-survey.jpg', 'File:Topographic survey of a bridge.jpg'],
-  ['bg-gnss.jpg', 'File:GNSS receiver Hoogengraven.jpg'],
-  ['bg-field.jpg', 'File:Archaeologists surveying in a trench.jpg'],
-  ['bg-cadastral.jpg', 'File:Cadastre de Gigord.jpg'],
+  ['hero-survey.webp', 'File:Topographic survey of a bridge.jpg'],
+  ['field-levelling.webp', 'File:Survey level and field technician.jpg'],
 ]
 
-function getJson(url) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': UA } }, (res) => {
-      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${url}`))
-      let data = ''
-      res.on('data', (c) => (data += c))
-      res.on('end', () => {
-        try { resolve(JSON.parse(data)) } catch (e) { reject(e) }
-      })
-    }).on('error', reject)
-  })
+function cleanMetadata(value = '') {
+  return value.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim()
 }
 
-async function download(url, file) {
-  return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': UA } }, (res) => {
-      if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode} for ${file}`))
-      const ws = fs.createWriteStream(file)
-      res.pipe(ws)
-      ws.on('finish', () => { ws.close(); resolve() })
-      ws.on('error', reject)
-    }).on('error', reject)
-  })
+async function fetchJson(url) {
+  const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
+  if (!response.ok) throw new Error(`Wikimedia API returned HTTP ${response.status}`)
+  return response.json()
+}
+
+async function fetchImage(url) {
+  const response = await fetch(url, { headers: { 'User-Agent': USER_AGENT } })
+  if (!response.ok) throw new Error(`Image download returned HTTP ${response.status}`)
+  return Buffer.from(await response.arrayBuffer())
 }
 
 async function main() {
-  fs.mkdirSync(OUT_DIR, { recursive: true })
-  for (const [file, title] of TARGETS) {
-    const api = `https://commons.wikimedia.org/w/api.php?action=query&titles=${encodeURIComponent(title)}&prop=imageinfo&iiprop=url%7Cextmetadata&iiurlwidth=1920&format=json`
+  for (const [outputName, fileTitle] of TARGETS) {
+    const outputPath = path.join(OUT_DIR, outputName)
+    const params = new URLSearchParams({
+      action: 'query',
+      titles: fileTitle,
+      prop: 'imageinfo',
+      iiprop: 'url|extmetadata',
+      iiurlwidth: '1800',
+      format: 'json',
+    })
+    const data = await fetchJson(`https://commons.wikimedia.org/w/api.php?${params}`)
+    const page = Object.values(data.query?.pages ?? {})[0]
+    const image = page?.imageinfo?.[0]
+    if (!image?.thumburl) throw new Error(`No downloadable image found for ${fileTitle}`)
+    const author = cleanMetadata(image.extmetadata?.Artist?.value ?? 'Author not listed')
+    const license = cleanMetadata(image.extmetadata?.LicenseShortName?.value ?? 'License not listed')
+    const bytes = await fetchImage(image.thumburl)
+    const webp = await sharp(bytes)
+      .resize({ width: 1800, height: 1800, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 84, effort: 5 })
+      .toBuffer()
+
     try {
-      const r = await getJson(api)
-      const pages = Object.values(r.query?.pages ?? {})
-      const ii = pages[0]?.imageinfo?.[0]
-      if (!ii?.thumburl) { console.log(`skip ${file}: no image found`); continue }
-      const out = path.join(OUT_DIR, file)
-      await download(ii.thumburl, out)
-      const lic = ii.extmetadata?.LicenseShortName?.value ?? 'unknown'
-      const artist = (ii.extmetadata?.Artist?.value ?? '').replace(/<[^>]+>/g, '')
-      console.log(`OK ${file} (${(fs.statSync(out).size / 1024).toFixed(0)}KB) license=${lic} author=${artist}`)
-      console.log(`   source: https://commons.wikimedia.org/wiki/${title.replace(/ /g, '_')}`)
-    } catch (e) {
-      console.log(`ERR ${file}: ${e.message}`)
+      await writeFile(outputPath, webp, { flag: FORCE ? 'w' : 'wx' })
+    } catch (error) {
+      if (error?.code === 'EEXIST') throw new Error(`${outputName} already exists; pass --force to replace it`)
+      throw error
     }
-    await new Promise((r) => setTimeout(r, 10000)) // be polite to the API
+
+    console.log(`${outputName}: ${(webp.length / 1024).toFixed(0)} KB · ${author} · ${license}`)
+    console.log(`  ${image.descriptionurl}`)
   }
-  console.log('Done. Update public/landing/CREDITS.md with the licenses/authors above.')
 }
 
-main()
+main().catch((error) => {
+  console.error(error.message)
+  process.exitCode = 1
+})

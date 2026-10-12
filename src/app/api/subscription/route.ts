@@ -60,6 +60,9 @@ export async function GET() {
       isUnlimitedProjects: sub.isUnlimitedProjects,
       isUnlimitedPoints: sub.isUnlimitedPoints,
       maxTeamMembers: sub.maxTeamMembers,
+      includedSeats: sub.includedSeats,
+      purchasedExtraSeats: sub.purchasedExtraSeats,
+      isPerSeat: sub.isPerSeat,
       isAdmin: sub.paymentMethod === 'admin',
     })
   } catch (error) {

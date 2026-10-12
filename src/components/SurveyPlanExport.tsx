@@ -22,7 +22,7 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
   const [exporting, setExporting] = useState(false)
   const [signing, setSigning] = useState(false)
 
-  const buildSvgString = () => {
+  const buildSvgString = async () => {
     const renderer = new SurveyPlanRenderer(data, { ...options, watermarkPlan: plan })
     return renderer.render()
   }
@@ -30,7 +30,7 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
   const handleExport = async () => {
     setExporting(true)
     try {
-      const svgString = buildSvgString()
+      const svgString = await buildSvgString()
 
       const container = document.createElement('div')
       container.innerHTML = svgString
@@ -63,7 +63,7 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
     if (!projectId) { alert('Project ID missing'); return }
     setSigning(true)
     try {
-      const svgString = buildSvgString()
+      const svgString = await buildSvgString()
       
       // Hash SVG
       const encoder = new TextEncoder()

@@ -7,17 +7,22 @@ import type Map from 'ol/Map';
 
 interface MeasurementToolProps {
   map: Map | null;
+  /** Project CRS for survey math (e.g. 'EPSG:21037'). Null = undeclared → tools disabled (fail closed). */
+  crs: string | null;
 }
 
-export function MeasurementTool({ map }: MeasurementToolProps) {
+export function MeasurementTool({ map, crs }: MeasurementToolProps) {
   const {
     state,
+    error,
     startMeasurement,
     finishAreaMeasurement,
     cancelMeasurement,
     clearMeasurement,
     getFormattedResult,
-  } = useMeasurement(map);
+  } = useMeasurement(map, crs);
+
+  const canMeasure = Boolean(crs);
 
   const [, setHoverTool] = useState<MeasurementMode | null>(null);
 
@@ -54,6 +59,7 @@ export function MeasurementTool({ map }: MeasurementToolProps) {
   ];
 
   const handleToolClick = (mode: MeasurementMode) => {
+    if (!canMeasure) return;
     if (state.isActive && state.mode !== mode) {
       cancelMeasurement();
     }
@@ -64,6 +70,11 @@ export function MeasurementTool({ map }: MeasurementToolProps) {
 
   return (
     <div className="bg-white rounded-lg shadow-lg border w-56">
+      {!canMeasure && (
+        <div className="px-3 py-2 text-xs text-amber-700 bg-amber-50 border-b border-amber-200">
+          CRS undeclared — measurement disabled
+        </div>
+      )}
       <div className="flex items-center border-b">
         {tools.map((tool) => (
           <button
@@ -71,8 +82,9 @@ export function MeasurementTool({ map }: MeasurementToolProps) {
             onClick={() => handleToolClick(tool.mode)}
             onMouseEnter={() => setHoverTool(tool.mode)}
             onMouseLeave={() => setHoverTool(null)}
+            disabled={!canMeasure}
             className={[
-              'flex-1 p-2 flex flex-col items-center gap-1 transition-colors',
+              'flex-1 p-2 flex flex-col items-center gap-1 transition-colors disabled:opacity-40 disabled:cursor-not-allowed',
               state.mode === tool.mode && state.isActive
                 ? 'bg-blue-600 text-white'
                 : 'hover:bg-gray-100',
@@ -84,6 +96,12 @@ export function MeasurementTool({ map }: MeasurementToolProps) {
           </button>
         ))}
       </div>
+
+      {error && (
+        <div className="px-3 py-2 bg-red-50 text-xs text-red-700 border-b">
+          {error}
+        </div>
+      )}
 
       {state.isActive && (
         <div className="px-3 py-2 bg-blue-50 text-xs text-blue-700">

@@ -5,10 +5,8 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { createClient } from '@/lib/api-client/client'
-import { generateContours } from '@/lib/topo/contourGenerator'
-import { runIDW as computeIDW } from '@/lib/topo/idwEngine'
-import type { SpotHeight } from '@/components/drawing/TopoCanvas'
 import type { ContourLine } from '@/lib/topo/contourGenerator'
+import type { SpotHeight } from '@/components/drawing/TopoCanvas'
 import { logger } from '@/lib/logger'
 
 const TopoCanvas = dynamic(() => import('@/components/drawing/TopoCanvas').then(m => ({ default: m.TopoCanvas })), {
@@ -30,6 +28,9 @@ export default function TopoPage() {
   const [status, setStatus] = useState<'idle' | 'loading' | 'computing' | 'done' | 'error'>('idle')
   const [progress, setProgress] = useState(0)
   const [pointCount, setPointCount] = useState(0)
+  /** Phase 5 (blueprint §8.5): the surface is a stored, revisioned record. */
+  const [surfaceName, setSurfaceName] = useState('Existing ground')
+  const [surfaceRevision, setSurfaceRevision] = useState<number | null>(null)
 
   const loadSpotHeights = useCallback(async () => {
     setStatus('loading')
@@ -72,46 +73,88 @@ export default function TopoPage() {
     if (spotHeights.length < 3) return
 
     setStatus('computing')
-    setProgress(0)
+    setProgress(10)
     setContours([])
 
-    setTimeout(() => {
+    // Compute + persist on the server (blueprint §8.5): the surface, its
+    // revision and its contour set become project records, so the work
+    // survives a reload instead of living in this tab until refresh.
+    void (async () => {
       try {
-        const points = spotHeights.map(p => ({ x: p.e, y: p.n, z: p.z }))
-
-        const minE = Math.min(...points.map(p => p.x))
-        const maxE = Math.max(...points.map(p => p.x))
-        const minN = Math.min(...points.map(p => p.y))
-        const maxN = Math.max(...points.map(p => p.y))
-        const cols = Math.ceil((maxE - minE) / resolution) + 1
-        const rows = Math.ceil((maxN - minN) / resolution) + 1
-
-        setProgress(20)
-
-        const idwGrid = computeIDW(points, { power: 2, resolution: Math.max(cols, rows) })
-
-        setProgress(80)
-
-        const lines = generateContours(
-          {
-            grid: idwGrid.grid,
-            gridMinE: idwGrid.minX,
-            gridMinN: idwGrid.minY,
-            gridResolution: idwGrid.cellSize,
-            cols: idwGrid.cols,
-            rows: idwGrid.rows,
-          },
-          { interval, indexInterval: 5 }
-        )
-        setContours(lines)
+        const res = await fetch(`/api/project/${id}/surfaces`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            name: surfaceName,
+            useStoredBreaklines: true,
+            interval,
+            resolution,
+          }),
+        })
+        const json = (await res.json()) as {
+          data?: { contours?: ContourLine[]; revision?: number; revisionId?: string; surfaceId?: string; pointCount?: number }
+          error?: string
+          code?: string
+        }
+        if (!res.ok) {
+          logger.error('[topo] surface compute failed:', { error: json.error, code: json.code })
+          setStatus('error')
+          return
+        }
         setProgress(100)
+        setContours(json.data?.contours ?? [])
+        setSurfaceRevision(json.data?.revision ?? null)
         setStatus('done')
       } catch (err) {
         logger.error('IDW error:', { error: err })
         setStatus('error')
       }
-    }, 0)
+    })()
   }
+
+  /** Restore the last computed surface so a reload is not a data loss. */
+  const loadStoredSurface = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/project/${id}/surfaces`)
+      if (!res.ok) return
+      const json = (await res.json()) as {
+        data?: {
+          surfaces?: Array<{
+            surfaceId?: string
+            id?: string
+            name?: string
+            current_revision?: number | null
+            surface_revision_id?: string | null
+            revision_id?: string | null
+          }>
+        }
+      }
+      const latest = json.data?.surfaces?.[0]
+      if (!latest) return
+      setSurfaceName(latest.name ?? surfaceName)
+      setSurfaceRevision(latest.current_revision ?? null)
+
+      const revisionId = latest.revision_id ?? latest.surface_revision_id
+      if (!revisionId) return
+      const contourRes = await fetch(
+        `/api/project/${id}/surfaces?contourRevision=${encodeURIComponent(revisionId)}`
+      )
+      if (!contourRes.ok) return
+      const contourJson = (await contourRes.json()) as {
+        data?: { contours?: ContourLine[] }
+      }
+      if (contourJson.data?.contours?.length) {
+        setContours(contourJson.data.contours)
+        setStatus('done')
+      }
+    } catch {
+      // A missing store must never block fresh fieldwork.
+    }
+  }, [id, surfaceName])
+
+  useEffect(() => {
+    void loadStoredSurface()
+  }, [loadStoredSurface])
 
   async function exportDXF() {
     // ponytail: binary download bypasses typed client
@@ -177,7 +220,10 @@ export default function TopoPage() {
         <div className="flex items-center justify-between gap-4 flex-wrap">
           <div>
             <h2 className="text-xl font-bold">Topographic Map</h2>
-            <p className="text-sm text-[var(--text-muted)]">{pointCount} spot heights loaded</p>
+            <p className="text-sm text-[var(--text-muted)]">
+              {pointCount} spot heights loaded
+              {surfaceRevision != null ? ` — ${surfaceName} R${surfaceRevision} stored` : ''}
+            </p>
           </div>
           <Link
             href={`/project/${id}`}
@@ -206,7 +252,7 @@ export default function TopoPage() {
         </div>
 
         <div>
-          <label className="text-xs text-[var(--text-muted)] block mb-1" htmlFor="grid-resolution-m">Grid Resolution (m)</label>
+          <label className="text-xs text-[var(--text-muted)] block mb-1" htmlFor="grid-resolution-m">Maximum contour vertex spacing (m)</label>
           <select
              id="grid-resolution-m" value={resolution}
             onChange={(event) => setResolution(Number(event.target.value))}

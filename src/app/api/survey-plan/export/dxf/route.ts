@@ -17,6 +17,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { log } from '@/lib/logger'
 import { generateCadastralPlanDXF } from '@/lib/export/cadastralPlanDXF'
+import { reportCrs } from '@/lib/generators/reportCrs'
 import type { SurveyPlanData, MonumentType, FenceOffset, AdjacentLot, ControlPoint } from '@/lib/reports/surveyPlan/types'
 
 // ─── DB Row Interfaces ───────────────────────────────────────────────────────
@@ -89,6 +90,13 @@ interface ProjectRow {
   locality: string | null
 }
 
+interface PrsRow {
+  vertical_datum: string | null
+  vertical_reference: string | null
+  geoid_model: string | null
+  benchmark_basis: string | null
+}
+
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req: NextRequest, ctx) => {
   const url = new URL(req.url)
   const projectId = url.searchParams.get('projectId')
@@ -120,6 +128,35 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   }
 
   const project = projectRows[0] as ProjectRow
+
+  // CRS gate — blueprint §4.2 "No exporter may hard-code a project CRS".
+  // This route previously defaulted to Arc 1960 / 37S; it now fails closed
+  // with CRS_UNDECLARED when the project never declared (or cannot resolve)
+  // its horizontal CRS.
+  const crsCheck = reportCrs({
+    utmZone: project.utm_zone ?? undefined,
+    hemisphere: project.hemisphere ?? undefined,
+    datum: project.datum ?? undefined,
+  })
+  if (!project.utm_zone || !project.hemisphere || !project.datum || !crsCheck.verified) {
+    return NextResponse.json(
+      {
+        error:
+          'Project CRS is undeclared or unregistered — declare the project datum, UTM zone and hemisphere (Project → Reference system) before exporting a cadastral plan DXF.',
+        code: 'CRS_UNDECLARED',
+      },
+      { status: 400 },
+    )
+  }
+
+  // Vertical declaration (blueprint §31 P0) — carried from
+  // project_reference_systems into the plan title block; absent when the
+  // project never declared one (title block renders "UNVERIFIED").
+  const { rows: prsRows } = await db.query<PrsRow>(
+    'SELECT vertical_datum, vertical_reference, geoid_model, benchmark_basis FROM project_reference_systems WHERE project_id = $1',
+    [projectId],
+  )
+  const prs = prsRows[0]
 
   // ── Load boundary points ──
   const { rows: boundaryRows } = await db.query<BoundaryPointRow>(
@@ -159,9 +196,18 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
       name: project.name || 'Untitled Project',
       location: project.location || '',
       municipality: project.municipality || undefined,
-      utm_zone: project.utm_zone || 37,
-      hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
-      datum: (project.datum || 'ARC1960') as 'ARC1960' | 'WGS84' | 'WGS84Geographic',
+      utm_zone: crsCheck.zone,
+      hemisphere: crsCheck.hemi,
+      datum: project.datum as 'ARC1960' | 'WGS84' | 'WGS84Geographic',
+      vertical_datum: prs?.vertical_datum ?? undefined,
+      vertical_reference: (prs?.vertical_reference ?? undefined) as
+        | 'orthometric'
+        | 'ellipsoidal'
+        | 'trig'
+        | 'local'
+        | undefined,
+      geoid_model: prs?.geoid_model ?? undefined,
+      benchmark_basis: prs?.benchmark_basis ?? undefined,
       client_name: project.client_name || undefined,
       surveyor_name: project.surveyor_name || '',
       surveyor_licence: project.surveyor_licence || '',
@@ -271,9 +317,15 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
         error: err instanceof Error ? err.message : String(err),
       },
     })
+    const rawMsg = err instanceof Error ? err.message : String(err)
     return NextResponse.json(
-      { error: 'Failed to generate DXF export', code: 'DXF_GENERATION_FAILED' },
-      { status: 500 },
+      {
+        error: 'Failed to generate DXF export',
+        code: 'DXF_GENERATION_FAILED',
+        message: rawMsg,
+        remedy: 'Verify that the survey parcel contains at least 3 valid coordinate vertices and all beacon names are unique.',
+      },
+      { status: 422 },
     )
   }
 })

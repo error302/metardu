@@ -15,9 +15,15 @@ export async function POST(request: NextRequest) {
   // Try native TS processing first
   const validated = validateRasterRequest(body)
   if (validated) {
+    const projectId = typeof body === 'object' && body !== null && !Array.isArray(body)
+      ? (body as Record<string, unknown>).project_id
+      : null
+    if (typeof projectId !== 'string' || !projectId.trim()) {
+      return NextResponse.json(apiError('project_id is required for raster analysis.'), { status: 400 })
+    }
     try {
       const result = await computeRasterAnalysis({
-        project_id: (body as Record<string, unknown>)?.project_id as string ?? 'unknown',
+        project_id: projectId,
         ...validated,
       })
       return NextResponse.json(apiSuccess({
@@ -48,7 +54,7 @@ export async function GET() {
 
   return NextResponse.json(apiSuccess({
     endpoint: '/api/compute/raster-analysis',
-    description: 'Raster/DEM analysis (native TypeScript with Python fallback for advanced ops).',
+    description: 'Array-based DEM analysis. Supply project_id and params.elevation_grid; directional methods also need cell sizes, z_factor, and row order.',
     python_required: false,
     supported_types: ['hillshade', 'slope', 'aspect', 'contour', 'statistics'],
   }))

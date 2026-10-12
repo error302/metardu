@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
-import { db } from '@/lib/db'
+import { db, setRlsContext } from '@/lib/db'
 import { getPayPalService } from '@/lib/payments/paypal'
 import { logger } from '@/lib/logger'
 
@@ -138,6 +138,7 @@ export const POST = apiHandler(
     const client = await db.getClient()
     try {
       await client.query('BEGIN')
+      await setRlsContext(client)
 
       const completeRes = await client.query(
         `UPDATE payment_intents

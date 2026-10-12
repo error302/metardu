@@ -22,9 +22,13 @@ interface ProjectRow {
   survey_date: string | null
   area_ha: string | number | null
   utm_zone: number | null
+  datum: string | null
   hemisphere: string | null
   user_id: string
   created_at: string | Date
+  surveyor_name: string | null
+  surveyor_license: string | null
+  firm_name: string | null
 }
 
 interface ProfileRow {
@@ -47,7 +51,7 @@ const A3_H = 297;
 const MARGIN = 8;
 const PLAN_WIDTH = Math.round(A3_W * 0.63);
 const SCHEDULE_X = PLAN_WIDTH + MARGIN;
-const SCHEDULE_W = A3_W - PLAN_WIDTH - MARGIN * 1.5;
+const SCHEDULE_W = A3_W - SCHEDULE_X - MARGIN;
 
 function getBeaconDescription(monument: string): { type: string; material: string; dimensions: string } {
   const key = (monument ?? '').toUpperCase().replace(/[^A-Z0-9_]/g, '');
@@ -76,7 +80,7 @@ function getBeaconDescription(monument: string): { type: string; material: strin
     'FENCEPOST':       { type: 'Fence Post',           material: 'Timber / Concrete',           dimensions: '100mm dia' },
     'WALLCORNER':      { type: 'Wall Corner',          material: 'Masonry',                     dimensions: '—' },
   };
-  return lookup[key] ?? lookup['CP'];
+  return { type: lookup[key]?.type || monument || 'Not recorded', material: 'Not recorded', dimensions: 'Not recorded' };
 }
 
 /**
@@ -94,8 +98,8 @@ export async function generateDeedPlan(
       name, survey_type, lr_number, folio_number, register_number,
       fir_number, registration_block, registration_district,
       locality, computations_no, field_book_no, file_reference,
-      client_name, survey_date, area_ha, utm_zone, hemisphere,
-      user_id, created_at
+      client_name, survey_date, area_ha, utm_zone, hemisphere, datum,
+      user_id, created_at, surveyor_name, surveyor_license, firm_name
     FROM projects WHERE id = $1`,
     [projectId]
   );
@@ -103,11 +107,13 @@ export async function generateDeedPlan(
 
   if (!project) throw new Error('Project not found');
 
-  const profileRes = await db.query<ProfileRow>(
-    'SELECT full_name, isk_number, firm_name FROM profiles WHERE id = $1',
-    [project.user_id]
-  );
-  const profile = profileRes.rows[0];
+  const { fetchSurveyorProfile } = await import('../survey/fetchSurveyorProfile');
+  const savedProfile = await fetchSurveyorProfile(projectId);
+  const profile = {
+    full_name: savedProfile.surveyorName,
+    isk_number: savedProfile.licenseNumber,
+    firm_name: savedProfile.firmName,
+  };
 
   // ── Coordinate Pipeline: Use Bowditch-adjusted traverse coordinates ──
   // Fetch pre-adjusted coordinates from the traverse_coordinates table.
@@ -132,7 +138,7 @@ export async function generateDeedPlan(
 
   const surveyDate = project.survey_date
     ? new Date(project.survey_date).toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })
-    : today;
+    : 'Not supplied';
 
   doc.setDrawColor(0);
   doc.setLineWidth(1.0);
@@ -141,30 +147,10 @@ export async function generateDeedPlan(
   doc.setLineWidth(0.5);
   doc.line(PLAN_WIDTH, MARGIN, PLAN_WIDTH, A3_H - MARGIN);
 
-  // ── Phase 2: Road segments for truncation lines ──
-  // Check if the project has road-related data for road truncation ticks
-  const roadRes = await db.query<RoadRow>(
-    `SELECT road_class, street FROM projects WHERE id = $1`,
-    [projectId]
-  );
-  const roadData = roadRes.rows[0];
+  // A project street name does not identify which boundary legs abut a road.
   const roadSegments: RoadSegment[] = [];
 
-  // If the project has a road class or street name, mark boundary segments
-  // that abut roads for truncation line rendering
-  if (roadData?.road_class || roadData?.street) {
-    for (let i = 0; i < geom.stations.length; i++) {
-      const from = geom.stations[i];
-      const to = geom.stations[(i + 1) % geom.stations.length];
-      roadSegments.push({
-        segmentIndex: i,
-        from: { easting: from.easting, northing: from.northing },
-        to: { easting: to.easting, northing: to.northing },
-      });
-    }
-  }
-
-  const scaleRatio = renderBoundaryPlan(doc, geom, {
+  const scaleRatio = await renderBoundaryPlan(doc, geom, {
     x: MARGIN,
     y: MARGIN,
     width: PLAN_WIDTH - MARGIN,
@@ -214,7 +200,7 @@ export async function generateDeedPlan(
     body: infoRows,
     styles: { fontSize: 7, cellPadding: 1.5 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255, fontSize: 7 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 34 } },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 32 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
     theme: 'grid',
@@ -234,7 +220,7 @@ export async function generateDeedPlan(
       ['A = co = ' + geom.areaHa.toFixed(4) + ' Ha', geom.areaM2.toFixed(2) + ' m² (' + geom.areaAcres.toFixed(4) + ' Acres)'],
     ],
     styles: { fontSize: 7, cellPadding: 1.5 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 34 } },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 32 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
     theme: 'grid',
@@ -257,7 +243,7 @@ export async function generateDeedPlan(
     styles: { fontSize: 6.5, cellPadding: 1.2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
-    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 14 }, 2: { cellWidth: 28 }, 3: { cellWidth: SCHEDULE_W - 58 } },
+    columnStyles: { 0: { cellWidth: 14 }, 1: { cellWidth: 14 }, 2: { cellWidth: 28 }, 3: { cellWidth: SCHEDULE_W - 56 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
     theme: 'grid',
@@ -278,7 +264,7 @@ export async function generateDeedPlan(
     styles: { fontSize: 6.5, cellPadding: 1.2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     alternateRowStyles: { fillColor: [245, 248, 250] },
-    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 24 }, 2: { cellWidth: 24 }, 3: { cellWidth: SCHEDULE_W - 62 } },
+    columnStyles: { 0: { cellWidth: 12 }, 1: { cellWidth: 24 }, 2: { cellWidth: 24 }, 3: { cellWidth: SCHEDULE_W - 60 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
     theme: 'grid',
@@ -294,9 +280,9 @@ export async function generateDeedPlan(
 
   const beaconBody = geom.stations.map((s) => {
     const desc = getBeaconDescription(s.monument ?? '');
-    const status = s.markStatus || 'FOUND';
-    const condition = status === 'SET' ? 'Set' : status === 'FOUND' ? 'Found' : status === 'REFERENCED' ? 'Referenced' : status === 'DESTROYED' ? 'Destroyed' : status === 'NOT_FOUND' ? 'Not Found' : 'Found';
-    return [s.station, desc.type, desc.material, desc.dimensions, condition, condition === 'Found' || condition === 'Set' ? 'Good' : '—'];
+    const status = s.markStatus || '';
+    const condition = status === 'SET' ? 'Set' : status === 'FOUND' ? 'Found' : status === 'REFERENCED' ? 'Referenced' : status === 'DESTROYED' ? 'Destroyed' : status === 'NOT_FOUND' ? 'Not Found' : 'Not recorded';
+    return [s.station, desc.type, desc.material, desc.dimensions, condition, 'Not recorded'];
   });
 
   autoTable(doc, {
@@ -332,13 +318,13 @@ export async function generateDeedPlan(
   autoTable(doc, {
     startY: ry,
     body: [
-      ['Precision ratio', geom.precisionRatio],
-      ['Linear misclosure', `${geom.misclosureMm.toFixed(1)} mm`],
+      ['Precision ratio', geom.precisionRatio.replace('∞', 'Infinity')],
+      ['Linear misclosure', Number.isFinite(geom.misclosureMm) ? `${geom.misclosureMm.toFixed(1)} mm` : 'UNVERIFIED'],
       ['Status', geom.closureStatus],
       ['Min. standard', '1:5000 (Survey Act Cap 299)'],
     ],
     styles: { fontSize: 6.5, cellPadding: 1.2 },
-    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 34 } },
+    columnStyles: { 0: { fontStyle: 'bold', cellWidth: 32 }, 1: { cellWidth: SCHEDULE_W - 32 } },
     margin: { left: SCHEDULE_X, right: MARGIN },
     tableWidth: SCHEDULE_W,
     theme: 'grid',
@@ -355,7 +341,7 @@ export async function generateDeedPlan(
   // ── Phase 2: Revision History ──
   // Per Survey Act Cap. 299, every amendment must be recorded
   const revisionsRes = await db.query<RevisionsRow>(
-    `SELECT revisions FROM projects WHERE id = $1`,
+    `SELECT boundary_data->'revisions' AS revisions FROM projects WHERE id = $1`,
     [projectId]
   );
   const savedRevisions = revisionsRes.rows[0]?.revisions || [];
@@ -389,7 +375,7 @@ export async function generateDeedPlan(
     '',
     `Survey date: ${surveyDate}`,
     `Scale: 1:${scaleRatio.toLocaleString()}`,
-    `Datum: Arc 1960 / UTM Zone ${project.utm_zone ?? ''}${project.hemisphere ?? ''}`,
+    `Datum: ${project.datum || 'UNVERIFIED'} / UTM Zone ${project.utm_zone ?? 'UNVERIFIED'}${project.hemisphere ?? ''}`,
   ];
 
   doc.setFontSize(6.5);

@@ -3,6 +3,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
 import { z } from 'zod'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 
 export const dynamic = 'force-dynamic'
 
@@ -64,6 +65,20 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   // sensitive cadastral data (blocks, parcels, traverse coordinates)
   const ownership = await requireProjectOwnership(queryParsed.data.project_id, ctx.userId)
   if (!ownership.ok) return ownership.error ?? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+
+  const { rows: referenceRows } = await db.query<{ horizontal_crs: string | null }>(
+    'SELECT horizontal_crs FROM project_reference_systems WHERE project_id = $1',
+    [projectId]
+  )
+  let projectCrs: string
+  try {
+    projectCrs = assertProjectedCrs(referenceRows[0]?.horizontal_crs ?? '').code
+  } catch (error) {
+    return NextResponse.json({
+      error: 'Declare a valid projected project CRS before loading scheme coordinates.',
+      detail: error instanceof Error ? error.message : undefined,
+    }, { status: 409 })
+  }
 
   // Get all blocks for the project
   const { rows: blocks } = await db.query<BlockRow>(
@@ -214,6 +229,6 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
     type: 'FeatureCollection',
     features,
     bounds,
-    crs: { type: 'name', properties: { name: 'urn:ogc:def:crs:EPSG::21037' } }, // Arc 1960 / UTM Zone 37S (Kenya cadastral datum)
+    crs: { type: 'name', properties: { name: projectCrs } },
   })
 })

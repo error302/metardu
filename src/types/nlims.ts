@@ -35,5 +35,8 @@ export interface NLIMSSearchResult {
   found: boolean
   parcel?: NLIMSParcel
   error?: string
-  isMockData: boolean
+  code?: string
+  source?: 'VAULT_PERSONAL' | 'VAULT_SHARED' | 'METARDU_CACHE'
+  freshness?: string
+  certificateDate?: string
 }

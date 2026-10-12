@@ -6,14 +6,49 @@ import type VectorSource from 'ol/source/Vector';
 import type VectorLayer from 'ol/layer/Vector';
 import type { FeatureLike } from 'ol/Feature';
 import {
-  calculateDistance,
-  calculateArea,
-  calculateBearing,
   formatBearingWCB,
   formatDistance,
   formatArea,
-  type Point,
-} from '@/lib/map/measurements';
+} from '@/lib/surveyMapEngine/core/format';
+import type { GridPoint as Point } from '@/lib/surveyMapEngine/core/types';
+import {
+  assertProjectedCrs,
+  fromDisplay,
+  toDisplay,
+  surveyArea,
+  surveyBearing,
+  surveyDistance,
+} from '@/lib/spatial/projectCrs';
+
+// ─── Authority math (pure, exported for characterization tests) ────────────
+//
+// All numbers shown to the surveyor are computed in the PROJECT CRS plane
+// (plan F1): clicks arrive in the display CRS (EPSG:3857) and are converted
+// before any distance/area/bearing math runs. Never measure in EPSG:3857.
+
+/** Click in the display CRS (EPSG:3857) → project-CRS grid point. */
+export function measurementPointFromDisplay(x: number, y: number, crs: string): Point {
+  const [easting, northing] = fromDisplay(x, y, crs);
+  return { easting, northing };
+}
+
+/** Plane distance between project-CRS points (metres). */
+export function measurementDistance(a: Point, b: Point, crs: string): number {
+  return surveyDistance(a.easting, a.northing, b.easting, b.northing, crs);
+}
+
+/** Whole-circle grid bearing a→b in the project CRS (degrees, [0, 360)). */
+export function measurementBearing(a: Point, b: Point, crs: string): number {
+  return surveyBearing(a.easting, a.northing, b.easting, b.northing, crs);
+}
+
+/** Shoelace area of a project-CRS ring (m²). */
+export function measurementArea(points: Point[], crs: string): number {
+  return surveyArea(
+    points.map((p) => [p.easting, p.northing] as [number, number]),
+    crs,
+  );
+}
 
 export type MeasurementMode = 'none' | 'distance' | 'area' | 'bearing' | 'coordinate';
 
@@ -35,13 +70,21 @@ export interface FormattedResult {
   formatted: string;
 }
 
-export function useMeasurement(map: Map | null) {
+/**
+ * Interactive map measurement.
+ *
+ * `crs` is the project's declared CRS (e.g. 'EPSG:21037'). It is REQUIRED
+ * for actual measuring: when null/undeclared the hook refuses to start
+ * (fail closed — blueprint §2.4, plan F1/F3).
+ */
+export function useMeasurement(map: Map | null, crs: string | null) {
   const [state, setState] = useState<MeasurementState>({
     mode: 'none',
     points: [],
     result: null,
     isActive: false,
   });
+  const [error, setError] = useState<string | null>(null);
   
   const sourceRef = useRef<VectorSource | null>(null);
   const layerRef = useRef<VectorLayer | null>(null);
@@ -135,35 +178,44 @@ export function useMeasurement(map: Map | null) {
   }, []);
 
   const addPointToMap = useCallback(async (point: Point) => {
-    if (!sourceRef.current) return;
+    if (!sourceRef.current || !crs) return;
     const { Feature, OlPoint } = ctorsRef.current || {};
     if (!Feature || !OlPoint) return;
-    const feature = new Feature(new OlPoint([point.easting, point.northing]));
-    feature.set('type', 'vertex');
-    sourceRef.current.addFeature(feature);
-  }, []);
+    try {
+      const [x, y] = toDisplay(point.easting, point.northing, crs);
+      const feature = new Feature(new OlPoint([x, y]));
+      feature.set('type', 'vertex');
+      sourceRef.current.addFeature(feature);
+    } catch { /* display-only failure must not break measurement */ }
+  }, [crs]);
 
   const addLineToMap = useCallback(async (points: Point[]) => {
-    if (!sourceRef.current || points.length < 2) return;
+    if (!sourceRef.current || !crs || points.length < 2) return;
     const { Feature, OlLineString } = ctorsRef.current || {};
     if (!Feature || !OlLineString) return;
-    const coords = points.map(p => [p.easting, p.northing] as [number, number]);
-    const feature = new Feature(new OlLineString(coords));
-    feature.set('type', 'line');
-    sourceRef.current.addFeature(feature);
-  }, []);
+    try {
+      const coords = points.map(p => toDisplay(p.easting, p.northing, crs));
+      const feature = new Feature(new OlLineString(coords));
+      feature.set('type', 'line');
+      sourceRef.current.addFeature(feature);
+    } catch { /* display-only failure must not break measurement */ }
+  }, [crs]);
 
   const addPolygonToMap = useCallback(async (points: Point[]) => {
-    if (!sourceRef.current || points.length < 3) return;
+    if (!sourceRef.current || !crs || points.length < 3) return;
     const { Feature, OlPolygon } = ctorsRef.current || {};
     if (!Feature || !OlPolygon) return;
-    const coords = [...points.map(p => [p.easting, p.northing] as [number, number]), [points[0].easting, points[0].northing] as [number, number]];
-    const feature = new Feature(new OlPolygon([coords]));
-    feature.set('type', 'polygon');
-    sourceRef.current.addFeature(feature);
-  }, []);
+    try {
+      const ring = points.map(p => toDisplay(p.easting, p.northing, crs));
+      const coords: Array<[number, number]> = [...ring, ring[0]];
+      const feature = new Feature(new OlPolygon([coords]));
+      feature.set('type', 'polygon');
+      sourceRef.current.addFeature(feature);
+    } catch { /* display-only failure must not break measurement */ }
+  }, [crs]);
 
   const handlePointClick = useCallback((point: Point, mode: MeasurementMode) => {
+    if (!crs) return;
     setState((prev) => {
       const newPoints = [...prev.points, point];
       
@@ -172,11 +224,11 @@ export function useMeasurement(map: Map | null) {
       let result: MeasurementState['result'] = null;
       
       if (mode === 'distance' && newPoints.length === 2) {
-        const distance = calculateDistance(newPoints[0], newPoints[1]);
+        const distance = measurementDistance(newPoints[0], newPoints[1], crs);
         result = { distance };
         addLineToMap(newPoints);
       } else if (mode === 'bearing' && newPoints.length === 2) {
-        const bearing = calculateBearing(newPoints[0], newPoints[1]);
+        const bearing = measurementBearing(newPoints[0], newPoints[1], crs);
         result = { bearing };
         addLineToMap(newPoints);
       } else if (mode === 'coordinate') {
@@ -190,14 +242,26 @@ export function useMeasurement(map: Map | null) {
       return {
         ...prev,
         points: newPoints,
-        result: result || (mode === 'area' && newPoints.length >= 3 ? { area: calculateArea(newPoints) } : null),
+        result: result || (mode === 'area' && newPoints.length >= 3 ? { area: measurementArea(newPoints, crs) } : null),
         isActive: mode === 'area' || !isFinished,
       };
     });
-  }, [addPointToMap, addLineToMap, addPolygonToMap]);
+  }, [addPointToMap, addLineToMap, addPolygonToMap, crs]);
 
   const startMeasurement = useCallback(async (mode: MeasurementMode) => {
     if (!map) return;
+
+    // Fail closed: measurement requires a declared, registered, projected CRS.
+    if (!crs) {
+      setError('Measurement unavailable: project CRS not declared');
+      return;
+    }
+    try {
+      assertProjectedCrs(crs);
+    } catch (err) {
+      setError(`Measurement unavailable: ${err instanceof Error ? err.message : 'invalid CRS'}`);
+      return;
+    }
     
     if (!sourceRef.current) {
       await createLayer();
@@ -205,6 +269,7 @@ export function useMeasurement(map: Map | null) {
     
     clearSource();
     
+    setError(null);
     setState({
       mode,
       points: [],
@@ -213,24 +278,24 @@ export function useMeasurement(map: Map | null) {
     });
 
     const handleClick = (evt: import('ol/MapBrowserEvent').default) => {
-      const coord = evt.coordinate;
-      
-      const point: Point = {
-        easting: coord[0],
-        northing: coord[1],
-      };
-      
-      handlePointClick(point, mode);
+      try {
+        const [x, y] = evt.coordinate as [number, number];
+        // Click lands in the display CRS — store the PROJECT-CRS grid point.
+        const point = measurementPointFromDisplay(x, y, crs);
+        handlePointClick(point, mode);
+      } catch (err) {
+        setError(`Measurement failed: ${err instanceof Error ? err.message : 'transform error'}`);
+      }
     };
     
     clickHandlerRef.current = handleClick;
     map.on('click', handleClick);
-  }, [map, createLayer, clearSource, handlePointClick]);
+  }, [map, crs, createLayer, clearSource, handlePointClick]);
 
   const finishAreaMeasurement = useCallback(() => {
-    if (state.points.length < 3) return;
+    if (state.points.length < 3 || !crs) return;
     
-    const area = calculateArea(state.points);
+    const area = measurementArea(state.points, crs);
     addPolygonToMap(state.points);
     
     setState((prev) => ({
@@ -238,7 +303,7 @@ export function useMeasurement(map: Map | null) {
       result: { area },
       isActive: false,
     }));
-  }, [state.points, addPolygonToMap]);
+  }, [state.points, addPolygonToMap, crs]);
 
   const cancelMeasurement = useCallback(() => {
     clearSource();
@@ -248,6 +313,7 @@ export function useMeasurement(map: Map | null) {
       clickHandlerRef.current = null;
     }
     
+    setError(null);
     setState({
       mode: 'none',
       points: [],
@@ -322,6 +388,7 @@ export function useMeasurement(map: Map | null) {
 
   return {
     state,
+    error,
     startMeasurement,
     finishAreaMeasurement,
     cancelMeasurement,

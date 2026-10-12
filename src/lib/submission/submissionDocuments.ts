@@ -38,6 +38,14 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     requiredData: ['adjusted traverse coordinates', 'beacon data'],
   },
   {
+    id: 'statutory-workbook',
+    label: 'Statutory Computation Workbook (9-Sheet)',
+    description: 'Official 9-sheet computation workbook per Survey Regulations & RDM 1.1 (Abstract, Traverse, Levels, Area, COGO, QA).',
+    format: 'xlsx',
+    surveyTypes: ['cadastral', 'engineering', 'topographic', 'geodetic'],
+    requiredData: ['adjusted coordinates', 'traverse observations', 'area data'],
+  },
+  {
     id: 'deed-plan',
     label: 'Deed Plan (Form No. 4)',
     description: 'Regulatory cadastral plan per Survey Act Cap 299.',
@@ -115,7 +123,7 @@ export const SUBMISSION_DOCUMENTS: SubmissionDocument[] = [
     description: 'Resurvey and Index Map for cadastral registration per Survey Act Cap 299.',
     format: 'pdf',
     surveyTypes: ['cadastral'],
-    requiredData: ['adjusted coordinates', 'beacon data', 'LR number'],
+    requiredData: ['saved RIM section and parcels in the RIM editor'],
   },
   {
     id: 'form-c22',

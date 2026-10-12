@@ -65,7 +65,7 @@ export interface AuditQuery {
  * `userAgent` is stored inside `details` JSONB (no dedicated column).
  * Returns the inserted row id (UUID string) or throws on failure.
  */
-export async function logAuditEvent(event: Omit<AuditEvent, 'id'>): Promise<string> {
+export async function logAuditEvent(event: Omit<AuditEvent, 'id'>, connection: Pick<typeof db, 'query'> = db): Promise<string> {
   const { userId, action, resourceType, resourceId, details, ipAddress, userAgent, timestamp } = event;
 
   // Merge userAgent into details JSONB since there's no dedicated column.
@@ -74,7 +74,7 @@ export async function logAuditEvent(event: Omit<AuditEvent, 'id'>): Promise<stri
     fullDetails.user_agent = userAgent;
   }
 
-  const result = await db.query<{ id: string }>(
+  const result = await connection.query<{ id: string }>(
     `INSERT INTO audit_logs (action, table_name, record_id, user_id, details, ip_address, created_at)
      VALUES ($1, $2, $3, $4, $5, $6, $7)
      RETURNING id`,

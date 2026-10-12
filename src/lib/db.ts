@@ -18,29 +18,60 @@ let pool: Pool | null = null
  */
 import { AsyncLocalStorage } from 'async_hooks'
 
-const userIdStore = new AsyncLocalStorage<string>()
-const orgIdStore = new AsyncLocalStorage<string>()
+const userIdStore = new AsyncLocalStorage<string | null>()
+const orgIdStore = new AsyncLocalStorage<string | null>()
+const rlsServiceRoleStore = new AsyncLocalStorage<RlsServiceRole | null>()
+const tillClaimCodeStore = new AsyncLocalStorage<string | null>()
+
+export type RlsServiceRole = 'payment_provider' | 'billing_reconciliation' | 'platform_admin'
+const RLS_SERVICE_ROLES = new Set<RlsServiceRole>([
+  'payment_provider',
+  'billing_reconciliation',
+  'platform_admin',
+])
 
 /** Set the current user ID for RLS (call this in API routes after auth) */
-export function setCurrentUserId(userId: string) {
+export function setCurrentUserId(userId: string | null) {
   userIdStore.enterWith(userId)
 }
 
 /** Set the current organization ID for org-level RLS (call after auth) */
 export function setCurrentOrgId(orgId: string | null) {
-  if (orgId) {
-    orgIdStore.enterWith(orgId)
+  orgIdStore.enterWith(orgId)
+}
+
+/** Mark a request as a server-authenticated payment, cron, or admin workflow. */
+export function setCurrentRlsServiceRole(role: RlsServiceRole | null) {
+  if (role !== null && !RLS_SERVICE_ROLES.has(role)) {
+    throw new Error('Invalid service role for PostgreSQL RLS context.')
   }
+  rlsServiceRoleStore.enterWith(role)
+}
+
+/** Scope the one unclaimed Till row a signed-in user is attempting to claim. */
+export function setCurrentTillClaimCode(code: string | null) {
+  if (code !== null && !/^[A-Z0-9]{8,12}$/.test(code)) {
+    throw new Error('Invalid M-Pesa Till code for PostgreSQL RLS context.')
+  }
+  tillClaimCodeStore.enterWith(code)
 }
 
 /** Get the current user ID (used internally by db.query) */
-function getCurrentUserId(): string | undefined {
+function getCurrentUserId(): string | null | undefined {
   return userIdStore.getStore()
 }
 
 /** Get the current organization ID (used internally by db.query) */
-function getCurrentOrgId(): string | undefined {
+function getCurrentOrgId(): string | null | undefined {
   return orgIdStore.getStore()
+}
+
+function getCurrentRlsServiceRole(): RlsServiceRole | null | undefined {
+  return rlsServiceRoleStore.getStore()
+}
+
+function getCurrentTillClaimCode(): string | null | undefined {
+  return tillClaimCodeStore.getStore()
 }
 
 function getPoolConfig() {
@@ -90,6 +121,7 @@ function getPoolConfig() {
 
 /** UUID validation regex for RLS context safety */
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const EMPTY_RLS_UUID = '00000000-0000-0000-0000-000000000000'
 
 /** Slow query threshold in milliseconds */
 const SLOW_QUERY_THRESHOLD_MS = 5000
@@ -162,6 +194,12 @@ async function _setRlsContext(client: PoolClient | Pool) {
       throw new Error(`Invalid userId format for RLS context: ${userId}`)
     }
     await client.query(`SET LOCAL request.user_id = '${userId}'`)
+    await client.query(`SET LOCAL app.current_user_id = '${userId}'`)
+  } else {
+    await client.query(`SET LOCAL request.user_id = ''`)
+    // Older table policies cast this compatibility setting directly to UUID;
+    // an empty string would raise a database error on anonymous requests.
+    await client.query(`SET LOCAL app.current_user_id = '${EMPTY_RLS_UUID}'`)
   }
   // AUDIT FIX (C6, 2026-07-02): Set org context for org-level RLS policies.
   const orgId = getCurrentOrgId()
@@ -174,6 +212,48 @@ async function _setRlsContext(client: PoolClient | Pool) {
     // Explicitly clear (in case the connection was reused from the pool)
     await client.query(`SET LOCAL request.organization_id = ''`)
   }
+  const serviceRole = getCurrentRlsServiceRole()
+  await client.query(`SET LOCAL request.access_role = '${serviceRole ?? ''}'`)
+  const tillClaimCode = getCurrentTillClaimCode()
+  await client.query(`SET LOCAL request.till_claim_code = '${tillClaimCode ?? ''}'`)
+}
+
+/**
+ * db.query runs its statement in PostgreSQL autocommit mode. SET LOCAL in a
+ * preceding query is therefore cleared before the application query runs.
+ * Set the request variables at session scope for this one pooled-client lease,
+ * then clear them before returning that connection to the pool.
+ */
+async function _setRlsSessionContext(client: PoolClient) {
+  const userId = getCurrentUserId()
+  const orgId = getCurrentOrgId()
+  const serviceRole = getCurrentRlsServiceRole()
+  const tillClaimCode = getCurrentTillClaimCode()
+  if (userId && !UUID_RE.test(userId)) {
+    throw new Error(`Invalid userId format for RLS context: ${userId}`)
+  }
+  if (orgId && !UUID_RE.test(orgId)) {
+    throw new Error(`Invalid orgId format for RLS context: ${orgId}`)
+  }
+  await client.query(
+    `SELECT set_config('request.user_id', $1, false),
+            set_config('request.organization_id', $2, false),
+            set_config('app.current_user_id', $3, false),
+            set_config('request.access_role', $4, false),
+            set_config('request.till_claim_code', $5, false)`,
+    [userId ?? '', orgId ?? '', userId ?? EMPTY_RLS_UUID, serviceRole ?? '', tillClaimCode ?? ''],
+  )
+}
+
+async function _clearRlsSessionContext(client: PoolClient) {
+  await client.query(
+    `SELECT set_config('request.user_id', '', false),
+            set_config('request.organization_id', '', false),
+            set_config('app.current_user_id', $1, false),
+            set_config('request.access_role', '', false),
+            set_config('request.till_claim_code', '', false)`,
+    [EMPTY_RLS_UUID],
+  )
 }
 
 /** Set the RLS session variable on a client (exported for manual transaction use) */
@@ -186,15 +266,11 @@ export const db = {
   query: async <T extends QueryResultRow = QueryResultRow>(text: string, params?: unknown[]): Promise<QueryResult<T>> => {
     const client = await getPool().connect()
     const start = Date.now()
+    let contextMayBeSet = false
+    let clientDestroyed = false
     try {
-      const userId = getCurrentUserId()
-      if (userId) {
-        // Defense-in-depth: validate UUID format before interpolating into SQL.
-        if (!UUID_RE.test(userId)) {
-          throw new Error(`Invalid userId format for RLS context: ${userId}`)
-        }
-        await client.query(`SET LOCAL request.user_id = '${userId}'`)
-      }
+      contextMayBeSet = true
+      await _setRlsSessionContext(client)
       const result = await client.query(text, params)
       const elapsed = Date.now() - start
       if (elapsed > SLOW_QUERY_THRESHOLD_MS) {
@@ -202,7 +278,18 @@ export const db = {
       }
       return result
     } finally {
-      client.release()
+      if (contextMayBeSet) {
+        try {
+          await _clearRlsSessionContext(client)
+        } catch (error) {
+          // Never return a pooled connection with request identity still set.
+          // Destroy this client; the query result/error itself remains intact.
+          logger.error('[db] Failed to clear request RLS context; destroying pooled connection:', { error })
+          client.release(true)
+          clientDestroyed = true
+        }
+      }
+      if (!clientDestroyed) client.release()
     }
   },
 
@@ -222,13 +309,7 @@ export const db = {
     const client = await getPool().connect()
     try {
       await client.query('BEGIN')
-      const userId = getCurrentUserId()
-      if (userId) {
-        if (!UUID_RE.test(userId)) {
-          throw new Error(`Invalid userId format for RLS context: ${userId}`)
-        }
-        await client.query(`SET LOCAL request.user_id = '${userId}'`)
-      }
+      await _setRlsContext(client)
       const result = await fn(client)
       await client.query('COMMIT')
       return result

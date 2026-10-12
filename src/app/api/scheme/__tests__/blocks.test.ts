@@ -7,6 +7,7 @@
 jest.mock('@/lib/db', () => ({
   db: { query: jest.fn() },
   setCurrentUserId: jest.fn(),
+  setCurrentOrgId: jest.fn(),
 }))
 
 jest.mock('@/lib/auth', () => ({
@@ -22,6 +23,7 @@ jest.mock('@/lib/security/rateLimit', () =>
 
 jest.mock('@/lib/logger', () => ({
   auditLog: jest.fn(),
+  logger: { error: jest.fn(), warn: jest.fn() },
 }))
 
 // POST route enables apiHandler auditChain, which calls appendAuditEntry
@@ -44,6 +46,11 @@ const mockDb = db.query as jest.MockedFunction<typeof db.query>
 const mockSession = getServerSession as jest.MockedFunction<typeof getServerSession>
 
 const TEST_UUID = '00000000-0000-0000-0000-000000000001'
+
+beforeEach(() => {
+  mockDb.mockReset()
+  mockDb.mockResolvedValue(mr([]))
+})
 
 
 

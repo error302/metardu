@@ -6,9 +6,9 @@
  * convertUTMToCassini dispatchers.
  */
 
-// ponytail: moved to data/cassini/ to keep src/ lean (was 388k LOC of JSON in src/lib/geo/)
-// Phase 3b will convert this to a lazy `await import()` so the IIFE doesn't run on every cold load.
-import SUBSHEET_CORNERS_RAW from '../../../../data/cassini/merged_subsheets.json'
+// The typed loader keeps the unchanged JSON out of TypeScript's inferred graph.
+// Runtime loading and the established transformation calculations stay here.
+import SUBSHEET_CORNERS_RAW from '../../../../data/cassini/subsheet-data.cjs'
 import { applyConformalCorrection, cassiniFeetToUTM, utmToCassiniFeet, computeHelmert4Params } from './helmert'
 import { cassiniFeetToUTMExact7Param } from './exact'
 import { estimateSheetAccuracy } from './verify'
@@ -16,8 +16,6 @@ import type {
   Affine6Params, CassiniFeetPoint, CommonPoint, ConversionResult, Poly12Params,
   SubSheetDef, TopoSheetParams, TransformMethod, UTMPoint, VerificationResult,
 } from './types'
-
-type SubSheetCornersJSON = Record<string, Record<string, { cassX: number; cassY: number; utmE: number; utmN: number }[]>>
 
 // ─── General NxN Gaussian Elimination ───────────────────────────────────────
 
@@ -132,7 +130,7 @@ export function computePoly12Params(commonPoints: CommonPoint[]): Poly12Params {
 // ─── Build Sub-sheet Definitions ───────────────────────────────────────────
 
 function buildSubSheets(): SubSheetDef[] {
-  const raw = SUBSHEET_CORNERS_RAW as unknown as SubSheetCornersJSON
+  const raw = SUBSHEET_CORNERS_RAW
   const result: SubSheetDef[] = []
 
   for (const sheetId of Object.keys(raw)) {
@@ -197,12 +195,6 @@ function buildSubSheets(): SubSheetDef[] {
 export const KENYA_SUB_SHEETS: SubSheetDef[] = buildSubSheets()
 
 export const SHEETS_WITH_SUBSHEETS = new Set(KENYA_SUB_SHEETS.map(ss => ss.sheetId))
-
-export function getUtmZone(sheetId: string): number {
-  const zone36Sheets = ['105/3']
-  if (zone36Sheets.includes(sheetId)) return 36
-  return 37
-}
 
 // ─── Sub-sheet Auto-detection ──────────────────────────────────────────────
 

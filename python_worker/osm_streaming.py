@@ -3,27 +3,27 @@ METARDU OSM Streaming Processor — Pyosmium-based
 
 PROBLEM
 -------
-Pyrosm loads the entire PBF into memory (~2-3GB for Kenya). For planet-scale
-extracts, multi-country analyses, or running on a small VM, this isn't viable.
+The alternate Pyrosm feature reader materializes large layer tables and can
+consume substantial RAM. The Pyosmium reader below parses source entities
+incrementally, but its current feature handlers retain selected output in
+memory too.
 
-Pyosmium streams through the PBF file node-by-node, way-by-way, relation-by-
-relation — never loading the whole file into memory. This lets us:
-  - Process files larger than RAM
-  - Filter on tags as we go (write only matching features to output)
-  - Assemble multipolygon relations correctly (Pyrosm can't)
-  - Build custom extract pipelines for production data workflows
+Pyosmium parses PBF entities incrementally. This implementation still keeps
+all matching output features in Python memory before writing GeoJSON, so it is
+not a bounded-memory or planet-scale production pipeline. Keep the route
+disabled until output streaming, geometry validation, and resource limits are
+implemented and tested.
 
 LIBRARY: Pyosmium (https://osmcode.org/pyosmium/)
 - Python binding for libosmium (C++)
 - Used by OpenStreetMap tooling (osmium-tool, osmium-js)
 - Handler-based API: write a class that receives nodes/ways/relations
 
-USE CASES IN METARDU
---------------------
-1. Generate a "buildings-only" extract for a project area (smaller PBF)
-2. Build a county-level extract from the national PBF
-3. Extract specific feature types (e.g., all schools in Kenya) for offline use
-4. Pre-process OSM data into GeoParquet for fast DuckDB queries
+PLANNED USE CASES (NOT YET PRODUCTION-READY)
+--------------------------------------------
+1. Generate bounded feature extracts for a project area
+2. Prepare regional offline context layers after memory limits are validated
+3. Pre-process selected OSM features into a tiled format for field use
 
 USAGE
 -----
@@ -214,8 +214,9 @@ def stream_extract(
     """
     Stream through a PBF file and extract features to a GeoJSON file.
 
-    This is memory-efficient: only the matching features are held in memory,
-    not the entire PBF.
+    The PBF parser is incremental, but this implementation materializes the
+    matching output features in memory before writing. Do not use for broad or
+    country-scale extracts until the output path is made genuinely bounded.
 
     Args:
         pbf_path: Path to the .osm.pbf file
@@ -324,15 +325,22 @@ async def api_stream_extract(request: StreamExtractRequest):
     """
     Stream-extract features from the PBF file to a GeoJSON file.
 
-    Memory-efficient: processes the PBF node-by-node without loading
-    the whole file into RAM. Suitable for planet-scale extracts.
+    Pyosmium reads the source incrementally, but output features are currently
+    materialized in memory. This is not suitable for broad or planet-scale
+    extracts.
     """
+    if not get_osmium():
+        raise HTTPException(
+            status_code=503,
+            detail="Local OSM streaming is unavailable: install Pyosmium in the worker image.",
+        )
+
     # Find the PBF file
     pbf_path = (
         os.environ.get("OSM_PBF_PATH") or
         ("data/kenya-latest.osm.pbf" if os.path.exists("data/kenya-latest.osm.pbf") else None)
     )
-    if not pbf_path:
+    if not pbf_path or not os.path.isfile(pbf_path):
         raise HTTPException(
             status_code=503,
             detail="No PBF file found. Set OSM_PBF_PATH or place file at data/kenya-latest.osm.pbf",

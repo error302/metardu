@@ -2,8 +2,8 @@
 
 /**
  * TopoEntityCanvas — renders a shared DrawingEntity[] (from buildTopoEntities)
- * to Konva. This guarantees the on-screen preview is identical to the DXF/PDF
- * exports, because both consume the same entity list.
+ * to Konva with neatline clipping to ensure no contours or grid lines bleed
+ * outside the drawing sheet.
  */
 import { useEffect, useMemo, useRef } from 'react'
 import Konva from 'konva'
@@ -65,16 +65,36 @@ export function TopoEntityCanvas({
       return () => { stage.destroy() }
     }
 
+    // Neatline clipping group to prevent contour bleeding
+    const inset = worldW * 0.01
+    const neatMinX = toX(extents.minX + inset)
+    const neatMaxX = toX(extents.maxX - inset)
+    const neatMinY = toY(extents.maxY - inset)
+    const neatMaxY = toY(extents.minY + inset)
+
+    const clippedGroup = new Konva.Group({
+      clip: {
+        x: Math.min(neatMinX, neatMaxX),
+        y: Math.min(neatMinY, neatMaxY),
+        width: Math.abs(neatMaxX - neatMinX),
+        height: Math.abs(neatMaxY - neatMinY),
+      },
+    })
+    layer.add(clippedGroup)
+
     // Text heights are in world units → convert to px, clamp for legibility
     const textScale = scale
 
     for (const e of entities) {
       if (hiddenLayers?.has(e.layer)) continue
       const color = layerColorMap.get(e.layer) ?? '#d4d4d8'
+      const targetContainer = (e.layer === 'CONTOURS' || e.layer === 'CONTOUR_I' || e.layer === 'GRID')
+        ? clippedGroup
+        : layer
 
       switch (e.kind) {
         case 'line':
-          layer.add(new Konva.Line({
+          targetContainer.add(new Konva.Line({
             points: [toX(e.x1), toY(e.y1), toX(e.x2), toY(e.y2)],
             stroke: color, strokeWidth: e.layer === 'GRID' ? 0.6 : 1, listening: false,
           }))
@@ -82,7 +102,7 @@ export function TopoEntityCanvas({
         case 'polyline': {
           const flat: number[] = []
           for (const [en, nn] of e.pts) flat.push(toX(en), toY(nn))
-          layer.add(new Konva.Line({
+          targetContainer.add(new Konva.Line({
             points: flat,
             stroke: color, strokeWidth: 1.1,
             closed: !!e.closed, listening: false,
@@ -90,11 +110,11 @@ export function TopoEntityCanvas({
           break
         }
         case 'point':
-          layer.add(new Konva.Circle({ x: toX(e.e), y: toY(e.n), radius: 1.6, fill: color, listening: false }))
+          targetContainer.add(new Konva.Circle({ x: toX(e.e), y: toY(e.n), radius: 1.6, fill: color, listening: false }))
           break
         case 'text': {
           const fs = Math.max(6, Math.min(12, e.height * textScale))
-          layer.add(new Konva.Text({
+          targetContainer.add(new Konva.Text({
             x: toX(e.e), y: toY(e.n),
             text: e.text, fontSize: fs, fill: color, listening: false,
           }))

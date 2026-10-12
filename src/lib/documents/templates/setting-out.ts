@@ -60,6 +60,9 @@ export interface SettingOutSheetData {
   surveyorName: string;
   /** Surveyor license number */
   surveyorLicense: string;
+  /** Optional independent checker; blank details remain visibly unrecorded. */
+  checkedByName?: string;
+  checkedByLicense?: string;
   /** Date of setting out */
   date: string;
   /** Reference station name */
@@ -80,159 +83,117 @@ async function generateSettingOutPdf(
   data: SettingOutSheetData,
   options?: TemplateGenerateOptions
 ): Promise<Buffer> {
+  if (!data.points.length || data.points.length > 1000) throw new RangeError('A setting-out sheet requires 1-1,000 design points.');
+  for (const point of data.points) {
+    if (!point.pointId.trim() || !Number.isFinite(point.designE) || !Number.isFinite(point.designN)
+      || (point.offsetE != null && !Number.isFinite(point.offsetE)) || (point.offsetN != null && !Number.isFinite(point.offsetN))) {
+      throw new RangeError('Every setting-out point needs an identifier and finite supplied coordinates/offsets.');
+    }
+  }
   const plan: PlanId = options?.plan ?? 'free';
   const companyLogo: ResolvedLogo | null = options?.companyLogo ?? null;
-  const pageW = PAPER_SIZES.A4.width;
-  const pageH = PAPER_SIZES.A4.height;
-
-  const doc = createSurveyDocument({
-    paperSize: 'A4',
-    orientation: 'portrait',
-    scale: 1,
-    metadata: {
-      title: `Setting Out Sheet - ${data.projectName}`,
-      surveyorName: data.surveyorName,
-      surveyorLicense: data.surveyorLicense,
-      projectReference: data.projectName,
-      date: data.date,
-    },
-    companyLogo: companyLogo?.data ?? null,
-    plan,
-  });
-
+  const pageW = PAPER_SIZES.A4.width, pageH = PAPER_SIZES.A4.height;
+  const doc = createSurveyDocument({ paperSize: 'A4', orientation: 'portrait', scale: 1, bufferPages: true,
+    metadata: { title: `DRAFT Setting Out Sheet - ${data.projectName}`, surveyorName: data.surveyorName || 'Not provided',
+      surveyorLicense: data.surveyorLicense || 'Not provided', projectReference: data.projectName, date: data.date },
+    companyLogo: companyLogo?.data ?? null, plan });
   const chunks: Buffer[] = [];
-  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
-  const pdfPromise = new Promise<Buffer>((resolve) => {
+  const result = new Promise<Buffer>((resolve, reject) => {
+    doc.on('data', (chunk: Buffer) => chunks.push(chunk));
     doc.on('end', () => resolve(Buffer.concat(chunks)));
+    doc.on('error', reject);
   });
-
-  // METARDU watermark for free plan
-  if (plan === 'free') {
-    drawMetarduWatermark(doc, pageW, pageH);
-  }
-
-  const mx = 15; // Left margin
-  const rightMargin = 15;
-  let y = 15;
-
-  // ─── Header with logo ──────────────────────────────────────
-  if (companyLogo?.data) {
-    drawCompanyLogo(doc, companyLogo.data, mx, y, 30, 10);
-    y += 2;
-  }
-
-  drawText(doc, 'SETTING OUT SHEET', mx + (companyLogo?.data ? 32 : 0), y, 5, { bold: true });
-  y += 7;
-
-  // Project info line
-  drawText(doc, data.projectName, mx, y, 3, { bold: true });
-  y += 4;
-  drawText(doc, `Surveyor: ${data.surveyorName} (${data.surveyorLicense})  |  Date: ${data.date}`, mx, y, TEXT_SIZES.coordinate);
-  y += 4;
-
-  // Additional info
-  const infoParts: string[] = [];
-  if (data.referenceStation) infoParts.push(`Ref: ${data.referenceStation}`);
-  if (data.instrument) infoParts.push(`Instr: ${data.instrument}`);
-  if (data.projection) infoParts.push(`Proj: ${data.projection}`);
-  if (data.datum) infoParts.push(`Datum: ${data.datum}`);
-  if (infoParts.length > 0) {
-    drawText(doc, infoParts.join('  |  '), mx, y, TEXT_SIZES.small);
-    y += 4;
-  }
-
-  // Separator line
-  drawLine(doc, mx, y, pageW - rightMargin, y, LINE_WEIGHTS.titleBorder);
-  y += 5;
-
-  // ─── Coordinate Table ───────────────────────────────────────
-  const colWidths = [18, 28, 28, 18, 20, 20, 20, 18, 40];
-  const colHeaders = ['Point', 'Design E', 'Design N', 'Bearing', 'Dist (m)', 'Offset E', 'Offset N', 'Tol.', 'Remarks'];
-  const headerHeight = 7;
-  const rowHeight = 6;
-
-  // Table header
-  let cx = mx;
-  for (let i = 0; i < colHeaders.length; i++) {
-    drawRect(doc, cx, y, colWidths[i], headerHeight, 0.2, 'black', '#E8E8E8');
-    drawText(doc, colHeaders[i], cx + 1, y + 2, TEXT_SIZES.small, { bold: true });
-    cx += colWidths[i];
-  }
-  y += headerHeight;
-
-  // Table rows
-  const maxRows = Math.min(data.points.length, 32); // Max rows that fit on A4
-  for (let r = 0; r < maxRows; r++) {
-    cx = mx;
-    const pt = data.points[r];
-    const values = [
-      pt.pointId,
-      pt.designE.toFixed(3),
-      pt.designN.toFixed(3),
-      pt.bearing ?? '',
-      pt.distance ?? '',
-      pt.offsetE != null ? pt.offsetE.toFixed(3) : '',
-      pt.offsetN != null ? pt.offsetN.toFixed(3) : '',
-      pt.toleranceCheck ?? '',
-      pt.remarks ?? '',
-    ];
-
-    for (let i = 0; i < colWidths.length; i++) {
-      drawRect(doc, cx, y, colWidths[i], rowHeight, 0.08);
-      drawText(doc, values[i], cx + 1, y + 1.5, TEXT_SIZES.small);
-      cx += colWidths[i];
+  const mx = 15, rightMargin = 15, mmToPt = 2.8346;
+  const width = pageW - mx - rightMargin, contentBottom = pageH - 30;
+  const columns = [14, 25, 25, 20, 16, 17, 17, 16, 30];
+  const labels = ['Point', 'Design E (m)', 'Design N (m)', 'Bearing', 'Dist (m)', 'Offset E (m)', 'Offset N (m)', 'Entered check', 'Remarks'];
+  let y = 15, tableStart = 0;
+  const measure = (value: string, cellWidth: number, bold = false) => {
+    doc.font(bold ? 'Helvetica-Bold' : 'Helvetica').fontSize(TEXT_SIZES.coordinate * mmToPt);
+    return doc.heightOfString(value, { width: cellWidth * mmToPt, lineGap: 1 }) / mmToPt;
+  };
+  const write = (value: string, x: number, top: number, cellWidth: number, bold = false) => {
+    const height = measure(value, cellWidth, bold);
+    doc.fillColor('black').text(value, x * mmToPt, top * mmToPt, { width: cellWidth * mmToPt, lineGap: 1 });
+    return height;
+  };
+  const pageHeader = () => {
+    y = 15;
+    if (plan === 'free') drawMetarduWatermark(doc, pageW, pageH);
+    if (companyLogo?.data) drawCompanyLogo(doc, companyLogo.data, mx, y, 30, 10);
+    drawText(doc, 'DRAFT - SETTING OUT SHEET', mx + (companyLogo?.data ? 32 : 0), y, 4, { bold: true });
+    y += companyLogo?.data ? 12 : 8;
+    y += write(data.projectName, mx, y, width, true) + 2;
+    y += write(`Entered surveyor: ${data.surveyorName || 'Not provided'} | License: ${data.surveyorLicense || 'Not provided'} | Date: ${data.date}`, mx, y, width) + 2;
+    y += write(`Reference station: ${data.referenceStation || 'Not provided'} | Instrument: ${data.instrument || 'Not provided'} | Entered CRS: ${data.projection || 'Not provided'} | Datum: ${data.datum || 'Not provided'}`, mx, y, width) + 2;
+    y += write('Entered design data only; control, reference and accuracy are not verified. Coordinates/offsets shown to 0.001 m; missing values are not zero. Entered check text is not acceptance.', mx, y, width) + 3;
+    if (y > contentBottom - 30) throw new RangeError('The project heading is too long for a readable setting-out sheet.');
+    drawLine(doc, mx, y, pageW - rightMargin, y, LINE_WEIGHTS.titleBorder);
+    y += 3;
+    const height = Math.max(...labels.map((value, i) => measure(value, columns[i] - 2, true))) + 3;
+    let x = mx;
+    labels.forEach((value, i) => {
+      drawRect(doc, x, y, columns[i], height, 0.2, 'black', '#E8E8E8');
+      write(value, x + 1, y + 1.5, columns[i] - 2, true); x += columns[i];
+    });
+    y += height; tableStart = y;
+  };
+  const nextPage = () => { doc.addPage(); pageHeader(); };
+  try {
+    pageHeader();
+    for (const point of data.points) {
+      const values = [point.pointId, point.designE.toFixed(3), point.designN.toFixed(3), point.bearing ?? '-', point.distance ?? '-',
+        point.offsetE == null ? '-' : point.offsetE.toFixed(3), point.offsetN == null ? '-' : point.offsetN.toFixed(3),
+        point.toleranceCheck || 'Not supplied', point.remarks ?? '-'];
+      const height = Math.max(6, ...values.map((value, i) => measure(value, columns[i] - 2) + 3));
+      if (height > contentBottom - tableStart) throw new RangeError('A point row is too long; move extensive notes into a separate report. No points were omitted.');
+      if (y + height > contentBottom) nextPage();
+      let x = mx;
+      values.forEach((value, i) => {
+        drawRect(doc, x, y, columns[i], height, 0.08);
+        write(value, x + 1, y + 1.5, columns[i] - 2); x += columns[i];
+      });
+      y += height;
     }
-    y += rowHeight;
-  }
+    if (y + 31 > contentBottom) nextPage();
+    y += 4;
+    drawLine(doc, mx, y, pageW - rightMargin, y, 0.3); y += 3;
+    y += write(`All ${data.points.length} supplied design points are included.`, mx, y, width, true) + 2;
+    const withOffsets = data.points.filter(point => point.offsetE != null || point.offsetN != null).length;
+    const maxE = Math.max(0, ...data.points.map(point => Math.abs(point.offsetE ?? 0)));
+    const maxN = Math.max(0, ...data.points.map(point => Math.abs(point.offsetN ?? 0)));
+    y += write(`${withOffsets} point(s) include supplied offsets. Max supplied |E| offset: ${maxE.toFixed(3)} m; |N| offset: ${maxN.toFixed(3)} m. These entries are not verified field observations.`, mx, y, width) + 3;
 
-  // Overflow note if too many points
-  if (data.points.length > maxRows) {
-    y += 2;
-    drawText(doc, `... and ${data.points.length - maxRows} more points (continued on next page)`, mx, y, TEXT_SIZES.small, { color: '#999999' });
-    y += 5;
-  }
+    const signatureGap = 10
+    const signatureColumnWidth = (width - signatureGap) / 2
+    if (y + 26 > contentBottom) nextPage()
+    drawLine(doc, mx, y, pageW - rightMargin, y, LINE_WEIGHTS.titleBorder)
+    y += 3
+    write('PREPARED BY (SURVEYOR)', mx, y, signatureColumnWidth, true)
+    write('CHECKED BY', mx + signatureColumnWidth + signatureGap, y, signatureColumnWidth, true)
+    write(`Name: ${data.surveyorName || 'Not provided'}`, mx, y + 5, signatureColumnWidth)
+    write(`Registration: ${data.surveyorLicense || 'Not provided'}`, mx, y + 10, signatureColumnWidth)
+    const checkX = mx + signatureColumnWidth + signatureGap
+    write(`Name: ${data.checkedByName || 'Not supplied'}`, checkX, y + 5, signatureColumnWidth)
+    write(`Registration: ${data.checkedByLicense || 'Not supplied'}`, checkX, y + 10, signatureColumnWidth)
+    drawLine(doc, mx, y + 17, mx + signatureColumnWidth, y + 17, 0.2)
+    drawLine(doc, checkX, y + 17, checkX + signatureColumnWidth, y + 17, 0.2)
+    write('Signature', mx, y + 18, signatureColumnWidth)
+    write('Signature', checkX, y + 18, signatureColumnWidth)
+    write('Date: ____________________', mx, y + 23, signatureColumnWidth)
+    write('Date: ____________________', checkX, y + 23, signatureColumnWidth)
 
-  // ─── Summary statistics ─────────────────────────────────────
-  y += 5;
-  drawLine(doc, mx, y, pageW - rightMargin, y, 0.3);
-  y += 3;
-
-  const totalPoints = data.points.length;
-  const pointsWithOffsets = data.points.filter(p => p.offsetE != null || p.offsetN != null).length;
-  const maxOffsetE = Math.max(...data.points.filter(p => p.offsetE != null).map(p => Math.abs(p.offsetE ?? 0)), 0);
-  const maxOffsetN = Math.max(...data.points.filter(p => p.offsetN != null).map(p => Math.abs(p.offsetN ?? 0)), 0);
-
-  drawText(doc, 'SUMMARY', mx, y, TEXT_SIZES.coordinate, { bold: true });
-  y += 4;
-  drawText(doc, `Total Points: ${totalPoints}`, mx, y, TEXT_SIZES.small);
-  drawText(doc, `Points with Offsets: ${pointsWithOffsets}`, mx + 50, y, TEXT_SIZES.small);
-  drawText(doc, `Max |Offset E|: ${maxOffsetE.toFixed(3)}m`, mx + 120, y, TEXT_SIZES.small);
-  y += 4;
-  drawText(doc, `Max |Offset N|: ${maxOffsetN.toFixed(3)}m`, mx, y, TEXT_SIZES.small);
-
-  // ─── Footer: Signature and checked-by ───────────────────────
-  // Position at bottom of page
-  const footerY = pageH - 30;
-
-  drawLine(doc, mx, footerY, pageW - rightMargin, footerY, 0.1);
-  y = footerY + 3;
-
-  // Surveyor signature
-  drawLine(doc, mx + 80, y, mx + 140, y, 0.2);
-  drawText(doc, data.surveyorName, mx + 80, y + 1, TEXT_SIZES.small);
-  drawText(doc, `License: ${data.surveyorLicense}`, mx + 80, y + 3, TEXT_SIZES.small);
-
-  // Checked-by line
-  drawLine(doc, mx + 80, y + 12, mx + 140, y + 12, 0.2);
-  drawText(doc, 'Checked by', mx + 80, y + 13, TEXT_SIZES.small);
-
-  // Date field
-  drawLine(doc, mx + 80, y + 24, mx + 140, y + 24, 0.2);
-  drawText(doc, 'Date', mx + 80, y + 25, TEXT_SIZES.small);
-
-  doc.end();
-  return pdfPromise;
+    const range = doc.bufferedPageRange();
+    for (let i = range.start; i < range.start + range.count; i++) {
+      doc.switchToPage(i);
+      write(`DRAFT | Entered design data; survey control and accuracy are not verified | Page ${i + 1} of ${range.count}`, mx, pageH - 20, width);
+      write('Professional review and approved design are required. This sheet does not certify construction acceptance.', mx, pageH - 14, width);
+    }
+    doc.end();
+  } catch (error) { doc.destroy(error instanceof Error ? error : new Error('Setting-out PDF generation failed.')); }
+  return result;
 }
+
 
 // ─── Template Registration ───────────────────────────────────────
 

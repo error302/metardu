@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { sha256Hex } from '@/lib/crypto/sha256';
 import { jsPDF } from 'jspdf';
 import { DeedPlanGeometry } from './deedPlanGeometry';
 import { getRoadReserveWidth } from '../reports/surveyPlan/types';
@@ -333,13 +333,13 @@ function drawStampAndSealArea(
  * Draw print verification text at the bottom of the boundary plan panel.
  * Uses SHA-256 cryptographic hash for production-grade verification.
  */
-function drawPrintVerification(
+async function drawPrintVerification(
   doc: jsPDF,
   panel: PanelBounds,
   geom: DeedPlanGeometry,
   scaleRatio: number,
   options?: BoundaryPlanOptions
-): void {
+): Promise<void> {
   const coordString = geom.stations
     .map(s => `${s.easting.toFixed(4)},${s.northing.toFixed(4)}`)
     .join('|');
@@ -350,7 +350,7 @@ function drawPrintVerification(
 
   // SHA-256 cryptographic hash
   const rawString = `${coordString}|${areaVal}|${scaleRatio}|${dateStr}|${surveyorLicence}|${revisionsCount}`;
-  const verCode = createHash('sha256').update(rawString).digest('hex').toUpperCase().slice(0, 16);
+  const verCode = (await sha256Hex(rawString)).toUpperCase().slice(0, 16);
 
   const verifyX = panel.x + panel.width / 2;
   const verifyY = panel.y + panel.height - 1;
@@ -374,7 +374,7 @@ function drawPrintVerification(
   );
 }
 
-export function renderBoundaryPlan(
+export async function renderBoundaryPlan(
   doc: jsPDF,
   geom: DeedPlanGeometry,
   panel: PanelBounds,
@@ -492,7 +492,7 @@ export function renderBoundaryPlan(
   }
 
   // ── Phase 2: Print Verification (SHA-256) ──
-  drawPrintVerification(doc, panel, geom, scaleRatio, options);
+  await drawPrintVerification(doc, panel, geom, scaleRatio, options);
 
   return scaleRatio;
 }

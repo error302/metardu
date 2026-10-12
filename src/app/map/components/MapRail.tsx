@@ -1,25 +1,18 @@
 'use client'
 
 /**
- * MapRail — Phase 2 left icon dock with RADIO tool-switching.
+ * MapRail — Phase 2 left icon dock with RADIO tool-switching and full collapsibility.
  *
  * One active tool at a time; the active tool's context panel renders in
  * the sidebar slot via renderActivePanel. Replaces scattered floating
  * buttons: every control is a rail item, so overlap becomes impossible
  * by construction.
  *
- * Usage (inside the map container):
- *   <MapRail
- *     items={[
- *       { id: 'layers', icon: Layers, label: 'Layers', panel: <LayersPanel /> },
- *       { id: 'stakeout', icon: Target, label: 'Stakeout', onClick: openRadar },
- *     ]}
- *     activeId={active}
- *     onActivate={setActive}
- *   />
+ * Both left rail and right dock are independently collapsible for clean
+ * full-canvas map interaction.
  */
-import { useEffect, type ReactNode, type ComponentType } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useState, type ReactNode, type ComponentType } from 'react'
+import { X, ChevronLeft, ChevronRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 export interface MapRailItem {
@@ -46,6 +39,7 @@ interface MapRailProps {
 }
 
 export default function MapRail({ items, activeId, onActivate, className }: MapRailProps) {
+  const [isCollapsed, setIsCollapsed] = useState(false)
   const active = items.find((i) => i.id === activeId && i.panel)
 
   // Keyboard shortcut listener (1-8, etc.)
@@ -65,6 +59,7 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
       const matchingItem = items.find((i) => i.shortcut && i.shortcut.toLowerCase() === e.key.toLowerCase())
       if (matchingItem) {
         e.preventDefault()
+        if (isCollapsed) setIsCollapsed(false)
         if (matchingItem.onClick) {
           matchingItem.onClick()
         } else {
@@ -75,73 +70,109 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [items, activeId, onActivate])
+  }, [items, activeId, onActivate, isCollapsed])
 
   return (
     <>
+      {/* ── Collapsed Toggle Pill ── */}
+      {isCollapsed && (
+        <button
+          onClick={() => setIsCollapsed(false)}
+          title="Expand Map Tools Rail"
+          aria-label="Expand tools rail"
+          className={cn(
+            'absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 px-2 py-3.5 rounded-xl',
+            'bg-[color-mix(in_srgb,var(--bg-secondary)_85%,transparent)] backdrop-blur-xl',
+            'border border-[var(--border-color)]/[0.15] shadow-xl',
+            'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-secondary)] transition-all group cursor-pointer'
+          )}
+        >
+          <ChevronRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+          <span className="text-[9px] uppercase font-mono font-bold tracking-widest text-[var(--text-muted)] group-hover:text-[var(--accent)] [writing-mode:vertical-lr] rotate-180">
+            Tools
+          </span>
+        </button>
+      )}
+
       {/* ── Left icon rail ── */}
-      <div
-        role="toolbar"
-        aria-label="Map tools"
-        className={cn(
-          'absolute left-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-1 p-1 rounded-xl',
-          'bg-[color-mix(in_srgb,var(--bg-secondary)_75%,transparent)] backdrop-blur-xl',
-          'border border-[var(--border-color)]/[0.08] shadow-lg',
-          className,
-        )}
-      >
-        {items.map(({ id, label, icon: Icon, shortcut, accent = 'var(--accent)', dividerAfter, onClick }) => {
-          const isActive = id === activeId
-          return (
-            <div key={id} className="flex flex-col items-center">
-              <button
-                onClick={() => {
-                  if (onClick) { onClick(); return }
-                  onActivate(isActive ? null : id)
-                }}
-                title={shortcut ? `${label} (${shortcut})` : label}
-                aria-label={label}
-                aria-pressed={isActive}
-                className={cn(
-                  'relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors group',
-                  isActive
-                    ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)]'
-                    : 'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-white/5',
+      {!isCollapsed && (
+        <div
+          role="toolbar"
+          aria-label="Map tools"
+          className={cn(
+            'absolute left-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-1 p-1 rounded-xl',
+            'bg-[color-mix(in_srgb,var(--bg-secondary)_75%,transparent)] backdrop-blur-xl',
+            'border border-[var(--border-color)]/[0.08] shadow-lg transition-all duration-200',
+            className,
+          )}
+        >
+          {items.map(({ id, label, icon: Icon, shortcut, accent = 'var(--accent)', dividerAfter, onClick }) => {
+            const isActive = id === activeId
+            return (
+              <div key={id} className="flex flex-col items-center">
+                <button
+                  onClick={() => {
+                    if (onClick) { onClick(); return }
+                    onActivate(isActive ? null : id)
+                  }}
+                  title={shortcut ? `${label} (${shortcut})` : label}
+                  aria-label={label}
+                  aria-pressed={isActive}
+                  className={cn(
+                    'relative w-9 h-9 flex items-center justify-center rounded-lg transition-colors group',
+                    isActive
+                      ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)]'
+                      : 'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-white/5',
+                  )}
+                  style={isActive && accent ? {
+                    color: accent,
+                    backgroundColor: `color-mix(in srgb, ${accent} 18%, transparent)`
+                  } : undefined}
+                >
+                  <Icon className="w-4 h-4" />
+                  {shortcut && (
+                    <span
+                      className={cn(
+                        'absolute bottom-0.5 right-1 text-[8px] font-mono font-bold leading-none opacity-60 group-hover:opacity-100',
+                        isActive ? 'opacity-100' : 'text-[var(--text-muted)]'
+                      )}
+                      style={isActive && accent ? { color: accent } : undefined}
+                    >
+                      {shortcut}
+                    </span>
+                  )}
+                  {isActive && (
+                    <span
+                      className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-r-full"
+                      style={{ backgroundColor: accent }}
+                    />
+                  )}
+                </button>
+                {dividerAfter && (
+                  <div className="w-5 h-px bg-white/[0.08] my-1" />
                 )}
-                style={isActive && accent ? {
-                  color: accent,
-                  backgroundColor: `color-mix(in srgb, ${accent} 18%, transparent)`
-                } : undefined}
-              >
-                <Icon className="w-4 h-4" />
-                {shortcut && (
-                  <span
-                    className={cn(
-                      'absolute bottom-0.5 right-1 text-[8px] font-mono font-bold leading-none opacity-60 group-hover:opacity-100',
-                      isActive ? 'opacity-100' : 'text-[var(--text-muted)]'
-                    )}
-                    style={isActive && accent ? { color: accent } : undefined}
-                  >
-                    {shortcut}
-                  </span>
-                )}
-                {isActive && (
-                  <span
-                    className="absolute -left-1 top-1/2 -translate-y-1/2 w-1 h-3.5 rounded-r-full"
-                    style={{ backgroundColor: accent }}
-                  />
-                )}
-              </button>
-              {dividerAfter && (
-                <div className="w-5 h-px bg-white/[0.08] my-1" />
-              )}
-            </div>
-          )
-        })}
-      </div>
+              </div>
+            )
+          })}
+
+          {/* Collapse rail button at the bottom */}
+          <div className="w-5 h-px bg-white/[0.08] my-1 self-center" />
+          <button
+            onClick={() => {
+              setIsCollapsed(true)
+              onActivate(null)
+            }}
+            title="Collapse Map Tools Rail"
+            aria-label="Collapse tools rail"
+            className="w-9 h-9 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--accent)] hover:bg-white/5 transition-colors cursor-pointer"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+        </div>
+      )}
 
       {/* ── Context sidebar for the active tool ── */}
-      {active && (
+      {!isCollapsed && active && (
         <div
           role="complementary"
           aria-label={`${active.label} panel`}
@@ -157,7 +188,7 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
             <button
               onClick={() => onActivate(null)}
               aria-label={`Close ${active.label} panel`}
-              className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5"
+              className="p-1 rounded text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5 cursor-pointer"
             >
               <X className="w-3.5 h-3.5" />
             </button>

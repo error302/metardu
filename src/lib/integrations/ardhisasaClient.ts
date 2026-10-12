@@ -1,12 +1,14 @@
 /**
- * ARDHISASA API Integration Client
- * Handles submission of survey data and retrieval of official records
- * from Kenya's land information systems.
+ * ARDHISASA API adapter.
+ *
+ * The government portal is usable by registered users, but no public
+ * developer API contract is documented. This adapter remains disabled until
+ * the Ministry supplies a contract, endpoint, and credentials for METARDU.
  *
  * Usage:
  *   import { createArdhisasaClient, isArdhisasaConfigured } from './ardhisasa/ardhisasaClient';
  *
- *   if (isArdhisasaConfigured()) {
+ *   if (isArdhisasaConfigured()) { // requires explicit contract verification and opt-in
  *     const client = createArdhisasaClient();
  *     const result = await client.submitPlan(planData);
  *   }
@@ -993,24 +995,25 @@ export class ArdhisasaClient {
 /**
  * Create an `ArdhisasaClient` from environment variables.
  *
- * Required env vars:
+ * Required env vars (all must be deliberately supplied):
  *   - ARDHISASA_API_KEY
  *   - ARDHISASA_CLIENT_ID
  *   - ARDHISASA_CLIENT_SECRET
- *
- * Optional env vars (with defaults):
- *   - ARDHISASA_BASE_URL   → 'https://ardhisasa.go.ke/api/v1'
- *   - ARDHISASA_ENVIRONMENT → 'sandbox'
+ *   - ARDHISASA_BASE_URL (HTTPS endpoint from the approved contract)
+ *   - ARDHISASA_ENVIRONMENT
+ *   - ARDHISASA_API_ENABLED=true
+ *   - ARDHISASA_API_CONTRACT_VERIFIED=true
  */
 export function createArdhisasaClient(): ArdhisasaClient {
   const apiKey = process.env.ARDHISASA_API_KEY;
   const clientId = process.env.ARDHISASA_CLIENT_ID;
   const clientSecret = process.env.ARDHISASA_CLIENT_SECRET;
+  const baseUrl = process.env.ARDHISASA_BASE_URL;
+  const environment = process.env.ARDHISASA_ENVIRONMENT;
 
-  if (!apiKey || !clientId || !clientSecret) {
+  if (!isArdhisasaConfigured() || !apiKey || !clientId || !clientSecret || !baseUrl || !environment) {
     throw new ArdhisasaError(
-      'ARDHISASA integration is not fully configured. ' +
-        'Set ARDHISASA_API_KEY, ARDHISASA_CLIENT_ID, and ARDHISASA_CLIENT_SECRET environment variables.',
+      'ARDHISASA API access is disabled. Enable it only after the Ministry provides and METARDU verifies an API contract, base URL, environment, and credentials.',
       0,
       'NOT_CONFIGURED',
     );
@@ -1018,25 +1021,40 @@ export function createArdhisasaClient(): ArdhisasaClient {
 
   const config: ArdhisasaConfig = {
     apiKey,
-    baseUrl: process.env.ARDHISASA_BASE_URL ?? 'https://ardhisasa.go.ke/api/v1',
+    baseUrl,
     clientId,
     clientSecret,
-    environment: (process.env.ARDHISASA_ENVIRONMENT as ArdhisasaConfig['environment']) ?? 'sandbox',
+    environment: environment as ArdhisasaConfig['environment'],
   };
 
   return new ArdhisasaClient(config);
 }
 
 /**
- * Check whether the ARDHISASA integration is configured (env vars present).
- * Does NOT verify credentials against the server.
+ * Reports explicit operator opt-in and required configuration only. It does
+ * not test connectivity or independently verify a Ministry-issued contract.
  */
 export function isArdhisasaConfigured(): boolean {
+  const baseUrl = process.env.ARDHISASA_BASE_URL;
+  const environment = process.env.ARDHISASA_ENVIRONMENT;
   return !!(
+    process.env.ARDHISASA_API_ENABLED === 'true' &&
+    process.env.ARDHISASA_API_CONTRACT_VERIFIED === 'true' &&
     process.env.ARDHISASA_API_KEY &&
     process.env.ARDHISASA_CLIENT_ID &&
-    process.env.ARDHISASA_CLIENT_SECRET
+    process.env.ARDHISASA_CLIENT_SECRET &&
+    baseUrl && isExplicitHttpsBaseUrl(baseUrl) &&
+    (environment === 'production' || environment === 'sandbox' || environment === 'demo')
   );
+}
+
+function isExplicitHttpsBaseUrl(value: string): boolean {
+  try {
+    const url = new URL(value);
+    return url.protocol === 'https:' && !url.username && !url.password && !url.search && !url.hash;
+  } catch {
+    return false;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1066,7 +1084,7 @@ export function getArdhisasaStatus(): {
   return {
     configured: isArdhisasaConfigured(),
     environment:
-      (process.env.ARDHISASA_ENVIRONMENT as string) ?? 'sandbox',
+      process.env.ARDHISASA_ENVIRONMENT ?? 'unconfigured',
     lastSubmissionAt: _lastSubmissionAt,
     submissionCount: _submissionCount,
   };

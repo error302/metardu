@@ -9,10 +9,20 @@
  *   - getClientIdentifier (X-Forwarded-For parsing)
  */
 
-import { rateLimit, getClientIdentifier, RATE_LIMITS, type RateLimitCategory } from '../rateLimit'
+import { rateLimit, getClientIdentifier, getOperationRateLimitIdentifier, RATE_LIMITS, type RateLimitCategory } from '../rateLimit'
 
 const ORIGINAL_UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL
 const ORIGINAL_UPSTASH_TOKEN = process.env.UPSTASH_REDIS_REST_TOKEN
+
+test('operation identity keeps static long route names distinct and normalizes framework slugs and catch-all paths', () => {
+  const req = (path: string) => new Request(`http://localhost${path}`, { method: 'POST', headers: { 'x-real-ip': '192.0.2.1' } })
+  expect(getOperationRateLimitIdentifier(req('/api/engineering/long-vertical-curve-design')))
+    .not.toBe(getOperationRateLimitIdentifier(req('/api/engineering/long-drainage-pipe-design')))
+  expect(getOperationRateLimitIdentifier(req('/api/projects/short-a/compute'), { id: 'short-a' }))
+    .toBe(getOperationRateLimitIdentifier(req('/api/projects/short-b/compute'), { id: 'short-b' }))
+  expect(getOperationRateLimitIdentifier(req('/api/files/folder/drawing/prepare'), { path: ['folder', 'drawing'] }))
+    .toBe(getOperationRateLimitIdentifier(req('/api/files/other/deep/folder/prepare'), { path: ['other', 'deep', 'folder'] }))
+})
 
 beforeEach(() => {
   delete process.env.UPSTASH_REDIS_REST_URL

@@ -37,7 +37,11 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - DATABASE_URL=postgresql://${STAGING_POSTGRES_USER:-metardu}:${STAGING_POSTGRES_PASSWORD}@metardu-staging-postgres:5432/${STAGING_POSTGRES_DB:-metardu_staging}
+      - DB_HOST=metardu-staging-postgres
+      - DB_PORT=5432
+      - DB_NAME=${STAGING_POSTGRES_DB:-metardu_staging}
+      - DB_USER=${STAGING_APP_DB_USER:-metardu_staging_app}
+      - DB_PASSWORD=${STAGING_APP_DB_PASSWORD:?STAGING_APP_DB_PASSWORD must be set}
       - AUTH_SECRET=${STAGING_AUTH_SECRET:?STAGING_AUTH_SECRET must be set}
       - NEXTAUTH_URL=${STAGING_NEXTAUTH_URL:-http://localhost:3001}
       - NEXT_PUBLIC_APP_URL=${STAGING_NEXT_PUBLIC_APP_URL:-http://localhost:3001}
@@ -46,7 +50,33 @@ services:
     depends_on:
       metardu-staging-postgres:
         condition: service_healthy
+      metardu-staging-db-migrate:
+        condition: service_completed_successfully
     restart: unless-stopped
+
+  metardu-staging-db-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metardu-staging-db-migrate
+    entrypoint: ["node"]
+    command: ["/app/provision-runtime-db-role.mjs"]
+    environment:
+      - MIGRATION_DB_HOST=metardu-staging-postgres
+      - MIGRATION_DB_PORT=5432
+      - MIGRATION_DB_NAME=${STAGING_POSTGRES_DB:-metardu_staging}
+      - MIGRATION_DB_USER=${STAGING_POSTGRES_USER:-metardu}
+      - MIGRATION_DB_PASSWORD=${STAGING_POSTGRES_PASSWORD:?STAGING_POSTGRES_PASSWORD must be set}
+      - APP_DB_HOST=metardu-staging-postgres
+      - APP_DB_PORT=5432
+      - APP_DB_NAME=${STAGING_POSTGRES_DB:-metardu_staging}
+      - APP_DB_USER=${STAGING_APP_DB_USER:-metardu_staging_app}
+      - APP_DB_PASSWORD=${STAGING_APP_DB_PASSWORD:?STAGING_APP_DB_PASSWORD must be set}
+      - NODE_ENV=production
+    depends_on:
+      metardu-staging-postgres:
+        condition: service_healthy
+    restart: "no"
 
 volumes:
   staging_postgres_data:

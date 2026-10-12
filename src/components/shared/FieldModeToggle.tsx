@@ -90,12 +90,12 @@ export default function FieldModeToggle() {
     // First-use tooltip only in field-work contexts. On the public
     // landing/marketing pages (and forms like /project/new) the tooltip's
     // full-screen dismiss overlay would swallow the visitor's first click
-    // (e.g. the hero CTA) — see the E2E hero-CTA spec. Field mode is a
-    // display theme for outdoor work, so the hint belongs on field pages.
+    // (e.g. the hero CTA) — see the E2E hero-CTA spec. The global map is a
+    // primary work canvas, so keep its first view clear and let the toggle's
+    // accessible label introduce Field Mode there.
     const isFieldContext =
       pathname?.startsWith('/fieldbook') ||
-      pathname?.startsWith('/field') ||
-      pathname?.startsWith('/map')
+      pathname?.startsWith('/field')
     if (!isFieldContext) return
     try {
       const hasSeenTooltip = localStorage.getItem('metardu_field_tooltip_seen')

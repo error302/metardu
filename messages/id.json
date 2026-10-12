@@ -275,6 +275,7 @@
   },
   "resources": {
     "datumConverter": "Konverter Datum",
+    "onlineServices": "Layanan daring",
     "kencorsRtk": "KenCORS RTK",
     "knowledgeBase": "Basis Pengetahuan"
   },

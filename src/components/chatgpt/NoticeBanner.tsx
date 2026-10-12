@@ -1,0 +1,3 @@
+'use client'
+import Link from 'next/link'
+export function ChatGPTNoticeBanner(){return <aside aria-label="ChatGPT data-sharing notice" className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-6 py-4"><div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3"><p className="text-sm leading-6"><strong>Optional ChatGPT connection.</strong> Review the information shared and the notice period before linking an account.</p><Link href="/docs/chatgpt-notice" className="inline-flex min-h-11 items-center text-sm text-[var(--accent)] underline">Read the data-sharing notice</Link></div></aside>}

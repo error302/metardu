@@ -31,6 +31,8 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
   const rendererRef = useRef<SurveyPlanRenderer | FormNo4Renderer | null>(null)
 
   useEffect(() => {
+    let cancelled = false
+    const renderPlan = async () => {
     setLoading(true)
     setError(null)
 
@@ -47,16 +49,16 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
       let content: string
 
       // Choose renderer based on toggle and data availability
-      const hasFormNo4Data = data.project.folioNumber || data.project.registerNumber || data.project.lrNumber
+      const hasFormNo4Data = Boolean(data.project.folioNumber || data.project.registerNumber || data.project.lrNumber || data.project.name || data.project.parcel_id)
       
       if (useFormNo4 && hasFormNo4Data) {
         // Use Kenya Form No. 4 standard
         renderer = new FormNo4Renderer(data, { ...options, submissionNumber })
-        content = (renderer as FormNo4Renderer).renderFormNo4()
+        content = await (renderer as FormNo4Renderer).renderFormNo4()
       } else {
         // Use standard renderer
         renderer = new SurveyPlanRenderer(data, options)
-        content = renderer.render()
+        content = await renderer.render()
       }
       
       rendererRef.current = renderer
@@ -68,17 +70,37 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
     } finally {
       setLoading(false)
     }
+    }
+    void renderPlan()
+    return () => { cancelled = true }
   }, [data, options, useFormNo4, submissionNumber])
+
+  const fitToWidth = () => {
+    if (containerRef.current) {
+      const containerWidth = containerRef.current.clientWidth - 48
+      const calculatedScale = Math.min(1.5, Math.max(0.25, Number((containerWidth / 1587).toFixed(2))))
+      setScale(calculatedScale)
+    } else {
+      setScale(0.75)
+    }
+  }
+
+  // Auto-fit on mount
+  useEffect(() => {
+    const timer = setTimeout(() => fitToWidth(), 150)
+    return () => clearTimeout(timer)
+  }, [])
 
   const zoomIn = () => {
     const idx = ZOOM_LEVELS.findIndex(z => z > scale)
     if (idx !== -1) setScale(ZOOM_LEVELS[idx])
+    else setScale(prev => Math.min(4.0, Number((prev + 0.25).toFixed(2))))
   }
   const zoomOut = () => {
     const idx = ZOOM_LEVELS.findLastIndex(z => z < scale)
     if (idx !== -1) setScale(ZOOM_LEVELS[idx])
+    else setScale(prev => Math.max(0.25, Number((prev - 0.25).toFixed(2))))
   }
-  const fitToWidth = () => setScale(1.0)
 
   const handleDownloadCSV = () => {
     if (!rendererRef.current) return
@@ -111,7 +133,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
   const handlePrint = () => window.print()
 
   // Check if Form No. 4 data is available
-  const hasFormNo4Data = data.project.folioNumber || data.project.registerNumber || data.project.lrNumber
+  const hasFormNo4Data = Boolean(data.project.folioNumber || data.project.registerNumber || data.project.lrNumber || data.project.name || data.project.parcel_id)
 
   return (
     <div className={`flex flex-col h-full ${className}`}>

@@ -5,10 +5,10 @@ import { computeDeedPlanGeometry, loadPreAdjustedFromDB } from './deedPlanGeomet
 import { renderBoundaryPlan } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
 
-const A4_W = 297;
-const A4_H = 210;
+const A4_W = 420;
+const A4_H = 297;
 const MARGIN = 8;
-const PLAN_W = Math.round(A4_W * 0.60);
+const PLAN_W = Math.round(A4_W * 0.56);
 const TABLE_X = PLAN_W + MARGIN;
 const TABLE_W = A4_W - PLAN_W - MARGIN * 1.5;
 
@@ -31,7 +31,7 @@ export async function generateWorkingDiagramPdf(
     preAdjustedClosure: preAdjusted?.closure,
   });
 
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' });
 
   const today = new Date().toLocaleDateString('en-KE', {
     day: '2-digit', month: 'long', year: 'numeric',
@@ -44,7 +44,7 @@ export async function generateWorkingDiagramPdf(
   doc.setLineWidth(0.4);
   doc.line(PLAN_W, MARGIN, PLAN_W, A4_H - MARGIN);
 
-  renderBoundaryPlan(doc, geom, {
+  await renderBoundaryPlan(doc, geom, {
     x: MARGIN,
     y: MARGIN,
     width: PLAN_W - MARGIN,
@@ -78,7 +78,7 @@ export async function generateWorkingDiagramPdf(
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text("GALE'S TABLE", TABLE_X, ry);
+  doc.text('COORDINATE-DERIVED BOUNDARY SCHEDULE', TABLE_X, ry);
   ry += 3;
 
   const galeBody = geom.bearingSchedule.map((leg, i) => {
@@ -106,20 +106,20 @@ export async function generateWorkingDiagramPdf(
     head: [['Stn', 'Bearing', 'Dist (m)', 'ΔE (m)', 'ΔN (m)', 'Adj E', 'Adj N']],
     body: galeBody,
     foot: [
-      ['Σ', '', totalDist.toFixed(3), lastSt.easting - firstSt.easting, lastSt.northing - firstSt.northing, '', '']
+      ['Sum', '', totalDist.toFixed(3), '0.000', '0.000', '', '']
     ],
     styles: { fontSize: 6, cellPadding: 1.2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
     footStyles: { fillColor: [0, 0, 0], textColor: 255, fontStyle: 'bold' },
     alternateRowStyles: { fillColor: [245, 248, 250] },
     columnStyles: {
-      0: { cellWidth: 10 },
-      1: { cellWidth: 25, font: 'courier', fontSize: 5.5 },
-      2: { cellWidth: 16, halign: 'right' },
-      3: { cellWidth: 16, halign: 'right' },
-      4: { cellWidth: 16, halign: 'right' },
-      5: { cellWidth: 18, halign: 'right' },
-      6: { cellWidth: TABLE_W - 103, halign: 'right' },
+      0: { cellWidth: 18 },
+      1: { cellWidth: 28, font: 'courier', fontSize: 5.5 },
+      2: { cellWidth: 18, halign: 'right' },
+      3: { cellWidth: 20, halign: 'right' },
+      4: { cellWidth: 20, halign: 'right' },
+      5: { cellWidth: 26, halign: 'right' },
+      6: { cellWidth: TABLE_W - 130, halign: 'right' },
     },
     margin: { left: TABLE_X, right: MARGIN },
     tableWidth: TABLE_W,
@@ -139,7 +139,9 @@ export async function generateWorkingDiagramPdf(
       ['Precision ratio', geom.precisionRatio],
       ['Status', geom.closureStatus],
       ['Standard (Cap 299)', '1:5000 minimum'],
-      ['Adj. method', 'Bowditch (Compass Rule)'],
+      ['Coordinates', 'Saved adjusted boundary; values above are derived'],
+      ['Area', `${geom.areaM2.toFixed(3)} m2`],
+      ['Review', 'Draft - independent surveyor review required'],
     ],
     styles: { fontSize: 6, cellPadding: 1.2 },
     headStyles: { fillColor: [0, 0, 0], textColor: 255 },
@@ -162,4 +164,3 @@ export async function generateWorkingDiagramPdf(
 
   return Buffer.from(doc.output('arraybuffer'));
 }
-

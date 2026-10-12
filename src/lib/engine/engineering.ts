@@ -99,17 +99,20 @@ export function computeVerticalCurve(
   gradeOut: number,
   length: number
 ): VerticalCurve {
+  if (![pvIChainage, pvIElevation, gradeIn, gradeOut, length].every(Number.isFinite) || length <= 0) {
+    throw new Error('Vertical curve requires finite PVI values, grades, and a positive curve length.')
+  }
   const r = (gradeOut - gradeIn) / length;
 
   const pvcChainage = pvIChainage - length / 2;
   const pvcElevation = pvIElevation - (gradeIn * length / 200);
 
   let highLowPoint: { chainage: number; elevation: number } | undefined;
-  const distToHL = -gradeIn / r;
+  const distToHL = r === 0 ? Number.NaN : -gradeIn / r;
 
   if (distToHL > 0 && distToHL < length) {
     const hlChainage = pvcChainage + distToHL;
-    const hlElevation = pvcElevation + (gradeIn * distToHL / 100) + (r * distToHL * distToHL / 2);
+    const hlElevation = pvcElevation + (gradeIn * distToHL / 100) + (r * distToHL * distToHL / 200);
     highLowPoint = { chainage: hlChainage, elevation: hlElevation };
   }
 
@@ -120,6 +123,9 @@ export function verticalCurveElevation(
   vc: VerticalCurve,
   chainage: number
 ): number {
+  if (![vc.pvIChainage, vc.pvIElevation, vc.gradeIn, vc.gradeOut, vc.length, chainage].every(Number.isFinite) || vc.length <= 0) {
+    throw new Error('Vertical curve evaluation requires finite values and a positive curve length.')
+  }
   const pvcChainage = vc.pvIChainage - vc.length / 2;
   const pvcElevation = vc.pvIElevation - (vc.gradeIn * vc.length / 200);
   const x = chainage - pvcChainage;
@@ -127,11 +133,11 @@ export function verticalCurveElevation(
   if (x < 0 || x > vc.length) {
     return x < 0
       ? pvcElevation + (vc.gradeIn * x / 100)
-      : pvcElevation + (vc.gradeIn * vc.length / 100) + (vc.gradeOut * (x - vc.length) / 100);
+      : pvcElevation + ((vc.gradeIn + vc.gradeOut) * vc.length / 200) + (vc.gradeOut * (x - vc.length) / 100);
   }
 
   const r = (vc.gradeOut - vc.gradeIn) / vc.length;
-  return pvcElevation + (vc.gradeIn * x / 100) + (r * x * x / 2);
+  return pvcElevation + (vc.gradeIn * x / 100) + (r * x * x / 200);
 }
 
 /**

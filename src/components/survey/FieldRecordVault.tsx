@@ -20,6 +20,7 @@ import {
   Calendar, User, FileText, ChevronRight, X,
 } from 'lucide-react'
 import { VirtualList } from '@/components/shared/VirtualList'
+import { FIELD_RECORD_CRS_OPTIONS, fieldRecordCrsLabel, isFieldRecordCrs, type FieldRecordCrs } from '@/lib/field/fieldRecordCrs'
 
 interface FieldRecord {
   id: string
@@ -27,6 +28,7 @@ interface FieldRecord {
   fr_type: string
   easting: number
   northing: number
+  horizontal_crs: FieldRecordCrs | null
   county?: string
   locality?: string
   survey_year?: number
@@ -44,6 +46,7 @@ export function FieldRecordVault() {
   const [query, setQuery] = useState('')
   const [easting, setEasting] = useState('')
   const [northing, setNorthing] = useState('')
+  const [horizontalCrs, setHorizontalCrs] = useState('')
   const [radius, setRadius] = useState('5000')
   const [showAddForm, setShowAddForm] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -56,13 +59,14 @@ export function FieldRecordVault() {
       if (searchMode === 'text' && query) {
         params.set('q', query)
       } else if (searchMode === 'proximity') {
-        if (!easting || !northing) {
-          setError('Enter easting and northing for proximity search')
+        if (!easting || !northing || !isFieldRecordCrs(horizontalCrs)) {
+          setError('Enter easting, northing, and the coordinate reference system for location search')
           setLoading(false)
           return
         }
         params.set('easting', easting)
         params.set('northing', northing)
+        params.set('horizontal_crs', horizontalCrs)
         params.set('radius', radius)
       }
       params.set('limit', '50')
@@ -76,7 +80,7 @@ export function FieldRecordVault() {
     } finally {
       setLoading(false)
     }
-  }, [searchMode, query, easting, northing, radius])
+  }, [searchMode, query, easting, northing, horizontalCrs, radius])
 
   // Mount-only auto-search - explicit Search button / Enter re-search, so
   // `search` is deliberately omitted from deps.
@@ -144,7 +148,7 @@ export function FieldRecordVault() {
             />
           </div>
         ) : (
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5" htmlFor="easting">Easting</label>
               <input id="easting" type="number" value={easting} onChange={e => setEasting(e.target.value)} placeholder="534850" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
@@ -152,6 +156,13 @@ export function FieldRecordVault() {
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5" htmlFor="northing">Northing</label>
               <input id="northing" type="number" value={northing} onChange={e => setNorthing(e.target.value)} placeholder="9574220" className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] font-mono" />
+            </div>
+            <div>
+              <label className="block text-[9px] text-gray-500 uppercase mb-0.5" htmlFor="field-record-crs">Coordinate reference system</label>
+              <select id="field-record-crs" value={horizontalCrs} onChange={e => setHorizontalCrs(e.target.value)} className="w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)]">
+                <option value="">Select CRS</option>
+                {FIELD_RECORD_CRS_OPTIONS.map(option => <option key={option.code} value={option.code}>{option.label}</option>)}
+              </select>
             </div>
             <div>
               <label className="block text-[9px] text-gray-500 uppercase mb-0.5" htmlFor="radius-m">Radius (m)</label>
@@ -221,15 +232,17 @@ export function FieldRecordVault() {
                           {record.is_verified && <CheckCircle2 className="w-3 h-3 text-emerald-400" />}
                           {record.distance_m != null && (
                             <span className="text-[9px] text-[var(--accent)] font-medium">
-                              {record.distance_m < 1000 ? `${record.distance_m.toFixed(0)}m away` : `${(record.distance_m / 1000).toFixed(1)}km away`}
+                              ~{record.distance_m < 1000 ? `${record.distance_m.toFixed(0)}m away` : `${(record.distance_m / 1000).toFixed(1)}km away`}
                             </span>
                           )}
                         </div>
                         {record.locality && <div className="text-[10px] text-gray-500 mt-0.5">{record.county ? `${record.county} — ` : ''}{record.locality}</div>}
                         <div className="flex items-center gap-3 mt-1 text-[9px] text-gray-600">
-                          {record.survey_year && <span>{record.survey_year}</span>}
-                          {record.surveyor_name && <span>{record.surveyor_name}</span>}
-                        </div>
+                        {record.survey_year && <span>{record.survey_year}</span>}
+                        {record.surveyor_name && <span>{record.surveyor_name}</span>}
+                        <span>{fieldRecordCrsLabel(record.horizontal_crs)}</span>
+                      </div>
+                      {!record.horizontal_crs && <p className="text-[9px] text-amber-500 mt-1">Coordinates retained for reference; location is not plotted because its CRS is unverified.</p>}
                       </div>
                       <ChevronRight className="w-3.5 h-3.5 text-gray-600 shrink-0" />
                     </div>
@@ -326,6 +339,7 @@ function AddRecordForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
   const [frNumber, setFrNumber] = useState('')
   const [easting, setEasting] = useState('')
   const [northing, setNorthing] = useState('')
+  const [horizontalCrs, setHorizontalCrs] = useState('')
   const [county, setCounty] = useState('')
   const [locality, setLocality] = useState('')
   const [surveyYear, setSurveyYear] = useState('')
@@ -342,8 +356,8 @@ function AddRecordForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          frNumber, easting: parseFloat(easting), northing: parseFloat(northing),
-          county, locality, surveyYear: surveyYear ? parseInt(surveyYear) : null,
+          frNumber, easting: parseFloat(easting), northing: parseFloat(northing), horizontalCrs,
+          county, locality, surveyYear: surveyYear ? parseInt(surveyYear) : undefined,
           surveyorName, description,
         }),
       })
@@ -357,13 +371,21 @@ function AddRecordForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
     } finally {
       setSaving(false)
     }
-  }, [frNumber, easting, northing, county, locality, surveyYear, surveyorName, description, onAdded])
+  }, [frNumber, easting, northing, horizontalCrs, county, locality, surveyYear, surveyorName, description, onAdded])
 
   return (
     <div className="card p-4 space-y-3">
       <div className="flex items-center justify-between">
         <span className="text-xs font-semibold text-[var(--text-primary)]">Contribute F/R Record</span>
         <button onClick={onClose} className="text-gray-400"><X className="w-3.5 h-3.5" /></button>
+      </div>
+      <div>
+        <label className="block text-[9px] text-gray-500 uppercase mb-0.5" htmlFor="field-record-source-crs">Coordinate reference system *</label>
+        <select id="field-record-source-crs" value={horizontalCrs} onChange={e => setHorizontalCrs(e.target.value)} className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white">
+          <option value="">Select the source CRS</option>
+          {FIELD_RECORD_CRS_OPTIONS.map(option => <option key={option.code} value={option.code}>{option.label}</option>)}
+        </select>
+        <p className="text-[9px] text-gray-500 mt-1">Use the CRS shown on the original record. Old entries without a verified CRS remain searchable by text but cannot be located.</p>
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div>
@@ -390,7 +412,7 @@ function AddRecordForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
       <input type="text" value={surveyorName} onChange={e => setSurveyorName(e.target.value)} placeholder="Original Surveyor" className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white" />
       <textarea value={description} onChange={e => setDescription(e.target.value)} placeholder="Description (bearings, tie points, reference markers)..." rows={2} className="w-full px-2 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-white resize-none" />
       {error && <p className="text-xs text-red-400">{error}</p>}
-      <button onClick={handleSave} disabled={saving || !frNumber || !easting || !northing} className="w-full h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">
+      <button onClick={handleSave} disabled={saving || !frNumber || !easting || !northing || !isFieldRecordCrs(horizontalCrs)} className="w-full h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">
         {saving ? 'Saving...' : 'Contribute to Vault'}
       </button>
     </div>

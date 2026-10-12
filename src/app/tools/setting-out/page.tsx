@@ -1,19 +1,26 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import Link from 'next/link'
 import { Download, AlertCircle, CheckCircle2 } from 'lucide-react'
 import { getAvailableFormats, exportStakeout, type InstrumentFormat } from '@/lib/survey/instrumentWriters'
 import { computeSettingOut, type SettingOutResult, type InstrumentStation, type Backsight } from '@/lib/computations/settingOutEngine'
 import { extractDesignPointsFromDXF } from '@/lib/survey/dxfDesignExtractor'
-import { compareAsBuiltToDesign, type ComparisonReport } from '@/lib/survey/asBuiltComparison'
+import { compareAsBuiltToDesign, parseAsBuiltCsv, type ComparisonReport } from '@/lib/survey/asBuiltComparison'
+import { assertProjectedCrs, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 
 export default function SettingOutPage() {
   const [dxfContent, setDxfContent] = useState('')
   const [stationE, setStationE] = useState('')
   const [stationN, setStationN] = useState('')
-  const [stationRL, setStationRL] = useState('0')
+  const [stationRL, setStationRL] = useState('')
+  const [instrumentHeight, setInstrumentHeight] = useState('')
+  const [targetHeight, setTargetHeight] = useState('')
+  const [coordinateFrame, setCoordinateFrame] = useState('')
   const [backsightE, setBacksightE] = useState('')
   const [backsightN, setBacksightN] = useState('')
+  const [availableLayers, setAvailableLayers] = useState<string[]>([])
+  const [selectedLayer, setSelectedLayer] = useState('')
   const [result, setResult] = useState<SettingOutResult | null>(null)
   const [warnings, setWarnings] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
@@ -26,28 +33,63 @@ export default function SettingOutPage() {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = () => setDxfContent(reader.result as string)
+    reader.onload = () => {
+      const content = reader.result as string
+      setDxfContent(content)
+      const discovery = extractDesignPointsFromDXF(content)
+      setAvailableLayers(discovery.layersFound)
+      setSelectedLayer(discovery.layersFound.length === 1 ? discovery.layersFound[0] : '')
+      setWarnings(discovery.warnings)
+    }
     reader.readAsText(file)
   }, [])
 
   const handleImport = async () => {
-    if (!dxfContent || !stationE || !stationN || !backsightE || !backsightN) {
-      setError('DXF file and station/backsight coordinates are required')
+    const numericInputs = [stationE, stationN, stationRL, instrumentHeight, targetHeight, backsightE, backsightN]
+    if (!dxfContent || numericInputs.some(value => !value.trim() || !Number.isFinite(Number(value)))) {
+      setError('DXF, coordinate frame, station/backsight coordinates, station RL, instrument height and target height are required as finite values')
+      return
+    }
+    let crsCode = coordinateFrame.trim().toUpperCase()
+    try {
+      const crs = assertProjectedCrs(crsCode)
+      if (crs.units !== 'metres') throw new Error(`${crs.code} is not a projected metre CRS`)
+      crsCode = crs.code
+    } catch (error) {
+      setError(error instanceof Error ? `${error.message} The DXF is not transformed; this CRS is a user declaration.` : 'Enter a registered projected metre CRS, for example EPSG:32737')
+      return
+    }
+    if (availableLayers.length > 1 && !selectedLayer) {
+      setError('Select the design layer before computing the stakeout list')
       return
     }
     setLoading(true); setError(''); setResult(null); setWarnings([])
     try {
+      for (const { label, e, n } of [
+        { label: 'Station', e: Number(stationE), n: Number(stationN) },
+        { label: 'Backsight', e: Number(backsightE), n: Number(backsightN) },
+      ]) {
+        const range = validateCoordinateRange(e, n, crsCode)
+        if (!range.valid) throw new Error(`${label} is outside the declared ${crsCode} coordinate range: ${range.errors.join('; ')}`)
+      }
       // Run the parsing completely on the client (offline-first)
-      const extraction = extractDesignPointsFromDXF(dxfContent, { layerFilter: [] })
+      const extraction = extractDesignPointsFromDXF(dxfContent, {
+        layerFilter: selectedLayer ? [selectedLayer] : [],
+        defaultTH: Number(targetHeight),
+      })
       if (extraction.points.length === 0) {
         throw new Error('No design points found in DXF')
+      }
+      for (const point of extraction.points) {
+        const range = validateCoordinateRange(point.e, point.n, crsCode)
+        if (!range.valid) throw new Error(`Design point ${point.id} is outside the declared ${crsCode} coordinate range: ${range.errors.join('; ')}`)
       }
 
       const station: InstrumentStation = {
         e: parseFloat(stationE),
         n: parseFloat(stationN),
-        rl: parseFloat(stationRL || '0'),
-        ih: 1.5,
+        rl: Number(stationRL),
+        ih: Number(instrumentHeight),
       }
       const backsight: Backsight = {
         e: parseFloat(backsightE),
@@ -56,9 +98,9 @@ export default function SettingOutPage() {
 
       const computedResult = computeSettingOut(station, backsight, extraction.points)
       setResult(computedResult)
-      setWarnings(extraction.warnings || [])
-    } catch (e) { 
-      setError(e instanceof Error ? e.message : 'Failed to process DXF locally') 
+      setWarnings([`CRS ${crsCode} declared by the operator; the DXF coordinates were not transformed.`, ...(extraction.warnings || [])])
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Failed to process DXF locally')
     }
     finally { setLoading(false) }
   }
@@ -73,18 +115,17 @@ export default function SettingOutPage() {
       const a = document.createElement('a')
       a.href = url; a.download = exportData.filename; a.click()
       URL.revokeObjectURL(url)
-    } catch (e) { 
-      setError(e instanceof Error ? e.message : 'Export failed locally') 
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Export failed locally')
     }
   }
 
   const handleCompare = () => {
     if (!result) return
+    setError('')
+    setComparison(null)
     try {
-      const asBuiltPoints = asBuiltInput.trim().split('\n').map(line => {
-        const cols = line.split(',').map(c => c.trim())
-        return { id: cols[0], e: parseFloat(cols[1]), n: parseFloat(cols[2]), rl: parseFloat(cols[3] || '0') }
-      }).filter(p => p.id && !isNaN(p.e) && !isNaN(p.n))
+      const asBuiltPoints = parseAsBuiltCsv(asBuiltInput)
 
       const designPoints = result.rows.map(r => ({
         id: r.id, e: r.designE, n: r.designN, rl: r.designRL, th: r.TH,
@@ -92,15 +133,23 @@ export default function SettingOutPage() {
 
       const report = compareAsBuiltToDesign({ designPoints, asBuiltPoints })
       setComparison(report)
-    } catch { setError('Failed to parse as-built CSV. Use: id,easting,northing,rl') }
+    } catch (error) { setComparison(null); setError(error instanceof Error ? error.message : 'Failed to parse as-built CSV. Use: id,easting,northing[,rl]') }
   }
 
   const inputCls = "w-full h-9 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none"
 
   return (
     <div className="min-h-screen p-6 max-w-6xl mx-auto">
-      <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Setting Out</h1>
-      <p className="text-sm text-[var(--text-muted)] mb-6">Import design from DXF → compute stakeout list → export to instrument → compare as-built</p>
+      <div className="mb-2 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Setting Out</h1>
+          <p className="text-sm text-[var(--text-muted)] mb-2">Import design from DXF → compute stakeout list → export to instrument → compare as-built</p>
+        </div>
+        <Link href="/tools/setting-out-sheet" className="inline-flex min-h-11 items-center rounded-lg border border-[var(--border-color)] px-3 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--accent)]">
+          Build a general coordinate sheet
+        </Link>
+      </div>
+      <p className="text-xs text-[var(--text-muted)] mb-4">The coordinate frame is an operator declaration for the untransformed DXF. METARDU checks the registered projected CRS and coordinate ranges; it does not establish datum control or transform the source file.</p>
 
       {/* Step 1: Import DXF */}
       <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl p-4 mb-4">
@@ -115,12 +164,15 @@ export default function SettingOutPage() {
           <div className="grid grid-cols-2 gap-2">
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-e">Station E</label><input id="station-e" value={stationE} onChange={e => setStationE(e.target.value)} className={inputCls} placeholder="264000" /></div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-n">Station N</label><input id="station-n" value={stationN} onChange={e => setStationN(e.target.value)} className={inputCls} placeholder="9861000" /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-rl">Station RL</label><input id="station-rl" value={stationRL} onChange={e => setStationRL(e.target.value)} className={inputCls} /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="ih">IH</label><input id="ih" defaultValue="1.5" className={inputCls} /></div>
+            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-rl">Station RL (m)</label><input id="station-rl" value={stationRL} onChange={e => setStationRL(e.target.value)} className={inputCls} placeholder="Required" /></div>
+            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="ih">Instrument height (m)</label><input id="ih" value={instrumentHeight} onChange={e => setInstrumentHeight(e.target.value)} className={inputCls} placeholder="Required" /></div>
+            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="target-height">Target height (m)</label><input id="target-height" value={targetHeight} onChange={e => setTargetHeight(e.target.value)} className={inputCls} placeholder="Required" /></div>
+            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="coordinate-frame">Coordinate frame / EPSG</label><input id="coordinate-frame" value={coordinateFrame} onChange={e => setCoordinateFrame(e.target.value)} className={inputCls} placeholder="EPSG:32737" /></div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="backsight-e">Backsight E</label><input id="backsight-e" value={backsightE} onChange={e => setBacksightE(e.target.value)} className={inputCls} /></div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="backsight-n">Backsight N</label><input id="backsight-n" value={backsightN} onChange={e => setBacksightN(e.target.value)} className={inputCls} /></div>
           </div>
         </div>
+        {availableLayers.length > 0 && <div className="mt-3"><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="design-layer">Design layer</label><select id="design-layer" value={selectedLayer} onChange={e => setSelectedLayer(e.target.value)} className={inputCls}><option value="">{availableLayers.length > 1 ? 'Select a layer' : 'All layers'}</option>{availableLayers.map(layer => <option key={layer} value={layer}>{layer}</option>)}</select></div>}
         <button onClick={handleImport} disabled={loading} className="mt-3 px-4 py-2 bg-[var(--accent)] text-black text-xs font-semibold rounded-lg hover:bg-[var(--accent-dim)] disabled:opacity-50">
           {loading ? 'Computing...' : 'Compute Stakeout List'}
         </button>
@@ -131,7 +183,7 @@ export default function SettingOutPage() {
           {warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
         </div>
       )}
-      {error && <div className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4 text-xs text-red-400 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}
+      {error && <div role="alert" className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4 text-xs text-red-400 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}
 
       {/* Step 2: Stakeout List */}
       {result && (

@@ -493,15 +493,15 @@ export default function FieldPage() {
             </div>
             <div>
               <label htmlFor="field-point-easting" className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.easting')}</label>
-              <input id="field-point-easting" value={pE} onChange={e => setPE(e.target.value)} placeholder="500000" className={inputNumberClass} />
+              <input id="field-point-easting" value={pE} onChange={e => setPE(e.target.value)} placeholder="500000" inputMode="decimal" className={inputNumberClass} />
             </div>
             <div>
               <label htmlFor="field-point-northing" className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.northing')}</label>
-              <input id="field-point-northing" value={pN} onChange={e => setPN(e.target.value)} placeholder="4500000" className={inputNumberClass} />
+              <input id="field-point-northing" value={pN} onChange={e => setPN(e.target.value)} placeholder="4500000" inputMode="decimal" className={inputNumberClass} />
             </div>
             <div>
               <label htmlFor="field-point-elevation" className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('common.elevation')}</label>
-              <input id="field-point-elevation" value={pZ} onChange={e => setPZ(e.target.value)} placeholder="0" className={inputNumberClass} />
+              <input id="field-point-elevation" value={pZ} onChange={e => setPZ(e.target.value)} placeholder="0" inputMode="decimal" className={inputNumberClass} />
             </div>
           </div>
 
@@ -558,7 +558,7 @@ export default function FieldPage() {
               </div>
               <div>
                 <label htmlFor="traverse-distance" className="text-[10px] text-[var(--text-muted)] mb-1 block">{t('field.distance')}</label>
-                <input id="traverse-distance" value={tDist} onChange={e => setTDist(e.target.value)} placeholder="100.00" className={inputNumberClass} />
+                <input id="traverse-distance" value={tDist} onChange={e => setTDist(e.target.value)} placeholder="100.00" inputMode="decimal" className={inputNumberClass} />
               </div>
             </div>
 
@@ -700,7 +700,7 @@ export default function FieldPage() {
 
             <div>
               <label htmlFor="rad-inst-height" className="text-[10px] text-[var(--text-muted)] mb-1 block">Instrument Height (m)</label>
-              <input id="rad-inst-height" value={rInstH} onChange={e => setRInstH(e.target.value)} placeholder="1.500" className={inputNumberClass} />
+              <input id="rad-inst-height" value={rInstH} onChange={e => setRInstH(e.target.value)} placeholder="1.500" inputMode="decimal" className={inputNumberClass} />
             </div>
 
             <div className="border-t border-[var(--border-color)] pt-3 mt-3">
@@ -709,9 +709,9 @@ export default function FieldPage() {
 
               <div className="text-[10px] text-[var(--text-muted)] mb-1 block mt-2">Bearing</div>
               <div className="grid grid-cols-3 gap-1.5 mb-2">
-                <input value={rBearingDeg} onChange={e => setRBearingDeg(e.target.value)} aria-label="Bearing degrees" placeholder="000" className={`${inputClass} text-center text-sm`} />
-                <input value={rBearingMin} onChange={e => setRBearingMin(e.target.value)} aria-label="Bearing minutes" placeholder="00" className={`${inputClass} text-center text-sm`} />
-                <input value={rBearingSec} onChange={e => setRBearingSec(e.target.value)} aria-label="Bearing seconds" placeholder="00.0" className={`${inputClass} text-center font-mono text-sm`} />
+                <input value={rBearingDeg} onChange={e => setRBearingDeg(e.target.value)} aria-label="Bearing degrees" placeholder="000" inputMode="numeric" className={`${inputClass} text-center text-sm`} />
+                <input value={rBearingMin} onChange={e => setRBearingMin(e.target.value)} aria-label="Bearing minutes" placeholder="00" inputMode="numeric" className={`${inputClass} text-center text-sm`} />
+                <input value={rBearingSec} onChange={e => setRBearingSec(e.target.value)} aria-label="Bearing seconds" placeholder="00.0" inputMode="decimal" className={`${inputClass} text-center font-mono text-sm`} />
               </div>
 
               <label htmlFor="rad-distance" className="text-[10px] text-[var(--text-muted)] mb-1 block">Distance (m)</label>
@@ -776,6 +776,14 @@ export default function FieldPage() {
               <button onClick={() => router.push('/field/collect')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Collect Beacons</button>
               <button onClick={() => router.push('/field/walk')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Walk Perimeter</button>
               <button onClick={() => router.push('/field/projects')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Local Projects</button>
+              <button
+                onClick={() =>
+                  router.push(selectedProject ? `/field/setout?projectId=${selectedProject}` : '/field/setout')
+                }
+                className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center"
+              >
+                Set Out Points
+              </button>
             </div>
             <div className="mt-4 p-4 rounded-xl bg-amber-900/30 border border-amber-700 text-amber-300 text-sm">
               <strong>Kenya Survey Regulations 1994:</strong> All GPS coordinates collected in the field must be verified against control beacons before submission. Field data is a draft — not a final survey.

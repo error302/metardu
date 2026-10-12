@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { getStripeService } from '@/lib/payments/stripe'
 import { sendTemplatedEmail } from '@/lib/email-templates'
+import { setCurrentRlsServiceRole } from '@/lib/db'
 
 interface StripeWebhookEvent {
   type: string
@@ -52,6 +53,8 @@ export async function POST(request: NextRequest) {
     logger.error('Stripe webhook verification failed:', { message: (err as Error).message })
     return NextResponse.json({ error: 'Invalid webhook signature' }, { status: 400 })
   }
+
+  setCurrentRlsServiceRole('payment_provider')
 
   const db = (await import('@/lib/db')).default
 

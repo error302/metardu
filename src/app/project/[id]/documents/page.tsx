@@ -1,7 +1,10 @@
 'use client';
+import { useParams } from 'next/navigation'
 
 import { useState, useEffect, useCallback } from 'react'
+import { resolveDocumentEvidence, type DocumentProject } from '@/lib/reports/documentEvidence'
 import { createClient } from '@/lib/api-client/client'
+import { reportCrs } from '@/lib/generators/reportCrs'
 import { ProfessionalDisclaimer } from '@/components/shared/ProfessionalDisclaimer'
 import dynamic from 'next/dynamic'
 import {
@@ -20,7 +23,6 @@ import {
   bearingFromDelta,
   distance,
 } from '@/lib/reports/surveyPlan/geometry'
-import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass } from '@/lib/reports/traverseAccuracy'
 import Link from 'next/link'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
@@ -41,6 +43,12 @@ const ShapefileExport = dynamic(() => import('@/components/ShapefileExport'), {
 // ── Typed row interfaces for the client-side queries below ───────────────────
 interface SubmissionNumberRow {
   submission_number: string | null;
+}
+interface PrsRow {
+  vertical_datum: string | null;
+  vertical_reference: string | null;
+  geoid_model: string | null;
+  benchmark_basis: string | null;
 }
 interface AdjacentParcelRow {
   id: string;
@@ -66,6 +74,12 @@ interface CreateSubmissionResponse {
   submissionNumber?: string;
   error?: string;
 }
+interface SubmissionPackageResponse {
+  success?: boolean;
+  downloadUrl?: string;
+  fileUrl?: string;
+  error?: string;
+}
 const ringCoords = (raw: unknown): number[][] => {
   const r = raw as number[][][];
   return r[0] || (r as unknown as number[][]);
@@ -79,7 +93,7 @@ const slugify = (s: string) => s.replace(/[^A-Za-z0-9_-]/g, '-')
 
 function openPrint(html: string, filename: string) {
   const win = window.open('', '_blank')
-  if (!win) return
+  if (!win) throw new Error('The print preview was blocked. Allow pop-ups for METARDU and try again.')
   win.document.write(html)
   win.document.close()
   win.document.title = filename
@@ -109,7 +123,7 @@ function SurveyorDetailsPanel({
       ? 'Saved to your profile'
       : saveState === 'error'
         ? 'Unable to save profile'
-        : 'Profile-backed document identity'
+        : 'For this preview session only'
 
   return (
     <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl mb-6 overflow-hidden">
@@ -119,7 +133,7 @@ function SurveyorDetailsPanel({
           <svg className="w-4 h-4 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
           </svg>
-          Your surveyor details — printed on every document
+          Document identity — printed on every draft
         </div>
         <div className="flex items-center gap-3">
           <span className={`text-[11px] ${saveState === 'error' ? 'text-red-400' : 'text-[var(--text-muted)]'}`}>
@@ -193,8 +207,8 @@ function ExtraFieldsForm({
 
    if (docId === 'beacon_descriptions') return (
      <div className="space-y-3">
-       <p className="text-xs text-[var(--text-muted)]">Describe each control/boundary beacon. These descriptions appear in the official document.</p>
-        {points.filter((p: SurveyPoint) => p.is_control).map((pt: SurveyPoint) => (
+       <p className="text-xs text-[var(--text-muted)]">Record verified descriptions for each control/boundary station. Unknown monuments remain unverified in the draft.</p>
+        {points.filter((p: PointData) => p.is_control || p.is_boundary).map((pt: PointData) => (
          <div key={pt.name} className="border border-[var(--border-color)] rounded-lg p-3">
            <p className="text-sm font-semibold text-[var(--text-primary)] mb-2">Beacon {pt.name}</p>
            <div className="space-y-2">
@@ -209,7 +223,7 @@ function ExtraFieldsForm({
            </div>
          </div>
        ))}
-        {points.filter((p: SurveyPoint) => p.is_control).length === 0 && (
+        {points.filter((p: PointData) => p.is_control || p.is_boundary).length === 0 && (
          <p className="text-xs text-amber-400 bg-amber-900/20 border border-amber-700/30 rounded px-3 py-2">No control points in this project. Mark points as control in the workspace to generate beacon descriptions.</p>
        )}
      </div>
@@ -317,25 +331,32 @@ function ExtraFieldsForm({
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 
-interface PageProps { params: { id: string } }
-
-export default function DocumentsPage({ params }: PageProps) {
+export default function DocumentsPage() {
+  const params = useParams<{ id: string }>()
   const { plan } = useSubscription()
   const [project, setProject] = useState<ProjectData | null>(null)
   const [points, setPoints]   = useState<PointData[]>([])
-  const [traverse] = useState<TraverseData | undefined>()
-  const [area]         = useState<AreaData | undefined>()
+  const [boundaryPoints, setBoundaryPoints] = useState<PointData[]>([])
+  const [traverse, setTraverse] = useState<TraverseData | undefined>()
+  const [area, setArea] = useState<AreaData | undefined>()
+  const [documentError, setDocumentError] = useState<string | null>(null)
   const [loading, setLoading]   = useState(true)
+  const [prs, setPrs]           = useState<PrsRow | null>(null)
   const [surveyorDetails, setSurveyorDetails] = useState<Record<string,string>>({})
   const [activeTab, setActiveTab] = useState<'docs' | 'plan'>('docs')
   const [activeDoc, setActiveDoc] = useState<SurveyDocType | null>(null)
   const [extraFields, setExtraFields] = useState<Record<string,Record<string,string>>>({})
   const [submissionNumber, setSubmissionNumber] = useState<string>('')
   const [isCreatingSubmission, setIsCreatingSubmission] = useState(false)
+  const [isDownloadingPackage, setIsDownloadingPackage] = useState(false)
   const [generated, setGenerated] = useState<Set<SurveyDocType>>(new Set())
   const [adjacentParcels, setAdjacentParcels] = useState<Array<{ id: string; lrNumber: string; planReference: string; boundaryPoints: Array<{ easting: number; northing: number }> }>>([])
 
   const load = useCallback(async () => {
+    setLoading(true)
+    setDocumentError(null)
+    setPoints([]); setBoundaryPoints([]); setTraverse(undefined); setArea(undefined); setPrs(null)
+    try {
     const dbClient = createClient()
     const { data: { session } } = await dbClient.auth.getSession()
     if (!session?.user) {
@@ -345,15 +366,31 @@ export default function DocumentsPage({ params }: PageProps) {
 
     const projRes = await dbClient.from('projects').select('*').eq('id', params.id).single()
     const ptsRes = await dbClient.from('survey_points').select('*').eq('project_id', params.id).order('created_at')
-    const proj = (projRes as { data: ProjectData | null }).data
+    if (projRes.error || ptsRes.error) throw new Error('Saved project evidence could not be loaded. Reload before generating documents.')
+    const proj = (projRes as { data: DocumentProject | null }).data
     const pts = (ptsRes as { data: SurveyPoint[] | null }).data
 
-    if (proj) setProject(proj)
-    if (pts) setPoints(pts.map((p) => ({
+    // Declared vertical datum (if any) — carried into the plan title block.
+    // A missing/failed lookup leaves prs null so the plan says UNVERIFIED
+    // rather than implying a height reference.
+    const prsRes = await dbClient.from('project_reference_systems')
+      .select('vertical_datum, vertical_reference, geoid_model, benchmark_basis')
+      .eq('project_id', params.id).limit(1)
+    const prsRows = (prsRes as { data: PrsRow[] | null }).data
+    setPrs(prsRows?.[0] ?? null)
+
+    if (proj) {
+      setProject(proj)
+      const evidence = resolveDocumentEvidence(proj, (pts ?? []).map((p) => ({
        name: p.name, easting: p.easting, northing: p.northing,
        elevation: p.elevation ?? undefined, is_control: p.is_control ?? false,
-     })))
-    setLoading(false)
+      })))
+      setPoints(evidence.points); setBoundaryPoints(evidence.boundaryPoints)
+      setTraverse(evidence.traverse); setArea(evidence.area)
+    }
+    } catch (error) {
+      setDocumentError(error instanceof Error ? error.message : 'Document evidence could not be loaded.')
+    } finally { setLoading(false) }
   }, [params.id])
 
   useEffect(() => { load() }, [load])
@@ -424,6 +461,8 @@ export default function DocumentsPage({ params }: PageProps) {
 
   const generateDoc = (docId: SurveyDocType) => {
     if (!project) return
+    setDocumentError(null)
+    try {
     const extra = getExtra(docId)
     let html = ''
     const args = [project, surveyorDetails] as const
@@ -454,6 +493,9 @@ export default function DocumentsPage({ params }: PageProps) {
 
     openPrint(html, `${project.name} — ${docId.replace(/_/g,' ')}.pdf`)
     setGenerated(prev => { const s = new Set(Array.from(prev)); s.add(docId); return s })
+    } catch (error) {
+      setDocumentError(error instanceof Error ? error.message : 'Document generation failed.')
+    }
   }
 
   if (loading) return (
@@ -464,7 +506,7 @@ export default function DocumentsPage({ params }: PageProps) {
 
   if (!project) return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-      <div className="text-center"><p className="text-[var(--text-muted)] mb-4">Project not found</p>
+      <div className="text-center"><p role="alert" className="text-[var(--text-muted)] mb-4">{documentError || 'Project not found'}</p>
         <Link href="/dashboard" className="btn btn-primary">Dashboard</Link></div>
     </div>
   )
@@ -473,26 +515,13 @@ export default function DocumentsPage({ params }: PageProps) {
 
   // Build SurveyPlanData from project
   const buildSurveyPlanData = (): SurveyPlanData | null => {
-    if (!project) return null
-     const controlPts: ControlPoint[] = points
-       .filter((p: SurveyPoint) => p.is_control)
-       .map((p: SurveyPoint) => ({
-        name: p.name,
-        easting: p.easting,
-        northing: p.northing,
-        // Canonical SurveyPoint.elevation is `number | null | undefined`;
-        // ControlPoint.elevation is `number | undefined`. Coerce null to undefined.
-        elevation: p.elevation ?? undefined,
-        monumentType: 'found' as const,
-      }))
-    const boundaryPts = controlPts.length >= 3
-      ? controlPts
-      : [
-          { name: '1', easting: 5000, northing: 5000 },
-          { name: '2', easting: 5100, northing: 5000 },
-          { name: '3', easting: 5100, northing: 5050 },
-          { name: '4', easting: 5000, northing: 5050 },
-        ]
+    if (!project || boundaryPoints.length < 3 || !['ARC1960', 'WGS84'].includes(project.datum || '')) return null
+    // Zone and hemisphere must be declared too — never default a survey CRS.
+    const crs = reportCrs({ utmZone: project.utm_zone ?? undefined, hemisphere: project.hemisphere ?? undefined, datum: project.datum ?? undefined })
+    if (!crs.verified) return null
+    // This data source contains no verified monument types. Do not label points "found".
+    const controlPts: ControlPoint[] = []
+    const boundaryPts = boundaryPoints
     const area_sqm = shoelaceArea(boundaryPts)
     const perimeter_m = shoelacePerimeter(boundaryPts)
     const bearingSchedule = boundaryPts.map((pt, i) => {
@@ -507,27 +536,36 @@ export default function DocumentsPage({ params }: PageProps) {
       }
     })
     const linearError = traverse?.linearError
-    const traverseAccuracyResult = linearError != null
-      ? computeTraverseAccuracy(linearError, perimeter_m)
-      : null
     const proj = project as ProjectData & FormNo4Fields
     return {
       project: {
         name: project.name,
         location: project.location || '',
         municipality: surveyorDetails['address']?.split(',')[0] || undefined,
-        utm_zone: project.utm_zone || 37,
-        hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
-        datum: 'ARC1960',
+        utm_zone: crs.zone,
+        hemisphere: crs.hemi,
+        datum: project.datum as 'ARC1960' | 'WGS84',
+        vertical_datum: prs?.vertical_datum ?? undefined,
+        // reportCrs validates the reference and drops anything unregistered,
+        // so the raw DB string is safe to cast here (same as the DXF route).
+        vertical_reference: (prs?.vertical_reference ?? undefined) as
+          | 'orthometric'
+          | 'ellipsoidal'
+          | 'trig'
+          | 'local'
+          | undefined,
+        geoid_model: prs?.geoid_model ?? undefined,
+        benchmark_basis: prs?.benchmark_basis ?? undefined,
         client_name: project.client_name || undefined,
         surveyor_name: surveyorDetails['name'] || undefined,
         surveyor_licence: surveyorDetails['licence'] || undefined,
-        firm_name: surveyorDetails['name'] || undefined,
+        firm_name: surveyorDetails['firm'] || undefined,
         firm_address: surveyorDetails['address'] || undefined,
         firm_phone: surveyorDetails['phone'] || undefined,
         firm_email: surveyorDetails['email'] || undefined,
         drawing_no: `MD-${Date.now().toString().slice(-6)}`,
-        plan_title: 'Boundary Identification Plan',
+        plan_title: 'DRAFT Boundary Identification Plan',
+        notes: 'DRAFT — independent review required. Monument types and control accuracy have not been verified.',
         northRotationDeg: 0,
         bearingSchedule,
         revisions: [],
@@ -545,7 +583,7 @@ export default function DocumentsPage({ params }: PageProps) {
         area_sqm,
         perimeter_m,
       },
-      traverse: traverseAccuracyResult ? {
+      traverse: linearError != null ? {
         linearError: linearError ?? undefined,
       } : undefined,
       controlPoints: controlPts,
@@ -561,9 +599,6 @@ export default function DocumentsPage({ params }: PageProps) {
   }
 
   const planData = buildSurveyPlanData()
-  const traverseAccuracy = traverse && traverse.linearError != null && planData?.parcel?.perimeter_m
-    ? computeTraverseAccuracy(traverse.linearError, planData.parcel.perimeter_m)
-    : null
 
   const handleCreateSubmission = async () => {
     if (!project || isCreatingSubmission) return
@@ -589,6 +624,38 @@ export default function DocumentsPage({ params }: PageProps) {
       alert('Error creating submission. Please try again.')
     } finally {
       setIsCreatingSubmission(false)
+    }
+  }
+
+  const handleDownloadPackage = async () => {
+    if (!project || isDownloadingPackage) return
+    const downloadWindow = window.open('about:blank', '_blank')
+    if (!downloadWindow) {
+      setDocumentError('Allow pop-ups for METARDU to download the submission package.')
+      return
+    }
+    downloadWindow.document.title = 'Preparing METARDU submission package…'
+    setIsDownloadingPackage(true)
+    setDocumentError(null)
+    try {
+      const response = await fetch('/api/submission/package', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId: params.id }),
+      })
+      const result = (await response.json()) as SubmissionPackageResponse
+      const downloadUrl = result.downloadUrl ?? result.fileUrl
+      if (!response.ok || !downloadUrl) {
+        throw new Error(result.error || 'The submission package could not be generated.')
+      }
+      downloadWindow.location.replace(downloadUrl)
+    } catch (error) {
+      downloadWindow.close()
+      const message = error instanceof Error ? error.message : 'The submission package could not be generated.'
+      logger.error('Submission package download failed:', { error })
+      setDocumentError(message)
+    } finally {
+      setIsDownloadingPackage(false)
     }
   }
 
@@ -638,13 +705,15 @@ export default function DocumentsPage({ params }: PageProps) {
 
             {submissionNumber && (
               <button
-                onClick={() => alert('Download full submission package coming soon!')}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg text-sm hover:bg-green-700 transition-colors"
+                type="button"
+                onClick={handleDownloadPackage}
+                disabled={isDownloadingPackage || !project}
+                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white font-semibold rounded-lg text-sm hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                Download Package
+                {isDownloadingPackage ? 'Building package…' : 'Download Package'}
               </button>
             )}
           </div>
@@ -653,6 +722,7 @@ export default function DocumentsPage({ params }: PageProps) {
         <MobileDesktopNotice>
           Document generation and review involve long forms, tables, previews, and export checks. Use desktop for the best experience; mobile is suitable for viewing and minor edits.
         </MobileDesktopNotice>
+        {documentError && <p role="alert" className="mb-4 rounded border border-red-500 p-3 text-red-500">{documentError}</p>}
 
         {/* Tab bar */}
         <div className="flex gap-1 mb-6 border-b border-[var(--border-color)]">
@@ -679,27 +749,22 @@ export default function DocumentsPage({ params }: PageProps) {
           <div className="space-y-4">
             <div className="bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-xl p-4 text-sm">
               <p className="text-[var(--text-secondary)]">
-                <strong className="text-[var(--text-primary)]">Boundary Identification Plan</strong> — A professional A3 survey plan rendered from your project coordinates, ready to print and sign.
+                <strong className="text-[var(--text-primary)]">Draft Boundary Identification Plan</strong> — Rendered from the saved computed boundary for review.
               </p>
               <p className="text-[var(--text-muted)] mt-1 text-xs">
-                Requires at least 3 control points marked on the parcel boundary.
+                Requires a saved computed boundary with at least three stations and a supported recorded datum. Verify control and monument evidence before certification.
               </p>
             </div>
-            {traverseAccuracy && traverse && (
+            {traverse && (
               <div className="flex items-center gap-3 px-4 py-3 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl">
-                <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Traverse Accuracy</span>
-                <span className={`px-2.5 py-1 rounded text-xs font-semibold ${getAccuracyBadgeClass(traverseAccuracy)}`}>
-                  {getAccuracyBadgeLabel(traverseAccuracy)}
-                </span>
+                <span className="text-xs text-[var(--text-secondary)] uppercase tracking-wider">Numerical traverse closure</span>
                 <span className="text-xs text-[var(--text-secondary)]">
                   Linear Error: {traverse.linearError?.toFixed(4)}m
                 </span>
                 <span className="text-xs text-[var(--text-secondary)]">
-                  Precision: 1:{traverseAccuracy.K_km > 0 ? Math.round(traverseAccuracy.K_km * traverseAccuracy.C_mm / traverseAccuracy.allowed) : '—'}
+                  {traverse.linearError < 0.000000001 ? 'No measurable numerical misclosure' : `Precision: 1:${Math.round(traverse.precisionRatio).toLocaleString()}`}
                 </span>
-                <span className="text-xs text-[var(--text-muted)] font-mono ml-auto">
-                  {traverseAccuracy.formula}
-                </span>
+                <span className="text-xs text-[var(--text-muted)] ml-auto">Independent control accuracy remains unverified.</span>
               </div>
             )}
 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden" style={{ height: '70vh' }}>
@@ -710,7 +775,7 @@ export default function DocumentsPage({ params }: PageProps) {
               submissionNumber={submissionNumber}
             />
           ) : (
-            <div className="flex items-center justify-center h-full text-[var(--text-muted)]">Loading...</div>
+            <div className="flex items-center justify-center h-full p-6 text-[var(--text-muted)]">No supported saved boundary is available. Save and compute your field book, then reopen Documents. Plan preview supports recorded ARC1960 or WGS84 coordinates.</div>
           )}
         </div>
         <div className="flex justify-end gap-3">
@@ -726,13 +791,13 @@ export default function DocumentsPage({ params }: PageProps) {
                     beacon_class: cp.monumentType,
                     description: cp.beaconDescription
                   })),
-                  boundaries: (planData.project.bearingSchedule || []).map(b => ({
+                  boundaries: (planData.project.bearingSchedule || []).map((b, i) => ({
                     from: b.from,
                     to: b.to,
-                    from_easting: 0, // Will be populated from actual data
-                    from_northing: 0,
-                    to_easting: 0,
-                    to_northing: 0,
+                    from_easting: boundaryPoints[i].easting,
+                    from_northing: boundaryPoints[i].northing,
+                    to_easting: boundaryPoints[(i + 1) % boundaryPoints.length].easting,
+                    to_northing: boundaryPoints[(i + 1) % boundaryPoints.length].northing,
                     bearing: b.bearing,
                     distance: b.distance
                   })),
@@ -743,12 +808,16 @@ export default function DocumentsPage({ params }: PageProps) {
                     area_ha: planData.parcel.area_sqm / 10000,
                     coordinates: planData.parcel.boundaryPoints.map(p => [p.easting, p.northing] as [number, number])
                   }],
-                  projection: {
-                    zone: planData.project.utm_zone || 37,
-                    hemisphere: planData.project.hemisphere || 'S',
-                    datum: planData.project.datum || 'ARC1960',
-                    ellipsoid: 'WGS84'
-                  }
+                  projection: (() => {
+                    const c = reportCrs({
+                      utmZone: planData.project.utm_zone,
+                      hemisphere: planData.project.hemisphere,
+                      datum: planData.project.datum,
+                    })
+                    return c.verified
+                      ? { zone: c.zone, hemisphere: c.hemi, datum: c.datum, ellipsoid: c.ellipsoid }
+                      : { zone: 0, hemisphere: 'S' as const, datum: c.datum, ellipsoid: c.ellipsoid }
+                  })()
                 }}
                 projectName={project?.name || 'survey'}
               />
@@ -775,7 +844,7 @@ export default function DocumentsPage({ params }: PageProps) {
         <ProfessionalDisclaimer />
 
         {/* Surveyor details */}
-        <SurveyorDetailsPanel details={surveyorDetails} onChange={setSurveyorDetails} saveState="saved" />
+        <SurveyorDetailsPanel details={surveyorDetails} onChange={setSurveyorDetails} saveState="idle" />
 
         {/* Document list */}
         <div className="space-y-3">

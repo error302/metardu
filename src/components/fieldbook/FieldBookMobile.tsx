@@ -1,16 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Wifi, WifiOff, CloudUpload, CheckCircle, AlertTriangle } from 'lucide-react';
-import {
-  getObservationsOffline,
-  saveObservationOffline,
-  syncProject,
-  isOnline,
-  registerNetworkListeners,
-  type OfflineObservation,
-} from '@/lib/offline';
-import { QuickAddModal } from './QuickAddModal';
+import { Wifi, WifiOff, CloudUpload, CheckCircle, AlertTriangle, Image } from 'lucide-react';
+import { offlineStorage, type FieldObservation } from '@/lib/mobile/offlineStorage'
+import { syncService } from '@/lib/mobile/syncService'
+import { prepareCapturedPhotoData } from '@/lib/mobile/capturedPhotoData'
+import { QuickAddModal, type QuickAddObservation } from './QuickAddModal';
+import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
 import { logger } from '@/lib/logger'
 
 interface FieldBookMobileProps {
@@ -20,16 +16,31 @@ interface FieldBookMobileProps {
 }
 
 export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
-  const [online, setOnline] = useState(isOnline());
-  const [observations, setObservations] = useState<OfflineObservation[]>([]);
+  const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
+  const [observations, setObservations] = useState<SavedFieldObservation[]>([]);
+  const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
+  const [pendingCount, setPendingCount] = useState(0);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<{ synced: number; failed: number } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
 
   const loadObservations = useCallback(async () => {
-    const obs = await getObservationsOffline(projectId);
-    setObservations(obs);
+    const obs = await offlineStorage.getFieldObservations(projectId)
+    const saved = obs.filter((record): record is SavedFieldObservation => typeof record.id === 'string' && typeof record.timestamp === 'number')
+      .sort((a, b) => b.timestamp - a.timestamp)
+    setObservations(saved)
+    const [photos, stats] = await Promise.all([
+      offlineStorage.getProjectPhotos(projectId),
+      offlineStorage.getStorageStats(),
+    ])
+    const counts: Record<string, number> = {}
+    for (const photo of photos) {
+      if (!photo.observationClientId) continue
+      counts[photo.observationClientId] = (counts[photo.observationClientId] ?? 0) + 1
+    }
+    setPhotoCounts(counts)
+    setPendingCount(stats.pendingSync + stats.failedSync)
   }, [projectId]);
 
   useEffect(() => {
@@ -37,11 +48,16 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
   }, [projectId, loadObservations]);
 
   useEffect(() => {
-    const cleanup = registerNetworkListeners(
-      () => setOnline(true),
-      () => setOnline(false)
-    );
-    return cleanup;
+    const handleOnline = () => setOnline(true)
+    const handleOffline = () => setOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    syncService.startAutoSync()
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      syncService.stopAutoSync()
+    }
   }, []);
 
   const handleSync = useCallback(async () => {
@@ -51,7 +67,7 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
     setSyncResult(null);
     
     try {
-      const result = await syncProject(projectId);
+      const result = await syncService.forceSync()
       setSyncResult({ synced: result.synced, failed: result.failed });
       setLastSync(new Date());
       await loadObservations();
@@ -62,21 +78,36 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
     }
   }, [projectId, online, syncing, loadObservations]);
 
-  const handleAddObservation = async (obs: Omit<OfflineObservation, 'id' | 'project_id' | 'timestamp' | 'synced'>) => {
-    const newObs: OfflineObservation = {
-      ...obs,
-      id: crypto.randomUUID(),
-      project_id: projectId,
-      timestamp: new Date().toISOString(),
-      synced: false,
-    };
-    
-    await saveObservationOffline(newObs);
+  const handleAddObservation = async (obs: QuickAddObservation, photos: CapturedBeaconPhoto[]) => {
+    const id = crypto.randomUUID()
+    const newObs: FieldObservation = {
+      id,
+      projectId,
+      pointName: obs.station_to,
+      pointId: obs.station_to,
+      observationType: 'total_station',
+      backsight: obs.station_from,
+      foresight: obs.station_to,
+      horizontalAngle: obs.horizontal_angle,
+      verticalAngle: obs.vertical_angle,
+      slopeDistance: obs.slope_distance,
+      instrumentHeight: obs.instrument_height,
+      rodHeight: obs.target_height,
+      notes: obs.remarks || undefined,
+    }
+    const photoData = await prepareCapturedPhotoData(photos, projectId, {
+      pointId: obs.station_to,
+      pointName: obs.station_to,
+      observationClientId: id,
+    })
+
+    await offlineStorage.saveFieldObservationWithPhotos(newObs, photoData)
+    if (online) await syncService.forceSync()
     await loadObservations();
     setShowAddModal(false);
   };
 
-  const unsyncedCount = observations.filter(o => !o.synced).length;
+  const unsyncedCount = pendingCount;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
@@ -135,12 +166,12 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
           {syncResult.failed === 0 ? (
             <>
               <CheckCircle className="w-4 h-4" />
-              Synced {syncResult.synced} observations
+              Synced {syncResult.synced} field items
             </>
           ) : (
             <>
               <AlertTriangle className="w-4 h-4" />
-              Synced {syncResult.synced}, failed {syncResult.failed}
+              Synced {syncResult.synced} field items, failed {syncResult.failed}
             </>
           )}
         </div>
@@ -159,6 +190,7 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
                 key={obs.id} 
                 observation={obs} 
                 index={observations.length - idx}
+                photoCount={photoCounts[obs.id] ?? 0}
               />
             ))}
           </div>
@@ -185,12 +217,14 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
   );
 }
 
-function ObservationCard({ observation, index }: { observation: OfflineObservation; index: number }) {
+type SavedFieldObservation = FieldObservation & { id: string; timestamp: number; synced?: boolean }
+
+function ObservationCard({ observation, index, photoCount }: { observation: SavedFieldObservation; index: number; photoCount: number }) {
   return (
     <div className="bg-white rounded-lg p-4 shadow-sm border">
       <div className="flex items-center justify-between mb-2">
         <span className="font-mono font-bold text-lg">
-          {observation.station_from} → {observation.station_to}
+          {observation.backsight || '—'} → {observation.foresight || observation.pointName}
         </span>
         <span className="text-xs text-gray-500">#{index}</span>
       </div>
@@ -198,15 +232,15 @@ function ObservationCard({ observation, index }: { observation: OfflineObservati
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div>
           <span className="text-gray-500">HA</span>
-          <span className="font-mono ml-1">{observation.horizontal_angle.toFixed(4)}°</span>
+          <span className="font-mono ml-1">{observation.horizontalAngle?.toFixed(4) ?? '—'}°</span>
         </div>
         <div>
           <span className="text-gray-500">VA</span>
-          <span className="font-mono ml-1">{observation.vertical_angle.toFixed(4)}°</span>
+          <span className="font-mono ml-1">{observation.verticalAngle?.toFixed(4) ?? '—'}°</span>
         </div>
         <div>
           <span className="text-gray-500">Dist</span>
-          <span className="font-mono ml-1">{observation.slope_distance.toFixed(3)}m</span>
+          <span className="font-mono ml-1">{observation.slopeDistance?.toFixed(3) ?? '—'}m</span>
         </div>
       </div>
       
@@ -224,8 +258,13 @@ function ObservationCard({ observation, index }: { observation: OfflineObservati
         )}
       </div>
       
-      {observation.remarks && (
-        <p className="mt-2 text-sm text-gray-600 italic">{observation.remarks}</p>
+      {observation.notes && (
+        <p className="mt-2 text-sm text-gray-600 italic">{observation.notes}</p>
+      )}
+      {photoCount > 0 && (
+        <p className="mt-2 flex items-center gap-1 text-xs text-gray-500">
+          <Image className="w-3 h-3" /> {photoCount} original field photo{photoCount === 1 ? '' : 's'} attached
+        </p>
       )}
     </div>
   );

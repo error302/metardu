@@ -266,4 +266,5 @@ export function getSpecialties() {
 
 // peerReview: use @/lib/marketplace/peerReview directly
 export * from './aiPlanChecker'
+export * from './apiClient'
 // jobMarketplace: use @/lib/marketplace/jobMarketplace directly

@@ -1,4 +1,4 @@
-import { triangulate, generateContours } from '../contours'
+import { triangulate, generateContours, buildTINSurface, interpolateElevation } from '../contours'
 
 const SPOT_HEIGHTS = [
   { name: 'A', easting: 0,   northing: 0,   elevation: 10 },
@@ -30,6 +30,18 @@ describe('triangulate', () => {
 })
 
 describe('generateContours', () => {
+  it('retains measured ridge endpoints and draws both physical isolines through the compatibility API', () => {
+    const points = [{ name: 'A', easting: 0, northing: 0, elevation: 0 }, { name: 'B', easting: 10, northing: 0, elevation: 0 },
+      { name: 'C', easting: 10, northing: 10, elevation: 0 }, { name: 'D', easting: 0, northing: 10, elevation: 0 }]
+    const breaklines = [{ start: { name: 'RIDGE-A', easting: 5, northing: 0, elevation: 2 }, end: { name: 'RIDGE-B', easting: 5, northing: 10, elevation: 2 } }]
+    const surface = buildTINSurface(points, breaklines)
+    expect(surface.points).toHaveLength(6)
+    expect(interpolateElevation(surface, 5, 5)).toBeCloseTo(2, 9)
+    const lines = generateContours(points, 1, 5, breaklines).filter(c => c.elevation === 1)
+    expect(lines).toHaveLength(2)
+    expect(lines.flatMap(c => c.points).every(p => p.easting === 2.5 || p.easting === 7.5)).toBe(true)
+    expect(points).toHaveLength(4)
+  })
   it('generates contour lines between min and max elevation', () => {
     const contours = generateContours(SPOT_HEIGHTS, 5)
     expect(contours.length).toBeGreaterThan(0)

@@ -275,6 +275,7 @@
   },
   "resources": {
     "datumConverter": "基准转换器",
+    "onlineServices": "在线服务",
     "kencorsRtk": "KenCORS RTK",
     "knowledgeBase": "知识库"
   },

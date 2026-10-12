@@ -49,6 +49,30 @@ services:
       timeout: 5s
       retries: 5
 
+  metardu-db-migrate-test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metardu-db-migrate-test
+    entrypoint: ["node"]
+    command: ["/app/provision-runtime-db-role.mjs"]
+    environment:
+      - MIGRATION_DB_HOST=metardu-postgres-test
+      - MIGRATION_DB_PORT=5432
+      - MIGRATION_DB_NAME=${TEST_POSTGRES_DB:-metardu_test}
+      - MIGRATION_DB_USER=${TEST_POSTGRES_USER:-metardu_test}
+      - MIGRATION_DB_PASSWORD=${TEST_POSTGRES_PASSWORD:-metardu_test}
+      - APP_DB_HOST=metardu-postgres-test
+      - APP_DB_PORT=5432
+      - APP_DB_NAME=${TEST_POSTGRES_DB:-metardu_test}
+      - APP_DB_USER=${TEST_APP_DB_USER:-metardu_test_app}
+      - APP_DB_PASSWORD=${TEST_APP_DB_PASSWORD:-metardu_test_runtime}
+      - NODE_ENV=test
+    depends_on:
+      metardu-postgres-test:
+        condition: service_healthy
+    restart: "no"
+
   metardu-app-test:
     build:
       context: .
@@ -57,7 +81,11 @@ services:
     ports:
       - "3001:3000"
     environment:
-      - DATABASE_URL=postgresql://${TEST_POSTGRES_USER:-metardu_test}:${TEST_POSTGRES_PASSWORD:-metardu_test}@metardu-postgres-test:5432/${TEST_POSTGRES_DB:-metardu_test}
+      - DB_HOST=metardu-postgres-test
+      - DB_PORT=5432
+      - DB_NAME=${TEST_POSTGRES_DB:-metardu_test}
+      - DB_USER=${TEST_APP_DB_USER:-metardu_test_app}
+      - DB_PASSWORD=${TEST_APP_DB_PASSWORD:-metardu_test_runtime}
       - AUTH_SECRET=${TEST_AUTH_SECRET:?TEST_AUTH_SECRET must be set (use a random value, e.g. openssl rand -base64 32)}
       - NEXTAUTH_URL=http://localhost:3001
       - NEXT_PUBLIC_APP_URL=http://localhost:3001
@@ -67,6 +95,8 @@ services:
     depends_on:
       metardu-postgres-test:
         condition: service_healthy
+      metardu-db-migrate-test:
+        condition: service_completed_successfully
       metardu-worker-test:
         condition: service_healthy
 

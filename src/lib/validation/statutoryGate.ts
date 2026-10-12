@@ -1,11 +1,10 @@
 /**
- * Statutory Validation Gate
+ * METARDU Quality Check Gate
  * =========================
  *
- * The single pre-export checkpoint that runs all statutory and regulatory
- * validation rules in sequence and decides whether a survey deliverable
- * (deed plan, NLIMS payload, statutory workbook) is allowed to leave the
- * system.
+ * Configured METARDU pre-export checks for survey deliverables.
+ * These checks are operational quality controls; they do not certify legal
+ * compliance or predict acceptance by a registry or other authority.
  *
  * Why this exists
  * ---------------
@@ -17,26 +16,26 @@
  *
  * Each one validated a single concern, but nothing ran them all together.
  * A surveyor could generate a deed plan with a failed traverse closure
- * and the system would happily produce a PDF that ArdhiSasa would reject
- * on first submission. This gate closes that gap.
+ * without a consolidated quality review. This gate brings configured checks
+ * together while leaving professional and official review responsibilities
+ * explicit.
  *
  * Design
  * ------
  * - Pure function. No DB calls, no side effects. Callers fetch project
  *   data and assemble the input. This makes the gate trivially testable.
- * - Rules are tagged with their regulatory source (Cap 299, RDM 1.1,
- *   ArdhiSasa spec) so violations cite the exact clause the surveyor
- *   needs to fix.
+ * - Rules can carry a reference label. References and thresholds have not
+ *   been independently verified against current official requirements.
  * - Three severity levels:
- *     'block' — export is refused. The deliverable will be rejected by
- *               ArdhiSasa / Survey of Kenya / the relevant authority.
+ *     'block' — METARDU refuses this export until the configured check is
+ *               resolved. This does not predict an official decision.
  *     'warn'  — export proceeds, but the surveyor should review. The
  *               deliverable may pass but with caveats.
  *     'info'  — informational note. No action required.
  * - Rules are versioned (RULE_VERSION below). When regulations update,
  *   bump the version and add a changelog entry. This makes it possible
  *   to know which rule set a given validation result was evaluated
- *   against — important for audits and dispute resolution.
+ *   against for internal traceability; it does not establish authority review.
  *
  * Usage
  * -----
@@ -47,16 +46,14 @@
  *     // refuse export, show violations to surveyor
  *   }
  *
- * Regulatory references
+ * Reference labels (not current official approval)
  * ---------------------
- * - Survey Act Cap 299 (Kenya) — boundary tolerances, beacon placement,
- *   angular misclosure limits
- * - Survey Regulations 1994 — procedural requirements
- * - RDM 1.1 (2023) Table 5.1 — levelling closure: 10√K mm ordinary,
- *   5√K mm precise; traverse precision ratios per survey class
- * - ArdhiSasa portal submission specification (2024) — parcel shape
- *   requirements, beacon nomenclature, area reconciliation tolerance
- * - Kenya Land Registration Act 2012 — submission types and encumbrances
+ * - Survey Act Cap 299 (Kenya) — reference label for selected checks;
+ *   thresholds and applicability have not been independently verified.
+ * - Survey Regulations 1994 — reference label only.
+ * - RDM 1.1 (2023) — reference label only.
+ * - ArdhiSasa — portal requirements are not verified here.
+ * - Kenya Land Registration Act 2012 — reference label only.
  */
 
 import type { SurveyType } from '@/types/project'
@@ -77,18 +74,17 @@ import { shoelaceArea } from '@/lib/engine/area'
  * Record the change in CHANGELOG below.
  *
  * CHANGELOG:
- *   1.2.0 (2026-07) — Added ardhisasa.rim_overlap rule: blocks
- *     submission when the new parcel overlaps existing RIM parcels.
+ *   1.2.0 (2026-07) — Added a configured overlap review rule for
+ *     new parcels and supplied reference geometry.
  *     Overlap detection is async (turf geometry), pre-computed by
  *     the loader and passed in via input.rimOverlaps.
  *   1.1.0 (2026-07) — Added KeNHA/KeRRA engineering design rules:
  *     minimum horizontal curve radius, stopping sight distance,
- *     superelevation rate cap. Rules sourced from RDM 1.1 §2.3,
- *     AASHTO Green Book, KeNHA Road Design Manual.
+ *     and superelevation rate checks. Reference values require review.
  *   1.0.0 (2026-07) — Initial gate. Consolidates toleranceEngine +
  *     traverseValidation + levelingValidation + nlimsExporter schema
- *     checks into a single pre-export gate. Rules sourced from
- *     Cap 299, RDM 1.1 (2023), ArdhiSasa spec (2024).
+ *     checks into a single pre-export gate. Source labels are references,
+ *     not independently verified current requirements.
  */
 export const RULE_VERSION = '1.2.0'
 
@@ -97,12 +93,12 @@ export const RULE_VERSION = '1.2.0'
 export type Severity = 'block' | 'warn' | 'info'
 
 export type RegulatorySource =
-  | 'cap299'           // Survey Act Cap 299
-  | 'survey_regs_1994' // Survey Regulations 1994
-  | 'rdm_1_1'          // RDM 1.1 (2023)
-  | 'ardhisasa'        // ArdhiSasa portal spec
-  | 'lra_2012'         // Land Registration Act 2012
-  | 'sok_standard'     // Survey of Kenya general standard
+  | 'cap299'           // Reference label only; not independently verified
+  | 'survey_regs_1994' // Reference label only; not independently verified
+  | 'rdm_1_1'          // Reference label only; not independently verified
+  | 'ardhisasa'        // Portal reference only; not live-verified
+  | 'lra_2012'         // Reference label only; not independently verified
+  | 'sok_standard'     // Reference label only; not independently verified
   | 'metardu_qc'       // METARDU internal quality control (cross-checks)
 
 export interface Violation {
@@ -202,8 +198,8 @@ export interface StatutoryGateInput {
   toleranceProfileOverride?: ToleranceProfile
 
   /**
-   * Area reconciliation tolerance in hectares. Default: 0.001 ha (10 m²).
-   * Per ArdhiSasa spec, subdivisions must reconcile to within this tolerance.
+   * Local area reconciliation tolerance in hectares. Default: 0.001 ha.
+   * This is a METARDU check value, not a verified official tolerance.
    */
   areaToleranceHectares?: number
 
@@ -289,7 +285,7 @@ function ruleTraversePrecision(
       rule: 'rdm_1_1.traverse_precision',
       source: 'rdm_1_1',
       severity: 'block',
-      message: `Traverse precision 1:${Math.round(precisionRatio)} is below the ${profile} minimum of 1:${required}. ArdhiSasa will reject this submission.`,
+      message: `Traverse precision 1:${Math.round(precisionRatio)} is below the configured ${profile} threshold of 1:${required}. Confirm the applicable survey class and current requirements before filing.`,
       actual: precisionRatio,
       allowable: required,
       unit: '1:X',
@@ -437,8 +433,8 @@ function ruleLevelingClosure(
 }
 
 /**
- * Rule: Parcel has at least 3 vertices.
- * Source: ArdhiSasa spec §3.2 — minimum polygon geometry.
+ * Rule: Parcel has at least 3 vertices for basic polygon geometry.
+ * The source label is not a verified registry requirement.
  */
 function ruleParcelVertexCount(
   input: StatutoryGateInput,
@@ -465,7 +461,7 @@ function ruleParcelVertexCount(
 
 /**
  * Rule: Area reconciliation for subdivisions and mutations.
- * Source: ArdhiSasa spec §4.1; LRA 2012 §26.
+ * The default is a local configured check, not a verified official tolerance.
  *
  * Sum of resulting parcel areas must equal parent parcel area within
  * tolerance (default 0.001 ha = 10 m²).
@@ -496,7 +492,7 @@ function ruleAreaReconciliation(
       rule: 'ardhisasa.area_reconciliation',
       source: 'ardhisasa',
       severity: 'block',
-      message: `Area mismatch: parent ${parentArea.toFixed(4)} ha vs sum of parts ${sumOfParts.toFixed(4)} ha. Difference ${diff.toFixed(4)} ha exceeds tolerance ${tolerance} ha. ArdhiSasa will reject this submission.`,
+      message: `Area mismatch: parent ${parentArea.toFixed(4)} ha vs sum of parts ${sumOfParts.toFixed(4)} ha. Difference ${diff.toFixed(4)} ha exceeds the configured tolerance ${tolerance} ha. Review against current requirements before filing.`,
       actual: diff,
       allowable: tolerance,
       unit: 'ha',
@@ -507,10 +503,10 @@ function ruleAreaReconciliation(
 
 /**
  * Rule: Surveyor license format.
- * Source: ISK/EKB licensing standard.
+ * The display pattern is a local check and is not verified against current
+ * licensing or registry requirements.
  *
- * Format: ISK/LS/YYYY/NNN. Warn-only — older surveyors may have legacy
- * formats that ArdhiSasa still accepts.
+ * Format: ISK/LS/YYYY/NNN. Warn-only; confirm the current format directly.
  */
 function ruleSurveyorLicense(
   input: StatutoryGateInput,
@@ -523,7 +519,7 @@ function ruleSurveyorLicense(
       rule: 'sok_standard.surveyor_name_required',
       source: 'sok_standard',
       severity: 'block',
-      message: 'Surveyor name is required for statutory submission.',
+      message: 'Surveyor name is missing from the METARDU draft.',
       field: 'surveyor.name',
     })
   }
@@ -532,7 +528,7 @@ function ruleSurveyorLicense(
       rule: 'sok_standard.surveyor_license_required',
       source: 'sok_standard',
       severity: 'block',
-      message: 'Surveyor license number is required for statutory submission.',
+      message: 'Surveyor license number is missing from the METARDU draft.',
       field: 'surveyor.licenseNumber',
     })
     return
@@ -542,18 +538,18 @@ function ruleSurveyorLicense(
       rule: 'sok_standard.surveyor_license_format',
       source: 'sok_standard',
       severity: 'warn',
-      message: `License number "${licenseNumber}" does not match the ISK/LS/YYYY/NNN format. Submission may still be accepted but verify with ISK.`,
+      message: `License number "${licenseNumber}" does not match this check's ISK/LS/YYYY/NNN pattern. Confirm the current format with the relevant authority.`,
       field: 'surveyor.licenseNumber',
     })
   }
 }
 
 /**
- * Rule: Beacon nomenclature per SoK standards.
- * Source: Survey of Kenya beacon naming convention.
+ * Rule: Beacon identifier pattern check.
+ * This pattern is not an independently verified Survey of Kenya rule.
  *
  * Patterns: KP/XX/YY, MB/XXX, IRP/XXX, RMB/XXX.
- * Warn-only — non-standard names are accepted but flagged.
+ * Warn-only — identifiers outside this pattern are flagged for review.
  */
 function ruleBeaconNomenclature(
   input: StatutoryGateInput,
@@ -572,7 +568,7 @@ function ruleBeaconNomenclature(
           rule: 'sok_standard.beacon_nomenclature',
           source: 'sok_standard',
           severity: 'warn',
-          message: `Beacon "${v.name}" in parcel "${parcel.parcelNumber || `#${i + 1}`}" does not match SoK nomenclature (KP/MB/IRP/RMB patterns).`,
+          message: `Beacon "${v.name}" in parcel "${parcel.parcelNumber || `#${i + 1}`}" does not match this check's configured identifier pattern. Confirm the required project format.`,
           field: `parcels[${i}].vertices[${j}].name`,
         })
         // One warning per parcel is enough; don't spam
@@ -735,12 +731,11 @@ function ruleSuperelevationRate(
   }
 }
 
-// ─── RIM overlap rule (ArdhiSasa pre-flight) ────────────────────────────
+// ─── Supplied-geometry overlap check ───────────────────────────────────
 
 /**
- * Rule: New parcel must not overlap existing RIM parcels.
- * Source: ArdhiSasa portal submission spec §4.2 — overlapping parcels
- * are rejected on first submission.
+ * Rule: Flag overlap with caller-supplied reference geometry.
+ * This check does not verify that reference geometry is current or complete.
  *
  * The overlap detection itself is async (turf geometry), so it's
  * pre-computed by the loader and passed in via input.rimOverlaps.
@@ -758,7 +753,7 @@ function ruleRimOverlap(
       rule: 'ardhisasa.rim_overlap',
       source: 'ardhisasa',
       severity: 'block',
-      message: `New parcel overlaps existing parcel "${overlap.existingParcelNumber}" by ${overlap.overlapAreaSqm.toFixed(1)} m² (${overlap.overlapPercent.toFixed(2)}% of the new parcel). ArdhiSasa will reject this submission — resolve the boundary conflict first.`,
+      message: `New parcel overlaps existing parcel "${overlap.existingParcelNumber}" by ${overlap.overlapAreaSqm.toFixed(1)} m² (${overlap.overlapPercent.toFixed(2)}% of the new parcel). Resolve or document the boundary conflict, then review it against the current official process.`,
       actual: overlap.overlapAreaSqm,
       allowable: 0,
       unit: 'm²',
@@ -871,7 +866,7 @@ const RULES: RuleDef[] = [
   },
   {
     id: 'ardhisasa.rim_overlap',
-    description: 'New parcel must not overlap existing RIM parcels',
+    description: 'Flag overlap with caller-supplied RIM reference geometry',
     source: 'ardhisasa',
     severity: 'block',
     run: ruleRimOverlap,
@@ -881,9 +876,9 @@ const RULES: RuleDef[] = [
 // ─── Public API ─────────────────────────────────────────────────────────
 
 /**
- * Run all statutory validation rules against the input.
+ * Run all configured METARDU quality checks against the input.
  *
- * Returns a result with `passed: true` iff zero 'block' violations.
+ * Returns `passed: true` iff zero configured blocking checks were found.
  * Callers should refuse to produce the export when `passed === false`
  * and surface the violations to the surveyor.
  *
@@ -974,8 +969,8 @@ export function runStatutoryGate(input: StatutoryGateInput): StatutoryGateResult
  */
 export function formatGateResult(result: StatutoryGateResult): string {
   const lines: string[] = []
-  const status = result.passed ? 'PASS' : 'BLOCKED'
-  lines.push(`Statutory Validation: ${status}`)
+  const status = result.passed ? 'No configured check flagged an issue' : 'METARDU checks require review'
+  lines.push(`METARDU Quality Checks: ${status}`)
   lines.push(`Profile: ${result.profile}`)
   lines.push(`Rule version: ${result.ruleVersion}`)
   lines.push(`Evaluated: ${result.evaluatedAt}`)
@@ -985,7 +980,7 @@ export function formatGateResult(result: StatutoryGateResult): string {
   lines.push('')
 
   if (result.violations.length === 0) {
-    lines.push('All checks passed. No violations.')
+    lines.push('No configured check flagged an issue; this is not official approval.')
     return lines.join('\n')
   }
 

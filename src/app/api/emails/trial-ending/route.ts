@@ -5,13 +5,16 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { setCurrentUserId } from '@/lib/db'
 import { sendTemplatedEmail } from '@/lib/email-templates'
+import { getPlanPrice } from '@/lib/subscription/catalog'
 import { z } from 'zod'
+
+const defaultPlanPriceNote = `KES ${getPlanPrice('pro', 'KES')}/month`
 
 const trialEndingSchema = z.object({
   email: z.string().email().max(200),
   name: z.string().max(200).optional().default(''),
   trialEndDate: z.string().datetime(),
-  planPriceNote: z.string().max(100).optional().default('KES 500/month'),
+  planPriceNote: z.string().max(100).optional().default(defaultPlanPriceNote),
 })
 
 export async function POST(req: NextRequest) {

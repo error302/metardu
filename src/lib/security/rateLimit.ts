@@ -177,3 +177,25 @@ export function getClientIdentifier(request: Request): string {
 
   return request.headers.get('x-real-ip')?.trim() || 'unknown'
 }
+
+/** Isolate per-operation quotas while retaining one budget across resource IDs.
+ * Framework params take precedence over heuristic path normalization. Query
+ * strings and percent-encoding cannot create a fresh operation counter.
+ */
+export function getOperationRateLimitIdentifier(request: Request, params?: Record<string, string | string[]>): string {
+  const segments = new URL(request.url).pathname.split('/').filter(Boolean).map(segment => {
+    try { return decodeURIComponent(segment) } catch { return segment }
+  })
+  const values = Object.values(params ?? {})
+  for (const value of values) {
+    if (!Array.isArray(value) || value.length === 0) continue
+    for (let i = 0; i <= segments.length - value.length; i++) {
+      if (value.every((part, offset) => segments[i + offset] === part)) { segments.splice(i, value.length, '[id]'); break }
+    }
+  }
+  const identifiers = new Set(values.filter((value): value is string => typeof value === 'string'))
+  const operation = '/' + segments.map(segment => identifiers.has(segment)
+    || /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(segment)
+    || /^c[a-z0-9]{24,}$/i.test(segment) ? '[id]' : segment).join('/')
+  return `operation:${request.method.toUpperCase()}:${operation}:${getClientIdentifier(request)}`
+}

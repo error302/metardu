@@ -76,6 +76,16 @@ export default function RegisterPage() {
         return
       }
 
+      // Finish onboarding through the authenticated server route. This creates
+      // the trial subscription and sends the branded METARDU welcome email;
+      // registration remains successful even if an email provider is offline.
+      try {
+        await fetch('/api/auth/register-complete', { method: 'POST' })
+      } catch {
+        // The user can still sign in; the idempotent onboarding route can be
+        // retried from the account flow when the email service recovers.
+      }
+
       // Redirect to dashboard
       window.location.href = '/dashboard'
     } catch {

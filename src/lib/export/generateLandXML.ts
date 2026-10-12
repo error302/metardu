@@ -1,8 +1,17 @@
+import { reportCrs, describeVerticalDatum } from '@/lib/generators/reportCrs'
+
 export interface LandXMLProject {
   name: string
   location?: string
-  utm_zone: number
-  hemisphere: string
+  utm_zone?: number
+  hemisphere?: string
+  /** Declared project datum (e.g. 'Arc 1960', 'WGS84'). Omit if undeclared. */
+  datum?: string
+  /** Declared vertical datum fields (project_reference_systems columns). */
+  vertical_datum?: string
+  vertical_reference?: string
+  geoid_model?: string
+  benchmark_basis?: string
 }
 
 export interface LandXMLPoint {
@@ -18,7 +27,50 @@ export function generateLandXML(
   points: LandXMLPoint[]
 ): string {
   const date = new Date().toISOString()
-  
+
+  // A deliverable with coordinates but no resolvable horizontal CRS cannot
+  // be safely imported by another survey system. Refuse it before writing XML.
+  const crs = reportCrs({
+    utmZone: project.utm_zone,
+    hemisphere: project.hemisphere,
+    datum: project.datum,
+    verticalDatum: project.vertical_datum,
+    verticalReference: project.vertical_reference,
+    geoidModel: project.geoid_model,
+    benchmarkBasis: project.benchmark_basis,
+  })
+  if (!crs.verified) {
+    throw new Error('LandXML export requires a declared, supported project CRS (datum, UTM zone, and hemisphere).')
+  }
+  const datumXml = `<Datum name="${escapeXml(crs.datum)}">
+      <Ellipsoid name="${escapeXml(crs.ellipsoid)}" a="${crs.ellipsoidA}" invF="${crs.ellipsoidInvF}"/>
+    </Datum>`
+  // LandXML 1.2 requires an explicit <Units> element inside <CoordinateSystem>;
+  // without it the file is schema-invalid and importing systems reject it
+  // (blueprint P0 "Fix LandXML project metadata"). Survey work is metric here,
+  // so this is stated, not assumed.
+  const unitsXml = `<Units>
+      <Metric linearUnit="meter" areaUnit="squareMeter" volumeUnit="cubicMeter"
+        temperatureUnit="celsius" pressureUnit="milliBars"
+        angularUnit="decimal degrees" directionUnit="decimal degrees"/>
+    </Units>`
+  // The vertical reference must be machine-readable, not an XML comment: a
+  // receiving system cannot act on prose.
+  const verticalDescription = describeVerticalDatum(crs)
+  const verticalXml = `<VerticalDatum name="${escapeXml(verticalDescription)}"/>`
+  const z = crs.zone
+  const h = crs.hemi
+  const projectionXml = `
+    <Projection name="UTM Zone ${z}${h}"
+      type="TransverseMercator"
+      zone="${z}"
+      hemisphere="${h}"
+      originLat="0"
+      originLong="${z * 6 - 183}"
+      scaleFactor="0.9996"
+      falseEasting="500000"
+      falseNorthing="${h === 'S' ? '10000000' : '0'}"/>`
+
   const cgPoints = points.map((p) => `
     <CgPoint name="${escapeXml(p.name)}" 
       pntRef="${escapeXml(p.name)}"
@@ -40,19 +92,10 @@ export function generateLandXML(
   <Project name="${escapeXml(project.name)}">
     <Description>${escapeXml(project.location || '')}</Description>
   </Project>
-  <CoordinateSystem>
-    <Datum name="WGS84">
-      <Ellipsoid name="WGS84" a="6378137.0" invF="298.257223563"/>
-    </Datum>
-    <Projection name="UTM Zone ${project.utm_zone}${project.hemisphere}" 
-      type="TransverseMercator" 
-      zone="${project.utm_zone}"
-      hemisphere="${project.hemisphere}"
-      originLat="0"
-      originLong="${project.utm_zone * 6 - 183}"
-      scaleFactor="0.9996"
-      falseEasting="500000"
-      falseNorthing="${project.hemisphere === 'S' ? '10000000' : '0'}"/>
+  <CoordinateSystem name="${escapeXml(crs.crsName)}" epsgCode="${crs.epsg}">
+    ${unitsXml}
+    ${datumXml}${projectionXml}
+${verticalXml}
   </CoordinateSystem>
   <CgPoints>
     ${cgPoints}

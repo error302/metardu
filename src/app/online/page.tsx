@@ -1,17 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { logger } from '@/lib/logger'
 import { transformCoordinates, getSupportedSystems, type CoordinateSystem, type TransformResult } from '@/lib/online/coordinates'
 import { calculateEDMCorrection } from '@/lib/online/weather'
-import { searchBenchmarks, getAvailableCountries, getBenchmarkTypes, Benchmark } from '@/lib/online/benchmarks'
+import ReviewedBenchmarkSearch from '@/components/beacons/ReviewedBenchmarkSearch'
 import GNSSProcessor from '@/components/online/GNSSProcessor'
-import ImageryViewer from '@/components/online/ImageryViewer'
+const ImageryViewer = dynamic(() => import('@/components/online/ImageryViewer'), { ssr: false })
 
 export default function OnlineServicesPage() {
   const [activeTab, setActiveTab] = useState<'gnss' | 'transform' | 'edm' | 'benchmarks' | 'imagery'>('gnss')
   const [transformResult, setTransformResult] = useState<TransformResult | null>(null)
-  const [benchmarkResults, setBenchmarkResults] = useState<Benchmark[]>([])
   const [weatherResult, setWeatherResult] = useState<ReturnType<typeof calculateEDMCorrection> | null>(null)
   const [loading, setLoading] = useState(false)
   const [onlineStatus, setOnlineStatus] = useState<'online' | 'offline'>('online')
@@ -39,10 +39,6 @@ export default function OnlineServicesPage() {
     toSystem: 'UTM'
   })
 
-  const [benchmarkSearch, setBenchmarkSearch] = useState({
-    country: '',
-    type: 'ALL' as 'ALL' | 'BM' | 'CP' | 'TRIG' | 'TIDAL'
-  })
 
   const [weatherInput, setWeatherInput] = useState({
     temperature: '25',
@@ -52,8 +48,6 @@ export default function OnlineServicesPage() {
   })
 
   const systems = getSupportedSystems()
-  const countries = getAvailableCountries()
-  const benchmarkTypes = getBenchmarkTypes()
 
   const handleTransform = async () => {
     setLoading(true)
@@ -77,16 +71,6 @@ export default function OnlineServicesPage() {
     setLoading(false)
   }
 
-  const handleBenchmarkSearch = async () => {
-    setLoading(true)
-    try {
-      const result = await searchBenchmarks(benchmarkSearch)
-      setBenchmarkResults(result.benchmarks)
-    } catch (e) {
-      logger.error('Benchmark search error:', { error: e })
-    }
-    setLoading(false)
-  }
 
   const handleWeatherCalc = () => {
     const result = calculateEDMCorrection({
@@ -110,7 +94,7 @@ export default function OnlineServicesPage() {
             {onlineStatus === 'online' ? 'Connected' : 'Offline'}
           </div>
         </div>
-        <p className="text-[var(--text-muted)] mb-8">Live coordinate transformations, benchmark lookup, GNSS processing, and atmospheric corrections</p>
+        <p className="text-[var(--text-muted)] mb-8">Transform coordinates, find reviewed control references, process GNSS data and view imagery.</p>
 
         <div className="flex flex-wrap gap-2 mb-6">
           {[
@@ -146,9 +130,9 @@ export default function OnlineServicesPage() {
 
         {activeTab === 'imagery' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h2 className="text-xl font-semibold mb-4">Satellite Imagery Overlay</h2>
+            <h2 className="text-xl font-semibold mb-4">Imagery for survey planning</h2>
             <p className="text-sm text-[var(--text-muted)] mb-6">
-              Access Sentinel-2 satellite imagery for survey planning and verification
+              Compare dated regional NASA imagery or an identified Esri basemap for survey planning.
             </p>
             <ImageryViewer />
           </div>
@@ -308,70 +292,7 @@ export default function OnlineServicesPage() {
           </div>
         )}
 
-        {activeTab === 'benchmarks' && (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h2 className="text-xl font-semibold mb-4">Benchmark Database Lookup</h2>
-            <div className="grid md:grid-cols-3 gap-4 mb-6">
-              <div>
-                <label htmlFor="benchmark-country" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Country</label>
-                <select
-                  id="benchmark-country"
-                  value={benchmarkSearch.country}
-                  onChange={e => setBenchmarkSearch({ ...benchmarkSearch, country: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  <option value="">All Countries</option>
-                  {countries.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label htmlFor="benchmark-type" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Type</label>
-                <select
-                  id="benchmark-type"
-                  value={benchmarkSearch.type}
-                  onChange={e => setBenchmarkSearch({ ...benchmarkSearch, type: e.target.value as 'ALL' | 'BM' | 'CP' | 'TRIG' | 'TIDAL' })}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  <option value="ALL">All Types</option>
-                  {benchmarkTypes.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end">
-                <button
-                  onClick={handleBenchmarkSearch}
-                  disabled={loading}
-                  className="w-full bg-sky-600 text-white py-2 px-4 rounded-lg hover:bg-sky-700 disabled:opacity-50"
-                >
-                  {loading ? 'Searching...' : 'Search Benchmarks'}
-                </button>
-              </div>
-            </div>
-
-            {benchmarkResults.length > 0 && (
-              <div className="space-y-3">
-                {benchmarkResults.map((bm) => (
-                  <div key={bm.id} className="p-4 border rounded-lg hover:bg-[var(--bg-secondary)]">
-                    <div className="flex justify-between items-start">
-                      <div>
-                        <h3 className="font-medium">{bm.name}</h3>
-                        <p className="text-sm text-[var(--text-muted)]">{bm.region}, {bm.country}</p>
-                        <p className="text-sm">Type: {bm.type} | Datum: {bm.datum}</p>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium">{bm.elevation.toFixed(3)} m</p>
-                        <p className="text-xs text-[var(--text-muted)]">RL</p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {activeTab === 'benchmarks' && <ReviewedBenchmarkSearch />}
 
         {activeTab === 'edm' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">

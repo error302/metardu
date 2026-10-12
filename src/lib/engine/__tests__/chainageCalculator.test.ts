@@ -7,7 +7,8 @@
  * LineString instances and are skipped here.
  */
 
-import { formatChainage, parseChainage, findAssetsNearChainage } from '../chainageCalculator'
+import { formatChainage, parseChainage, findAssetsNearChainage, calculateChainage } from '../chainageCalculator'
+import LineString from 'ol/geom/LineString'
 import { approxEqual } from '@/test-utils/approx'
 
 describe('formatChainage', () => {
@@ -113,5 +114,20 @@ describe('findAssetsNearChainage', () => {
   it('handles an empty assets array', () => {
     const results = findAssetsNearChainage([], 1000, 100)
     expect(results).toHaveLength(0)
+  })
+})
+
+describe('calculateChainage CRS validation', () => {
+  it('throws when passed display-only EPSG:3857', () => {
+    const line = new LineString([[0, 0], [100, 0]])
+    expect(() => calculateChainage(line, [50, 10], 'EPSG:3857')).toThrow(/CRS_DISPLAY_ONLY_FOR_SURVEY/)
+  })
+
+  it('computes valid chainage when passed an authorized projected CRS', () => {
+    const line = new LineString([[250000, 9850000], [250100, 9850000]])
+    const result = calculateChainage(line, [250050, 9850010], 'EPSG:21037')
+    expect(result).not.toBeNull()
+    expect(result?.chainage).toBeCloseTo(50, 1)
+    expect(result?.offset).toBeCloseTo(10, 1)
   })
 })

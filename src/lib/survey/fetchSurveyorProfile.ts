@@ -1,64 +1,21 @@
-/**
- * Fetch surveyor profile data for a project.
- *
- * Used by both the statutory validation gate (pre-export check) and
- * the document assembly pipeline (deed plan generation). Extracted
- * here so both call sites resolve surveyor identity the same way —
- * previously assembleDocument.ts had its own copy.
- *
- * Resolution order:
- *   1. Project-level fields (projects.surveyor_name, projects.surveyor_license)
- *   2. Surveyor profile table (surveyor_profiles joined via user_id)
- *   3. Empty strings (the gate will block on missing name/license)
- */
-
 import { db } from '@/lib/db'
-import { logger } from '@/lib/logger'
 export interface SurveyorProfile {
-  surveyorName: string
-  iskNumber: string
-  firmName: string
-  referenceNumber: string
+  surveyorName:string
+  iskNumber:string
+  licenseNumber:string
+  firmName:string
+  referenceNumber:string
 }
-
-export async function fetchSurveyorProfile(
-  projectId: string
-): Promise<SurveyorProfile> {
-  try {
-    const projRes = await db.query<{ user_id: string | null; surveyor_name: string | null; surveyor_license: string | null }>(
-      'SELECT user_id, surveyor_name, surveyor_license FROM projects WHERE id = $1',
-      [projectId]
-    )
-    const proj = projRes.rows[0]
-
-    // 1. Project-level surveyor fields take precedence
-    if (proj?.surveyor_name) {
-      return {
-        surveyorName: proj.surveyor_name || '',
-        iskNumber: proj.surveyor_license || '',
-        firmName: '',
-        referenceNumber: '',
-      }
-    }
-
-    // 2. Fall back to surveyor_profiles via user_id
-    if (proj?.user_id) {
-      const userRes = await db.query<{ full_name: string | null; isk_number: string | null; firm_name: string | null }>(
-        'SELECT full_name, isk_number, firm_name FROM surveyor_profiles WHERE user_id = $1',
-        [proj.user_id]
-      )
-      const user = userRes.rows[0]
-      if (user) {
-        return {
-          surveyorName: user.full_name || '',
-          iskNumber: user.isk_number || '',
-          firmName: user.firm_name || '',
-          referenceNumber: '',
-        }
-      }
-    }
-  } catch (err) {
-    logger.warn('[fetchSurveyorProfile] Failed:', { error: err })
-  }
-  return { surveyorName: '', iskNumber: '', firmName: '', referenceNumber: '' }
+/** Resolve each field separately: a project name must not hide the owner's licence. */
+export async function fetchSurveyorProfile(projectId:string):Promise<SurveyorProfile> {
+  const result=await db.query<{surveyor_name:string;license_number:string;isk_number:string;firm_name:string}>(
+    `SELECT COALESCE(NULLIF(p.surveyor_name,''),NULLIF(sp.full_name,''),pr.full_name,u.full_name,'') AS surveyor_name,
+      COALESCE(NULLIF(p.surveyor_license,''),sp.license_number,'') AS license_number,
+      COALESCE(NULLIF(p.isk_reg_no,''),sp.isk_number,pr.isk_number,'') AS isk_number,
+      COALESCE(NULLIF(p.firm_name,''),sp.firm_name,pr.firm_name,'') AS firm_name
+     FROM projects p LEFT JOIN surveyor_profiles sp ON sp.user_id=p.user_id
+     LEFT JOIN profiles pr ON pr.id=p.user_id LEFT JOIN users u ON u.id=p.user_id
+     WHERE p.id=$1`,[projectId]);
+  const row=result.rows[0];
+  return {surveyorName:row?.surveyor_name || '',licenseNumber:row?.license_number || '',iskNumber:row?.isk_number || '',firmName:row?.firm_name || '',referenceNumber:''};
 }

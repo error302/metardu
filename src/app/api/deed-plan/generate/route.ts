@@ -70,6 +70,26 @@ export const POST = apiHandler(
   async (req, ctx) => {
     const raw = ctx.body as z.infer<typeof DeedPlanRequestSchema>
 
+    // A deed plan is a statutory document: it must state the CRS it was
+    // computed in. Previously undeclared CRS silently became UTM 37S /
+    // Arc 1960, which stamps the wrong reference system onto a registrable
+    // plan (blueprint §2.4 "no silent professional defaults", §4.2 "no
+    // exporter may hard-code a project CRS"). Fail closed instead.
+    if (
+      raw.utmZone == null ||
+      raw.hemisphere == null ||
+      raw.datum == null
+    ) {
+      return NextResponse.json(
+        {
+          error:
+            'Deed plan generation requires a declared CRS: utmZone, hemisphere and datum. Read them from the project reference system; do not assume UTM 37S / Arc 1960.',
+          code: 'CRS_UNDECLARED',
+        },
+        { status: 400 }
+      )
+    }
+
     const input: DeedPlanInput = {
       surveyNumber: raw.surveyNumber || '',
       drawingNumber: raw.drawingNumber || '',
@@ -78,10 +98,10 @@ export const POST = apiHandler(
       area: raw.area || 0,
       registrationSection: raw.registrationSection || '',
       county: raw.county || '',
-      utmZone: raw.utmZone || 37,
-      hemisphere: raw.hemisphere || 'S',
+      utmZone: raw.utmZone,
+      hemisphere: raw.hemisphere,
       scale: (Number(raw.scale) || 1000) as 250 | 500 | 1000 | 1250 | 2500 | 5000 | 10000,
-      datum: raw.datum || 'ARC1960',
+      datum: raw.datum,
       projectionType: (raw.projectionType || 'UTM') as 'UTM' | 'Cassini',
       boundaryPoints: raw.boundaryPoints.map((p, i) => ({
         id: p.id || `P${i + 1}`,

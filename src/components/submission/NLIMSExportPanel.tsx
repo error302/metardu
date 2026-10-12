@@ -1,16 +1,16 @@
 'use client'
 
 /**
- * NLIMSExportPanel — UI for generating NLIMS/ArdhiSasa submission payloads
+ * CadastralDraftPanel — UI for generating a project-backed METARDU JSON draft
  *
  * Allows the surveyor to:
- * 1. Select submission type (mutation, subdivision, etc.)
- * 2. Enter surveyor info (auto-filled from profile if available)
- * 3. Select parcels to export
- * 4. Run validation
- * 5. Download the NLIMS JSON payload
+ * 1. Enter parcel and surveyor details
+ * 2. Load the saved adjusted boundary and declared project CRS on the server
+ * 3. Run structural checks
+ * 4. Download a METARDU draft for manual review
  *
- * Uses the existing /api/export/nlims endpoint and lib/export/nlimsExporter.
+ * Uses the existing export route, which now reads the owned project boundary
+ * and declared coordinate reference system server-side.
  */
 
 import { useState, useCallback } from 'react'
@@ -24,7 +24,7 @@ interface NLIMSExportPanelProps {
   projectId: string
 }
 
-export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProps) {
+export function NLIMSExportPanel({ projectId }: NLIMSExportPanelProps) {
   const [expanded, setExpanded] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [payload, setPayload] = useState<NLIMSSubmissionPayload | null>(null)
@@ -32,9 +32,9 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
   const [error, setError] = useState<string | null>(null)
 
   // Form fields
-  const [submissionType, setSubmissionType] = useState<'mutation' | 'subdivision' | 'amalgamation' | 'new_registration' | 'boundary_adjustment'>('subdivision')
-  const [registry, setRegistry] = useState('Nairobi')
-  const [county, setCounty] = useState('Nairobi')
+  const [parcelNumber, setParcelNumber] = useState('')
+  const [registry, setRegistry] = useState('')
+  const [county, setCounty] = useState('')
   const [subCounty, setSubCounty] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
   const [licenseNumber, setLicenseNumber] = useState('')
@@ -51,7 +51,9 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          submissionType,
+          projectId,
+          submissionType: 'new_registration',
+          parcelNumber,
           registry,
           county,
           subCounty,
@@ -60,9 +62,6 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
             licenseNumber,
             firm: firm || undefined,
           },
-          resultingParcels: [], // Will be populated from project data
-          beacons: [],
-          // Parent parcel info would come from the project's existing parcel data
         }),
       })
 
@@ -77,7 +76,7 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
           setValidation(data.validation)
           setError('Validation failed — fix the errors below')
         } else {
-          setError(data.error || 'Failed to generate NLIMS payload')
+          setError(data.error || 'Failed to generate the cadastral draft')
         }
         return
       }
@@ -89,7 +88,7 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
     } finally {
       setGenerating(false)
     }
-  }, [submissionType, registry, county, subCounty, surveyorName, licenseNumber, firm])
+  }, [projectId, parcelNumber, registry, county, subCounty, surveyorName, licenseNumber, firm])
 
   const handleDownload = useCallback(() => {
     if (!payload) return
@@ -108,8 +107,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
             <Building2 className="w-4 h-4 text-blue-400" />
           </div>
           <div className="text-left">
-            <span className="text-sm font-semibold text-[var(--text-primary)]">NLIMS / ArdhiSasa Export</span>
-            <p className="text-[10px] text-gray-500">Generate registry-ready JSON submission</p>
+            <span className="text-sm font-semibold text-[var(--text-primary)]">Cadastral data draft</span>
+            <p className="text-[10px] text-gray-500">Project-backed JSON for surveyor review</p>
           </div>
         </div>
         <svg className={`w-4 h-4 text-gray-500 transition-transform ${expanded ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -119,20 +118,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
 
       {expanded && (
         <div className="border-t border-[var(--border-color)] p-4 space-y-4">
-          {/* Submission type */}
-          <div>
-            <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1.5" htmlFor="submission-type">Submission Type</label>
-            <select id="submission-type"
-              value={submissionType}
-              onChange={e => setSubmissionType(e.target.value as typeof submissionType)}
-              className="input h-10 text-sm"
-            >
-              <option value="subdivision">Subdivision</option>
-              <option value="mutation">Mutation</option>
-              <option value="amalgamation">Amalgamation</option>
-              <option value="new_registration">New Registration</option>
-              <option value="boundary_adjustment">Boundary Adjustment</option>
-            </select>
+          <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs leading-relaxed text-amber-200/80">
+            This creates a METARDU draft from the saved adjusted field boundary. It is not an official Ardhisasa file and is not sent to a registry. Confirm current requirements and review the coordinates before use.
           </div>
 
           {/* Registry info */}
@@ -144,7 +131,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
                 value={registry}
                 onChange={e => setRegistry(e.target.value)}
                 className="input h-10 text-sm"
- placeholder="Nairobi"
+                maxLength={120}
+                placeholder="Enter the applicable registry"
               />
             </div>
             <div>
@@ -154,7 +142,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
                 value={county}
                 onChange={e => setCounty(e.target.value)}
                 className="input h-10 text-sm"
- placeholder="Nairobi"
+                maxLength={80}
+                placeholder="Enter the county"
               />
             </div>
           </div>
@@ -166,7 +155,20 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
               value={subCounty}
               onChange={e => setSubCounty(e.target.value)}
               className="input h-10 text-sm"
- placeholder="Westlands"
+              maxLength={80}
+              placeholder="Optional"
+            />
+          </div>
+
+          <div>
+            <label className="block text-[10px] text-gray-500 uppercase tracking-wider mb-1.5" htmlFor="draft-parcel-number">Parcel Number</label>
+            <input id="draft-parcel-number"
+              type="text"
+              value={parcelNumber}
+              onChange={e => setParcelNumber(e.target.value)}
+              className="input h-10 text-sm"
+              placeholder="Enter the verified parcel number"
+              maxLength={100}
             />
           </div>
 
@@ -184,7 +186,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
                   value={surveyorName}
                   onChange={e => setSurveyorName(e.target.value)}
                   className="input h-10 text-sm"
- placeholder="John Doe"
+                  placeholder="Surveyor name"
+                  maxLength={200}
                 />
               </div>
               <div>
@@ -194,7 +197,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
                   value={licenseNumber}
                   onChange={e => setLicenseNumber(e.target.value)}
                   className="input h-10 text-sm font-mono"
- placeholder="ISK/LS/2021/0452"
+                  placeholder="Surveyor licence number"
+                  maxLength={100}
                 />
               </div>
             </div>
@@ -205,7 +209,8 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
                 value={firm}
                 onChange={e => setFirm(e.target.value)}
                 className="input h-10 text-sm"
- placeholder="Doe Surveyors Ltd"
+                placeholder="Optional"
+                maxLength={200}
               />
             </div>
           </div>
@@ -213,11 +218,11 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
           {/* Generate button */}
           <button
             onClick={handleGenerate}
-            disabled={generating || !surveyorName || !licenseNumber}
+            disabled={generating || !parcelNumber.trim() || !registry.trim() || !county.trim() || !surveyorName.trim() || !licenseNumber.trim()}
             className="w-full flex items-center justify-center gap-2 h-10 rounded-lg bg-blue-500 hover:bg-blue-600 text-white text-sm font-semibold transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {generating ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileOutput className="w-4 h-4" />}
-            {generating ? 'Generating...' : 'Generate NLIMS Payload'}
+            {generating ? 'Building draft...' : 'Generate cadastral draft'}
           </button>
 
           {/* Validation errors */}
@@ -245,15 +250,24 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
             </div>
           )}
 
+          {validation?.warnings.length ? (
+            <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3">
+              <p className="mb-1 text-xs font-medium text-amber-400">Review before using this draft</p>
+              <ul className="list-inside list-disc space-y-0.5 text-[11px] text-amber-300/80">
+                {validation.warnings.map((warning, index) => <li key={`${warning.code}-${index}`}>{warning.message}</li>)}
+              </ul>
+            </div>
+          ) : null}
+
           {/* Success + download */}
           {payload && (
             <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-                <span className="text-sm font-medium text-emerald-400">Payload Generated</span>
+                <span className="text-sm font-medium text-emerald-400">METARDU draft generated</span>
               </div>
               <div className="text-[11px] text-gray-400 space-y-0.5 mb-3">
-                <div>Submission ID: <span className="font-mono">{payload.submissionId}</span></div>
+                <div>Draft ID: <span className="font-mono">{payload.submissionId}</span></div>
                 <div>Parcels: {payload.resultingParcels.length}</div>
                 <div>Beacons: {payload.beacons.length}</div>
                 <div>Integrity: <span className="font-mono">{payload.integrity.hash.substring(0, 16)}...</span></div>
@@ -269,7 +283,7 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
                 className="w-full flex items-center justify-center gap-2 h-9 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-semibold transition-colors"
               >
                 <Download className="w-3.5 h-3.5" />
-                Download NLIMS JSON
+                Download METARDU JSON draft
               </button>
             </div>
           )}
@@ -286,8 +300,7 @@ export function NLIMSExportPanel({ projectId: _projectId }: NLIMSExportPanelProp
           <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
             <MapPin className="w-3.5 h-3.5 text-blue-400 shrink-0 mt-0.5" />
             <p className="text-[10px] text-blue-400/70 leading-relaxed">
-              NLIMS payloads use Arc 1960 / UTM Zone 37S coordinates (EPSG:21037) with 3 decimal places.
-              Area reconciliation tolerance: ±0.001 ha (10 m²). SHA-256 integrity hash ensures tamper detection.
+              Coordinates use the declared project CRS in the downloaded file; METARDU does not substitute a grid. Beacon or monument observations are not included unless present in the source record. The digest detects changes to the generated JSON; it is not a surveyor&apos;s signature or registry verification.
             </p>
           </div>
         </div>

@@ -8,13 +8,16 @@
  * Processes up to 5 jobs per invocation with proper error handling,
  * timeout management, and status updates.
  *
- * Security: requires auth — only the system account can process jobs.
+ * Security: requires the same API_ADMIN_KEY bearer credential as other cron
+ * routes. A signed-in web user cannot trigger queue execution.
  */
 
 export const dynamic = 'force-dynamic'
 
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { isProcessableJobType, unsupportedJobTypeMessage } from '@/lib/jobs/jobRegistry'
+import { NextResponse } from 'next/server'
 
 // ─── Row interface ───────────────────────────────────────────────────────
 interface JobRow {
@@ -22,13 +25,12 @@ interface JobRow {
   job_type: string
   status: string
   payload: string | Record<string, unknown> | null
-  retry_count: number | null
+  attempts: number | null
+  max_attempts: number | null
   priority: number | null
   created_at: Date | string
-  scheduled_at: Date | string | null
   started_at: Date | string | null
   completed_at: Date | string | null
-  duration_ms: number | null
   error_message: string | null
   result: unknown
 }
@@ -36,17 +38,45 @@ interface JobRow {
 const JOB_TIMEOUT_MS = 55_000 // stay within Vercel 60s limit
 
 export const POST = apiHandler(
-  { auth: true, rateLimit: { max: 10, windowMs: 60_000 } },
+  { auth: false, rateLimit: { max: 10, windowMs: 60_000 } },
   async (req, ctx) => {
-    const body = ctx.body as { limit?: number; jobId?: string }
+    const serviceKey = process.env.API_ADMIN_KEY
+    if (!serviceKey || req.headers.get('authorization') !== `Bearer ${serviceKey}`) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
 
-    const limit = Math.min(body.limit ?? 5, 20)
+    const body = (ctx.body ?? {}) as { limit?: number; jobId?: string }
 
-    // Fetch pending jobs ordered by priority then creation time
+    const limit = typeof body.limit === 'number' && Number.isInteger(body.limit)
+      ? Math.max(1, Math.min(body.limit, 20))
+      : 5
+
+    // Atomic fetch + lock pending jobs per Blueprint §21.5 using FOR UPDATE SKIP LOCKED
     const fetchQuery = body.jobId
-      ? `SELECT * FROM background_jobs WHERE id = $1 AND status = 'pending' LIMIT 1`
-      : `SELECT * FROM background_jobs WHERE status = 'pending'
-         ORDER BY priority DESC, created_at ASC LIMIT $1`
+      ? `UPDATE background_jobs
+         SET status = 'running', started_at = NOW()
+         WHERE id = (
+           SELECT id FROM background_jobs
+           WHERE id = $1 AND status = 'pending'
+             AND (COALESCE(attempts, 0) = 0
+               OR updated_at <= NOW() - make_interval(secs => POWER(2, LEAST(attempts, 10))::integer))
+           FOR UPDATE SKIP LOCKED
+         )
+         RETURNING *`
+      : `WITH candidate_jobs AS (
+           SELECT id FROM background_jobs
+           WHERE status = 'pending'
+             AND (COALESCE(attempts, 0) = 0
+               OR updated_at <= NOW() - make_interval(secs => POWER(2, LEAST(attempts, 10))::integer))
+           ORDER BY priority DESC, created_at ASC
+           FOR UPDATE SKIP LOCKED
+           LIMIT $1
+         )
+         UPDATE background_jobs bj
+         SET status = 'running', started_at = NOW()
+         FROM candidate_jobs cj
+         WHERE bj.id = cj.id
+         RETURNING bj.*`
 
     const params = body.jobId ? [body.jobId] : [limit]
     const { rows: jobs } = await db.query<JobRow>(fetchQuery, params)
@@ -57,11 +87,10 @@ export const POST = apiHandler(
       const start = Date.now()
 
       try {
-        await db.query<never>(
-          `UPDATE background_jobs SET status = 'running', started_at = NOW() WHERE id = $1 AND status = 'pending'`,
-          [job.id]
-        )
 
+        if (!isProcessableJobType(job.job_type)) {
+          throw new Error(unsupportedJobTypeMessage(job.job_type))
+        }
         const payload = typeof job.payload === 'string' ? JSON.parse(job.payload) as Record<string, unknown> : (job.payload || {})
         const result = await processJob(job.job_type, payload)
 
@@ -72,9 +101,9 @@ export const POST = apiHandler(
              SET status = 'completed',
                  result = $2,
                  completed_at = NOW(),
-                 duration_ms = $3
+                 updated_at = NOW()
              WHERE id = $1`,
-          [job.id, JSON.stringify(result), durationMs]
+          [job.id, JSON.stringify(result)]
         )
 
         results.push({ jobId: job.id, status: 'completed', durationMs })
@@ -83,40 +112,37 @@ export const POST = apiHandler(
         const durationMs = Date.now() - start
         const message = err instanceof Error ? err.message : 'Unknown error'
 
-        // ByteByteGo audit fix: DLQ pattern — after 3 retries, move to dead-letter
-        // Per ByteByteGo "6 cloud messaging patterns": failed messages go to DLQ
-        // for human inspection instead of retrying forever.
-        const MAX_RETRIES = 3
-        const newRetryCount = (job.retry_count || 0) + 1
-        const isDeadLetter = newRetryCount >= MAX_RETRIES
+        const unsupported = !isProcessableJobType(job.job_type)
+        const attempts = unsupported ? (job.attempts || 0) : (job.attempts || 0) + 1
+        const maxAttempts = Math.max(1, job.max_attempts || 3)
 
-        if (isDeadLetter) {
-          // Move to dead-letter queue (keep in same table but mark as 'dead_letter')
+        if (unsupported || attempts >= maxAttempts) {
+          // 'failed' is the terminal status allowed by the deployed schema.
+          // Jobs without a handler are failed immediately and never retried.
           await db.query<never>(
             `UPDATE background_jobs
-               SET status = 'dead_letter',
+               SET status = 'failed',
                    error_message = $2,
                    completed_at = NOW(),
-                   duration_ms = $3,
-                   retry_count = $4
+                   attempts = $3,
+                   updated_at = NOW()
              WHERE id = $1`,
-            [job.id, `DLQ: ${message.slice(0, 450)}`, durationMs, newRetryCount]
+            [job.id, message.slice(0, 500), attempts]
           )
-          results.push({ jobId: job.id, status: 'dead_letter', error: message, durationMs, retries: newRetryCount })
+          results.push({ jobId: job.id, status: 'failed', error: message, durationMs, retries: attempts })
         } else {
-          // Re-queue for retry (set back to pending with exponential backoff delay)
-          const delayMs = Math.pow(2, newRetryCount) * 1000  // 2s, 4s, 8s
+          // The claim query enforces the backoff using attempts and updated_at.
+          const delayMs = Math.pow(2, Math.min(attempts, 10)) * 1000
           await db.query<never>(
             `UPDATE background_jobs
                SET status = 'pending',
                    error_message = $2,
-                   duration_ms = $3,
-                   retry_count = $4,
-                   scheduled_at = NOW() + ($5 || '0')::interval
+                   attempts = $3,
+                   updated_at = NOW()
              WHERE id = $1`,
-            [job.id, message.slice(0, 500), durationMs, newRetryCount, `${delayMs} milliseconds`]
+            [job.id, message.slice(0, 500), attempts]
           )
-          results.push({ jobId: job.id, status: 'requeued', error: message, durationMs, retries: newRetryCount, nextRetryIn: `${delayMs}ms` })
+          results.push({ jobId: job.id, status: 'requeued', error: message, durationMs, retries: attempts, nextRetryIn: `${delayMs}ms` })
         }
       }
     }

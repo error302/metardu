@@ -52,16 +52,16 @@ export function getCspHeaders(_nonce: string) {
       // 'unsafe-inline' alone the inline scripts work and the export stays
       // green. Reintroduce the nonce together with the Next.js 15 upgrade,
       // when Next injects nonces into RSC scripts automatically.
-      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} 'wasm-unsafe-eval' https://static.cloudflareinsights.com`,
+      `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''} 'wasm-unsafe-eval' https://static.cloudflareinsights.com https://www.paypal.com https://*.paypal.com https://*.paypalobjects.com`,
       `style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdn.jsdelivr.net`,
       `font-src 'self' https://fonts.gstatic.com`,
-      `img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://*.basemaps.cartocdn.com`,
-      `connect-src 'self' ${isDev ? 'ws://localhost:* http://localhost:*' : ''} wss: https: https://static.cloudflareinsights.com`,
+      `img-src 'self' data: blob: https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.mapbox.com https://server.arcgisonline.com https://*.arcgisonline.com https://gibs.earthdata.nasa.gov https://*.basemaps.cartocdn.com https://*.paypalobjects.com`,
+      `connect-src 'self' ${isDev ? 'ws://localhost:* http://localhost:*' : ''} wss: https: https://static.cloudflareinsights.com https://www.paypal.com https://*.paypal.com`,
       // Web Bluetooth is gated by Permissions-Policy (set in middleware), NOT
       // a CSP directive — 'bluetooth' is not a valid CSP source and Chrome
       // logs "Unrecognized Content-Security-Policy directive" for it.
       `worker-src 'self' blob:`,
-      `frame-src 'none'`,
+      `frame-src 'self' https://www.paypal.com https://*.paypal.com`,
       `object-src 'none'`,
       `base-uri 'self'`,
       `form-action 'self'`,

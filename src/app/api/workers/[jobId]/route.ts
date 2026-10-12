@@ -3,7 +3,7 @@
  * GET /api/workers/[jobId]/status  (alternative path)
  *
  * Returns the current status of a background job including
- * result, error, duration, and retry count.
+ * result, error, elapsed duration, and attempt count.
  *
  * The jobId comes from the URL param, not query string, so it can't
  * be enumerated by casual scanning (though jobs are still scoped to
@@ -24,12 +24,11 @@ interface JobDetailRow {
   result: unknown
   error_message: string | null
   priority: number
-  retry_count: number
+  attempts: number
   created_by: string | null
   created_at: Date
   started_at: Date | null
   completed_at: Date | null
-  duration_ms: number | null
 }
 
 export const GET = apiHandler(
@@ -49,7 +48,7 @@ export const GET = apiHandler(
     // UUID — payloads can contain full job inputs.
     const { rows } = await db.query<JobDetailRow>(
       `SELECT id, job_type, status, payload, result, error_message,
-              priority, retry_count, created_by, created_at, started_at, completed_at, duration_ms
+              priority, attempts, created_by, created_at, started_at, completed_at
          FROM background_jobs
         WHERE id = $1
         LIMIT 1`,
@@ -75,13 +74,15 @@ export const GET = apiHandler(
       jobType: job.job_type,
       status: job.status,
       priority: job.priority,
-      retryCount: job.retry_count,
+      retryCount: job.attempts,
       errorMessage: job.error_message,
       result: job.result,
       createdAt: job.created_at,
       startedAt: job.started_at,
       completedAt: job.completed_at,
-      durationMs: job.duration_ms,
+      durationMs: job.started_at && job.completed_at
+        ? new Date(job.completed_at).getTime() - new Date(job.started_at).getTime()
+        : null,
     })
   }
 )

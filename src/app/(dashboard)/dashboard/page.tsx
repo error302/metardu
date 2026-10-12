@@ -15,6 +15,8 @@ import { ConnectivityIndicator } from '@/components/shared/ConnectivityIndicator
 import OnboardingWrapper from '@/components/shared/OnboardingWrapper'
 import { ActivityFeed } from '@/components/dashboard/ActivityFeed'
 import DashboardSearch from '@/components/dashboard/DashboardSearch'
+import EmailVerificationNotice from '@/components/dashboard/EmailVerificationNotice'
+import { db, setCurrentUserId } from '@/lib/db'
 
 function StepIcon({ name }: { name: string }) {
   const cls = 'w-5 h-5 text-current'
@@ -41,6 +43,18 @@ export default async function DashboardPage() {
   // Auth check — OUTSIDE try/catch so redirect() works properly
   const user = await getAuthUser()
   if (!user) redirect('/login')
+
+  let emailVerified: boolean | null = null
+  try {
+    setCurrentUserId(user.id)
+    const account = await db.query<{ email_verified: boolean }>(
+      'SELECT email_verified FROM users WHERE id = $1 LIMIT 1',
+      [user.id],
+    )
+    emailVerified = account.rows[0]?.email_verified ?? null
+  } catch (err) {
+    log({ level: 'warn', message: 'Could not read email verification status', metadata: { error: err } })
+  }
 
   const userIsAdmin = await checkIsAdmin()
 
@@ -113,6 +127,7 @@ export default async function DashboardPage() {
         <ConnectivityIndicator />
       </div>
       <OnboardingWrapper />
+      {emailVerified === false && <EmailVerificationNotice email={user.email} />}
       <SubscriptionStatus subscription={subscription} />
 
       {subscription?.status === 'trial' && daysLeft !== null && (

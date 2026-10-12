@@ -23,6 +23,7 @@ import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
 import { StickySummary, OfflineCacheIndicator } from './MobileFieldUX'
 import { SwipeableRow } from './FieldbookSwipeWrapper'
 import FieldbookInstallPrompt from '@/components/FieldbookInstallPrompt'
+import { logger } from '@/lib/logger'
 
 export type Row = { id: string; [key: string]: string }
 
@@ -56,7 +57,7 @@ interface MobileFieldbookShellProps {
   surveyType: MobileSurveyType
   onSurveyTypeChange: (t: MobileSurveyType) => void
   rows: Row[]
-  onAddRow: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void
+  onAddRow: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void | Promise<void>
   onRemoveRow: (id: string) => void
   online: boolean
   lastSaved?: string | null
@@ -610,7 +611,9 @@ export function MobileFieldbookShell({
                     const clone: Record<string, string> = {}
                     for (const [k, v] of Object.entries(src)) clone[k] = typeof v === 'string' ? v : String(v)
                     clone.id = ''
-                    onAddRow(clone, [])
+                    void Promise.resolve().then(() => onAddRow(clone, [])).catch((error: unknown) => {
+                      logger.error('Could not duplicate field reading:', { error })
+                    })
                   }}
                   onDelete={onRemoveRow}
                   onEdit={() => {}}
@@ -769,8 +772,8 @@ export function MobileFieldbookShell({
           online={online}
           unsyncedCount={unsyncedCount}
           onPullInstrumentReading={onPullInstrumentReading}
-          onAdd={(row, photos) => {
-            onAddRow({ ...row, _timestamp: new Date().toISOString() }, photos)
+          onAdd={async (row, photos) => {
+            await onAddRow({ ...row, _timestamp: new Date().toISOString() }, photos)
           }}
           onClose={() => setShowForm(false)}
         />

@@ -418,8 +418,10 @@ export function computeVerticalAlignment(
     })
 
     // Track turning points for global min/max elevation
-    if (curve.turningPointElevation > maxElev) maxElev = curve.turningPointElevation
-    if (curve.turningPointElevation < minElev) minElev = curve.turningPointElevation
+    if (curve.turningPointElevation !== undefined) {
+      if (curve.turningPointElevation > maxElev) maxElev = curve.turningPointElevation
+      if (curve.turningPointElevation < minElev) minElev = curve.turningPointElevation
+    }
 
     prevPvtChainage = curve.pvtChainage
   }

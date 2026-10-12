@@ -1,9 +1,10 @@
 'use client';
-import { useState, useEffect, use } from 'react'
+import { useParams } from 'next/navigation'
+import { useState, useEffect, useMemo } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { useRouter } from 'next/navigation'
 import UTMZonePicker from '@/components/ui/UTMZonePicker'
-import { computeTraverseAccuracy, getAccuracyBadgeLabel, getAccuracyBadgeClass } from '@/lib/reports/traverseAccuracy'
+import ProjectReferenceSystemPanel from '@/components/project/ProjectReferenceSystemPanel'
 
 interface ProjectSettingsRow {
   name?: string | null
@@ -27,10 +28,11 @@ interface ProjectSettingsRow {
   locality?: string | null
 }
 
-export default function ProjectSettingsPage({ params }: { params: { id: string } }) {
+export default function ProjectSettingsPage() {
+  const params = useParams<{ id: string }>()
   const { id: projectId } = params
   const router = useRouter()
-  const dbClient = createClient()
+  const dbClient = useMemo(() => createClient(), [])
   
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -47,6 +49,7 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
   const [clientName, setClientName] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
   const [linearError, setLinearError] = useState('')
+  const [savedTraverse, setSavedTraverse] = useState<ProjectSettingsRow['traverse']>({})
   const [roadName, setRoadName] = useState('')
   const [startChainage, setStartChainage] = useState('')
   
@@ -81,9 +84,10 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
       setClientName(data.client_name || '')
       setSurveyorName(data.surveyor_name || '')
       setDatum((data.datum as 'ARC1960' | 'WGS84' | 'WGS84Geographic') || 'ARC1960')
-      setLinearError(data.traverse?.linearError !== undefined ? String(data.traverse.linearError) : '')
+      setSavedTraverse(data.traverse ?? {})
+      setLinearError(data.traverse?.linearError != null ? String(data.traverse.linearError) : '')
       setRoadName(data.road_name || '')
-      setStartChainage(data.start_chainage !== undefined ? String(data.start_chainage) : '')
+      setStartChainage(data.start_chainage != null ? String(data.start_chainage) : '')
       setFolioNumber(data.folio_number || '')
       setRegisterNumber(data.register_number || '')
       setLrNumber(data.lr_number || '')
@@ -97,6 +101,11 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
   }, [projectId, dbClient, router])
 
   const handleSave = async () => {
+    if ((linearError.trim() && (!Number.isFinite(Number(linearError)) || Number(linearError) < 0)) ||
+        (startChainage.trim() && !Number.isFinite(Number(startChainage)))) {
+      setMessage('Error: Enter valid numeric values; closure error cannot be negative.')
+      return
+    }
     setSaving(true)
     setMessage('')
 
@@ -113,9 +122,9 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
         client_name: clientName || null,
         surveyor_name: surveyorName || null,
         datum,
-        traverse: { linearError: parseFloat(linearError) || 0 },
+        traverse: { ...savedTraverse, linearError: linearError.trim() ? Number(linearError) : null },
         road_name: roadName || null,
-        start_chainage: parseFloat(startChainage) || 0,
+        start_chainage: startChainage.trim() ? Number(startChainage) : null,
         folio_number: folioNumber || null,
         register_number: registerNumber || null,
         lr_number: lrNumber || null,
@@ -173,7 +182,7 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
 
         {message && (
           <div className={`p-3 rounded mb-6 ${
-            message.startsWith('') 
+            !message.startsWith('Error:') 
               ? 'bg-green-900/30 text-green-400'
               : 'bg-red-900/30 text-red-400'
           }`}>
@@ -229,6 +238,13 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
             <p className="text-xs text-[var(--text-secondary)] mt-1">ARC1960 required for KeNHA submissions per RDM 1.1 §5.2</p>
           </div>
 
+          <ProjectReferenceSystemPanel
+            projectId={projectId}
+            datum={datum}
+            utmZone={utmZone}
+            hemisphere={hemisphere}
+          />
+
           <div>
             <label htmlFor="surveyType" className="block text-sm text-[var(--text-primary)] mb-2">Survey Type</label>
             <select
@@ -237,6 +253,11 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
               onChange={(e) => setSurveyType(e.target.value)}
               className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
             >
+              <option value="cadastral">Cadastral Survey</option>
+              <option value="engineering">Engineering Survey</option>
+              <option value="geodetic">Geodetic / Control Survey</option>
+              <option value="drone">Drone / UAV Photogrammetry</option>
+              <option value="deformation">Deformation / Monitoring Survey</option>
               <option value="boundary">Boundary Survey</option>
               <option value="topographic">Topographic Survey</option>
               <option value="road">Road Survey</option>
@@ -334,17 +355,7 @@ export default function ProjectSettingsPage({ params }: { params: { id: string }
               className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
               placeholder="e.g. 0.001"
             />
-            <p className="text-xs text-[var(--text-secondary)] mt-1">Used to compute C=m√K accuracy classification per RDM 1.1</p>
-            {linearError && (
-              (() => {
-                const acc = computeTraverseAccuracy(parseFloat(linearError), 1000)
-                return acc ? (
-                  <div className={`mt-2 px-3 py-1.5 rounded text-xs font-bold inline-block ${getAccuracyBadgeClass(acc)}`}>
-                    {getAccuracyBadgeLabel(acc)} — C={acc.C_mm.toFixed(2)}mm, K=1.00km
-                  </div>
-                ) : null
-              })()
-            )}
+            <p className="text-xs text-[var(--text-secondary)] mt-1">Optional recorded closure error. Use Compute and QA to assess the saved observations and actual traverse length.</p>
           </div>
 
           <div className="grid grid-cols-2 gap-4">

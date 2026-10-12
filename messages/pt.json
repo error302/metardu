@@ -275,6 +275,7 @@
   },
   "resources": {
     "datumConverter": "Conversor de Datum",
+    "onlineServices": "Serviços online",
     "kencorsRtk": "KenCORS RTK",
     "knowledgeBase": "Base de Conhecimento"
   },

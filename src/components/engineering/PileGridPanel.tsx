@@ -3,6 +3,7 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import {
   generatePileGrid,
+  MAX_PILE_GRID_POINTS,
   computeSettingOut,
   generatePileGridDXF,
   pileGridToCSV,
@@ -12,6 +13,11 @@ import type {
   PileGridResult,
   PileSettingOutData,
 } from '@/lib/engineering/pileGrid'
+import {
+  EMPTY_SETOUT_TOLERANCE_PROFILE,
+  type SetoutToleranceProfileDraft,
+} from '@/lib/engineering/setoutToleranceProfile'
+import { SetoutToleranceProfileFields } from '@/components/field/SetoutToleranceProfileFields'
 
 // ─── DEFAULTS ─────────────────────────────────────────────────────────────────
 
@@ -60,7 +66,7 @@ const inputClass =
 
 // ─── MAIN PANEL ───────────────────────────────────────────────────────────────
 
-export default function PileGridPanel() {
+export default function PileGridPanel({ projectId }: { projectId?: string }) {
   // Grid definition state
   const [gridDef, setGridDef] = useState<PileGridDefinition>(DEFAULT_DEFINITION)
 
@@ -74,17 +80,85 @@ export default function PileGridPanel() {
   const [stationHI, setStationHI] = useState('1.550')
   const [settingOutData, setSettingOutData] = useState<PileSettingOutData[]>([])
 
+  // Project set-out (blueprint §11): stored definition id + stake register.
+  const [definitionId, setDefinitionId] = useState<string | null>(null)
+  const [stakeNotice, setStakeNotice] = useState<string | null>(null)
+  const [toleranceProfile, setToleranceProfile] = useState<SetoutToleranceProfileDraft>(EMPTY_SETOUT_TOLERANCE_PROFILE)
+
   // UI state
   const [activeTab, setActiveTab] = useState<'grid' | 'settingout'>('grid')
 
-  // ─── ACTIONS ───────────────────────────────────────────────────────────
+  // ─── ACTIONS ───────────────────────────────────────────────────────────────
 
-  const handleGenerate = useCallback(() => {
+  /**
+   * Persist the design server-side so the grid belongs to the project (and to a
+   * CRS) rather than to this tab. Falls back to a local generate when the panel
+   * is used standalone (no projectId).
+   */
+  const handleGenerate = useCallback(async () => {
     if (gridDef.rows < 1 || gridDef.columns < 1) return
-    const r = generatePileGrid(gridDef)
+    if (gridDef.rows * gridDef.columns > MAX_PILE_GRID_POINTS) {
+      setStakeNotice(`A set-out grid cannot exceed ${MAX_PILE_GRID_POINTS.toLocaleString()} points.`)
+      return
+    }
+    let r: PileGridResult
+    try {
+      r = generatePileGrid(gridDef)
+    } catch (error) {
+      setStakeNotice(error instanceof Error ? error.message : 'Grid inputs are invalid.')
+      return
+    }
     setGridResult(r)
     setSettingOutData([])
-  }, [gridDef])
+
+    if (!projectId) return
+    try {
+      const res = await fetch(`/api/project/${projectId}/setout`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'save_definition',
+          definitionId: definitionId ?? undefined,
+          name: gridDef.name,
+          structureType: gridDef.pileType,
+          originEasting: gridDef.originEasting,
+          originNorthing: gridDef.originNorthing,
+          originRL: gridDef.originRL,
+          rows: gridDef.rows,
+          columns: gridDef.columns,
+          rowSpacing: gridDef.rowSpacing,
+          columnSpacing: gridDef.columnSpacing,
+          rotation: gridDef.rotation,
+          startLabel: gridDef.startLabel,
+          labelRowsAs: gridDef.labelRowsAs,
+          labelColumnsAs: gridDef.labelColumnsAs,
+          pileDiameterMm: gridDef.pileDiameter ?? null,
+          depthM: gridDef.depth ?? null,
+          toleranceProfile,
+        }),
+      })
+      const json = (await res.json()) as {
+        data?: { definitionId?: string; revision?: number; crs?: string; coordinateWarnings?: string[] }
+        error?: string
+      }
+      if (!res.ok) {
+        setStakeNotice(json.error ?? 'Design computed locally — not stored (declare the project CRS)')
+        return
+      }
+      setDefinitionId(json.data?.definitionId ?? null)
+      if (json.data?.crs) {
+        setGridDef((current) => ({ ...current, coordinateSystem: json.data?.crs ?? current.coordinateSystem }))
+      }
+      const warnings = json.data?.coordinateWarnings ?? []
+      setStakeNotice(
+        warnings.length
+          ? `Design stored in ${json.data?.crs ?? 'the project CRS'}; review: ${warnings.join('; ')}`
+          : `Design stored in ${json.data?.crs ?? 'the project CRS'} (revision ${json.data?.revision ?? 'saved'}).`
+      )
+    } catch {
+      setStakeNotice('Design computed locally — the project store was unreachable.')
+    }
+  }, [gridDef, projectId, definitionId, toleranceProfile])
 
   const handleLoadDemo = useCallback(() => {
     setGridDef(DEMO_DEFINITION)
@@ -128,11 +202,11 @@ export default function PileGridPanel() {
         d.pile.label,
         d.pile.easting.toFixed(4),
         d.pile.northing.toFixed(4),
-        d.pile.designRL.toFixed(4),
+        d.pile.designRL?.toFixed(4) ?? '',
         d.bearingDMS,
         d.bearingDeg.toFixed(4),
         d.horizontalDistance.toFixed(4),
-        d.targetHeight.toFixed(4),
+        d.targetHeight?.toFixed(4) ?? '',
       ].join(',')
     )
     const csv = [header, ...rows].join('\n')
@@ -257,8 +331,8 @@ export default function PileGridPanel() {
               <input aria-label="Originrl"
                 type="number"
                 step="0.001"
-                value={gridDef.originRL}
-                onChange={(e) => setGridDef({ ...gridDef, originRL: parseFloat(e.target.value) || 0 })}
+                value={gridDef.originRL ?? ''}
+                onChange={(e) => setGridDef({ ...gridDef, originRL: e.target.value === '' ? null : Number(e.target.value) })}
                 className={inputClass}
               />
             </FormField>
@@ -403,6 +477,12 @@ export default function PileGridPanel() {
             </FormField>
           </div>
 
+          {projectId && (
+            <div className="mt-5">
+              <SetoutToleranceProfileFields value={toleranceProfile} onChange={setToleranceProfile} />
+            </div>
+          )}
+
           <div className="mt-5 flex items-center gap-3">
             <button
               onClick={handleGenerate}
@@ -413,6 +493,11 @@ export default function PileGridPanel() {
             <span className="text-xs text-zinc-400">
               {gridDef.rows} x {gridDef.columns} = {gridDef.rows * gridDef.columns} {gridDef.pileType}{gridDef.rows * gridDef.columns !== 1 ? 's' : ''}
             </span>
+            {projectId && (
+              <span className="text-[11px] text-zinc-500">
+                {stakeNotice ?? 'Stored on this project'}
+              </span>
+            )}
           </div>
         </section>
 
@@ -523,7 +608,7 @@ export default function PileGridPanel() {
                             <td className="px-4 py-2 font-mono text-xs font-semibold text-blue-400">{p.label}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{p.easting.toFixed(4)}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{p.northing.toFixed(4)}</td>
-                            <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{p.designRL.toFixed(4)}</td>
+                            <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{p.designRL?.toFixed(4) ?? '—'}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-zinc-400">{p.gridOffsetN.toFixed(4)}</td>
                             <td className="px-4 py-2 text-right font-mono text-xs text-zinc-400">{p.gridOffsetE.toFixed(4)}</td>
                           </tr>
@@ -628,7 +713,7 @@ export default function PileGridPanel() {
                               <td className="px-4 py-2 font-mono text-xs font-semibold text-amber-400">{d.pile.label}</td>
                               <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{d.bearingDMS}</td>
                               <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{d.horizontalDistance.toFixed(4)}</td>
-                              <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{d.targetHeight.toFixed(4)}</td>
+                              <td className="px-4 py-2 text-right font-mono text-xs text-zinc-300">{d.targetHeight?.toFixed(4) ?? '—'}</td>
                             </tr>
                           ))}
                         </tbody>

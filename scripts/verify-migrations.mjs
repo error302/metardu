@@ -2,14 +2,11 @@
 /**
  * verify-migrations.mjs — post-deploy schema verification gate.
  *
- * WHY: docker-entrypoint.sh runs migrate-unified.mjs at container start but
- * only WARNS on failure ("app will start anyway"), and until now nothing ever
- * re-checked the result — a silently failed migration (the 054 case: broken
- * SQL that blocked 055-057 from ever applying) left prod running with a
- * drifted schema and no signal. This script is the second lock on the door:
- * it compares the migrations directory (source of truth) against the
- * schema_migrations table (what the database actually has) and exits 1 on
- * any drift.
+ * This script compares the migrations directory (source of truth) against
+ * the schema_migrations table (what the database actually has) and exits 1
+ * on drift. In production it also proves the connected login is a restricted
+ * runtime role, so an accidentally configured bootstrap/superuser URL cannot
+ * make the app bypass row-level security.
  *
  * Checks:
  *   1. MISSING  — migration file with no schema_migrations row (never
@@ -22,7 +19,7 @@
  * 2 = usage error.
  *
  * Usage:
- *   node scripts/verify-migrations.mjs            # uses DATABASE_URL
+ *   node scripts/verify-migrations.mjs            # DATABASE_URL or DB_* vars
  *   MIGRATIONS_DIR=/tmp/mig node scripts/verify-migrations.mjs
  *
  * Pure logic is exported for tests (tests/verify-migrations.test.ts); the DB
@@ -36,6 +33,13 @@ import { pathToFileURL } from 'node:url'
 import pg from 'pg'
 
 const MIGRATIONS_DIR = resolveMigrationsDir()
+
+/** Preserve legacy raw hashes while tolerating only Git LF/CRLF conversion. */
+export function migrationChecksums(content) {
+  const hash = value => createHash('sha256').update(value).digest('hex')
+  const lf = content.toString('utf8').replace(/\r\n/g, '\n')
+  return { checksum: hash(content), equivalentChecksums: [hash(lf), hash(lf.replace(/\n/g, '\r\n'))] }
+}
 
 /**
  * Mirror migrate-unified.mjs's search order: env override, then the repo
@@ -69,8 +73,7 @@ export function collectFileMigrations(dir = MIGRATIONS_DIR) {
     .sort()
     .map((filename) => {
       const filepath = join(dir, filename)
-      const checksum = createHash('sha256').update(readFileSync(filepath)).digest('hex')
-      return { version: filename.replace(/\.sql$/, ''), filename, checksum }
+      return { version: filename.replace(/\.sql$/, ''), filename, ...migrationChecksums(readFileSync(filepath)) }
     })
 }
 
@@ -93,7 +96,7 @@ export function computeDrift(files, applied) {
     // Rows without a stored checksum come from the legacy schema migration —
     // they cannot be verified, so treat them as verified-but-unverifiable
     // rather than drift (migrate-unified re-writes the checksum on --force).
-    if (row && row.checksum && row.checksum !== f.checksum) {
+    if (row && row.checksum && row.checksum !== f.checksum && !f.equivalentChecksums?.includes(row.checksum)) {
       mutated.push({ version: f.version, stored: row.checksum, actual: f.checksum })
     }
   }
@@ -105,26 +108,123 @@ export function computeDrift(files, applied) {
   return { missing, mutated, ghost, ok: missing.length === 0 && mutated.length === 0 && ghost.length === 0 }
 }
 
+/** Return a failure message when a production connection is not least-privilege. */
+export function runtimeDatabaseRoleFailure(identity) {
+  if (!identity || typeof identity !== 'object' || !identity.user_name) {
+    return 'could not identify the connected database login.'
+  }
+
+  const elevated = [
+    'rolsuper',
+    'rolbypassrls',
+    'rolcreatedb',
+    'rolcreaterole',
+    'rolreplication',
+    'can_create_database',
+    'can_create_in_public',
+    'owns_public_objects',
+    'can_mutate_migration_ledger',
+  ].some((attribute) => identity[attribute] === true)
+  if (elevated) {
+    return 'production must connect with a non-owner, non-superuser role without BYPASSRLS, DDL privileges, or migration ledger write access.'
+  }
+
+  const memberships = Array.isArray(identity.memberships) ? identity.memberships : []
+  if (!memberships.includes('authenticated') || memberships.some((role) => role !== 'authenticated')) {
+    return 'the runtime login must belong only to the non-privileged authenticated compatibility role.'
+  }
+  if (identity.authenticated_role_safe !== true) {
+    return 'the authenticated compatibility role is missing or has elevated attributes or memberships.'
+  }
+
+  return null
+}
+
+export const RUNTIME_ROLE_QUERY = `
+  SELECT current_user AS user_name,
+         role.rolsuper,
+         role.rolbypassrls,
+         role.rolcreatedb,
+         role.rolcreaterole,
+         role.rolreplication,
+         has_database_privilege(current_user, current_database(), 'CREATE') AS can_create_database,
+         has_schema_privilege(current_user, 'public', 'CREATE') AS can_create_in_public,
+         EXISTS (
+           SELECT 1
+             FROM pg_class relation
+             JOIN pg_namespace namespace ON namespace.oid = relation.relnamespace
+            WHERE namespace.nspname = 'public'
+              AND pg_has_role(current_user, relation.relowner, 'USAGE')
+         ) AS owns_public_objects,
+         has_table_privilege(current_user, 'public.schema_migrations',
+           'INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER') AS can_mutate_migration_ledger,
+         COALESCE((
+           SELECT array_agg(granted.rolname::text ORDER BY granted.rolname)
+             FROM pg_auth_members membership
+             JOIN pg_roles granted ON granted.oid = membership.roleid
+            WHERE membership.member = role.oid
+         ), ARRAY[]::text[]) AS memberships,
+         COALESCE((
+           SELECT NOT compatibility.rolsuper
+                  AND NOT compatibility.rolbypassrls
+                  AND NOT compatibility.rolcreatedb
+                  AND NOT compatibility.rolcreaterole
+                  AND NOT compatibility.rolreplication
+                  AND NOT EXISTS (
+                    SELECT 1 FROM pg_auth_members membership
+                     WHERE membership.member = compatibility.oid
+                  )
+             FROM pg_roles compatibility
+            WHERE compatibility.rolname = 'authenticated'
+         ), false) AS authenticated_role_safe
+    FROM pg_roles role
+   WHERE role.rolname = current_user
+`
+
 function fail(msg) {
   console.error(`verify-migrations: FAIL — ${msg}`)
   process.exit(1)
 }
 
 async function main() {
-  const databaseUrl =
-    process.env.DATABASE_URL ||
-    (() => {
-      fail('DATABASE_URL is not set — cannot verify schema state (fail closed).')
-    })()
+  const databaseUrl = process.env.DATABASE_URL?.trim()
+  const discreteDatabaseConfig = {
+    host: process.env.DB_HOST,
+    port: process.env.DB_PORT ? Number(process.env.DB_PORT) : undefined,
+    database: process.env.DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+  }
+  if (
+    !databaseUrl &&
+    !(discreteDatabaseConfig.host && discreteDatabaseConfig.database && discreteDatabaseConfig.user)
+  ) {
+    fail('DATABASE_URL or DB_HOST/DB_NAME/DB_USER is required — cannot verify schema state (fail closed).')
+  }
 
   const files = collectFileMigrations(MIGRATIONS_DIR)
   if (files.length === 0) {
     fail(`no migration files found in ${MIGRATIONS_DIR} — refusing to "verify" against nothing.`)
   }
 
-  const pool = new pg.Pool({ connectionString: databaseUrl, connectionTimeoutMillis: 10000 })
+  const pool = new pg.Pool({
+    ...(databaseUrl ? { connectionString: databaseUrl } : discreteDatabaseConfig),
+    connectionTimeoutMillis: 10000,
+  })
   let applied
   try {
+    if (process.env.NODE_ENV === 'production' || process.env.REQUIRE_RUNTIME_DATABASE_ROLE === 'true') {
+      let identity
+      try {
+        const result = await pool.query(RUNTIME_ROLE_QUERY)
+        identity = result.rows[0]
+      } catch (err) {
+        fail(`could not inspect the production database login (${err.message}).`)
+      }
+      const roleFailure = runtimeDatabaseRoleFailure(identity)
+      if (roleFailure) fail(`unsafe production database login: ${roleFailure}`)
+    }
+
     const res = await pool.query(
       'SELECT version, checksum FROM schema_migrations ORDER BY version'
     )

@@ -12,12 +12,12 @@ export async function generateFieldBookExcel(
   const project = projectRes.rows[0] as { name: string; survey_type: string | null; ref_no: string | null } | undefined;
 
   const entriesRes = await db.query<{ row_index: number; raw_data: Record<string, unknown> }>(
-    'SELECT row_index, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    'SELECT row_index, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',
     [projectId]
   );
   const entries = entriesRes.rows;
 
-  const rows = (entries ?? []).map((e: { row_index: number; raw_data: Record<string, unknown> }) => e.raw_data)
+  const rows = (entries ?? []).map((e: { row_index: number; raw_data: Record<string, unknown> }) => e.raw_data || {})
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Metardu';
@@ -41,7 +41,7 @@ export async function generateFieldBookExcel(
   ws.getCell('F2').alignment = { horizontal: 'right' };
 
   const allKeys = rows.length > 0
-    ? Object.keys(rows[0]).filter((k) => !k.startsWith('_'))
+    ? [...new Set(rows.flatMap(row => Object.keys(row)))].filter((k) => !k.startsWith('_'))
     : ['station', 'bs', 'is', 'fs', 'rl', 'remark'];
 
   const headerRow = ws.addRow(allKeys.map((k) => k.replace(/_/g, ' ').toUpperCase()));

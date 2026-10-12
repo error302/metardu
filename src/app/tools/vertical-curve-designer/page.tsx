@@ -647,8 +647,8 @@ function ProfileDiagram({ alignment }: { alignment: VerticalAlignmentResult }) {
               (curve.g1 / 100) * curve.length +
               (curve.A / (200 * curve.length)) * curve.length * curve.length
           );
-          const tpX = xScale(curve.turningPointChainage);
-          const tpY = yScale(curve.turningPointElevation);
+          const tpX = xScale(curve.turningPointChainage ?? curve.pvcChainage);
+          const tpY = yScale(curve.turningPointElevation ?? curve.pvcElevation);
           const color = c.compliance.severity === 'ok'
             ? '#22c55e'
             : c.compliance.severity === 'warn'
@@ -658,8 +658,11 @@ function ProfileDiagram({ alignment }: { alignment: VerticalAlignmentResult }) {
             <g key={`c${i}`}>
               <circle cx={pvcX} cy={pvcY} r="3" fill={color} />
               <circle cx={pvtX} cy={pvtY} r="3" fill={color} />
-              {curve.turningPointDistance > 0.1 &&
-                curve.turningPointDistance < curve.length - 0.1 && (
+              {curve.turningPointDistance !== undefined &&
+                curve.turningPointDistance > 0.1 &&
+                curve.turningPointDistance < curve.length - 0.1 &&
+                curve.turningPointChainage !== undefined &&
+                curve.turningPointElevation !== undefined && (
                   <g>
                     <circle cx={tpX} cy={tpY} r="4" fill="#22d3ee" stroke="#1A1816" strokeWidth="0.5" />
                     <text

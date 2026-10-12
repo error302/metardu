@@ -92,12 +92,29 @@ export async function POST(request: NextRequest) {
       frameTransformProvenance: result.frameTransformProvenance,
     })
   } catch (error) {
+    const rawMsg = error instanceof Error ? error.message : String(error)
+    const isFrame = /frame|itrf|wgs84|datum/i.test(rawMsg)
+    const isEpoch = /epoch|date|year/i.test(rawMsg)
+    const isBounds = /latitude|longitude|bounds|range/i.test(rawMsg)
+
     return NextResponse.json(
       {
-        error: 'Failed to align coordinate',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: isFrame
+          ? 'Unsupported or invalid geodetic reference frame'
+          : isEpoch
+          ? 'Invalid observation epoch year'
+          : isBounds
+          ? 'Coordinate latitude/longitude out of geographic bounds'
+          : 'Geodetic coordinate alignment failed',
+        code: isFrame ? 'INVALID_FRAME' : isEpoch ? 'INVALID_EPOCH' : 'ALIGNMENT_FAILED',
+        message: rawMsg,
+        remedy: isFrame
+          ? 'Specify a supported ITRF frame (e.g. ITRF2000, ITRF2008, ITRF2014, ITRF2020) or ARC1960.'
+          : isEpoch
+          ? 'Epoch must be a valid decimal year (e.g., 2026.5).'
+          : 'Ensure coordinates are in valid decimal degrees (-90 to +90 lat, -180 to +180 lon).',
       },
-      { status: 500 },
+      { status: 400 },
     )
   }
 }

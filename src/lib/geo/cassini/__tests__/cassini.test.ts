@@ -190,18 +190,12 @@ describe('P1-6: KAT — control point forward transform (Cassini feet → UTM)',
 
 // ─── 4. Round-trip: Cassini → UTM → Cassini ────────────────────────────
 //
-// TODO: The inverse transform (utmToCassiniFeet) has a sign bug on
-// northing — the round-trip error is ~697,371 ft (exactly 2× the
-// expected northing), indicating the inverse flips the sign of
-// cassiniN. The forward transform (cassiniFeetToUTM) works correctly
-// (verified by the KAT tests above). The inverse needs debugging
-// before a round-trip test can pass. Tracked as a follow-up.
-
-describe.skip('P1-6: Round-trip — Cassini feet → UTM → Cassini feet (SKIPPED: inverse sign bug)', () => {
+// A self-consistent round trip is not independent control-point accuracy proof.
+describe('P1-6: Round-trip - Cassini feet to UTM and back', () => {
   const sheet = defined(findTopoSheet('148/1'))
-  const TOLERANCE_FT = 15
+  const TOLERANCE_FT = 0.06
 
-  test('all 3 control points of sheet 148/1 round-trip within 15 ft', () => {
+  test('all 3 control points of sheet 148/1 round-trip within output quantization', () => {
     const cassiniPoints: CassiniFeetPoint[] = COMMON_POINTS_148_1.map(cp => ({
       id: cp.station,
       easting: cp.cassE,
@@ -293,4 +287,25 @@ describe('P1-6: Helmert 4-param computation', () => {
   test('throws for empty array', () => {
     expect(() => computeHelmert4Params([])).toThrow()
   })
+})
+
+
+test('inverse includes both optional polynomial terms and preserves signed northing', () => {
+  const params = { id: 'SYN-INVERSE', name: 'Synthetic inverse verification', description: 'Synthetic only', commonPoints: [], P: 0.3048, Q: 0.0012, Cx: 500000, Cy: 9800000, A: 3e-7, B: -2e-7 }
+  const inputs = [{ id: 'SYN-1', easting: 12345.6, northing: -65432.1 }, { id: 'SYN-2', easting: -12345.6, northing: 65432.1 }]
+  const forward = cassiniFeetToUTM(inputs, params)
+  const back = utmToCassiniFeet(forward.map(p => ({ id: p.id, easting: p.utmE, northing: p.utmN })), params)
+  back.forEach((point, i) => {
+    expect(Math.abs(point.cassiniE - inputs[i].easting)).toBeLessThan(0.06)
+    expect(Math.abs(point.cassiniN - inputs[i].northing)).toBeLessThan(0.06)
+  })
+})
+
+
+test('invalid or singular transforms fail instead of manufacturing zero coordinates', () => {
+  const params = { id: 'SYN-INVALID', name: 'Synthetic', description: 'Synthetic only', commonPoints: [], P: 0.3048, Q: 0, Cx: 500000, Cy: 9800000 }
+  const point = [{ id: 'SYN', easting: 500000, northing: 9800000 }]
+  expect(() => utmToCassiniFeet(point, { ...params, P: 0 })).toThrow()
+  expect(() => cassiniFeetToUTM([{ ...point[0], easting: NaN }], params)).toThrow()
+  expect(() => utmToCassiniFeet(point, { ...params, A: 1e-8 })).toThrow()
 })

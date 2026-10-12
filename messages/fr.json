@@ -275,6 +275,7 @@
   },
   "resources": {
     "datumConverter": "Convertisseur de repère",
+    "onlineServices": "Services en ligne",
     "kencorsRtk": "KenCORS RTK",
     "knowledgeBase": "Base de connaissances"
   },

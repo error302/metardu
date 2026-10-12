@@ -67,7 +67,7 @@ const API_GROUPS = [
   {
     title: 'Land Registry',
     routes: [
-      { method: 'GET', path: '/api/nlims/lookup?parcel=X&county=Y', desc: 'Look up a parcel in personal vault, shared vault, NLIMS cache, or live NLIMS API.' },
+      { method: 'GET', path: '/api/nlims/lookup?parcel=X&county=Y', desc: 'Search the authenticated user vault, shared references, and recent cache. A local miss returns registry-access-unavailable; this endpoint does not query the government portal.' },
       { method: 'GET', path: '/api/benchmarks/search?query=X', desc: 'Search for benchmarks by name or location.' },
       { method: 'GET', path: '/api/benchmarks/nearby?lat=X&lon=Y', desc: 'Find benchmarks near a coordinate.' },
     ],

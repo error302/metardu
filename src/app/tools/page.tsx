@@ -50,6 +50,9 @@ import {
   Lock,
   Clock,
   ArrowRightLeft,
+  Calculator,
+  ShieldAlert,
+  Target,
 } from 'lucide-react'
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -72,6 +75,7 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/mobilisation-report': ClipboardCheck,
   '/tools/level-book': NotebookPen,
   '/tools/setting-out': MapPinned,
+  '/tools/setting-out-sheet': FileSpreadsheet,
   '/tools/missing-line': GitBranch,
   '/tools/control-marks-register': RadioTower,
   '/tools/pile-grid': Grid3X3,
@@ -117,6 +121,15 @@ const TOOL_ICONS: Record<string, ComponentType<{ className?: string }>> = {
   '/tools/gcp-export': Download,
   '/tools/survey-plan-demo': MapPinned,
   '/tools/mutation-plan': MapPinned,
+  '/tools/cad-editor': DraftingCompass,
+  '/tools/subdivision-generator': LandPlot,
+  '/tools/cors-networks': RadioTower,
+  '/tools/fee-quotation': Calculator,
+  '/tools/geofence': ShieldAlert,
+  '/tools/legal-description': BookOpenText,
+  '/tools/pin-cushion': Target,
+  '/tools/pipe-network': Construction,
+  '/tools/stakeout-report': ClipboardCheck,
 }
 
 /* ══════════════════════════════════════════════════════════════════════
@@ -182,6 +195,8 @@ const TOOL_DEFS: ToolDef[] = [
   // Documents & Certificates
   { href: '/tools/beacon-certificate', title: 'Beacon Certificate', description: 'Signed beacon description sheet | Reg. 20 Survey Regulations 1994', badge: 'NEW', section: 'Documents & Certificates', keywords: 'beacon certificate signed description sheet reg 20' },
   { href: '/tools/billable-documents', title: 'Billable Documents', description: 'Subdivision, road reserve, valuation, title search, and setback certificates', badge: 'NEW', section: 'Documents & Certificates', keywords: 'billable subdivision road reserve valuation title search setback certificate' },
+  { href: '/tools/fee-quotation', title: 'Survey Fee Quotation', description: 'Official SRB gazetted scale tariff & client proposal generator with 3-stage milestones', badge: 'NEW', section: 'Documents & Certificates', keywords: 'fee quotation tariff proposal srb scale client cost estimate' },
+  { href: '/tools/legal-description', title: 'Legal Description Writer', description: 'Statutory metes & bounds legal description generator with bearings, distances & closure', badge: 'NEW', section: 'Documents & Certificates', keywords: 'legal description metes bounds title deed parcel boundary writer' },
   { href: '/tools/gnss-observation-log', title: 'GNSS Observation Log', description: 'Occupation schedule & baseline report | ISO 17123-8', badge: 'NEW', section: 'Documents & Certificates', keywords: 'gnss observation log occupation schedule baseline iso 17123' },
   { href: '/tools/statutory-workbook', title: 'Statutory Workbook', description: '9-sheet field abstract and computation workbook', badge: 'NEW', section: 'Documents & Certificates', keywords: 'statutory workbook field abstract computation 9-sheet' },
   { href: '/tools/detail-tolerances', title: 'Detail Tolerances', description: 'RDM 1.1 Table 5.2 detailed survey tolerances (printable)', section: 'Documents & Certificates', keywords: 'detail tolerances rdm table 5.2 survey' },
@@ -190,6 +205,9 @@ const TOOL_DEFS: ToolDef[] = [
 
   // Field Layout
   { href: '/tools/setting-out', title: 'Setting Out', description: 'Stakeout from known coords | RDM 1.1', section: 'Field Layout', keywords: 'setting out stakeout known coordinates rdm' },
+  { href: '/tools/setting-out-sheet', title: 'General Setting-out Sheet', description: 'Printable schedule for supplied design coordinates with CRS checks', section: 'Field Layout', keywords: 'setting out coordinate schedule printable csv pdf general' },
+  { href: '/tools/stakeout-report', title: 'Stakeout Cut Sheet', description: 'Design vs staked coordinate variance report with cadastral & civil tolerances', badge: 'NEW', section: 'Field Layout', keywords: 'stakeout cut sheet variance design staked offset tolerance report' },
+  { href: '/tools/geofence', title: 'Geofencing & Site Alerts', description: 'Real-time GPS boundary breach alarms, buffer proximity warning & hazard zones', badge: 'NEW', section: 'Field Layout', keywords: 'geofence boundary breach alerts hazard proximity buffer safety' },
   { href: '/tools/missing-line', title: 'Missing Line', description: 'Distance & bearing between two points', section: 'Field Layout', keywords: 'missing line distance bearing two points' },
   { href: '/tools/control-marks-register', title: 'Control Marks Register', description: 'RDM 1.1 s5.6.3 mark register', section: 'Field Layout', keywords: 'control marks register rdm 5.6.3 mark' },
   { href: '/tools/pile-grid', title: 'Pile / Column Grid', description: 'Foundation grid coordinates & staking | Basak §8.5', badge: 'NEW', section: 'Field Layout', keywords: 'pile column grid foundation staking basak' },
@@ -205,6 +223,7 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/bearing', title: 'Bearing', description: 'Forward & back bearing computation', section: 'Calculations', keywords: 'bearing forward back computation' },
   { href: '/tools/area', title: 'Area', description: 'Area from coordinate list', section: 'Calculations', keywords: 'area coordinate list computation' },
   { href: '/tools/grade', title: 'Gradient', description: 'Gradient & slope percentage', section: 'Calculations', keywords: 'gradient grade slope percentage' },
+  { href: '/tools/pin-cushion', title: 'Pin-Cushion Analysis', description: 'Boundary corner recovery dispute analysis with 95% error ellipses & outlier rejection', badge: 'NEW', section: 'Calculations', keywords: 'pin cushion monument recovery dispute error ellipse outlier consensus' },
 
   // Traverse & Adjustment
   { href: '/tools/traverse', title: 'Traverse', description: 'Bowditch/Transit closed traverse | RDM 1.1 grading', section: 'Traverse & Adjustment', keywords: 'traverse bowditch transit closed rdm grading' },
@@ -213,6 +232,7 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/cassini-utm', title: 'Cassini ↔ UTM Converter', description: 'Convert legacy Cassini-Soldner (Clarke 1858) to UTM with preset Kenya district origins', badge: 'NEW', section: 'Traverse & Adjustment', keywords: 'cassini soldner utm converter clarke 1858 kenya district origin legacy' },
   { href: '/tools/cogo', title: 'COGO Calculator', description: 'Coordinate geometry computations', section: 'Traverse & Adjustment', keywords: 'cogo coordinate geometry calculator' },
   { href: '/tools/gnss', title: 'GNSS', description: 'GNSS observation & baseline processing', section: 'Traverse & Adjustment', keywords: 'gnss observation baseline processing' },
+  { href: '/tools/cors-networks', title: 'Multi-CORS Network Selector', description: 'Regional & global NTRIP CORS networks, baseline precision & controller profile export', badge: 'NEW', section: 'Traverse & Adjustment', keywords: 'cors ntrip kencors baseline rtk gnss stations mountpoint' },
 
   // Road Design
   { href: '/tools/road-design', title: 'Road Design', description: 'Full road design workflow | RDM 1.1 (2025)', section: 'Road Design', keywords: 'road design workflow rdm' },
@@ -223,6 +243,7 @@ const TOOL_DEFS: ToolDef[] = [
   { href: '/tools/superelevation', title: 'Superelevation', description: 'e = V²/127R calculator per KRDM', section: 'Road Design', keywords: 'superelevation v2 127r krdm calculator' },
   { href: '/tools/sight-distance', title: 'Sight Distance', description: 'SSD & OSD calculator per KRDM/KeRRA', section: 'Road Design', keywords: 'sight distance ssd osd krdm kerra calculator' },
   { href: '/tools/pipe-gradient', title: 'Pipe Gradient', description: "Manning's equation pipe gradient check with drainage standards", section: 'Road Design', keywords: 'pipe gradient mannings equation drainage' },
+  { href: '/tools/pipe-network', title: 'Pipe Network & Storm Drainage', description: "Civil 3D-style storm sewer modeling, Manning's equation auto-sizing, longitudinal profiles & schedules", badge: 'NEW', section: 'Road Design', keywords: 'pipe network storm drainage manholes sewer mannings invert civil 3d' },
   { href: '/tools/chainage', title: 'Chainage', description: 'Chainage calculator for road projects', section: 'Road Design', keywords: 'chainage calculator road projects' },
 
   // Earthworks & Volumes
@@ -230,6 +251,7 @@ const TOOL_DEFS: ToolDef[] = [
 
   // Specialized Surveys
   { href: '/tools/drone', title: 'Drone/UAV', description: 'UAV survey & GCP processing', section: 'Specialized Surveys', keywords: 'drone uav survey gcp processing' },
+  { href: '/tools/drone-flight-plan', title: 'Automated Drone Flight Planner', description: 'Optimal serpentine photogrammetry flight path generator with GSD, overlap calculation, and DJI WPML / KML export', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'drone flight planner photogrammetry gsd waypoints dji wpml kml uav' },
   { href: '/tools/orthophoto-viewer', title: 'GeoTIFF / Orthophoto Viewer', description: 'Upload orthophotos from Pix4D/Agisoft, trace boundaries on the map, export DXF & KML', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'geotiff orthophoto viewer trace boundaries pix4d agisoft dxf kml' },
   { href: '/tools/gcp-validation', title: 'GCP Residual Validation', description: 'Import residuals from Agisoft/Pix4D, compare against known GCPs, flag per Kenya accuracy classes', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'gcp residual validation agisoft pix4d accuracy class kenya isk' },
   { href: '/tools/point-cloud-import', title: 'Point Cloud Import', description: 'Import XYZ/CSV point clouds from CloudCompare/Agisoft into slope analysis & TIN volume engine', badge: 'NEW', section: 'Drone-to-Cadastral Bridge', keywords: 'point cloud import xyz csv cloudcompare agisoft slope tin volume' },
@@ -243,6 +265,8 @@ const TOOL_DEFS: ToolDef[] = [
   // advertising file processing that cannot run.
   { href: '/tools/gnss', title: 'GNSS Baseline', description: 'Geodesic baseline + network adjustment (live)', section: 'Specialized Surveys', keywords: 'gnss baseline geodesic adjustment' },
   { href: '/tools/survey-plan-demo', title: 'Survey Plan Viewer', description: 'CAD-style boundary identification plan renderer', section: 'Specialized Surveys', keywords: 'survey plan viewer cad boundary identification renderer' },
+  { href: '/tools/cad-editor', title: 'CAD Canvas & Map Editor', description: 'Standalone in-browser CAD drafting, background map tracing, 2-point scale calibration & DXF export', badge: 'NEW', section: 'Specialized Surveys', keywords: 'cad canvas editor map digitize trace raster background dxf drawing' },
+  { href: '/tools/subdivision-generator', title: 'Generative Parcel Subdivision', description: 'Algorithmic lot subdivision with 9m/15m/30m road reserves, corner truncations & official County Scheme Plan export', badge: 'NEW', section: 'Specialized Surveys', keywords: 'subdivision generative plots road reserve truncation bomet scheme plan cap 299 plupa' },
   { href: '/tools/mutation-plan', title: 'Mutation Survey Plan (Form No. 3)', description: 'Generate Form No. 3 mutation scheme plans for subdivision submissions to Director of Surveys', badge: 'NEW', section: 'Documents & Certificates', keywords: 'mutation form 3 survey plan subdivision scheme' },
 
   // Engineering
@@ -460,7 +484,7 @@ export default function ToolsPage() {
               <Clock className="h-3.5 w-3.5" />
               Recently Used
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {recentToolDefs.map(tool => (
                 <ToolLink
                   key={tool.href}
@@ -486,7 +510,7 @@ export default function ToolsPage() {
               <Star className="h-3.5 w-3.5" />
               Favorites
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {favToolDefs.map(tool => (
                 <ToolLink
                   key={tool.href}
@@ -520,7 +544,7 @@ export default function ToolsPage() {
             <h2 className="text-sm font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
               {section}
             </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {tools.map(tool => (
                 <ToolLink
                   key={tool.href}
@@ -581,11 +605,11 @@ function ToolLink({
   return (
     <div className="relative group">
       <Link
-        href={isLocked ? '#' : href}
+        href={isLocked ? '/pricing' : href}
         onClick={handleClick}
         className={`card-interactive p-4 transition-colors block relative rounded-xl border bg-[var(--bg-card)] ${
           isLocked
-            ? 'border-[var(--border-color)] cursor-not-allowed'
+            ? 'border-[var(--border-color)] cursor-pointer hover:border-amber-500/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-amber-400'
             : 'border-[var(--border-color)] hover:border-[var(--accent)]'
         }`}
       >
@@ -625,7 +649,7 @@ function ToolLink({
         {isLocked && gate && (
           <p className="text-[10px] text-amber-300 mt-2 flex items-center gap-1">
             <Lock className="h-3 w-3" />
-            Requires {gate.minPlan.charAt(0).toUpperCase() + gate.minPlan.slice(1)} plan — {gate.label}
+            Requires {gate.minPlan.charAt(0).toUpperCase() + gate.minPlan.slice(1)} plan — {gate.label}. View plans
           </p>
         )}
       </Link>

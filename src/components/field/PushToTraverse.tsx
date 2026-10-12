@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { FieldBeacon } from '@/types/field';
 import { beaconsToTraverseStations, buildTraverseURL, detectUTMZone } from '@/lib/field/pushToTraverse';
 import { ArrowRight, AlertTriangle } from 'lucide-react';
-import { SRID_21036, SRID_21037 } from '@/lib/map/projection'
+import { SRID_21036, SRID_21037 } from '@/lib/surveyMapEngine/core/projection'
 
 interface Props {
   beacons: FieldBeacon[];

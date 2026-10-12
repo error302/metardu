@@ -6,6 +6,7 @@
 import { offlineStorage, SyncQueueItem, type FieldObservation, type PhotoData } from './offlineStorage'
 import type { BrowserClient } from '@/lib/api-client/client'
 import { createClient } from '@/lib/api-client/client'
+import { uploadFieldPhoto } from './photoUpload'
 
 // The sync queue stores the same records offlineStorage persists, with the
 // generated id and a server-side timestamp guaranteed by addToSyncQueue.
@@ -67,37 +68,51 @@ class SyncService {
     if (!this.isOnline) return { synced: 0, failed: 0 }
 
     this.isSyncing = true
-    const items = await offlineStorage.getPendingSyncItems()
-
     let synced = 0
     let failed = 0
+    try {
+      // A browser/tab may have closed after claiming an item. Requeue only
+      // claims older than the recovery lease so active slow uploads are not
+      // stolen by another sync pass.
+      await offlineStorage.recoverStaleSyncItems()
+      const items = await offlineStorage.getPendingSyncItems()
 
-    for (const item of items) {
-      const id = item.id
-      if (!id) { failed++; continue }
-      try {
-        await this.syncItem(item)
-        synced++
-      } catch (error) {
-        failed++
-        // eslint-disable-next-line no-console -- background sync loop operational log, not user-facing UI
-        console.error('[Sync] Failed to sync item:', item.id, error)
+      for (const item of items) {
+        const id = item.id
+        if (!id) { failed++; continue }
+        try {
+          await this.syncItem(item)
+          synced++
+        } catch (error) {
+          failed++
+          // eslint-disable-next-line no-console -- background sync loop operational log, not user-facing UI
+          console.error('[Sync] Failed to sync item:', item.id, error)
 
-        // Mark as failed after 3 retries
-        if ((item.retryCount || 0) >= 3) {
-          await offlineStorage.updateSyncStatus(
-            id,
-            'failed',
-            error instanceof Error ? error.message : 'Unknown error'
-          )
-        } else {
-          await offlineStorage.updateSyncStatus(id, 'pending')
+          // Keep a bounded retry count and make permanently failed items
+          // explicitly retryable from the field UI.
+          const retryCount = (item.retryCount || 0) + 1
+          if (retryCount >= 3) {
+            await offlineStorage.updateSyncStatus(
+              id,
+              'failed',
+              error instanceof Error ? error.message : 'Unknown error',
+              retryCount,
+            )
+          } else {
+            await offlineStorage.updateSyncStatus(
+              id,
+              'pending',
+              error instanceof Error ? error.message : 'Unknown error',
+              retryCount,
+            )
+          }
         }
       }
-    }
 
-    this.isSyncing = false
-    return { synced, failed }
+      return { synced, failed }
+    } finally {
+      this.isSyncing = false
+    }
   }
 
   private async syncItem(item: SyncQueueItem): Promise<void> {
@@ -123,7 +138,8 @@ class SyncService {
   }
 
   private async syncObservation(dbClient: BrowserClient, payload: ObservationPayload): Promise<void> {
-    const { error } = await dbClient.from('survey_observations').insert({
+    const { error } = await dbClient.from('survey_observations').upsert({
+      client_id: payload.id,
       project_id: payload.projectId,
       point_name: payload.pointName,
       point_id: payload.pointId,
@@ -134,8 +150,10 @@ class SyncService {
       latitude: payload.latitude,
       longitude: payload.longitude,
       accuracy: payload.accuracy,
+      accuracy_source: payload.accuracySource,
       satellites: payload.satellites,
       solution_type: payload.solutionType,
+      fix_quality: payload.fixQuality,
       hdop: payload.hdop,
       vdop: payload.vdop,
       pdop: payload.pdop,
@@ -151,8 +169,13 @@ class SyncService {
       humidity: payload.humidity,
       weather: payload.weather,
       notes: payload.notes,
+      horizontal_crs: payload.horizontalCrs,
+      vertical_datum: payload.verticalDatum,
+      instrument_name: payload.instrumentName,
+      observation_source: payload.observationSource,
       observed_at: new Date(payload.timestamp).toISOString(),
-    })
+      synced_at: new Date().toISOString(),
+    }, { onConflict: 'project_id,client_id' })
 
     if (error) throw error
 
@@ -161,52 +184,61 @@ class SyncService {
   }
 
   private async syncPhoto(dbClient: BrowserClient, payload: PhotoPayload): Promise<void> {
-    // First upload the image to storage
-    const fileName = `field_photos/${payload.projectId}/${payload.id}.jpg`
-    const base64Data = payload.data.split(',')[1]
-    const blob = Buffer.from(base64Data, 'base64')
+    // The client ID gives storage a stable, owner-scoped path, so retrying an
+    // interrupted sync replaces the same upload instead of creating orphans.
+    const storagePath = await uploadFieldPhoto(
+      payload.id,
+      payload.data,
+      payload.projectId,
+      payload.contentType,
+      payload.fileName,
+    )
 
-    const { error: uploadError } = await dbClient.storage.from('survey-photos').upload(fileName, blob, {
-      contentType: 'image/jpeg',
-      upsert: false,
-    })
-
-    if (uploadError) throw uploadError
-
-    // Then create the database record
-    const { error } = await dbClient.from('field_photos').insert({
+    // The project/client unique key makes a retry safe after any interrupted
+    // response. Keep the original local image until both writes succeed.
+    const { error } = await dbClient.from('field_photos').upsert({
+      client_id: payload.id,
       project_id: payload.projectId,
+      observation_client_id: payload.observationClientId,
       point_id: payload.pointId,
       point_name: payload.pointName,
-      storage_path: fileName,
-      thumbnail: payload.thumbnail,
+      storage_path: storagePath,
+      filename: payload.fileName,
+      mime_type: payload.contentType,
       caption: payload.caption,
       orientation: payload.orientation,
-      captured_at: new Date(payload.timestamp).toISOString(),
-    }).select().single()
+      captured_at: payload.capturedAt ?? null,
+      metadata: payload.metadata ?? {},
+      synced_at: new Date().toISOString(),
+    }, { onConflict: 'project_id,client_id' })
 
-    if (error) throw error
+    if (error) {
+      // Leave the stable uploaded path intact: a later retry will upsert its
+      // metadata. Deleting here could destroy a previous successful upload.
+      throw error
+    }
 
-    await offlineStorage.update('photos', payload.id, { synced: true, storagePath: fileName })
+    await offlineStorage.update('photos', payload.id, { synced: true, storagePath })
   }
 
   private async syncSurveyPoint(dbClient: BrowserClient, payload: SurveyPointPayload): Promise<void> {
     const { error } = await dbClient.from('survey_points').upsert({
       id: payload.id,
       project_id: payload.projectId,
-      name: payload.name,
+      point_name: payload.name,
       easting: payload.easting,
       northing: payload.northing,
       elevation: payload.elevation,
       is_control: payload.isControl,
       description: payload.description,
-      observed_at: new Date(payload.timestamp).toISOString(),
+      observation_date: new Date(payload.timestamp).toISOString().slice(0, 10),
     })
 
     if (error) throw error
   }
 
   async forceSync(): Promise<{ synced: number; failed: number }> {
+    await offlineStorage.retryFailedSyncItems()
     return this.syncPending()
   }
 

@@ -10,7 +10,6 @@
  * DB methods (.from()) are actively used and safe.
  * Storage methods should use /api/storage endpoint instead.
  */
-import { logger } from '@/lib/logger'
 
 // ponytail: Phase 6 Batch 5 — auth/storage/rpc return types moved to `unknown`
 // (deprecated stubs). FilterOp union, unknown params, typed catch applied.
@@ -41,16 +40,6 @@ export interface BrowserSession {
   }
 }
 
-// ponytail: minimal channel surface returned by the deprecated channel() stub.
-// Realtime is handled by @/lib/realtime; this exists only for legacy callers.
-interface LegacyRealtimeChannel {
-  on(...args: unknown[]): this
-  subscribe(): this
-  track(): Promise<void>
-  untrack(): Promise<void>
-  presenceState(): Record<string, unknown>
-}
-
 // ponytail: auth methods are deprecated migration artifacts; return types use
 // `unknown` because consumers should not depend on their shape (use
 // `useSession()` / `getServerSession()` instead).
@@ -62,21 +51,8 @@ export interface BrowserClient {
     signUp(params: unknown): Promise<{ data: { user: unknown | null }; error: unknown }>
     signOut(): Promise<void>
     updateUser(params: unknown): Promise<{ data: { user: unknown | null }; error: unknown }>
-    exchangeCodeForSession(code: string): Promise<{ data: { session: unknown | null }; error: unknown }>
     onAuthStateChange(callback: (event: string, session: unknown) => void): { data: { subscription: { unsubscribe(): void } } }
   }
-  storage: {
-    from(bucket: string): {
-      upload(path: string, file: unknown, opts?: unknown): Promise<{ data: unknown; error: unknown }>
-      getPublicUrl(path: string): { data: { publicUrl: string } }
-      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: unknown }>
-      download(path: string): Promise<{ data: unknown; error: unknown }>
-      remove(paths: string[]): Promise<{ data: unknown; error: unknown }>
-    }
-  }
-  rpc(fn: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>
-  channel(name: string): LegacyRealtimeChannel
-  removeChannel(channel: unknown): Promise<void>
 }
 
 
@@ -290,9 +266,6 @@ export function createClient(): BrowserClient {
           return { data: { user: null }, error: { message: 'Password update failed' } }
         }
       },
-      async exchangeCodeForSession(_code: string) {
-        return { data: { session: null }, error: null }
-      },
       onAuthStateChange(callback: (event: string, session: unknown) => void) {
         let lastSession: string | null = null
         const interval = setInterval(async () => {
@@ -316,32 +289,6 @@ export function createClient(): BrowserClient {
         }
       },
     },
-    channel(_name: string) {
-      return {
-        on(..._args: unknown[]) { return this },
-        subscribe() { return this },
-        track() { return Promise.resolve() },
-        untrack() { return Promise.resolve() },
-        presenceState() { return {} },
-      }
-    },
-    async removeChannel(_channel: unknown) {},
-    // Storage stubs — use /api/storage endpoint (GCS-backed) instead
-    storage: {
-      from(_bucket: string) {
-        return {
-          upload: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          getPublicUrl: () => ({ data: { publicUrl: '' }, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          createSignedUrl: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          download: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          remove: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-        }
-      }
-    },
-    rpc: async (fn: string, _args?: Record<string, unknown>) => {
-      logger.warn(`[db/client] rpc(${fn}) called but not implemented.`)
-      return { data: null, error: { message: 'RPC not implemented' } }
-    }
   }
 }
 

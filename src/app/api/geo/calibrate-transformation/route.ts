@@ -110,12 +110,24 @@ export async function POST(request: NextRequest) {
       quality,
     })
   } catch (error) {
+    const rawMsg = error instanceof Error ? error.message : String(error)
+    const isPoints = /point|insufficient|minimum|at least 3/i.test(rawMsg)
+    const isSingular = /singular|collinear|rank/i.test(rawMsg)
+
     return NextResponse.json(
       {
-        error: 'Failed to calibrate transformation',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: isPoints
+          ? 'Insufficient common reference points for Bursa-Wolf calibration'
+          : isSingular
+          ? 'Collinear or ill-conditioned common points'
+          : 'Datum transformation calibration failed',
+        code: isPoints ? 'INSUFFICIENT_COMMON_POINTS' : isSingular ? 'ILL_CONDITIONED_GEOMETRY' : 'CALIBRATION_FAILED',
+        message: rawMsg,
+        remedy: isPoints
+          ? 'At least 3 common points with known coordinates in both Source and Target datums are required.'
+          : 'Ensure common points are well-distributed across the survey area and not situated on a single straight line.',
       },
-      { status: 500 },
+      { status: 422 },
     )
   }
 }

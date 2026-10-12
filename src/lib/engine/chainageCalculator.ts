@@ -16,6 +16,7 @@
 
 import type { LineString } from 'ol/geom'
 import type { Coordinate } from 'ol/coordinate'
+import { assertSurveyCrs } from '@/lib/spatial/projectCrs'
 
 export interface ChainageResult {
   /** Chainage in meters from start of alignment (e.g., 14420 = KM 14+420) */
@@ -39,12 +40,15 @@ export interface ChainageResult {
  *
  * @param centerline - OpenLayers LineString geometry of the road centerline
  * @param position - Current rover position [easting, northing] in map projection
+ * @param crs - The project coordinate reference system (MUST be a project CRS)
  * @returns Chainage result with station, offset, side, and bearing
  */
 export function calculateChainage(
   centerline: LineString,
   position: Coordinate,
+  crs: string,
 ): ChainageResult | null {
+  assertSurveyCrs(crs)
   const coords = centerline.getCoordinates()
   if (coords.length < 2) return null
 

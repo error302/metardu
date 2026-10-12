@@ -29,8 +29,8 @@ Before writing code, silently "roll the dice" and select ONE combination from th
 ### B. Layout Archetypes (Pick 1)
 1. **The Asymmetrical Bento:** A masonry-like CSS Grid of varying card sizes (e.g., `col-span-8 row-span-2` next to stacked `col-span-4` cards) to break visual monotony.
    - **Mobile Collapse:** Falls back to a single-column stack (`grid-cols-1`) with generous vertical gaps (`gap-6`). All `col-span` overrides reset to `col-span-1`.
-2. **The Z-Axis Cascade:** Elements are stacked like physical cards, slightly overlapping each other with varying depths of field (intentional overlapping composition), some with a subtle `-2deg` or `3deg` rotation to break the digital grid. Overlapping is allowed and encouraged for this pattern at desktop.
-   - **Mobile Collapse:** Remove all rotations and negative-margin overlaps below `768px` to prevent touch-target conflicts on mobile. Stack vertically with standard spacing.
+2. **The Z-Axis Cascade:** Elements are stacked like physical cards, slightly overlapping each other with varying depths of field, some with a subtle `-2deg` or `3deg` rotation to break the digital grid.
+   - **Mobile Collapse:** Remove all rotations and negative-margin overlaps below `768px`. Stack vertically with standard spacing. Overlapping elements cause touch-target conflicts on mobile.
 3. **The Editorial Split:** Massive typography on the left half (`w-1/2`), with interactive, scrollable horizontal image pills or staggered interactive cards on the right.
    - **Mobile Collapse:** Converts to a full-width vertical stack (`w-full`). Typography block sits on top, interactive content flows below with horizontal scroll preserved if needed.
 

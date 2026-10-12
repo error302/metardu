@@ -76,7 +76,7 @@ jobs:
 
           echo "=== [1/2] Verifying required env vars in .env ==="
           MISSING=0
-          for v in POSTGRES_PASSWORD AUTH_SECRET WORKER_SECRET API_ADMIN_KEY PAYPAL_WEBHOOK_ID; do
+          for v in POSTGRES_PASSWORD APP_DB_PASSWORD AUTH_SECRET WORKER_SECRET API_ADMIN_KEY PAYPAL_WEBHOOK_ID; do
             if grep -qE "^${v}=.+" .env 2>/dev/null; then
               echo "  $v: ok"
             else
@@ -87,6 +87,7 @@ jobs:
           if [ "$MISSING" -ne 0 ]; then
             echo ""
             echo "FATAL: required env vars missing in ~/metardu/.env."
+            echo "APP_DB_PASSWORD must be a separate random secret from POSTGRES_PASSWORD."
             echo "PAYPAL_WEBHOOK_ID: the webhook handler rejects ALL PayPal events"
             echo "without it (audit H-03 fail-closed). API_ADMIN_KEY: cron + metrics"
             echo "auth (audit H-13). Add the missing vars to the VM .env and re-run."
@@ -123,19 +124,22 @@ jobs:
           set -eo pipefail
 
           APP_DIR="$HOME/metardu"
+          EXPECTED_DEPLOY_SHA='${{ github.sha }}'
           cd "$APP_DIR"
 
           echo "=== [1/6] Pulling latest code ==="
           git fetch origin main
-          git reset --hard origin/main
-
-          echo "=== [2/6] Ensuring .env.local is correct for Docker ==="
-          if grep -q 'host.docker.internal' .env.local 2>/dev/null; then
-            echo "DATABASE_URL already set for Docker (host.docker.internal) - OK"
-          else
-            echo "Updating DATABASE_URL for Docker (host.docker.internal)..."
-            sed -i 's|@localhost:5432|@host.docker.internal:5432|g' .env.local 2>/dev/null || true
+          REMOTE_MAIN_SHA=$(git rev-parse origin/main)
+          if [ "$REMOTE_MAIN_SHA" != "$EXPECTED_DEPLOY_SHA" ]; then
+            echo "FATAL: this deploy was triggered for $EXPECTED_DEPLOY_SHA, but origin/main is now $REMOTE_MAIN_SHA. A newer queued deploy must run; refusing to deploy a different revision."
+            exit 1
           fi
+          git reset --hard "$EXPECTED_DEPLOY_SHA"
+          export METARDU_BUILD_SHA="$EXPECTED_DEPLOY_SHA"
+          echo "Deploying commit $METARDU_BUILD_SHA"
+
+          echo "=== [2/6] Database credential separation ==="
+          echo "Compose provisions APP_DB_USER for web traffic; the bootstrap login is limited to migration and backup services."
 
           echo "=== [3/6] Rebuilding Docker containers (incremental) ==="
           # Use --build instead of --no-cache to leverage Docker layer cache
@@ -175,40 +179,42 @@ jobs:
           fi
 
           echo "=== [5/6] Verifying database schema state (migrations gate) ==="
-          # SCHEMA-DRIFT GATE: docker-entrypoint.sh runs migrations at startup
-          # but only WARNS on failure — a silently broken migration (the 054
-          # case, which blocked 055-057 for weeks) previously left prod
-          # running with a drifted schema and zero signal. verify-migrations
-          # compares the migrations directory (source of truth) against the
-          # schema_migrations table: every file applied, checksums matching,
-          # no ghost rows. Fails the deploy on any drift (fail closed).
+          # The one-shot metardu-db-migrate dependency applies migrations as
+          # the bootstrap login. The app entrypoint and this deploy gate both
+          # verify schema history with the restricted runtime login.
           if docker exec metardu-app node /app/verify-migrations.mjs; then
             echo "Schema verified: all migrations applied, checksums match."
           else
             echo "FATAL: database schema does not match the migrations directory."
-            echo "--- Container startup log (migrate-unified output) ---"
-            docker logs --tail 80 metardu-app 2>&1 || echo "(could not fetch logs)"
+            echo "--- One-shot migration service log ---"
+            docker logs --tail 80 metardu-db-migrate 2>&1 || echo "(could not fetch logs)"
+            echo "--- Application startup log ---"
+            docker logs --tail 30 metardu-app 2>&1 || echo "(could not fetch logs)"
             exit 1
           fi
 
           echo "=== [6/6] Verifying deployment via HTTP ==="
-          HTTP_CODE=$(curl -sf -o /dev/null -w "%{http_code}" --max-time 15 http://localhost:3000/api/public/health || echo "000")
-          echo "HTTP status: $HTTP_CODE (expecting 200 from /api/public/health)"
-          if [ "$HTTP_CODE" = "200" ]; then
-            echo "Deploy successful!"
+          ACTUAL_DEPLOY_SHA=$(docker exec metardu-app node -e 'fetch("http://127.0.0.1:3000/api/public/health").then(async r=>{if(!r.ok)throw new Error(`health status ${r.status}`);return r.json()}).then(body=>process.stdout.write(body.releaseId ?? "")).catch(()=>process.exit(1))')
+          echo "Application release: $ACTUAL_DEPLOY_SHA"
+          if [ "$ACTUAL_DEPLOY_SHA" = "$EXPECTED_DEPLOY_SHA" ]; then
+            echo "Application health and release identity verified."
           else
-            echo "ERROR: Health check returned HTTP $HTTP_CODE"
+            echo "FATAL: expected release $EXPECTED_DEPLOY_SHA, received $ACTUAL_DEPLOY_SHA"
             docker logs --tail 50 "$CONTAINER_NAME" 2>&1 || echo "(could not fetch logs)"
             exit 1
           fi
           DEPLOY
 
       - name: Verify live deployment
-        if: always()
+        if: success()
         run: |
-          sleep 5
-          HTTP_CODE=$(curl -sk -o /dev/null -w "%{http_code}" --max-time 20 "https://${{ secrets.VM_HOST }}/" || echo "000")
-          echo "Live site HTTP: $HTTP_CODE"
-          if [ "$HTTP_CODE" != "200" ]; then
-            echo "WARNING: Live site returned HTTP $HTTP_CODE"
+          EXPECTED_DEPLOY_SHA='${{ github.sha }}'
+          HEALTH_URL="https://metardu.space/api/public/health"
+          HEALTH_JSON=$(curl --fail --silent --show-error --retry 5 --retry-all-errors --retry-delay 3 --connect-timeout 5 --max-time 20 "$HEALTH_URL")
+          ACTUAL_DEPLOY_SHA=$(jq -r '.releaseId // empty' <<< "$HEALTH_JSON")
+          echo "Live release: $ACTUAL_DEPLOY_SHA"
+          if [ "$ACTUAL_DEPLOY_SHA" != "$EXPECTED_DEPLOY_SHA" ]; then
+            echo "FATAL: live endpoint did not serve expected commit $EXPECTED_DEPLOY_SHA"
+            exit 1
           fi
+          echo "Live release identity verified."

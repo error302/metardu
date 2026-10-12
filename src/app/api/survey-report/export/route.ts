@@ -2,10 +2,19 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import { getSurveyReportById } from '@/lib/api-client/surveyReports'
+import { db } from '@/lib/db'
+import type { SectionContent, SurveyReportInput } from '@/types/surveyReport'
 import { generatePdf } from '@/lib/pdf/generatePdf'
 import { generateDocx } from '@/lib/docx/generateDocx'
-import { getTemplateSections } from '@/lib/docx/templates'
+
+interface SavedReportRow {
+  input_data?: Partial<SurveyReportInput> & { projectName?: string }
+  sections?: SectionContent[] | null
+  report_number: string | null
+  report_title: string | null
+  revision: string | null
+  status: string | null
+}
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { reportId, format } = ctx.body as { reportId?: string; format?: 'pdf' | 'docx' }
@@ -18,15 +27,28 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     return NextResponse.json({ error: 'Format must be pdf or docx' }, { status: 400 })
   }
 
-  const report = await getSurveyReportById(reportId)
+  const { rows } = await db.query<SavedReportRow>(
+    `SELECT sr.* FROM survey_reports sr
+     JOIN projects p ON p.id = sr.project_id
+     WHERE sr.id = $1 AND p.user_id = $2 LIMIT 1`,
+    [reportId, ctx.userId]
+  )
+  const row = rows[0]
 
-  if (!report) {
+  if (!row) {
     return NextResponse.json({ error: 'Report not found' }, { status: 404 })
   }
 
-  const reportRow = report as NonNullable<typeof report> & {
-    surveyType?: string
-    projectName?: string
+  if (!Array.isArray(row.sections) || row.sections.length === 0) {
+    return NextResponse.json({ error: 'Save report sections before exporting this report.' }, { status: 422 })
+  }
+  const report = {
+    ...row.input_data,
+    sections: row.sections,
+    reportNumber: row.report_number || undefined,
+    reportTitle: row.report_title || undefined,
+    revision: row.revision,
+    status: row.status,
   }
 
   if (format === 'pdf') {
@@ -44,43 +66,15 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
       }
     })
   } else if (format === 'docx') {
-    // Determine survey type and use template if available
-    const surveyType = (reportRow.surveyType || 'cadastral') as Parameters<typeof getTemplateSections>[0]
-    const templateSections = getTemplateSections(surveyType, {
-      reportNumber: report.reportNumber,
-      clientName: reportRow.clientName,
-      projectName: reportRow.projectName,
-      projectLocation: reportRow.projectLocation,
-      areaHectares: reportRow.areaHectares,
-      date: new Date().toLocaleDateString('en-GB'),
-      precisionRatio: '5000',
-      pointSpacing: '20m',
-      contourInterval: '0.5m',
-      horizontalAccuracy: '20mm',
-      verticalAccuracy: '10mm',
-      pointDensity: '1 per 400m²',
-      contractNumber: reportRow.contractNumber,
-      projectPurpose: reportRow.projectPurpose,
-      structuralTolerance: '5mm',
-      earthworksTolerance: '20mm',
-      asBuiltTolerance: '10mm',
-      mineralType: 'TBD',
-      stockpileId: 'SP-001',
-      stockpileVolume: 'TBD',
-      materialType: 'Overburden',
-      gridSpacing: '5m',
-    })
-
     const docxBuffer = await generateDocx({
       title: report.reportTitle || 'Survey Report',
       reportNumber: report.reportNumber,
-      sections: templateSections.length > 0 ? templateSections : report.sections,
-      surveyType,
-      clientName: reportRow.clientName,
-      projectName: reportRow.projectName,
-      projectLocation: reportRow.projectLocation,
-      areaHectares: reportRow.areaHectares,
-      useTemplate: true,
+      sections: report.sections,
+      clientName: report.clientName,
+      projectName: report.projectName,
+      projectLocation: report.projectLocation,
+      areaHectares: report.areaHectares,
+      useTemplate: false,
     })
 
     return new NextResponse(Buffer.from(docxBuffer), {

@@ -7,6 +7,8 @@
  * tested for basic contract (no throw, returns expected shape).
  */
 
+import { autoDetectUtmZone } from '../projectionConstants'
+
 import {
   getProjectionConfig,
   registerExtendedProjections,
@@ -18,7 +20,7 @@ import {
 
 jest.mock('@/lib/map/projection', () => ({
   registerProjections: jest.fn(async () => {}),
-  EPSG_21037_DEF: '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
+  EPSG_21037_DEF: '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
   SRID_21037: 'EPSG:21037',
 }))
 
@@ -230,5 +232,68 @@ describe('registerExtendedProjections', () => {
     // in a process lifetime actually executes the registration. We test that
     // the function completes without error.
     await expect(registerExtendedProjections()).resolves.not.toThrow()
+  })
+})
+
+// ---------------------------------------------------------------------------
+// autoDetectUtmZone — hemisphere fallback + zone boundary regression tests
+// ---------------------------------------------------------------------------
+
+describe('autoDetectUtmZone', () => {
+  it('maps Kenya fast path regardless of hemisphere digit handling', () => {
+    expect(autoDetectUtmZone(36.8, -1.3)).toMatchObject({
+      wgs84: 'EPSG:32737', arc1960: 'EPSG:21037', zone: 37, hemisphere: 'S',
+    })
+    expect(autoDetectUtmZone(34.5, -0.5)).toMatchObject({
+      wgs84: 'EPSG:32736', arc1960: 'EPSG:21036', zone: 36, hemisphere: 'S',
+    })
+  })
+
+  it('derives northern hemisphere from positive latitude in fallback', () => {
+    expect(autoDetectUtmZone(-122.4, 37.8)).toMatchObject({
+      wgs84: 'EPSG:32610', hemisphere: 'N', zone: 10,
+    })
+    expect(autoDetectUtmZone(139.7, 35.7)).toMatchObject({
+      wgs84: 'EPSG:32654', hemisphere: 'N', zone: 54,
+    })
+  })
+
+  it('derives southern hemisphere from negative latitude in fallback', () => {
+    expect(autoDetectUtmZone(174.8, -36.8)).toMatchObject({
+      wgs84: 'EPSG:32760', hemisphere: 'S', zone: 60,
+    })
+  })
+
+  it('treats the equator as northern hemisphere', () => {
+    expect(autoDetectUtmZone(0, 0).hemisphere).toBe('N')
+  })
+
+  it('defaults to southern hemisphere when latitude is omitted (legacy behaviour)', () => {
+    expect(autoDetectUtmZone(36.8).hemisphere).toBe('S')
+    expect(autoDetectUtmZone(36.8).wgs84).toBe('EPSG:32737')
+  })
+
+  it('clamps zone to the valid UTM range 1-60 at the antimeridian', () => {
+    // lng = 180 would previously produce zone 61
+    expect(autoDetectUtmZone(180, 0).zone).toBe(60)
+    expect(autoDetectUtmZone(180, 0).wgs84).toBe('EPSG:32660')
+    expect(autoDetectUtmZone(-180, 0).zone).toBe(1)
+  })
+
+  it('zero-pads single-digit zones in WGS84 EPSG codes', () => {
+    // zone 1 previously produced the invalid code EPSG:3261
+    expect(autoDetectUtmZone(-180, 65).wgs84).toBe('EPSG:32601')
+    expect(autoDetectUtmZone(-180, -45).wgs84).toBe('EPSG:32701')
+    // Kenya zones are unaffected by padding
+    expect(autoDetectUtmZone(36.8, -1.3).wgs84).toBe('EPSG:32737')
+  })
+
+  it('never returns the malformed EPSG:323x codes', () => {
+    for (const lng of [-180, -90, 0, 15, 60, 120, 180]) {
+      for (const lat of [-45, 45]) {
+        const r = autoDetectUtmZone(lng, lat)
+        expect(r.wgs84).toMatch(/^EPSG:32[67]\d{2}$/)
+      }
+    }
   })
 })

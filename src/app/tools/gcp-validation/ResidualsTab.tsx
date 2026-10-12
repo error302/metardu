@@ -22,6 +22,7 @@ interface ResidualsTabProps {
   loadSampleResiduals: () => void;
   clearResiduals: () => void;
   handleResidualFileUpload: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  invalidateValidation: () => void;
   handleParseResiduals: () => void;
   handleRunValidation: () => void;
 }
@@ -40,6 +41,7 @@ export function ResidualsTab({
   loadSampleResiduals,
   clearResiduals,
   handleResidualFileUpload,
+  invalidateValidation,
   handleParseResiduals,
   handleRunValidation,
 }: ResidualsTabProps) {
@@ -49,7 +51,7 @@ export function ResidualsTab({
         <div className="card-header flex justify-between items-center flex-wrap gap-2">
           <span className="label">Import Residual Table</span>
           <div className="flex gap-2">
-            <button onClick={loadSampleResiduals} className="btn btn-secondary text-sm">Load Sample</button>
+            <button onClick={loadSampleResiduals} className="btn btn-secondary text-sm">Load Example (fictional)</button>
             <button onClick={clearResiduals} className="btn btn-secondary text-sm">Clear</button>
             <label className="btn btn-secondary text-sm cursor-pointer">
               Upload File
@@ -73,7 +75,12 @@ export function ResidualsTab({
           <select
              id="format" className="input w-48"
             value={residualFormat}
-            onChange={e => setResidualFormat(e.target.value as ResidualFormat)}
+            onChange={e => {
+              setResidualFormat(e.target.value as ResidualFormat);
+              setParsedResiduals([]);
+              setDetectedFormat(null);
+              invalidateValidation();
+            }}
           >
             <option value="auto">Auto-detect</option>
             <option value="agisoft">Agisoft Metashape</option>
@@ -96,6 +103,7 @@ export function ResidualsTab({
             setResidualText(e.target.value);
             setParsedResiduals([]);
             setDetectedFormat(null);
+            invalidateValidation();
           }}
         />
 

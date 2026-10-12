@@ -275,6 +275,7 @@
   },
   "resources": {
     "datumConverter": "Конвертер датума",
+    "onlineServices": "Онлайн-сервисы",
     "kencorsRtk": "KenCORS RTK",
     "knowledgeBase": "База знаний"
   },

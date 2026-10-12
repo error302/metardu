@@ -1,163 +1,107 @@
-import type { ParsedInput, ExtractedBuildingData, ExtractedAnnotation, BoundingBox2D, ExtractedWall } from './types'
-import { calculateConfidence } from './fileRouter'
+import type { ParsedInput } from './types'
 
 export interface PDFParseOptions {
   scale?: number
 }
 
-/** Structural subset of the pdfjs TextItem used by the extractor. */
+/** Structural subset of the pdfjs TextItem used by the text extractor. */
 interface PDFTextItem {
-  transform?: number[]
   str?: string
 }
 
+const MAX_PDF_PAGES = 500
+const MAX_EXTRACTED_TEXT_CHARS = 100_000
+
 export async function parsePDFContent(file: File, _options: PDFParseOptions = {}): Promise<ParsedInput> {
-
+  const base = {
+    type: 'PDF' as const,
+    sourceFileName: file.name,
+    sourceFileSize: file.size,
+    sourceFileLastModified: file.lastModified,
+    parsedAt: new Date().toISOString(),
+    version: '1.0.0',
+  }
+  let destroyLoadingTask: (() => Promise<void>) | undefined
   try {
-    const pdfjsLib = await import('pdfjs-dist')
-    pdfjsLib.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.js'
+    // The route runs in Node. Use PDF.js's Node entrypoint so it can select
+    // its packaged worker instead of relying on a missing public worker file.
+    const { getDocument } = await import('pdfjs-dist/legacy/build/pdf.mjs')
+    const [{ default: nodeModule }, path] = await Promise.all([
+      import('node:module'),
+      import('node:path'),
+    ])
+    // Webpack's dynamic CJS namespace wrapper exposes Module as default;
+    // its static createRequire method is not a named namespace export there.
+    const require = nodeModule.createRequire(import.meta.url)
+    const standardFontDirectory = path.join(
+      path.dirname(require.resolve('pdfjs-dist/package.json')),
+      'standard_fonts',
+    )
+    const loadingTask = getDocument({
+      data: new Uint8Array(await file.arrayBuffer()),
+      isEvalSupported: false,
+      standardFontDataUrl: `${standardFontDirectory.replace(/\\/g, '/')}/`,
+    })
+    destroyLoadingTask = () => loadingTask.destroy()
+    const pdf = await loadingTask.promise
+    if (pdf.numPages > MAX_PDF_PAGES) {
+      throw new Error(`PDF has ${pdf.numPages} pages; the parser limit is ${MAX_PDF_PAGES}. Split the file and retry.`)
+    }
 
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-
-    const annotations: ExtractedAnnotation[] = []
-    let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity
-
+    let extractedText = ''
+    let extractedPageCount = 0
+    let truncated = false
     for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
       const page = await pdf.getPage(pageNum)
       const textContent = await page.getTextContent()
-
-      textContent.items.forEach((item, idx: number) => {
+      const pageText = textContent.items.map(item => {
         const textItem = item as PDFTextItem
-        const transform = textItem.transform
-        if (transform) {
-          const x = transform[4] ?? 0
-          const y = transform[5] ?? 0
-          
-          annotations.push({
-            id: `annotation_${pageNum}_${idx}`,
-            type: 'text',
-            position: { easting: x, northing: y },
-            content: textItem.str || '',
-            level: pageNum - 1,
-          })
-
-          if (x < minE) minE = x
-          if (x > maxE) maxE = x
-          if (y < minN) minN = y
-          if (y > maxN) maxN = y
+        return typeof textItem.str === 'string' ? textItem.str : ''
+      }).filter(Boolean).join(' ')
+      if (pageText) {
+        const pageChunk = `${extractedPageCount ? '\n\n' : ''}Page ${pageNum}\n${pageText}`
+        const remainingChars = MAX_EXTRACTED_TEXT_CHARS - extractedText.length
+        if (pageChunk.length > remainingChars) {
+          extractedText += pageChunk.slice(0, remainingChars)
+          truncated = true
+          await page.cleanup()
+          break
         }
-      })
+        extractedPageCount++
+        extractedText += pageChunk
+      }
+      await page.cleanup()
     }
 
-    const boundingBox: BoundingBox2D = minE === Infinity
-      ? { minEasting: 0, maxEasting: 100, minNorthing: 0, maxNorthing: 100 }
-      : { minEasting: minE, maxEasting: maxE, minNorthing: minN, maxNorthing: maxN }
-
-    const walls: ExtractedWall[] = []
-    
-    const width = boundingBox.maxEasting - boundingBox.minEasting
-    const height = boundingBox.maxNorthing - boundingBox.minNorthing
-    
-    walls.push({
-      id: 'wall_1',
-      type: 'external',
-      startPoint: { easting: boundingBox.minEasting, northing: boundingBox.minNorthing },
-      endPoint: { easting: boundingBox.maxEasting, northing: boundingBox.minNorthing },
-      thickness: 0.2,
-      height: 3.0,
-      level: 0,
-    })
-    walls.push({
-      id: 'wall_2',
-      type: 'external',
-      startPoint: { easting: boundingBox.maxEasting, northing: boundingBox.minNorthing },
-      endPoint: { easting: boundingBox.maxEasting, northing: boundingBox.maxNorthing },
-      thickness: 0.2,
-      height: 3.0,
-      level: 0,
-    })
-    walls.push({
-      id: 'wall_3',
-      type: 'external',
-      startPoint: { easting: boundingBox.maxEasting, northing: boundingBox.maxNorthing },
-      endPoint: { easting: boundingBox.minEasting, northing: boundingBox.maxNorthing },
-      thickness: 0.2,
-      height: 3.0,
-      level: 0,
-    })
-    walls.push({
-      id: 'wall_4',
-      type: 'external',
-      startPoint: { easting: boundingBox.minEasting, northing: boundingBox.maxNorthing },
-      endPoint: { easting: boundingBox.minEasting, northing: boundingBox.minNorthing },
-      thickness: 0.2,
-      height: 3.0,
-      level: 0,
-    })
-
-    const building: ExtractedBuildingData = {
-      floors: [{
-        id: 'floor_0',
-        level: 0,
-        name: 'Ground Floor',
-        elevation: 0,
-        boundingBox,
-      }],
-      walls,
-      rooms: [{
-        id: 'room_1',
-        name: 'Main Area',
-        floor: 0,
-        boundary: [
-          { easting: boundingBox.minEasting, northing: boundingBox.minNorthing },
-          { easting: boundingBox.maxEasting, northing: boundingBox.minNorthing },
-          { easting: boundingBox.maxEasting, northing: boundingBox.maxNorthing },
-          { easting: boundingBox.minEasting, northing: boundingBox.maxNorthing },
-        ],
-        area: width * height,
-        perimeter: 2 * (width + height),
-        height: 3.0,
-      }],
-      doors: [],
-      windows: [],
-      columns: [],
-      beams: [],
-      annotations,
-      boundingBox,
-      metadata: {
-        units: 'meters',
-        projectName: file.name.replace(/\.[^/.]+$/, ''),
-        scale: '1:100',
-      },
+    if (!extractedText.trim()) {
+      return {
+        ...base,
+        extractedText: '',
+        errors: ['No selectable PDF text was found. Scanned or image-only PDFs need OCR; no geometry was generated.'],
+        warnings: [],
+        confidence: 0,
+      }
     }
-
-    const confidence = calculateConfidence(building) * 0.6
 
     return {
-      type: 'PDF',
-      sourceFileName: file.name,
-      sourceFileSize: file.size,
-      sourceFileLastModified: file.lastModified,
-      parsedAt: new Date().toISOString(),
-      version: '1.0.0',
-      building,
+      ...base,
+      extractedText,
       errors: [],
-      warnings: ['PDF text extraction only. For full floor plan analysis, use AI vision.'],
-      confidence,
+      warnings: [
+        'Text extraction only. PDF page coordinates are not survey coordinates; no walls, rooms, levels, units, or scale were inferred.',
+        ...(truncated ? [`Text preview is limited to ${MAX_EXTRACTED_TEXT_CHARS.toLocaleString()} characters.`] : []),
+      ],
+      confidence: 0,
     }
   } catch (error) {
     return {
-      type: 'PDF',
-      sourceFileName: file.name,
-      sourceFileSize: file.size,
-      sourceFileLastModified: file.lastModified,
-      parsedAt: new Date().toISOString(),
-      version: '1.0.0',
+      ...base,
       errors: [error instanceof Error ? error.message : 'PDF parsing failed'],
-      warnings: ['Ensure pdf.worker.min.js is in /public directory'],
+      warnings: [],
       confidence: 0,
     }
+  } finally {
+    await destroyLoadingTask?.().catch(() => undefined)
   }
 }
 

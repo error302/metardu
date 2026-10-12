@@ -27,6 +27,7 @@
 
 import Drawing, { type Point2D } from 'dxf-writer'
 import { initialiseSokDXFLayers, formatBearingDMS, formatDistanceM, formatPlanDate } from '@/lib/drawing/dxfLayers'
+import { reportCrs, describeVerticalDatum } from '@/lib/generators/reportCrs'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 import {
   boundingBox,
@@ -107,9 +108,18 @@ export function generateCadastralPlanDXF(
   const scale = opts.scale > 0 ? opts.scale : computeDefaultScale(bb, opts.sheetSize)
 
   const p = data.project
-  const datum = p.datum || 'ARC1960'
-  const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
-  const coordinateSystem = `Arc 1960 / UTM Zone ${zone}`
+  // Describe only the declared CRS — no default datum, zone or hemisphere.
+  const crs = reportCrs({
+    utmZone: p.utm_zone,
+    hemisphere: p.hemisphere,
+    datum: p.datum,
+    verticalDatum: p.vertical_datum,
+    verticalReference: p.vertical_reference,
+    geoidModel: p.geoid_model,
+    benchmarkBasis: p.benchmark_basis,
+  })
+  const datum = crs.datum
+  const coordinateSystem = crs.crsName
 
   // Build the drawing using dxf-writer
   const drawing = new Drawing()
@@ -142,9 +152,10 @@ export function generateCadastralPlanDXF(
     const cp = data.controlPoints.find(
       c => c.name === pt.name || (Math.abs(c.easting - pt.easting) < 0.01 && Math.abs(c.northing - pt.northing) < 0.01)
     )
-    const label = cp?.beaconDescription
+    const label = (cp?.beaconDescription && pt.name
       ? `${pt.name}\n${cp.beaconDescription}`
-      : pt.name
+      : pt.name ?? cp?.beaconDescription ?? ''
+    ).replace(/\n/g, ' ')
 
     // Offset label slightly from the beacon
     const offsetM = 1.5
@@ -153,7 +164,7 @@ export function generateCadastralPlanDXF(
       pt.northing + offsetM,
       1.5,
       0,
-      label.replace(/\n/g, ' '),
+      label,
     )
   }
 
@@ -336,7 +347,8 @@ export function generateCadastralPlanDXF(
     `Date: ${formatPlanDate(new Date())}`,
     `Scale: 1:${scale}`,
     `Coord. System: ${coordinateSystem}`,
-    `Datum: ${datum} (Clarke 1880)`,
+    `Datum: ${datum}${crs.verified ? ` · ${crs.ellipsoid}` : ''}`,
+    `Vertical: ${describeVerticalDatum(crs)}`,
     `Sheet: 1 of 1  Rev: ${(p.revisions && p.revisions[0]?.rev) || 'A'}`,
   ]
 

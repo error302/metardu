@@ -7,6 +7,7 @@ import './parsers/dxf';
 import './parsers/traverse-csv';
 import './parsers/las';
 import './parsers/pix4d';
+import './parsers/rinex';
 
 export { detectFormat, getParser, getAllParsers } from './registry';
 export type { Parser } from './registry';

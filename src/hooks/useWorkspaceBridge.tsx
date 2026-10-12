@@ -10,6 +10,7 @@ import React, {
   type ReactNode,
 } from 'react';
 import { useUIStore } from '@/stores/uiStore';
+import { useSelectionStore } from '@/lib/surveyMapEngine/ol/selection';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -103,14 +104,17 @@ export function WorkspaceBridgeProvider({ children }: { children: ReactNode }) {
     // Sync to uiStore so map and other components pick it up
     if (sel.type === 'station' && sel.stationName) {
       uiSetSelectedPointIds([sel.stationName]);
+      useSelectionStore.getState().setSelection({ kind: 'station', surface: 'workspace', ids: [sel.stationName] });
     } else if (sel.type === 'none') {
       uiClearSelection();
+      useSelectionStore.getState().clearSelectionFrom('workspace');
     }
   }, [uiSetSelectedPointIds, uiClearSelection]);
 
   const clearSelection = useCallback(() => {
     setSelectionState(EMPTY_SELECTION);
     uiClearSelection();
+    useSelectionStore.getState().clearSelectionFrom('workspace');
   }, [uiClearSelection]);
 
   /* -- Computation logs -- */

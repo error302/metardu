@@ -2,11 +2,12 @@
 
 import { useEffect, useState, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { signIn } from 'next-auth/react'
-import { Eye, EyeOff, ArrowLeft, CheckCircle2, ShieldCheck, WifiOff , AlertTriangle } from 'lucide-react'
+import { getProviders, signIn } from 'next-auth/react'
+import { Eye, EyeOff, ArrowLeft, AlertTriangle } from 'lucide-react'
 import MetarduLogo from '@/components/MetarduLogo'
 import Image from 'next/image'
 import { logger } from '@/lib/logger'
+import { safeRedirectPath } from '@/lib/auth/safeRedirect'
 
 type View = 'login' | 'forgot' | 'sent'
 
@@ -44,6 +45,7 @@ function LoginForm() {
   const [rememberMe, setRememberMe] = useState(false)
   const [loading, setLoading] = useState(false)
   const [oauthLoading, setOauthLoading] = useState<string | null>(null)
+  const [availableOAuthProviders, setAvailableOAuthProviders] = useState<Record<string, boolean>>({})
   const [error, setError] = useState('')
   const [emailError, setEmailError] = useState('')
   const [passwordError, setPasswordError] = useState('')
@@ -53,16 +55,40 @@ function LoginForm() {
 
   useEffect(() => { document.title = 'Login — METARDU' }, [])
 
+  const authFailure = searchParams.get('error')
+  useEffect(() => {
+    if (!authFailure) return
+    setError(authFailure === 'AccessDenied' || authFailure === 'OAuthAccountNotLinked'
+      ? 'This sign-in could not be completed. Use your existing sign-in method, or contact support for help accessing your account.'
+      : 'Unable to complete sign-in. Please try again or use another sign-in method.')
+  }, [authFailure])
+
+  useEffect(() => {
+    let active = true
+    void getProviders()
+      .then((providers) => {
+        if (!active) return
+        setAvailableOAuthProviders({
+          google: Boolean(providers?.google),
+          'azure-ad': Boolean(providers?.['azure-ad']),
+        })
+      })
+      .catch(() => {
+        if (active) setAvailableOAuthProviders({})
+      })
+    return () => { active = false }
+  }, [])
+
   useEffect(() => {
     const saved = localStorage.getItem('metardu_remember')
     if (saved === 'true') setRememberMe(true)
   }, [])
 
   const getRedirectTo = () => {
-    const param = searchParams.get('next') || searchParams.get('redirectTo')
-    if (param) return decodeURIComponent(param)
+    const param = searchParams.get('next') || searchParams.get('redirectTo') || searchParams.get('callbackUrl')
+    if (param) return safeRedirectPath(param)
     if (typeof window !== 'undefined') {
-      return localStorage.getItem('auth:redirect') || '/dashboard'
+      return safeRedirectPath(localStorage.getItem('auth:redirect'))
     }
     return '/dashboard'
   }
@@ -174,17 +200,13 @@ function LoginForm() {
   }
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden auth-page">
-      {/* ──────────────────────────────────────────────────────────────
-          LIGHT TOPOGRAPHIC MAP BACKGROUND
-          Subtle overlays preserve the delicate contour detail while
-          giving the dark glass card maximum contrast.
-         ────────────────────────────────────────────────────────────── */}
-      <div className="absolute inset-0 -z-10">
+    <div className="relative isolate min-h-screen min-h-[100svh] w-full overflow-hidden auth-page metardu-login">
+      {/* A page-wide charcoal veil keeps the contour map quiet behind the form. */}
+      <div className="absolute inset-0 -z-10 bg-[var(--bg-primary)]" aria-hidden="true">
         {/* Pre-loaded topographic PNG — optimized with next/image */}
         <Image
           src="/images/signin-topo.jpg"
-          alt="World topographic contour map"
+          alt=""
           onLoad={() => setImageLoaded(true)}
           fill
           priority
@@ -194,25 +216,7 @@ function LoginForm() {
             imageLoaded ? 'opacity-100' : 'opacity-0',
           ].join(' ')}
         />
-        {/* Fallback background color while image loads */}
-        <div
-          aria-hidden
-          className="absolute inset-0 bg-[var(--bg-secondary)]"
-          style={{ zIndex: -1 }}
-        />
-        {/* Very subtle warm tint — lets contour lines shine through */}
-        <div className="absolute inset-0 bg-gradient-to-br from-[color-mix(in_srgb,var(--bg-primary)_30%,transparent)] via-[color-mix(in_srgb,var(--bg-secondary)_20%,transparent)] to-[color-mix(in_srgb,var(--bg-primary)_35%,transparent)]" />
-        {/* Bottom darkening so card/badges contrast cleanly */}
-        <div className="absolute inset-0 bg-gradient-to-t from-[color-mix(in_srgb,var(--bg-primary)_60%,transparent)] via-transparent to-[color-mix(in_srgb,var(--bg-primary)_15%,transparent)]" />
-        {/* Soft vignette */}
-        <div
-          aria-hidden
-          className="absolute inset-0"
-          style={{
-            background:
-              'radial-gradient(ellipse at center, transparent 45%, rgba(26,24,22,0.35) 100%)',
-          }}
-        />
+        <div className="absolute inset-0 metardu-login-veil" />
       </div>
 
       {/* Top brand bar */}
@@ -223,119 +227,112 @@ function LoginForm() {
         >
           <MetarduLogo size={36} showWordmark={true} color="#FFFFFF" />
         </a>
-        <div className="hidden sm:flex items-center gap-2 text-xs text-white/90 px-3 py-1.5 rounded-full bg-[color-mix(in_srgb,var(--bg-card)_50%,transparent)] border border-white/20 backdrop-blur-md drop-shadow-md">
-          <ShieldCheck className="w-3.5 h-3.5 text-[var(--accent)]" />
-          <span>East Africa Survey Platform</span>
-        </div>
       </header>
 
       {/* Main content */}
-      <main className="relative z-10 flex min-h-[calc(100vh-88px)] items-center justify-center px-4 sm:px-6 pb-12">
-        <div className="w-full max-w-md">
-          {/* Dark frosted-glass card — pops against the light topo map.
-              NOTE: bg-[color-mix(in_srgb,var(--bg-card)_80%,transparent)] silently compiles to a fully
-              transparent background (Tailwind can't apply an opacity
-              modifier to a var() color), which washed the white card text
-              out over the light map. Hard-code the auth-page dark card
-              color with real alpha instead (.auth-page pins --bg-card to
-              #080808 in globals.css). */}
-          <div className="[--auth-border:rgba(255,255,255,0.10)] [--auth-field:rgba(255,255,255,0.05)] relative rounded-2xl border border-[var(--auth-border)] bg-[rgba(8,8,8,0.82)] backdrop-blur-2xl shadow-[0_24px_80px_-12px_rgba(0,0,0,0.7)] overflow-hidden">
-            {/* Top accent stripe */}
-            <div className="h-1 w-full bg-gradient-to-r from-[var(--accent)] via-orange-400 to-[var(--accent)]" />
-
-            <div className="px-6 sm:px-8 py-8 sm:py-10">
+      <main className="relative z-10 flex min-h-[calc(100svh-76px)] items-center justify-center px-6 py-10 sm:px-8 sm:pb-24">
+        <div className="w-full max-w-sm">
               {view === 'login' && (
                 <>
                   <div className="mb-8">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                    <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
                       Welcome back
-                    </h2>
-                    <p className="text-sm text-white/60 mt-1.5">
+                    </h1>
+                    <p className="text-sm text-white/75 mt-3">
                       Sign in to your METARDU account
                     </p>
                   </div>
 
                   {/* ── OAuth Buttons (shown first for prominence) ── */}
-                  <div className="space-y-3">
-                    <button
-                      type="button"
-                      onClick={() => handleOAuthSignIn('google')}
-                      disabled={oauthLoading !== null}
-                      className="w-full py-3 px-4 bg-white/[0.07] border border-white/15 hover:bg-white/[0.12] hover:border-white/25 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                    >
-                      {oauthLoading === 'google' ? (
-                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <GoogleIcon className="w-5 h-5 shrink-0" />
+                  {(availableOAuthProviders.google || availableOAuthProviders['azure-ad']) && (
+                    <div className="space-y-3">
+                      {availableOAuthProviders.google && (
+                        <button
+                          type="button"
+                          onClick={() => handleOAuthSignIn('google')}
+                          disabled={oauthLoading !== null}
+                          className="w-full py-3 px-4 bg-white/[0.07] border border-white/15 hover:bg-white/[0.12] hover:border-white/25 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                        >
+                          {oauthLoading === 'google' ? (
+                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <GoogleIcon className="w-5 h-5 shrink-0" />
+                          )}
+                          {oauthLoading === 'google' ? 'Connecting...' : 'Continue with Google'}
+                        </button>
                       )}
-                      {oauthLoading === 'google' ? 'Connecting...' : 'Continue with Google'}
-                    </button>
 
-                    <button
-                      type="button"
-                      onClick={() => handleOAuthSignIn('azure-ad')}
-                      disabled={oauthLoading !== null}
-                      className="w-full py-3 px-4 bg-white/[0.07] border border-white/15 hover:bg-white/[0.12] hover:border-white/25 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
-                    >
-                      {oauthLoading === 'azure-ad' ? (
-                        <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                      ) : (
-                        <MicrosoftIcon className="w-5 h-5 shrink-0" />
+                      {availableOAuthProviders['azure-ad'] && (
+                        <button
+                          type="button"
+                          onClick={() => handleOAuthSignIn('azure-ad')}
+                          disabled={oauthLoading !== null}
+                          className="w-full py-3 px-4 bg-white/[0.07] border border-white/15 hover:bg-white/[0.12] hover:border-white/25 text-white font-medium rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-3"
+                        >
+                          {oauthLoading === 'azure-ad' ? (
+                            <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                          ) : (
+                            <MicrosoftIcon className="w-5 h-5 shrink-0" />
+                          )}
+                          {oauthLoading === 'azure-ad' ? 'Connecting...' : 'Continue with Microsoft'}
+                        </button>
                       )}
-                      {oauthLoading === 'azure-ad' ? 'Connecting...' : 'Continue with Microsoft'}
-                    </button>
-                  </div>
+                    </div>
+                  )}
 
                   {/* ── Divider ── */}
-                  <div className="relative my-6">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-[var(--auth-border)]" />
+                  {Object.values(availableOAuthProviders).some(Boolean) && (
+                    <div className="my-6">
+                      <div className="flex justify-center text-xs">
+                        <span className="px-3 bg-transparent text-white/65 uppercase tracking-wider">
+                          or sign in with email
+                        </span>
+                      </div>
                     </div>
-                    <div className="relative flex justify-center text-xs">
-                      <span className="px-3 bg-transparent text-white/40 uppercase tracking-wider">
-                        or sign in with email
-                      </span>
-                    </div>
-                  </div>
+                  )}
 
                   {/* ── Credentials Form ── */}
                   <form onSubmit={handleLogin} className="space-y-5">
                     {error && (
-                      <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm flex items-start gap-2">
+                      <div role="alert" className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-300 text-sm flex items-start gap-2">
                         <span className="mt-0.5"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /></span>
                         <span>{error}</span>
                       </div>
                     )}
 
                     <div>
-                      <label htmlFor="login-email" className="block text-xs font-medium uppercase tracking-wider text-white/60 mb-2">
+                      <label htmlFor="login-email" className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-2">
                         Email
                       </label>
                       <input
                         id="login-email"
                         type="email"
+                        aria-invalid={emailTouched && Boolean(emailError)}
+                        aria-describedby={emailTouched && emailError ? 'login-email-error' : undefined}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onBlur={() => {
                           setEmailTouched(true)
                           setEmailError(validateEmail(email))
                         }}
-                        className="w-full px-4 py-3 bg-[var(--auth-field)] border border-[var(--auth-border)] rounded-lg text-white placeholder-white/30 focus:border-[var(--accent)] focus:bg-white/10 focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none transition-all"
+                        className="metardu-login-field w-full px-4 py-3"
                         autoComplete="email"
                         placeholder="you@example.com"
                       />
                       {emailTouched && emailError && (
-                        <p className="text-red-300 text-xs mt-1.5">{emailError}</p>
+                        <p id="login-email-error" className="text-red-300 text-xs mt-1.5">{emailError}</p>
                       )}
                     </div>
 
                     <div>
-                      <label htmlFor="login-password" className="block text-xs font-medium uppercase tracking-wider text-white/60 mb-2">
+                      <label htmlFor="login-password" className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-2">
                         Password
                       </label>
                       <div className="relative">
                         <input
                           id="login-password"
+                          aria-invalid={passwordTouched && Boolean(passwordError)}
+                          aria-describedby={passwordTouched && passwordError ? 'login-password-error' : undefined}
                           type={showPassword ? 'text' : 'password'}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
@@ -343,27 +340,27 @@ function LoginForm() {
                             setPasswordTouched(true)
                             setPasswordError(validatePassword(password))
                           }}
-                          className="w-full px-4 py-3 pr-11 bg-[var(--auth-field)] border border-[var(--auth-border)] rounded-lg text-white placeholder-white/30 focus:border-[var(--accent)] focus:bg-white/10 focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none transition-all"
+                          className="metardu-login-field w-full px-4 py-3 pr-14"
                           autoComplete="current-password"
                           placeholder="••••••••"
                         />
                         <button
                           type="button"
                           onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors p-1"
+                          className="absolute right-1 top-1/2 -translate-y-1/2 grid min-h-11 min-w-11 place-items-center rounded-lg text-white/70 hover:text-white transition-colors"
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                         >
                           {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                         </button>
                       </div>
                       {passwordTouched && passwordError && (
-                        <p className="text-red-300 text-xs mt-1.5">{passwordError}</p>
+                        <p id="login-password-error" className="text-red-300 text-xs mt-1.5">{passwordError}</p>
                       )}
                     </div>
 
                     <div className="flex items-center justify-between">
-                      <label className="flex items-center gap-2 cursor-pointer group">
-                        <input aria-label="Rememberme"
+                      <label className="flex min-h-11 items-center gap-2 cursor-pointer group">
+                        <input aria-label="Remember me"
                           type="checkbox"
                           checked={rememberMe}
                           onChange={(e) => setRememberMe(e.target.checked)}
@@ -379,7 +376,7 @@ function LoginForm() {
                           setView('forgot')
                           setError('')
                         }}
-                        className="text-sm text-[var(--accent)] hover:text-amber-300 hover:underline transition-colors"
+                        className="min-h-11 text-sm text-[#E7A77D] hover:text-[#F3C6A8] hover:underline transition-colors"
                       >
                         Forgot password?
                       </button>
@@ -388,7 +385,7 @@ function LoginForm() {
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dim)] hover:from-amber-400 hover:to-[var(--accent)] text-black font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                      className="metardu-login-submit w-full min-h-12 py-3.5 font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading && (
                         <span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />
@@ -401,7 +398,7 @@ function LoginForm() {
                     Don&apos;t have an account?{' '}
                     <a
                       href="/register"
-                      className="text-[var(--accent)] hover:text-amber-300 hover:underline font-medium transition-colors"
+                      className="text-[#E7A77D] hover:text-[#F3C6A8] hover:underline font-medium transition-colors"
                     >
                       Create one
                     </a>
@@ -412,41 +409,44 @@ function LoginForm() {
               {view === 'forgot' && (
                 <>
                   <div className="mb-8">
-                    <h2 className="text-2xl sm:text-3xl font-bold text-white">
+                    <h1 className="text-3xl sm:text-4xl font-semibold tracking-tight text-white">
                       Reset your password
-                    </h2>
+                    </h1>
                     <p className="text-sm text-white/60 mt-1.5">
                       Enter your email and we&apos;ll send you a reset link.
                     </p>
                   </div>
 
                   <form onSubmit={handleForgotPassword} className="space-y-5">
+                    {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
                     <div>
-                      <label htmlFor="forgot-email" className="block text-xs font-medium uppercase tracking-wider text-white/60 mb-2">
+                      <label htmlFor="forgot-email" className="block text-xs font-medium uppercase tracking-wider text-white/80 mb-2">
                         Email
                       </label>
                       <input
                         id="forgot-email"
                         type="email"
+                        aria-invalid={emailTouched && Boolean(emailError)}
+                        aria-describedby={emailTouched && emailError ? 'forgot-email-error' : undefined}
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
                         onBlur={() => {
                           setEmailTouched(true)
                           setEmailError(validateEmail(email))
                         }}
-                        className="w-full px-4 py-3 bg-[var(--auth-field)] border border-[var(--auth-border)] rounded-lg text-white placeholder-white/30 focus:border-[var(--accent)] focus:bg-white/10 focus:ring-2 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none transition-all"
+                        className="metardu-login-field w-full px-4 py-3"
                         autoComplete="email"
                         placeholder="you@example.com"
                       />
                       {emailTouched && emailError && (
-                        <p className="text-red-300 text-xs mt-1.5">{emailError}</p>
+                        <p id="forgot-email-error" className="text-red-300 text-xs mt-1.5">{emailError}</p>
                       )}
                     </div>
 
                     <button
                       type="submit"
                       disabled={loading}
-                      className="w-full py-3.5 bg-gradient-to-r from-[var(--accent)] to-[var(--accent-dim)] hover:from-amber-400 hover:to-[var(--accent)] text-black font-semibold rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg shadow-[color-mix(in_srgb,var(--accent)_25%,transparent)]"
+                      className="metardu-login-submit w-full min-h-12 py-3.5 font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                     >
                       {loading && (
                         <span className="w-4 h-4 border-2 border-black/40 border-t-black rounded-full animate-spin" />
@@ -462,7 +462,7 @@ function LoginForm() {
                       setEmailTouched(false)
                       setPasswordTouched(false)
                     }}
-                    className="flex items-center gap-2 text-sm text-[var(--accent)] hover:text-amber-300 hover:underline mt-6 transition-colors"
+                    className="flex items-center gap-2 text-sm text-[#E7A77D] hover:text-[#F3C6A8] hover:underline mt-6 transition-colors"
                   >
                     <ArrowLeft className="w-4 h-4" /> Back to sign in
                   </button>
@@ -476,7 +476,7 @@ function LoginForm() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                     </svg>
                   </div>
-                  <h2 className="text-2xl font-bold text-white mb-2">Check your email</h2>
+                  <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">Check your email</h1>
                   <p className="text-white/60 mb-1">We&apos;ve sent a password reset link to:</p>
                   <p className="text-white font-medium mb-6">{email}</p>
 
@@ -487,31 +487,12 @@ function LoginForm() {
                       setEmailTouched(false)
                       setPasswordTouched(false)
                     }}
-                    className="flex items-center gap-2 text-sm text-[var(--accent)] hover:text-amber-300 hover:underline mx-auto transition-colors"
+                    className="flex items-center gap-2 text-sm text-[#E7A77D] hover:text-[#F3C6A8] hover:underline mx-auto transition-colors"
                   >
                     <ArrowLeft className="w-4 h-4" /> Back to sign in
                   </button>
                 </div>
               )}
-            </div>
-          </div>
-
-          {/* Trust badges below the card — float over world map */}
-          <div className="mt-6 flex flex-wrap items-center justify-center gap-2.5">
-            {[
-              { icon: CheckCircle2, text: 'Kenya Survey Compliant' },
-              { icon: WifiOff, text: 'Works Offline' },
-              { icon: ShieldCheck, text: 'Trusted Across East Africa' },
-            ].map((item) => (
-              <div
-                key={item.text}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/[0.04] border border-[var(--auth-border)] backdrop-blur-md text-xs text-white/75"
-              >
-                <item.icon className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
-                <span>{item.text}</span>
-              </div>
-            ))}
-          </div>
         </div>
       </main>
     </div>
@@ -523,7 +504,7 @@ export default function LoginPage() {
     <Suspense
       fallback={
         <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center auth-page">
-          <div className="w-6 h-6 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin" />
+          <MetarduLogo size={56} showWordmark={false} />
         </div>
       }
     >

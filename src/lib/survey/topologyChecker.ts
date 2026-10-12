@@ -21,6 +21,17 @@ import {
   lineStringToTurf,
   type SurveyPoint,
 } from '@/lib/map/turfHelpers'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+
+function assertTopologyInputs(epsg: string, vertexSets: SurveyPoint[][]): void {
+  const info = assertProjectedCrs(epsg)
+  if (info.units !== 'metres') throw new Error('Topology checks require projected metre coordinates.')
+  for (const vertices of vertexSets) {
+    if (!vertices.every(point => Number.isFinite(point.easting) && Number.isFinite(point.northing))) {
+      throw new Error('Topology checks require finite projected coordinates.')
+    }
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -38,6 +49,7 @@ export interface TopologyIssue {
     | 'duplicate_beacon'
     | 'unclosed_polygon'
     | 'insufficient_vertices'
+    | 'check_incomplete'
   severity: TopologyIssueSeverity
   message: string
   details?: string
@@ -100,13 +112,15 @@ async function getTurf(): Promise<TurfModule> {
  */
 export async function checkSelfIntersection(
   vertices: SurveyPoint[],
+  epsg: string,
 ): Promise<SurveyPoint[]> {
+  assertTopologyInputs(epsg, [vertices])
   if (vertices.length < 4) return []
 
   const turf = await getTurf()
 
   // Create a linestring from the polygon boundary
-  const line = await lineStringToTurf(vertices)
+  const line = await lineStringToTurf(vertices, epsg)
 
   // Use turf's kinks function to find self-intersections
   const kinks = turf.kinks(line)
@@ -122,7 +136,7 @@ export async function checkSelfIntersection(
     const geom = feature.geometry
     if (!geom) continue
     const [lon, lat] = geom.coordinates as [number, number]
-    const pt = await fromTurfCoord([lon, lat])
+    const pt = await fromTurfCoord([lon, lat], epsg)
     intersections.push(pt)
   }
 
@@ -141,19 +155,22 @@ export async function checkSelfIntersection(
 export async function checkParcelOverlap(
   newVertices: SurveyPoint[],
   existingParcels: ExistingParcel[],
-  toleranceSqM: number = 1,
+  toleranceSqM: number,
+  epsg: string,
 ): Promise<TopologyIssue[]> {
+  assertTopologyInputs(epsg, [newVertices, ...existingParcels.map(parcel => parcel.vertices)])
+  if (existingParcels.some(parcel => parcel.vertices.length < 3)) throw new Error('An existing parcel has insufficient vertices.')
   if (newVertices.length < 3 || existingParcels.length === 0) return []
 
   const turf = await getTurf()
-  const newPoly = await polygonToTurf(newVertices)
+  const newPoly = await polygonToTurf(newVertices, epsg)
   const issues: TopologyIssue[] = []
 
   for (const existing of existingParcels) {
     if (existing.vertices.length < 3) continue
 
     try {
-      const existingPoly = await polygonToTurf(existing.vertices)
+      const existingPoly = await polygonToTurf(existing.vertices, epsg)
       const intersection = turf.intersect(turf.featureCollection([newPoly, existingPoly]))
 
       if (intersection) {
@@ -171,8 +188,7 @@ export async function checkParcelOverlap(
         }
       }
     } catch {
-      // Skip malformed parcels
-      continue
+      throw new Error(`Overlap check could not evaluate parcel ${existing.id}.`);
     }
   }
 
@@ -193,26 +209,29 @@ export async function checkParcelOverlap(
 export async function checkSliverPolygons(
   newVertices: SurveyPoint[],
   existingParcels: ExistingParcel[],
-  thresholdM: number = 0.5,
+  thresholdM: number,
+  epsg: string,
 ): Promise<TopologyIssue[]> {
+  assertTopologyInputs(epsg, [newVertices, ...existingParcels.map(parcel => parcel.vertices)])
+  if (existingParcels.some(parcel => parcel.vertices.length < 3)) throw new Error('An existing parcel has insufficient vertices.')
   if (newVertices.length < 3 || existingParcels.length === 0) return []
 
   const turf = await getTurf()
   const issues: TopologyIssue[] = []
 
   // Buffer the new parcel by the threshold distance
-  const newPoly = await polygonToTurf(newVertices)
+  const newPoly = await polygonToTurf(newVertices, epsg)
   const bufferedNew = turf.buffer(newPoly, thresholdM, { units: 'meters' })
+  if (!bufferedNew) throw new Error('Parcel buffer could not be constructed.')
 
   for (const existing of existingParcels) {
     if (existing.vertices.length < 3) continue
 
     try {
-      const existingPoly = await polygonToTurf(existing.vertices)
+      const existingPoly = await polygonToTurf(existing.vertices, epsg)
 
       // Check if the buffered new parcel overlaps the existing parcel
       // but the original doesn't (this indicates a gap < thresholdM)
-      if (!bufferedNew) continue
       const bufferedIntersection = turf.intersect(turf.featureCollection([bufferedNew, existingPoly]))
       const directIntersection = turf.intersect(turf.featureCollection([newPoly, existingPoly]))
 
@@ -232,7 +251,7 @@ export async function checkSliverPolygons(
         }
       }
     } catch {
-      continue
+      throw new Error('Topology comparison could not be completed.');
     }
   }
 
@@ -252,23 +271,26 @@ export async function checkSliverPolygons(
 export async function checkRoadReserveEncroachment(
   newVertices: SurveyPoint[],
   roadReserves: RoadReserve[],
+  epsg: string,
 ): Promise<TopologyIssue[]> {
+  assertTopologyInputs(epsg, [newVertices, ...roadReserves.map(road => road.centerline)])
+  if (roadReserves.some(road => road.centerline.length < 2 || !Number.isFinite(road.widthM) || road.widthM <= 0)) throw new Error('A road reserve has invalid geometry or width.')
   if (newVertices.length < 3 || roadReserves.length === 0) return []
 
   const turf = await getTurf()
   const issues: TopologyIssue[] = []
-  const newPoly = await polygonToTurf(newVertices)
+  const newPoly = await polygonToTurf(newVertices, epsg)
 
   for (const road of roadReserves) {
     if (road.centerline.length < 2) continue
 
     try {
       // Create the road reserve polygon by buffering the centerline
-      const centerline = await lineStringToTurf(road.centerline)
+      const centerline = await lineStringToTurf(road.centerline, epsg)
       const halfWidth = road.widthM / 2
       const reservePoly = turf.buffer(centerline, halfWidth, { units: 'meters' })
 
-      if (!reservePoly) continue
+      if (!reservePoly) throw new Error('Road reserve buffer could not be constructed.')
 
       // Check intersection
       const intersection = turf.intersect(turf.featureCollection([newPoly, reservePoly]))
@@ -288,7 +310,7 @@ export async function checkRoadReserveEncroachment(
         }
       }
     } catch {
-      continue
+      throw new Error('Topology comparison could not be completed.');
     }
   }
 
@@ -349,6 +371,7 @@ export async function checkDuplicateBeacons(
  */
 export async function runTopologyCheck(params: {
   newVertices: SurveyPoint[]
+  epsg: string
   existingParcels?: ExistingParcel[]
   roadReserves?: RoadReserve[]
   beacons?: SurveyPoint[]
@@ -358,6 +381,7 @@ export async function runTopologyCheck(params: {
 }): Promise<TopologyCheckResult> {
   const {
     newVertices,
+    epsg,
     existingParcels = [],
     roadReserves = [],
     beacons = [],
@@ -366,6 +390,8 @@ export async function runTopologyCheck(params: {
     duplicateBeaconThresholdM = 0.1,
   } = params
 
+  assertTopologyInputs(epsg, [newVertices, ...existingParcels.map(parcel => parcel.vertices), ...roadReserves.map(road => road.centerline)])
+  if (existingParcels.some(parcel => parcel.vertices.length < 3)) throw new Error('An existing parcel has insufficient vertices.')
   const issues: TopologyIssue[] = []
 
   // 1. Check minimum vertices
@@ -397,7 +423,7 @@ export async function runTopologyCheck(params: {
   }
 
   // 3. Self-intersection check
-  const selfIntersections = await checkSelfIntersection(newVertices)
+  const selfIntersections = await checkSelfIntersection(newVertices, epsg)
   if (selfIntersections.length > 0) {
     issues.push({
       id: 'self-intersection',
@@ -410,15 +436,15 @@ export async function runTopologyCheck(params: {
   }
 
   // 4. Overlap check
-  const overlapIssues = await checkParcelOverlap(newVertices, existingParcels, overlapToleranceSqM)
+  const overlapIssues = await checkParcelOverlap(newVertices, existingParcels, overlapToleranceSqM, epsg)
   issues.push(...overlapIssues)
 
   // 5. Sliver check
-  const sliverIssues = await checkSliverPolygons(newVertices, existingParcels, sliverThresholdM)
+  const sliverIssues = await checkSliverPolygons(newVertices, existingParcels, sliverThresholdM, epsg)
   issues.push(...sliverIssues)
 
   // 6. Road reserve check
-  const roadIssues = await checkRoadReserveEncroachment(newVertices, roadReserves)
+  const roadIssues = await checkRoadReserveEncroachment(newVertices, roadReserves, epsg)
   issues.push(...roadIssues)
 
   // 7. Duplicate beacon check

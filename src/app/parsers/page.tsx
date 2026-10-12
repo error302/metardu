@@ -10,7 +10,7 @@ export default function ParsersPage() {
 
   useEffect(() => {
     setMounted(true)
-    document.title = 'Import Building Plans - METARDU'
+    document.title = 'Import Survey and Design Files - METARDU'
   }, [])
 
   if (!mounted) {
@@ -25,9 +25,9 @@ export default function ParsersPage() {
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-3xl mx-auto px-4 py-12">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Import Building Plans</h1>
+          <h1 className="text-3xl font-bold text-[var(--text-primary)]">Import Survey and Design Files</h1>
           <p className="text-[var(--text-secondary)] mt-2">
-            Upload architectural drawings, BIM models, or BOQ spreadsheets for analysis
+            Parse supported CAD, BIM, document, photo, and quantity data. Review each source before using it in a survey or design.
           </p>
         </div>
 
@@ -35,22 +35,26 @@ export default function ParsersPage() {
           <UploadZone />
         </div>
 
-        <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+        <div className="mt-8 grid grid-cols-2 md:grid-cols-3 gap-4 text-sm">
           <div 
             className="bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] rounded-lg p-4 border border-[var(--border-color)] cursor-pointer hover:border-blue-400"
             onClick={() => setShowDwgGuidance(!showDwgGuidance)}
           >
             <div className="text-blue-400 font-medium">CAD</div>
-            <div className="text-[var(--text-muted)] text-xs mt-1">DXF, DWG</div>
+            <div className="text-[var(--text-muted)] text-xs mt-1">DXF entities; drawing units and CRS need confirmation</div>
             {showDwgGuidance && <div className="mt-2"><DWGImportGuidance /></div>}
           </div>
           <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] rounded-lg p-4 border border-[var(--border-color)]">
             <div className="text-purple-400 font-medium">BIM</div>
-            <div className="text-[var(--text-muted)] text-xs mt-1">IFC</div>
+            <div className="text-[var(--text-muted)] text-xs mt-1">IFC STEP inventory; no geometry transform</div>
           </div>
           <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] rounded-lg p-4 border border-[var(--border-color)]">
             <div className="text-red-400 font-medium">PDF</div>
-            <div className="text-[var(--text-muted)] text-xs mt-1">Scanned drawings</div>
+            <div className="text-[var(--text-muted)] text-xs mt-1">Selectable text only; no OCR or spatial geometry</div>
+          </div>
+          <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] rounded-lg p-4 border border-[var(--border-color)]">
+            <div className="text-amber-400 font-medium">Field photos</div>
+            <div className="text-[var(--text-muted)] text-xs mt-1">JPEG GPS EXIF only; not survey control</div>
           </div>
           <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_30%,transparent)] rounded-lg p-4 border border-[var(--border-color)]">
             <div className="text-emerald-400 font-medium">BOQ</div>

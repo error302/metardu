@@ -33,6 +33,7 @@ import { logger } from '@/lib/logger'
 interface TopologyGuardrailProps {
   /** Vertices of the parcel currently being drawn/edited */
   vertices: SurveyPoint[]
+  epsg: string | null
   /** Existing neighboring parcels to check against */
   existingParcels?: ExistingParcel[]
   /** Road reserves to check encroachment against */
@@ -81,11 +82,16 @@ const ISSUE_TYPE_LABELS: Record<string, string> = {
   insufficient_vertices: 'Insufficient Vertices',
 }
 
+const EMPTY_PARCELS: ExistingParcel[] = []
+const EMPTY_ROADS: RoadReserve[] = []
+const EMPTY_BEACONS: SurveyPoint[] = []
+
 export function TopologyGuardrail({
   vertices,
-  existingParcels = [],
-  roadReserves = [],
-  beacons = [],
+  epsg,
+  existingParcels = EMPTY_PARCELS,
+  roadReserves = EMPTY_ROADS,
+  beacons = EMPTY_BEACONS,
   onIssuesChange,
   defaultExpanded = true,
   compact = false,
@@ -102,26 +108,34 @@ export function TopologyGuardrail({
       return
     }
 
+    let cancelled = false
+    setResult(null)
     setChecking(true)
     const timer = setTimeout(async () => {
       try {
+        if (!epsg) throw new Error('A projected survey reference system is required')
         const checkResult = await runTopologyCheck({
-          newVertices: vertices,
+          newVertices: vertices, epsg,
           existingParcels,
           roadReserves,
           beacons,
         })
+        if (cancelled) return
         setResult(checkResult)
         onIssuesChange?.(checkResult.issues)
       } catch (err) {
+        if (cancelled) return
         logger.error('[TopologyGuardrail] Check failed:', { error: err })
+        const incomplete: TopologyIssue = { id: 'topology-incomplete', type: 'check_incomplete', severity: 'error', message: 'Topology check could not be completed. Review coordinates and the survey reference system, then retry.' }
+        setResult({ issues: [incomplete], isValid: false, hasErrors: true, hasWarnings: false })
+        onIssuesChange?.([incomplete])
       } finally {
-        setChecking(false)
+        if (!cancelled) setChecking(false)
       }
     }, 300) // 300ms debounce
 
-    return () => clearTimeout(timer)
-  }, [vertices, existingParcels, roadReserves, beacons, onIssuesChange])
+    return () => { cancelled = true; clearTimeout(timer) }
+  }, [epsg, vertices, existingParcels, roadReserves, beacons, onIssuesChange])
 
   const errorCount = useMemo(
     () => result?.issues.filter(i => i.severity === 'error').length ?? 0,
@@ -142,11 +156,11 @@ export function TopologyGuardrail({
       <div className={`rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 ${compact ? '' : 'p-4'}`}>
         <div className="flex items-center gap-2">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
-          <span className="text-sm text-emerald-400 font-medium">Topology Valid</span>
+          <span className="text-sm text-emerald-400 font-medium">Available topology checks passed</span>
         </div>
         {!compact && (
           <p className="text-[11px] text-emerald-400/70 mt-1">
-            No overlaps, slivers, or encroachments detected. Safe for registry submission.
+            No issues were detected in the supplied boundaries and comparison data. Review the plan and submission requirements separately.
           </p>
         )}
       </div>
@@ -226,8 +240,8 @@ export function TopologyGuardrail({
         <div className="px-3 py-2 border-t border-white/[0.06] bg-[#0d0d14]/40">
           <p className="text-[10px] text-gray-500">
             {result.isValid
-              ? 'No blocking errors — parcel can be saved.'
-              : `${errorCount} error(s) must be fixed before registry submission.`}
+              ? 'No blocking errors in the supplied topology checks.'
+              : `${errorCount} topology issue(s) need review.`}
           </p>
         </div>
       )}

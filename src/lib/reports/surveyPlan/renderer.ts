@@ -1,6 +1,7 @@
-import { createHash } from 'crypto'
+import { sha256Hex } from '@/lib/crypto/sha256'
 import type { SurveyPlanData, PlanOptions } from './types'
 import { getRoadReserveWidth } from './types'
+import { reportCrs, describeVerticalDatum } from '@/lib/generators/reportCrs'
 import { generateBearingScheduleCSV } from '../bearingScheduleCSV'
 import { computeTraverseAccuracy } from '../traverseAccuracy'
 import {
@@ -43,6 +44,20 @@ export class SurveyPlanRenderer {
   protected toSvgX!: (m: number) => number
   protected toSvgY!: (m: number) => number
   protected rotatedPoints: Array<{ easting: number; northing: number }> = []
+
+  /** Single CRS path for every rendered CRS statement (reportCrs — never hard-coded fallbacks). */
+  protected get crs() {
+    const p = this.data.project
+    return reportCrs({
+      utmZone: p.utm_zone,
+      hemisphere: p.hemisphere,
+      datum: p.datum,
+      verticalDatum: p.vertical_datum,
+      verticalReference: p.vertical_reference,
+      geoidModel: p.geoid_model,
+      benchmarkBasis: p.benchmark_basis,
+    })
+  }
 
   constructor(data: SurveyPlanData, options?: PlanOptions) {
     this.data = data
@@ -437,19 +452,18 @@ export class SurveyPlanRenderer {
   }
 
   private drawDatumNote(leftPad: number, _panelInnerW: number): string {
-    const p = this.data.project
-    const datum = p.datum || 'ARC1960'
-    const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
-    const note = `Coordinates: UTM Zone ${zone}, ${datum} (Clarke 1880) — Survey Act Cap. 299 | RDM 1.1 §5.2`
+    const crs = this.crs
+    const note = crs.verified
+      ? `Coordinates: UTM Zone ${crs.zone}${crs.hemi}, ${crs.datum} (${crs.ellipsoid}) — Survey Act Cap. 299 | RDM 1.1 §5.2`
+      : `Coordinates: UNVERIFIED — project CRS not declared | Survey Act Cap. 299 | RDM 1.1 §5.2`
+    const vertical = `Vertical: ${describeVerticalDatum(crs)}`
     const y = this.margin + mmToPx(25)
-    return `<text x="${leftPad}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-style="italic" fill="#555">${escapeXml(note)}</text>`
+    return `<text x="${leftPad}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-style="italic" fill="#555">${escapeXml(note)}</text><text x="${leftPad}" y="${y + mmToPx(4)}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-style="italic" fill="#555">${escapeXml(vertical)}</text>`
   }
 
   private drawCoordinateSchedule(leftPad: number, panelInnerW: number): string {
-    const p = this.data.project
+    const crs = this.crs
     const pts = this.data.parcel.boundaryPoints
-    const datum = p.datum || 'ARC1960'
-    const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
     const startY = this.margin + mmToPx(42)
     const colW = panelInnerW / 4
     const rowH = mmToPx(3.5)
@@ -458,14 +472,11 @@ export class SurveyPlanRenderer {
     const tableH = headerH + maxRows * rowH
 
     let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    // T1.5 FIX (2026-07-09): Derive the EPSG code from the project's actual
-    // UTM zone, not a hardcoded 'EPSG:21037'. A Zone 36 project (Kisumu,
-    // Mombasa) would show the wrong EPSG in the PDF label.
-    const zoneNum = p.utm_zone || 37
-    const epsgCode = datum === 'ARC1960'
-      ? `EPSG:210${zoneNum < 10 ? '0' + zoneNum : zoneNum}`  // Arc 1960: 21036, 21037
-      : `EPSG:327${zoneNum < 10 ? '0' + zoneNum : zoneNum}`   // WGS 84: 32736, 32737
-    const label = datum === 'ARC1960' ? `COORDINATE SCHEDULE (${datum} / UTM ${zone} ${epsgCode})` : `COORDINATE SCHEDULE (${datum})`
+    // Label from the CRS registry — one path for zone, hemisphere and EPSG;
+    // never a hard-coded zone or EPSG family.
+    const label = crs.verified
+      ? `COORDINATE SCHEDULE (${crs.datum} / UTM ${crs.zone}${crs.hemi} ${crs.epsgCode})`
+      : `COORDINATE SCHEDULE (UNVERIFIED — project CRS not declared)`
     svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
@@ -872,16 +883,13 @@ export class SurveyPlanRenderer {
     svg += box(y, mmToPx(4))
     svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">PLAN INFORMATION</text>`
     y += mmToPx(4)
+    const crs = this.crs
     const info: Array<[string, string]> = [
       ['Title Ref:', p.reference || '\u2014'],
-      // T1.5 FIX (2026-07-09): Derive EPSG from the project's actual UTM zone.
-      ['Datum:', (() => {
-        const z = p.utm_zone
-        const epsg = (p.datum || 'ARC1960') === 'ARC1960'
-          ? `EPSG:210${z < 10 ? '0' + z : z}`
-          : `EPSG:327${z < 10 ? '0' + z : z}`
-        return `${p.datum || 'ARC1960'} / UTM Zone ${p.utm_zone}${p.hemisphere} (${epsg})`
-      })()],
+      ['Datum:', crs.verified
+        ? `${crs.datum} / UTM Zone ${crs.zone}${crs.hemi} (${crs.epsgCode})`
+        : 'UNVERIFIED — project CRS not declared'],
+      ['Vertical:', describeVerticalDatum(crs)],
       ['Area:', p.area_sqm ? `${p.area_sqm.toFixed(2)} m\u00B2` : '\u2014'],
       ['Council:', p.municipality || '\u2014'],
       ['Client:', p.client_name || '\u2014'],
@@ -986,11 +994,12 @@ export class SurveyPlanRenderer {
   }
 
   protected drawLegalReferenceLine(): string {
-    const p = this.data.project
-    const zone = `${p.utm_zone || 37}${p.hemisphere || 'S'}`
-    const datum = p.datum || 'ARC1960'
+    const crs = this.crs
     const y = this.pageH - mmToPx(6)
-    const ref = `Prepared: Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.1 (2025) | RDM 1.3 (2023) | Ministry of Roads and Transport, Republic of Kenya | Coordinates: UTM Zone ${zone}, ${datum}`
+    const coords = crs.verified
+      ? `UTM Zone ${crs.zone}${crs.hemi}, ${crs.datum}`
+      : 'UNVERIFIED (project CRS not declared)'
+    const ref = `Prepared: Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.1 (2025) | RDM 1.3 (2023) | Ministry of Roads and Transport, Republic of Kenya | Coordinates: ${coords}`
     return `<text x="${this.margin}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">${escapeXml(ref)}</text>`
   }
 
@@ -1119,7 +1128,7 @@ export class SurveyPlanRenderer {
    * Per Kenya survey practice, plan integrity verification is required
    * for legal admissibility under Survey Act Cap. 299, Sec. 23.
    */
-  protected drawPrintVerification(): string {
+  protected async drawPrintVerification(): Promise<string> {
     const pts = this.rotatedPoints
     const p = this.data.project
 
@@ -1134,7 +1143,7 @@ export class SurveyPlanRenderer {
 
     // Deterministic verification code using SHA-256 (cryptographic hash)
     const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${surveyorLicence}|${revisionsCount}`
-    const verCode = createHash('sha256').update(rawString).digest('hex').toUpperCase().slice(0, 16)
+    const verCode = (await sha256Hex(rawString)).toUpperCase().slice(0, 16)
 
     const y = this.pageH - mmToPx(2)
     const cx = this.pageW / 2
@@ -1159,7 +1168,7 @@ export class SurveyPlanRenderer {
     ].join('')
   }
 
-  render(): string {
+  async render(): Promise<string> {
     const totalSheets = parseInt(this.data.project.totalSheets || '1', 10)
     if (totalSheets > 1) return this.renderMultiSheet()
 
@@ -1192,12 +1201,12 @@ export class SurveyPlanRenderer {
     layers.push(this.drawAssociationStamp())
     if (this.opts.includePanel) layers.push(this.drawRightPanel())
     layers.push(this.drawSheetFooter())
-    layers.push(this.drawPrintVerification())
+    layers.push(await this.drawPrintVerification())
     layers.push(this.drawLegalReferenceLine())
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
   }
 
-  private renderMultiSheet(): string {
+  private async renderMultiSheet(): Promise<string> {
     const totalSheets = parseInt(this.data.project.totalSheets || '1', 10)
     if (totalSheets <= 1) return this.render()
 
@@ -1244,7 +1253,7 @@ export class SurveyPlanRenderer {
       layers.push(this.drawAssociationStamp())
       if (this.opts.includePanel) layers.push(this.drawRightPanel())
       layers.push(this.drawSheetFooter())
-      layers.push(this.drawPrintVerification())
+      layers.push(await this.drawPrintVerification())
       layers.push(this.drawLegalReferenceLine())
       layers.push(`<text x="${this.drawingX + this.drawingAreaW / 2}" y="${this.margin + mmToPx(3)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`)
       layers.push('</g>')

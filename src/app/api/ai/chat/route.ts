@@ -286,7 +286,7 @@ export async function POST(request: NextRequest) {
         return new Response(stream, {
           headers: {
             'Content-Type': 'text/event-stream',
-            'Cache-Control': 'no-cache',
+            'Cache-Control': 'private, no-store, no-transform',
             'Connection': 'keep-alive',
           },
         })

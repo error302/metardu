@@ -52,8 +52,8 @@ const PLAN_DATA = {
 } as any
 
 describe('sanitizeHtml — SVG drawing vocabulary', () => {
-  it('keeps the survey plan renderer output intact (not a blank shell)', () => {
-    const svg = new SurveyPlanRenderer(PLAN_DATA).render()
+  it('keeps the survey plan renderer output intact (not a blank shell)', async () => {
+    const svg = await new SurveyPlanRenderer(PLAN_DATA).render()
     const clean = sanitizeHtml(svg)
 
     // Every drawing element type the renderer emits must survive.

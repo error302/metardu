@@ -1,64 +1,18 @@
-/**
- * GET /api/beacons/nearest?lat=-1.2921&lon=36.8219&radiusKm=10&limit=5&types=TRIG,BM
- *
- * Find the nearest survey control points (trig beacons, bench marks)
- * to a coordinate. Uses haversine distance for accuracy. Cached in-
- * memory for offline field use.
- *
- * Response: { beacons: BeaconSearchResult[], total, radiusKm, elapsedMs }
- */
-
-export const dynamic = 'force-dynamic'
-
+export const dynamic='force-dynamic'
 import { NextResponse } from 'next/server'
-import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import { findNearestBeacons, formatBeaconResults, type BeaconType } from '@/lib/survey/beaconLookup'
-
-export const GET = apiHandler(
-  { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
-  async (req, _ctx) => {
-    const url = new URL(req.url)
-    const lat = parseFloat(url.searchParams.get('lat') || '')
-    const lon = parseFloat(url.searchParams.get('lon') || '')
-
-    if (Number.isNaN(lat) || Number.isNaN(lon)) {
-      return NextResponse.json(
-        { error: 'lat and lon query params are required and must be numbers' },
-        { status: 400 }
-      )
-    }
-
-    if (lat < -90 || lat > 90 || lon < -180 || lon > 180) {
-      return NextResponse.json(
-        { error: 'lat must be -90 to 90, lon must be -180 to 180' },
-        { status: 400 }
-      )
-    }
-
-    const radiusKm = parseFloat(url.searchParams.get('radiusKm') || '50')
-    const limit = parseInt(url.searchParams.get('limit') || '10', 10)
-    const typesParam = url.searchParams.get('types')
-    const types = typesParam
-      ? (typesParam.split(',').filter(Boolean) as BeaconType[])
-      : undefined
-    const country = url.searchParams.get('country') || undefined
-
-    const result = await findNearestBeacons({
-      latitude: lat,
-      longitude: lon,
-      radiusKm,
-      limit,
-      types,
-      country,
-    })
-
-    return apiSuccess({
-      beacons: result.beacons,
-      total: result.total,
-      radiusKm: result.radiusKm,
-      elapsedMs: result.elapsedMs,
-      fromCache: result.fromCache,
-      formatted: formatBeaconResults(result),
-    })
-  }
-)
+import { apiHandler } from '@/lib/apiHandler'
+import { readReviewedBenchmarks } from '@/lib/survey/reviewedBenchmarkCatalogue'
+import { formatBeaconResults,type BeaconSearchResponse } from '@/lib/survey/beaconLookup'
+import { benchmarkNavigationQuery } from '@/lib/validation/benchmarkNavigation'
+const headers={'Cache-Control':'private, no-store'}
+export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(req)=>{
+ const parsed=benchmarkNavigationQuery.safeParse(Object.fromEntries(req.nextUrl.searchParams))
+ if(!parsed.success)return NextResponse.json({error:'Enter complete navigation coordinates, a valid radius and supported types',issues:parsed.error.issues},{status:400,headers})
+ const p=parsed.data,started=Date.now(),result=await readReviewedBenchmarks({latitude:p.lat,longitude:p.lon,radiusKm:p.radiusKm,limit:p.limit,offset:p.offset,types:p.types,country:p.country,q:p.q})
+ const beacons=result.benchmarks.map(beacon=>{
+  if(beacon.distanceKm===undefined||beacon.navigationBearingDeg===undefined)throw new Error('Missing navigation result')
+  return {beacon,distanceKm:beacon.distanceKm,bearingDeg:beacon.navigationBearingDeg}
+ })
+ const response:BeaconSearchResponse={beacons,total:result.total,searchPoint:{latitude:p.lat,longitude:p.lon},radiusKm:p.radiusKm,elapsedMs:Date.now()-started,fromCache:false}
+ return NextResponse.json({...response,offset:result.offset,limit:result.limit,navigationOnly:true,formatted:formatBeaconResults(response)},{headers})
+})

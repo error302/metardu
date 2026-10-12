@@ -30,6 +30,7 @@ export default function SignatureCapture({
   const [loading, setLoading] = useState(false)
   const [signed, setSigned] = useState(false)
   const [result, setResult] = useState<{ verificationToken: string; signatureId: string } | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
@@ -94,6 +95,7 @@ export default function SignatureCapture({
   }
 
   const handleSign = async () => {
+    if (activeTab === 'certificate') return
     const method = activeTab === 'draw' ? 'DRAWN' : 'TYPED'
     const data = activeTab === 'draw' ? signatureData : `TYPED:${typedName}:${typedIsk}`
 
@@ -101,6 +103,7 @@ export default function SignatureCapture({
     if (activeTab === 'type' && (!typedName || !confirmed)) return
 
     setLoading(true)
+    setError(null)
 
     try {
       const res = await fetch('/api/signature/sign', {
@@ -115,7 +118,10 @@ export default function SignatureCapture({
         })
       })
 
-      const responseData = await res.json() as { verificationToken: string; signatureId: string; documentHash: string }
+      const responseData = await res.json() as { verificationToken?: string; signatureId?: string; documentHash?: string; error?: string }
+      if (!res.ok || !responseData.verificationToken || !responseData.signatureId || !responseData.documentHash) {
+        throw new Error(responseData.error || `Signature record could not be saved (HTTP ${res.status}).`)
+      }
 
       if (responseData.verificationToken) {
         setResult({
@@ -135,12 +141,13 @@ export default function SignatureCapture({
           documentHash: responseData.documentHash,
           signatureData: data,
           method: method as 'DRAWN' | 'TYPED',
-          valid: true,
+          verificationStatus: 'recorded',
           verificationToken: responseData.verificationToken
         })
       }
     } catch (error) {
       logger.error('Sign error:', { error: error })
+      setError(error instanceof Error ? error.message : 'Signature record could not be saved.')
     }
 
     setLoading(false)
@@ -151,12 +158,12 @@ export default function SignatureCapture({
       <div className="p-6 bg-green-50 border border-green-200 rounded-xl">
         <div className="flex items-center gap-2 mb-4">
           <Check className="w-6 h-6 text-green-600" />
-          <h3 className="font-semibold text-green-800">Document Signed Successfully</h3>
+          <h3 className="font-semibold text-green-800">Signature Record Saved</h3>
         </div>
         <div className="space-y-2 text-sm">
-          <p><span className="text-gray-500">Verification Token:</span> <code className="bg-white px-2 py-1 rounded">{result.verificationToken}</code></p>
+          <p><span className="text-gray-500">Record lookup token:</span> <code className="bg-white px-2 py-1 rounded">{result.verificationToken}</code></p>
           <p className="text-gray-600">
-            This token can be used to verify the document authenticity via QR code or the verification link.
+            This token finds the METARDU database record. It does not independently authenticate identity or registration, verify the source document, or provide a PKI certificate.
           </p>
         </div>
       </div>
@@ -190,6 +197,12 @@ export default function SignatureCapture({
         </button>
       </div>
 
+      <div role="note" className="rounded border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+        Drawn or typed input is recorded under the authenticated METARDU account. It is not a PKI signature, does not independently verify the signer&apos;s professional registration, and is not a legal certification claim.
+      </div>
+
+      {error && <p role="alert" className="rounded border border-red-300 bg-red-50 p-3 text-sm text-red-800">{error}</p>}
+
       {activeTab === 'draw' && (
         <div className="space-y-2">
           <canvas
@@ -214,8 +227,7 @@ export default function SignatureCapture({
       {activeTab === 'type' && (
         <div className="space-y-4">
           <p className="text-sm text-gray-600">
-            I, {typedName || '[Name]'}, ISK No. {typedIsk || '[ISK Number]'}, hereby certify this document
-            as correct and complete per Survey Act Cap 299 s.17
+            Record an account-associated approval for {typedName || '[Name]'} (registration text: {typedIsk || '[not supplied]'}). METARDU does not independently validate these details.
           </p>
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1" htmlFor="full-name">Full Name</label>
@@ -244,23 +256,23 @@ export default function SignatureCapture({
               onChange={e => setConfirmed(e.target.checked)}
               className="rounded"
             />
-            <span className="text-sm">I confirm this is my legal signature</span>
+            <span className="text-sm">I confirm this drawn/typed mark is mine and authorize METARDU to save this record.</span>
           </label>
         </div>
       )}
 
       {activeTab === 'certificate' && (
         <div className="p-4 bg-gray-100 rounded-lg text-center text-gray-500">
-          <p>Coming soon — PKI certificate signing</p>
+          <p>PKI certificate signing is unavailable. Use the drawing or typed-record option, which is stored as an acknowledgement and is not a digital certificate.</p>
         </div>
       )}
 
       <button
         onClick={handleSign}
-        disabled={loading || (activeTab === 'draw' && !signatureData) || (activeTab === 'type' && (!typedName || !confirmed))}
+        disabled={loading || activeTab === 'certificate' || (activeTab === 'draw' && !signatureData) || (activeTab === 'type' && (!typedName || !confirmed))}
         className="w-full py-2 bg-sky-600 text-white rounded-lg hover:bg-sky-700 disabled:opacity-50"
       >
-        {loading ? 'Signing...' : 'Sign Document'}
+        {loading ? 'Saving record…' : activeTab === 'certificate' ? 'PKI signing unavailable' : 'Save signature record'}
       </button>
     </div>
   )

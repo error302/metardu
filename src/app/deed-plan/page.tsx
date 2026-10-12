@@ -4,10 +4,11 @@ import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import { ProfessionalDisclaimer } from '@/components/shared/ProfessionalDisclaimer'
 
 interface DeedPlanPageProps {
-  searchParams: { project?: string }
+  searchParams: Promise<{ project?: string }>
 }
 
-export default function DeedPlanPage({ searchParams }: DeedPlanPageProps) {
+export default async function DeedPlanPage({ searchParams: searchParamsPromise }: DeedPlanPageProps) {
+  const searchParams = await searchParamsPromise;
   const projectId = searchParams.project
 
   return (

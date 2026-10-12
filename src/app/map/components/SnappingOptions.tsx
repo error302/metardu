@@ -4,17 +4,18 @@
  * SnappingOptions — Configurable snapping for precise digitizing
  *
  * QGIS-inspired snapping configuration:
- * - Snap to: vertices, edges, intersections
- * - Tolerance: adjustable in meters
- * - Enabled/disabled per layer
- * - Snap mode: vertex, segment, vertex+segment
+ * - Snap to: vertices, edges, both, or segment intersections
+ * - Tolerance: adjustable in screen pixels, as OpenLayers expects
+ * - Enabled/disabled for each available vector layer
  */
 
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useEffect } from 'react'
 import { Magnet, Settings2, X } from 'lucide-react'
-
-type SnapMode = 'vertex' | 'segment' | 'vertex_segment'
-type SnapType = 'osm' | 'parcels' | 'beacons' | 'grid' | 'all'
+import {
+  SNAP_TYPE_LABELS,
+  type SnapMode,
+  type SnapType,
+} from '@/lib/surveyMapEngine/ol/snapping'
 
 interface SnappingOptionsProps {
   open: boolean
@@ -26,15 +27,8 @@ interface SnappingOptionsProps {
   tolerance?: number
   onToleranceChange?: (tolerance: number) => void
   snapTypes?: Set<SnapType>
+  availableSnapTypes?: Set<SnapType>
   onSnapTypeToggle?: (type: SnapType) => void
-}
-
-const SNAP_TYPE_LABELS: Record<SnapType, string> = {
-  osm: 'Basemap features',
-  parcels: 'Parcels',
-  beacons: 'Beacons',
-  grid: 'Grid intersections',
-  all: 'All layers',
 }
 
 export function SnappingOptions({
@@ -44,14 +38,19 @@ export function SnappingOptions({
   onToggleEnabled,
   mode = 'vertex_segment',
   onModeChange,
-  tolerance = 0.1,
+  tolerance = 10,
   onToleranceChange,
-  snapTypes = new Set(['parcels', 'beacons']),
+  snapTypes = new Set(['drawn', 'parcels', 'beacons']),
+  availableSnapTypes = new Set(['drawn'] as SnapType[]),
   onSnapTypeToggle,
 }: SnappingOptionsProps) {
   const [localMode, setLocalMode] = useState(mode)
   const [localTolerance, setLocalTolerance] = useState(tolerance)
   const [localSnapTypes, setLocalSnapTypes] = useState(snapTypes)
+
+  useEffect(() => setLocalMode(mode), [mode])
+  useEffect(() => setLocalTolerance(tolerance), [tolerance])
+  useEffect(() => setLocalSnapTypes(new Set(snapTypes)), [snapTypes])
 
   const handleModeChange = useCallback((newMode: SnapMode) => {
     setLocalMode(newMode)
@@ -68,9 +67,9 @@ export function SnappingOptions({
       const next = new Set(prev)
       if (next.has(type)) next.delete(type)
       else next.add(type)
-      onSnapTypeToggle?.(type)
       return next
     })
+    onSnapTypeToggle?.(type)
   }, [onSnapTypeToggle])
 
   if (!open) return null
@@ -102,6 +101,7 @@ export function SnappingOptions({
         {/* Enable toggle */}
         <button
           onClick={onToggleEnabled}
+          aria-pressed={enabled}
           className={`w-full flex items-center justify-between p-2.5 rounded-lg border transition-colors ${
             enabled
               ? 'bg-[color-mix(in_srgb,var(--success)_5%,transparent)] border-emerald-500/30'
@@ -117,19 +117,20 @@ export function SnappingOptions({
         {/* Snap mode */}
         <div>
           <div className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Snap Mode</div>
-          <div className="grid grid-cols-3 gap-1">
-            {(['vertex', 'segment', 'vertex_segment'] as SnapMode[]).map(m => (
+          <div className="grid grid-cols-2 gap-1">
+            {(['vertex', 'segment', 'vertex_segment', 'intersection'] as SnapMode[]).map(m => (
               <button
                 key={m}
                 onClick={() => handleModeChange(m)}
                 disabled={!enabled}
+                aria-pressed={localMode === m}
                 className={`px-2 py-1.5 rounded-lg text-[9px] font-medium transition-colors disabled:opacity-30 ${
                   localMode === m
                     ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'
                     : 'bg-[var(--bg-card)]/[0.02] border border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:text-[var(--text-secondary)]'
                 }`}
               >
-                {m === 'vertex' ? 'Vertex' : m === 'segment' ? 'Segment' : 'Both'}
+                {m === 'vertex' ? 'Vertex' : m === 'segment' ? 'Edge' : m === 'intersection' ? 'Crossings' : 'Both'}
               </button>
             ))}
           </div>
@@ -138,23 +139,24 @@ export function SnappingOptions({
         {/* Tolerance */}
         <div>
           <div className="flex items-center justify-between mb-1.5">
-            <label htmlFor="snap-tolerance" className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Tolerance</label>
-            <span className="text-[10px] text-[var(--text-secondary)] font-mono">{localTolerance.toFixed(2)} m</span>
+            <label htmlFor="snap-tolerance" className="text-[9px] text-[var(--text-muted)] uppercase tracking-wider">Screen tolerance</label>
+            <span className="text-[10px] text-[var(--text-secondary)] font-mono">{localTolerance} px</span>
           </div>
           <input id="snap-tolerance"
             type="range"
-            min="0.01"
-            max="5"
-            step="0.01"
+            min="3"
+            max="24"
+            step="1"
             value={localTolerance}
             onChange={e => handleToleranceChange(parseFloat(e.target.value))}
             disabled={!enabled}
+            aria-label="Snap tolerance in screen pixels"
             className="w-full h-1.5 accent-[#D17B47] cursor-pointer disabled:opacity-30"
           />
           <div className="flex items-center justify-between mt-0.5 text-[8px] text-[var(--text-muted)]">
-            <span>1cm</span>
-            <span>1m</span>
-            <span>5m</span>
+            <span>3 px</span>
+            <span>12 px</span>
+            <span>24 px</span>
           </div>
         </div>
 
@@ -162,18 +164,19 @@ export function SnappingOptions({
         <div>
           <div className="block text-[9px] text-[var(--text-muted)] uppercase tracking-wider mb-1.5">Snap To</div>
           <div className="space-y-1">
-            {(['parcels', 'beacons', 'grid', 'osm'] as SnapType[]).map(type => (
+            {(['drawn', 'parcels', 'beacons'] as SnapType[]).map(type => (
               <label
                 key={type}
-                className={`flex items-center gap-2 p-1.5 rounded-lg cursor-pointer transition-colors ${
-                  enabled ? 'hover:bg-[var(--bg-card)]/[0.04]' : 'opacity-50'
+                title={availableSnapTypes.has(type) ? undefined : `${SNAP_TYPE_LABELS[type]} layer is not loaded or visible`}
+                className={`flex items-center gap-2 p-1.5 rounded-lg transition-colors ${
+                  enabled && availableSnapTypes.has(type) ? 'cursor-pointer hover:bg-[var(--bg-card)]/[0.04]' : 'cursor-not-allowed opacity-50'
                 }`}
               >
-                <input aria-label="Snap type"
+                <input aria-label={`Snap to ${SNAP_TYPE_LABELS[type]}`}
                   type="checkbox"
                   checked={localSnapTypes.has(type)}
                   onChange={() => handleSnapTypeToggle(type)}
-                  disabled={!enabled}
+                  disabled={!enabled || !availableSnapTypes.has(type)}
                   className="w-3.5 h-3.5 rounded border-[var(--border-hover)] accent-[#D17B47]"
                 />
                 <span className="text-[11px] text-[var(--text-secondary)]">{SNAP_TYPE_LABELS[type]}</span>

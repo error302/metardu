@@ -1,3 +1,4 @@
+import { reportCrs } from './reportCrs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPageFooter } from './pdfTitleBlock';
@@ -7,6 +8,7 @@ import { addPageFooter } from './pdfTitleBlock';
 // ---------------------------------------------------------------------------
 
 export interface TraverseComputationSheetInput {
+  derivedFromCoordinates?: boolean;
   projectName: string;
   lrNumber: string;
   parcelNumber: string;
@@ -57,6 +59,9 @@ export interface TraverseComputationSheetInput {
   precisionRatio: number;
   accuracyOrder: string;
   allowableMisclosureM: number;
+  utmZone?: number;
+  datum?: string;
+  hemisphere?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -65,12 +70,12 @@ export interface TraverseComputationSheetInput {
 
 /** Convert decimal degrees to DMS string e.g. 45°30'15.2" */
 function decimalToDMS(deg: number): string {
-  const absolute = Math.abs(deg);
-  const d = Math.floor(absolute);
-  const minFloat = (absolute - d) * 60;
-  const m = Math.floor(minFloat);
-  const s = (minFloat - m) * 60;
-  return `${d}°${String(m).padStart(2, '0')}'${s.toFixed(1)}"`;
+  if (!Number.isFinite(deg)) return 'UNVERIFIED';
+  const ticks = Math.round(Math.abs(deg) * 36000);
+  const d = Math.floor(ticks / 36000);
+  const m = Math.floor((ticks % 36000) / 600);
+  const sec = (ticks % 600) / 10;
+  return `${d}°${String(m).padStart(2, '0')}'${sec.toFixed(1)}"`;
 }
 
 /** Convert decimal degrees to WCB (Whole Circle Bearing) quadrant string e.g. N 45°30'15.2" E */
@@ -89,7 +94,8 @@ function decimalToWCB(deg: number): string {
 
 /** Format a precision ratio like "1:12500" */
 function formatPrecisionRatio(ratio: number): string {
-  if (ratio <= 0 || !isFinite(ratio)) return '—';
+  if (ratio === Infinity) return '1:Infinity';
+  if (ratio < 0 || !Number.isFinite(ratio)) return 'UNVERIFIED';
   return `1:${Math.round(ratio).toLocaleString()}`;
 }
 
@@ -147,9 +153,10 @@ export function generateTraverseComputationSheet(
   // =========================================================================
   drawPageHeader(doc, input, today);
   drawProjectInfoBlock(doc, input, today);
+  const projectInfoBottom = getLastY(doc);
   drawSurveyorInfoBlock(doc, input);
-
-  let y = 56;
+  const surveyorInfoBottom = getLastY(doc);
+  let y = Math.max(projectInfoBottom, surveyorInfoBottom) + 8;
 
   // --- Table 1: Reduced Observations ---
   y = drawReducedObservationsTable(doc, input, y);
@@ -157,7 +164,6 @@ export function generateTraverseComputationSheet(
 
   // Check if we need a new page for Table 2
   if (y > PAGE_H - 80) {
-    addPageFooter(doc, currentPage, totalPages, input.projectName);
     doc.addPage();
     currentPage++;
     y = MARGIN;
@@ -169,7 +175,6 @@ export function generateTraverseComputationSheet(
 
   // Check if we need a new page for Table 3
   if (y > PAGE_H - 80) {
-    addPageFooter(doc, currentPage, totalPages, input.projectName);
     doc.addPage();
     currentPage++;
     y = MARGIN;
@@ -181,7 +186,6 @@ export function generateTraverseComputationSheet(
 
   // Check if we need a new page for Closure Summary + Certificate
   if (y > PAGE_H - 120) {
-    addPageFooter(doc, currentPage, totalPages, input.projectName);
     doc.addPage();
     currentPage++;
     y = MARGIN;
@@ -193,7 +197,6 @@ export function generateTraverseComputationSheet(
 
   // Check if we need a new page for certificate
   if (y > PAGE_H - 70) {
-    addPageFooter(doc, currentPage, totalPages, input.projectName);
     doc.addPage();
     currentPage++;
     y = MARGIN;
@@ -203,7 +206,7 @@ export function generateTraverseComputationSheet(
   drawSurveyorCertificate(doc, input, y, today);
 
   // --- Professional Disclaimer ---
-  drawDisclaimer(doc);
+  drawDisclaimer(doc, input);
 
   // Finalize page footers on all pages
   const actualTotal = doc.getNumberOfPages();
@@ -236,7 +239,7 @@ function estimateTotalPages(
 
 function drawPageHeader(
   doc: jsPDF,
-  _input: TraverseComputationSheetInput,
+  input: TraverseComputationSheetInput,
   _today: string
 ): void {
   const cx = PAGE_W / 2;
@@ -268,11 +271,13 @@ function drawPageHeader(
     align: 'center',
   });
 
+  const { zone, datum, hemi, epsg } = reportCrs(input);
+
   doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(80, 80, 80);
   doc.text(
-    'Survey Act Cap 299 — Survey Regulations 1994 — Arc 1960 / UTM Zone 37S (EPSG:21037)',
+    `Survey Act Cap 299 — Survey Regulations 1994 — ${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg})`,
     cx,
     MARGIN + 33,
     { align: 'center' }
@@ -341,12 +346,14 @@ function drawSurveyorInfoBlock(
   doc.setTextColor(0, 0, 0);
   doc.text('SURVEYOR INFORMATION', x, y);
 
+  const { zone, datum, hemi, epsg } = reportCrs(input);
+
   const fields: [string, string][] = [
     ['Surveyor Name', input.surveyorName || '—'],
     ['ISK Number', input.iskNumber || '—'],
     ['Firm', input.firmName || '—'],
-    ['Datum', 'Arc 1960 / UTM Zone 37S'],
-    ['EPSG', '21037'],
+    ['Datum', `${datum} / UTM Zone ${zone}${hemi}`],
+    ['EPSG', epsg],
   ];
 
   autoTable(doc, {
@@ -383,6 +390,11 @@ function drawReducedObservationsTable(
   startY += 2;
 
   const obs = input.observations;
+  if (input.derivedFromCoordinates) {
+    doc.setFontSize(6);
+    doc.text('DERIVED COORDINATE GEOMETRY - source instrument observations not attached.', MARGIN, startY);
+    startY += 5;
+  }
   const body: (string | number)[][] = obs.map((o, i) => [
     i + 1,
     o.station,
@@ -431,7 +443,7 @@ function drawReducedObservationsTable(
       8: { cellWidth: 28, halign: 'right', font: 'courier' },
     },
     margin: { left: x, right: MARGIN },
-    tableWidth: CONTENT_W,
+    tableWidth: 272,
     theme: 'grid',
   });
 
@@ -453,7 +465,7 @@ function drawTraverseComputationTable(
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
   doc.text(
-    'TABLE 2: TRAVERSE COMPUTATION — BOWDITCH ADJUSTMENT',
+    input.derivedFromCoordinates ? 'TABLE 2: DERIVED COORDINATE COMPUTATIONS' : 'TABLE 2: TRAVERSE COMPUTATION — BOWDITCH ADJUSTMENT',
     x,
     startY
   );
@@ -548,7 +560,7 @@ function drawTraverseComputationTable(
       11: { cellWidth: 28, halign: 'right', font: 'courier' },
     },
     margin: { left: x, right: MARGIN },
-    tableWidth: CONTENT_W,
+    tableWidth: 304,
     theme: 'grid',
   });
 
@@ -575,7 +587,8 @@ function drawFinalCoordinateSchedule(
   doc.setFontSize(6.5);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(80, 80, 80);
-  doc.text('Arc 1960 / UTM Zone 37S', x + 145, startY);
+  const { zone, datum, hemi } = reportCrs(input);
+  doc.text(`${datum} / UTM Zone ${zone}${hemi}`, x + 145, startY);
   startY += 2;
 
   const coords = input.coordinates;
@@ -615,7 +628,7 @@ function drawFinalCoordinateSchedule(
       4: { cellWidth: 40, halign: 'right', font: 'courier' },
     },
     margin: { left: x, right: MARGIN },
-    tableWidth: CONTENT_W,
+    tableWidth: 182,
     theme: 'grid',
   });
 
@@ -663,7 +676,7 @@ function drawClosureSummary(
     ['Precision Ratio', precision],
     ['Accuracy Order (RDM 1.1 Table 2.4)', order],
     ['Allowable Misclosure (m)', fmt(allowable, 4)],
-    ['Status', passes ? 'PASS' : 'FAIL'],
+    ['Status', !Number.isFinite(linearErr) || !Number.isFinite(allowable) ? 'UNVERIFIED' : passes ? 'PASS' : 'FAIL'],
   ];
 
   const passColor: [number, number, number] = passes
@@ -735,6 +748,8 @@ function drawSurveyorCertificate(
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 30, 30);
 
+  const { zone, datum, hemi, epsg } = reportCrs(input);
+
   const lines = [
     `I, ${input.surveyorName || '___________________________'}, Licensed Surveyor No. ${input.iskNumber || '___________'},`,
     `of ${input.firmName || '___________________________'}, hereby certify that the computations set out`,
@@ -742,7 +757,7 @@ function drawSurveyorCertificate(
     `in accordance with the Survey Act Cap 299 and the Survey Regulations 1994,`,
     `Regulation 3(2), and that to the best of my knowledge and belief the same are correct.`,
     '',
-    `Datum: Arc 1960 / UTM Zone 37S (EPSG:21037)`,
+    `Datum: ${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg})`,
     `Date: ${today}`,
   ];
 
@@ -772,12 +787,14 @@ function drawSurveyorCertificate(
 // Professional Disclaimer
 // ---------------------------------------------------------------------------
 
-function drawDisclaimer(doc: jsPDF): void {
+function drawDisclaimer(doc: jsPDF, input?: TraverseComputationSheetInput): void {
   const y = PAGE_H - MARGIN - 16;
 
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.2);
   doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+
+  const { zone, datum, hemi, epsg } = reportCrs(input);
 
   doc.setFontSize(5.5);
   doc.setFont('helvetica', 'italic');
@@ -792,7 +809,7 @@ function drawDisclaimer(doc: jsPDF): void {
   doc.setFontSize(5);
   doc.setTextColor(160, 160, 160);
   doc.text(
-    'Survey Act Cap 299 · Survey Regulations 1994 · Arc 1960 / UTM Zone 37S (EPSG:21037) · Traverse Computation Sheet',
+    `Survey Act Cap 299 · Survey Regulations 1994 · ${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg}) · Traverse Computation Sheet`,
     PAGE_W / 2,
     y + 7,
     { align: 'center' }

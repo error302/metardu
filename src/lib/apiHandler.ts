@@ -22,15 +22,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
+import { rateLimit, getOperationRateLimitIdentifier } from '@/lib/security/rateLimit'
 import { logger, auditLog } from '@/lib/logger'
-import { setCurrentUserId, setCurrentOrgId } from '@/lib/db'
+import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { db } from '@/lib/db'
 import { captureError } from '@/lib/monitoring/sentry'
 import { routeHitsTotal } from '@/lib/monitoring/metrics'
 import { normalizePath } from '@/lib/monitoring/middleware-tracker'
 import { appendAuditEntry } from '@/lib/audit/auditLog'
 import type { AuditEntityType, AuditAction } from '@/lib/audit/auditHash'
+import { AppError } from '@/lib/api/errors'
 import type { ZodSchema } from 'zod'
 import type { Session } from 'next-auth'
 
@@ -205,10 +206,17 @@ type HandlerFn = (
   ctx: ApiHandlerContext
 ) => Promise<NextResponse>
 
+type RouteParams = Record<string, string | string[]>
+interface ApiRouteHandler {
+  (req: NextRequest, context?: { params?: RouteParams }): Promise<NextResponse>
+  // Next's generated route validator inspects the last call signature.
+  (req: NextRequest, context: { params: Promise<RouteParams> }): Promise<NextResponse>
+}
+
 export function apiHandler(
   options: ApiHandlerOptions,
   handler: HandlerFn
-): (req: NextRequest, context?: { params?: Record<string, string | string[]> }) => Promise<NextResponse> {
+): ApiRouteHandler {
   const {
     auth = true,
     schema,
@@ -227,7 +235,7 @@ export function apiHandler(
     return `req_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 10)}`
   }
 
-  return async (req, context) => {
+  return async (req: NextRequest, context?: { params?: RouteParams | Promise<RouteParams> }) => {
     const reqId = enableRequestId ? generateRequestId() : undefined
     let userId = 'anonymous'
     try {
@@ -242,7 +250,7 @@ export function apiHandler(
         // metrics registry unavailable — ignore
       }
       if (rlConfig) {
-        const identifier = getClientIdentifier(req)
+        const identifier = getOperationRateLimitIdentifier(req, await context?.params)
         const { allowed, remaining } = await rateLimit(identifier, rlConfig.max, rlConfig.windowMs)
         if (!allowed) {
           return NextResponse.json(
@@ -266,29 +274,9 @@ export function apiHandler(
         // Set RLS context so PostgreSQL current_user_id() works
         const uid = (s.user as { id?: string }).id
         if (uid) {
-          setCurrentUserId(String(uid))
-
-          // AUDIT FIX (C6, 2026-07-02): Look up the user's active organization
-          // and set the org RLS context. A user can be a member of multiple
-          // orgs; we pick the most recently active one. Routes can override
-          // this by calling setCurrentOrgId() explicitly (e.g. after the
-          // user switches orgs via the UI).
-          try {
-            const orgResult = await db.query(
-              `SELECT om.organization_id
-               FROM organization_members om
-               WHERE om.user_id = $1 AND om.is_active = TRUE
-               ORDER BY om.accepted_at DESC NULLS LAST, om.invited_at DESC
-               LIMIT 1`,
-              [uid]
-            )
-            if (orgResult.rows.length > 0) {
-              setCurrentOrgId(String(orgResult.rows[0].organization_id))
-            }
-          } catch {
-            // Organizations table may not exist yet (pre-migration 028).
-            // Silent fail — org context stays null, RLS falls back to user_id.
-          }
+          setAuthenticatedDatabaseContext(String(uid))
+          const organizationId = await resolveAuthenticatedOrganization(String(uid))
+          setAuthenticatedDatabaseContext(String(uid), organizationId)
         }
 
         if (roles && roles.length > 0) {
@@ -367,7 +355,7 @@ export function apiHandler(
         }
       }
 
-      const rawParams = context?.params || {}
+      const rawParams = await context?.params || {}
       const params: Record<string, string> = {}
       for (const [key, val] of Object.entries(rawParams)) {
         params[key] = Array.isArray(val) ? val[0] : val
@@ -461,6 +449,20 @@ export function apiHandler(
         userId,
         requestId: reqId,
       })
+
+      if (err instanceof AppError) {
+        const headers: Record<string, string> = {}
+        if (reqId) headers['X-Request-Id'] = reqId
+        return NextResponse.json(
+          {
+            error: err.message,
+            code: err.code,
+            ...(err.details ? { details: err.details } : {}),
+            ...(reqId ? { requestId: reqId } : {}),
+          },
+          { status: err.statusCode, headers }
+        )
+      }
 
       const pgCode = (err as { code?: string })?.code
       const errorResponse = (status: number, error: string, code: string) => {

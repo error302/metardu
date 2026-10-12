@@ -41,6 +41,12 @@ export default function CassiniUTMPage() {
     availableSubSheets,
     hasSubSheets,
     activeSubSheet,
+    subSheetDataLoadedFor,
+    subSheetDataLoading,
+    subSheetDataError,
+    handleLoadSubSheetData,
+    conversionPending,
+    conversionError,
     transformMethod,
     setTransformMethod,
     customP,
@@ -85,7 +91,7 @@ export default function CassiniUTMPage() {
     handleBatchConvert,
     handleLoadExample,
     singleResult,
-    singleWGS84,
+    singleWGS84, geographicCrs, setGeographicCrs, geographicError,
     copied,
     handleCopySingle,
     batchResults,
@@ -117,7 +123,7 @@ export default function CassiniUTMPage() {
       <PageHeader
         title={t('tools.cassiniUtm')}
         subtitle={t('tools.cassiniUtmDesc')}
-        reference="Gacoki (FIG 2018) | Arc 1960 datum | UTM Zone 37S | Cassini meridian 37°E"
+        reference="Cassini feet to projected metres | Select the model and declare its result grid"
       />
 
       {/* ── Units Banner ── */}
@@ -125,7 +131,7 @@ export default function CassiniUTMPage() {
         <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
         <div>
           <strong>Units:</strong> Cassini inputs are in <strong>International Feet</strong> (Clarke 1858).
-          UTM outputs are in <strong>Metres</strong> (Clarke 1880 / Arc 1960, UTM Zone 37S).
+          Projected outputs are in <strong>Metres</strong> in the grid of the selected model.
           The P parameter (~0.3048) handles the feet→metres conversion.
         </div>
       </div>
@@ -135,7 +141,7 @@ export default function CassiniUTMPage() {
         <Activity className="h-4 w-4 shrink-0 mt-0.5" />
         <div className="flex items-center gap-3 flex-wrap">
           <span>
-            <strong>Sheet Accuracy:</strong>{' '}
+            <strong>Model fit:</strong>{' '}
             <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider ${accuracyBadgeClass}`}>
               {accuracyInfo.grade}
             </span>
@@ -146,7 +152,7 @@ export default function CassiniUTMPage() {
           {activeSheet.commonPoints.length === 0 && (
             <span className="text-[var(--text-muted)]">No common points available for accuracy estimation</span>
           )}
-          <span className="text-[var(--text-muted)]">({activeSheet.commonPoints.length} control points)</span>
+          <span className="text-[var(--text-muted)]">({activeSheet.commonPoints.length} fit points)</span>
           {activeSubSheet && (
             <span className="text-emerald-400">· Sub-sheet {activeSubSheet.fullId} (per-corner fit)</span>
           )}
@@ -162,6 +168,13 @@ export default function CassiniUTMPage() {
        *  TWO-PANEL GRID
        * ═════════════════════════════════════════════════════════════════ */}
       <div className="grid md:grid-cols-2 gap-8">
+        <div className="col-span-full space-y-2">
+          <label className="block text-sm">Projected result grid (EPSG code)
+            <input aria-label="Projected result grid" value={geographicCrs} onChange={event => setGeographicCrs(event.target.value)} placeholder="Use the grid from the model's control record" className="input mt-1 w-full" />
+          </label>
+          <p className="text-xs text-[var(--text-muted)]">A model fit is not independent field accuracy. Geographic output uses the grid you declare; verify source control and local datum calibration.</p>
+          {geographicError && <p role="alert" className="text-xs text-amber-400">{geographicError}</p>}
+        </div>
         {/* LEFT PANEL — INPUTS */}
         <InputForm
           direction={direction}
@@ -180,6 +193,12 @@ export default function CassiniUTMPage() {
           activeSubSheet={activeSubSheet}
           availableSubSheets={availableSubSheets}
           hasSubSheets={hasSubSheets}
+          subSheetDataLoadedFor={subSheetDataLoadedFor}
+          subSheetDataLoading={subSheetDataLoading}
+          subSheetDataError={subSheetDataError}
+          handleLoadSubSheetData={handleLoadSubSheetData}
+          conversionPending={conversionPending}
+          conversionError={conversionError}
           transformMethod={transformMethod}
           setTransformMethod={setTransformMethod}
           customP={customP}

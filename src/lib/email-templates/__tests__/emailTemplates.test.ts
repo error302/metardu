@@ -20,6 +20,7 @@ import {
   paymentReceiptEmail,
   projectSharedEmail,
   securityAlertEmail,
+  emailVerificationEmail,
   trialEndingEmail,
   trialExpiringEmail,
   weeklyDigestEmail,
@@ -109,6 +110,12 @@ const RENDERERS: Record<EmailTemplateName, () => RenderedEmail> = {
       highlightedProjects: [
         { name: PAYLOAD, status: 'active', newObservations: 5, projectUrl: PAYLOAD },
       ],
+    }),
+  emailVerification: () =>
+    emailVerificationEmail.render({
+      to: TO,
+      name: PAYLOAD,
+      verifyUrl: 'https://metardu.space/email/verify?token=test-token',
     }),
 }
 

@@ -25,8 +25,9 @@ import {
   aciToHex,
 } from '@/lib/topo/featureCodes'
 import { buildTopoEntities, entitiesToDxfString } from '@/lib/drawing/topoEntities'
-import { runIDW } from '@/lib/topo/idwEngine'
-import { generateContours, type ContourLine } from '@/lib/topo/contourGenerator'
+import type { ContourLine } from '@/lib/topo/contourGenerator'
+import { buildBreaklineTIN } from '@/lib/topo/breaklineTIN'
+import { generateTINContours } from '@/lib/topo/tinContours'
 import TopoEntityCanvas from '@/components/drawing/TopoEntityCanvas'
 import FeatureCodeBrowser from './FeatureCodeBrowser'
 import { Button } from '@/components/ui/button'
@@ -111,18 +112,18 @@ function generateDemoPoints(): SurveyPointRow[] {
   for (const group of rows) {
     const def = getFeatureCode(group.code)
     for (let i = 0; i < group.count; i++) {
-      const de = Math.random() * 80 - 40
-      const dn = Math.random() * 80 - 40
-      const z = 1200 + Math.random() * 50
+      const de = Math.sin(ptNum * 1.17) * 40
+      const dn = Math.cos(ptNum * 0.87) * 40
+      const z = 1225 + Math.sin(ptNum * 0.31) * 25
 
       points.push({
         id: `demo-${ptNum}`,
         pointNumber: `${ptNum}`,
         easting: group.pattern === 'line'
-          ? baseE + 10 * i + (Math.random() * 4 - 2)
+          ? baseE + 10 * i + Math.sin(ptNum * 0.73) * 2
           : baseE + de,
         northing: group.pattern === 'line'
-          ? baseN + 5 * i + (Math.random() * 3 - 1.5)
+          ? baseN + 5 * i + Math.cos(ptNum * 0.61) * 1.5
           : baseN + dn,
         elevation: Math.round(z * 1000) / 1000,
         code: group.code,
@@ -297,6 +298,7 @@ interface TopoDrawingComposerProps {
 
 export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerProps) {
   const [points, setPoints] = useState<SurveyPointRow[]>([])
+  const [isDemoData, setIsDemoData] = useState(false)
   const [settings, setSettings] = useState<DrawingSettings>(DEFAULT_SETTINGS)
   const [codeDialogOpen, setCodeDialogOpen] = useState(false)
   const [editingPointId, setEditingPointId] = useState<string | null>(null)
@@ -307,33 +309,18 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // ─── Derived state ─────────────────────────────────────────────────────
-  // Contours: generated from any points that carry elevation (needs >= 4)
-  const contours = useMemo<ContourLine[]>(() => {
+  // Contours use the same TIN engine as saved project surfaces.
+  const contourResult = useMemo<{ contours: ContourLine[]; error: string | null }>(() => {
     const zPts = points.filter(p => p.elevation !== undefined)
-    if (zPts.length < 4) return []
+    if (zPts.length < 3) return { contours: [], error: null }
     try {
-      const grid = runIDW(
-        zPts.map(p => ({ x: p.easting, y: p.northing, z: p.elevation as number })),
-        { resolution: Math.max(0.5, Math.min(5, Math.max(
-          Math.max(...zPts.map(p => p.easting)) - Math.min(...zPts.map(p => p.easting)),
-          Math.max(...zPts.map(p => p.northing)) - Math.min(...zPts.map(p => p.northing)),
-        ) / 80)) },
-      )
-      return generateContours(
-        {
-          grid: grid.grid,
-          gridMinE: grid.minX,
-          gridMinN: grid.minY,
-          gridResolution: grid.cellSize,
-          cols: grid.cols,
-          rows: grid.rows,
-        },
-        { interval: settings.contourInterval },
-      )
-    } catch {
-      return []
+      const tin = buildBreaklineTIN(zPts.map(p => ({ x: p.easting, y: p.northing, z: p.elevation as number })))
+      return { contours: generateTINContours(tin, { interval: settings.contourInterval }), error: null }
+    } catch (error) {
+      return { contours: [], error: error instanceof Error ? error.message : 'Contour computation failed. Review the survey observations.' }
     }
   }, [points, settings.contourInterval])
+  const { contours, error: contourError } = contourResult
 
   const surveyPoints = useMemo(
     () => points.map(({ id: _id, description: _description, ...rest }) => rest),
@@ -396,19 +383,22 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
     reader.onload = () => {
       const parsed = parseCSV(reader.result as string)
       if (parsed.length > 0) {
-        setPoints(prev => [...prev, ...parsed])
+        setPoints(prev => isDemoData ? parsed : [...prev, ...parsed])
+        setIsDemoData(false)
       }
     }
     reader.readAsText(file)
     e.target.value = ''
-  }, [])
+  }, [isDemoData])
 
   const handleLoadDemo = useCallback(() => {
     setPoints(generateDemoPoints())
+    setIsDemoData(true)
   }, [])
 
   const handleClearPoints = useCallback(() => {
     setPoints([])
+    setIsDemoData(false)
   }, [])
 
   const handleRemovePoint = useCallback((id: string) => {
@@ -439,11 +429,11 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
   }, [])
 
   const handleExportDXF = useCallback(() => {
-    if (points.length === 0) return
+    if (points.length === 0 || isDemoData || contourError) return
     const dxf = entitiesToDxfString(drawing.entities, drawing.layers)
     const date = new Date().toISOString().split('T')[0]
     downloadDXF(dxf, `topo_${projectId ?? 'survey'}_${date}.dxf`)
-  }, [points, drawing, projectId])
+  }, [points, drawing, projectId, isDemoData, contourError])
 
   // ─── Render ────────────────────────────────────────────────────────────
 
@@ -470,7 +460,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
           <input ref={fileInputRef} type="file" accept=".csv,.txt" onChange={handleImportCSV} className="hidden" />
           <Button variant="outline" size="sm" onClick={handleLoadDemo} className="text-xs border-zinc-600 text-zinc-300 hover:bg-zinc-800">
             <FilePlus size={14} />
-            Load Demo
+            Load Example (fictional)
           </Button>
           {points.length > 0 && (
             <>
@@ -478,7 +468,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                 <Trash2 size={14} />
                 Clear
               </Button>
-              <Button variant="outline" size="sm" onClick={handleExportDXF} className="text-xs border-blue-600/50 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300">
+              <Button variant="outline" size="sm" onClick={handleExportDXF} disabled={isDemoData || Boolean(contourError)} className="text-xs border-blue-600/50 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300">
                 <Download size={14} />
                 Export DXF
               </Button>
@@ -486,6 +476,14 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
           )}
         </div>
       </div>
+
+      {contourError && <div role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">Contours could not be computed: {contourError} Review the observations or contour interval before exporting.</div>}
+
+      {isDemoData && (
+        <div role="status" className="rounded-lg border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-200">
+          EXAMPLE DATA — fictional coordinates preview the drawing tools. Clear this set and import or enter observed points before exporting a survey drawing.
+        </div>
+      )}
 
       {/* Tab bar */}
       <div className="flex gap-1 bg-zinc-900 border border-zinc-700 rounded-lg p-1">
@@ -543,7 +541,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                       {points.length === 0 && (
                         <tr>
                           <td colSpan={7} className="px-4 py-12 text-center text-zinc-500">
-                            No points imported. Use CSV import, load demo data, or add manually.
+                            No points imported. Import CSV or add surveyed points manually. The fictional example is for preview only.
                           </td>
                         </tr>
                       )}

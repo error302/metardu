@@ -32,12 +32,14 @@ import {
   type TINSurface,
   type ContourLine,
 } from '@/lib/engine/contours'
-import { getTinWorkerUrl } from '@/lib/workers/tinWorkerUrl'
+import { createTinWorker } from '@/lib/workers/tinWorkerFactory'
 import { logger } from '@/lib/logger'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface AsyncOptions {
+  /** Actual successful execution path; a fallback must not claim background execution. */
+  onExecutionMode?: (mode: 'worker' | 'main-thread') => void
   /** Progress callback, fires with 0..1. */
   onProgress?: (p: number) => void
   /** Per-call timeout in milliseconds. Default 30000. */
@@ -56,6 +58,7 @@ interface PendingHandler {
   resolve: (result: unknown) => void
   reject: (err: Error) => void
   onProgress?: (p: number) => void
+  onExecutionMode?: AsyncOptions['onExecutionMode']
   timer: ReturnType<typeof setTimeout>
   /** Original op + payload so onerror can re-run via sync fallback. */
   op: string
@@ -81,16 +84,16 @@ function getWorker(): Worker | null {
     return null
   }
   try {
-    // Webpack 5 detects the `new URL('./tinWorker.ts', import.meta.url)`
-    // pattern inside `tinWorkerUrl.ts` and emits a separate worker chunk.
+    // The factory keeps Worker + literal URL together. A standalone URL
+    // emits an unbundled .ts media asset instead of executable worker code.
     // In test environments the module is mocked to return null, so we
     // fall back to the synchronous engine.
-    const workerUrl = getTinWorkerUrl()
-    if (!workerUrl) {
+    const worker = createTinWorker()
+    if (!worker) {
       workerUnavailable = true
       return null
     }
-    workerInstance = new Worker(workerUrl)
+    workerInstance = worker
     workerInstance.onmessage = (e: MessageEvent) => {
       const msg = e.data as {
         id: string
@@ -108,6 +111,7 @@ function getWorker(): Worker | null {
       clearTimeout(handler.timer)
       pending.delete(msg.id)
       if (msg.ok === true) {
+        handler.onExecutionMode?.('worker')
         handler.resolve(msg.result)
       } else {
         handler.reject(new Error(msg.error || 'Worker error'))
@@ -120,6 +124,7 @@ function getWorker(): Worker | null {
       // worker entirely until the page is reloaded.
       const pendingEntries = Array.from(pending.entries())
       pending.clear()
+      workerInstance?.terminate()
       workerInstance = null
       workerUnavailable = true
       // Surface a console warning so devs can spot this in DevTools
@@ -129,7 +134,9 @@ function getWorker(): Worker | null {
         try {
           // Run the original request through the sync fallback so the
           // caller's promise resolves with the same shape.
-          handler.resolve(syncFallback(handler.op, handler.payload))
+          const result = syncFallback(handler.op, handler.payload)
+          handler.onExecutionMode?.('main-thread')
+          handler.resolve(result)
         } catch (e) {
           handler.reject(e instanceof Error ? e : new Error(String(e)))
         }
@@ -156,7 +163,9 @@ function dispatch<T>(
 
   if (!worker) {
     // Sync fallback — run the synchronous engine in the current thread.
-    return Promise.resolve(syncFallback<T>(op, payload))
+    const result = syncFallback<T>(op, payload)
+    options.onExecutionMode?.('main-thread')
+    return Promise.resolve(result)
   }
 
   return new Promise<T>((resolve, reject) => {
@@ -165,7 +174,9 @@ function dispatch<T>(
       pending.delete(id)
       // On timeout, fall back to sync for this call only (don't kill worker)
       try {
-        resolve(syncFallback<T>(op, payload))
+        const result = syncFallback<T>(op, payload)
+        options.onExecutionMode?.('main-thread')
+        resolve(result)
       } catch (err) {
         reject(err instanceof Error ? err : new Error(String(err)))
       }
@@ -175,6 +186,7 @@ function dispatch<T>(
       resolve: (r: unknown) => resolve(r as T),
       reject,
       onProgress: options.onProgress,
+      onExecutionMode: options.onExecutionMode,
       timer,
       op,
       payload,

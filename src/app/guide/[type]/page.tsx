@@ -1,4 +1,5 @@
 'use client';
+import { useParams } from 'next/navigation'
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -890,11 +891,12 @@ Apply least squares adjustment.
 
 METARDU features:
 • Basic traverse adjustment (Bowditch)
-• Network adjustment (coming soon)
+• Network Adjustment panel in Project → Engineering → Quick Compute → Network Adjustment
 
 For now:
-• Run closed traverses between points
-• Use weighted average of multiple runs`,
+• Fix only stations supported by independent control
+• Enter defensible observation standard deviations
+• Review residuals, datum constraints, and adjustment diagnostics before accepting results`,
         seniorContent: `4. Adjust using traverse connections between points`
       },
       {
@@ -1223,7 +1225,8 @@ Classes:
   }
 };
 
-export default function GuideTypePage({ params }: PageProps) {
+export default function GuideTypePage() {
+  const params = useParams<{ type: string }>()
     const type = params.type;
   const guide = guideData[type];
 

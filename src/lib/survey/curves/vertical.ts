@@ -35,14 +35,14 @@ export interface VerticalCurveResult {
   A: number;
   /** Rate of change of grade (K = L / |A|) */
   K: number;
-  /** Elevation at the high/low point */
-  turningPointElevation: number;
-  /** Chainage at the high/low point */
-  turningPointChainage: number;
+  /** Elevation at the interior turning point, when one exists */
+  turningPointElevation?: number;
+  /** Chainage at the interior turning point, when one exists */
+  turningPointChainage?: number;
   /** Distance from PVC to turning point */
-  turningPointDistance: number;
-  /** Is the curve crest (A < 0) or sag (A > 0) */
-  curveType: 'crest' | 'sag';
+  turningPointDistance?: number;
+  /** Crest (A < 0), sag (A > 0), or flat (A = 0). */
+  curveType: 'crest' | 'sag' | 'flat';
 }
 
 export interface VerticalCurveStationResult {
@@ -58,8 +58,8 @@ export interface VerticalCurveStationResult {
 /**
  * Compute vertical curve parameters.
  * 
- * The parabolic vertical curve formula:
- *   y = y_PVC + g1 × x + (A / (2L)) × x²
+ * The parabolic vertical curve formula for grades entered in percent:
+ *   y = y_PVC + (g1 / 100) × x + (A / (200L)) × x²
  * 
  * Where:
  *   x = distance from PVC
@@ -68,41 +68,35 @@ export interface VerticalCurveStationResult {
  */
 export function computeVerticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const { g1, g2, length, pvcElevation, pvcChainage } = input;
+  if (![g1, g2, length, pvcElevation, pvcChainage].every(Number.isFinite) || length <= 0) {
+    throw new Error('Vertical curve needs finite grades, chainage, elevation, and a positive length.')
+  }
   
   const A = g2 - g1;
   const K = length / Math.abs(A);
   
   // PVT elevation and chainage
-  const pvtElevation = pvcElevation + (g1 / 100) * length;
+  const pvtElevation = pvcElevation + ((g1 + g2) / 200) * length;
   const pvtChainage = pvcChainage + length;
   
   // Turning point (high point for crest, low point for sag)
   // dy/dx = g1 + (A/L) × x = 0 → x = -g1 × L / A
-  let turningPointDistance: number;
-  let turningPointElevation: number;
-  let turningPointChainage: number;
+  let turningPointDistance: number | undefined;
+  let turningPointElevation: number | undefined;
+  let turningPointChainage: number | undefined;
   
-  if (Math.abs(A) < 1e-10) {
-    // No curve — grades are the same
-    turningPointDistance = 0;
-    turningPointElevation = pvcElevation;
-    turningPointChainage = pvcChainage;
-  } else {
-    turningPointDistance = (-g1 * length) / A;
-    
-    // Check if turning point is within the curve
-    if (turningPointDistance < 0 || turningPointDistance > length) {
-      // No turning point within the curve
-      turningPointDistance = turningPointDistance < 0 ? 0 : length;
-    }
-    
+  if (Math.abs(A) >= 1e-10) {
+    const candidateDistance = (-g1 * length) / A;
+    if (candidateDistance >= 0 && candidateDistance <= length) {
+      turningPointDistance = candidateDistance;
     turningPointElevation = pvcElevation + 
-      (g1 / 100) * turningPointDistance + 
-      (A / (200 * length)) * turningPointDistance * turningPointDistance;
-    turningPointChainage = pvcChainage + turningPointDistance;
+        (g1 / 100) * candidateDistance +
+        (A / (200 * length)) * candidateDistance * candidateDistance;
+      turningPointChainage = pvcChainage + candidateDistance;
+    }
   }
   
-  const curveType = A < 0 ? 'crest' : 'sag';
+  const curveType = Math.abs(A) < 1e-10 ? 'flat' : A < 0 ? 'crest' : 'sag';
   
   return {
     g1,
@@ -114,9 +108,9 @@ export function computeVerticalCurve(input: VerticalCurveInput): VerticalCurveRe
     pvtChainage,
     A: Math.round(A * 10000) / 10000,
     K: Math.round(K * 100) / 100,
-    turningPointElevation: Math.round(turningPointElevation * 1000) / 1000,
-    turningPointChainage: Math.round(turningPointChainage * 1000) / 1000,
-    turningPointDistance: Math.round(turningPointDistance * 1000) / 1000,
+    turningPointElevation: turningPointElevation === undefined ? undefined : Math.round(turningPointElevation * 1000) / 1000,
+    turningPointChainage: turningPointChainage === undefined ? undefined : Math.round(turningPointChainage * 1000) / 1000,
+    turningPointDistance: turningPointDistance === undefined ? undefined : Math.round(turningPointDistance * 1000) / 1000,
     curveType,
   };
 }
@@ -128,10 +122,12 @@ export function computeVerticalCurveStations(
   curve: VerticalCurveResult,
   interval: number = 10
 ): VerticalCurveStationResult[] {
+  if (!Number.isFinite(interval) || interval <= 0) throw new Error('Station interval must be finite and greater than zero.')
   const stations: VerticalCurveStationResult[] = [];
   const { g1, A, length, pvcElevation, pvcChainage } = curve;
   
   const numStations = Math.floor(length / interval);
+  if (numStations > 100_000) throw new Error('Station interval creates too many rows; increase the interval.')
   
   for (let i = 0; i <= numStations; i++) {
     const x = i * interval;

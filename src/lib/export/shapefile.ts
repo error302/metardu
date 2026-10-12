@@ -366,16 +366,20 @@ function createPolygonDBF(parcels: ShapefileParcel[]): ArrayBuffer {
 }
 
 /**
- * Generate WKT projection file
+ * Generate WKT projection file.
+ *
+ * Fails closed: an undeclared or unrecognised datum throws instead of
+ * silently labelling coordinates as WGS 84 — a mislabelled .prj would make
+ * every coordinate in the package land ~300 m off in a GIS.
  */
-function generatePRJ(projection: { zone: number; hemisphere: 'N' | 'S'; datum: string; ellipsoid: string }): string {
+export function generatePRJ(projection: { zone: number; hemisphere: 'N' | 'S'; datum: string; ellipsoid: string }): string {
 
   const falseNorthing = projection.hemisphere === 'S' ? 10000000 : 0
   const centralMeridian = -183 + projection.zone * 6
-  const datumUpper = (projection.datum || 'WGS84').toUpperCase()
+  const datumUpper = (projection.datum ?? '').replace(/[\s_-]/g, '').toUpperCase()
 
   // Arc 1960 / Clarke 1880 (RGS) — standard for Kenya cadastral work (EPSG:21037)
-  if (datumUpper === 'ARC1960' || datumUpper === 'ARC 1960') {
+  if (datumUpper === 'ARC1960') {
     return 'PROJCS["Arc 1960 / UTM Zone ' + projection.zone + projection.hemisphere + '",' +
       'GEOGCS["Arc 1960",' +
       'DATUM["Arc_1960",' +
@@ -391,20 +395,26 @@ function generatePRJ(projection: { zone: number; hemisphere: 'N' | 'S'; datum: s
       'UNIT["metre",1]]'
   }
 
-  // Default: WGS 84
-  return 'PROJCS["WGS 84 / UTM zone ' + projection.zone + projection.hemisphere + '",' +
-    'GEOGCS["WGS 84",' +
-    'DATUM["WGS_1984",' +
-    'SPHEROID["WGS 84",6378137,298.257223563]],' +
-    'PRIMEM["Greenwich",0],' +
-    'UNIT["degree",0.0174532925199433]],' +
-    'PROJECTION["Transverse_Mercator"],' +
-    'PARAMETER["latitude_of_origin",0],' +
-    'PARAMETER["central_meridian",' + centralMeridian + '],' +
-    'PARAMETER["scale_factor",0.9996],' +
-    'PARAMETER["false_easting",500000],' +
-    'PARAMETER["false_northing",' + falseNorthing + '],' +
-    'UNIT["metre",1]]'
+  if (datumUpper === 'WGS84' || datumUpper === 'WGS1984') {
+    return 'PROJCS["WGS 84 / UTM zone ' + projection.zone + projection.hemisphere + '",' +
+      'GEOGCS["WGS 84",' +
+      'DATUM["WGS_1984",' +
+      'SPHEROID["WGS 84",6378137,298.257223563]],' +
+      'PRIMEM["Greenwich",0],' +
+      'UNIT["degree",0.0174532925199433]],' +
+      'PROJECTION["Transverse_Mercator"],' +
+      'PARAMETER["latitude_of_origin",0],' +
+      'PARAMETER["central_meridian",' + centralMeridian + '],' +
+      'PARAMETER["scale_factor",0.9996],' +
+      'PARAMETER["false_easting",500000],' +
+      'PARAMETER["false_northing",' + falseNorthing + '],' +
+      'UNIT["metre",1]]'
+  }
+
+  throw new Error(
+    `Shapefile .prj requires a declared project datum (received: ${projection.datum || 'none'}). ` +
+    'Set the datum in Project Settings — METARDU never guesses a CRS.'
+  )
 }
 
 export default generateShapefileZip

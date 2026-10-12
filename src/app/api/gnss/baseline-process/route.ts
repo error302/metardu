@@ -19,11 +19,12 @@ import { callPythonCompute } from '@/lib/compute/pythonService'
  *   baseRinex:   string — Base station RINEX observation file content
  *   roverRinex:  string — Rover station RINEX observation file content
  *   navRinex:    string — RINEX navigation file content (broadcast ephemeris)
+ *   basePosition: known geographic latitude/longitude and ellipsoidal height
  *   options?: {
  *     mode?: 'static' | 'kinematic'         (default 'static')
- *     frequency?: 'l1' | 'l2' | 'l1+l2'     (default 'l1+l2')
+ *     frequency?: 'l1' | 'l1+l2' | 'l1+l2+l5' (default 'l1+l2')
  *     elevationMask?: number                 (default 15, degrees)
- *     ambiguityResolution?: 'fix' | 'float' | 'off'  (default 'fix')
+ *     ambiguityResolution?: 'off' | 'continuous' | 'instantaneous' | 'fix-and-hold'
  *   }
  *
  * Response:
@@ -40,14 +41,19 @@ import { callPythonCompute } from '@/lib/compute/pythonService'
  */
 
 const BaselineProcessSchema = z.object({
-  baseRinex: z.string().min(100, 'Base RINEX file content is too short — check the file was uploaded correctly'),
-  roverRinex: z.string().min(100, 'Rover RINEX file content is too short — check the file was uploaded correctly'),
-  navRinex: z.string().min(100, 'Navigation RINEX file content is too short — check the file was uploaded correctly'),
+  baseRinex: z.string().min(100, 'Base RINEX file content is too short — check the file was uploaded correctly').max(25 * 1024 * 1024, 'Each RINEX file must be 25 MiB or smaller'),
+  roverRinex: z.string().min(100, 'Rover RINEX file content is too short — check the file was uploaded correctly').max(25 * 1024 * 1024, 'Each RINEX file must be 25 MiB or smaller'),
+  navRinex: z.string().min(100, 'Navigation RINEX file content is too short — check the file was uploaded correctly').max(25 * 1024 * 1024, 'Each RINEX file must be 25 MiB or smaller'),
+  basePosition: z.object({
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+    ellipsoidalHeight: z.number().min(-12000).max(100000),
+  }),
   options: z.object({
     mode: z.enum(['static', 'kinematic']).default('static'),
-    frequency: z.enum(['l1', 'l2', 'l1+l2']).default('l1+l2'),
+    frequency: z.enum(['l1', 'l1+l2', 'l1+l2+l5']).default('l1+l2'),
     elevationMask: z.number().min(0).max(90).default(15),
-    ambiguityResolution: z.enum(['fix', 'float', 'off']).default('fix'),
+    ambiguityResolution: z.enum(['off', 'continuous', 'instantaneous', 'fix-and-hold']).default('continuous'),
   }).default({}),
 })
 
@@ -58,7 +64,7 @@ export const POST = apiHandler(
     rateLimit: { max: 5, windowMs: 60000 }, // 5/min — GNSS processing is CPU-intensive
   },
   async (_req, ctx) => {
-    const { baseRinex, roverRinex, navRinex, options } = ctx.body as z.infer<
+    const { baseRinex, roverRinex, navRinex, basePosition, options } = ctx.body as z.infer<
       typeof BaselineProcessSchema
     >
 
@@ -83,6 +89,11 @@ export const POST = apiHandler(
           base_rinex: baseRinex,
           rover_rinex: roverRinex,
           nav_rinex: navRinex,
+          base_position: {
+            latitude: basePosition.latitude,
+            longitude: basePosition.longitude,
+            ellipsoidal_height: basePosition.ellipsoidalHeight,
+          },
           options: {
             mode: options.mode,
             frequency: options.frequency,
@@ -113,6 +124,7 @@ export const POST = apiHandler(
         frequency: options.frequency,
         elevationMask: options.elevationMask,
         ambiguityResolution: options.ambiguityResolution,
+        basePosition,
         processedAt: new Date().toISOString(),
       },
     })

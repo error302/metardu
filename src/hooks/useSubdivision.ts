@@ -21,6 +21,7 @@ import { subdivide, createRoadReserve } from '@/lib/engine/subdivision'
 import { downloadSubdivisionDXF } from '@/lib/export/subdivisionDXF'
 import { logger } from '@/lib/logger'
 import { createSubdivisionLayer, createSplitLineLayer, createRoadReservePreviewLayer } from '@/lib/map/subdivisionLayer'
+import { SRID_21037 } from '@/lib/map/projectionConstants'
 
 export interface UseSubdivisionOptions {
   /** Parent parcel vertices (EPSG:21037) */
@@ -221,8 +222,8 @@ export function useSubdivision({
       const [x, y] = evt.coordinate as [number, number]
 
       // Convert from EPSG:3857 to EPSG:21037
-      const { to21037 } = await import('@/lib/map/projection')
-      const [e, n] = await to21037(x, y)
+      const { toProjectCrs } = await import('@/lib/map/projection')
+      const [e, n] = await toProjectCrs(x, y, SRID_21037)
 
       const point: Point2D = { easting: e, northing: n }
       splitLinePointsRef.current = [...splitLinePointsRef.current, point]
@@ -357,8 +358,8 @@ export function useSubdivision({
 
     const handleMapClick = async (evt: import('ol/MapBrowserEvent').default) => {
       const [x, y] = evt.coordinate as [number, number]
-      const { to21037 } = await import('@/lib/map/projection')
-      const [e, n] = await to21037(x, y)
+      const { toProjectCrs } = await import('@/lib/map/projection')
+      const [e, n] = await toProjectCrs(x, y, SRID_21037)
 
       const center: Point2D = { easting: e, northing: n }
       updateParams({ center })

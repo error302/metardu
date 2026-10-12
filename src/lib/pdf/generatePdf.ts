@@ -18,6 +18,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
     title,
     sections,
     paperSize = 'A4',
+    orientation = 'portrait',
   } = options
 
   const browser = await puppeteer.launch({
@@ -32,21 +33,35 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
 
   try {
     const page = await browser.newPage()
+    // Reports contain user-authored HTML. Keep rendering offline and inert.
+    await page.setJavaScriptEnabled(false)
+    await page.setRequestInterception(true)
+    let blockedResource = false
+    page.on('request', request => {
+      if (request.url().startsWith('data:') || request.url() === 'about:blank') {
+        void request.continue()
+      } else {
+        blockedResource = true
+        void request.abort()
+      }
+    })
 
     // Generate HTML content
     const html = generateReportHtml(title, sections)
 
     // Set HTML content
     await page.setContent(html, {
-      waitUntil: 'networkidle0',
+      waitUntil: 'load',
     })
+    if (blockedResource) throw new Error('Report contains external resources. Embed images directly before exporting.')
 
     // Wait for fonts and images to load
-    await new Promise(resolve => setTimeout(resolve, 1000))
+    await page.evaluate(() => document.fonts.ready)
 
   // Generate PDF
   const pdfBuffer = await page.pdf({
     format: paperSize.toLowerCase() as 'a4' | 'a3',
+    landscape: orientation === 'landscape',
     printBackground: true,
     margin: {
       top: '10mm',
@@ -55,7 +70,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
       left: '10mm',
     },
     displayHeaderFooter: false,
-    preferCSSPageSize: true,
+    preferCSSPageSize: false,
   })
 
     return Buffer.from(pdfBuffer)

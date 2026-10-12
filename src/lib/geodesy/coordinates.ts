@@ -204,3 +204,33 @@ export function latLonToString(lat: number, lon: number): string {
   const lonDMS = decimalToDMS(lon, false);
   return `${latDMS.degrees}° ${latDMS.minutes}' ${latDMS.seconds.toFixed(3)}" ${latDMS.direction}, ${lonDMS.degrees}° ${lonDMS.minutes}' ${lonDMS.seconds.toFixed(3)}" ${lonDMS.direction}`;
 }
+
+/**
+ * Convert WGS84 latitude/longitude to Military Grid Reference System (MGRS).
+ * Default accuracy: 5 (1-meter precision, 10-digit grid).
+ */
+export function latLonToMGRS(lat: number, lon: number, accuracy: number = 5): string {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const mgrs = require('mgrs')
+  return mgrs.forward([lon, lat], accuracy)
+}
+
+/**
+ * Convert an MGRS string to WGS84 latitude/longitude.
+ * Returns null if the string is invalid MGRS.
+ */
+export function mgrsToLatLon(mgrsStr: string): LatLon | null {
+  try {
+    const cleaned = mgrsStr.replace(/\s+/g, '').toUpperCase()
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mgrs = require('mgrs')
+    const [lon, lat] = mgrs.toPoint(cleaned)
+    if (typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon)) {
+      return { lat, lon }
+    }
+    return null
+  } catch {
+    return null
+  }
+}
+

@@ -58,6 +58,7 @@ export interface GeodeticReductionInput {
     geoidUndulation?: number
   }
   ellipsoid?: 'clarke1880_modified' | 'clarke1858' | 'wgs84'
+  hemisphere?: 'N' | 'S'
   utmZone?: number // e.g. 36 or 37 for Kenya
   centralMeridian?: number // longitude in degrees (e.g. 33 for 36S, 39 for 37S)
   falseEasting?: number // default 500,000 m
@@ -137,6 +138,7 @@ export function reduceGroundToGrid(input: GeodeticReductionInput): GeodeticReduc
     fromPoint,
     toPoint,
     ellipsoid = 'clarke1880_modified',
+    hemisphere,
     falseEasting = 500000,
     k0 = 0.9996,
   } = input
@@ -144,13 +146,20 @@ export function reduceGroundToGrid(input: GeodeticReductionInput): GeodeticReduc
   const meanEasting = (fromPoint.easting + toPoint.easting) / 2
   const meanNorthing = (fromPoint.northing + toPoint.northing) / 2
   const meanElevation = (fromPoint.elevation + toPoint.elevation) / 2
-  const meanN = ((fromPoint.geoidUndulation ?? -15.0) + (toPoint.geoidUndulation ?? -15.0)) / 2
+
+  const hasExplicitN = fromPoint.geoidUndulation !== undefined || toPoint.geoidUndulation !== undefined
+  const meanN = hasExplicitN
+    ? ((fromPoint.geoidUndulation ?? toPoint.geoidUndulation ?? 0) + (toPoint.geoidUndulation ?? fromPoint.geoidUndulation ?? 0)) / 2
+    : 0
 
   // Ellipsoidal height h = H (orthometric) + N (geoid undulation)
   const ellipsoidalHeight = meanElevation + meanN
 
   // 1. Mean radius of curvature at mean latitude
-  const latRad = approximateLatitudeFromNorthing(meanNorthing, meanNorthing < 5000000 ? 'S' : 'N')
+  // In UTM, southern hemisphere northing is 10,000,000m at equator counting down (5M-10M),
+  // northern hemisphere is 0m at equator counting up (0-5M).
+  const effectiveHemisphere: 'N' | 'S' = hemisphere ?? (meanNorthing >= 5000000 ? 'S' : 'N')
+  const latRad = approximateLatitudeFromNorthing(meanNorthing, effectiveHemisphere)
   const Rm = calculateMeanRadiusOfCurvature(latRad, ellipsoid)
 
   // 2. Elevation / Sea-Level Factor (ground to ellipsoid)
@@ -186,9 +195,13 @@ export function reduceGroundToGrid(input: GeodeticReductionInput): GeodeticReduc
   const gridConvergenceDMS = formatDegreesToDMS(gridConvergenceAngleDegrees)
 
   // Calculation audit trail
+  const geoidStep = hasExplicitN
+    ? `2. Mean Orthometric Height H = ${meanElevation.toFixed(3)}m, Geoid Undulation N = ${meanN.toFixed(3)}m (h = ${ellipsoidalHeight.toFixed(3)}m)`
+    : `2. Mean Orthometric Height H = ${meanElevation.toFixed(3)}m, Geoid Undulation N = 0.000m (unsupplied / assumed zero; h = ${ellipsoidalHeight.toFixed(3)}m)`
+
   const calculationSteps = [
-    `1. Mean Coordinates: E = ${meanEasting.toFixed(3)}m, N = ${meanNorthing.toFixed(3)}m`,
-    `2. Mean Orthometric Height H = ${meanElevation.toFixed(3)}m, Geoid Undulation N = ${meanN.toFixed(3)}m (h = ${ellipsoidalHeight.toFixed(3)}m)`,
+    `1. Mean Coordinates: E = ${meanEasting.toFixed(3)}m, N = ${meanNorthing.toFixed(3)}m (${effectiveHemisphere === 'S' ? 'South' : 'North'} Hemisphere, Lat ~${((latRad * 180) / Math.PI).toFixed(4)}°)`,
+    geoidStep,
     `3. Mean Earth Curvature Radius Rm = ${Rm.toFixed(1)}m on ${ELLIPSOIDS[ellipsoid].name}`,
     `4. Elevation Factor = Rm / (Rm + h) = ${elevationFactor.toFixed(8)}`,
     `5. Ellipsoidal Distance Sell = ${ellipsoidalDistance.toFixed(4)}m`,

@@ -33,9 +33,25 @@ test.describe('Entry & Navigation', () => {
     expect(response?.status()).not.toBe(404)
   })
 
-  test('can navigate to community page', async ({ page }) => {
-    const response = await page.goto('/community')
-    expect(response?.status()).not.toBe(404)
+  test('primary navigation opens Marketplace', async ({ page }) => {
+    await page.goto('/')
+    const marketplace = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Marketplace' })
+    await expect(marketplace).toBeVisible()
+    await marketplace.click()
+    await expect(page).toHaveURL(/\/marketplace(?:\?|$)/)
+  })
+
+  test('tablet menu keeps Marketplace available', async ({ page }) => {
+    await page.setViewportSize({ width: 1024, height: 768 })
+    await page.goto('/')
+    const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
+    const menu = navigation.getByRole('button', { name: 'Open menu' })
+    await expect(menu).toBeVisible()
+    await menu.click()
+    const marketplace = navigation.getByRole('link', { name: 'Marketplace' })
+    await expect(marketplace).toBeVisible()
+    await marketplace.click()
+    await expect(page).toHaveURL(/\/marketplace(?:\?|$)/)
   })
 
   test('can navigate to pricing page', async ({ page }) => {

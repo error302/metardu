@@ -16,10 +16,12 @@ export function mockRateLimitModule(
 ): {
   rateLimit: jest.Mock
   getClientIdentifier: jest.Mock
+  getOperationRateLimitIdentifier: jest.Mock
 } {
   const { remaining = 10, clientId = 'test-client' } = options
   return {
     rateLimit: jest.fn().mockResolvedValue({ allowed: true, remaining }),
     getClientIdentifier: jest.fn().mockReturnValue(clientId),
+    getOperationRateLimitIdentifier: jest.fn().mockReturnValue(`test-operation:${clientId}`),
   }
 }

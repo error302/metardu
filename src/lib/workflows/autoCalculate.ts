@@ -24,25 +24,38 @@ function calculateEngineeringRL(
 ): FieldBookRow[] {
   const updated = [...rows];
   let hpc: number | null = null;
+  let currentRL: number | null = null;
 
   for (let i = 0; i < updated.length; i++) {
     const row = { ...updated[i] };
     const bs = parseNumber(row.bs);
     const is = parseNumber(row.is);
     const fs = parseNumber(row.fs);
-    const prevRL = i > 0 ? parseNumber(updated[i - 1].rl) : null;
 
-    if (bs !== null && (prevRL !== null || i === 0)) {
-      const openingRL = parseNumber(rows[0]?.rl) ?? 1000;
-      hpc = openingRL + bs;
-      row.hpc = hpc;
+    // 1. If this row has FS or IS, compute RL from current setup HPC
+    if (fs !== null && hpc !== null) {
+      currentRL = hpc - fs;
+      row.rl = currentRL;
+    } else if (is !== null && hpc !== null) {
+      currentRL = hpc - is;
+      row.rl = currentRL;
     }
 
-    if (hpc !== null) {
-      if (is !== null) {
-        row.rl = hpc - is;
-      } else if (fs !== null) {
-        row.rl = hpc - fs;
+    // 2. If this row has BS, establish new HPC
+    if (bs !== null) {
+      const explicitRL = parseNumber(row.rl);
+      const prevRL = i > 0 ? parseNumber(updated[i - 1].rl) : null;
+      const benchmarkRL: number | null = explicitRL ?? currentRL ?? prevRL;
+
+      if (benchmarkRL !== null) {
+        hpc = benchmarkRL + bs;
+        row.hpc = hpc;
+        currentRL = benchmarkRL;
+        if (row.rl === '' || row.rl === null || row.rl === undefined) {
+          row.rl = benchmarkRL;
+        }
+      } else {
+        row.hpc = undefined;
       }
     }
 
@@ -57,17 +70,48 @@ function calculateTopographicRL(
   _changedRowIndex: number
 ): FieldBookRow[] {
   const updated = [...rows];
+  let activeInstRL: number | null = null;
+  let activeInstHeight = 0;
 
   for (let i = 0; i < updated.length; i++) {
     const row = { ...updated[i] };
     const hd = parseNumber(row.hd);
-    const va = parseNumber(row.va);
-    const instRL = parseNumber(row.rl);
+    const rawVA = parseNumber(row.va);
+    const explicitInstRL = parseNumber(row.inst_rl ?? row.instrument_rl);
+    const explicitIH = parseNumber(row.instrument_height ?? row.ih) ?? 0;
+    const targetHeight = parseNumber(row.target_height ?? row.th) ?? 0;
 
-    if (hd !== null && va !== null && instRL !== null) {
-      const vaRad = (va * Math.PI) / 180;
-      const vertDist = hd / Math.cos(vaRad);
-      row.rl = instRL + vertDist * Math.sin(vaRad);
+    if (explicitInstRL !== null) {
+      activeInstRL = explicitInstRL;
+      activeInstHeight = explicitIH;
+    } else if (i === 0 && parseNumber(row.rl) !== null && !row.computed_rl) {
+      activeInstRL = parseNumber(row.rl);
+      activeInstHeight = explicitIH;
+      row.inst_rl = activeInstRL;
+    }
+
+    const instRL = activeInstRL ?? parseNumber(row.inst_rl) ?? (row.computed_rl ? null : parseNumber(row.rl));
+
+    if (hd !== null && rawVA !== null && instRL !== null && Number.isFinite(hd) && Number.isFinite(rawVA) && Number.isFinite(instRL)) {
+      // Check for zenith angle (0° = zenith, 90° = horizontal, 180° = nadir)
+      // If rawVA is between 45° and 135°, treat as zenith angle. Otherwise treat as angle from horizontal.
+      const vFromHoriz = Math.abs(rawVA) <= 45 ? rawVA : (90 - rawVA);
+
+      if (Math.abs(vFromHoriz) >= 89.999999) {
+        // Purely vertical sight — do not emit Infinity or NaN
+      } else {
+        const vRad = (vFromHoriz * Math.PI) / 180;
+        const vertDiff = hd * Math.tan(vRad);
+
+        if (Math.abs(vertDiff) > 1e-9 || activeInstHeight !== 0 || targetHeight !== 0) {
+          const computedRL = instRL + activeInstHeight + vertDiff - targetHeight;
+          if (Number.isFinite(computedRL)) {
+            row.inst_rl = instRL;
+            row.computed_rl = true;
+            row.rl = computedRL;
+          }
+        }
+      }
     }
 
     updated[i] = row;

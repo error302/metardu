@@ -2,7 +2,6 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import type { NLIMSSearchResult, NLIMSParcel } from '@/types/nlims'
-import { logger } from '@/lib/logger'
 
 // ─── DB Row Interfaces ───────────────────────────────────────────────────
 interface ParcelVaultRow {
@@ -33,8 +32,12 @@ interface NlimsCacheRow {
 
 export const dynamic = 'force-dynamic'
 
-// NLIMS integration is pending — generateMockParcel removed.
-// Once the NLIMS API is connected, a real lookup function will replace this.
+function privateJson(body: unknown, status = 200) {
+  return NextResponse.json(body, {
+    status,
+    headers: { 'Cache-Control': 'private, no-store, max-age=0', Pragma: 'no-cache' },
+  })
+}
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 60000 } }, async (request, ctx) => {
   const { searchParams } = new URL(request.url)
@@ -42,13 +45,16 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 6000
   const county = searchParams.get('county')
 
   if (!parcelNumber) {
-    return NextResponse.json(
-      { found: false, error: 'Parcel number is required', isMockData: false } as NLIMSSearchResult,
-      { status: 400 }
-    )
+    return privateJson({ found: false, error: 'Parcel number is required' } as NLIMSSearchResult, 400)
   }
 
   const sanitizedParcel = parcelNumber.trim().toUpperCase().replace(/\s+/g, '')
+  if (sanitizedParcel.length > 100 || /[\u0000-\u001f\u007f]/.test(sanitizedParcel)) {
+    return privateJson({ found: false, error: 'Parcel number must be 1–100 printable characters.' } as NLIMSSearchResult, 400)
+  }
+  if (county && (county.trim().length > 80 || /[\u0000-\u001f\u007f]/.test(county))) {
+    return privateJson({ found: false, error: 'County must be at most 80 printable characters.' } as NLIMSSearchResult, 400)
+  }
   // Use authenticated user ID from session (not query param — security fix)
   const userId = ctx.userId
 
@@ -60,14 +66,13 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 6000
 
   if (personalVault.rows.length > 0) {
     const vault = personalVault.rows[0]
-    return NextResponse.json({
+    return privateJson({
       found: true,
       parcel: vault.parsed_data as NLIMSParcel,
-      isMockData: false,
       source: 'VAULT_PERSONAL',
       freshness: vault.freshness ?? undefined,
       certificateDate: vault.certificate_date ?? undefined
-    } as NLIMSSearchResult & { source?: string; freshness?: string; certificateDate?: string })
+    } as NLIMSSearchResult)
   }
 
   // 2. Check shared vault
@@ -78,7 +83,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 6000
 
   if (sharedVault.rows.length > 0) {
     const sv = sharedVault.rows[0]
-    const mockFromVault: NLIMSParcel = {
+    const sharedReference: NLIMSParcel = {
       parcelNumber: sv.parcel_number,
       registrationSection: sv.registration_section || '',
       county: sv.county,
@@ -95,14 +100,13 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 6000
       source: 'VAULT_SHARED',
       fetchedAt: new Date().toISOString()
     }
-    return NextResponse.json({
+    return privateJson({
       found: true,
-      parcel: mockFromVault,
-      isMockData: true,
+      parcel: sharedReference,
       source: 'VAULT_SHARED',
       freshness: sv.freshness ?? undefined,
       certificateDate: sv.certificate_date ?? undefined
-    } as NLIMSSearchResult & { source?: string; freshness?: string; certificateDate?: string })
+    } as NLIMSSearchResult)
   }
 
   // 3. Check NLIMS cache (24h freshness)
@@ -117,61 +121,20 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 6000
     const oneDay = 24 * 60 * 60 * 1000
 
     if (cacheAge < oneDay) {
-      return NextResponse.json({
+      return privateJson({
         found: true,
         parcel: row.data as NLIMSParcel,
-        isMockData: ((row.data as { source?: string } | null)?.source) === 'NLIMS_CACHED'
+        source: 'METARDU_CACHE',
+        freshness: `Cached record retrieved ${row.fetched_at}`,
       } as NLIMSSearchResult)
     }
   }
 
-  // 4. Live NLIMS API lookup
-  const apiKey = process.env.NLIMS_API_KEY
-
-  if (!apiKey) {
-    return NextResponse.json(
-      { found: false, error: 'NLIMS integration is pending — no API key configured', isMockData: false } as NLIMSSearchResult,
-      { status: 503 }
-    )
-  }
-
-  try {
-    const response = await fetch('https://api.ardhi.go.ke/nlims/v1/parcel/search', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ parcelNumber: sanitizedParcel, county: county || '' })
-    })
-
-    if (response.ok) {
-      const data = (await response.json()) as NLIMSParcel
-      const parcel: NLIMSParcel = {
-        ...data,
-        source: 'NLIMS_LIVE',
-        fetchedAt: new Date().toISOString()
-      }
-
-      await db.query<never>(
-        `INSERT INTO nlims_cache (parcel_number, county, data, fetched_at)
-         VALUES ($1, $2, $3, $4)
-         ON CONFLICT (parcel_number, county) DO UPDATE SET data = $3, fetched_at = $4`,
-        [sanitizedParcel, county || '', parcel, new Date().toISOString()]
-      )
-
-      return NextResponse.json({
-        found: true,
-        parcel,
-        isMockData: false
-      } as NLIMSSearchResult)
-    }
-  } catch (apiError) {
-    logger.error('NLIMS API error:', { error: apiError })
-  }
-
-  return NextResponse.json(
-    { found: false, error: 'Parcel not found via NLIMS API', isMockData: false } as NLIMSSearchResult,
-    { status: 404 }
-  )
+  // No public registry API contract is configured. A local miss is not proof
+  // that a parcel is absent from the government register.
+  return privateJson({
+    found: false,
+    code: 'OFFICIAL_REGISTRY_ACCESS_UNAVAILABLE',
+    error: 'No matching record is available in METARDU records. Live government registry search is not connected; this does not mean the parcel is absent from the official register.',
+  } as NLIMSSearchResult, 503)
 })

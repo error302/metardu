@@ -113,7 +113,12 @@ METARDU runs as a standalone Next.js build managed by PM2:
 - `pm2 start ecosystem.config.cjs`
 - One active PM2 process per instance
 
-Docker configuration is included in the repo for containerized deployments. See [docs/deployment/duckdns-cloudflare-tunnel.md](docs/deployment/duckdns-cloudflare-tunnel.md) for the current deployment runbook.
+This workstation's current runtime is the existing `metardu-app` Docker stack.
+Run `npm run docker:verify` for read-only health and duplicate-resource checks.
+Follow [the Docker runtime workflow](docs/DOCKER_RUNTIME_WORKFLOW.md) before any
+build or promotion; preserve production data and supporting services. Do not
+start a separate Docker testing stack on this machine. See also
+[the tunnel runbook](docs/deployment/duckdns-cloudflare-tunnel.md).
 
 ## Pages
 

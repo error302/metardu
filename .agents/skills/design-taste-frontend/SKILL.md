@@ -202,7 +202,7 @@ LLMs default to clichés. Override these defaults proactively. Each rule has a c
     - **Cobalt + Cream:** saturated blue against a single neutral, no brass
     - **Terracotta + Slate:** warm rust against cool grey, no brass
     - **Olive + Brick + Paper:** muted olive plus brick-red accent
-    - **Pure monochrome + single saturated pop:** off-white (`#f5f5f5`, `#fafafa` — never pure `#ffffff`) + off-black + one bright accent (electric blue, emerald, hot pink, etc.)
+    - **Pure monochrome + single saturated pop:** off-white + off-black + one bright accent (electric blue, emerald, hot pink, etc.)
   * **Palette-rotation rule:** if the previous premium-consumer project you generated used the beige+brass family, this one MUST use a different family. Do not ship the same warm-craft palette twice in a row.
   * **Override:** the beige+brass+espresso palette is acceptable ONLY when the brand brief explicitly names those colors, or when the brand identity is genuinely vintage / artisan / warm-craft AND you can articulate why this specific palette fits this specific brand. Default-reaching for it because "this is a cookware brief" is banned.
 

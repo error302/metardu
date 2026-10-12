@@ -10,8 +10,9 @@ interface MetarduLogoProps {
 /**
  * METARDU Logo Component
  *
- * Uses the official METARDU logo image (public/metardu-icon.png) — a
- * square PNG cropped from the original metardu-logo.jpg.
+ * Uses the square brandmark cropped from the master artwork in
+ * public/metardu-logo.jpg. Keep this component as the shared logo source
+ * for navigation, authentication, loading, and workspace chrome.
  *
  * The wordmark text color is controlled by the `color` prop.
  */
@@ -22,11 +23,11 @@ export default function MetarduLogo({
   className = '',
 }: MetarduLogoProps) {
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
-      {/* Official METARDU logo image */}
+    <div className={`flex items-center gap-2 ${className}`} role="img" aria-label="METARDU">
+      {/* Canonical METARDU brandmark */}
       <Image
         src="/metardu-icon.png"
-        alt="METARDU logo"
+        alt=""
         width={size}
         height={size}
         className="shrink-0 rounded"
@@ -41,6 +42,7 @@ export default function MetarduLogo({
             letterSpacing: '0.05em',
             color: color === 'currentColor' ? 'inherit' : color,
           }}
+          aria-hidden="true"
         >
           METARDU
         </span>

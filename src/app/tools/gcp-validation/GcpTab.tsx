@@ -9,6 +9,8 @@ import type { KnownGCP } from './types';
 
 interface GcpTabProps {
   knownGCPs: KnownGCP[];
+  sampleDataLoaded: boolean;
+  gcpImportError: string | null;
   addGCP: () => void;
   removeGCP: (id: number) => void;
   updateGCP: (id: number, field: keyof KnownGCP, value: string) => void;
@@ -22,6 +24,8 @@ interface GcpTabProps {
 
 export function GcpTab({
   knownGCPs,
+  sampleDataLoaded,
+  gcpImportError,
   addGCP,
   removeGCP,
   updateGCP,
@@ -38,7 +42,7 @@ export function GcpTab({
         <div className="card-header flex justify-between items-center flex-wrap gap-2">
           <span className="label">Known GCP Coordinates ({knownGCPs.length} points)</span>
           <div className="flex gap-2 flex-wrap">
-            <button onClick={loadSampleGCPs} className="btn btn-secondary text-sm">Load Sample</button>
+            <button onClick={loadSampleGCPs} className="btn btn-secondary text-sm">Load Example (fictional)</button>
             <button onClick={clearGCPs} className="btn btn-secondary text-sm">Clear</button>
             <button
               onClick={() => csvInputRef.current?.click()}
@@ -73,6 +77,17 @@ export function GcpTab({
           Enter known ground-surveyed GCP coordinates. These will be compared against the photogrammetry
           software output residuals. Names must match between this table and the residual table.
         </p>
+        <p className="mb-4 rounded border border-amber-800 bg-amber-950/30 p-3 text-xs text-amber-200">
+          Coordinates are compared numerically as supplied. This tool does not verify or transform the horizontal CRS, datum, geoid, vertical datum, units, or epoch. Confirm that control and software coordinates use the same approved reference system before interpreting any result.
+        </p>
+        {sampleDataLoaded && (
+          <div role="status" className="mb-4 rounded border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">
+            EXAMPLE DATA — one or more fictional example datasets are loaded. Any results and reports are marked as examples, not survey evidence.
+          </div>
+        )}
+        {gcpImportError && (
+          <div role="alert" className="mb-4 rounded border border-red-700 bg-red-950/40 p-3 text-sm text-red-200">{gcpImportError}</div>
+        )}
 
         {knownGCPs.length > 0 ? (
           <div className="overflow-x-auto max-h-[500px]">
@@ -152,7 +167,7 @@ export function GcpTab({
         {/* CSV format hint */}
         <div className="mt-4 p-3 bg-[var(--bg-tertiary)] rounded text-xs text-[var(--text-muted)]">
           <strong>CSV format:</strong> <code className="font-mono">Name,Easting,Northing,Elevation</code><br />
-          <strong>GeoJSON:</strong> FeatureCollection with Point features having properties: name, easting, northing, elevation
+          <strong>GeoJSON:</strong> FeatureCollection with Point features and numeric properties: name, easting, northing, elevation. Geographic geometry coordinates (longitude/latitude) are ignored; this tool does not project or datum-transform them. Enter projected coordinates in the same CRS as the residuals.
         </div>
       </div>
     </div>

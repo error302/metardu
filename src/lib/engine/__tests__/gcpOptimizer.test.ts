@@ -3,7 +3,7 @@
  * not zeros. Round-trip: pick a known UTM 37S coordinate, export, check
  * the lat/lon is plausible (Kenya bbox: lat -5..5, lon 33..42).
  */
-import { exportForPix4D, exportForWebODM, DEFAULT_UTM_ZONE, DEFAULT_HEMISPHERE } from '@/lib/engine/gcpOptimizer'
+import { exportForPix4D, exportForWebODM } from '@/lib/engine/gcpOptimizer'
 import type { GCPPoint } from '@/lib/engine/gcpOptimizer'
 
 function makeGCP(easting: number, northing: number, name = 'GCP-01'): GCPPoint {
@@ -28,7 +28,7 @@ describe('P0-1: gcpOptimizer WGS84 export', () => {
   const NAIROBI_N = 9857754.23
 
   test('exportForPix4D produces non-zero lat/lon in Kenya bbox', () => {
-    const csv = exportForPix4D([makeGCP(NAIROBI_E, NAIROBI_N)])
+    const csv = exportForPix4D([makeGCP(NAIROBI_E, NAIROBI_N)], 37, 'S')
     const lines = csv.trim().split('\n')
     expect(lines.length).toBe(2) // header + 1 GCP
 
@@ -52,7 +52,7 @@ describe('P0-1: gcpOptimizer WGS84 export', () => {
   })
 
   test('exportForWebODM produces non-zero lat/lon in Kenya bbox', () => {
-    const csv = exportForWebODM([makeGCP(NAIROBI_E, NAIROBI_N)])
+    const csv = exportForWebODM([makeGCP(NAIROBI_E, NAIROBI_N)], 37, 'S')
     const lines = csv.trim().split('\n')
     expect(lines.length).toBe(1) // no header
 
@@ -70,9 +70,9 @@ describe('P0-1: gcpOptimizer WGS84 export', () => {
     expect(lon).toBeLessThan(42)
   })
 
-  test('defaults to Zone 37S (Kenya) when no zone supplied', () => {
-    // Same Nairobi coords — should produce Kenya lat/lon with defaults
-    const csv = exportForPix4D([makeGCP(NAIROBI_E, NAIROBI_N)])
+  test('exportForPix4D with explicit Zone 37S produces Kenya lat/lon', () => {
+    // Same Nairobi coords — should produce Kenya lat/lon with explicit zone
+    const csv = exportForPix4D([makeGCP(NAIROBI_E, NAIROBI_N)], 37, 'S')
     const row = csv.trim().split('\n')[1].split(',')
     const lat = parseFloat(row[1])
     const lon = parseFloat(row[2])
@@ -100,10 +100,5 @@ describe('P0-1: gcpOptimizer WGS84 export', () => {
     // Western Kenya lon < 37 (zone boundary)
     expect(lon).toBeLessThan(37)
     expect(lon).toBeGreaterThan(33)
-  })
-
-  test('exports DEFAULT_UTM_ZONE and DEFAULT_HEMISPHERE constants', () => {
-    expect(DEFAULT_UTM_ZONE).toBe(37)
-    expect(DEFAULT_HEMISPHERE).toBe('S')
   })
 })

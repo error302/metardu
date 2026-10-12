@@ -1,3 +1,5 @@
+import { CalibrationTracker } from '@/components/instruments/CalibrationTracker'
+
 export default function InstrumentsPage() {
   const instruments = [
     {
@@ -57,10 +59,16 @@ export default function InstrumentsPage() {
     <div className="min-h-screen py-12">
       <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl font-bold text-[var(--text-primary)] mb-2">Compatible Instruments</h1>
-        <p className="text-[var(--text-secondary)] text-lg mb-12">
-          METARDU imports data from all major total station brands
+        <p className="text-[var(--text-secondary)] text-lg mb-8">
+          METARDU imports data from all major total station brands and provides field equipment calibration verification.
         </p>
 
+        {/* Calibration & Maintenance Tracker */}
+        <div className="mb-12">
+          <CalibrationTracker />
+        </div>
+
+        <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-4">Supported Brands & Formats</h2>
         <div className="grid gap-6 mb-12">
           {instruments.map((inst) => (
             <div

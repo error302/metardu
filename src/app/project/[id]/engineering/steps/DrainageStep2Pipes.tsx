@@ -1,126 +1,107 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { calculateProjectDrainageRuns } from '@/lib/engineering/projectDrainageEngine'
 import type { DrainageData, PipeRun } from '@/types/engineering'
-import { MANNING_N } from '@/lib/engineering/drainageDesign'
+import { PipeFlowScreening } from './PipeFlowScreening'
 
-/**
- * Drainage Step 2 — Pipe Runs (connect manholes, calculate gradients).
- *
- * Extracted verbatim from src/app/project/[id]/engineering/page.tsx.
- * Uses Manning's equation to compute velocity & full-bore capacity.
- */
+/** Derive each run from measured chainage and the two pipe-end invert levels. */
 export function DrainageStep2Pipes({
   data,
-  onSave
+  onSave,
 }: {
   data: DrainageData | null
-  onSave: (pipeRuns: PipeRun[]) => void
+  onSave: (pipeRuns: PipeRun[]) => void | Promise<boolean>
 }) {
   const manholes = data?.manholes || []
+  const { runs, issues } = useMemo(() => calculateProjectDrainageRuns(manholes), [manholes])
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  const computePipes = (): PipeRun[] => {
-    if (manholes.length < 2) return []
-
-    const pipes: PipeRun[] = []
-    for (let i = 0; i < manholes.length - 1; i++) {
-      const mh1 = manholes[i]
-      const mh2 = manholes[i + 1]
-
-      const length = mh2.chainage - mh1.chainage
-      const fall = mh1.invertLevelOut - mh2.invertLevelOut
-      const gradient = fall / length
-      const diameter = mh2.pipeDiameterOut / 1000
-
-      const manningN = MANNING_N[mh2.pipeMaterial as keyof typeof MANNING_N] || 0.013
-      const velocity = gradient > 0 ? (1 / manningN) * Math.pow(diameter, 2/3) * Math.pow(gradient, 0.5) : 0
-      const fullBore = (Math.PI * Math.pow(diameter, 2) / 4) * velocity
-
-      pipes.push({
-        fromMH: mh1.name,
-        toMH: mh2.name,
-        length,
-        gradient: gradient * 100,
-        velocity,
-        fullBoreCapacity: fullBore,
-        gradientStatus: gradient > 0.001 ? 'OK' : gradient > 0 ? 'TOO_FLAT' : 'TOO_STEEP'
-      })
+  const handleSave = async () => {
+    setSaving(true)
+    setSaved(false)
+    setSaveError(null)
+    try {
+      const result = await onSave(runs)
+      if (result === false) {
+        setSaveError('METARDU could not save this run schedule. Check the connection and try again.')
+        return
+      }
+      setSaved(true)
+    } catch {
+      setSaveError('METARDU could not save this run schedule. Check the connection and try again.')
+    } finally {
+      setSaving(false)
     }
-    return pipes
-  }
-
-  const [autoCompute, setAutoCompute] = useState(true)
-  const pipes = autoCompute ? computePipes() : data?.pipeRuns || []
-
-  const handleSave = () => {
-    onSave(pipes)
   }
 
   return (
     <div className="space-y-6">
       <div>
-        <h3 className="text-lg font-semibold text-white mb-1">Pipe Runs</h3>
-        <p className="text-zinc-400 text-sm">Connect manholes with pipe runs and calculate gradients.</p>
+        <h3 className="mb-1 text-lg font-semibold text-white">Pipe run calculations</h3>
+        <p className="text-sm text-zinc-400">Length comes from the two manhole chainages. Fall uses the upstream outgoing invert and downstream incoming invert. Manning estimates now screen the free-surface normal depth and the peak open-channel rate separately from the full-bore reference. They do not verify inlet/outlet control, HGL/backwater, surcharge at manholes, or standards compliance.</p>
       </div>
 
-      <div className="flex items-center gap-3 mb-4">
-        <input
-          type="checkbox"
-          id="autoCompute" aria-label="Autocompute"
-          checked={autoCompute}
-          onChange={e => setAutoCompute(e.target.checked)}
-          className="rounded"
-        />
-        <label htmlFor="autoCompute" className="text-sm text-zinc-400">Auto-calculate from manhole invert levels</label>
-      </div>
-
-      {pipes.length === 0 ? (
-        <div className="text-center py-8 text-zinc-500">
-          <p>Add at least 2 manholes to compute pipe runs.</p>
+      {issues.length > 0 && (
+        <div role="status" className="rounded-lg border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-200">
+          <p className="mb-2 font-semibold">The run schedule is incomplete:</p>
+          <ul className="list-inside list-disc space-y-1">{issues.map(issue => <li key={issue}>{issue}</li>)}</ul>
         </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+      )}
+
+      {runs.length > 0 && (
+        <div className="overflow-x-auto rounded-lg border border-zinc-800">
+          <table className="w-full min-w-[900px] text-sm">
             <thead>
-              <tr className="bg-zinc-800 text-zinc-400">
-                <th className="px-3 py-2 text-left">From</th>
-                <th className="px-3 py-2 text-left">To</th>
+              <tr className="bg-zinc-800 text-zinc-300">
+                <th className="px-3 py-2 text-left">Run</th>
                 <th className="px-3 py-2 text-right">Length (m)</th>
-                <th className="px-3 py-2 text-right">Gradient (%)</th>
-                <th className="px-3 py-2 text-right">Velocity (m/s)</th>
-                <th className="px-3 py-2 text-right">Status</th>
+                <th className="px-3 py-2 text-right">Fall (m)</th>
+                <th className="px-3 py-2 text-right">Gradient (1 in n)</th>
+                <th className="px-3 py-2 text-right">ID (mm)</th>
+                <th className="px-3 py-2 text-left">Material</th>
+                <th className="px-3 py-2 text-right">Manning n</th>
+                <th className="px-3 py-2 text-right">Full-bore velocity (m/s)</th>
+                <th className="px-3 py-2 text-right">Full-bore capacity (L/s)</th>
+                <th className="px-3 py-2 text-left">Design-flow screening</th>
               </tr>
             </thead>
             <tbody>
-              {pipes.map((p, idx) => (
-                <tr key={`${p}-${idx}`} className="border-t border-zinc-800">
-                  <td className="px-3 py-2 text-white">{p.fromMH}</td>
-                  <td className="px-3 py-2 text-white">{p.toMH}</td>
-                  <td className="px-3 py-2 text-right text-zinc-400">{p.length.toFixed(1)}</td>
-                  <td className="px-3 py-2 text-right text-zinc-400">{p.gradient.toFixed(3)}%</td>
-                  <td className="px-3 py-2 text-right text-zinc-400">{p.velocity.toFixed(2)}</td>
-                  <td className="px-3 py-2 text-right">
-                    <span className={`text-xs px-2 py-0.5 rounded ${
-                      p.gradientStatus === 'OK' ? 'bg-green-900 text-green-400' :
-                      p.gradientStatus === 'TOO_FLAT' ? 'bg-amber-900 text-amber-400' :
-                      'bg-red-900 text-red-400'
-                    }`}>
-                      {p.gradientStatus}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {runs.map((run, index) => {
+                const gradientRatio = run.gradient > 0 ? 100 / run.gradient : undefined
+                return (
+                  <tr key={`${run.fromMH}-${run.toMH}-${index}`} className="border-t border-zinc-800">
+                    <td className="px-3 py-2 font-medium text-white">{run.fromMH} → {run.toMH}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{run.length.toFixed(3)}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{(run.length * run.gradient / 100).toFixed(3)}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{gradientRatio ? `1 in ${gradientRatio.toFixed(1)}` : '—'}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{run.internalDiameterMm.toFixed(1)}</td>
+                    <td className="px-3 py-2 text-zinc-300">{run.material}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{run.manningN.toFixed(3)}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{run.velocity.toFixed(3)}</td>
+                    <td className="px-3 py-2 text-right text-zinc-300">{(run.fullBoreCapacity * 1000).toFixed(2)}</td>
+                    <td className="px-3 py-2 text-zinc-300">
+                      <PipeFlowScreening run={run} />
+                    </td>
+                  </tr>
+                )
+              })}
             </tbody>
           </table>
         </div>
       )}
 
       <button
-        onClick={handleSave}
-        className="px-6 py-2.5 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400"
+        type="button"
+        onClick={() => void handleSave()}
+        disabled={issues.length > 0 || runs.length !== manholes.length - 1 || saving}
+        className="rounded-lg bg-amber-500 px-6 py-2.5 font-semibold text-black hover:bg-amber-400 disabled:cursor-not-allowed disabled:opacity-40"
       >
-        Save Pipe Runs
+        {saving ? 'Saving…' : saved ? 'Run schedule saved' : 'Save calculated run schedule'}
       </button>
+      {saveError && <p role="alert" className="text-sm text-red-300">{saveError}</p>}
     </div>
   )
 }

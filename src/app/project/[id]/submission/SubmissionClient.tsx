@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { logger } from '@/lib/logger';
-import { CheckCircle2 } from 'lucide-react'
+import { CheckCircle2, Sparkles, Archive, Loader2, Compass, ExternalLink, Copy, Check } from 'lucide-react'
 import { z } from 'zod';
 import { createClient } from '@/lib/api-client/client';
 import { apiGet, apiPost, apiInvalidate, ApiError } from '@/lib/api/client';
@@ -81,7 +81,11 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   // Statutory gate block state — when true, Generate buttons are disabled
   // because the project would fail ArdhiSasa pre-flight. Lifted up from
   // StatutoryGatePanel via the onResult callback.
-  const [gateBlocked, setGateBlocked] = useState(false);
+  const [gateBlocked, setGateBlocked] = useState(true);
+  const handleGateResult = useCallback((result: {summary: {block: number}} | null) => {
+    setGateBlocked(result ? result.summary.block > 0 : true);
+  }, []);
+  const [portalCopied, setPortalCopied] = useState(false);
   const [docStates, setDocStates] = useState<Record<string, DocState>>(() => {
     const initial: Record<string, DocState> = {};
     getDocumentsForSurveyType(project.survey_type).forEach((doc) => {
@@ -130,6 +134,27 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
     }
     loadPreview();
   }, [projectId]);
+
+  const handleAssemblePackage = useCallback(async () => {
+    setAssembling(true);
+    try {
+      const result = await apiPost(
+        '/api/submission/package',
+        packageResponseSchema,
+        { projectId: project.id },
+      );
+      if (result.downloadUrl) {
+        window.open(result.downloadUrl, '_blank');
+      }
+      // Invalidate preview cache
+      apiInvalidate(`/api/submission/preview?projectId=${project.id}`);
+    } catch (err) {
+      const errorMessage = err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Package generation failed';
+      alert(errorMessage);
+    } finally {
+      setAssembling(false);
+    }
+  }, [project.id]);
 
   const generateDocument = useCallback(async (docId: string) => {
     setDocStates((prev) => ({
@@ -257,6 +282,82 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
              All documents ready for submission
           </p>
         )}
+
+        {/* 1-Click Complete Dossier Action Banner */}
+        <div className="mt-4 p-4 rounded-xl border border-[var(--accent,#f59e0b)]/30 bg-[var(--accent,#f59e0b)]/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-[var(--accent,#f59e0b)]" />
+              1-Click Statutory Submission Dossier (.ZIP)
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Instantly assembles all statutory documents: 9-sheet Excel workbook, Form No. 4 Deed Plan, Traverse & Area computation sheets, and Beacon CSV schedule.
+            </p>
+          </div>
+          <button
+            onClick={handleAssemblePackage}
+            disabled={assembling || gateBlocked}
+            className="px-5 py-2.5 rounded-lg bg-[var(--accent,#f59e0b)] text-black text-xs font-bold flex items-center gap-2 shrink-0 hover:brightness-110 disabled:opacity-50 transition-all shadow-md active:scale-95"
+          >
+            {assembling ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Assembling Dossier...
+              </>
+            ) : (
+              <>
+                <Archive className="w-4 h-4" />
+                Generate Complete Dossier (.ZIP)
+              </>
+            )}
+          </button>
+        </div>
+
+        {/* Landowner GPS Boundary Portal Card */}
+        <div className="mt-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div>
+            <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
+              <Compass className="w-4 h-4 text-emerald-400" />
+              Landowner GPS Boundary Portal
+            </div>
+            <p className="text-xs text-[var(--text-secondary)] mt-0.5">
+              Share this live portal link with your client. They can open it on their smartphone with zero install to view their boundary and get real-time GPS walking directions straight to beacons.
+            </p>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={() => {
+                const portalUrl = `${window.location.origin}/p/${project.id}`;
+                navigator.clipboard.writeText(portalUrl);
+                setPortalCopied(true);
+                setTimeout(() => setPortalCopied(false), 2500);
+              }}
+              className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white flex items-center gap-1.5 transition-colors border border-zinc-700"
+              title="Copy public client portal link"
+            >
+              {portalCopied ? (
+                <>
+                  <Check className="w-3.5 h-3.5 text-emerald-400" />
+                  <span className="text-emerald-400">Copied!</span>
+                </>
+              ) : (
+                <>
+                  <Copy className="w-3.5 h-3.5" />
+                  <span>Copy Client Link</span>
+                </>
+              )}
+            </button>
+            <a
+              href={`/p/${project.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
+            >
+              <ExternalLink className="w-3.5 h-3.5" />
+              <span>Open Portal</span>
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* Statutory Validation Gate — pre-export compliance check.
@@ -267,7 +368,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           disabled client-side when the gate is blocked. */}
       <StatutoryGatePanel
         projectId={project.id}
-        onResult={(result) => setGateBlocked(result ? result.summary.block > 0 : false)}
+        onResult={handleGateResult}
       />
 
       {documents.length === 0 ? (

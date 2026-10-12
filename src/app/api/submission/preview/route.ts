@@ -4,132 +4,43 @@ import { NextRequest, NextResponse } from 'next/server'
 import { requireAuth } from '@/lib/auth/requireAuth'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
 import { db } from '@/lib/db'
-import { getActiveSurveyorProfile } from '@/lib/submission/surveyorProfile'
-import { generateSubmissionRef } from '@/lib/submission/revisionNumber'
-
-interface SurveyPointRow {
-  id: string
-  name: string | null
-  easting: string | number | null
-  northing: string | number | null
-  adjusted_easting: string | number | null
-  adjusted_northing: string | number | null
-  observed_bearing: string | number | null
-  observed_distance: string | number | null
-}
-
-interface ProjectRow {
-  id: string
-  survey_type: string | null
-  lr_number: string | null
-  county: string | null
-  district: string | null
-  locality: string | null
-  area_m2: string | number | null
-  perimeter_m: string | number | null
-  angular_misclosure: string | number | null
-  linear_misclosure: string | number | null
-  precision_ratio: string | null
-  closing_error_e: string | number | null
-  closing_error_n: string | number | null
-  survey_points?: SurveyPointRow[]
-  supporting_documents?: unknown[]
-}
+import { fetchSurveyorProfile } from '@/lib/survey/fetchSurveyorProfile'
+import { computeDeedPlanGeometry } from '@/lib/generators/deedPlanGeometry'
 
 export async function GET(req: NextRequest) {
   const { session, error } = await requireAuth()
   if (error) return error
-
+  const projectId = req.nextUrl.searchParams.get('projectId')
+  if (!projectId) return NextResponse.json({error:'projectId required'},{status:400})
+  const ownership = await requireProjectOwnership(projectId, session?.user?.id)
+  if (!ownership.ok) return ownership.error ?? NextResponse.json({error:'Forbidden'},{status:403})
   try {
-    const projectId = req.nextUrl.searchParams.get('projectId')
-    if (!projectId) {
-      return NextResponse.json({ error: 'projectId required' }, { status: 400 })
-    }
-
-    const surveyor = await getActiveSurveyorProfile()
-    if (!surveyor) {
-      // AUDIT FIX (H-010, 2026-07-27): the underlying helper throws on missing
-      // profile; we caught it above (line 18-23 of surveyorProfile.ts). Return
-      // a 404 with a helpful message instead of letting it bubble up as 500.
-      return NextResponse.json(
-        { error: 'Surveyor profile not found. Please complete your profile before generating a submission.', code: 'PROFILE_REQUIRED' },
-        { status: 404 }
-      )
-    }
-
-    // IDOR protection — verify project ownership before returning
-    // full project data (survey points, traverse, parcel info)
-    const userId = (session?.user as { id?: string })?.id
-    const ownership = await requireProjectOwnership(projectId, userId)
-    if (!ownership.ok) {
-      return ownership.error ?? NextResponse.json({ error: 'Forbidden' }, { status: 403 })
-    }
-
-    const { rows: projectRows } = await db.query<ProjectRow>(
-      'SELECT * FROM projects WHERE id = $1 LIMIT 1',
-      [projectId]
-    )
-
-    if (projectRows.length === 0) {
-      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    }
-
-    const project = projectRows[0] as ProjectRow
-
-    // Simulate joined relations for survey_points (supporting_docs doesn't exist on projects table usually, mock if needed)
-    const { rows: pointsRows } = await db.query<SurveyPointRow>(
-      'SELECT * FROM survey_points WHERE project_id = $1',
-      [projectId]
-    )
-
-    project.survey_points = pointsRows
-    project.supporting_documents = [] // Fallback since it's not a standard table
-
-    const { ref, revision } = await generateSubmissionRef(
-      projectId,
-      surveyor.registration_number
-    )
-
-    const pkg = {
-      submissionRef: ref,
-      projectId,
-      surveyor,
-      subtype: project.survey_type || 'cadastral_subdivision',
-      parcel: {
-        lrNumber: project.lr_number || '',
-        county: project.county || '',
-        district: project.district || '',
-        locality: project.locality || '',
-        areaM2: project.area_m2 || 0,
-        perimeterM: project.perimeter_m || 0
-      },
-      traverse: {
-        points: (project.survey_points || []).map((pt) => ({
-          pointName: pt.name || `P${pt.id}`,
-          easting: pt.easting || 0,
-          northing: pt.northing || 0,
-          adjustedEasting: pt.adjusted_easting || pt.easting || 0,
-          adjustedNorthing: pt.adjusted_northing || pt.northing || 0,
-          observedBearing: pt.observed_bearing || 0,
-          observedDistance: pt.observed_distance || 0
-        })),
-        angularMisclosure: project.angular_misclosure || 0,
-        linearMisclosure: project.linear_misclosure || 0,
-        precisionRatio: project.precision_ratio || '1:1',
-        closingErrorE: project.closing_error_e || 0,
-        closingErrorN: project.closing_error_n || 0,
-        adjustmentMethod: 'bowditch',
-        areaM2: project.area_m2 || 0,
-        perimeterM: project.perimeter_m || 0
-      },
-      supportingDocs: project.supporting_documents || [],
-      generatedAt: new Date().toISOString(),
-      revision
-    }
-
-    return NextResponse.json(pkg)
+    const {rows} = await db.query('SELECT * FROM projects WHERE id=$1',[projectId])
+    const project=rows[0]
+    if (!project) return NextResponse.json({error:'Project not found'},{status:404})
+    const [surveyor,geometry]=await Promise.all([fetchSurveyorProfile(projectId),computeDeedPlanGeometry(projectId)])
+    const perimeterM=geometry.stations.reduce((sum,point,index)=>{
+      const next=geometry.stations[(index+1)%geometry.stations.length]
+      return sum+Math.hypot(next.easting-point.easting,next.northing-point.northing)
+    },0)
+    // A read-only preview must not allocate a statutory submission sequence.
+    return NextResponse.json({
+      submissionRef:'DRAFT - NOT SUBMITTED',projectId,revision:0,
+      surveyor:{fullName:surveyor.surveyorName,registrationNumber:surveyor.licenseNumber,
+        iskNumber:surveyor.iskNumber,firmName:surveyor.firmName,verifiedIsk:false,isKMemberActive:false},
+      subtype:project.survey_type,
+      parcel:{lrNumber:project.lr_number || '',parcelNumber:project.plot_parcel_number || '',
+        county:project.county || '',division:project.division || '',
+        district:project.registration_district || project.district || '',locality:project.locality || '',
+        areaM2:geometry.areaM2,perimeterM},
+      traverse:{points:geometry.stations.map(point=>({pointName:point.station,easting:point.easting,
+        northing:point.northing,adjustedEasting:point.easting,adjustedNorthing:point.northing})),
+        angularMisclosure:null,linearMisclosure:Number.isFinite(geometry.misclosureMm)?geometry.misclosureMm/1000:null,
+        precisionRatio:geometry.precisionRatio,coordinateSource:geometry.coordinateSource,
+        areaM2:geometry.areaM2,perimeterM},
+      supportingDocs:[],generatedAt:new Date().toISOString()
+    })
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Server error'
-    return NextResponse.json({ error: message }, { status: 500 })
+    return NextResponse.json({error:error instanceof Error?error.message:'Preview unavailable'},{status:422})
   }
 }

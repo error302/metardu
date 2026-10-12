@@ -16,9 +16,9 @@ import {
  * Lets surveyors derive a site-specific 7-parameter Bursa-Wolf transformation
  * from common points (points known in both source and target datums).
  *
- * Why: The national transformation (EPSG:1165) gives ~5m accuracy. With 5+
- * common points, you can derive a local calibration that's 100× more accurate
- * for the project area.
+ * Why: The national transformation (EPSG:1122) gives ~35 m accuracy
+ * nationally. With 5+ common points, you can derive a local calibration
+ * that's orders of magnitude more accurate for the project area.
  */
 
 interface CommonPointRow {
@@ -129,7 +129,7 @@ export function LocalCalibrationPanel() {
         </h2>
         <p className="text-sm text-zinc-400">
           Derive a site-specific 7-parameter Bursa-Wolf transformation from common points.
-          Achieves 100× better accuracy than the national parameters (EPSG:1165).
+          Far more accurate than the national parameters (EPSG:1122, ~35 m).
         </p>
       </div>
 

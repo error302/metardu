@@ -4,6 +4,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { setCurrentUserId } from '@/lib/db'
+import { registerDeliverable } from '@/lib/deliverables/deliverableRegister'
+import { logger } from '@/lib/logger'
 import Drawing from 'dxf-writer'
 import {
   initialiseSokDXFLayers,
@@ -59,10 +61,41 @@ export async function POST(req: NextRequest) {
 
     const dxfString = drawing.toDxfString()
 
+    // Register the issued DXF against the surface revision it was drawn from
+    // (blueprint §15/§28): a contour drawing must state which surface it
+    // came from, or a later revision makes it silently stale.
+    let registerWarning: string | null = null
+    try {
+      const { db } = await import('@/lib/db')
+      const { currentDesignRevision } = await import('@/lib/engineering/designRevisions')
+      const design = await currentDesignRevision(String(projectId), 'surface')
+      const registered = await registerDeliverable({
+        projectId: String(projectId),
+        documentType: 'dxf',
+        content: dxfString,
+        title: `Topographic contours DXF`,
+        sourceRevision: design?.revision ?? null,
+        projectCrs: design?.crs ?? null,
+        generator: 'api/topo/export/dxf',
+        manifest: { contour_count: contours.length, spot_height_count: spotHeights.length },
+        userId: userId ? String(userId) : null,
+      })
+      logger.info('[topo/export/dxf] registered', {
+        deliverable: registered.deliverable.id,
+        revision: registered.revision.revision,
+        source_revision: design?.revision ?? null,
+      })
+      void db
+    } catch (error) {
+      registerWarning = error instanceof Error ? error.message : 'register failed'
+      logger.error('[topo/export/dxf] deliverable not registered', { error })
+    }
+
     return new NextResponse(dxfString, {
       headers: {
         'Content-Type': 'application/dxf',
-        'Content-Disposition': `attachment; filename="topo_${projectId}.dxf"`
+        'Content-Disposition': `attachment; filename="topo_${projectId}.dxf"`,
+        ...(registerWarning ? { 'X-Metardu-Register-Warning': registerWarning } : {})
       }
     })
   } catch {

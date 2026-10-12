@@ -177,13 +177,4 @@ function sanitizeString(str: string): string {
  * In layout / page `<head>`:
  *   <script nonce={headers.get('x-nonce')} ...>
  */
-export function generateNonce(): string {
-  const array = new Uint8Array(16)
-  if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
-    crypto.getRandomValues(array)
-  } else {
-    // Fallback — only used in environments without Web Crypto API
-    for (let i = 0; i < 16; i++) array[i] = Math.floor(Math.random() * 256)
-  }
-  return Buffer.from(array).toString('base64')
-}
+export { generateNonce } from './csp'

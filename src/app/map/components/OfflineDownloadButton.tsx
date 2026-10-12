@@ -11,12 +11,13 @@ import { Download } from 'lucide-react'
 import { useMapContext } from '@/app/map/MapReactContext'
 
 export function OfflineDownloadButton() {
-  const { setOfflineDialogOpen, offlineDialogOpen } = useMapContext()
+  const { setOfflineDialogOpen, offlineDialogOpen, isMobile } = useMapContext()
 
   return (
     <button
       onClick={() => setOfflineDialogOpen(true)}
-      className={`flex items-center gap-2 px-3 h-10 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
+      style={{ bottom: isMobile ? 112 : 48, right: isMobile ? 8 : 16, minWidth: 44 }}
+      className={`absolute z-30 flex items-center gap-2 px-3 h-11 sm:h-10 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${
         offlineDialogOpen
           ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'
           : 'bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] border-[var(--border-color)]/[0.06] text-[var(--text-secondary)] hover:bg-[color-mix(in_srgb,var(--bg-secondary)_80%,transparent)] hover:text-[var(--text-secondary)]'

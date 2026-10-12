@@ -1,15 +1,13 @@
 /**
  * @module webglPointsLayer
  *
- * WebGL Point Layer for massive topographic datasets
+ * Optional WebGL renderer candidate for dense elevation point layers.
+ * This helper is not wired into a production map workflow. Its performance
+ * must be benchmarked with representative survey files and target devices
+ * before it is used to make product speed claims.
  *
- * Uses OpenLayers' WebGLPointsLayer to render 50,000+ points
- * using GPU shaders instead of Canvas2D. This eliminates UI lag
- * on dense topo surveys and drone point clouds.
- *
- * Performance comparison:
- * - Canvas2D (ol/layer/Vector): 50K points = 3-5 seconds to render, laggy pan
- * - WebGL (ol/layer/WebGLPoints): 50K points = <100ms, smooth pan/zoom
+ * OpenLayers 10.8 recommends WebGLVector over the deprecated WebGLPoints
+ * layer. Keep this helper isolated until a measured workload needs it.
  *
  * Features:
  * - Color interpolation by elevation (blue=low, red=high)
@@ -22,11 +20,31 @@
  *   map.addLayer(layer)
  */
 
-import WebGLPointsLayer from 'ol/layer/WebGLPoints'
+import WebGLVectorLayer from 'ol/layer/WebGLVector'
 import VectorSource from 'ol/source/Vector'
 import GeoJSON from 'ol/format/GeoJSON'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
+import type { FlatStyle } from 'ol/style/flat'
+
+const layerOptions = new WeakMap<WebGLVectorLayer<VectorSource>, Required<WebGLPointsOptions>>()
+
+function pointStyle(options: Required<WebGLPointsOptions>): FlatStyle {
+  const { elevationField, minElevation, maxElevation, pointRadius, opacity, strokeWidth } = options
+  const upper = maxElevation > minElevation ? maxElevation : minElevation + 1
+  return {
+    'circle-radius': pointRadius,
+    'circle-fill-color': [
+      'interpolate', ['linear'], ['get', elevationField],
+      minElevation, '#0000FF',
+      (minElevation + upper) / 2, '#00FF00',
+      upper, '#FF0000',
+    ],
+    'circle-stroke-color': '#FFFFFF',
+    'circle-stroke-width': strokeWidth,
+    'circle-opacity': opacity,
+  }
+}
 
 export interface WebGLPointsOptions {
   /** Property name for elevation-based coloring */
@@ -52,7 +70,7 @@ export interface WebGLPointsOptions {
 export function createWebGLPointsLayer(
   features: Feature<Point>[],
   options: WebGLPointsOptions = {},
-): WebGLPointsLayer<VectorSource> {
+): WebGLVectorLayer<VectorSource> {
   const {
     elevationField = 'elevation',
     minElevation,
@@ -68,10 +86,10 @@ export function createWebGLPointsLayer(
 
   if (minElevation == null || maxElevation == null) {
     for (const feature of features) {
-            const elev: unknown = feature.get(elevationField)
-      if (typeof elev === 'number') {
-        minElev = Math.min(minElev, elev)
-        maxElev = Math.max(maxElev, elev)
+      const elev: unknown = feature.get(elevationField)
+      if (typeof elev === 'number' && Number.isFinite(elev)) {
+        if (minElevation == null) minElev = Math.min(minElev, elev)
+        if (maxElevation == null) maxElev = Math.max(maxElev, elev)
       }
     }
     if (!isFinite(minElev)) minElev = 0
@@ -79,26 +97,13 @@ export function createWebGLPointsLayer(
   }
 
   const source = new VectorSource({ features })
-
-  const layer = new WebGLPointsLayer({
+  const resolvedOptions = { elevationField, minElevation: minElev, maxElevation: maxElev, pointRadius, opacity, strokeWidth }
+  const layer = new WebGLVectorLayer({
     source,
-    style: {
-      'circle-radius': pointRadius,
-      'circle-fill-color': [
-        'interpolate',
-        ['linear'],
-        ['get', elevationField],
-        minElev, '#0000FF',    // Low elevation: blue
-        (minElev + maxElev) / 2, '#00FF00',  // Mid: green
-        maxElev, '#FF0000',    // High elevation: red
-      ],
-      'circle-stroke-color': '#FFFFFF',
-      'circle-stroke-width': strokeWidth,
-      'circle-opacity': opacity,
-    },
+    style: pointStyle(resolvedOptions),
     disableHitDetection: false,
   })
-
+  layerOptions.set(layer, resolvedOptions)
   return layer
 }
 
@@ -111,7 +116,7 @@ export function createWebGLPointsLayer(
 export function createWebGLPointsFromCoords(
   points: Array<{ easting: number; northing: number; elevation?: number }>,
   options: WebGLPointsOptions = {},
-): WebGLPointsLayer<VectorSource> {
+): WebGLVectorLayer<VectorSource> {
   const features: Feature<Point>[] = points.map((pt, i) => {
     const feature = new Feature({
       geometry: new Point([pt.easting, pt.northing]),
@@ -133,7 +138,7 @@ export function createWebGLPointsFromCoords(
 export function createWebGLPointsFromGeoJSON(
   geojson: string | object,
   options: WebGLPointsOptions = {},
-): WebGLPointsLayer<VectorSource> {
+): WebGLVectorLayer<VectorSource> {
   const format = new GeoJSON()
   const features = format.readFeatures(
     typeof geojson === 'string' ? geojson : JSON.stringify(geojson),
@@ -147,32 +152,14 @@ export function createWebGLPointsFromGeoJSON(
  * Useful for changing color scale without recreating the layer.
  */
 export function updateWebGLPointsStyle(
-  layer: WebGLPointsLayer<VectorSource>,
+  layer: WebGLVectorLayer<VectorSource>,
   options: WebGLPointsOptions,
 ): void {
-  const {
-    elevationField = 'elevation',
-    minElevation = 0,
-    maxElevation = 1000,
-    pointRadius = 4,
-    opacity = 0.8,
-    strokeWidth = 1,
-  } = options
-
-  // WebGL points layer doesn't support setStyle — recreate the style object
-  // In practice, you'd recreate the layer or use the layer's style function
-  ;(layer as unknown as { setStyle: (style: object) => void }).setStyle({
-    'circle-radius': pointRadius,
-    'circle-fill-color': [
-      'interpolate',
-      ['linear'],
-      ['get', elevationField],
-      minElevation, '#0000FF',
-      (minElevation + maxElevation) / 2, '#00FF00',
-      maxElevation, '#FF0000',
-    ],
-    'circle-stroke-color': '#FFFFFF',
-    'circle-stroke-width': strokeWidth,
-    'circle-opacity': opacity,
-  })
+  if (Object.values(options).every((value) => value === undefined)) return
+  const current = layerOptions.get(layer)
+  if (!current) throw new Error('Create the point layer with createWebGLPointsLayer before updating its style.')
+  const supplied = Object.fromEntries(Object.entries(options).filter(([, value]) => value !== undefined))
+  const updated = { ...current, ...supplied }
+  layer.setStyle(pointStyle(updated))
+  layerOptions.set(layer, updated)
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef } from 'react';
 import Map from 'ol/Map';
 import View from 'ol/View';
 import TileLayer from 'ol/layer/Tile';
@@ -19,7 +19,8 @@ interface BoundarySelectorMapProps {
 
 export function BoundarySelectorMap({ onBoundaryChange, className = '' }: BoundarySelectorMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
-  const [mapObj, setMapObj] = useState<Map | null>(null);
+  const callbackRef = useRef(onBoundaryChange);
+  callbackRef.current = onBoundaryChange;
 
   // Inject OpenLayers CSS dynamically (a static `import 'ol/ol.css'` breaks
   // Next.js static export — same pattern as src/components/field/MapViewer.tsx).
@@ -37,7 +38,7 @@ export function BoundarySelectorMap({ onBoundaryChange, className = '' }: Bounda
   }, [])
 
   useEffect(() => {
-    if (!mapRef.current || mapObj) return;
+    if (!mapRef.current) return;
 
     // Source for drawn polygon
     const source = new VectorSource({ wrapX: false });
@@ -97,26 +98,16 @@ export function BoundarySelectorMap({ onBoundaryChange, className = '' }: Bounda
       // Convert boundary points to EPSG:4326
       const coords = geometry.getCoordinates()[0].map(pt => toLonLat(pt));
       
-      onBoundaryChange(coords, areaSqm, centerLonLat as [number, number]);
+      callbackRef.current(coords, areaSqm, centerLonLat as [number, number]);
     });
 
     map.addInteraction(draw);
-    setMapObj(map);
+
 
     return () => {
       map.setTarget(undefined);
     };
-  }, [mapObj, onBoundaryChange]);
-
-  // Handle getting user location to center map initially
-  useEffect(() => {
-    if (navigator.geolocation && mapObj) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        const coords = fromLonLat([pos.coords.longitude, pos.coords.latitude]);
-        mapObj.getView().animate({ center: coords, zoom: 15 });
-      });
-    }
-  }, [mapObj]);
+  }, []);
 
   return (
     <div className={`relative ${className}`}>

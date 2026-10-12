@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { usePathname } from 'next/navigation'
 import { ReactNode } from 'react'
@@ -12,6 +12,7 @@ import { CountryProvider } from '@/lib/country'
 import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
 import SkipToContent from '@/components/shared/SkipToContent'
 import { OfflineIndicator } from '@/components/app/OfflineIndicator'
+import { ChatGPTNoticeBanner } from '@/components/chatgpt/NoticeBanner'
 
 // Heavy / route-specific overlays are code-split so their JS chunks only
 // download when the component is actually rendered (never on the landing
@@ -29,7 +30,7 @@ const NotificationToast = dynamic(
   { ssr: false }
 )
 
-/* â”€â”€ Route classification â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Route classification ─────────────────────────────────────────── */
 
 function isFullScreenRoute(pathname: string): boolean {
   return pathname === '/field/map' || pathname.startsWith('/field/map/')
@@ -52,14 +53,14 @@ function isFieldbookRoute(pathname: string): boolean {
 }
 
 // Marketing routes get a minimal shell: no LoadingScreen, no global
-// overlays (QuickCompute, CommandPalette, onboarding, install bannersâ€¦).
-// This is a large performance win â€” those overlays are the biggest JS
+// overlays (QuickCompute, CommandPalette, onboarding, install banners…).
+// This is a large performance win — those overlays are the biggest JS
 // chunks and the 1.5s branded splash directly inflates LCP/FCP on the
 // first visit (the landing page is what Lighthouse scores).
 function isMarketingRoute(pathname: string): boolean {
-  return pathname === '/' || pathname === '/pricing' || pathname === '/enterprise'
+  return pathname === '/' || pathname === '/pricing' || pathname === '/enterprise' || pathname.startsWith('/connect/chatgpt')
 }
-/* â”€â”€ Shell Component â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+/* ── Shell Component ─────────────────────────────────────────────── */
 
 export default function AppShell({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -69,18 +70,20 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const mapPage = isMapRoute(pathname)
   const fieldbookPage = isFieldbookRoute(pathname)
   const marketing = isMarketingRoute(pathname)
-  // Map and fieldbook are full-data-entry surfaces â€” the global overlays
-  // (Footer, FeedbackWidget, QuickCompute, MobileNav, CommandPalette)
-  // overlap the entry form and steal taps from the surveyor on a phone.
+  // Map and fieldbook are full-data-entry surfaces. Keep the global mobile
+  // navigation on the map so surveyors can switch pages without leaving it;
+  // hide the other overlays that compete with map and fieldbook controls.
   const hideGlobalOverlays = mapPage || fieldbookPage
 
-  // Auth routes (login/register): bare page, no chrome
+  // Auth routes (login/register): bare page, no chrome.
+  // ProjectionInit is deliberately omitted: no map renders pre-auth, so
+  // downloading + registering proj4/ol projections here is pure waste —
+  // every map surface awaits registerProjections() itself on init.
   if (auth) {
     return (
       <>
         <SkipToContent />
         <OfflineIndicator />
-        <ProjectionInit />
         <LanguageProvider>
           <CountryProvider>
             <SubscriptionProvider>
@@ -95,21 +98,24 @@ export default function AppShell({ children }: { children: ReactNode }) {
     )
   }
 
-  // Marketing routes (landing, pricing, enterprise): minimal chrome â€”
+  // Marketing routes (landing, pricing, enterprise): minimal chrome —
   // NavBar + Footer only. No LoadingScreen splash, no compute/search/
   // onboarding overlays, no PWA/update banners. Their code-split chunks
   // never download here, cutting the landing page's JS by ~50%.
+  // Marketing routes: ProjectionInit is deliberately omitted. No map renders
+  // here, and mounting it triggers registerProjections() → dynamic import of
+  // proj4 + ol/proj/proj4 → ~46 OpenLayers chunks (~600 KB) on a marketing page.
   if (marketing) {
     return (
       <>
         <SkipToContent />
         <OfflineIndicator />
-        <ProjectionInit />
         <LanguageProvider>
           <CountryProvider>
             <SubscriptionProvider>
               <NavBar />
               <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
+                {pathname === '/' && <ChatGPTNoticeBanner />}
                 {children}
               </main>
               <Footer />
@@ -193,21 +199,22 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <CountryProvider>
           <SubscriptionProvider>
             {/* NavBar renders on ALL app routes. (An earlier audit hid it on
-                /dashboard because that group used the AppSidebar layout â€” that
+                /dashboard because that group used the AppSidebar layout — that
                 layout is gone, so hiding it here left the dashboard with no
-                navigation at all.) NOTE: do NOT wrap NavBar in <Suspense> â€”
+                navigation at all.) NOTE: do NOT wrap NavBar in <Suspense> —
                 an explicit boundary here deterministically breaks SSR of
                 sibling content on /project/new (breadcrumb link never renders,
                 E2E project-crud shard fails). NavBar's SSR bailout recovers
                 fine client-side without it. */}
             <NavBar />
             <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden pb-40 md:pb-0 mobile-nav-spacer">
+              {['/','/dashboard','/projects','/account','/fieldbook'].includes(pathname) && <ChatGPTNoticeBanner />}
               {children}
             </main>
             <Footer />
             {!hideGlobalOverlays && <FeedbackWidget />}
             <HotkeyHelpOverlay />
-            {!hideGlobalOverlays && <MobileNav />}
+            {!fieldbookPage && <MobileNav />}
             {!hideGlobalOverlays && <CommandPalette />}
             <NotificationToast />
             <OnboardingTour />

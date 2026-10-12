@@ -16,6 +16,13 @@ describe('computeStatistics', () => {
     expect(stats.rms).toBe(0)
   })
 
+  it('summarizes a large array without spreading it into function arguments', () => {
+    const stats = computeStatistics(Array.from({ length: 150_000 }, (_, index) => index % 7))
+    expect(stats.max).toBe(6)
+    expect(stats.min).toBe(0)
+    expect(stats.mean).toBeCloseTo(2.99998, 4)
+  })
+
   it('handles single value', () => {
     const stats = computeStatistics([5])
     expect(stats.mean).toBe(5)
@@ -37,7 +44,8 @@ describe('compareDesignVsAsBuilt', () => {
     const asBuilt = design.map(d => ({ chainage: d.chainage, surveyedLevel: d.designLevel }))
     const result = compareDesignVsAsBuilt(design, asBuilt, TOLERANCE_BANDS.paved)
     expect(result.summary.passRate).toBe(100)
-    expect(result.summary.isCompliant).toBe(true)
+    expect(result.summary.allPointsWithinTolerance).toBe(false)
+    expect(result.summary.issues.join(' ')).toMatch(/horizontal tolerance was not evaluated/i)
     expect(result.comparisons.length).toBe(5)
   })
 
@@ -53,10 +61,10 @@ describe('compareDesignVsAsBuilt', () => {
     expect(result.summary.passCount).toBe(3)
     expect(result.summary.failCount).toBe(2)
     expect(result.summary.passRate).toBe(60)
-    expect(result.summary.isCompliant).toBe(false)
+    expect(result.summary.allPointsWithinTolerance).toBe(false)
   })
 
-  it('95% threshold for compliance', () => {
+  it('does not report an all-pass result when any point exceeds the selected tolerance', () => {
     const asBuilt = design.flatMap(d => {
       // 19 pass + 1 fail = 95% exactly (boundary)
       return Array.from({ length: 4 }, (_, i) => ({
@@ -68,7 +76,7 @@ describe('compareDesignVsAsBuilt', () => {
       design.flatMap(d => Array.from({ length: 4 }, (_, i) => ({ chainage: d.chainage + i * 0.01, designLevel: d.designLevel }))),
       asBuilt, TOLERANCE_BANDS.paved
     )
-    expect(result.summary.isCompliant).toBe(true)
+    expect(result.summary.allPointsWithinTolerance).toBe(false)
   })
 
   it('uses correct tolerance bands', () => {
@@ -83,7 +91,59 @@ describe('compareDesignVsAsBuilt', () => {
   it('handles empty as-built data', () => {
     const result = compareDesignVsAsBuilt(design, [], TOLERANCE_BANDS.paved)
     expect(result.summary.totalPoints).toBe(0)
-    expect(result.summary.certificationReady).toBe(false)
+    expect(result.summary.allPointsWithinTolerance).toBe(false)
+  })
+
+  it('checks horizontal tolerance, including coordinates whose value is zero', () => {
+    const designWithCoordinates = [
+      { chainage: 0, designLevel: 100, designEasting: 0, designNorthing: 0 },
+      { chainage: 100, designLevel: 101, designEasting: 100, designNorthing: 0 },
+    ]
+    const result = compareDesignVsAsBuilt(designWithCoordinates, [
+      { chainage: 0, surveyedLevel: 100, surveyedEasting: 0.1, surveyedNorthing: 0 },
+      { chainage: 100, surveyedLevel: 101, surveyedEasting: 100, surveyedNorthing: 0 },
+    ], { level: 25, horizontal: 50 })
+
+    expect(result.comparisons[0].horizontalDeviation).toBeCloseTo(100)
+    expect(result.comparisons[0].pass).toBe(false)
+    expect(result.summary.allPointsWithinTolerance).toBe(false)
+  })
+
+  it('reports when no as-built chainage is covered by the supplied design profile', () => {
+    const result = compareDesignVsAsBuilt(design, [{ chainage: 500, surveyedLevel: 100 }], TOLERANCE_BANDS.paved)
+    expect(result.comparisons).toHaveLength(0)
+    expect(result.summary).toMatchObject({ totalPoints: 1, unassessedPoints: 1, passRate: 0, maxLevelDeviation: null, meanLevelDeviation: null, rmsError: null })
+    expect(result.summary.issues.join(' ')).toMatch(/no comparison was made/i)
+  })
+
+  it('keeps uncovered observations in the denominator and reports them as not assessed', () => {
+    const result = compareDesignVsAsBuilt(design, [
+      { chainage: 0, surveyedLevel: 100 },
+      { chainage: 500, surveyedLevel: 100 },
+    ], TOLERANCE_BANDS.paved)
+
+    expect(result.comparisons).toHaveLength(1)
+    expect(result.summary).toMatchObject({ totalPoints: 2, unassessedPoints: 1, passCount: 1, passRate: 50, allPointsWithinTolerance: false })
+    expect(result.summary.issues.join(' ')).toMatch(/1 supplied observation.*not assessed/i)
+  })
+
+  it('leaves malformed observations unassessed and rejects duplicate design chainages', () => {
+    const invalidObservation = compareDesignVsAsBuilt(design, [{ chainage: 50, surveyedLevel: Number.NaN }], TOLERANCE_BANDS.paved)
+    const duplicateProfile = compareDesignVsAsBuilt([
+      { chainage: 0, designLevel: 100 },
+      { chainage: 0, designLevel: 101 },
+    ], [{ chainage: 0, surveyedLevel: 100 }], TOLERANCE_BANDS.paved)
+
+    expect(invalidObservation.comparisons).toHaveLength(0)
+    expect(invalidObservation.summary.unassessedPoints).toBe(1)
+    expect(duplicateProfile.comparisons).toHaveLength(0)
+    expect(duplicateProfile.summary.unassessedPoints).toBe(1)
+    expect(duplicateProfile.summary.issues.join(' ')).toMatch(/duplicate chainages/i)
+  })
+
+  it('validates project tolerance inputs before comparison', () => {
+    expect(() => compareDesignVsAsBuilt(design, [], { level: -1, horizontal: 50 })).toThrow(/non-negative project values/i)
+    expect(() => compareDesignVsAsBuilt(design, [], { level: 25, horizontal: Number.NaN })).toThrow(/non-negative project values/i)
   })
 
   it('computes RMS error correctly', () => {
@@ -116,7 +176,7 @@ describe('parseAsBuiltCSV', () => {
 })
 
 describe('generateAsBuiltCertificate', () => {
-  it('generates certificate with correct number format', () => {
+  it('generates a uniquely identified draft record, not a numbered statutory certificate', () => {
     const result = compareDesignVsAsBuilt(
       [{ chainage: 0, designLevel: 100 }, { chainage: 100, designLevel: 101 }],
       [{ chainage: 0, surveyedLevel: 100.005 }, { chainage: 100, surveyedLevel: 100.998 }],
@@ -133,7 +193,8 @@ describe('generateAsBuiltCertificate', () => {
       date: '2026-01-01',
       result,
     })
-    expect(cert.certificateNumber).toMatch(/^ABC-\d{4}-\d{3}$/)
+    expect(cert.certificateNumber).toMatch(/^DRAFT-ABC-\d{4}-[0-9A-F]{8}$/)
+    expect(cert.status).toBe('draft')
     expect(cert.surveyorName).toBe('J. Doe')
     expect(cert.result.passRate).toBe(100)
   })

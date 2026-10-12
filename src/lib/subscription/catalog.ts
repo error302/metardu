@@ -18,140 +18,258 @@ export type PlanId = 'free' | 'pro' | 'team' | 'firm' | 'enterprise'
 export interface PlanCatalogEntry {
   id: PlanId
   name: string
+  /** Base monthly prices per currency. For per-seat plans this is the base (platform fee). */
   prices: Record<CurrencyCode, number>
+  /** Base annual prices per currency (10× monthly — 2 months free). */
   annualPrices: Record<CurrencyCode, number>
   features: string[]
   billingInterval: 'monthly'
+  /** Number of seats included in the base price. -1 = unlimited. */
+  includedSeats: number
+  /** Whether additional seats can be purchased beyond includedSeats. */
+  isPerSeat: boolean
+  /** Per-seat monthly price for additional seats (only meaningful when isPerSeat = true). */
+  perSeatPrices: Record<CurrencyCode, number>
+  /** Per-seat annual price for additional seats (only meaningful when isPerSeat = true). */
+  perSeatAnnualPrices: Record<CurrencyCode, number>
+  /** If true, pricing is negotiated — hide price and show "Contact Sales". */
+  contactSales: boolean
+}
+
+const ZERO_PRICES: Record<CurrencyCode, number> = {
+  KES: 0, UGX: 0, TZS: 0, NGN: 0, GHS: 0, ZAR: 0,
+  INR: 0, IDR: 0, BRL: 0, AUD: 0, GBP: 0, EUR: 0, USD: 0,
 }
 
 export const PLAN_CATALOG: PlanCatalogEntry[] = [
+  // ── Free ────────────────────────────────────────────────────────────
   {
     id: 'free',
     name: 'Free',
     billingInterval: 'monthly',
-    prices: {
-      KES: 0,
-      UGX: 0,
-      TZS: 0,
-      NGN: 0,
-      GHS: 0,
-      ZAR: 0,
-      INR: 0,
-      IDR: 0,
-      BRL: 0,
-      AUD: 0,
-      GBP: 0,
-      EUR: 0,
-      USD: 0,
-    },
-    annualPrices: {
-      KES: 0, UGX: 0, TZS: 0, NGN: 0, GHS: 0, ZAR: 0,
-      INR: 0, IDR: 0, BRL: 0, AUD: 0, GBP: 0, EUR: 0, USD: 0,
-    },
+    prices: { ...ZERO_PRICES },
+    annualPrices: { ...ZERO_PRICES },
+    perSeatPrices: { ...ZERO_PRICES },
+    perSeatAnnualPrices: { ...ZERO_PRICES },
+    includedSeats: 1,
+    isPerSeat: false,
+    contactSales: false,
     features: [
       'All quick calculation tools',
       '1 survey project',
       'Up to 50 survey points',
-      'Basic PDF report',
+      'Basic PDF report (watermarked)',
       'CSV import',
       'Offline calculations',
     ],
   },
+
+  // ── Pro — single surveyor ───────────────────────────────────────────
   {
     id: 'pro',
     name: 'Pro',
     billingInterval: 'monthly',
     prices: {
-      KES: 500,
-      UGX: 15000,
-      TZS: 10000,
-      NGN: 2000,
-      GHS: 50,
-      ZAR: 75,
-      INR: 350,
-      IDR: 65000,
-      BRL: 20,
-      AUD: 6,
-      GBP: 3,
-      EUR: 4,
-      USD: 4,
+      KES: 2500,
+      UGX: 75000,
+      TZS: 50000,
+      NGN: 10000,
+      GHS: 250,
+      ZAR: 375,
+      INR: 1750,
+      IDR: 325000,
+      BRL: 100,
+      AUD: 29,
+      GBP: 15,
+      EUR: 19,
+      USD: 19,
     },
     annualPrices: {
-      KES: 5000, UGX: 150000, TZS: 100000, NGN: 20000, GHS: 500, ZAR: 750,
-      INR: 3500, IDR: 650000, BRL: 200, AUD: 60, GBP: 30, EUR: 40, USD: 40,
+      KES: 25000,
+      UGX: 750000,
+      TZS: 500000,
+      NGN: 100000,
+      GHS: 2500,
+      ZAR: 3750,
+      INR: 17500,
+      IDR: 3250000,
+      BRL: 1000,
+      AUD: 290,
+      GBP: 150,
+      EUR: 190,
+      USD: 190,
     },
+    perSeatPrices: { ...ZERO_PRICES },
+    perSeatAnnualPrices: { ...ZERO_PRICES },
+    includedSeats: 1,
+    isPerSeat: false,
+    contactSales: false,
     features: [
       'Unlimited projects',
       'Unlimited survey points',
       'Full professional PDF reports',
-      'DXF export',
-      'LandXML export',
+      'DXF & LandXML export',
       'Report share link',
       'GPS Stakeout mode',
+      'Total station & GNSS connection',
       'Process notes',
-      'Priority support',
+      'Priority email support',
     ],
   },
+
+  // ── Team — 3 seats included, per-seat above ─────────────────────────
   {
     id: 'team',
     name: 'Team',
     billingInterval: 'monthly',
     prices: {
-      KES: 2000,
-      UGX: 60000,
-      TZS: 40000,
-      NGN: 8000,
-      GHS: 200,
-      ZAR: 280,
-      INR: 1300,
-      IDR: 230000,
-      BRL: 75,
-      AUD: 22,
-      GBP: 12,
-      EUR: 14,
-      USD: 15,
+      KES: 4500,
+      UGX: 135000,
+      TZS: 90000,
+      NGN: 18000,
+      GHS: 450,
+      ZAR: 650,
+      INR: 2900,
+      IDR: 540000,
+      BRL: 175,
+      AUD: 52,
+      GBP: 27,
+      EUR: 32,
+      USD: 35,
     },
     annualPrices: {
-      KES: 20000, UGX: 600000, TZS: 400000, NGN: 80000, GHS: 2000, ZAR: 2800,
-      INR: 13000, IDR: 2300000, BRL: 750, AUD: 220, GBP: 120, EUR: 140, USD: 150,
+      KES: 45000,
+      UGX: 1350000,
+      TZS: 900000,
+      NGN: 180000,
+      GHS: 4500,
+      ZAR: 6500,
+      INR: 29000,
+      IDR: 5400000,
+      BRL: 1750,
+      AUD: 520,
+      GBP: 270,
+      EUR: 320,
+      USD: 350,
     },
+    perSeatPrices: {
+      KES: 1500,
+      UGX: 45000,
+      TZS: 30000,
+      NGN: 6000,
+      GHS: 150,
+      ZAR: 220,
+      INR: 1000,
+      IDR: 185000,
+      BRL: 60,
+      AUD: 18,
+      GBP: 9,
+      EUR: 11,
+      USD: 12,
+    },
+    perSeatAnnualPrices: {
+      KES: 15000,
+      UGX: 450000,
+      TZS: 300000,
+      NGN: 60000,
+      GHS: 1500,
+      ZAR: 2200,
+      INR: 10000,
+      IDR: 1850000,
+      BRL: 600,
+      AUD: 180,
+      GBP: 90,
+      EUR: 110,
+      USD: 120,
+    },
+    includedSeats: 3,
+    isPerSeat: true,
+    contactSales: false,
     features: [
       'Everything in Pro',
-      '5 team members',
+      '3 seats included',
+      'Additional seats available',
       'Real-time collaboration',
-      'Role-based access',
+      'Role-based access control',
       'Version history',
       'Audit trail',
-      'Branded reports',
+      'Branded reports with firm logo',
       'Dedicated support',
     ],
   },
+
+  // ── Firm — 5 seats included, per-seat above ─────────────────────────
   {
     id: 'firm',
     name: 'Firm',
     billingInterval: 'monthly',
     prices: {
-      KES: 5000,
-      UGX: 150000,
-      TZS: 100000,
-      NGN: 20000,
-      GHS: 500,
-      ZAR: 700,
-      INR: 3500,
-      IDR: 580000,
-      BRL: 190,
-      AUD: 55,
-      GBP: 30,
-      EUR: 35,
-      USD: 38,
+      KES: 9000,
+      UGX: 270000,
+      TZS: 180000,
+      NGN: 36000,
+      GHS: 900,
+      ZAR: 1300,
+      INR: 5800,
+      IDR: 1070000,
+      BRL: 350,
+      AUD: 100,
+      GBP: 55,
+      EUR: 65,
+      USD: 69,
     },
     annualPrices: {
-      KES: 50000, UGX: 1500000, TZS: 1000000, NGN: 200000, GHS: 5000, ZAR: 7000,
-      INR: 35000, IDR: 5800000, BRL: 1900, AUD: 550, GBP: 300, EUR: 350, USD: 380,
+      KES: 90000,
+      UGX: 2700000,
+      TZS: 1800000,
+      NGN: 360000,
+      GHS: 9000,
+      ZAR: 13000,
+      INR: 58000,
+      IDR: 10700000,
+      BRL: 3500,
+      AUD: 1000,
+      GBP: 550,
+      EUR: 650,
+      USD: 690,
     },
+    perSeatPrices: {
+      KES: 2500,
+      UGX: 75000,
+      TZS: 50000,
+      NGN: 10000,
+      GHS: 250,
+      ZAR: 350,
+      INR: 1600,
+      IDR: 295000,
+      BRL: 95,
+      AUD: 28,
+      GBP: 15,
+      EUR: 18,
+      USD: 19,
+    },
+    perSeatAnnualPrices: {
+      KES: 25000,
+      UGX: 750000,
+      TZS: 500000,
+      NGN: 100000,
+      GHS: 2500,
+      ZAR: 3500,
+      INR: 16000,
+      IDR: 2950000,
+      BRL: 950,
+      AUD: 280,
+      GBP: 150,
+      EUR: 180,
+      USD: 190,
+    },
+    includedSeats: 5,
+    isPerSeat: true,
+    contactSales: false,
     features: [
       'Everything in Team',
-      '20 team members',
+      '5 seats included',
+      'Additional seats available',
       'Custom integrations',
       'API access',
       'White-label license',
@@ -160,32 +278,22 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
       'Dedicated account manager',
     ],
   },
+
+  // ── Enterprise — custom / contact sales ─────────────────────────────
   {
     id: 'enterprise',
     name: 'Enterprise',
     billingInterval: 'monthly',
-    prices: {
-      KES: 15000,
-      UGX: 450000,
-      TZS: 300000,
-      NGN: 60000,
-      GHS: 1500,
-      ZAR: 2100,
-      INR: 10500,
-      IDR: 1740000,
-      BRL: 570,
-      AUD: 165,
-      GBP: 90,
-      EUR: 105,
-      USD: 115,
-    },
-    annualPrices: {
-      KES: 150000, UGX: 4500000, TZS: 3000000, NGN: 600000, GHS: 15000, ZAR: 21000,
-      INR: 105000, IDR: 17400000, BRL: 5700, AUD: 1650, GBP: 900, EUR: 1050, USD: 1150,
-    },
+    prices: { ...ZERO_PRICES },
+    annualPrices: { ...ZERO_PRICES },
+    perSeatPrices: { ...ZERO_PRICES },
+    perSeatAnnualPrices: { ...ZERO_PRICES },
+    includedSeats: -1,
+    isPerSeat: false,
+    contactSales: true,
     features: [
       'Everything in Firm',
-      'Unlimited team members',
+      'Unlimited seats',
       'On-premise deployment option',
       'Custom development',
       'SLA guarantee',
@@ -196,6 +304,8 @@ export const PLAN_CATALOG: PlanCatalogEntry[] = [
   },
 ]
 
+// ── Helpers ────────────────────────────────────────────────────────────
+
 export function getPlan(planId: string): PlanCatalogEntry | null {
   const found = PLAN_CATALOG.find((p) => p.id === planId)
   return found ?? null
@@ -205,6 +315,54 @@ export function getPlanPrice(planId: PlanId, currency: CurrencyCode): number {
   const plan = getPlan(planId)
   if (!plan) return 0
   return plan.prices[currency] ?? 0
+}
+
+export function getPerSeatPrice(planId: PlanId, currency: CurrencyCode): number {
+  const plan = getPlan(planId)
+  if (!plan || !plan.isPerSeat) return 0
+  return plan.perSeatPrices[currency] ?? 0
+}
+
+/**
+ * Calculate total monthly price for a plan with a given number of total seats.
+ * For non-per-seat plans, returns the flat base price.
+ * For per-seat plans, returns base + (extraSeats × perSeatPrice).
+ */
+export function getTotalPrice(
+  planId: PlanId,
+  currency: CurrencyCode,
+  totalSeats: number,
+): number {
+  const plan = getPlan(planId)
+  if (!plan) return 0
+  if (plan.contactSales) return 0
+
+  const base = plan.prices[currency] ?? 0
+  if (!plan.isPerSeat) return base
+
+  const extraSeats = Math.max(0, totalSeats - plan.includedSeats)
+  const seatPrice = plan.perSeatPrices[currency] ?? 0
+  return base + extraSeats * seatPrice
+}
+
+/**
+ * Calculate total annual price for a plan with a given number of total seats.
+ */
+export function getTotalAnnualPrice(
+  planId: PlanId,
+  currency: CurrencyCode,
+  totalSeats: number,
+): number {
+  const plan = getPlan(planId)
+  if (!plan) return 0
+  if (plan.contactSales) return 0
+
+  const base = plan.annualPrices[currency] ?? 0
+  if (!plan.isPerSeat) return base
+
+  const extraSeats = Math.max(0, totalSeats - plan.includedSeats)
+  const seatPrice = plan.perSeatAnnualPrices[currency] ?? 0
+  return base + extraSeats * seatPrice
 }
 
 export const SUPPORTED_CURRENCIES: CurrencyCode[] = [
@@ -222,4 +380,3 @@ export const SUPPORTED_CURRENCIES: CurrencyCode[] = [
   'BRL',
   'AUD',
 ]
-

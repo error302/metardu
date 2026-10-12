@@ -116,10 +116,11 @@ export function parseIFCStep(content: string): IFCModel {
     return { header, entities, byType }
   }
 
-  // Parse entity lines
-  const lines = dataSection.split('\n')
-  for (const line of lines) {
-    const trimmed = line.trim()
+  // IFC STEP entities can span multiple physical lines. Split on statement
+  // terminators outside quoted strings so wrapped attributes and semicolons
+  // inside IFC text values do not truncate the entity.
+  for (const statement of splitStepStatements(dataSection)) {
+    const trimmed = statement.trim()
     if (!trimmed || trimmed.startsWith('ENDSEC')) continue
 
     // Match entity declaration: #id=TYPE(args);
@@ -144,6 +145,32 @@ export function parseIFCStep(content: string): IFCModel {
   }
 
   return { header, entities, byType }
+}
+
+function splitStepStatements(section: string): string[] {
+  const statements: string[] = []
+  let current = ''
+  let inString = false
+
+  for (let index = 0; index < section.length; index += 1) {
+    const char = section[index]
+    current += char
+
+    if (char === "'") {
+      if (inString && section[index + 1] === "'") {
+        current += section[index + 1]
+        index += 1
+      } else {
+        inString = !inString
+      }
+    } else if (char === ';' && !inString) {
+      statements.push(current)
+      current = ''
+    }
+  }
+
+  if (current.trim()) statements.push(current)
+  return statements
 }
 
 /**

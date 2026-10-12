@@ -57,7 +57,9 @@ export default function LevelingCalculator() {
       `METARDU Levelling — ${methodLabel}`,
       `Opening RL: ${bm} m`,
       `Misclosure: ${result.misclosure.toFixed(6)} m`,
-      `Allowable (10√K mm, K=${distanceKm} km): ±${(result.allowableMisclosure * 1000).toFixed(3)} mm`,
+      result.allowableMisclosure !== undefined
+        ? `Allowable (10√K mm, K=${distanceKm} km): ±${(result.allowableMisclosure * 1000).toFixed(3)} mm`
+        : 'Allowable: Unverified (route distance required)',
       `Check: ${result.isAcceptable ? 'PASS' : 'FAIL'}`,
       '',
       ...result.readings.map((r: LevelingReading) =>
@@ -221,7 +223,7 @@ export default function LevelingCalculator() {
                       { label: 'Method', value: methodLabel },
                       { label: 'Opening RL', value: `${bm} m` },
                       { label: 'Misclosure', value: `${result.misclosure.toFixed(6)} m` },
-                      { label: 'Allowable (10√K mm)', value: `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` },
+                      { label: 'Allowable (10√K mm)', value: result.allowableMisclosure !== undefined ? `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` : 'Unverified' },
                       { label: 'Arithmetic Check', value: result.arithmeticCheck ? 'PASS' : 'FAIL' },
                       { label: 'Status', value: result.isAcceptable ? 'Acceptable' : 'Unacceptable' },
                     ]},
@@ -280,7 +282,10 @@ export default function LevelingCalculator() {
             <div className="card-body space-y-3">
               <ResultRow label="Method" value={methodLabel} />
               <ResultRow label="Misclosure" value={`${result.misclosure.toFixed(6)} m`} />
-              <ResultRow label="Allowable (C = 10√K mm)" value={`±${(result.allowableMisclosure * 1000).toFixed(3)} mm`} />
+              <ResultRow
+                label="Allowable (C = 10√K mm)"
+                value={result.allowableMisclosure !== undefined ? `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` : 'Unverified (route length required)'}
+              />
               <ResultRow
                 label="Arithmetic Check (ΣBS − ΣFS = Last RL − First RL)"
                 value={result.arithmeticCheck ? 'PASS ' : 'FAIL [x]'}

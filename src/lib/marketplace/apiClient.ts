@@ -12,6 +12,7 @@ export interface ListingFilters {
   category?: InstrumentCategory
   condition?: Condition
   q?: string
+  country?: string
 }
 
 export async function fetchListings(filters?: ListingFilters): Promise<InstrumentListing[]> {
@@ -20,9 +21,10 @@ export async function fetchListings(filters?: ListingFilters): Promise<Instrumen
   if (filters?.category) params.set('category', filters.category)
   if (filters?.condition) params.set('condition', filters.condition)
   if (filters?.q) params.set('q', filters.q)
+  if (filters?.country) params.set('country', filters.country)
 
   const res = await fetch(`/api/marketplace/listings?${params}`)
-  if (!res.ok) return []
+  if (!res.ok) throw new Error('Unable to load equipment listings')
   const json = (await res.json()) as { data?: InstrumentListing[] }
   return json.data || []
 }

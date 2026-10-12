@@ -23,14 +23,7 @@
 
 import { utmToGeographic } from '@/lib/geodesy/coordinates'
 
-/**
- * Default UTM zone for METARDU — Kenya Arc 1960 / UTM Zone 37S (EPSG:21037).
- * Used when a project-level zone is not supplied to the exporters.
- * Most of Kenya (incl. Nairobi, Mombasa) falls in Zone 37S; western Kenya
- * (incl. Kisumu, Eldoret, Turkana) falls in Zone 36S (EPSG:21036).
- */
-export const DEFAULT_UTM_ZONE = 37
-export const DEFAULT_HEMISPHERE: 'N' | 'S' = 'S'
+// Defaults removed: require explicit UTM zone and hemisphere from project CRS
 
 export interface ProjectArea {
   /** Polygon vertices defining the project boundary */
@@ -244,8 +237,8 @@ export function markGCPPhotoCaptured(
  */
 export function exportForPix4D(
   gcps: GCPPoint[],
-  utmZone: number = DEFAULT_UTM_ZONE,
-  hemisphere: 'N' | 'S' = DEFAULT_HEMISPHERE,
+  utmZone: number,
+  hemisphere: 'N' | 'S',
 ): string {
   let csv = 'GCP Label,Latitude (WGS84),Longitude (WGS84),Altitude (WGS84),Horizontal Accuracy (m),Vertical Accuracy (m)\n'
 
@@ -273,8 +266,8 @@ export function exportForPix4D(
  */
 export function exportForWebODM(
   gcps: GCPPoint[],
-  utmZone: number = DEFAULT_UTM_ZONE,
-  hemisphere: 'N' | 'S' = DEFAULT_HEMISPHERE,
+  utmZone: number,
+  hemisphere: 'N' | 'S',
 ): string {
   let csv = ''
 

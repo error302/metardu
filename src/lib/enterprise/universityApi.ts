@@ -47,10 +47,11 @@ export interface UsageRecord {
   id: string
   licenseId: string
   period: string
-  totalApiCalls: number
-  uniqueUsers: number
-  courses: string[]
-  projects: number
+  /** Usage events are not persisted for university licenses yet. */
+  totalApiCalls: null
+  uniqueUsers: null
+  courses: null
+  projects: null
 }
 
 const universities = [
@@ -188,10 +189,10 @@ export function getUsageStats(licenseId: string): UsageRecord {
     id: `usage-${Date.now()}`,
     licenseId,
     period: `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}`,
-    totalApiCalls: Math.floor(Math.random() * 50000),
-    uniqueUsers: Math.floor(Math.random() * 100) + 10,
-    courses: ['Geodesy', 'Cadastral Surveying', 'GIS'],
-    projects: Math.floor(Math.random() * 50),
+    totalApiCalls: null,
+    uniqueUsers: null,
+    courses: null,
+    projects: null,
   }
 }
 

@@ -4,7 +4,7 @@
  * Coordinates are converted to WGS84 lat/lon as required by most drone platforms.
  */
 
-import { utmToGeographic } from '@/lib/geodesy/coordinates'
+import { utmToWgs84 } from '@/lib/spatial/projectReferenceSystem'
 
 export interface GCPPoint {
   name: string
@@ -13,6 +13,8 @@ export interface GCPPoint {
   elevation: number
   utmZone: number
   hemisphere: 'N' | 'S'
+  /** Project datum — required; the WGS84 conversion applies its shift. */
+  datum: string
 }
 
 export interface GCPExportResult {
@@ -23,7 +25,7 @@ export interface GCPExportResult {
 }
 
 function toWGS84(pt: GCPPoint): GCPExportResult {
-  const { lat, lon } = utmToGeographic(pt.easting, pt.northing, pt.utmZone, pt.hemisphere)
+  const { lat, lon } = utmToWgs84(pt.easting, pt.northing, pt.utmZone, pt.hemisphere, pt.datum)
   return { lat, lon, elevation: pt.elevation, name: pt.name }
 }
 

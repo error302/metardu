@@ -31,6 +31,7 @@ import {
   clearAllTileCache,
   type CachedSourceInfo,
 } from '@/lib/offline/tileCache'
+import { getStorageEstimate } from '@/lib/offline/db'
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -63,6 +64,7 @@ function getSourceIcon(sourceId: string): string {
 
 export function OfflineTileManager() {
   const [sources, setSources] = useState<CachedSourceInfo[]>([])
+  const [storageEstimate, setStorageEstimate] = useState<Awaited<ReturnType<typeof getStorageEstimate>>>(null)
   const [loading, setLoading] = useState(true)
   const [deleting, setDeleting] = useState<string | null>(null)
   const [clearing, setClearing] = useState(false)
@@ -70,10 +72,18 @@ export function OfflineTileManager() {
   const refreshSources = useCallback(async () => {
     setLoading(true)
     try {
-      const data = await listCachedSources()
+      const [data, estimate] = await Promise.all([
+        listCachedSources(),
+        getStorageEstimate().catch((error) => {
+          logger.warn('Browser storage estimate is unavailable:', { error })
+          return null
+        }),
+      ])
       setSources(data)
+      setStorageEstimate(estimate)
     } catch (err) {
       logger.error('Failed to list cached sources:', { error: err })
+      setStorageEstimate(null)
     } finally {
       setLoading(false)
     }
@@ -113,10 +123,6 @@ export function OfflineTileManager() {
   const totalSizeBytes = sources.reduce((sum, s) => sum + s.stats.sizeBytes, 0)
   const totalTiles = sources.reduce((sum, s) => sum + s.stats.count, 0)
 
-  // Rough storage quota (most browsers allow ~50MB–unlimited for persistent storage)
-  const estimatedQuota = 500 * 1024 * 1024 // 500 MB estimate
-  const usagePercent = Math.min(100, Math.round((totalSizeBytes / estimatedQuota) * 100))
-
   return (
     <div className="space-y-6">
       {/* ─── Storage Overview ──────────────────────────────────────── */}
@@ -135,13 +141,31 @@ export function OfflineTileManager() {
 
         <div className="space-y-1.5">
           <div className="flex justify-between text-xs text-[var(--text-muted)]">
-            <span>{formatBytes(totalSizeBytes)} used</span>
-            <span>~{formatBytes(estimatedQuota)} estimated quota</span>
+            <span>{formatBytes(totalSizeBytes)} cached map tiles</span>
+            {storageEstimate ? (
+              <span>
+                {storageEstimate.usageMB.toFixed(2)} MB of {storageEstimate.quotaMB.toLocaleString()} MB browser quota used
+              </span>
+            ) : (
+              <span>Browser quota estimate unavailable</span>
+            )}
           </div>
-          <Progress
-            value={usagePercent}
-            className="h-2 bg-[var(--bg-primary)]"
-          />
+          {storageEstimate ? (
+            <>
+              <Progress
+                value={Math.min(100, Math.max(0, storageEstimate.percentUsed))}
+                className="h-2 bg-[var(--bg-primary)]"
+                aria-label={`Approximately ${storageEstimate.percentUsed}% of this browser's METARDU storage quota is used`}
+              />
+              <p className="text-[11px] leading-4 text-[var(--text-muted)]">
+                Browser estimate for this site&apos;s stored data; actual available space varies by device and can change.
+              </p>
+            </>
+          ) : (
+            <p className="text-[11px] leading-4 text-[var(--text-muted)]">
+              This browser does not provide a storage estimate. Cached tile sizes remain listed below.
+            </p>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3 mt-4">
@@ -239,10 +263,10 @@ export function OfflineTileManager() {
             >
               <div className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3 min-w-0">
-                  <span className="text-xl mt-0.5">{getSourceIcon(source.sourceId)}</span>
+                  <span className="text-xl mt-0.5">{getSourceIcon(`${source.sourceId} ${source.label}`)}</span>
                   <div className="min-w-0">
                     <h4 className="font-medium text-[var(--text-primary)] truncate">
-                      {source.sourceId}
+                      {source.label}
                     </h4>
                     <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-[var(--text-muted)]">
                       <span className="flex items-center gap-1">

@@ -27,7 +27,7 @@ function download(content: string, filename: string) {
 
 export default function GCPExportPage() {
   const { t } = useLanguage()
-  const [projects, setProjects] = useState<{ id: string; name: string; utm_zone: number; hemisphere: string }[]>([])
+  const [projects, setProjects] = useState<{ id: string; name: string; utm_zone: number; hemisphere: string; datum: string | null }[]>([])
   const [selectedProject, setSelectedProject] = useState('')
   const [points, setPoints] = useState<GCPPoint[]>([])
   const [selectedPoints, setSelectedPoints] = useState<Set<string>>(new Set())
@@ -41,9 +41,9 @@ export default function GCPExportPage() {
     dbClient.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user
       if (!user) return
-      dbClient.from('projects').select('id, name, utm_zone, hemisphere')
+      dbClient.from('projects').select('id, name, utm_zone, hemisphere, datum')
         .eq('user_id', user.id).order('created_at', { ascending: false })
-        .then(({ data }) => { if (data) setProjects(data as { id: string; name: string; utm_zone: number; hemisphere: string }[]) })
+        .then(({ data }) => { if (data) setProjects(data as { id: string; name: string; utm_zone: number; hemisphere: string; datum: string | null }[]) })
     })
   }, [])
 
@@ -65,6 +65,7 @@ export default function GCPExportPage() {
             elevation: p.elevation ?? 0,
             utmZone: project.utm_zone,
             hemisphere: project.hemisphere as 'N' | 'S',
+            datum: project.datum ?? '',
           }))
           setPoints(pts)
           setSelectedPoints(new Set(pts.map((p) => p.name)))
@@ -80,7 +81,9 @@ export default function GCPExportPage() {
     try {
       const { content } = exportGCPs(selected, format)
       setPreview(content)
-    } catch { setPreview('Error generating preview') }
+    } catch (err) {
+      setPreview(err instanceof Error ? `Error generating preview: ${err.message}` : 'Error generating preview')
+    }
   }, [points, selectedPoints, format])
 
   const project = projects.find((p) => p.id === selectedProject)
@@ -88,9 +91,13 @@ export default function GCPExportPage() {
 
   const handleExport = () => {
     if (selectedPts.length === 0 || !project) return
-    const { content, ext } = exportGCPs(selectedPts, format)
-    const fmtLabel = GCP_FORMATS.find((f) => f.id === format)?.label ?? format
-    download(content, `${project.name}_GCPs_${fmtLabel}.${ext}`)
+    try {
+      const { content, ext } = exportGCPs(selectedPts, format)
+      const fmtLabel = GCP_FORMATS.find((f) => f.id === format)?.label ?? format
+      download(content, `${project.name}_GCPs_${fmtLabel}.${ext}`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Export failed — set the project CRS in Project Settings.')
+    }
   }
 
   const togglePoint = (name: string) => {

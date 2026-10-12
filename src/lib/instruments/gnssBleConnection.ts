@@ -26,8 +26,8 @@ export interface GNSSPosition {
   latitude: number
   longitude: number
   elevation: number
-  /** Horizontal accuracy in metres (CEP) */
-  accuracy: number
+  /** Receiver-reported horizontal accuracy in metres; NMEA GGA does not provide it. */
+  accuracy: number | null
   /** Fix quality: 0=invalid, 1=GPS fix, 2=DGPS, 4=RTK fixed, 5=RTK float */
   fixQuality: number
   /** Fix quality as human-readable string */
@@ -290,10 +290,6 @@ function parseGGA(parts: string[]): GNSSPosition | null {
     const hdop = parseFloat(parts[8]) || 0
     const elevation = parseFloat(parts[9]) || 0
 
-    // Accuracy estimate from HDOP
-    // Typical GPS: ~3m * HDOP
-    const accuracy = hdop * 3.0
-
     const fixLabels: Record<number, string> = {
       0: 'No Fix',
       1: 'GPS',
@@ -310,7 +306,9 @@ function parseGGA(parts: string[]): GNSSPosition | null {
       latitude: lat,
       longitude: lon,
       elevation,
-      accuracy,
+      // HDOP is a geometry indicator, not a measured horizontal accuracy.
+      // Keep accuracy unknown unless the receiver provides it separately.
+      accuracy: null,
       fixQuality,
       fixLabel: fixLabels[fixQuality] || 'Unknown',
       satellites,
@@ -322,24 +320,41 @@ function parseGGA(parts: string[]): GNSSPosition | null {
   }
 }
 
+/** Map only NMEA GGA quality codes with an unambiguous solution class. */
+export function solutionTypeForFixQuality(
+  fixQuality: number,
+): 'fixed' | 'float' | 'dgps' | 'single' | undefined {
+  switch (fixQuality) {
+    case 1: return 'single'
+    case 2: return 'dgps'
+    case 4: return 'fixed'
+    case 5: return 'float'
+    default: return undefined
+  }
+}
+
 /**
  * Parse NMEA coordinate format (ddmm.mmmm + hemisphere).
  * Returns decimal degrees.
  */
 function parseNMEACoordinate(value: string, hemi: string): number | null {
-  if (!value || !hemi) return null
+  if (!value || !['N', 'S', 'E', 'W'].includes(hemi)) return null
 
-  const num = parseFloat(value)
-  if (isNaN(num)) return null
+  // NMEA uses fixed-width degree fields: ddmm.mmmm for latitude and
+  // dddmm.mmmm for longitude. Parse the original string so leading zeroes
+  // (for example, 01131.000) are not lost by Number/parseFloat.
+  const isLatitude = hemi === 'N' || hemi === 'S'
+  const degreeDigits = isLatitude ? 2 : 3
+  const degreeText = value.slice(0, degreeDigits)
+  const minuteText = value.slice(degreeDigits)
+  if (!/^\d+$/.test(degreeText) || !/^\d{2}(?:\.\d+)?$/.test(minuteText)) return null
 
-  // Latitude: ddmm.mmmm (2 digits degrees)
-  // Longitude: dddmm.mmmm (3 digits degrees)
-  const isLat = hemi === 'N' || hemi === 'S'
-  const degDigits = isLat ? 2 : 3
+  const degrees = Number(degreeText)
+  const minutes = Number(minuteText)
+  const maximumDegrees = isLatitude ? 90 : 180
+  if (!Number.isFinite(degrees) || !Number.isFinite(minutes) || minutes >= 60) return null
+  if (degrees > maximumDegrees || (degrees === maximumDegrees && minutes !== 0)) return null
 
-  const deg = Math.floor(num / Math.pow(10, degDigits))
-  const min = num - deg * Math.pow(10, degDigits)
-  const decimal = deg + min / 60
-
+  const decimal = degrees + minutes / 60
   return hemi === 'S' || hemi === 'W' ? -decimal : decimal
 }

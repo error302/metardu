@@ -15,6 +15,7 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
 import type { SurveyPlanData, PlanOptions } from './types'
 import { SurveyPlanRenderer } from './renderer'
+import { reportCrs, describeVerticalDatum } from '@/lib/generators/reportCrs'
 import {
   PX_PER_M,
   STANDARD_SCALES, mmToPx,
@@ -143,12 +144,12 @@ function computeSheetLayout(
  * Generate a single-sheet SVG for a specific viewport.
  * This creates a custom renderer that clips to the viewport extent.
  */
-function renderSheetSvg(
+async function renderSheetSvg(
   data: SurveyPlanData,
   viewport: SheetViewport,
   options: MultiSheetPdfOptions,
   scale: number,
-): string {
+): Promise<string> {
   const pageSize = getPageSize(options.paperSize ?? 'a3')
   const pageW = mmToPx(pageSize.w)
   const pageH = mmToPx(pageSize.h)
@@ -172,7 +173,7 @@ function renderSheetSvg(
 
   // Use the base renderer for the main SVG, then apply a clip
   const renderer = new SurveyPlanRenderer(data, { ...options, scale })
-  const fullSvg = renderer.render()
+  const fullSvg = await renderer.render()
 
   // Build sheet-specific SVG with clip path
   let svg = ''
@@ -212,8 +213,15 @@ function renderSheetSvg(
 
     // Coordinate schedule
     const pts = data.parcel.boundaryPoints
-    const datum = data.project.datum || 'ARC1960'
-    const zone = `${data.project.utm_zone || 37}${data.project.hemisphere || 'S'}`
+    const crs = reportCrs({
+      utmZone: data.project.utm_zone,
+      hemisphere: data.project.hemisphere,
+      datum: data.project.datum,
+      verticalDatum: data.project.vertical_datum,
+      verticalReference: data.project.vertical_reference,
+      geoidModel: data.project.geoid_model,
+      benchmarkBasis: data.project.benchmark_basis,
+    })
     const startY = mmToPx(DRAWING_MARGIN_MM) + mmToPx(42)
     const colW = panelInnerW / 4
     const rowH = mmToPx(3.5)
@@ -222,7 +230,7 @@ function renderSheetSvg(
     const tableH = headerH + maxRows * rowH
 
     svg += `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(`COORDINATE SCHEDULE (${datum} / UTM ${zone})`)}</text>`
+    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${escapeXml(crs.verified ? `COORDINATE SCHEDULE (${crs.datum} / UTM ${crs.zone}${crs.hemi} ${crs.epsgCode})` : 'COORDINATE SCHEDULE (UNVERIFIED — project CRS not declared)')}</text>`
     const hY = startY + headerH
     svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
     const headers = ['Point', 'Easting', 'Northing', '']
@@ -328,8 +336,15 @@ function renderSheetSvg(
     const parcelId = data.project.parcel_id || ''
     const surveyor = data.project.surveyor_name || ''
     const lsNo = data.project.surveyor_licence || ''
-    const datum = data.project.datum || 'ARC1960'
-    const zone = `${data.project.utm_zone || 37}${data.project.hemisphere || 'S'}`
+    const crs = reportCrs({
+      utmZone: data.project.utm_zone,
+      hemisphere: data.project.hemisphere,
+      datum: data.project.datum,
+      verticalDatum: data.project.vertical_datum,
+      verticalReference: data.project.vertical_reference,
+      geoidModel: data.project.geoid_model,
+      benchmarkBasis: data.project.benchmark_basis,
+    })
     const scaleLabel = `1:${scale.toLocaleString()}`
     const sheetLabel = `Sheet ${viewport.sheetIndex + 1} of ${viewport.totalSheets}`
     const date = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' })
@@ -339,7 +354,8 @@ function renderSheetSvg(
     svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(15)}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">Surveyor: ${escapeXml(surveyor)} LS/${escapeXml(lsNo)}</text>`
     svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(15)}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">Scale: ${scaleLabel}</text>`
     svg += `<text x="${pageW * 0.75}" y="${tbY + mmToPx(15)}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">${sheetLabel}</text>`
-    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(20)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">Coord: UTM Zone ${zone} ${datum} (Clarke 1880)</text>`
+    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(20)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">${escapeXml(crs.verified ? `Coord: UTM Zone ${crs.zone}${crs.hemi} ${crs.datum} (${crs.ellipsoid})` : 'Coord: UNVERIFIED (project CRS not declared)')}</text>`
+    svg += `<text x="${pageW * 0.25}" y="${tbY + mmToPx(23.5)}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#888">${escapeXml(`Vertical: ${describeVerticalDatum(crs)}`)}</text>`
     svg += `<text x="${pageW * 0.75}" y="${tbY + mmToPx(20)}" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">Date: ${date}</text>`
     svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(26)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" fill="#888">Area: ${data.parcel.area_sqm.toFixed(2)} m\u00B2 (${(data.parcel.area_sqm / 10000).toFixed(4)} ha)</text>`
     svg += `<text x="${pageW * 0.5}" y="${tbY + mmToPx(31)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="#aaa">Per Survey Act Cap. 299 \u2014 Survey Regulations 1994</text>`
@@ -574,7 +590,7 @@ export async function renderToMultiPagePdf(
 
   // Generate each sheet as an SVG, then convert to PDF page
   for (const viewport of effectiveViewports) {
-    const svgContent = renderSheetSvg(data, viewport, opts, scale)
+    const svgContent = await renderSheetSvg(data, viewport, opts, scale)
     await addSvgPageToPdf(pdfDoc, svgContent, pageWidthPt, pageHeightPt)
   }
 

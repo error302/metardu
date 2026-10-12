@@ -18,8 +18,8 @@ import { NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { apiHandler } from '@/lib/apiHandler'
-import { setCurrentUserId } from '@/lib/db'
-import { getPool } from '@/lib/db'
+import { db, setCurrentRlsServiceRole, setCurrentTillClaimCode } from '@/lib/db'
+import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { checkProjectAccess } from '@/lib/security/projectAccess'
 import { env } from '@/lib/env'
@@ -92,6 +92,7 @@ const PROJECT_SCOPED_TABLES = new Set([
   'mining_surveys', 'hydro_surveys', 'gnss_sessions',
   'peer_review_requests', 'supporting_documents',
   'project_sheets', 'survey_photos',
+  'survey_observations', 'field_photos',
 ])
 
 // Tables that are read-only for all authenticated users
@@ -159,6 +160,9 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   // ─── Auth check ───────────────────────────────────────────────
   let userId: string | null = null
   let userEmail: string | null = null
+  setAuthenticatedDatabaseContext(null)
+  setCurrentRlsServiceRole(null)
+  setCurrentTillClaimCode(null)
 
   if (!PUBLIC_TABLES.has(table as string)) {
     // /api/db uses apiHandler({ auth: false }) for conditional auth, so
@@ -176,7 +180,9 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
 
     // Set RLS context
     if (userId) {
-      setCurrentUserId(userId)
+      setAuthenticatedDatabaseContext(userId)
+      const organizationId = await resolveAuthenticatedOrganization(userId)
+      setAuthenticatedDatabaseContext(userId, organizationId)
     }
   }
 
@@ -267,7 +273,7 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
     projectScopeId = targetProjectId
   }
 
-  let qb = new QueryBuilder(getPool(), table as string)
+  let qb = new QueryBuilder(db, table as string)
 
   // Apply operation
   if (operation === 'select') {

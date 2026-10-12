@@ -6,7 +6,7 @@
 // Extracted from src/app/tools/cassini-utm/page.tsx.
 
 import { ChevronDown, ChevronUp, ShieldCheck } from 'lucide-react'
-import type { VerificationResult } from '@/lib/geo/cassini'
+import type { VerificationResult } from '@/lib/geo/cassini/types'
 
 interface CommonPointsVerificationProps {
   showVerification: boolean

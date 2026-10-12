@@ -97,6 +97,21 @@ export function computeSettingOut(
 ): SettingOutResult {
   // Source: Ghilani & Wolf, Section 23 — Station setup and orientation
 
+  if (![station.e, station.n, station.rl, station.ih, backsight.e, backsight.n].every(Number.isFinite)) {
+    throw new RangeError('Station, backsight, RL and instrument height must be finite numbers.')
+  }
+  if (station.e === backsight.e && station.n === backsight.n) {
+    throw new RangeError('Backsight must be distinct from the instrument station.')
+  }
+  for (const point of points) {
+    if (![point.e, point.n, point.rl, point.th].every(Number.isFinite)) {
+      throw new RangeError(`Design point ${point.id} has incomplete or non-finite coordinates or levels.`)
+    }
+    if (point.e === station.e && point.n === station.n) {
+      throw new RangeError(`Design point ${point.id} must be distinct from the instrument station.`)
+    }
+  }
+
   // Backsight bearing
   const bsBearingDecimal = inverseBearing(station.e, station.n, backsight.e, backsight.n)
   const bsBearing = bearingToString(bsBearingDecimal)

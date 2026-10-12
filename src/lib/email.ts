@@ -1,13 +1,40 @@
 import nodemailer from 'nodemailer'
 import { logger } from '@/lib/logger'
 
+// Accept both names used by the checked-in deployment examples. Keeping the
+// alias here prevents a configured SMTP_PASSWORD from silently disabling all
+// branded onboarding, password-reset, and payment emails.
+const smtpHost = process.env.SMTP_HOST || 'smtp.gmail.com'
+const smtpPort = Number(process.env.SMTP_PORT) || 465
+const smtpUser = process.env.SMTP_USER
+const smtpPassword = process.env.SMTP_PASS || process.env.SMTP_PASSWORD
+const resendApiKey = process.env.RESEND_API_KEY
+
+export function resolveDefaultFrom(options: {
+  resendFromEmail?: string
+  emailFrom?: string
+  smtpUser?: string
+}): string {
+  // Prefer the provider-specific sender when Resend is configured. This keeps
+  // an old generic EMAIL_FROM value from silently replacing the verified,
+  // branded sender selected for transactional mail.
+  return options.resendFromEmail || options.emailFrom || (options.smtpUser ? `"METARDU" <${options.smtpUser}>` : 'METARDU <noreply@metardu.space>')
+}
+
+const defaultFrom = resolveDefaultFrom({
+  resendFromEmail: process.env.RESEND_FROM_EMAIL,
+  emailFrom: process.env.EMAIL_FROM,
+  smtpUser,
+})
+const defaultReplyTo = process.env.EMAIL_REPLY_TO || process.env.SUPPORT_EMAIL || smtpUser || defaultFrom
+
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: Number(process.env.SMTP_PORT) || 465,
-  secure: true, // Use TLS
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpPort === 465,
   auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
+    user: smtpUser,
+    pass: smtpPassword,
   },
 })
 
@@ -16,7 +43,7 @@ export interface SendEmailOptions {
   subject: string
   text?: string
   html?: string
-  /** Optional Reply-To address — defaults to the SMTP user. */
+  /** Optional Reply-To address — defaults to EMAIL_REPLY_TO, SUPPORT_EMAIL, or the SMTP user. */
   replyTo?: string
   /** Optional custom "from" address — defaults to the SMTP user. */
   from?: string
@@ -25,16 +52,39 @@ export interface SendEmailOptions {
 }
 
 export async function sendEmail({ to, subject, text, html, replyTo, from, headers }: SendEmailOptions) {
-  if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+  if (!resendApiKey && (!smtpUser || !smtpPassword)) {
     logger.warn(`[email] Email service not configured. Would have sent "${subject}" to ${to}`)
     return { success: false, error: 'Email service not configured' }
   }
 
   try {
+    if (resendApiKey) {
+      const response = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: from || defaultFrom,
+          to: [to],
+          reply_to: replyTo || defaultReplyTo,
+          subject,
+          text,
+          html,
+          headers,
+        }),
+      })
+      if (!response.ok) {
+        throw new Error(`Resend returned HTTP ${response.status}`)
+      }
+      return { success: true, info: await response.json().catch(() => ({})) }
+    }
+
     const info = await transporter.sendMail({
-      from: from || process.env.RESEND_FROM_EMAIL || `"METARDU" <${process.env.SMTP_USER}>`,
+      from: from || defaultFrom,
       to,
-      replyTo: replyTo || process.env.SMTP_USER,
+      replyTo: replyTo || defaultReplyTo,
       subject,
       text,
       html,

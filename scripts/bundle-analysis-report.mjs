@@ -9,7 +9,7 @@
  * Usage:
  *   node scripts/bundle-analysis-report.mjs
  *
- * Output: /home/z/my-project/download/bundle-analysis-report.html
+ * Output: .next/analyze/bundle-analysis-report.html
  */
 
 import fs from 'fs'
@@ -19,7 +19,8 @@ import { fileURLToPath } from 'url'
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)
 const PROJECT_ROOT = path.resolve(__dirname, '..')
-const DOWNLOAD_DIR = '/home/z/my-project/download'
+const BUILD_DIR = process.env.METARDU_NEXT_DIST_DIR || '.next'
+const DOWNLOAD_DIR = path.join(PROJECT_ROOT, BUILD_DIR, 'analyze')
 
 // Vendor chunk priority order for display
 const VENDOR_PRIORITY = [
@@ -27,6 +28,7 @@ const VENDOR_PRIORITY = [
   'vendor-exceljs', 'vendor-turf', 'vendor-recharts', 'vendor-proj4', 'vendor-jszip',
   'vendor-d3', 'vendor-radix', 'vendor-common',
 ]
+const VENDOR_NAMES = VENDOR_PRIORITY.map((name) => name.slice('vendor-'.length))
 
 // Known heavy deps that should be lazy-loaded (informational flag)
 const LAZY_LOAD_TARGETS = {
@@ -57,8 +59,14 @@ function getChunkType(filename) {
   return 'other'
 }
 
+function getVendorGroup(filename) {
+  if (!filename.startsWith('vendor-')) return 'other'
+  const vendor = VENDOR_NAMES.find((name) => filename.startsWith(`vendor-${name}-`))
+  return vendor ? `vendor-${vendor}` : 'vendor-other'
+}
+
 function collectChunks() {
-  const chunksDir = path.join(PROJECT_ROOT, '.next', 'static', 'chunks')
+  const chunksDir = path.join(PROJECT_ROOT, BUILD_DIR, 'static', 'chunks')
   const allChunks = []
 
   if (!fs.existsSync(chunksDir)) {
@@ -96,18 +104,9 @@ function analyzeChunks(chunks) {
   for (const chunk of chunks) {
     totalSize += chunk.sizeBytes
 
-    // Vendor bucket
-    let vendorKey = 'other'
-    for (const v of VENDOR_PRIORITY) {
-      if (chunk.filename.startsWith(v)) {
-        vendorKey = v
-        break
-      }
-    }
-    if (chunk.filename.startsWith('vendor-')) {
-      const m = /^vendor-([a-z-]+)/.exec(chunk.filename)
-      if (m) vendorKey = m[0]
-    }
+    // Match the configured dependency name before the content hash. Parsing
+    // letters from the hash split one vendor into misleading pseudo-groups.
+    const vendorKey = getVendorGroup(chunk.filename)
     byVendor[vendorKey] = (byVendor[vendorKey] ?? 0) + chunk.sizeBytes
 
     // Type bucket
@@ -210,16 +209,16 @@ function renderHtml(analysis, error) {
 </head>
 <body>
   <h1>METARDU — Bundle Size Analysis</h1>
-  <div class="meta">Generated: ${new Date().toISOString()} · Source: <code>.next/static/chunks</code></div>
+  <div class="meta">Generated: ${new Date().toISOString()} · Source: <code>.next/static/chunks</code> · Raw bytes across all emitted routes and async chunks; this is not an initial-page transfer size.</div>
 
   ${error ? `<div class="warn-banner">⚠️ ${error}</div>` : ''}
 
   <div class="grid">
     <div class="panel">
       <h2>Summary</h2>
-      <div class="stat-row"><span class="label">Total client bundle size</span><span class="value">${formatBytes(totalSize)}</span></div>
-      <div class="stat-row"><span class="label">Total chunks</span><span class="value">${totalChunks}</span></div>
-      <div class="stat-row"><span class="label">Largest single chunk</span><span class="value">${sorted[0] ? formatBytes(sorted[0].sizeBytes) : '—'}</span></div>
+      <div class="stat-row"><span class="label">All emitted JavaScript</span><span class="value">${formatBytes(totalSize)}</span></div>
+      <div class="stat-row"><span class="label">Emitted chunk files</span><span class="value">${totalChunks}</span></div>
+      <div class="stat-row"><span class="label">Largest emitted chunk</span><span class="value">${sorted[0] ? formatBytes(sorted[0].sizeBytes) : '—'}</span></div>
       <div class="stat-row"><span class="label">Vendor chunks (isolated)</span><span class="value">${byVendor.filter(([k]) => k.startsWith('vendor-')).length}</span></div>
     </div>
 
@@ -283,7 +282,7 @@ function renderHtml(analysis, error) {
   </div>
 
   <div class="footer">
-    METARDU Bundle Analyzer · Run <code>ANALYZE=true npm run build</code> for the interactive treemap view
+    METARDU Bundle Analyzer · Use the route build report, loadable manifest, and a working analyzer treemap to attribute emitted chunks to routes.
   </div>
 </body>
 </html>`
@@ -293,19 +292,19 @@ function generateRecommendations(byVendor, sorted) {
   const recs = []
   const find = (key) => byVendor.find(([k]) => k === key)?.[1] ?? 0
 
-  // 1. Check if Three.js is in a vendor chunk (lazy-loadable)
+  // Aggregate totals cannot establish which route loads a vendor chunk.
   if (find('vendor-three') > 500_000) {
     recs.push({
-      title: 'Three.js chunk is large — verify it is dynamically imported',
-      detail: 'vendor-three is ' + formatBytes(find('vendor-three')) + '. Three.js should only load on /tools/point-cloud-import. Confirm those pages use `const THREE = await import("three")` rather than a static import.',
+      title: 'Three.js is a significant part of emitted JavaScript',
+      detail: 'The report totals ' + formatBytes(find('vendor-three')) + ' across all emitted routes and chunks. It cannot show which routes load these files; inspect import call sites and a route-aware treemap before changing imports.',
     })
   }
 
   // 2. Check pdfjs-dist
   if (find('vendor-pdfjs') > 500_000) {
     recs.push({
-      title: 'pdfjs-dist chunk is large — verify it is dynamically imported',
-      detail: 'vendor-pdfjs is ' + formatBytes(find('vendor-pdfjs')) + '. PDF.js should only load on document viewer pages. Wrap the import in `await import("pdfjs-dist")` and consider loading the worker via CDN.',
+      title: 'PDF.js is a significant part of emitted JavaScript',
+      detail: 'The report totals ' + formatBytes(find('vendor-pdfjs')) + ' across all emitted routes and chunks. It cannot show which routes load these files; inspect import call sites and a route-aware treemap before changing imports.',
     })
   }
 
@@ -313,32 +312,8 @@ function generateRecommendations(byVendor, sorted) {
   const largeAsync = sorted.find(c => !c.filename.startsWith('vendor-') && c.sizeBytes > 250_000)
   if (largeAsync) {
     recs.push({
-      title: `Large non-vendor chunk detected: ${largeAsync.filename} (${formatBytes(largeAsync.sizeBytes)})`,
-      detail: 'Investigate this chunk — it may contain a page that bundles many heavy deps statically. Consider code-splitting with `dynamic()` from next/dynamic.',
-    })
-  }
-
-  // 4. Check for missing vendor isolation
-  const expectedVendors = ['vendor-ol', 'vendor-three', 'vendor-pdfjs', 'vendor-pdf-lib', 'vendor-exceljs', 'vendor-turf']
-  const missing = expectedVendors.filter(v => find(v) === 0)
-  if (missing.length > 0) {
-    recs.push({
-      title: 'Missing vendor isolation: ' + missing.join(', '),
-      detail: 'These heavy dependencies are not isolated into their own chunks. Add cacheGroups entries in next.config.js webpack.splitChunks.cacheGroups.',
-    })
-  }
-
-  // 5. Total size warning
-  const totalSize = byVendor.reduce((sum, [, size]) => sum + size, 0)
-  if (totalSize > 5_000_000) {
-    recs.push({
-      title: 'Total client bundle exceeds 5MB',
-      detail: 'Current size: ' + formatBytes(totalSize) + '. For mobile-first markets (Kenya), aim for < 2MB initial JS. Audit which pages actually need which deps.',
-    })
-  } else if (totalSize > 2_000_000) {
-    recs.push({
-      title: 'Total client bundle exceeds 2MB',
-      detail: 'Current size: ' + formatBytes(totalSize) + '. Acceptable but worth monitoring. Run `ANALYZE=true npm run build` to see the interactive treemap.',
+      title: `Large emitted chunk: ${largeAsync.filename} (${formatBytes(largeAsync.sizeBytes)})`,
+      detail: 'This report does not map chunks to routes or show whether this file is loaded initially. Use the ANALYZE=true treemap and route build report to identify its caller before changing code splitting.',
     })
   }
 
@@ -364,8 +339,8 @@ console.log('─' .repeat(60))
 if (error) {
   console.log('⚠️  ' + error)
 } else {
-  console.log(`Total chunks:        ${analysis.totalChunks}`)
-  console.log(`Total bundle size:   ${formatBytes(analysis.totalSize)}`)
+  console.log(`Emitted chunk files: ${analysis.totalChunks}`)
+  console.log(`All emitted JS:      ${formatBytes(analysis.totalSize)} (raw, all routes and async chunks)`)
   console.log(`Largest chunk:       ${analysis.sorted[0]?.name ?? '—'} (${formatBytes(analysis.sorted[0]?.sizeBytes ?? 0)})`)
   console.log(`Vendor chunks:       ${analysis.byVendor.filter(([k]) => k.startsWith('vendor-')).length}`)
   console.log('')

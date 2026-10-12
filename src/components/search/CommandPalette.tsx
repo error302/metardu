@@ -20,7 +20,7 @@ import { useRouter } from 'next/navigation'
 import {
   Search, Command, ArrowRight, CornerDownLeft,
   FolderKanban, Wrench, Map, FileText, Settings, LayoutDashboard,
-  Calculator, Ruler, Compass, Users, CreditCard, BarChart3,
+  Calculator, Ruler, Compass, Users, Store, Radar, CreditCard, BarChart3,
   BookOpen, Loader2,
 } from 'lucide-react'
 import { useDebounceValue } from '@/lib/performance'
@@ -46,11 +46,13 @@ interface StaticNavItem {
 // Static navigation items (always available)
 const STATIC_NAV: StaticNavItem[] = [
   { title: 'Dashboard', subtitle: 'Your project overview', href: '/dashboard', icon: LayoutDashboard, category: 'Pages', keywords: ['home', 'main', 'overview'] },
+  { title: 'Projects', subtitle: 'Survey projects', href: '/projects', icon: FolderKanban, category: 'Pages', keywords: ['workspace', 'jobs', 'surveys'] },
   { title: 'Map', subtitle: 'Global survey map', href: '/map', icon: Map, category: 'Pages', keywords: ['openlayers', 'gis'] },
   { title: 'Field Book', subtitle: 'Digital field notes', href: '/fieldbook', icon: FileText, category: 'Pages', keywords: ['notes', 'observations', 'leveling', 'traverse'] },
+  { title: 'Marketplace', subtitle: 'Survey equipment listings', href: '/marketplace', icon: Store, category: 'Pages', keywords: ['equipment', 'rent', 'sale', 'wanted'] },
+  { title: 'Equipment', subtitle: 'Instrument and equipment register', href: '/equipment', icon: Radar, category: 'Pages', keywords: ['tracker', 'instruments', 'calibration'] },
   { title: 'Documents', subtitle: 'Generated documents', href: '/documents', icon: FileText, category: 'Pages', keywords: ['pdf', 'deed', 'plan'] },
   { title: 'Analytics', subtitle: 'Usage statistics', href: '/analytics', icon: BarChart3, category: 'Pages', keywords: ['stats', 'reports'] },
-  { title: 'Community', subtitle: 'Surveyor network', href: '/community', icon: Users, category: 'Pages', keywords: ['network', 'peer', 'review'] },
   { title: 'Settings', subtitle: 'Account preferences', href: '/settings', icon: Settings, category: 'Pages', keywords: ['profile', 'account', 'preferences'] },
   { title: 'Pricing', subtitle: 'Subscription plans', href: '/pricing', icon: CreditCard, category: 'Pages', keywords: ['upgrade', 'plan', 'subscription'] },
 

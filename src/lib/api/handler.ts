@@ -46,7 +46,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { setCurrentUserId } from '@/lib/db'
+import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { captureError } from '@/lib/monitoring/sentry'
 import { rateLimit, getClientIdentifier } from '@/lib/security/rateLimit'
 import { auditLog, logger } from '@/lib/logger'
@@ -294,9 +294,15 @@ function logError(
  *   },
  * })
  */
+type RouteParams = Record<string, string | string[]>
+interface ApiRouteHandler {
+  (req: NextRequest, context?: { params?: RouteParams }): Promise<NextResponse>
+  (req: NextRequest, context: { params: Promise<RouteParams> }): Promise<NextResponse>
+}
+
 export function apiHandler<TInput = unknown>(
   config: ApiHandlerConfig<TInput>
-): (req: NextRequest, context?: { params?: Record<string, string | string[]> }) => Promise<NextResponse> {
+): ApiRouteHandler {
   const {
     requireAuth = false,
     requiredRole,
@@ -349,7 +355,9 @@ export function apiHandler<TInput = unknown>(
 
         // Set RLS context so PostgreSQL current_user_id() works
         if (userId && userId !== 'anonymous') {
-          setCurrentUserId(userId)
+          setAuthenticatedDatabaseContext(userId)
+          const organizationId = await resolveAuthenticatedOrganization(userId)
+          setAuthenticatedDatabaseContext(userId, organizationId)
         }
 
         // Role-based access control
@@ -397,7 +405,7 @@ export function apiHandler<TInput = unknown>(
       }
 
       // ─── Route params ──────────────────────────────────────────────────
-      const rawParams = context?.params || {}
+      const rawParams = await context?.params || {}
       const params: Record<string, string> = {}
       for (const [key, val] of Object.entries(rawParams)) {
         params[key] = Array.isArray(val) ? val[0] : val ?? ''

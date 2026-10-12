@@ -3,24 +3,7 @@
 import { useState } from 'react'
 import { analyzeBoundarySituation, type LegalGuidance } from '@/lib/legal/landLawEngine'
 
-/**
- * Parcel Intelligence page.
- *
- * AUDIT FIX (2026-07-03):
- *   The "Parcel Search" tab previously called `searchParcel()` from
- *   `@/lib/parcel/parcelSearch`, which delegated to 3 mock-data libs
- *   (nlims.ts, nlis.ts, tanzania.ts) that all defined
- *   `const MOCK_*_DATA = []` and faked latency with setTimeout(500).
- *   Every search returned 0 results — the exact Minescan pattern.
- *
- *   Now the Parcel Search tab calls the REAL `/api/nlims/lookup` route,
- *   which checks personal vault → shared vault → NLIMS cache → live NLIMS API.
- *
- *   Uganda and Tanzania search removed (no real registry APIs — only
- *   mock libs existed, now deleted).
- *
- *   The Land Law Advisor tab was already real and is unchanged.
- */
+/** Parcel records available to the current METARDU account plus boundary guidance. */
 
 interface NLIMSLookupResult {
   found: boolean
@@ -41,9 +24,9 @@ interface NLIMSLookupResult {
     source?: string
     fetchedAt?: string
   }
-  isMockData?: boolean
   error?: string
-  source?: string
+  code?: string
+  source?: 'VAULT_PERSONAL' | 'VAULT_SHARED' | 'METARDU_CACHE'
   freshness?: string
   certificateDate?: string
 }
@@ -74,12 +57,12 @@ export default function ParcelSearchPage() {
       const res = await fetch(`/api/nlims/lookup?${params}`, {
         credentials: 'include',
       })
-            const data: NLIMSLookupResult = await res.json() as unknown as NLIMSLookupResult
+      const data = await res.json() as NLIMSLookupResult
 
       if (!res.ok) {
         setError(data.error || `Search failed (HTTP ${res.status})`)
       } else if (!data.found) {
-        setError(data.error || 'Parcel not found in vault or NLIMS cache. Live NLIMS API requires NLIMS_API_KEY to be configured server-side.')
+        setError(data.error || 'No matching parcel is available in METARDU records. A local miss does not mean the parcel is absent from the official register.')
       } else {
         setResult(data)
       }
@@ -107,8 +90,8 @@ export default function ParcelSearchPage() {
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Parcel Intelligence</h1>
-        <p className="text-[var(--text-muted)] mb-8">Search Kenya NLIMS land registry and get legal boundary guidance</p>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Parcel records and boundary guidance</h1>
+        <p className="text-[var(--text-muted)] mb-8">Search records available to your METARDU account and review general boundary guidance.</p>
 
         <div className="flex flex-wrap gap-3 mb-6">
           <button
@@ -119,7 +102,7 @@ export default function ParcelSearchPage() {
                 : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)]'
             }`}
           >
-            Parcel Search (Kenya NLIMS)
+            METARDU parcel records
           </button>
           <button
             onClick={() => setActiveTab('legal')}
@@ -135,11 +118,13 @@ export default function ParcelSearchPage() {
 
         {activeTab === 'search' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h2 className="text-xl font-semibold mb-2">Search Land Registry</h2>
+            <h2 className="text-xl font-semibold mb-2">Search available parcel records</h2>
             <p className="text-sm text-[var(--text-muted)] mb-6">
-              Searches your personal parcel vault, the community shared vault, and the NLIMS cache.
-              Live NLIMS API lookups require <code className="text-xs bg-[var(--bg-tertiary)] px-1 rounded">NLIMS_API_KEY</code> to be configured server-side.
+              Searches your personal parcel vault, shared reference records, and recently cached records. METARDU is not connected to live government registry search; a local miss does not establish title, ownership, or parcel status.
             </p>
+            <a href="https://ardhisasa.lands.go.ke/home" target="_blank" rel="noreferrer" className="mb-6 inline-flex min-h-11 items-center rounded-lg border border-[var(--border-color)] px-4 text-sm font-medium text-[var(--text-primary)] hover:border-[var(--accent)]">
+              Open the official Ardhisasa portal <span className="sr-only"> (opens in a new tab)</span>
+            </a>
 
             <div className="grid md:grid-cols-3 gap-4 mb-6">
               <div className="md:col-span-2">
@@ -173,7 +158,7 @@ export default function ParcelSearchPage() {
               disabled={loading}
               className="bg-sky-600 text-white py-2 px-6 rounded-lg hover:bg-sky-700 disabled:opacity-50 font-medium"
             >
-              {loading ? 'Searching...' : 'Search NLIMS'}
+              {loading ? 'Searching...' : 'Search METARDU records'}
             </button>
 
             {error && (
@@ -194,9 +179,14 @@ export default function ParcelSearchPage() {
                         {result.source.replace(/_/g, ' ')}
                       </span>
                     )}
-                    {result.isMockData && (
+                    {result.source === 'VAULT_SHARED' && (
                       <span className="px-2 py-1 bg-yellow-500/15 text-yellow-400 text-xs rounded">
-                        cached
+                        community reference · verify
+                      </span>
+                    )}
+                    {result.source === 'METARDU_CACHE' && (
+                      <span className="px-2 py-1 bg-yellow-500/15 text-yellow-400 text-xs rounded">
+                        cached copy · verify date
                       </span>
                     )}
                   </div>
@@ -228,6 +218,10 @@ export default function ParcelSearchPage() {
                     <div><span className="text-[var(--text-muted)]">Freshness:</span> <span className="text-[var(--text-primary)]">{result.freshness}</span></div>
                   )}
                 </div>
+
+                <p role="note" className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 text-xs leading-5 text-[var(--text-muted)]">
+                  This is a METARDU-held record, not a current government title search or survey-coordinate authority. Confirm title and parcel status through the official portal, and use approved survey plans and control for survey work.
+                </p>
 
                 {result.parcel.ownerName && result.parcel.ownerName !== '[Community Shared - Owner Hidden]' && (
                   <div><span className="text-[var(--text-muted)] text-sm">Owner:</span> <span className="text-[var(--text-primary)] text-sm">{result.parcel.ownerName}</span></div>

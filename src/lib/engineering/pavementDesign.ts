@@ -13,7 +13,7 @@ export interface TrafficData {
   directionalSplit: number
   laneFactor: number
   numberOfLanes: number
-  vehicleDamageFactor?: number
+  vehicleDamageFactor: number
 }
 
 export interface SubgradeData {
@@ -40,8 +40,6 @@ export interface PavementDesignResult {
   subgradeClass: string
   layers: PavementLayer[]
   totalThickness: number
-  reliability: number
-  standardDeviation: number
   designCBR: number
   steps: Array<{ description: string; formula: string; value: string }>
 }
@@ -57,7 +55,16 @@ export interface LayerQuantity {
 // ─── TRAFFIC CLASSIFICATION ────────────────────────────────────────────────────
 
 export function computeESA(traffic: TrafficData): { esa: number; esaMillions: number; steps: Array<{ description: string; formula: string; value: string }> } {
-  const { aadt, heavyVehiclePercentage, growthRate, designPeriod, directionalSplit, laneFactor, vehicleDamageFactor = 1.0 } = traffic
+  const { aadt, heavyVehiclePercentage, growthRate, designPeriod, directionalSplit, laneFactor, vehicleDamageFactor } = traffic
+
+  if (!Number.isFinite(aadt) || aadt <= 0) throw new RangeError('AADT must be finite and greater than zero.')
+  if (!Number.isFinite(heavyVehiclePercentage) || heavyVehiclePercentage < 0 || heavyVehiclePercentage > 100) throw new RangeError('Heavy-vehicle percentage must be between 0 and 100.')
+  if (!Number.isFinite(growthRate) || growthRate < 0) throw new RangeError('Annual traffic growth must be finite and non-negative.')
+  if (!Number.isFinite(designPeriod) || designPeriod <= 0) throw new RangeError('Design period must be finite and greater than zero.')
+  if (!Number.isFinite(directionalSplit) || directionalSplit <= 0 || directionalSplit > 1) throw new RangeError('Directional split must be greater than zero and no more than one.')
+  if (!Number.isFinite(laneFactor) || laneFactor <= 0 || laneFactor > 1) throw new RangeError('Design-lane factor must be greater than zero and no more than one.')
+  if (!Number.isInteger(traffic.numberOfLanes) || traffic.numberOfLanes <= 0) throw new RangeError('Number of lanes must be a positive whole number.')
+  if (!Number.isFinite(vehicleDamageFactor) || vehicleDamageFactor <= 0) throw new RangeError('Vehicle damage factor must be finite and greater than zero.')
 
   const dailyHeavyVehicles = aadt * (heavyVehiclePercentage / 100)
   const directionalHeavy = dailyHeavyVehicles * directionalSplit
@@ -76,6 +83,7 @@ export function computeESA(traffic: TrafficData): { esa: number; esaMillions: nu
 
   const esa = annualESA * cumulativeFactor
   const esaMillions = esa / 1_000_000
+  if (!Number.isFinite(esa) || !Number.isFinite(esaMillions)) throw new RangeError('Traffic calculation exceeded the supported numeric range; review inputs.')
 
   const steps = [
     { description: 'Daily heavy vehicles', formula: `AADT x HV% = ${aadt} x ${heavyVehiclePercentage}%`, value: `${dailyHeavyVehicles.toFixed(0)} veh/day` },
@@ -91,6 +99,7 @@ export function computeESA(traffic: TrafficData): { esa: number; esaMillions: nu
 }
 
 export function classifyTraffic(esaMillions: number): string {
+  if (!Number.isFinite(esaMillions) || esaMillions < 0) throw new RangeError('ESA must be finite and non-negative.')
   if (esaMillions > 30) return 'T1'
   if (esaMillions > 10) return 'T2'
   if (esaMillions > 3) return 'T3'
@@ -100,6 +109,7 @@ export function classifyTraffic(esaMillions: number): string {
 }
 
 export function classifySubgrade(cbr: number): string {
+  if (!Number.isFinite(cbr) || cbr <= 0) throw new RangeError('CBR must be finite and greater than zero.')
   if (cbr > 15) return 'SG1'
   if (cbr > 7) return 'SG2'
   if (cbr > 3) return 'SG3'
@@ -253,6 +263,7 @@ const PAVEMENT_CATALOG: Record<string, PavementLayer[]> = {
 // ─── MAIN DESIGN FUNCTION ─────────────────────────────────────────────────────
 
 export function designPavement(traffic: TrafficData, subgrade: SubgradeData): PavementDesignResult {
+  if (!Number.isFinite(subgrade.cbr) || subgrade.cbr < 2 || subgrade.cbr > 100) throw new RangeError('Design CBR must be between 2 and 100.')
   // Compute ESA
   const { esa, esaMillions, steps: esaSteps } = computeESA(traffic)
 
@@ -262,7 +273,8 @@ export function designPavement(traffic: TrafficData, subgrade: SubgradeData): Pa
 
   // Lookup catalog
   const key = `${trafficClass}-${subgradeClass}`
-  const layers = PAVEMENT_CATALOG[key] || PAVEMENT_CATALOG['T4-SG2'] // fallback
+  const layers = PAVEMENT_CATALOG[key]
+  if (!layers) throw new Error(`No pavement catalog entry exists for ${key}; no fallback structure was applied.`)
 
   const totalThickness = layers.reduce((sum, l) => sum + l.thicknessMm, 0)
 
@@ -280,8 +292,6 @@ export function designPavement(traffic: TrafficData, subgrade: SubgradeData): Pa
     subgradeClass,
     layers,
     totalThickness,
-    reliability: 85,
-    standardDeviation: totalThickness * 0.08, // ~8% variability
     designCBR: subgrade.cbr,
     steps,
   }
@@ -311,19 +321,24 @@ export function computeLayerQuantities(
   roadLengthM: number,
   carriagewayWidthM: number
 ): LayerQuantity[] {
+  if (!Number.isFinite(roadLengthM) || roadLengthM <= 0) throw new RangeError('Road length must be finite and greater than zero.')
+  if (!Number.isFinite(carriagewayWidthM) || carriagewayWidthM <= 0) throw new RangeError('Carriageway width must be finite and greater than zero.')
   const areaM2 = roadLengthM * carriagewayWidthM
 
   return layers.map(layer => {
+    if (!Number.isFinite(layer.thicknessMm) || layer.thicknessMm <= 0) throw new RangeError(`Layer ${layer.name} thickness must be finite and greater than zero.`)
     const thicknessM = layer.thicknessMm / 1000
-    const volumeM3 = areaM2 * thicknessM
-    const density = MATERIAL_DENSITIES[layer.material] || 2000
-    const tonnage = volumeM3 * density
+    const unroundedVolumeM3 = areaM2 * thicknessM
+    const volumeM3 = Math.round(unroundedVolumeM3 * 10) / 10
+    const density = MATERIAL_DENSITIES[layer.material]
+    if (!Number.isFinite(density) || density <= 0) throw new Error(`No material density is configured for ${layer.material}.`)
+    const tonnage = Math.round((unroundedVolumeM3 * density / 1000) * 10) / 10
 
     return {
       layer: layer.name,
       material: layer.material,
-      volumeM3: Math.round(volumeM3 * 10) / 10,
-      tonnage: Math.round(tonnage),
+      volumeM3,
+      tonnage,
       density,
     }
   })

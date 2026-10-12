@@ -34,7 +34,7 @@ describe('DeedPlan Computation Engine', () => {
 
     it('converts 359.999999 degrees correctly', () => {
       const result = degreesToDMS(359.999999)
-      expect(result).toMatch(/359\u00b059'/)
+      expect(result).toBe('000°00\'00.0"')
     })
   })
 

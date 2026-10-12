@@ -53,8 +53,8 @@ let _proj4: typeof proj4Type | null = null;
  * Mombasa) would silently get wrong coordinates.
  */
 const KENYA_UTM_DEFS: Record<string, string> = {
-  'EPSG:21036': '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
-  'EPSG:21037': '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs',
+  'EPSG:21036': '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
+  'EPSG:21037': '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
   // WGS 84 UTM zones are built into proj4js but we register for clarity
   'EPSG:32736': '+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs',
   'EPSG:32737': '+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs',

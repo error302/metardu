@@ -212,6 +212,7 @@ const DRONE_AUTOMATIONS: Record<AutomationTrigger, AutomationStep[]> = {
 const AUTOMATION_REGISTRY: Record<SurveyType, Record<AutomationTrigger, AutomationStep[]>> = {
   topographic: TOPO_AUTOMATIONS,
   engineering: ENGINEERING_AUTOMATIONS,
+  construction: ENGINEERING_AUTOMATIONS,
   cadastral: CADASTRAL_AUTOMATIONS,
   geodetic: GEODETIC_AUTOMATIONS,
   drone: DRONE_AUTOMATIONS,

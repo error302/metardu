@@ -96,6 +96,8 @@ export interface GeoPDFLayer {
 export interface MBTilesSession {
   key: string;           // UUID returned by /api/field/mbtiles/upload
   name: string;
+  storage: 'server';
+  format: 'png' | 'jpg' | 'jpeg' | 'webp';
   minZoom: number;
   maxZoom: number;
   bounds?: [number, number, number, number]; // [west, south, east, north] WGS84

@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import type { PlanGeometry } from '@/lib/engine/planGeometry';
-import { to21037 } from '@/lib/map/projection';
+import { toProjectCrs } from '@/lib/map/projection';
+import { describeEpsg } from '@/lib/spatial/projectReferenceSystem';
 
 /* ------------------------------------------------------------------ */
 /*  Types                                                              */
@@ -12,6 +13,8 @@ export interface SheetLayoutProps {
   show: boolean;
   map: import('ol/Map').default | null;
   planGeometry: PlanGeometry | null;
+  /** Declared project CRS; absent grids are omitted and the sheet is marked draft. */
+  epsg: string | null;
   lrNumber?: string;
   projectName?: string;
   surveyorName?: string;
@@ -40,7 +43,7 @@ interface ScaleBarInfo {
 /*  Helpers                                                            */
 /* ------------------------------------------------------------------ */
 
-/** Nice step values for grid ticks (in EPSG:21037 metres) */
+/** Nice step values for grid ticks (in project-CRS metres) */
 const NICE_STEPS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000];
 
 function niceStep(rangeM: number, maxTicks: number): number {
@@ -232,6 +235,7 @@ function TitleBlock({
   county,
   scale,
   date,
+  drawingNumber: propsDrawingNumber,
 }: {
   lrNumber?: string;
   projectName?: string;
@@ -241,12 +245,15 @@ function TitleBlock({
   county?: string;
   scale?: string;
   date?: string;
+  /** Stable drawing reference; computed deterministically by the sheet. */
+  drawingNumber?: string;
 }) {
   const formattedDate = date ?? new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
     month: 'short',
     year: 'numeric',
   });
+  const drawingNumber = propsDrawingNumber ?? 'MET-UNNUMBERED';
 
   return (
     <div
@@ -274,9 +281,10 @@ function TitleBlock({
         <Row label="Scale" value={scale ?? 'As Noted'} />
         <Row label="Date" value={formattedDate} />
 
-        {/* Drawing number */}
+        {/* Drawing number — deterministic: the same survey must never change
+            its own drawing number between renders or re-issues. */}
         <div className="border-t border-[#1B3A5C] pt-1 mt-1 flex justify-between text-[9px] text-gray-500">
-          <span>Dwg No: MET-{String(Date.now()).slice(-6)}</span>
+          <span>Dwg No: {drawingNumber}</span>
           <span>Sheet 1 of 1</span>
         </div>
 
@@ -303,10 +311,13 @@ function SurveyorsCertificate({
   surveyorName,
   surveyorLicense,
   date,
+  epsg,
 }: {
   surveyorName?: string;
   surveyorLicense?: string;
   date?: string;
+  /** Project CRS the plan was computed in — stated, never assumed. */
+  epsg?: string;
 }) {
   const formattedDate = date ?? new Date().toLocaleDateString('en-GB', {
     day: '2-digit',
@@ -314,29 +325,62 @@ function SurveyorsCertificate({
     year: 'numeric',
   });
 
+  // The certificate must name the reference system the plan was computed in.
+  // It previously printed "Arc 1950 / UTM Zone 37 South" for every survey.
+  let crsDescription = {
+    datum: 'the project datum',
+    projection: 'the project grid',
+    units: 'metres',
+    code: epsg ?? 'NOT DECLARED',
+  };
+  if (epsg) {
+    try {
+      crsDescription = describeEpsg(epsg);
+    } catch {
+      crsDescription = {
+        datum: 'the project datum',
+        projection: 'the project grid',
+        units: 'metres',
+        code: epsg,
+      };
+    }
+  }
+
   return (
     <div
       className="absolute bottom-3 left-3 bg-white/95 border border-[#1B3A5C] rounded-sm shadow-md select-none pointer-events-none sheet-certificate"
       style={{ fontFamily: 'Calibri, sans-serif', maxWidth: 'clamp(200px, 42vw, 320px)', fontSize: 10, lineHeight: 1.5, padding: '8px 10px' }}
     >
-      <div className="font-bold text-[10px] text-[#1B3A5C] mb-1">SURVEYOR&apos;S CERTIFICATE</div>
-      <p className="text-[9px] text-gray-700 leading-relaxed">
-        I certify that this plan was prepared by me, or under my direct personal supervision,
-        and that all bearings and distances shown are correctly reduced to the
-        Clarke 1880 (Arc) Spheroid (International foot) and the projected coordinates
-        are on Arc 1950 / UTM Zone 37 South.
-      </p>
-      <p className="text-[9px] text-gray-700 mt-1">
-        I further certify that this plan is correct and is in accordance with the
-        provisions of the Survey Act (Cap 299) of the Laws of Kenya.
-      </p>
-      <div className="mt-2 flex justify-between text-[9px]">
-        <span className="text-[#1B3A5C] font-semibold">{surveyorName ?? '_________________________'}</span>
-        <span>{formattedDate}</span>
-      </div>
-      <div className="text-[8px] text-gray-500">
-        Licensed Surveyor — ISK No. {surveyorLicense ?? '___________'}
-      </div>
+      {epsg ? (
+        <>
+          <div className="font-bold text-[10px] text-[#1B3A5C] mb-1">SURVEYOR REVIEW AND CERTIFICATION</div>
+          <p className="text-[9px] text-gray-700 leading-relaxed">
+            Review and certify this plan under the requirements of the applicable jurisdiction. Coordinates use
+            {` ${crsDescription.datum} (${crsDescription.units}), ${crsDescription.projection} (${crsDescription.code}).`}
+          </p>
+          <p className="text-[9px] text-gray-700 mt-1">
+            This generated sheet is a working document. Add the required jurisdiction-specific declaration and confirm the survey evidence before statutory submission.
+          </p>
+          <div className="mt-2 flex justify-between text-[9px]">
+            <span className="text-[#1B3A5C] font-semibold">{surveyorName ?? '_________________________'}</span>
+            <span>{formattedDate}</span>
+          </div>
+          <div className="text-[8px] text-gray-500">
+            Professional registration no. {surveyorLicense ?? '___________'}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="font-bold text-[10px] text-amber-800 mb-1">DRAFT MAP — CRS NOT DECLARED</div>
+          <p className="text-[9px] text-gray-700 leading-relaxed">
+            No project coordinate reference system is declared. Grid coordinates and survey certification are omitted. Do not use this sheet for set-out or statutory submission.
+          </p>
+          <div className="mt-2 flex justify-between text-[9px]">
+            <span className="text-gray-500">Reference system required</span>
+            <span>{formattedDate}</span>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -349,6 +393,7 @@ export default function SheetLayout({
   show,
   map,
   planGeometry,
+  epsg,
   lrNumber,
   projectName,
   surveyorName,
@@ -364,7 +409,7 @@ export default function SheetLayout({
     left: GridTick[];
     right: GridTick[];
   }>({ top: [], bottom: [], left: [], right: [] });
-  const [, setViewExtent21037] = useState<{
+  const [, setViewExtent] = useState<{
     minE: number;
     maxE: number;
     minN: number;
@@ -415,14 +460,20 @@ export default function SheetLayout({
   const computeGridTicks = useCallback(async () => {
     if (!map || !show || containerSize.w === 0) return;
 
+    if (!epsg) {
+      setViewExtent(null);
+      setGridTicks({ top: [], bottom: [], left: [], right: [] });
+      return;
+    }
+
     const view = map.getView();
     const extent3857 = view.calculateExtent(map.getSize());
     const [x1, y1, x2, y2] = extent3857;
 
-    // Convert corners to EPSG:21037
+    // Convert corners to the project CRS
     const [[e1, n1], [e2, n2]] = await Promise.all([
-      to21037(x1, y1),
-      to21037(x2, y2),
+      toProjectCrs(x1, y1, epsg),
+      toProjectCrs(x2, y2, epsg),
     ]);
 
     const minE = Math.min(e1, e2);
@@ -430,7 +481,7 @@ export default function SheetLayout({
     const minN = Math.min(n1, n2);
     const maxN = Math.max(n1, n2);
 
-    setViewExtent21037({ minE, maxE, minN, maxN });
+    setViewExtent({ minE, maxE, minN, maxN });
 
     const rangeE = maxE - minE;
     const rangeN = maxN - minN;
@@ -467,7 +518,7 @@ export default function SheetLayout({
       left: ticksV,
       right: ticksV,
     });
-  }, [map, show, containerSize]);
+  }, [map, show, containerSize, epsg]);
 
   useEffect(() => {
     computeGridTicks();
@@ -481,6 +532,22 @@ export default function SheetLayout({
 
   /* ── Scale label (e.g. "1:1000") ───────────────────────────────── */
   const scaleLabel = planGeometry ? `1:${planGeometry.scale.toLocaleString()}` : 'As Noted';
+
+  /**
+   * Deterministic drawing reference. A re-issued sheet of the same survey must
+   * carry the same drawing number — a number that changes on every render
+   * makes two identical plans look like different documents.
+   */
+  const drawingNumber = useMemo(() => {
+    const lr = lrNumber?.trim();
+    if (lr) return `MET-${lr.replace(/\s+/g, '-').toUpperCase()}`;
+    const name = projectName?.trim();
+    if (name) {
+      const slug = name.replace(/\s+/g, '-').toUpperCase().slice(0, 24);
+      return `MET-${slug}`;
+    }
+    return 'MET-UNNUMBERED';
+  }, [lrNumber, projectName]);
 
   /* ── Don't render when hidden ───────────────────────────────────── */
   if (!show) return null;
@@ -513,12 +580,14 @@ export default function SheetLayout({
         clientName={clientName}
         county={county}
         scale={scaleLabel}
+        drawingNumber={drawingNumber}
       />
 
       {/* Surveyor's Certificate */}
       <SurveyorsCertificate
         surveyorName={surveyorName}
         surveyorLicense={surveyorLicense}
+        epsg={epsg ?? undefined}
       />
     </div>
   );

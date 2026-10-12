@@ -63,7 +63,6 @@ export const securityAlertEmail = {
       <ol style="margin:0 0 16px;padding-left:22px;color:#cccccc;font-size:14px;line-height:1.8;">
         <li>${Link(reviewUrl, 'Review your recent account activity')}</li>
         <li>Change your password immediately</li>
-        <li>Sign out of all other devices from your security settings</li>
       </ol>
       ${PrimaryButton(reviewUrl, 'Review account activity')}
       ${Paragraph('You are receiving this email because we send security alerts for every new sign-in on an unrecognized device. This helps protect your account even if someone learns your password.', { small: true, muted: true })}

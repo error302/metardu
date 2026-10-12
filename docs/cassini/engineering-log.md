@@ -173,3 +173,24 @@ Stage Summary:
 - Key finding: A/B quality varies but is functionally adequate; sub-sheets provide the real accuracy improvement
 - Modified: src/lib/geo/merged_subsheets.json (221â†’226 sheets, 5501â†’5626 sub-sheets)
 - Produced: scripts/generate_missing_subsheets.ts
+
+---
+
+## Correction — Sprint A CRS audit (2026-09-29)
+
+Tasks 1-2 above ("upgrade 3-param ? 7-param", "replaced all 17 instances of
+`towgs84=-160,-6,-302,0,0,0,0`") were based on a false premise and have been
+reverted across the codebase:
+
+- `EPSG:1165` is NOT an Arc 1960 transformation — it is "Massawa to WGS 84 (1)"
+  (Eritrea) / the ITRF2014 datum. `EPSG:1314` is a transformation *method* code,
+  not a parameter set.
+- The 7-parameter values (-0.807, 0.339, -1.619, -2.554) match NO registered
+  EPSG transformation and moved positions ~56 m relative to the registered one.
+- The EPSG-registered Arc 1960 ? WGS84 transformation is **EPSG:1122**
+  (-160, -6, -302, 0, 0, 0), 35 m — exactly the `TOWGS84` carried by the
+  official EPSG definitions of EPSG:21036/21037. EPSG registers NO 7-parameter
+  Arc 1960 transformation. For Kenya onshore, EPSG:1284 (-157, -2, -299, 6 m)
+  may be selected explicitly.
+- `KENYA_BURSA_WOLF` in `src/lib/geo/cassini/datum.ts` now carries the
+  registered translation with zero rotation/scale; golden pins updated.

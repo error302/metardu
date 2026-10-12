@@ -14,6 +14,37 @@ automatically inside the compose network).
 | `gnss_baseline_process` | RTKLIB (rnx2rtkp) survey-grade baseline processing |
 | `gnss_process_rinex` | **Real SPP processing of a RINEX observation file** (see below) |
 | `gnss_process_rinex_multi` | Multi-station SPP + pairwise differential-SPP baselines |
+| `parse_lidar` | LAS/LAZ header, CRS, classification, and bounded 100,000-point preview |
+
+### LAS/LAZ import
+
+`parse_lidar` uses laspy with the `lazrs` backend in this isolated worker. The
+web endpoint accepts authenticated uploads up to 32 MiB and returns at most
+100,000 points. Its response distinguishes `processedPoints` from the file's
+`totalPoints` and sets `truncated`; METARDU disables terrain analyses when the
+preview is partial. Embedded CRS metadata is reported but coordinates are not
+reprojected. Missing CRS stays unknown, and any embedded CRS that is not a
+projected metre CRS blocks slope/TIN/volume calculations until the source is
+reprojected. Compressed waveform point formats are not supported by `lazrs`.
+
+### OSM reference data
+
+The interactive map's nearby context route uses the worker's Overpass-backed
+`/osm/context-geojson` endpoint. It depends on `OSMPythonTools`, `osm2geojson`,
+network access to public Overpass instances, and their availability and usage
+limits. It provides community-mapped context only; it is not authoritative
+survey evidence, and METARDU must retain the applicable OpenStreetMap
+attribution.
+
+The separate `/osm/features` and `/osm/stream-extract` routes use a local OSM
+PBF extract. They are optional and are not provisioned by the base worker
+image: `pyrosm` and `pyosmium` are not in `requirements.txt`, and no PBF file
+is bundled. Configure the package, storage/memory budget, `OSM_PBF_PATH`, and
+an update/attribution process before enabling them. Until then, these routes
+return `503 Service Unavailable` rather than a successful empty dataset.
+The stream extractor currently keeps selected features in memory before it
+writes GeoJSON; do not enable broad or country-scale extraction until bounded
+output streaming, geometry validation, and resource limits are implemented.
 
 ## GNSS SPP engine (`gnss_processor.py`)
 

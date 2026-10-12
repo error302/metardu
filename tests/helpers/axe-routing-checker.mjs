@@ -12,7 +12,7 @@
  * side to assert on. Notes/logs from the scanner go to stderr only.
  */
 import * as path from 'node:path'
-import { fileURLToPath } from 'node:url'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
 const SCAN = path.join(ROOT, 'scripts', 'axe-gnss-scan.mjs')
@@ -23,7 +23,7 @@ if (!fixtureRoot) {
   process.exit(2)
 }
 process.chdir(fixtureRoot)
-const mod = await import(SCAN)
+const mod = await import(pathToFileURL(SCAN).href)
 
 const checks = []
 const check = (name, fn) => {

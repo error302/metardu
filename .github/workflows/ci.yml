@@ -31,7 +31,56 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
-      - run: npx tsc --noEmit
+      - name: Restore TypeScript incremental cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            tsconfig.tsbuildinfo
+            tsconfig.tests.tsbuildinfo
+          key: ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-
+      - run: npm run typecheck
+      - name: Verify PDF parser through the Next Webpack compiler
+        run: node scripts/verify-pdf-parser-webpack.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pdf-parser-webpack-evidence
+          path: test-results/runtime-database/pdf-webpack.json
+
+  design-revisions:
+    name: Project Design and Set-out PostgreSQL Regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      revision-postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: metardu_revision_verify
+          POSTGRES_USER: revision_verify
+          POSTGRES_PASSWORD: local_revision_verify_only
+        ports:
+          - 55432:5432
+        options: >-
+          --health-cmd "pg_isready -U revision_verify -d metardu_revision_verify"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+      - run: npm ci --legacy-peer-deps
+      - run: node scripts/verify-design-revisions.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: design-revision-postgres-evidence
+          path: |
+            test-results/design-revisions/result.json
+            test-results/design-revisions/synthetic-project-cut-sheet.html
+            test-results/design-revisions/synthetic-setout-history.csv
 
   # GNSS compute worker tests (audit C9 "make it work", 2026-08-31): the
   # SPP engine is real mathematics — parsers validated against georinex
@@ -41,7 +90,7 @@ jobs:
   # download tests are opt-in (--run-network) and skipped here so the gate
   # never depends on public mirrors being up.
   python-worker:
-    name: Python Worker (GNSS SPP engine)
+    name: Python Worker (GNSS and LAS/LAZ)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -50,8 +99,8 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install worker test deps
-        run: pip install pytest numpy requests
-      - name: Run GNSS processor test suite
+        run: pip install pytest numpy requests 'fastapi>=0.104.0' 'pydantic>=2.0.0' 'laspy[lazrs]>=2.7.0,<3.0' 'pyproj>=3.6.0,<4.0'
+      - name: Run survey worker test suite
         working-directory: python_worker
         run: python -m pytest tests/ -v
 
@@ -190,6 +239,22 @@ jobs:
           node-version: '20'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-cache-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-cache-${{ hashFiles('package-lock.json') }}-
+      - name: Restore TypeScript incremental cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            tsconfig.tsbuildinfo
+            tsconfig.tests.tsbuildinfo
+          key: ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-
       - name: Build Next.js (production)
         env:
           # Skip Sentry + GCS upload during CI build — they're not needed
@@ -357,6 +422,46 @@ jobs:
         run: npm run migrate
         env:
           DATABASE_URL: 'postgresql://ci:ci@127.0.0.1:5432/metardu_e2e'
+      - name: Provision and verify the restricted runtime database login
+        run: node scripts/provision-runtime-db-role.mjs
+        env:
+          NODE_ENV: production
+          MIGRATION_DB_HOST: 127.0.0.1
+          MIGRATION_DB_PORT: '5432'
+          MIGRATION_DB_NAME: metardu_e2e
+          MIGRATION_DB_USER: ci
+          MIGRATION_DB_PASSWORD: ci
+          APP_DB_HOST: 127.0.0.1
+          APP_DB_PORT: '5432'
+          APP_DB_NAME: metardu_e2e
+          APP_DB_USER: ci_app
+          APP_DB_PASSWORD: local_ci_runtime_only
+      - name: Verify firm project role revocation against PostgreSQL RLS
+        run: node scripts/verify-organization-project-rls.mjs
+        env:
+          DATABASE_URL: 'postgresql://ci:ci@127.0.0.1:5432/metardu_e2e'
+          RUNTIME_DB_ROLE: ci_app
+      - name: Verify reused pool isolation and legacy audit upgrades
+        run: |
+          node scripts/verify-runtime-pool-isolation.mjs
+          node scripts/verify-query-context.mjs
+          node scripts/verify-surface-runtime.mjs
+          node scripts/verify-qa-runtime.mjs
+          node scripts/verify-beacon-reestablishment.mjs
+          node scripts/verify-beacon-registry.mjs
+          node scripts/verify-public-control.mjs
+          node scripts/verify-field-control-checks.mjs
+          node scripts/verify-benchmark-catalogue.mjs
+          node scripts/verify-account-suspension.mjs
+          CHATGPT_TEST_POSTGRES=1 node node_modules/jest/bin/jest.js tests/chatgpt/postgres.test.ts --runInBand --silent
+          node scripts/verify-fieldbook-audit-upgrade.mjs
+        env:
+          TEST_ADMIN_DATABASE_URL: 'postgresql://ci:ci@127.0.0.1:5432/metardu_e2e'
+          TEST_RUNTIME_DATABASE_URL: 'postgresql://ci_app:local_ci_runtime_only@127.0.0.1:5432/metardu_e2e'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: runtime-database-evidence-${{ matrix.shard }}
+          path: test-results/runtime-database/*.json
       - name: Seed E2E test user
         run: node scripts/seed-e2e-user.mjs
         env:
@@ -447,12 +552,21 @@ jobs:
     name: Security Audit
     runs-on: ubuntu-latest
     timeout-minutes: 3
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-      # AUDIT FIX (C10, 2026-07-02): Removed `|| true` — critical
-      # vulnerabilities now block the build. Use `--omit=dev` to audit
-      # only production deps (matches `--production` semantics).
-      - run: npm audit --audit-level=critical --omit=dev
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      # Runtime high/critical advisories and all critical build/test
+      # advisories block CI. Retain both complete reports for review.
+      - run: node scripts/dependency-audit.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: dependency-security-reports
+          path: test-results/dependency-security/*-audit.json
 
   axe-sweep:
     # A11Y GATE (2026-08-04): axe-core WCAG sweep across every /tools/* page.

@@ -8,17 +8,18 @@
  * infrastructure setup instructions.
  */
 
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 
 const PYTHON_WORKER_URL = process.env.PYTHON_WORKER_URL || 'http://localhost:8001'
 const WORKER_SECRET = process.env.WORKER_SECRET || ''  // P0-5: fail-closed, no dev fallback
 
-export const GET = apiHandler(
+const handleGet = apiHandler(
   { auth: true, rateLimit: { max: 30, windowMs: 60000 } },
-  async () => {
+  async (request) => {
     try {
       const res = await fetch(`${PYTHON_WORKER_URL}/osm/status`, {
+        signal: request.signal,
         headers: { 'X-Worker-Secret': WORKER_SECRET },
       })
 
@@ -32,9 +33,10 @@ export const GET = apiHandler(
       }
 
       const data = await res.json() as unknown as Record<string, unknown>
+      const { pbf_path: _serverPath, ...publicStatus } = data
       return NextResponse.json({
         worker_running: true,
-        ...data,
+        ...publicStatus,
       })
     } catch {
       return NextResponse.json({
@@ -46,3 +48,9 @@ export const GET = apiHandler(
     }
   }
 )
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const response = await handleGet(request)
+  response.headers.set('Cache-Control', 'private, no-store')
+  return response
+}

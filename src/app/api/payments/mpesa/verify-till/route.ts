@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
 import db from '@/lib/db'
+import { setCurrentTillClaimCode, setRlsContext } from '@/lib/db'
 import { getPlan, getPlanPrice } from '@/lib/subscription/catalog'
 import { sendEmail } from '@/lib/email'
 import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
@@ -64,11 +65,12 @@ export const POST = apiHandler(
         { status: 400 }
       )
     }
+    setCurrentTillClaimCode(mpesaCode)
 
     // 2. Check if a pre-verified SMS payment already exists on this Till
     const unclaimedRes = await db.query<{ id: string; amount: string; currency: string }>(
-      `SELECT id, amount, currency FROM payment_history
-       WHERE transaction_id = $1 AND status = 'unclaimed_payment'`,
+      `SELECT id, amount, currency
+         FROM public.metardu_claimable_till_payment($1)`,
       [mpesaCode]
     )
 
@@ -159,6 +161,7 @@ export const POST = apiHandler(
       const client = await db.getClient()
       try {
         await client.query<never>('BEGIN')
+        await setRlsContext(client)
 
         // Conditional claim: rowCount 0 means another request already
         // claimed this payment — idempotent under double-submit.

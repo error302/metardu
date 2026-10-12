@@ -35,7 +35,11 @@ export default function ShapefileExport({ data, projectName, disabled }: Shapefi
       URL.revokeObjectURL(url)
     } catch (error) {
       logger.error('Shapefile export failed:', { error: error })
-      alert('Failed to generate shapefile. Please try again.')
+      // Surface the real reason (e.g. undeclared project CRS) — the export
+      // fails closed rather than shipping mislabelled coordinates.
+      alert(error instanceof Error && error.message
+        ? error.message
+        : 'Failed to generate shapefile. Please try again.')
     } finally {
       setIsExporting(false)
     }

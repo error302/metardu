@@ -23,6 +23,7 @@ interface ImportTabProps {
   handleFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
   handlePasteParse: () => void;
   handleLoadDemo: () => void;
+  metricReference: boolean;
 }
 
 export function ImportTab({
@@ -39,8 +40,10 @@ export function ImportTab({
   handleFileInput,
   handlePasteParse,
   handleLoadDemo,
+  metricReference,
 }: ImportTabProps) {
   const previewRows = points.slice(0, 5);
+  const units = metricReference ? 'm' : 'source units';
 
   return (
     <div className="space-y-6">
@@ -129,7 +132,7 @@ export function ImportTab({
             </div>
             <div className="p-4 bg-[var(--bg-tertiary)] rounded">
               <span className="text-[var(--text-secondary)] text-sm block">Elevation Range</span>
-              <span className="font-mono text-xl">{fmt(bounds.minZ, 1)} \u2013 {fmt(bounds.maxZ, 1)} m</span>
+              <span className="font-mono text-xl">{fmt(bounds.minZ, 1)} – {fmt(bounds.maxZ, 1)} {units}</span>
             </div>
           </div>
 
@@ -149,9 +152,9 @@ export function ImportTab({
               <thead>
                 <tr className="border-b border-zinc-700">
                   <th className="text-left py-2 px-3 text-[var(--text-secondary)] font-medium">Name</th>
-                  <th className="text-right py-2 px-3 text-[var(--text-secondary)] font-medium">Easting (m)</th>
-                  <th className="text-right py-2 px-3 text-[var(--text-secondary)] font-medium">Northing (m)</th>
-                  <th className="text-right py-2 px-3 text-[var(--text-secondary)] font-medium">Elevation (m)</th>
+                  <th className="text-right py-2 px-3 text-[var(--text-secondary)] font-medium">Easting ({units})</th>
+                  <th className="text-right py-2 px-3 text-[var(--text-secondary)] font-medium">Northing ({units})</th>
+                  <th className="text-right py-2 px-3 text-[var(--text-secondary)] font-medium">Elevation ({units})</th>
                 </tr>
               </thead>
               <tbody>

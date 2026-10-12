@@ -88,3 +88,8 @@ export const KENYA_TOPO_SHEETS: TopoSheetParams[] = (() => {
 export function findTopoSheet(sheetId: string): TopoSheetParams | undefined {
   return KENYA_TOPO_SHEETS.find((s) => s.id === sheetId)
 }
+
+/** Kenya Cassini sheets projected in UTM zone 36S use the western zone. */
+export function getUtmZone(sheetId: string): number {
+  return sheetId === '105/3' ? 36 : 37
+}

@@ -3,6 +3,12 @@
  * Processes PayPal payments
  */
 import { logger } from '@/lib/logger'
+import { resolvePayPalCurrency } from './paypalCurrency'
+import type { PayPalBillingCurrency } from './paypalCurrency'
+
+export { resolvePayPalCurrency } from './paypalCurrency'
+export type { PayPalBillingCurrency } from './paypalCurrency'
+import type { PayPalBillingPlanDetails } from './paypalPlanValidation'
 
 export interface PayPalConfig {
   clientId: string
@@ -188,6 +194,20 @@ export class PayPalService {
     return (await response.json()) as { id: string; status: string; quantity?: string }
   }
 
+  async getBillingPlan(planId: string): Promise<PayPalBillingPlanDetails> {
+    const accessToken = await this.getAccessToken()
+    const response = await fetch(`${this.baseUrl}/v1/billing/plans/${encodeURIComponent(planId)}`, {
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        Accept: 'application/json',
+      },
+    })
+    if (!response.ok) {
+      throw new Error(`PayPal returned HTTP ${response.status} while reading the billing plan.`)
+    }
+    return await response.json() as PayPalBillingPlanDetails
+  }
+
   async createSubscription(
     planId: string,
     subscriber: { email: string; name?: string },
@@ -284,11 +304,13 @@ export function getPayPalService(): PayPalService | null {
 }
 
 /**
- * Resolve a METARDU plan id to its recurring PayPal billing plan id.
- * Mapping lives in env: PAYPAL_PLAN_PRO / _TEAM / _FIRM / _ENTERPRISE.
- * Returns null when the plan has no recurring billing plan configured.
+ * Resolve a METARDU plan and PayPal currency to its recurring billing plan.
+ * Currency-specific settings take precedence. The legacy plan key remains a
+ * USD-only fallback so older deployments fail closed for other currencies.
  */
-export function getPayPalPlanId(planId: string): string | null {
+export function getPayPalPlanId(planId: string, currency: PayPalBillingCurrency = 'USD'): string | null {
   const key = `PAYPAL_PLAN_${planId.toUpperCase()}`
-  return process.env[key] || null
+  const currencySpecific = process.env[`${key}_${currency}`]
+  if (currencySpecific) return currencySpecific
+  return currency === 'USD' ? process.env[key] || null : null
 }

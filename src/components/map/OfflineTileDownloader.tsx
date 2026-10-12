@@ -24,39 +24,15 @@ import {
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Slider } from '@/components/ui/slider'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import {
   calculateTileCount,
   estimateStorageSize,
   downloadTilesForBounds,
+  getOfflineTileSourceRestriction,
+  getTileSourceId,
   type DownloadProgress,
 } from '@/lib/offline/tileCache'
-
-// ─── Constants ──────────────────────────────────────────────────────────────
-
-const TILE_SOURCES = [
-  {
-    id: 'osm',
-    label: 'OpenStreetMap',
-    url: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-    type: 'osm' as const,
-  },
-  {
-    id: 'esri-satellite',
-    label: 'ESRI Satellite',
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    type: 'satellite' as const,
-  },
-] as const
-
-type SourceType = 'osm' | 'satellite' | 'custom'
 
 type DownloadState = 'idle' | 'estimating' | 'downloading' | 'complete' | 'error'
 
@@ -83,9 +59,9 @@ export function OfflineTileDownloader() {
     offlineMapExtent: mapExtent,
   } = useMapContext()
   // Source selection
-  const [sourceType, setSourceType] = useState<string>('osm')
   const [customUrl, setCustomUrl] = useState('')
   const [customLabel, setCustomLabel] = useState('')
+  const [customAttribution, setCustomAttribution] = useState('')
 
   // Bounds
   const [minLat, setMinLat] = useState('-1.5')
@@ -122,21 +98,18 @@ export function OfflineTileDownloader() {
     setMaxLon(mapExtent.maxLon.toFixed(6))
   }, [mapExtent])
 
-  // Get the current source config
+  // Offline packs require an explicitly licensed or self-hosted XYZ source.
   const getCurrentSource = useCallback(() => {
-    if (sourceType === 'custom') {
-      return {
-        id: `custom-${customLabel || Date.now()}`,
-        label: customLabel || 'Custom',
-        url: customUrl,
-        type: 'custom' as SourceType,
-      }
+    const label = customLabel.trim() || 'Licensed tile source'
+    const url = customUrl.trim()
+    return {
+      id: getTileSourceId(url),
+      label,
+      url,
+      attribution: customAttribution.trim(),
+      type: 'custom' as const,
     }
-    const preset = TILE_SOURCES.find((s) => s.id === sourceType)
-    return preset
-      ? { id: preset.id, label: preset.label, url: preset.url, type: preset.type as SourceType }
-      : { id: 'osm', label: 'OpenStreetMap', url: TILE_SOURCES[0].url, type: 'osm' as SourceType }
-  }, [sourceType, customUrl, customLabel])
+  }, [customUrl, customLabel, customAttribution])
 
   // Estimate tiles
   const estimateTiles = useCallback(() => {
@@ -158,7 +131,37 @@ export function OfflineTileDownloader() {
     }
 
     const source = getCurrentSource()
-    const { total } = calculateTileCount(bounds, zoomRange[0], zoomRange[1])
+    if (!source.url) {
+      setErrorMsg('Enter an XYZ tile URL from a provider that permits offline downloads.')
+      setEstimate(null)
+      return
+    }
+    if (!source.attribution) {
+      setErrorMsg('Enter the attribution text required by your tile provider. It will be shown on the map.')
+      setEstimate(null)
+      return
+    }
+    const hasPlaceholders = /\{z\}/i.test(source.url) && /\{x\}/i.test(source.url) && /\{y\}/i.test(source.url)
+    if (!hasPlaceholders) {
+      setErrorMsg('Tile URL must contain {z}, {x}, and {y} placeholders.')
+      setEstimate(null)
+      return
+    }
+    const sourceRestriction = getOfflineTileSourceRestriction(source.url)
+    if (sourceRestriction) {
+      setErrorMsg(sourceRestriction)
+      setEstimate(null)
+      return
+    }
+
+    let total: number
+    try {
+      total = calculateTileCount(bounds, zoomRange[0], zoomRange[1]).total
+    } catch (err) {
+      setErrorMsg(err instanceof Error ? err.message : 'Invalid bounds or zoom range.')
+      setEstimate(null)
+      return
+    }
     const sizeBytes = estimateStorageSize(total, source.type)
 
     if (total > 500000) {
@@ -186,13 +189,24 @@ export function OfflineTileDownloader() {
     }
 
     const source = getCurrentSource()
-
-    if (sourceType === 'custom') {
-      const hasPlaceholders = /\{z\}/.test(source.url) && /\{x\}/.test(source.url) && /\{y\}/.test(source.url)
-      if (!hasPlaceholders) {
-        setErrorMsg('Custom URL must contain {z}, {x}, and {y} placeholders.')
-        return
-      }
+    if (!source.url) {
+      setErrorMsg('Enter an XYZ tile URL from a provider that permits offline downloads.')
+      return
+    }
+    if (!source.attribution) {
+      setErrorMsg('Enter the attribution text required by your tile provider. It will be shown on the map.')
+      return
+    }
+    const hasPlaceholders = /\{z\}/i.test(source.url) && /\{x\}/i.test(source.url) && /\{y\}/i.test(source.url)
+    if (!hasPlaceholders) {
+      setErrorMsg('Tile URL must contain {z}, {x}, and {y} placeholders.')
+      return
+    }
+    const sourceRestriction = getOfflineTileSourceRestriction(source.url)
+    if (sourceRestriction) {
+      setErrorMsg(sourceRestriction)
+      setEstimate(null)
+      return
     }
 
     const abortController = new AbortController()
@@ -212,11 +226,21 @@ export function OfflineTileDownloader() {
         source.type,
         (p: DownloadProgress) => setProgress({ ...p }),
         abortController.signal,
+        {
+          label: source.label,
+          urlTemplate: source.url,
+          attribution: source.attribution,
+          minZoom: zoomRange[0],
+          maxZoom: zoomRange[1],
+        },
       )
 
       if (!abortController.signal.aborted) {
         setProgress(result)
         setDownloadState('complete')
+        if (result.downloaded + result.skipped > 0) {
+          window.dispatchEvent(new Event('metardu:offline-tiles-updated'))
+        }
       }
     } catch (err: unknown) {
       if (((err as Error)?.name) !== 'AbortError') {
@@ -224,7 +248,7 @@ export function OfflineTileDownloader() {
         setDownloadState('error')
       }
     }
-  }, [minLat, maxLat, minLon, maxLon, zoomRange, sourceType, getCurrentSource])
+  }, [minLat, maxLat, minLon, maxLon, zoomRange, getCurrentSource])
 
   // Cancel download
   const cancelDownload = useCallback(() => {
@@ -252,7 +276,7 @@ export function OfflineTileDownloader() {
             Download Offline Tiles
           </DialogTitle>
           <DialogDescription className="text-[var(--text-muted)]">
-            Select a tile source, area, and zoom range to cache map tiles for offline use.
+            Cache an area for offline work using a tile provider that expressly permits offline downloads.
           </DialogDescription>
         </DialogHeader>
 
@@ -261,40 +285,37 @@ export function OfflineTileDownloader() {
           <section>
             <div className="block text-sm font-medium text-[var(--text-secondary)] mb-2">
               <Layers className="w-4 h-4 inline mr-1.5" />
-              Tile Source
+              Licensed or Self-hosted Tile Source
             </div>
-            <Select value={sourceType} onValueChange={setSourceType} disabled={isDownloading}>
-              <SelectTrigger className="w-full bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)]">
-                <SelectValue placeholder="Select tile source" />
-              </SelectTrigger>
-              <SelectContent className="bg-[var(--bg-secondary)] border-[var(--border-color)]">
-                {TILE_SOURCES.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-                <SelectItem value="custom">Custom XYZ URL</SelectItem>
-              </SelectContent>
-            </Select>
-
-            {sourceType === 'custom' && (
-              <div className="mt-3 space-y-3">
-                <Input
-                  placeholder="Label (e.g. Kenya Topo)"
-                  value={customLabel}
-                  onChange={(e) => setCustomLabel(e.target.value)}
-                  disabled={isDownloading}
-                  className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)]"
-                />
-                <Input
-                  placeholder="https://tiles.example.com/{z}/{x}/{y}.png"
-                  value={customUrl}
-                  onChange={(e) => setCustomUrl(e.target.value)}
-                  disabled={isDownloading}
-                  className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] font-mono text-xs"
-                />
-              </div>
-            )}
+            <div className="mt-3 space-y-3">
+              <Input
+                aria-label="Tile source label"
+                placeholder="Label (e.g. Kenya Topo)"
+                value={customLabel}
+                onChange={(e) => setCustomLabel(e.target.value)}
+                disabled={isDownloading}
+                className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)]"
+              />
+              <Input
+                aria-label="Licensed XYZ tile URL"
+                placeholder="https://tiles.example.com/{z}/{x}/{y}.png"
+                value={customUrl}
+                onChange={(e) => setCustomUrl(e.target.value)}
+                disabled={isDownloading}
+                className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] font-mono text-xs"
+              />
+              <Input
+                aria-label="Tile provider attribution"
+                placeholder="Required map attribution (e.g. © Provider, data source)"
+                value={customAttribution}
+                onChange={(e) => setCustomAttribution(e.target.value)}
+                disabled={isDownloading}
+                className="bg-[var(--bg-secondary)] border-[var(--border-color)] text-[var(--text-primary)] placeholder-[var(--text-muted)] text-xs"
+              />
+              <p className="text-xs text-[var(--text-muted)]">
+                Use an XYZ source in Web Mercator whose terms allow offline caching. This downloader blocks the public OpenStreetMap and Esri tile hosts and does not import Esri offline packages. Attribution is shown on the map.
+              </p>
+            </div>
           </section>
 
           {/* ─── Bounding Box ────────────────────────────────────────── */}

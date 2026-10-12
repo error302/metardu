@@ -21,6 +21,21 @@ const PRODUCTION_ORIGINS = [
   'ionic://localhost',
 ]
 
+const CHATGPT_WEB_ORIGINS = new Set(['https://chatgpt.com', 'https://chat.openai.com'])
+
+/** Narrow CORS policy for the bearer-only, read-only ChatGPT MCP endpoint. */
+export function mcpCorsHeaders(origin: string | null): Record<string, string> {
+  if (!origin || !CHATGPT_WEB_ORIGINS.has(origin)) return {}
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Authorization, Content-Type, MCP-Protocol-Version, MCP-Session-Id, Last-Event-ID',
+    'Access-Control-Expose-Headers': 'MCP-Protocol-Version, MCP-Session-Id',
+    'Access-Control-Max-Age': '600',
+    Vary: 'Origin',
+  }
+}
+
 /** Development-only origins */
 const DEV_ORIGINS = [
   'http://localhost:3000',

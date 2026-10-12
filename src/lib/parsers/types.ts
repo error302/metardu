@@ -8,10 +8,44 @@ export interface ParsedInput {
   parsedAt: string
   version: string
   building?: ExtractedBuildingData
+  /** Drawing-space CAD entities. No CRS or scale is inferred when the source omits it. */
+  cad?: ExtractedCadData
   boq?: BOQData
+  /** Plain text extracted from documents that do not produce spatial geometry. */
+  extractedText?: string
   errors: string[]
   warnings: string[]
   confidence: number
+}
+
+export interface ExtractedCadData {
+  entities: ExtractedCadEntity[]
+  entityCount: number
+  typeCounts: Record<string, number>
+  layers: string[]
+  units: string | null
+  unitCode: number | null
+  /** DXF does not reliably carry an interpreted CRS in this parser. */
+  coordinateReferenceSystem: string | null
+  boundingBox?: BoundingBox2D
+}
+
+export interface ExtractedCadEntity {
+  kind: string
+  layer?: string
+  coordinates: CadCoordinate[]
+  closed?: boolean
+  radius?: number
+  startAngle?: number
+  endAngle?: number
+  text?: string
+  extrusion?: [number, number, number]
+}
+
+export interface CadCoordinate {
+  easting: number
+  northing: number
+  elevation?: number
 }
 
 export interface ExtractedBuildingData {

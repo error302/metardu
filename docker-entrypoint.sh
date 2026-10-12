@@ -2,8 +2,8 @@
 # ──────────────────────────────────────────────────────────────────────────
 # METARDU Docker Entrypoint
 # ──────────────────────────────────────────────────────────────────────────
-# Runs database migrations before starting the Next.js server.
-# Migrations are idempotent — safe to run on every container start.
+# Verifies the already-migrated database using the restricted runtime role.
+# The one-shot metardu-db-migrate service owns DDL permissions.
 # ──────────────────────────────────────────────────────────────────────────
 
 set -e
@@ -12,29 +12,22 @@ echo "=========================================="
 echo "  METARDU - Starting container"
 echo "=========================================="
 
-# Run database migrations if DATABASE_URL is available
-if [ -n "${DATABASE_URL:-}" ]; then
-  echo ""
-  echo "  Running database migrations..."
-
-  # Use the unified migration runner (Node.js ESM — uses pg module)
-  if [ -f /app/migrate-unified.mjs ]; then
-    echo "  Using unified migration runner..."
-    node /app/migrate-unified.mjs || echo "  WARNING: Migration runner failed - app will start anyway (check logs)"
-  elif [ -f /app/migrate.js ]; then
-    echo "  Using legacy migration runner..."
-    node /app/migrate.js || echo "  WARNING: Migration runner failed - app will start anyway (check logs)"
-  else
-    echo "  WARNING: No migration runner found - skipping auto-migration"
-    echo "  Run 'node scripts/migrate-unified.mjs' manually to apply migrations"
-  fi
-
-  echo ""
-else
-  echo "  WARNING: DATABASE_URL not set - skipping migrations"
-  echo "  Set DATABASE_URL to enable automatic migration on startup"
-  echo ""
+if [ -z "${DATABASE_URL:-}" ] && { [ -z "${DB_HOST:-}" ] || [ -z "${DB_NAME:-}" ] || [ -z "${DB_USER:-}" ]; }; then
+  echo "  FATAL: database connection settings are required; refusing to start without a verified schema." >&2
+  exit 1
 fi
+
+echo ""
+if [ ! -f /app/verify-migrations.mjs ]; then
+  echo "  FATAL: Migration verifier is missing; application startup is blocked." >&2
+  exit 1
+fi
+echo "  Verifying database schema using the restricted runtime role..."
+if ! node /app/verify-migrations.mjs; then
+  echo "  FATAL: Database schema verification failed; application startup is blocked." >&2
+  exit 1
+fi
+echo ""
 
 echo "Starting Next.js server..."
 echo ""

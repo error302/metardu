@@ -4,12 +4,11 @@
  * StatutoryGatePanel
  * ==================
  *
- * A self-contained panel that fetches the statutory validation result
+ * A self-contained panel that fetches the configured METARDU check result
  * for a project and displays it inline on the submission page.
  *
  * The surveyor sees this BEFORE the Generate buttons, so they know
- * whether their project will pass ArdhiSasa pre-flight before they
- * try to export.
+ * which configured checks need attention before they export.
  *
  * States:
  *   - loading: spinner with "Validating..."
@@ -154,8 +153,8 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
         <div className="flex items-center gap-3">
           <div className="w-5 h-5 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
           <div>
-            <p className="font-medium text-[var(--text-primary)]">Statutory Validation</p>
-            <p className="text-sm text-[var(--text-muted)]">Running pre-export compliance checks…</p>
+            <p className="font-medium text-[var(--text-primary)]">METARDU Quality Checks</p>
+            <p className="text-sm text-[var(--text-muted)]">Running configured pre-export checks…</p>
           </div>
         </div>
       </div>
@@ -205,10 +204,10 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
       : 'text-green-400';
 
   const statusLabel = hasBlock
-    ? 'Blocked — export will be refused'
+    ? 'METARDU checks block export'
     : isPassed && hasWarn
-      ? 'Passed with warnings'
-      : 'All checks passed';
+      ? 'Review recommended'
+      : 'No configured check flagged an issue';
 
   return (
     <div className={`rounded-lg border ${cardClass} p-4 mb-6`}>
@@ -216,7 +215,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <h3 className={`font-semibold ${titleClass}`}>Statutory Validation</h3>
+            <h3 className={`font-semibold ${titleClass}`}>METARDU Quality Checks</h3>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
               hasBlock ? 'bg-red-900/40 text-red-300' : hasWarn ? 'bg-amber-900/40 text-amber-300' : 'bg-green-900/40 text-green-300'
             }`}>
@@ -244,6 +243,10 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
         <CountBadge label="Info" count={result.summary.info} variant="info" />
       </div>
 
+      <p className="mt-3 text-xs text-[var(--text-muted)]">
+        These configured checks and reference labels are not independently verified against current official requirements. They do not certify legal compliance or predict registry acceptance. Have a licensed surveyor review the work and confirm current requirements before filing.
+      </p>
+
       {/* Violations list (collapsible) */}
       {result.violations.length > 0 && (
         <div className="mt-4">
@@ -268,8 +271,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
       {/* Helpful hint when blocked */}
       {hasBlock && (
         <p className="mt-4 text-xs text-[var(--text-muted)] italic">
-          Fix the blocking violations above, then re-run validation.
-          Export buttons are disabled until the gate passes.
+          Resolve the flagged METARDU checks, then re-run them. A clear result is not official approval or professional sign-off.
         </p>
       )}
     </div>
@@ -321,12 +323,12 @@ function ViolationRow({ violation }: { violation: Violation }) {
 
   // Human-readable source name
   const sourceLabel: Record<string, string> = {
-    cap299: 'Survey Act Cap 299',
-    survey_regs_1994: 'Survey Regulations 1994',
-    rdm_1_1: 'RDM 1.1',
-    ardhisasa: 'ArdhiSasa Spec',
-    lra_2012: 'Land Registration Act 2012',
-    sok_standard: 'Survey of Kenya Standard',
+    cap299: 'Survey Act reference (not independently verified)',
+    survey_regs_1994: 'Survey Regulations reference (not independently verified)',
+    rdm_1_1: 'RDM reference (not independently verified)',
+    ardhisasa: 'Ardhisasa reference (not live-verified)',
+    lra_2012: 'Land Registration Act reference (not independently verified)',
+    sok_standard: 'Survey of Kenya reference (not independently verified)',
   };
   const source = sourceLabel[violation.source] ?? violation.source;
 

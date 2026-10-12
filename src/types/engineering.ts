@@ -1,16 +1,48 @@
+import type { DrainageMapAlignmentSource } from '@/lib/engineering/drainageAlignment'
+import type { PartialFlowResult } from '@/lib/engineering/pipeNetworkEngine'
+import type { PipeNetworkProjectData } from '@/lib/engineering/pipeNetworkPersistence'
+
 export type EngineeringMode = 'road' | 'drainage'
 export type EngineeringStandard = 'KRDM2017' | 'KeRRA'
 export type RoadClass = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H' | 'J' | 'K' | 'L' | 'M' | 'N' | 'P'
 export type TerrainType = 'flat' | 'rolling' | 'mountainous' | 'escarpment'
 export type PipeMaterial = 'HDPE' | 'Concrete' | 'uPVC' | 'VCP'
-export type GradientStatus = 'OK' | 'TOO_FLAT' | 'TOO_STEEP'
+export type GradientStatus = 'POSITIVE' | 'ZERO' | 'ADVERSE'
 export type StepStatus = 'locked' | 'pending' | 'in_progress' | 'complete'
 
 export interface EngineeringData {
   mode: EngineeringMode
   standard: EngineeringStandard
   road?: RoadDesignData
+  roadFieldPlan?: RoadFieldPlan
   drainage?: DrainageData
+  /** Standalone pipe-network draft, stored separately from surveyed drainage records. */
+  pipeNetwork?: PipeNetworkProjectData
+}
+
+export type RoadFieldFeatureCode =
+  | 'CL'
+  | 'LE'
+  | 'RE'
+  | 'SHL'
+  | 'SHR'
+  | 'DITCH_L'
+  | 'DITCH_R'
+  | 'CULV_IN'
+  | 'CULV_OUT'
+  | 'ACCESS'
+  | 'BREAKLINE'
+
+/** User-authored field instructions; values are never inferred from a road standard. */
+export interface RoadFieldPlan {
+  startChainageM: number
+  endChainageM: number
+  stationIntervalM: number
+  leftExtentM: number | null
+  rightExtentM: number | null
+  projectCrs: string
+  controlReference: string
+  featureCodes: RoadFieldFeatureCode[]
 }
 
 export interface RoadDesignData {
@@ -122,18 +154,37 @@ export interface EarthworksRow {
 export interface DrainageData {
   manholes: Manhole[]
   pipeRuns?: PipeRun[]
+  /** Explicit projected CRS for coordinates entered in the drainage schedule. */
+  projectCrs?: string
+  /** Project specification criterion; null/blank means no cover assessment. */
+  minimumCoverM?: number
+  /** Field schedule interval along the entered pipe alignment in projected metres. */
+  setoutIntervalM?: number
+  /** Optional chainage applied at the beginning of this schedule. */
+  setoutStartChainageM?: number
+  /** User-transcribed project criteria; never replaced with a METARDU default. */
+  setoutToleranceProfile?: import('@/lib/engineering/setoutToleranceProfile').SetoutToleranceProfileDraft
 }
 
 export interface Manhole {
   id: string
   name: string
-  chainage: number
-  coverLevel: number
-  invertLevelIn: number
-  invertLevelOut: number
-  pipeDiameterOut: number
-  pipeMaterial: PipeMaterial
+  chainage?: number
+  easting?: number
+  northing?: number
+  coverLevel?: number
+  invertLevelIn?: number
+  invertLevelOut?: number
+  pipeDiameterOut?: number
+  pipeOutsideDiameterOut?: number
+  pipeMaterial?: PipeMaterial
+  pipeManningN?: number
+  designFlowOutLs?: number
   depth?: number
+  /** Optional intermediate plan vertices for the outgoing pipe alignment, in project CRS coordinates. */
+  alignmentVerticesOut?: Array<{ easting: number; northing: number }>
+  /** Provenance for an alignment imported from a saved map line. */
+  alignmentSourceOut?: DrainageMapAlignmentSource
 }
 
 export interface PipeRun {
@@ -144,6 +195,16 @@ export interface PipeRun {
   velocity: number
   fullBoreCapacity: number
   gradientStatus: GradientStatus
+  internalDiameterMm: number
+  material: PipeMaterial
+  manningN: number
+  designFlowLs?: number
+  partialFlow?: PartialFlowResult
+  capacityStatus:
+    | 'No design flow supplied'
+    | 'Within supplied full-bore capacity'
+    | 'Above full-bore rate; near-crown free-surface flow'
+    | 'Exceeds open-channel capacity; pressure-flow analysis required'
 }
 
 export interface HorizontalCurveInput {

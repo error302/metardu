@@ -1,5 +1,5 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 
 export const dynamic = 'force-dynamic'
 
@@ -39,6 +39,7 @@ interface UserRow {
 export const GET = apiHandler(
   { auth: true, roles: ['super_admin', 'admin', 'org_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async (req, _ctx) => {
+    setCurrentRlsServiceRole('platform_admin')
     const { searchParams } = new URL(req.url)
 
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10))

@@ -10,6 +10,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { apiSuccess, apiError } from '@/lib/api/response'
 import { db } from '@/lib/db'
+import { SEEDED_MARKETPLACE_TITLES } from '@/lib/marketplace/seededInventory'
 
 interface InstrumentListingRow {
   id: string
@@ -54,9 +55,8 @@ function rowToListing(row: InstrumentListingRow) {
     location: row.location,
     country: row.country,
     sellerName: row.seller_name,
-    sellerContact: row.seller_contact,
     images: row.images || [],
-    verified: row.verified ?? false,
+    verified: false, // Legacy boolean has no evidence provenance; do not assert verification.
     sold: row.sold ?? false,
     userId: row.user_id,
     postedAt: row.created_at,
@@ -74,6 +74,9 @@ export const GET = apiHandler({ auth: false, rateLimit: { max: 20, windowMs: 600
   )
 
   if (rows.length === 0) {
+    return NextResponse.json(apiError('Listing not found'), { status: 404 })
+  }
+  if (SEEDED_MARKETPLACE_TITLES.has(rows[0].title)) {
     return NextResponse.json(apiError('Listing not found'), { status: 404 })
   }
 

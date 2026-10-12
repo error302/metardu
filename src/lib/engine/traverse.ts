@@ -392,3 +392,127 @@ export function transitAdjustment(input: TraverseInput): TraverseResult {
     isClosed: precisionRatio >= 1000 // 1:1000 or better
   };
 }
+
+export function crandallAdjustment(input: TraverseInput): TraverseResult {
+  const { points, distances, bearings, closingPoint } = input;
+  
+  // Source: N.N. Basak — Surveying and Levelling, Chapter 11
+  // Source: Ghilani & Wolf, Elementary Surveying 16th Ed., Chapter 12
+  // Crandall's Method: distributes angular misclosure first (assumed done),
+  // then adjusts distances minimizing Σ(correction²/distance²)
+  let sumLat = 0;
+  let sumDep = 0;
+  let totalDistance = 0;
+  
+  const legs: TraverseLeg[] = [];
+  
+  for (let i = 0; i < bearings.length; i++) {
+    const bearing = bearings[i];
+    const distance = distances[i];
+    const rad = toRadians(bearing);
+    
+    const deltaN = distance * Math.cos(rad);
+    const deltaE = distance * Math.sin(rad);
+    
+    sumLat += deltaN;
+    sumDep += deltaE;
+    totalDistance += distance;
+    
+    legs.push({
+      from: points[i]?.name || (i === 0 ? points[0]?.name || 'P1' : `P${i + 1}`),
+      to: points[i + 1]?.name || `P${i + 2}`,
+      distance,
+      bearing,
+      bearingDMS: bearingToString(bearing),
+      rawDeltaE: deltaE,
+      rawDeltaN: deltaN,
+      correctionE: 0,
+      correctionN: 0,
+      adjDeltaE: deltaE,
+      adjDeltaN: deltaN,
+      adjEasting: 0,
+      adjNorthing: 0
+    });
+  }
+  
+  const start = points[0];
+  const computedEndNorthing = start.northing + sumLat;
+  const computedEndEasting = start.easting + sumDep;
+
+  const closingErrorN = closingPoint
+    ? (closingPoint.northing - computedEndNorthing)
+    : -sumLat;
+  const closingErrorE = closingPoint
+    ? (closingPoint.easting - computedEndEasting)
+    : -sumDep;
+  const linearError = Math.sqrt(closingErrorN * closingErrorN + closingErrorE * closingErrorE);
+  const precisionRatio = totalDistance > 0 ? totalDistance / linearError : Infinity;
+  
+  // Crandall's Least Squares System
+  // [A B] [λ₁] = [closingErrorE]
+  // [B C] [λ₂] = [closingErrorN]
+  let A = 0;
+  let B = 0;
+  let C = 0;
+  
+  for (const leg of legs) {
+    A += leg.rawDeltaE * leg.rawDeltaE;
+    B += leg.rawDeltaE * leg.rawDeltaN;
+    C += leg.rawDeltaN * leg.rawDeltaN;
+  }
+  
+  const det = A * C - B * B;
+  
+  let lambda1 = 0;
+  let lambda2 = 0;
+  
+  if (Math.abs(det) > 1e-12) {
+    lambda1 = (closingErrorE * C - closingErrorN * B) / det;
+    lambda2 = (A * closingErrorN - B * closingErrorE) / det;
+  }
+  
+  let currentEasting = start.easting;
+  let currentNorthing = start.northing;
+  
+  for (let i = 0; i < legs.length; i++) {
+    const leg = legs[i];
+    
+    let correctionE = 0;
+    let correctionN = 0;
+    
+    if (Math.abs(det) > 1e-12) {
+      correctionE = lambda1 * leg.rawDeltaE * leg.rawDeltaE + lambda2 * leg.rawDeltaE * leg.rawDeltaN;
+      correctionN = lambda1 * leg.rawDeltaE * leg.rawDeltaN + lambda2 * leg.rawDeltaN * leg.rawDeltaN;
+    } else {
+      // Fallback for linear traverses where det is 0 (Bowditch proportional)
+      if (totalDistance > 0) {
+        correctionE = (leg.distance / totalDistance) * closingErrorE;
+        correctionN = (leg.distance / totalDistance) * closingErrorN;
+      }
+    }
+    
+    leg.correctionE = correctionE;
+    leg.correctionN = correctionN;
+    
+    leg.adjDeltaE = leg.rawDeltaE + correctionE;
+    leg.adjDeltaN = leg.rawDeltaN + correctionN;
+    
+    currentEasting += leg.adjDeltaE;
+    currentNorthing += leg.adjDeltaN;
+    
+    leg.adjEasting = currentEasting;
+    leg.adjNorthing = currentNorthing;
+  }
+  
+  return {
+    legs,
+    closingErrorE,
+    closingErrorN,
+    linearError,
+    precisionRatio,
+    precisionGrade: calculatePrecisionGrade(precisionRatio),
+    totalDistance,
+    isClosed: precisionRatio >= 1000
+  };
+}
+

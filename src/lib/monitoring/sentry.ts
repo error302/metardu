@@ -10,8 +10,36 @@
  * - payment_error: Payment processing errors
  */
 
-import * as Sentry from '@sentry/nextjs'
 import { logger, NO_FORWARD } from '@/lib/logger'
+
+// @sentry/nextjs (~180 KB minified across chunks) is loaded lazily: it only
+// downloads when a capture/setUser call actually fires, and only when a DSN
+// is configured. It previously sat in the static graph of every route via
+// layout → WebVitals → webVitals.ts → this module.
+type SeverityLevel = 'info' | 'warning' | 'error' | 'debug' | 'fatal' | 'log'
+type SentryLike = {
+  init: (opts: Record<string, unknown>) => void
+  captureException: (e: unknown, hint?: Record<string, unknown>) => void
+  captureMessage: (m: string, level?: SeverityLevel) => void
+  setUser: (u: Record<string, unknown> | null) => void
+  addBreadcrumb: (b: Record<string, unknown>) => void
+  withScope: (cb: (scope: {
+    setTag: (k: string, v: string) => void
+    setExtra: (k: string, v: unknown) => void
+    setUser: (u: Record<string, unknown>) => void
+  }) => void) => void
+}
+
+let sentryPromise: Promise<SentryLike | null> | null = null
+
+function loadSentry(): Promise<SentryLike | null> {
+  if (!sentryPromise) {
+    sentryPromise = import('@sentry/nextjs')
+      .then((m) => m as unknown as SentryLike)
+      .catch(() => null)
+  }
+  return sentryPromise
+}
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN
 const SENTRY_ENVIRONMENT = process.env.NEXT_PUBLIC_SENTRY_ENVIRONMENT || 'production'
@@ -20,13 +48,19 @@ const isProduction = () => !!SENTRY_DSN && !SENTRY_DSN.includes('mockup')
 
 export function initSentry() {
   if (isProduction() && process.env.NODE_ENV === 'production') {
-    Sentry.init({
+    void loadSentry().then((Sentry) => {
+      if (!Sentry) return
+      Sentry.init({
       dsn: SENTRY_DSN,
       environment: SENTRY_ENVIRONMENT,
       tracesSampleRate: 0.1,
       replaysSessionSampleRate: 0.1,
       replaysOnErrorSampleRate: 1.0,
-      beforeSend(event) {
+      beforeSend(event: {
+        digest?: string
+        exception?: { values?: Array<{ value?: string; digest?: string }> }
+        request?: { headers?: Record<string, string> }
+      }) {
         // Silence known non-actionable build noise: DYNAMIC_SERVER_USAGE is
         // Next.js's normal control-flow signal for "this route reads
         // request.headers → render dynamically" — not an error. During
@@ -51,15 +85,18 @@ export function initSentry() {
             }
           }
         }
-        return event
-      },
+          return event
+        },
+      })
     })
   }
 }
 
 export function captureError(error: Error, context?: Record<string, unknown>) {
   if (isProduction()) {
-    Sentry.captureException(error, { extra: context })
+    void loadSentry().then((Sentry) => {
+      Sentry?.captureException(error, { extra: context })
+    })
   } else {
     // Dev/CI (no DSN): log it — but mark NO_FORWARD so logger.error doesn't
     // bounce it straight back into captureError (infinite loop, exponential
@@ -72,9 +109,11 @@ export function captureError(error: Error, context?: Record<string, unknown>) {
   }
 }
 
-export function captureMessage(message: string, level: Sentry.SeverityLevel = 'info') {
+export function captureMessage(message: string, level: SeverityLevel = 'info') {
   if (isProduction()) {
-    Sentry.captureMessage(message, level)
+    void loadSentry().then((Sentry) => {
+      Sentry?.captureMessage(message, level)
+    })
   } else {
     // Dev/staging: Sentry is disabled — nothing to capture.
   }
@@ -82,18 +121,22 @@ export function captureMessage(message: string, level: Sentry.SeverityLevel = 'i
 
 export function setUser(user: { id: string; email?: string; username?: string } | null) {
   if (isProduction()) {
-    Sentry.setUser(user)
+    void loadSentry().then((Sentry) => {
+      Sentry?.setUser(user)
+    })
   }
 }
 
 export function addBreadcrumb(breadcrumb: {
   category?: string
   message: string
-  level?: Sentry.SeverityLevel
+  level?: SeverityLevel
   data?: Record<string, unknown>
 }) {
   if (isProduction()) {
-    Sentry.addBreadcrumb(breadcrumb)
+    void loadSentry().then((Sentry) => {
+      Sentry?.addBreadcrumb(breadcrumb)
+    })
   }
 }
 
@@ -106,18 +149,24 @@ export function captureAiError(error: Error, context: {
   httpStatus?: number
 }) {
   if (isProduction()) {
-    Sentry.withScope((scope) => {
-      scope.setTag('ai_error', 'true')
-      scope.setTag('ai_action', context.action)
-      if (context.model) scope.setTag('ai_model', context.model)
-      if (context.httpStatus) scope.setTag('http_status', String(context.httpStatus))
-      scope.setExtra('latencyMs', context.latencyMs)
-      if (context.userId) scope.setUser({ id: context.userId })
-      Sentry.captureException(error)
+    void loadSentry().then((Sentry) => {
+      if (!Sentry) return
+      Sentry.withScope((scope) => {
+        scope.setTag('ai_error', 'true')
+        scope.setTag('ai_action', context.action)
+        if (context.model) scope.setTag('ai_model', context.model)
+        if (context.httpStatus) scope.setTag('http_status', String(context.httpStatus))
+        scope.setExtra('latencyMs', context.latencyMs)
+        if (context.userId) scope.setUser({ id: context.userId })
+        Sentry.captureException(error)
+      })
     })
   } else {
     logger.error(`[sentry] AI error (${context.action}):`, { error: error.message, context })
   }
 }
 
-export { Sentry }
+/** Access the lazily-loaded Sentry namespace (await; null if unavailable). */
+export async function getSentry(): Promise<SentryLike | null> {
+  return loadSentry()
+}

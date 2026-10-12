@@ -29,6 +29,7 @@
 
 import { db } from '@/lib/db'
 import { NextResponse } from 'next/server'
+import { canAccessProject } from '@/lib/auth/rbac'
 
 export interface OwnershipResult {
   /** True if the user owns the project. If false, `error` is set. */
@@ -43,7 +44,7 @@ export interface OwnershipResult {
  * Verify that the requesting user owns the project.
  *
  * Returns { ok: true } if the project exists and belongs to the user
- * (or has no user_id — legacy projects are accessible to all).
+ * with a recorded owner. Unassigned legacy records require reviewed recovery.
  * Returns { ok: false, error } with a 404 if the project doesn't exist,
  * or a 403 if it belongs to another user.
  *
@@ -72,20 +73,37 @@ export async function requireProjectOwnership(
 
   const projectUserId = result.rows[0].user_id as string | null
 
-  // Legacy projects with no user_id are accessible to all authenticated users.
-  // (Prevents lockout for data created before user_id was added.)
-  if (projectUserId && userId && projectUserId !== userId) {
+  // Preserve unassigned records privately until their ownership is reviewed.
+  if (!projectUserId || !userId || projectUserId !== userId) {
     return {
       ok: false,
       projectUserId,
       error: NextResponse.json(
-        { error: 'Forbidden: project belongs to another user', code: 'FORBIDDEN' },
+        { error: projectUserId ? 'Forbidden: project belongs to another user' : 'Project ownership must be reviewed before access', code: 'FORBIDDEN' },
         { status: 403 }
       ),
     }
   }
 
   return { ok: true, projectUserId }
+}
+
+/**
+ * Verify read access to a project for endpoints that return project data.
+ * Projects require recorded ownership; authorized shared
+ * organization and project members can also read through the canonical RBAC
+ * helper. Write endpoints should continue to use their role-specific checks.
+ */
+export async function requireProjectReadAccess(
+  projectId: string,
+  userId: string | undefined | null
+): Promise<OwnershipResult> {
+  const ownership = await requireProjectOwnership(projectId, userId)
+  if (ownership.ok || !ownership.projectUserId || !userId) return ownership
+
+  const role = await canAccessProject(userId, projectId)
+  if (role) return { ok: true, projectUserId: ownership.projectUserId }
+  return ownership
 }
 
 /**
@@ -120,7 +138,7 @@ export async function requireSurveyPointOwnership(
 
   const projectUserId = result.rows[0].user_id as string | null
 
-  if (projectUserId && userId && projectUserId !== userId) {
+  if (!projectUserId || !userId || projectUserId !== userId) {
     return {
       ok: false,
       projectUserId,
@@ -165,7 +183,7 @@ export async function requireVersionOwnership(
 
   const projectUserId = result.rows[0].user_id as string | null
 
-  if (projectUserId && userId && projectUserId !== userId) {
+  if (!projectUserId || !userId || projectUserId !== userId) {
     return {
       ok: false,
       projectUserId,

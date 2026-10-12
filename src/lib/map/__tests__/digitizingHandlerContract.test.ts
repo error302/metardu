@@ -3,23 +3,20 @@
  *
  * CONTEXT
  * -------
- * The five digitizing tools (Split / Merge / Reshape / Rotate / Offset) live
- * as handlers inside MapClient.tsx's useEffect. The handlers themselves are
- * not easily unit-testable without a full OpenLayers map mount, but the
- * CONTRACT they must obey is testable. These tests lock in the contract.
+ * These tests exercise the digitizing geometry helpers with focused inputs.
+ * They do not mount MapClient or prove that OpenLayers interactions and Apply
+ * buttons are wired correctly; use a map smoke test for those contracts.
  *
  * Each test corresponds to a specific Tier 0 fix from the 2026-07-09 audit:
  *
- *   T0.1  Merge uses the user's Shift+click selection, NOT every polygon
- *   T0.2  Rotate uses the user's angle, NOT a hardcoded 15
- *   T0.3  Offset fires once per Apply click, NOT per slider drag
- *   T0.4  Split/Reshape target the polygon the line actually crosses
- *   T0.5  All transforms use the active UTM EPSG, NOT a hardcoded 21037
- *   T0.7  Toast messages honestly describe the operation
+ *   T0.1  Merge can combine adjacent polygons and rejects disjoint inputs
+ *   T0.2  Rotation geometry responds to the requested angle
+ *   T0.3  Offset geometry responds to the requested distance
+ *   T0.4  Split/reshape geometry accepts a crossing sketch
+ *   T0.5  Survey operations receive and validate a declared project CRS
  *
- * If any of these tests fail, the handler wiring in MapClient.tsx has
- * regressed. See /home/z/my-project/download/metardu-diagnosis-and-upgrade-plan.md
- * for the full audit context.
+ * These helper tests catch geometry regressions. The map interaction wiring
+ * remains an application-level verification responsibility.
  */
 
 import {
@@ -28,8 +25,9 @@ import {
   createOffset,
   splitPolygonWithLine,
   reshapePolygon,
-} from '../editingTools'
+} from '@/lib/surveyMapEngine/ol/editingTools'
 import { defined } from '@/test-utils/defined'
+import { surveyArea } from '@/lib/spatial/projectCrs'
 
 // ─── Shared fixtures (UTM metres) ────────────────────────────────────────────
 
@@ -121,22 +119,22 @@ describe('[T0.2] Rotate contract: honors the user-provided angle', () => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('[T0.3] Offset contract: distance is a parameter, not a side effect', () => {
   it('createOffset is a pure function of (coords, distance)', () => {
-    const off1 = createOffset(square100, 5, true)
-    const off2 = createOffset(square100, 5, true)
+    const off1 = createOffset(square100, 5, true, 'EPSG:21037')
+    const off2 = createOffset(square100, 5, true, 'EPSG:21037')
     expect(off1).not.toBeNull()
     expect(off2).not.toBeNull()
     expect(off1).toEqual(off2)
   })
 
   it('a positive distance produces a LARGER polygon (buffer outward)', () => {
-    const off = createOffset(square100, 10, true)
+    const off = createOffset(square100, 10, true, 'EPSG:21037')
     expect(off).not.toBeNull()
-    expect(defined(off).length).toBeGreaterThan(square100.length)
+    expect(surveyArea(defined(off), 'EPSG:21037')).toBeGreaterThan(surveyArea(square100, 'EPSG:21037'))
   })
 
   it('different distances produce different offsets', () => {
-    const off5 = createOffset(square100, 5, true)
-    const off20 = createOffset(square100, 20, true)
+    const off5 = createOffset(square100, 5, true, 'EPSG:21037')
+    const off20 = createOffset(square100, 20, true, 'EPSG:21037')
     expect(off5).not.toEqual(off20)
   })
 })
@@ -147,7 +145,7 @@ describe('[T0.3] Offset contract: distance is a parameter, not a side effect', (
 describe('[T0.4] Split contract: operates on the polygon the line crosses', () => {
   it('splits the polygon whose boundary the line crosses twice', () => {
     const line: [number, number][] = [[50, -10], [50, 110]]
-    const result = splitPolygonWithLine(square100, line)
+    const result = splitPolygonWithLine(square100, line, 'EPSG:21037')
     expect(result).not.toBeNull()
     expect(defined(result).polygon1.length).toBeGreaterThan(3)
     expect(defined(result).polygon2.length).toBeGreaterThan(3)
@@ -155,13 +153,13 @@ describe('[T0.4] Split contract: operates on the polygon the line crosses', () =
 
   it('returns null when the line does not cross the polygon', () => {
     const farLine: [number, number][] = [[500, -10], [500, 110]]
-    const result = splitPolygonWithLine(square100, farLine)
+    const result = splitPolygonWithLine(square100, farLine, 'EPSG:21037')
     expect(result).toBeNull()
   })
 
   it('returns null when the line only touches one edge', () => {
     const cornerLine: [number, number][] = [[200, 100], [300, 100]]
-    const result = splitPolygonWithLine(square100, cornerLine)
+    const result = splitPolygonWithLine(square100, cornerLine, 'EPSG:21037')
     expect(result).toBeNull()
   })
 })
@@ -169,28 +167,28 @@ describe('[T0.4] Split contract: operates on the polygon the line crosses', () =
 describe('[T0.4] Reshape contract: operates on the polygon the line crosses', () => {
   it('reshapes the polygon whose boundary the new segment crosses', () => {
     const newSegment: [number, number][] = [[20, -10], [80, 110]]
-    const result = reshapePolygon(square100, newSegment)
+    const result = reshapePolygon(square100, newSegment, 'EPSG:21037')
     expect(result).not.toBeNull()
     expect(defined(result).length).toBeGreaterThanOrEqual(4)
   })
 
   it('returns null when the new segment does not cross the polygon', () => {
     const farSegment: [number, number][] = [[500, -10], [600, 110]]
-    const result = reshapePolygon(square100, farSegment)
+    const result = reshapePolygon(square100, farSegment, 'EPSG:21037')
     expect(result).toBeNull()
   })
 })
 
 // ════════════════════════════════════════════════════════════════════════════
-// T0.5 — All transforms are CRS-agnostic (operate on plain [e, n] pairs)
+// T0.5 — Survey geometry helpers require a declared projected CRS
 // ════════════════════════════════════════════════════════════════════════════
-describe('[T0.5] CRS contract: editingTools functions are CRS-agnostic', () => {
-  it('all functions accept plain [easting, northing] coordinate pairs', () => {
+describe('[T0.5] CRS contract: survey operations receive a project CRS', () => {
+  it('does not hard-code a specific UTM zone for project-grid editing', () => {
     const offset = 500_000 // typical UTM false easting
     const squareInAnotherZone: [number, number][] = square100.map(([e, n]) => [e + offset, n])
 
     const line: [number, number][] = [[50 + offset, -10], [50 + offset, 110]]
-    const split = splitPolygonWithLine(squareInAnotherZone, line)
+    const split = splitPolygonWithLine(squareInAnotherZone, line, 'EPSG:21037')
     expect(split).not.toBeNull()
 
     const rotated = rotatePolygon(squareInAnotherZone, 45)
@@ -214,12 +212,12 @@ describe('[T0.7] Toast honesty contract: null return = honest failure', () => {
   })
 
   it('splitPolygonWithLine returns null (not a degenerate polygon) on failure', () => {
-    const result = splitPolygonWithLine(square100, [[500, 0], [600, 0]])
+    const result = splitPolygonWithLine(square100, [[500, 0], [600, 0]], 'EPSG:21037')
     expect(result).toBeNull()
   })
 
   it('createOffset returns null (not an empty array) on failure', () => {
-    const result = createOffset(square100, 0, true)
+    const result = createOffset(square100, 0, true, 'EPSG:21037')
     if (result !== null) {
       expect(result.length).toBeGreaterThan(0)
     }

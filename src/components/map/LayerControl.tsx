@@ -42,11 +42,22 @@ import {
   updateGridOverlay,
   GRID_LAYER_ID,
   type GridInterval,
-} from '@/lib/map/gridOverlay';
+} from '@/lib/surveyMapEngine/ol/qaOverlays';
+import {
+  applyOverlayOpacity,
+  findLayerByBasemapId,
+  isSatelliteOrCustomId,
+  LAYER_CONTROL_BASEMAP_IDS,
+  setLayerVisibleByLayerId,
+  switchBasemapById,
+  toggleLayerVisibleByBasemapId,
+} from '@/lib/surveyMapEngine/ol/layers';
 import type Map from 'ol/Map';
 
 interface LayerControlProps {
   map: Map | null;
+  /** Project UTM EPSG (e.g. 'EPSG:21037') — required for grid math (plan F4) */
+  epsg: string;
   /** Callback when basemap changes, for external state sync */
   onBasemapChange?: (basemap: 'osm' | 'satellite' | 'blank') => void;
   /** Hide the basemap selector section (when parent already manages basemaps) */
@@ -95,7 +106,7 @@ function persistLayers(entries: CustomLayerEntry[]) {
 
 type BasemapType = 'osm' | 'satellite' | 'blank';
 
-export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaultCollapsed = false, className = '' }: LayerControlProps) {
+export function LayerControl({ map, epsg, onBasemapChange, hideBasemap = false, defaultCollapsed = false, className = '' }: LayerControlProps) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const [activeBasemap, setActiveBasemap] = useState<BasemapType>('osm');
   const [gridEnabled, setGridEnabled] = useState(false);
@@ -128,9 +139,9 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
     async function init() {
       // Check if layers already exist (from parent map init)
       const existingLayers = mapInstance.getLayers().getArray();
-      const hasExistingOSM = existingLayers.some((l) => l.get('basemapId') === 'osm');
-      const hasExistingSatellite = existingLayers.some((l) => l.get('basemapId') === 'satellite');
-      const hasExistingBlank = existingLayers.some((l) => l.get('basemapId') === 'blank');
+      const hasExistingOSM = findLayerByBasemapId(mapInstance, 'osm') !== null;
+      const hasExistingSatellite = findLayerByBasemapId(mapInstance, 'satellite') !== null;
+      const hasExistingBlank = findLayerByBasemapId(mapInstance, 'blank') !== null;
       const hasExistingGrid = existingLayers.some((l) => l.get('layerId') === GRID_LAYER_ID);
 
       // Only create basemap layers that don't already exist
@@ -221,7 +232,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
           if (gridEnabled) {
-            await updateGridOverlay(mapInstance, gridInterval);
+            await updateGridOverlay(mapInstance, gridInterval, epsg);
           }
         }, 150);
       };
@@ -235,7 +246,7 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
 
       // Initial grid update if enabled
       if (gridEnabled) {
-        await updateGridOverlay(mapInstance, gridInterval);
+        await updateGridOverlay(mapInstance, gridInterval, epsg);
       }
     }
 
@@ -246,19 +257,12 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
       moveendCleanupRef.current?.();
       moveendCleanupRef.current = null;
     };
-  }, [map, initialized, gridEnabled, gridInterval, overlayOpacity]);
+  }, [map, initialized, gridEnabled, gridInterval, overlayOpacity, epsg]);
 
   // ─── Sync overlay opacity to layers ───────────────────────────────────
   useEffect(() => {
     if (!map) return;
-
-    const layers = map.getLayers().getArray();
-    for (const layer of layers) {
-      const basemapId = layer.get('basemapId') as string | undefined;
-      if (basemapId === 'satellite' || basemapId?.startsWith('custom-')) {
-        layer.setOpacity(overlayOpacity / 100);
-      }
-    }
+    applyOverlayOpacity(map, overlayOpacity / 100, isSatelliteOrCustomId);
   }, [map, overlayOpacity]);
 
   // ─── Switch basemap ───────────────────────────────────────────────────
@@ -267,19 +271,11 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
       if (!map) return;
       setActiveBasemap(target);
       onBasemapChange?.(target);
-
-      const layers = map.getLayers().getArray();
-      for (const layer of layers) {
-        const basemapId = layer.get('basemapId') as string | undefined;
-        if (basemapId === 'osm') {
-          layer.setVisible(target === 'osm');
-        } else if (basemapId === 'satellite') {
-          layer.setVisible(target === 'satellite');
-          layer.setOpacity(overlayOpacity / 100);
-        } else if (basemapId === 'blank') {
-          layer.setVisible(target === 'blank');
-        }
-      }
+      switchBasemapById(map, target, {
+        onlyIds: LAYER_CONTROL_BASEMAP_IDS,
+        opacityForId: 'satellite',
+        opacity: overlayOpacity / 100,
+      });
     },
     [map, onBasemapChange, overlayOpacity]
   );
@@ -291,26 +287,20 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
     const newEnabled = !gridEnabled;
     setGridEnabled(newEnabled);
 
-    const layers = map.getLayers().getArray();
-    for (const layer of layers) {
-      if (layer.get('layerId') === GRID_LAYER_ID) {
-        layer.setVisible(newEnabled);
-        if (newEnabled) {
-          await updateGridOverlay(map, gridInterval);
-        }
-        break;
-      }
+    const found = setLayerVisibleByLayerId(map, GRID_LAYER_ID, newEnabled);
+    if (found && newEnabled) {
+      await updateGridOverlay(map, gridInterval, epsg);
     }
-  }, [map, gridEnabled, gridInterval]);
+  }, [map, gridEnabled, gridInterval, epsg]);
 
-  // ─── Change grid interval ─────────────────────────────────────────────
+  // ── Change grid interval ──
   const changeGridInterval = useCallback(
     async (newInterval: GridInterval) => {
       setGridInterval(newInterval);
       if (!map || !gridEnabled) return;
-      await updateGridOverlay(map, newInterval);
+      await updateGridOverlay(map, newInterval, epsg);
     },
-    [map, gridEnabled]
+    [map, gridEnabled, epsg]
   );
 
   // ─── Add custom XYZ layer ─────────────────────────────────────────────
@@ -404,15 +394,9 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
   const toggleCustomLayerVisibility = useCallback(
     (id: string) => {
       if (!map) return;
-
-      const layers = map.getLayers().getArray();
-      for (const layer of layers) {
-        if (layer.get('basemapId') === id) {
-          const current = layer.getVisible();
-          layer.setVisible(!current);
-          setTileLayerVisibility((prev) => ({ ...prev, [id]: !current }));
-          break;
-        }
+      const next = toggleLayerVisibleByBasemapId(map, id);
+      if (next !== undefined) {
+        setTileLayerVisibility((prev) => ({ ...prev, [id]: next }));
       }
     },
     [map]
@@ -440,26 +424,29 @@ export function LayerControl({ map, onBasemapChange, hideBasemap = false, defaul
       className={`bg-white rounded-lg shadow-lg border border-gray-200 w-64 ${className}`}
     >
       {/* ─── Header ──────────────────────────────────────────────────── */}
-      <div
-        className="flex items-center justify-between px-4 py-2.5 border-b border-gray-200 cursor-pointer select-none"
+      <button
+        type="button"
+        aria-label="Map layers"
+        aria-expanded={!isCollapsed}
+        className="w-full flex items-center justify-between px-4 py-2.5 border-b border-gray-200 cursor-pointer select-none text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#1B3A5C]"
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded bg-[#1B3A5C] flex items-center justify-center text-white">
+        <span className="flex items-center gap-2">
+          <span className="w-7 h-7 rounded bg-[#1B3A5C] flex items-center justify-center text-white">
             <Layers className="w-4 h-4" />
-          </div>
-          <div>
-            <div className="text-sm font-semibold text-gray-900">Layers</div>
-            <div className="text-[10px] text-gray-500">
+          </span>
+          <span>
+            <span className="block text-sm font-semibold text-gray-900">Layers</span>
+            <span className="block text-[10px] text-gray-500">
               {!hideBasemap ? `${activeBasemap === 'osm' ? 'Street Map' : activeBasemap === 'satellite' ? 'Satellite' : 'Blank'} · ` : ''}
               {customLayers.length} overlay{customLayers.length !== 1 ? 's' : ''}
-            </div>
-          </div>
-        </div>
+            </span>
+          </span>
+        </span>
         <ChevronDown
           className={`w-4 h-4 text-gray-400 transition-transform ${isCollapsed ? '-rotate-90' : ''}`}
         />
-      </div>
+      </button>
 
       {isCollapsed ? null : (
         <div className="divide-y divide-gray-100 max-h-[70vh] overflow-y-auto">

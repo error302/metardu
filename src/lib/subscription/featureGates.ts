@@ -16,18 +16,25 @@ export type FeatureKey =
   | 'gps_stakeout'
   | 'process_notes'
   | 'priority_support'
-  | '5_members'
+  | 'team_seats'
   | 'realtime_collab'
   | 'roles'
   | 'version_history'
   | 'audit_trail'
   | 'branded_reports'
   | 'dedicated_support'
+  | 'instrument_connection'
 
 export interface TierLimits {
   maxProjects: number
   maxPointsPerProject: number
-  maxTeamMembers: number
+  /**
+   * Number of seats included in the plan's base price.
+   * -1 = unlimited. Additional seats can be purchased for per-seat plans.
+   */
+  includedSeats: number
+  /** Whether this tier supports purchasing additional seats beyond includedSeats. */
+  isPerSeat: boolean
   features: FeatureKey[]
 }
 
@@ -35,7 +42,8 @@ export const TIERS: Record<PlanId, TierLimits> = {
   free: {
     maxProjects: 1,
     maxPointsPerProject: 50,
-    maxTeamMembers: 1,
+    includedSeats: 1,
+    isPerSeat: false,
     features: [
       'quick_tools',
       '1_project',
@@ -48,7 +56,8 @@ export const TIERS: Record<PlanId, TierLimits> = {
   pro: {
     maxProjects: -1,
     maxPointsPerProject: -1,
-    maxTeamMembers: 1,
+    includedSeats: 1,
+    isPerSeat: false,
     features: [
       'quick_tools',
       'unlimited_projects',
@@ -61,6 +70,7 @@ export const TIERS: Record<PlanId, TierLimits> = {
       'landxml',
       'share_link',
       'gps_stakeout',
+      'instrument_connection',
       'process_notes',
       'priority_support',
     ],
@@ -68,7 +78,8 @@ export const TIERS: Record<PlanId, TierLimits> = {
   team: {
     maxProjects: -1,
     maxPointsPerProject: -1,
-    maxTeamMembers: 5,
+    includedSeats: 3,
+    isPerSeat: true,
     features: [
       'quick_tools',
       'unlimited_projects',
@@ -81,9 +92,10 @@ export const TIERS: Record<PlanId, TierLimits> = {
       'landxml',
       'share_link',
       'gps_stakeout',
+      'instrument_connection',
       'process_notes',
       'priority_support',
-      '5_members',
+      'team_seats',
       'realtime_collab',
       'roles',
       'version_history',
@@ -95,7 +107,8 @@ export const TIERS: Record<PlanId, TierLimits> = {
   firm: {
     maxProjects: -1,
     maxPointsPerProject: -1,
-    maxTeamMembers: 15,
+    includedSeats: 5,
+    isPerSeat: true,
     features: [
       'quick_tools',
       'unlimited_projects',
@@ -108,9 +121,10 @@ export const TIERS: Record<PlanId, TierLimits> = {
       'landxml',
       'share_link',
       'gps_stakeout',
+      'instrument_connection',
       'process_notes',
       'priority_support',
-      '5_members',
+      'team_seats',
       'realtime_collab',
       'roles',
       'version_history',
@@ -122,7 +136,8 @@ export const TIERS: Record<PlanId, TierLimits> = {
   enterprise: {
     maxProjects: -1,
     maxPointsPerProject: -1,
-    maxTeamMembers: -1,
+    includedSeats: -1,
+    isPerSeat: false,
     features: [
       'quick_tools',
       'unlimited_projects',
@@ -135,9 +150,10 @@ export const TIERS: Record<PlanId, TierLimits> = {
       'landxml',
       'share_link',
       'gps_stakeout',
+      'instrument_connection',
       'process_notes',
       'priority_support',
-      '5_members',
+      'team_seats',
       'realtime_collab',
       'roles',
       'version_history',
@@ -152,12 +168,18 @@ export function canAccess(plan: PlanId, feature: FeatureKey): boolean {
   return TIERS[plan].features.includes(feature)
 }
 
+/**
+ * Get the base limit for a plan. For 'members', this returns the
+ * includedSeats (base seats in the plan price). The actual seat limit
+ * may be higher if additional seats have been purchased — use
+ * getMaxMembers() for the effective limit.
+ */
 export function getLimit(plan: PlanId, limit: 'projects' | 'points' | 'members'): number {
   const t = TIERS[plan]
   switch (limit) {
     case 'projects': return t.maxProjects
     case 'points': return t.maxPointsPerProject
-    case 'members': return t.maxTeamMembers
+    case 'members': return t.includedSeats
   }
 }
 
@@ -165,9 +187,24 @@ export function isUnlimited(limit: number): boolean {
   return limit < 0
 }
 
+/**
+ * Get the effective maximum members for a plan, accounting for
+ * additionally purchased seats beyond the base includedSeats.
+ *
+ * @param plan - The subscription plan tier
+ * @param purchasedExtraSeats - Number of additional seats purchased (from user_subscriptions.seat_count)
+ * @returns Effective member limit. -1 = unlimited.
+ */
+export function getMaxMembers(plan: PlanId, purchasedExtraSeats: number): number {
+  const t = TIERS[plan]
+  if (t.includedSeats < 0) return -1 // unlimited
+  return t.includedSeats + Math.max(0, purchasedExtraSeats)
+}
+
 export function requiresUpgrade(
   plan: PlanId,
-  requirement: { type: 'feature'; key: FeatureKey } | { type: 'count'; what: 'projects' | 'points' | 'members'; current: number }
+  requirement: { type: 'feature'; key: FeatureKey } | { type: 'count'; what: 'projects' | 'points' | 'members'; current: number },
+  purchasedExtraSeats?: number,
 ): { needed: PlanId; reason: string } | null {
   if (requirement.type === 'feature') {
     if (!canAccess(plan, requirement.key)) {
@@ -175,6 +212,26 @@ export function requiresUpgrade(
       if (plan === 'pro') return { needed: 'team', reason: `Team plan required for ${requirement.key}` }
       if (plan === 'team') return { needed: 'firm', reason: `Firm plan required for ${requirement.key}` }
       if (plan === 'firm') return { needed: 'enterprise', reason: `Enterprise plan required for ${requirement.key}` }
+    }
+    return null
+  }
+
+  // For member count checks, use the effective limit including purchased seats
+  if (requirement.what === 'members') {
+    const effectiveLimit = getMaxMembers(plan, purchasedExtraSeats ?? 0)
+    if (effectiveLimit < 0) return null // unlimited
+    if (requirement.current >= effectiveLimit) {
+      // If the plan supports per-seat, suggest adding seats first
+      const t = TIERS[plan]
+      if (t.isPerSeat) {
+        return {
+          needed: plan, // same plan — just add seats
+          reason: `Seat limit reached (${requirement.current}/${effectiveLimit}). Add more seats or upgrade.`,
+        }
+      }
+      const upgradePath: Record<string, PlanId> = { free: 'pro', pro: 'team', team: 'firm', firm: 'enterprise' }
+      const nextPlan = upgradePath[plan]
+      return { needed: nextPlan, reason: `Member limit reached (${requirement.current}/${effectiveLimit})` }
     }
     return null
   }
@@ -203,9 +260,10 @@ export const FEATURE_LABELS: Record<FeatureKey, string> = {
   landxml: 'LandXML export',
   share_link: 'Report share link',
   gps_stakeout: 'GPS Stakeout mode',
+  instrument_connection: 'Total station & GNSS connection',
   process_notes: 'Process field notes',
   priority_support: 'Priority support',
-  '5_members': '5 team members',
+  team_seats: 'Team seats',
   realtime_collab: 'Real-time collaboration',
   roles: 'Role-based access',
   version_history: 'Version history',

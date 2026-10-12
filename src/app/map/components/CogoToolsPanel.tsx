@@ -392,7 +392,7 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
 // ─── Main CogoToolsPanel ─────────────────────────────────────────────────
 
 function CogoToolsPanelInner() {
-  const { mapInstance } = useMapContext()
+  const { mapInstance, currentSurveyCrs, setSaveMsg } = useMapContext()
   const [activeTab, setActiveTab] = useState<TabId>('radiation')
   const [expanded, setExpanded] = useState(true)
 
@@ -400,6 +400,11 @@ function CogoToolsPanelInner() {
   const handleAddPoint = useCallback(async (point: Point2D, labelPrefix: string) => {
     const map = mapInstance.current
     if (!map) return
+    if (!currentSurveyCrs) {
+      setSaveMsg('Set the project survey CRS before adding COGO coordinates to the map.')
+      setTimeout(() => setSaveMsg(''), 4000)
+      return
+    }
 
     try {
       const { default: Feature } = await import('ol/Feature')
@@ -411,10 +416,10 @@ function CogoToolsPanelInner() {
       const { default: Fill } = await import('ol/style/Fill')
       const { default: Stroke } = await import('ol/style/Stroke')
       const { transform } = await import('ol/proj')
-      const { SRID_21037, SRID_3857 } = await import('@/lib/map/projection')
+      const { SRID_3857 } = await import('@/lib/map/projection')
 
-      // Transform from EPSG:21037 to map projection (3857)
-      const coord3857 = transform([point.easting, point.northing], SRID_21037, SRID_3857)
+      // COGO values are in the selected project's survey grid.
+      const coord3857 = transform([point.easting, point.northing], currentSurveyCrs, SRID_3857)
 
       const feature = new Feature({
         geometry: new Point(coord3857),
@@ -451,7 +456,7 @@ function CogoToolsPanelInner() {
     } catch (err) {
       logger.error('[CogoToolsPanel] Failed to add point to map:', { error: err })
     }
-  }, [mapInstance])
+  }, [mapInstance, currentSurveyCrs, setSaveMsg])
 
   return (
     <div

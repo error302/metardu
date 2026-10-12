@@ -18,6 +18,7 @@
  */
 jest.mock('@/lib/db', () => ({
   db: { query: jest.fn() },
+  setCurrentRlsServiceRole: jest.fn(),
 }))
 
 jest.mock('@/lib/email-templates', () => ({
@@ -25,13 +26,14 @@ jest.mock('@/lib/email-templates', () => ({
 }))
 
 import { POST } from '../route'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { sendTemplatedEmail } from '@/lib/email-templates'
 import { mr } from '@/test-utils/mock-rows'
 import { makeRequest } from '@/test-utils/request'
 
 const mockDb = db.query as jest.MockedFunction<typeof db.query>
 const mockSend = sendTemplatedEmail as jest.MockedFunction<typeof sendTemplatedEmail>
+const mockSetCurrentRlsServiceRole = setCurrentRlsServiceRole as jest.MockedFunction<typeof setCurrentRlsServiceRole>
 
 
 interface TrialRow {
@@ -86,6 +88,7 @@ describe('POST /api/cron/trial-reminders', () => {
     expect(res.status).toBe(401)
     expect(mockDb).not.toHaveBeenCalled()
     expect(mockSend).not.toHaveBeenCalled()
+    expect(mockSetCurrentRlsServiceRole).not.toHaveBeenCalled()
   })
 
   it('rejects with 401 on a wrong bearer key', async () => {
@@ -143,7 +146,7 @@ describe('POST /api/cron/trial-reminders', () => {
       to: row.email,
       name: row.full_name,
       trialEndsAt: row.trial_ends_at,
-      planPriceNote: 'KES 500/month',
+      planPriceNote: 'KES 2500/month',
     })
 
     // The marking UPDATE is guarded so a re-run cannot double-send.
@@ -171,7 +174,7 @@ describe('POST /api/cron/trial-reminders', () => {
       .mockResolvedValueOnce(mr([]))
 
     await POST(authedRequest())
-    expect(mockSend).toHaveBeenCalledWith('trialEnding', expect.objectContaining({ planPriceNote: 'UGX 15000/month' }))
+    expect(mockSend).toHaveBeenCalledWith('trialEnding', expect.objectContaining({ planPriceNote: 'UGX 75000/month' }))
   })
 
   // ─── 24-hour final touch ──────────────────────────────────────────────

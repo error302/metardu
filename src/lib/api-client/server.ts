@@ -1,44 +1,49 @@
 /**
  * Server-side database client
- * Uses direct PostgreSQL via pg Pool.
+ * Uses the request-context-aware PostgreSQL helper under the captured session.
  *
  * @deprecated Auth methods (.auth.getSession / .auth.getUser) are migration artifacts.
  * Use `getServerSession(authOptions)` or `requireAuth()` from `@/lib/auth/` instead.
  * DB methods (.from()) are actively used and safe.
  */
 
-import { QueryBuilder } from '@/lib/db/queryBuilder'
-import { getPool } from '@/lib/db'
+import { AsyncResource } from 'node:async_hooks'
+import { QueryBuilder, type QueryExecutor } from '@/lib/db/queryBuilder'
+import { db, setCurrentRlsServiceRole, setCurrentTillClaimCode } from '@/lib/db'
+import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import { logger } from '@/lib/logger'
 
-// ponytail: Phase 6 — auth/storage/rpc return types use `unknown` (deprecated stubs).
 // from() returns QueryBuilder which defaults to Record<string, unknown> for type safety.
 export interface DbClient {
   from(table: string): QueryBuilder
   auth: {
     getUser(): Promise<{ data: { user: { id?: unknown; email?: unknown; name?: unknown } | null }; error: { message: string } | null }>
     getSession(): Promise<{ data: { session: unknown | null }; error: { message: string } | null }>
-    exchangeCodeForSession(code: string): Promise<{ data: { session: unknown | null }; error: null }>
   }
-  channel(name: string): unknown
-  removeChannel(channel: unknown): Promise<void>
-  storage: {
-    from(bucket: string): {
-      upload(path: string, file: unknown, opts?: unknown): Promise<{ data: unknown; error: unknown }>
-      getPublicUrl(path: string): { data: { publicUrl: string } }
-      createSignedUrl(path: string, expiresIn: number): Promise<{ data: { signedUrl: string } | null; error: unknown }>
-      download(path: string): Promise<{ data: unknown; error: unknown }>
-      remove(paths: string[]): Promise<{ data: unknown; error: unknown }>
-    }
-  }
-  rpc(fn: string, args?: Record<string, unknown>): Promise<{ data: unknown; error: unknown }>
 }
 
 export async function createClient(): Promise<DbClient> {
+  const authenticatedSession = await getServerSession(authOptions)
+  const userId = authenticatedSession?.user?.id ?? null
+  const inSessionScope = async <T,>(work: () => Promise<T>, organizationId: string | null = null): Promise<T> => {
+    const resource = new AsyncResource('METARDU_SERVER_DATABASE_CLIENT')
+    try {
+      return await resource.runInAsyncScope(() => {
+        setAuthenticatedDatabaseContext(userId, organizationId)
+        setCurrentRlsServiceRole(null)
+        setCurrentTillClaimCode(null)
+        return work()
+      })
+    } finally { resource.emitDestroy() }
+  }
+  const organizationId = userId === null ? null
+    : await inSessionScope(() => resolveAuthenticatedOrganization(userId))
+  const executor: QueryExecutor = {
+    query: (sql, params) => inSessionScope(() => db.query(sql, params), organizationId),
+  }
   const getCompatSession = async () => {
-    const session = await getServerSession(authOptions)
+    const session = authenticatedSession
     if (!session?.user?.email) return null
     return {
       ...session,
@@ -52,7 +57,7 @@ export async function createClient(): Promise<DbClient> {
 
   return {
     from(table: string): QueryBuilder {
-      return new QueryBuilder(getPool(), table)
+      return new QueryBuilder(executor, table)
     },
     auth: {
       async getUser() {
@@ -63,34 +68,6 @@ export async function createClient(): Promise<DbClient> {
         const session = await getCompatSession()
         return { data: { session }, error: null }
       },
-      async exchangeCodeForSession(_code: string) {
-        return { data: { session: null }, error: null }
-      },
-    },
-    channel(_name: string) {
-      return {
-        on(..._args: unknown[]) { return this },
-        subscribe() { return this },
-        track() { return Promise.resolve() },
-        untrack() { return Promise.resolve() },
-        presenceState() { return {} },
-      }
-    },
-    async removeChannel(_channel: unknown) {},
-    storage: {
-      from(_bucket: string) {
-        return {
-          upload: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          getPublicUrl: () => ({ data: { publicUrl: '' }, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          createSignedUrl: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          download: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-          remove: async () => ({ data: null, error: { message: 'Use /api/storage endpoint (GCS-backed) instead.' } }),
-        }
-      }
-    },
-    rpc: async (fn: string, _args?: Record<string, unknown>) => {
-      logger.warn(`[db/server] rpc(${fn}) called but not implemented.`)
-      return { data: null, error: { message: 'RPC not implemented' } }
     }
   }
 }

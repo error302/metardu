@@ -22,6 +22,9 @@ export interface AreaComputationInput {
   precisionRatio?: string
   perimeterM?: number
   adjustmentMethod?: string
+  utmZone?: number
+  datum?: string
+  hemisphere?: string
 }
 
 // ─── CONSTANTS ───────────────────────────────────────────────────────────────
@@ -265,11 +268,11 @@ export function generateAreaComputationSheet(input: AreaComputationInput): Buffe
       fillColor: [245, 248, 250],
     },
     columnStyles: {
-      0: { cellWidth: 38, fontStyle: 'bold' },
-      1: { cellWidth: 38, halign: 'right' },
-      2: { cellWidth: 38, halign: 'right' },
-      3: { cellWidth: 38, halign: 'right' },
-      4: { cellWidth: 38, halign: 'right' },
+      0: { cellWidth: CONTENT_W / 5, fontStyle: 'bold' },
+      1: { cellWidth: CONTENT_W / 5, halign: 'right' },
+      2: { cellWidth: CONTENT_W / 5, halign: 'right' },
+      3: { cellWidth: CONTENT_W / 5, halign: 'right' },
+      4: { cellWidth: CONTENT_W / 5, halign: 'right' },
     },
     margin: { left: MARGIN, right: MARGIN },
     theme: 'grid',
@@ -343,8 +346,16 @@ export function generateAreaComputationSheet(input: AreaComputationInput): Buffe
   // ── Section 3: Verification ──
   y = drawSectionTitle(doc, '3. VERIFICATION', MARGIN, y)
 
+  const zone = input.utmZone ?? 37
+  const datum = input.datum ?? 'Arc 1960'
+  const hemi = input.hemisphere ?? 'S'
+  const epsg = datum === 'WGS84'
+    ? (hemi === 'S' ? `327${zone < 10 ? '0' + zone : zone}` : `326${zone < 10 ? '0' + zone : zone}`)
+    : `210${zone < 10 ? '0' + zone : zone}`
+  const crsLabel = `${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg})`
+
   const verificationRows: string[][] = [
-    ['Coordinate System', 'Arc 1960 / UTM Zone 37S (EPSG:21037)'],
+    ['Coordinate System', crsLabel],
     ['Computation Method', 'Shoelace Formula (Gauss\'s Area Formula)'],
     ['Number of Stations', String(input.stations.length)],
   ]
@@ -358,9 +369,10 @@ export function generateAreaComputationSheet(input: AreaComputationInput): Buffe
   if (input.precisionRatio) {
     // Parse precision ratio to determine pass/fail
     const ratioParts = input.precisionRatio.split(':')
-    const ratioDenom = ratioParts.length === 2 ? parseFloat(ratioParts[1]) : 0
+    const denominator = ratioParts.length === 2 ? ratioParts[1].trim().replace(/,/g, '') : ''
+    const ratioDenom = denominator === '∞' ? Infinity : denominator && /^\d+(\.\d+)?$/.test(denominator) ? Number(denominator) : NaN
     const passes = ratioDenom >= 5000
-    const statusText = passes ? 'PASS' : 'FAIL'
+    const statusText = Number.isNaN(ratioDenom) ? 'UNVERIFIED' : passes ? 'PASS' : 'FAIL'
 
     verificationRows.push(['Precision Ratio', input.precisionRatio])
     verificationRows.push(['Closure Status', `${statusText} (vs 1:5000 minimum — Survey Act Cap 299)`])
@@ -390,7 +402,7 @@ export function generateAreaComputationSheet(input: AreaComputationInput): Buffe
     },
     columnStyles: {
       0: { fontStyle: 'bold', cellWidth: 48 },
-      1: { cellWidth: CONTENT_W - 50 },
+      1: { cellWidth: CONTENT_W - 48 },
     },
     margin: { left: MARGIN, right: MARGIN },
     theme: 'grid',

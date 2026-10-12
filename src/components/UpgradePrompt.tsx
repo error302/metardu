@@ -1,4 +1,5 @@
 import Link from 'next/link'
+import { getPlanPrice } from '@/lib/subscription/catalog'
 
 type UpgradeType = 'projects' | 'dxf' | 'share' | 'team'
 
@@ -36,7 +37,7 @@ export default function UpgradePrompt({ type }: { type: UpgradeType }) {
           View Plans
         </Link>
         <span className="text-[var(--text-secondary)] text-sm self-center">
-          From KES 500/month
+          Pro is KES {getPlanPrice('pro', 'KES').toLocaleString('en-KE')}/month
         </span>
       </div>
     </div>

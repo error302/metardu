@@ -17,11 +17,11 @@ import {
 } from 'lucide-react'
 import {
   toDMS,
-} from '@/lib/geo/cassini'
+} from '@/lib/geo/cassini/verify'
 import type {
   ConversionResult,
   TopoSheetParams,
-} from '@/lib/geo/cassini'
+} from '@/lib/geo/cassini/types'
 import { r1, r3, r4 } from './formatHelpers'
 
 interface ResultPanelProps {
@@ -156,7 +156,7 @@ export function ResultPanel({
               <div>
                 <p className="text-xs text-[var(--text-muted)] mb-1 uppercase tracking-wider font-medium">
                   <Globe className="h-3 w-3 inline-block mr-1" />
-                  WGS84 Geographic (approximate)
+                  WGS84 from the declared result grid
                 </p>
                 <div className="p-3 rounded-lg bg-[var(--accent-subtle)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] space-y-2">
                   <div className="grid grid-cols-2 gap-3">
@@ -172,7 +172,7 @@ export function ResultPanel({
                     </div>
                   </div>
                   <p className="text-[10px] text-[var(--text-muted)]">
-                    <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Approximate — datum shift from Arc 1960 to WGS84 not applied (~10–30 m)
+                    <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Uses the declared CRS transformation model. Verify local control and datum calibration before field use.
                   </p>
                 </div>
               </div>

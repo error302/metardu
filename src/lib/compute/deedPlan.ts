@@ -41,12 +41,12 @@ export function computeBoundaryLegs(points: BoundaryPoint[]): BoundaryLeg[] {
  * Source: Kenya Survey Regulations 1994, Part XI — bearings to nearest second of arc
  */
 export function degreesToDMS(decimalDegrees: number): string {
-  const d = Math.floor(decimalDegrees)
-  const decimalMinutes = (decimalDegrees - d) * 60
-  const m = Math.floor(decimalMinutes)
-  const seconds = (decimalMinutes - m) * 60
-
-  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${seconds.toFixed(1).padStart(5, '0')}"`
+  if (!Number.isFinite(decimalDegrees)) throw new Error('Bearing must be finite')
+  const ticks = Math.round(((decimalDegrees % 360 + 360) % 360) * 36000) % 12960000
+  const d = Math.floor(ticks / 36000)
+  const m = Math.floor((ticks % 36000) / 600)
+  const seconds = (ticks % 600) / 10
+  return `${String(d).padStart(3, '0')}°${String(m).padStart(2, '0')}'${seconds.toFixed(1).padStart(4, '0')}"`
 }
 
 export function computeArea(points: BoundaryPoint[]): number {

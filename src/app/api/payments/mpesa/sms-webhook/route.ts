@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse, type NextRequest } from 'next/server'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole, setCurrentUserId, setRlsContext } from '@/lib/db'
 import { parseMpesaSms } from '@/lib/payments/smsParser'
 import { getPlan, type PlanId } from '@/lib/subscription/catalog'
 import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
@@ -28,6 +28,16 @@ interface UserRow {
   name?: string
 }
 
+async function establishPaymentOwnerContext(providerKey: string): Promise<string | null> {
+  const ownerResult = await db.query<{ user_id: string | null }>(
+    'SELECT public.metardu_payment_owner_for_provider_key($1) AS user_id',
+    [providerKey],
+  )
+  const userId = ownerResult.rows[0]?.user_id ?? null
+  if (userId) setCurrentUserId(String(userId))
+  return userId
+}
+
 /**
  * POST /api/payments/mpesa/sms-webhook
  *
@@ -52,6 +62,7 @@ export async function POST(req: NextRequest) {
     if (!expectedSecret || !providedSecret || providedSecret !== expectedSecret) {
       return NextResponse.json({ error: 'Unauthorized webhook access' }, { status: 401 })
     }
+    setCurrentRlsServiceRole('payment_provider')
 
     // LINT FIX (2026-08-30): type the parsed body — `any` made every field
     // access an unsafe-member-access error under the repo's type-aware rules.
@@ -59,14 +70,14 @@ export async function POST(req: NextRequest) {
     const smsText = (
       typeof body === 'string'
         ? body
-        : (body as { sms?: string; message?: string; text?: string; content?: string }).sms ||
-          (body as { message?: string }).message ||
-          (body as { text?: string }).text ||
-          (body as { content?: string }).content ||
+        : (body as { sms?: string } | null)?.sms ||
+          (body as { message?: string } | null)?.message ||
+          (body as { text?: string } | null)?.text ||
+          (body as { content?: string } | null)?.content ||
           ''
     ) as string
 
-    if (!smsText) {
+    if (!smsText || typeof smsText !== 'string') {
       return NextResponse.json({ error: 'No SMS message text provided' }, { status: 400 })
     }
 
@@ -79,9 +90,13 @@ export async function POST(req: NextRequest) {
     }
 
     const mpesaCode = parsed.mpesaCode
+    if (!Number.isFinite(parsed.amount) || parsed.amount! <= 0) {
+      return NextResponse.json({ error: 'SMS must contain a positive payment amount' }, { status: 422 })
+    }
     const tillNumber = getMpesaTillNumber()
 
     // 1. Check if a pending customer claim exists for this transaction code
+    await establishPaymentOwnerContext(mpesaCode)
     const claimRes = await db.query<PaymentRow>(
       `SELECT id, user_id, amount, currency, metadata
        FROM payment_history
@@ -105,13 +120,13 @@ export async function POST(req: NextRequest) {
       // review instead of activation.
       const { getPlanPrice } = await import('@/lib/subscription/catalog')
       const expectedAmount = getPlanPrice(planId, 'KES')
-      const smsAmount = parsed.amount ?? Number(claim.amount)
+      const smsAmount = parsed.amount!
       if (
         !Number.isFinite(smsAmount) ||
         smsAmount <= 0 ||
         !Number.isFinite(expectedAmount) ||
         expectedAmount <= 0 ||
-        Math.round(smsAmount) !== Math.round(expectedAmount)
+        Math.round(smsAmount * 100) !== Math.round(expectedAmount * 100)
       ) {
         await db.query<never>(
           `UPDATE payment_history
@@ -159,6 +174,7 @@ export async function POST(req: NextRequest) {
       const client = await db.getClient()
       try {
         await client.query<never>('BEGIN')
+        await setRlsContext(client)
         const claimUpd = await client.query<never>(
           `UPDATE payment_history
              SET status = 'completed',
@@ -215,7 +231,7 @@ export async function POST(req: NextRequest) {
             to: user.email,
             name: user.name || 'Surveyor',
             planName: `${planDisplayName} Plan`,
-            amount: parseFloat(claim.amount || String(parsed.amount || 500)),
+            amount: smsAmount,
             currency: claim.currency || 'KES',
             paidAt: new Date().toISOString(),
             transactionId: mpesaCode,
@@ -250,12 +266,12 @@ export async function POST(req: NextRequest) {
     }
 
     // 2. No pending claim found yet — store as unclaimed verified payment in payment_history
-    const existingPayment = await db.query<{ id: string; status: string }>(
-      'SELECT id, status FROM payment_history WHERE transaction_id = $1 LIMIT 1',
+    const existingPayment = await db.query<{ already_recorded: boolean }>(
+      'SELECT public.metardu_has_till_transaction($1) AS already_recorded',
       [mpesaCode]
     )
 
-    if (existingPayment.rows.length === 0) {
+    if (!existingPayment.rows[0]?.already_recorded) {
       await db.query<never>(
         `INSERT INTO payment_history
            (user_id, amount, currency, payment_method, provider, provider_id,
@@ -263,7 +279,7 @@ export async function POST(req: NextRequest) {
          VALUES ($1, $2, 'KES', 'mpesa_till', 'safaricom_buygoods', $3, 'unclaimed_payment', $4, $5)`,
         [
           null,
-          parsed.amount || 500,
+          parsed.amount,
           // PAYMENTS CONTRACT FIX (2026-08-30): unique per transaction — the
           // sentinel `TILL_${tillNumber}` would collide on the second SMS
           // (migration 055's unique partial index on provider_id).

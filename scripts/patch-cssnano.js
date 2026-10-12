@@ -1,5 +1,7 @@
 const fs = require("fs");
 const path = require("path");
+// This compatibility shim only applies to the legacy Next 14 dependency.
+if (!require('next/package.json').version.startsWith('14.')) process.exit(0);
 
 const target = path.join(__dirname, "..", "node_modules", "next", "dist", "compiled", "cssnano-simple", "index.js");
 if (fs.existsSync(target)) {

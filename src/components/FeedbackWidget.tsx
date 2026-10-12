@@ -98,13 +98,9 @@ export default function FeedbackWidget() {
       <button
         onClick={() => setIsOpen(true)}
         aria-label="Send feedback"
-        // AUDIT FIX (2026-07-05): Repositioned to avoid overlap with
-        // QuickCompute (bottom-20 md:bottom-6 right-4) and FieldModeToggle
-        // (bottom-6 right-6). The feedback button now sits ABOVE QuickCompute
-        // on both mobile and desktop:
-        //   Mobile:  bottom-[168px] (above MobileNav 64px + QuickCompute 104px)
-        //   Desktop: bottom-32      (above QuickCompute at bottom-6 + its height)
-        className="fixed bottom-[168px] right-4 md:bottom-32 bg-[var(--accent)] text-black px-3 py-2 rounded-full shadow-lg text-xs font-semibold z-40 hover:bg-[var(--accent-dim)] transition-colors flex items-center gap-1.5"
+        // On phones this follows the footer in normal flow so it cannot
+        // obscure observations or focused inputs. Desktop keeps the shortcut.
+        className="relative mt-4 mr-4 mb-24 ml-auto w-fit min-h-11 md:fixed md:bottom-32 md:right-4 md:m-0 bg-[var(--accent)] text-black px-3 py-2 rounded-full shadow-lg text-xs font-semibold z-40 hover:bg-[var(--accent-dim)] transition-colors flex items-center gap-1.5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:[outline-color:var(--text-primary)]"
       >
         <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z" />

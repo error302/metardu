@@ -2,9 +2,17 @@ import { messagesByLanguage, type Language } from './messages'
 
 export const defaultLanguage: Language = 'en'
 
+// All languages the app ships translations for — independent of which locale
+// files are currently loaded, so saved preferences resolve before their
+// (lazy) translations arrive.
+const KNOWN_LANGUAGES: ReadonlySet<string> = new Set([
+  'en', 'ar', 'zh', 'hi', 'es', 'fr',
+  'am', 'de', 'ha', 'id', 'ja', 'pt', 'ru', 'sw',
+])
+
 export function isLanguage(value: string | undefined | null): value is Language {
   if (!value) return false
-  return value in messagesByLanguage
+  return KNOWN_LANGUAGES.has(value)
 }
 
 function getNestedValue(obj: unknown, path: string): unknown {

@@ -7,6 +7,7 @@ module.exports = {
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
         module: 'commonjs',
+        jsx: 'react-jsx',
         moduleResolution: 'node',
         esModuleInterop: true,
         strict: false,
@@ -17,6 +18,9 @@ module.exports = {
     // with babel so real ol classes load under jest's CJS runtime. Matches the
     // ol whitelist already present in transformIgnorePatterns below.
     'node_modules[\\\\/]ol[\\\\/].*\\.js$': ['babel-jest', {
+      presets: [['@babel/preset-env', { targets: { node: 'current' } }]],
+    }],
+    'node_modules[\\\\/](delaunator|robust-predicates)[\\\\/].*\\.js$': ['babel-jest', {
       presets: [['@babel/preset-env', { targets: { node: 'current' } }]],
     }],
   },
@@ -30,9 +34,10 @@ module.exports = {
     '(?<!ol/)node_modules/(?!(delaunator|robust-predicates|ol|ol/)/)',
   ],
   moduleNameMapper: {
+    '^@/lib/cad/cadTopologyWorker$': '<rootDir>/tests/__mocks__/cadTopologyWorker.ts',
     '^@/lib/workers/tinWorkerUrl$': '<rootDir>/tests/__mocks__/tinWorkerUrl.ts',
+    '^@/lib/workers/tinWorkerFactory$': '<rootDir>/tests/__mocks__/tinWorkerFactory.ts',
     '^@/workers/workerUrl$': '<rootDir>/tests/__mocks__/workerUrl.ts',
-    '^delaunator$': '<rootDir>/tests/__mocks__/delaunator.ts',
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
     '^@/(.*)$': '<rootDir>/src/$1',
   },

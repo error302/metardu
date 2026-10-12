@@ -93,3 +93,72 @@ export class RateLimitError extends AppError {
     super(message, 429, 'RATE_LIMITED', details)
   }
 }
+
+/**
+ * 422 — Survey statutory tolerance breached or observation misclosure out of bounds.
+ */
+export class SurveyComputationError extends AppError {
+  constructor(
+    message: string,
+    public readonly computationDetails: {
+      statutoryClass?: string
+      toleranceM?: number
+      actualMisclosureM?: number
+      angularToleranceSec?: number
+      actualAngularMisclosureSec?: number
+      affectedStations?: string[]
+      remedy?: string
+    }
+  ) {
+    super(message, 422, 'SURVEY_TOLERANCE_BREACH', computationDetails)
+  }
+}
+
+/**
+ * 422 — Least-squares normal equations matrix singularity or datum defect.
+ */
+export class SingularMatrixError extends AppError {
+  constructor(
+    message: string = 'Adjustment matrix is singular (rank deficient)',
+    public readonly defectDetails?: {
+      rankDeficit?: number
+      unconstrainedNodes?: string[]
+      remedy?: string
+    }
+  ) {
+    super(message, 422, 'MATRIX_SINGULARITY', defectDetails)
+  }
+}
+
+/**
+ * 422 — Parcel geometry has degenerate topology (self-intersection, zero area, spikes).
+ */
+export class GeometricDegeneracyError extends AppError {
+  constructor(
+    message: string,
+    public readonly geometryDetails?: {
+      parcelId?: string
+      location?: { easting: number; northing: number }
+      remedy?: string
+    }
+  ) {
+    super(message, 422, 'GEOMETRIC_DEGENERACY', geometryDetails)
+  }
+}
+
+/**
+ * 400 — Incompatible or uncalibrated datum between control and observations.
+ */
+export class DatumMismatchError extends AppError {
+  constructor(
+    message: string,
+    public readonly datumDetails?: {
+      expectedDatum?: string
+      receivedDatum?: string
+      remedy?: string
+    }
+  ) {
+    super(message, 400, 'DATUM_MISMATCH', datumDetails)
+  }
+}
+

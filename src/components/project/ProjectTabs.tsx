@@ -1,7 +1,8 @@
-'use client';
+'use client'
 
 import Link from 'next/link'
-import { usePathname, useSearchParams } from 'next/navigation'
+import { usePathname } from 'next/navigation'
+import { STAGES, stageHref } from '@/lib/workspaces/stageRegistry'
 
 interface Props {
   id: string
@@ -10,51 +11,61 @@ interface Props {
 
 export default function ProjectTabs({ id, surveyType }: Props) {
   const pathname = usePathname()
-  const searchParams = useSearchParams()
-  const activeStep = searchParams.get('step') ?? '1'
   const baseHref = `/project/${id}`
-
   const isEngineering = surveyType?.startsWith('engineering')
   const isTopographic = surveyType === 'topographic' ||
-                        surveyType === 'topographic_site' ||
-                        surveyType === 'topographic_corridor'
+    surveyType === 'topographic_site' ||
+    surveyType === 'topographic_corridor'
 
-  const tabs = [
-    { label: 'Setup', href: `${baseHref}?step=1`, active: pathname === baseHref && activeStep === '1' },
-    { label: 'Field', href: `${baseHref}?step=2`, active: pathname === baseHref && activeStep === '2' },
-    { label: 'Compute', href: `${baseHref}?step=3`, active: pathname === baseHref && activeStep === '3' },
-    { label: 'QA', href: `${baseHref}?step=4`, active: pathname === baseHref && activeStep === '4' },
-    { label: 'Map', href: `/project/${id}/map` },
-    ...(isTopographic ? [{ label: 'Topo', href: `/project/${id}/topo` }] : []),
-    ...(isEngineering ? [{ label: 'Engineering', href: `/project/${id}/engineering` }] : []),
-    { label: 'Documents', href: `/project/${id}/documents` },
-    { label: 'Submit', href: `/project/${id}/submission` },
+  const tools = [
+    { label: 'Classic workflow', href: `${baseHref}/workspace` },
+    { label: 'Survey map', href: `${baseHref}/map` },
+    ...(isTopographic ? [{ label: 'Topographic', href: `${baseHref}/topo` }] : []),
+    ...(isEngineering ? [{ label: 'Engineering', href: `${baseHref}/engineering` }] : []),
+    { label: 'Documents', href: `${baseHref}/documents` },
+    { label: 'Submission', href: `${baseHref}/submission` },
   ]
 
   return (
-    <div className="border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-card)_80%,transparent)] backdrop-blur">
-      <div className="max-w-5xl mx-auto px-4">
-        <nav aria-label="Project tabs" className="flex gap-2 overflow-x-auto py-3">
-          {tabs.map((tab) => {
-            const isActive =
-              'active' in tab
-                ? Boolean(tab.active)
-                : pathname === tab.href ||
-                  (tab.href !== baseHref && pathname.startsWith(`${tab.href}/`))
-
+    <div className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
+      <div className="mx-auto max-w-7xl px-4">
+        <div className="flex items-center justify-between gap-4 pt-3">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--text-muted)]">Project workflow</p>
+          <Link href={`${baseHref}/settings`} className="text-xs text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors">Project settings</Link>
+        </div>
+        <nav aria-label="Project stages" className="mt-2 flex gap-1 overflow-x-auto scrollbar-none">
+          {STAGES.map((stage, index) => {
+            const href = stageHref(id, stage)
+            const active = pathname === href
             return (
               <Link
-                key={tab.href}
-                href={tab.href}
-                prefetch={false}
-                className={[
-                  'rounded-full border px-4 py-2 text-sm font-medium transition-colors',
-                  isActive
-                    ? 'border-orange-500 bg-orange-500/10 text-orange-400'
-                    : 'border-[var(--border-color)] text-[var(--text-secondary)] hover:border-orange-500/40 hover:text-[var(--text-primary)]',
-                ].join(' ')}
+                key={stage.id}
+                href={href}
+                aria-current={active ? 'page' : undefined}
+                className={`group flex shrink-0 items-center gap-2 border-b-2 px-3 py-3 text-xs font-medium transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-[var(--accent)] ${active
+                  ? 'border-[var(--accent)] text-[var(--text-primary)]'
+                  : 'border-transparent text-[var(--text-muted)] hover:border-[var(--border-color)] hover:text-[var(--text-primary)]'}`}
               >
-                {tab.label}
+                <span className="font-mono text-[10px] text-[var(--text-muted)]">{String(index + 1).padStart(2, '0')}</span>
+                {stage.label}
+              </Link>
+            )
+          })}
+        </nav>
+        <nav aria-label="Project tools" className="flex gap-1 overflow-x-auto border-t border-[var(--border-color)] py-2 scrollbar-none">
+          {tools.map((tool) => {
+            const active = pathname === tool.href
+            return (
+              <Link
+                key={tool.href}
+                href={tool.href}
+                prefetch={false}
+                aria-current={active ? 'page' : undefined}
+                className={`shrink-0 rounded px-3 py-1.5 text-xs transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${active
+                  ? 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'
+                  : 'text-[var(--text-muted)] hover:bg-[var(--bg-tertiary)] hover:text-[var(--text-primary)]'}`}
+              >
+                {tool.label}
               </Link>
             )
           })}

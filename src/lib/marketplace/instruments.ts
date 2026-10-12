@@ -3,7 +3,7 @@
  * Buy, sell, and rent survey equipment — persisted in localStorage.
  */
 
-export type ListingType = 'sale' | 'rent' | 'wanted'
+export type ListingType = 'sale' | 'rent' | 'wanted' | 'trade'
 export type Condition = 'new' | 'excellent' | 'good' | 'fair' | 'for_parts'
 export type InstrumentCategory = 'total_station' | 'gnss' | 'level' | 'theodolite' | 'edm' | 'drone' | 'accessories' | 'software' | 'other'
 export type Currency = 'KES' | 'UGX' | 'TZS' | 'NGN' | 'USD' | 'GHS' | 'ZAR'
@@ -24,12 +24,13 @@ export interface InstrumentListing {
   location: string
   country: string
   sellerName: string
-  sellerContact: string
+  /** Returned only for the listing owner through a private account view. */
+  sellerContact?: string
   images: string[]    // base64 or URLs — kept empty initially
   postedAt: string
   sold: boolean
   userId?: string      // DbClient user ID of poster
-  verified: boolean    // true if poster was Pro/Team at time of posting
+  verified: boolean    // legacy flag; subscription never proves identity or equipment status
 }
 
 export interface InquiryMessage {
@@ -90,13 +91,13 @@ export function searchListings(q: string): InstrumentListing[] {
   ))
 }
 
-export function postListing(data: Omit<InstrumentListing, 'id' | 'postedAt' | 'sold' | 'verified'> & { verified?: boolean }): InstrumentListing {
+export function postListing(data: Omit<InstrumentListing, 'id' | 'postedAt' | 'sold' | 'verified'>): InstrumentListing {
   const listing: InstrumentListing = {
     ...data,
     id: `inst_${Date.now()}`,
     postedAt: new Date().toISOString(),
     sold: false,
-    verified: data.verified ?? false,
+    verified: false,
   }
   saveListings([listing, ...loadListings()])
   return listing

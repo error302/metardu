@@ -11,8 +11,14 @@ import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
-import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive } from '@/lib/navigation-shell'
+import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
 import FieldModeToggle from '@/components/shared/FieldModeToggle'
+
+const LANDING_NAV_LINKS: PrimaryNavItem[] = [
+  { href: '/#workflow', label: 'How it works' },
+  { href: '/demo', label: 'Product demo' },
+  { href: '/pricing', label: 'Pricing' },
+]
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 const subscriptionResponseSchema = z.object({
@@ -52,8 +58,10 @@ const searchablePages = [
   { category: 'Engineering', group: 'Machine', href: '/tools/machine-control', labelKey: 'Machine Control Export' },
   { category: 'Engineering', group: 'Progress', href: '/tools/progress-monitor', labelKey: 'Progress Monitor' },
   // Cadastral - additional
+  { category: 'Cadastral', group: 'Documents', href: '/tools/fee-quotation', labelKey: 'Statutory Fee Quotation' },
   { category: 'Cadastral', group: 'Documents', href: '/tools/statutory-workbook', labelKey: 'Statutory Workbook' },
   { category: 'Cadastral', group: 'Documents', href: '/tools/survey-plan-demo', labelKey: 'Survey Plan Viewer' },
+  { category: 'Cadastral', group: 'Documents', href: '/tools/legal-description', labelKey: 'Legal Description Writer' },
   { category: 'Cadastral', group: 'Documents', href: '/tools/billable-documents', labelKey: 'Billable Documents' },
   { category: 'Cadastral', group: 'Reference', href: '/tools/control-marks-register', labelKey: 'Control Marks Register' },
   // Geodesy - additional
@@ -70,6 +78,7 @@ const searchablePages = [
   { category: 'Tools', group: 'Traverse', href: '/tools/traverse', labelKey: 'traverse.title' },
   { category: 'Tools', group: 'Traverse', href: '/tools/coordinates', labelKey: 'tools.coordinates' },
   { category: 'Tools', group: 'Traverse', href: '/tools/cogo', labelKey: 'tools.cogo' },
+  { category: 'Tools', group: 'Traverse', href: '/tools/pin-cushion', labelKey: 'Pin Cushion Recovery Analysis' },
   { category: 'Tools', group: 'Traverse', href: '/tools/gnss', labelKey: 'tools.gnss' },
   // Tools - Levelling
   { category: 'Tools', group: 'Levelling', href: '/tools/leveling', labelKey: 'leveling.title' },
@@ -77,10 +86,12 @@ const searchablePages = [
   // Tools - Curves & Roads
   { category: 'Tools', group: 'Curves & Roads', href: '/tools/curves', labelKey: 'tools.curves' },
   { category: 'Tools', group: 'Curves & Roads', href: '/tools/chainage', labelKey: 'tools.chainage' },
+  { category: 'Tools', group: 'Curves & Roads', href: '/tools/pipe-network', labelKey: 'Pipe Network & Storm Drainage' },
   { category: 'Tools', group: 'Curves & Roads', href: '/tools/tacheometry', labelKey: 'tools.tacheometry' },
   // Tools - Earthworks
   { category: 'Tools', group: 'Earthworks', href: '/tools/cross-sections', labelKey: 'tools.crossSections' },
   { category: 'Tools', group: 'Earthworks', href: '/tools/setting-out', labelKey: 'tools.settingOut' },
+  { category: 'Tools', group: 'Earthworks', href: '/tools/stakeout-report', labelKey: 'Stakeout Cut Sheet' },
   { category: 'Tools', group: 'Earthworks', href: '/tools/cut-fill', labelKey: 'Cut & Fill Volumes' },
   { category: 'Tools', group: 'Geodesy', href: '/tools/gnss-rinex', labelKey: 'GNSS RINEX Processing' },
   { category: 'Tools', group: 'Monitoring', href: '/tools/deformation-monitoring', labelKey: 'Deformation Monitoring' },
@@ -91,6 +102,7 @@ const searchablePages = [
   { category: 'Tools', group: 'Regulatory', href: '/tools/regulatory-checklist', labelKey: 'Regulatory Checklist' },
   // Tools - Specialized (scope narrowing v1: mining + hydrographic removed)
   { category: 'Tools', group: 'Specialized', href: '/tools/drone', labelKey: 'tools.drone' },
+  { category: 'Tools', group: 'Specialized', href: '/tools/drone-flight-plan', labelKey: 'Automated Drone Flight Planner' },
   // Field
   { category: 'Field', group: 'Field', href: '/field', labelKey: 'field.fieldMode' },
   { category: 'Field', group: 'Field', href: '/fieldbook', labelKey: 'field.fieldBook' },
@@ -100,10 +112,13 @@ const searchablePages = [
   { category: 'Documents', group: 'Documents', href: '/tools/survey-report-builder', labelKey: 'documents.surveyReport' },
   { category: 'Documents', group: 'Documents', href: '/tools/beacon-certificate', labelKey: 'documents.beaconReference' },
   // Resources
-  { category: 'Resources', group: 'Resources', href: '/online', labelKey: 'resources.datumConverter' },
+  { category: 'Resources', group: 'Resources', href: '/online', labelKey: 'resources.onlineServices' },
   { category: 'Resources', group: 'Resources', href: '/kencors', labelKey: 'resources.kencorsRtk' },
-  { category: 'Resources', group: 'Resources', href: '/docs', labelKey: 'resources.knowledgeBase' },
   { category: 'Resources', group: 'Resources', href: '/pricing', labelKey: 'nav.pricing' },
+  // Core Platform
+  { category: 'Platform', group: 'Marketplace', href: '/marketplace', labelKey: 'Equipment Marketplace' },
+  { category: 'Platform', group: 'Equipment', href: '/equipment', labelKey: 'Equipment Tracker' },
+  { category: 'Platform', group: 'Projects', href: '/projects', labelKey: 'Survey Projects' },
 ]
 
 interface DropdownProps {
@@ -172,8 +187,8 @@ function SearchTrigger({ t }: { t: Translator }) {
       <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden>
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
       </svg>
-      <span className="hidden sm:inline">{t('nav.search')}</span>
-      <kbd className="hidden sm:inline px-1.5 py-0.5 text-xs bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded">{hint}</kbd>
+      <span className="hidden 2xl:inline">{t('nav.search')}</span>
+      <kbd className="hidden 2xl:inline px-1.5 py-0.5 text-xs bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded">{hint}</kbd>
     </button>
   )
 }
@@ -182,7 +197,6 @@ export default function NavBar() {
   const [, setInstallPrompt] = useState<{ prompt: () => Promise<{ outcome: string }> } | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
-  const [mounted, setMounted] = useState(false)
   const [userPlan, setUserPlan] = useState<PlanId>('free')
   const navRef = useRef<HTMLDivElement>(null)
 
@@ -198,7 +212,7 @@ export default function NavBar() {
 
   // Helper to check if a route is a mobile root-level view
   const isRootPath = (path: string) => {
-    const roots = ['/', '/dashboard', '/fieldbook', '/map', '/tools', '/reports', '/community']
+    const roots = ['/', '/dashboard', '/projects', '/fieldbook', '/map', '/tools', '/reports', '/marketplace', '/equipment']
     return roots.includes(path)
   }
 
@@ -246,8 +260,6 @@ export default function NavBar() {
     }
     return 'METARDU'
   }, [pathname, t])
-
-  useEffect(() => { setMounted(true) }, [])
 
   // Fetch user subscription plan when session changes (uses server API which detects admin emails)
   useEffect(() => {
@@ -310,16 +322,20 @@ export default function NavBar() {
       if (!target) return
       if (navRef.current && navRef.current.contains(target)) return
       setOpenDropdown(null)
+      setMobileMenuOpen(false)
     }
-    const onEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') setOpenDropdown(null)
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setOpenDropdown(null)
+        setMobileMenuOpen(false)
+      }
     }
 
     document.addEventListener('mousedown', onDocMouseDown)
-    window.addEventListener('keydown', onEsc)
+    window.addEventListener('keydown', onKey)
     return () => {
       document.removeEventListener('mousedown', onDocMouseDown)
-      window.removeEventListener('keydown', onEsc)
+      window.removeEventListener('keydown', onKey)
     }
   }, [])
 
@@ -329,18 +345,14 @@ export default function NavBar() {
   }, [pathname])
 
   const currentLang = languages.find((l) => l.code === language) || languages[0]
-  const shellVariant = authStatus !== 'loading' && !isAuthenticated && isExplicitPublicRoute(pathname) ? 'public' : 'app'
-  const desktopLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
-  const mobileLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
-
-  if (!mounted) {
-    return (
-      <div className="h-16 border-b border-[var(--border-color)] bg-[var(--bg-primary)]" />
-    )
-  }
+  const shellVariant = !isAuthenticated && isExplicitPublicRoute(pathname) ? 'public' : 'app'
+  const landingPage = pathname === '/'
+  const shellLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
+  const desktopLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
+  const mobileLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
 
   return (
-    <nav className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
+    <nav aria-label="Primary navigation" className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
       <div ref={navRef} className="max-w-7xl mx-auto px-4">
         {/* Main Navbar */}
         <div className="relative h-16 flex items-center justify-between">
@@ -381,13 +393,14 @@ export default function NavBar() {
           )}
 
           {/* Desktop Navigation */}
-          <div className="hidden md:flex items-center gap-1">
-            {desktopLinks.map((item) => (
+          <div className="hidden lg:flex items-center gap-0.5 min-w-0">
+            {desktopLinks.map((item, index) => (
               <Link
                 key={item.href}
                 href={item.href}
                 prefetch={false}
-                className={`px-3 py-2 text-sm transition-colors rounded-lg ${item.icon ? 'inline-flex items-center gap-1.5' : ''} ${
+                aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
+                className={`${index >= 4 ? 'hidden xl:inline-flex' : 'inline-flex'} px-2 py-2 text-[13px] whitespace-nowrap transition-colors rounded-lg ${item.icon ? 'items-center gap-1.5' : ''} ${
                   isNavItemActive(pathname, item.href)
                     ? 'text-[var(--accent)] bg-white/5'
                     : 'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-white/5'
@@ -401,12 +414,36 @@ export default function NavBar() {
                 {item.label}
               </Link>
             ))}
+            {desktopLinks.length > 4 && (
+              <div className="lg:block xl:hidden">
+                <Dropdown
+                  label="More"
+                  isOpen={openDropdown === 'nav-more'}
+                  onToggle={() => handleDropdownToggle('nav-more')}
+                  panelClassName="min-w-[200px] py-1"
+                  buttonClassName="inline-flex items-center gap-1 rounded-lg px-2 py-2 text-[13px] text-[var(--text-secondary)] transition-colors hover:bg-white/5 hover:text-[var(--accent)]"
+                >
+                  {desktopLinks.slice(4).map((item) => (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      prefetch={false}
+                      aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
+                      onClick={() => setOpenDropdown(null)}
+                      className={`block rounded px-3 py-2 text-sm transition-colors hover:bg-white/5 ${isNavItemActive(pathname, item.href) ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}
+                    >
+                      {item.label}
+                    </Link>
+                  ))}
+                </Dropdown>
+              </div>
+            )}
           </div>
 
           {/* Right Side */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             {/* Global Search — opens CommandPalette via synthetic Cmd+K (UI-5) */}
-            <SearchTrigger t={t} />
+            {!landingPage && <SearchTrigger t={t} />}
 
             {/* Language Selector — compact on mobile */}
             <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
@@ -436,14 +473,16 @@ export default function NavBar() {
             </div>
 
             {/* Field mode / dark toggle — always visible in navbar */}
-            <div className="block">
-              <FieldModeToggle />
-            </div>
+            {!landingPage && (
+              <div className="block">
+                <FieldModeToggle />
+              </div>
+            )}
 
             {authStatus === 'loading' ? (
               <div className="w-20 h-8 bg-[var(--bg-tertiary)] animate-pulse rounded"></div>
             ) : isAuthenticated ? (
-              <div className="hidden md:block relative">
+              <div className="hidden lg:block relative">
                 <button
                   onClick={() => handleDropdownToggle('user')}
                   aria-expanded={openDropdown === 'user'}
@@ -453,7 +492,7 @@ export default function NavBar() {
                   <span className="w-8 h-8 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)] flex items-center justify-center font-bold">
                     {(user?.email || 'U').slice(0, 1).toUpperCase()}
                   </span>
-                  <div className="hidden lg:flex flex-col">
+                  <div className="hidden 2xl:flex flex-col">
                     <span className="text-sm text-[var(--text-primary)] max-w-[180px] truncate leading-tight">{user?.email}</span>
                     {/* AUDIT FIX (M-005, 2026-07-27): Admin users shouldn't show "FREE"
                         even on the free plan — it's confusing. Show role badge instead. */}
@@ -553,7 +592,7 @@ export default function NavBar() {
                 )}
               </div>
               ) : authStatus === 'unauthenticated' && (
-              <div className="hidden md:flex items-center gap-2">
+              <div className="hidden lg:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors">
                   Log In
                 </Link>
@@ -568,7 +607,9 @@ export default function NavBar() {
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
-                className="md:hidden p-2 text-[var(--text-primary)]"
+                aria-expanded={mobileMenuOpen}
+                aria-controls="primary-nav-menu"
+                className="lg:hidden p-2 text-[var(--text-primary)]"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen ? (
@@ -584,13 +625,14 @@ export default function NavBar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
+          <div id="primary-nav-menu" className="lg:hidden bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
             <div className="py-2">
               {mobileLinks.map((item) => (
                 <Link
                   key={item.href}
                   href={item.href}
                   prefetch={false}
+                  aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
                   className={`block px-4 py-2 transition-colors ${
                     isNavItemActive(pathname, item.href)
                       ? 'text-[var(--accent)]'
@@ -609,15 +651,6 @@ export default function NavBar() {
                   </div>
                   <Link href="/schedule" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     Job Schedule
-                  </Link>
-                  <Link href="/equipment" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                    Equipment Tracker
-                  </Link>
-                  <Link href="/marketplace" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                    Equipment Marketplace
-                  </Link>
-                  <Link href="/fieldbook" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
-                    {t('field.fieldBook')}
                   </Link>
                   <Link href="/field" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     {t('field.fieldMode')}

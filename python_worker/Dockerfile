@@ -12,8 +12,7 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY main.py .
-COPY gnss_processor.py .
+COPY main.py gnss_processor.py rtklib_baseline.py pointcloud_processor.py osm_feature_server.py osm_streaming.py osm_overpass.py spatial_cache.py ./
 
 # Non-root user for security
 RUN groupadd --system --gid 1001 worker && \

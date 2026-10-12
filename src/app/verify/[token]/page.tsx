@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Check, X, AlertTriangle } from 'lucide-react'
+import { X, AlertTriangle } from 'lucide-react'
 import { createClient } from '@/lib/api-client/server'
 import { getPublicAppHost } from '@/lib/site'
 import type { VerifySignatureResponse } from '@/types/signature'
@@ -28,12 +28,12 @@ async function getVerification(token: string): Promise<VerifySignatureResponse> 
     }
 
   if (error || !data) {
-    return { status: 'NOT_FOUND', valid: false }
+    return { status: 'NOT_FOUND', recordFound: false }
   }
 
   if (!data.valid) {
     return {
-      valid: false,
+      recordFound: true,
       surveyorName: data.surveyor_name,
       iskNumber: data.isk_number,
       firmName: data.firm_name,
@@ -46,13 +46,13 @@ async function getVerification(token: string): Promise<VerifySignatureResponse> 
   }
 
   return {
-    valid: true,
+    recordFound: true,
     surveyorName: data.surveyor_name,
     iskNumber: data.isk_number,
     firmName: data.firm_name,
     signedAt: data.signed_at,
     documentType: data.document_type,
-    status: 'VALID'
+    status: 'RECORD_FOUND'
   }
 }
 
@@ -84,15 +84,15 @@ export default async function VerifyPage({
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-xl shadow-lg overflow-hidden">
-        {result.valid && result.status === 'VALID' && (
+        {result.recordFound && result.status === 'RECORD_FOUND' && (
           <>
-            <div className="bg-green-500 p-6 text-center">
-              <Check className="w-16 h-16 text-white mx-auto" />
-              <h1 className="text-2xl font-bold text-white mt-2">DOCUMENT VERIFIED</h1>
+            <div className="bg-amber-600 p-6 text-center">
+              <AlertTriangle className="w-16 h-16 text-white mx-auto" />
+              <h1 className="text-2xl font-bold text-white mt-2">METARDU RECORD FOUND</h1>
             </div>
             <div className="p-6">
-              <p className="text-gray-600 text-center mb-6">
-                This document has been digitally signed and is authentic.
+              <p className="text-gray-700 text-center mb-6">
+                METARDU has an unrevoked signature record for this token. This lookup does not independently authenticate the signer or their registration, or compare the original document contents.
               </p>
               <div className="space-y-3">
                 <div className="flex justify-between">
@@ -128,11 +128,11 @@ export default async function VerifyPage({
           <>
             <div className="bg-red-500 p-6 text-center">
               <AlertTriangle className="w-16 h-16 text-white mx-auto" />
-              <h1 className="text-2xl font-bold text-white mt-2">DOCUMENT REVOKED</h1>
+              <h1 className="text-2xl font-bold text-white mt-2">RECORD REVOKED</h1>
             </div>
             <div className="p-6">
               <p className="text-red-600 text-center mb-4">
-                This document signature has been revoked.
+                This METARDU signature record has been revoked.
               </p>
               {result.revokedAt && (
                 <p className="text-sm text-gray-600 text-center">

@@ -1,25 +1,23 @@
-# Landing imagery credits
+# Landing photography credits
 
-The landing page uses the project's own generated/screenshot assets by default
-(see `src/app/page.tsx`). When real survey photography is added, record the
-source, author and license of every image here (required for CC-licensed works).
+The landing page uses the following real survey-work photographs. The files
+were resized to 1800 px maximum dimension, converted to WebP, and may be cropped
+to fit their display frames. The source pages provide the complete license
+terms and original files.
 
-Run `node scripts/fetch-landing-photos.mjs` to download a curated set of
-free-licensed Wikimedia Commons survey photos once the rate limit clears.
-It prints author + license for each file; paste the output below.
+| Local asset | Photograph | Author / credit | License | Source |
+|---|---|---|---|---|
+| `hero-survey.webp` | Total station used for a topographic bridge survey | FedericaGaspari | [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/) | [Wikimedia Commons file page](https://commons.wikimedia.org/wiki/File:Topographic_survey_of_a_bridge.jpg) |
+| `field-levelling.webp` | Digital survey level and field technician | Cvstr / HR Surveyors | [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/) | [Wikimedia Commons file page](https://commons.wikimedia.org/wiki/File:Survey_level_and_field_technician.jpg) |
 
-## Files
+The hero photo is licensed under CC BY-SA 4.0; the resized WebP is a modified
+copy and is distributed under the same license. Both photographs are examples
+of field practice outside Kenya. They are not METARDU customer work and do not
+imply endorsement by the photographers.
 
-| File | Source | Author | License |
-|------|--------|--------|---------|
-| hero-topo.webp | project asset (topographic terrain) | METARDU | — |
-| hero-topo.jpg | project asset (source 1920x1280) | METARDU | — |
-| theodolite-blueprint.webp | project asset | METARDU | — |
-| feature-fieldbook.webp | project asset | METARDU | — |
-| showcase-field.webp | project asset | METARDU | — |
-| showcase-map.webp | project asset | METARDU | — |
-| showcase-workflow.webp | project asset | METARDU | — |
-| _pending_: hero-survey.jpg | Wikimedia Commons "Topographic survey of a bridge" | run fetch script | CC-BY-SA |
-| _pending_: bg-gnss.jpg | Wikimedia Commons "GNSS receiver Hoogengraven" | run fetch script | CC-BY-SA |
-| _pending_: bg-field.jpg | Wikimedia Commons "Archaeologists surveying in a trench" | run fetch script | CC-BY-SA |
-| _pending_: bg-cadastral.jpg | Wikimedia Commons "Cadastre de Gigord" | run fetch script | CC-BY |
+Unverified concept art and mock interface images have been moved to
+`docs/marketing/archive-unverified-concepts/` so they are not shipped as public
+assets. Some contain invented coordinates, accuracy indicators, adjustment
+results, or regulatory controls. Do not present them as METARDU product
+screenshots or survey evidence. Replace them only with captures from a tested
+workflow, clearly marking synthetic project data where applicable.

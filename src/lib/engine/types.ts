@@ -96,8 +96,10 @@ export interface LevelingResult {
   readings: LevelingReading[];
   misclosure: number;
   arithmeticCheck: boolean;
-  allowableMisclosure: number;
+  allowableMisclosure?: number;
   isAcceptable: boolean;
+  /** True only when a known closing benchmark was supplied to the computation. */
+  closingRLProvided: boolean;
   method: 'rise_and_fall' | 'height_of_collimation';
 }
 

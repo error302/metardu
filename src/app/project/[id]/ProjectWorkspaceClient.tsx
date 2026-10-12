@@ -1,7 +1,10 @@
 'use client';
+import { flushFieldBook } from '@/lib/survey/fieldBookSaveQueue';
 
 import { useState, useCallback, useMemo, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import type { StageReference } from '@/lib/workspaces/stageReference';
 import { useSession } from 'next-auth/react';
 import { createClient } from '@/lib/api-client/client';
 import { SurveyType } from '@/types/project';
@@ -32,12 +35,55 @@ interface ProjectProps {
   maxUnlocked: number;
 }
 
+export interface ProjectBoundaryData {
+    computation?: {source?:string;passes?:boolean};
+    linear_misclosure?:number;
+    perimeter_m?:number;
+    adjustedStations?: Array<{
+      pointName?: string;
+      adjustedEasting?: number;
+      adjustedNorthing?: number;
+      originalEasting?: number;
+      originalNorthing?: number;
+      easting?: number;
+      northing?: number;
+    }> | null;
+    stations?: Array<{
+      pointName?: string;
+      adjustedEasting?: number;
+      adjustedNorthing?: number;
+      easting?: number;
+      northing?: number;
+    }>;
+}
+
 interface Props {
   project: ProjectProps;
   workflow: SurveyWorkflow;
+  boundaryData?: ProjectBoundaryData | null;
+  reference: StageReference;
 }
 
-export default function ProjectWorkspaceClient({ project, workflow }: Props) {
+function isWorkflowData(value: unknown): value is ProjectWorkflowData {
+  if (!value || typeof value !== 'object') return false;
+  const data = value as Record<string, unknown>;
+  return typeof data.id === 'string'
+    && typeof data.currentStep === 'number'
+    && typeof data.maxUnlocked === 'number'
+    && typeof data.pointCount === 'number'
+    && typeof data.fieldbookEntryCount === 'number'
+    && typeof data.hasComputationResults === 'boolean'
+    && typeof data.toleranceAcknowledged === 'boolean'
+    && typeof data.hasDeedPlan === 'boolean'
+    && typeof data.hasSubmissionPackage === 'boolean';
+}
+
+function readWorkflowData(payload: unknown): ProjectWorkflowData | null {
+  if (!payload || typeof payload !== 'object' || !('projectData' in payload)) return null;
+  return isWorkflowData(payload.projectData) ? payload.projectData : null;
+}
+
+export default function ProjectWorkspaceClient({ project, workflow, boundaryData, reference }: Props) {
   const router = useRouter();
   const dbClient = createClient();
   const { data: session } = useSession();
@@ -45,6 +91,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
   const [currentStep, setCurrentStep] = useState(project.workflowStep);
   const [maxUnlocked, setMaxUnlocked] = useState(project.maxUnlocked);
   const [saving, setSaving] = useState(false);
+  useEffect(() => {setCurrentStep(project.workflowStep);setMaxUnlocked(project.maxUnlocked);},[project.workflowStep,project.maxUnlocked]);
 
   // Workflow state machine data (fetched from API)
   const [workflowData, setWorkflowData] = useState<ProjectWorkflowData | null>(null);
@@ -99,60 +146,11 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
     async function fetchStatus() {
       setWorkflowLoading(true);
       try {
-        const res = await fetch(`/api/project/${project.id}/workflow`);
+        const res = await fetch(`/api/project/${project.id}/workflow`,{cache:'no-store'});
         if (res.ok) {
-          const json = (await res.json()) as {
-            data?: {
-              steps?: Array<{ id: string; completionPct?: number }>
-            }
-          };
-          // The API returns the status but we need the raw data for the engine.
-          // Build it from the API response + local project state.
-          const data: ProjectWorkflowData = {
-            id: project.id,
-            name: project.name,
-            surveyType: project.surveyType,
-            location: null, // Not available in the current workspace props
-            utmZone: null,
-            hemisphere: null,
-            currentStep,
-            maxUnlocked,
-            pointCount: 0,
-            fieldbookEntryCount: 0,
-            hasComputationResults: false,
-            toleranceCheckPassed: null,
-            toleranceAcknowledged: false,
-            hasDeedPlan: false,
-            hasSubmissionPackage: false,
-          };
-
-          // If the API returned status, use its computed data to infer richer data
-          if (json.data?.steps) {
-            // We can extract counts from the step info
-            const fieldStep = json.data.steps.find((s: { id: string }) => s.id === 'field-collection');
-            if (fieldStep?.completionPct === 100) {
-              data.pointCount = 3; // At least 3 if complete
-              data.fieldbookEntryCount = 3;
-            }
-            const computeStep = json.data.steps.find((s: { id: string }) => s.id === 'computation');
-            if (computeStep?.completionPct === 100) {
-              data.hasComputationResults = true;
-            }
-            const reviewStep = json.data.steps.find((s: { id: string }) => s.id === 'quality-review');
-            if (reviewStep?.completionPct === 100) {
-              data.toleranceCheckPassed = true;
-            }
-            const deedStep = json.data.steps.find((s: { id: string }) => s.id === 'map-deed-plan');
-            if (deedStep?.completionPct === 100) {
-              data.hasDeedPlan = true;
-            }
-            const subStep = json.data.steps.find((s: { id: string }) => s.id === 'submission');
-            if (subStep?.completionPct === 100) {
-              data.hasSubmissionPackage = true;
-            }
-          }
-
-          if (!cancelled) setWorkflowData(data);
+          const json: unknown = await res.json();
+          const projectData = readWorkflowData(json);
+          if (!cancelled && projectData) setWorkflowData({...projectData,currentStep,maxUnlocked});
         }
       } catch {
         // API may not be available in all environments — use local fallback
@@ -181,7 +179,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
     }
     fetchStatus();
     return () => { cancelled = true; };
-  }, [project.id, project.name, project.surveyType, currentStep, maxUnlocked]);
+  }, [project.id, project.name, project.surveyType, currentStep, maxUnlocked, boundaryData]);
 
   const workflowStatus = useMemo(() => {
     if (!workflowData) return null;
@@ -194,17 +192,23 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
     const targetStepDef = steps.find((s) => s.index === newStep);
 
     if (!targetStepDef) return;
+    if(!await flushFieldBook(project.id)) return;
 
-    // If the step is beyond maxUnlocked, show the quality gate
-    if (newStep > maxUnlocked && workflowData) {
-      setQualityGateTarget(targetStepDef.id);
-      return;
+    const response = await fetch(`/api/project/${project.id}/workflow`,{cache:'no-store'});
+    if (!response.ok) { setQualityGateTarget(targetStepDef.id); return; }
+    const json: unknown = await response.json();
+    const projectData = readWorkflowData(json);
+    if (!projectData) { setQualityGateTarget(targetStepDef.id); return; }
+    const fresh: ProjectWorkflowData = {...projectData,currentStep,maxUnlocked};
+    setWorkflowData(fresh);
+    if(targetStepDef.entryConditions.some(condition=>condition.severity==='critical' && !condition.check(fresh))) {
+      setQualityGateTarget(targetStepDef.id); return;
     }
 
     setSaving(true);
     const newMax = Math.max(maxUnlocked, newStep);
 
-    await dbClient
+    const {error:saveError} = await dbClient
       .from('projects')
       .update({
         workflow_step: newStep,
@@ -212,34 +216,19 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
       })
       .eq('id', project.id);
 
+    if(saveError) {setSaving(false); return;}
     setCurrentStep(newStep);
     setMaxUnlocked(newMax);
     setSaving(false);
-  }, [project.id, maxUnlocked, dbClient, workflowData, project.surveyType]);
+    router.push(`/project/${project.id}/workspace?step=${newStep}`);
+    router.refresh();
+  }, [currentStep, router, project.id, maxUnlocked, dbClient, project.surveyType]);
 
   const handleContinue = async () => {
     const next = nextStepIndex(project.surveyType, currentStep);
     if (next === null) return;
 
-    // Check quality gate via workflow engine
-    if (workflowData) {
-      const steps = getWorkflowSteps(project.surveyType);
-      const nextStepDef = steps.find((s) => s.index === next);
-      if (nextStepDef) {
-        const status = getWorkflowStatus(workflowData);
-        if (!status.canAdvance && next > maxUnlocked) {
-          setQualityGateTarget(nextStepDef.id);
-          return;
-        }
-      }
-    }
-
     await handleStepChange(next);
-
-    const nextStepDef = workflow.steps.find((s) => s.index === next);
-    if (nextStepDef?.routeSuffix) {
-      router.push(`/project/${project.id}/${nextStepDef.routeSuffix}`);
-    }
   };
 
   const handleQualityGateProceed = useCallback(() => {
@@ -254,7 +243,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
     if (stepDef) {
       setQualityGateTarget(null);
       setCurrentStep(stepDef.index);
-      router.push(`/project/${project.id}?step=${stepDef.index}`);
+      router.push(`/project/${project.id}/workspace?step=${stepDef.index}`);
     }
   }, [project.id, project.surveyType, router]);
 
@@ -268,6 +257,17 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
       }
     }
   }, [project.id, maxUnlocked, project.surveyType, router]);
+
+  const qaParcels=useMemo(()=>{
+    const stations=boundaryData?.adjustedStations ?? [];
+    if(stations.length<3) return [];
+    const vertices=stations.map((station,index)=>({name:station.pointName || `P${index+1}`,easting:Number(station.adjustedEasting),northing:Number(station.adjustedNorthing)}));
+    return vertices.every(point=>Number.isFinite(point.easting)&&Number.isFinite(point.northing)) ? [{id:project.id,name:project.name,vertices}] : [];
+  },[boundaryData,project.id,project.name]);
+  const qaTraverse=useMemo(()=>boundaryData?.computation?.source==='field-observations' ? {
+    linearErrorM:Number(boundaryData.linear_misclosure),totalDistanceM:Number(boundaryData.perimeter_m),
+    angularMisclosureSec:NaN,stationCount:boundaryData.adjustedStations?.length ?? 0,
+  } : undefined,[boundaryData]);
 
   const currentStepDef = workflow.steps.find((s) => s.index === currentStep);
   const isLastStep = currentStep === workflow.steps[workflow.steps.length - 1].index;
@@ -286,6 +286,19 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
               </div>
             </div>
             <div className="flex items-center gap-3">
+              {/* CAD Canvas Editor button */}
+              <button
+                type="button"
+                onClick={() => router.push(`/project/${project.id}/cad-editor`)}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-cyan-500/40 bg-cyan-500/10 text-cyan-400 hover:bg-cyan-500/20 transition-colors"
+                title="Open in-browser CAD Canvas & Map Tracing Editor"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+                </svg>
+                CAD Canvas
+              </button>
+
               {/* Workflow overview toggle button */}
               <button
                 type="button"
@@ -390,7 +403,22 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
           </div>
         }
         rightPanel={
-          <WorkspaceMap projectId={project.id} projectName={project.name} />
+          reference.code ? (
+            <WorkspaceMap
+              projectId={project.id}
+              projectName={project.name}
+              boundaryData={boundaryData}
+              epsg={reference.code}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-[var(--bg-tertiary)] px-6 text-center">
+              <div className="max-w-xs">
+                <p className="text-sm font-medium text-[var(--text-primary)]">Map awaiting project CRS</p>
+                <p className="mt-1 text-xs text-[var(--text-muted)]">Declare a reference system before plotting survey coordinates.</p>
+                <Link href={'/project/' + project.id + '/settings'} className="mt-3 inline-block text-xs font-semibold text-[var(--accent)] hover:underline">Open reference settings</Link>
+              </div>
+            </div>
+          )
         }
         logPanel={<ComputationLog />}
       />
@@ -429,7 +457,7 @@ export default function ProjectWorkspaceClient({ project, workflow }: Props) {
 
       {/* QA Validation Dashboard */}
       <div className="max-w-5xl mx-auto px-4 py-4">
-        <QADashboard projectId={project.id} />
+        <QADashboard projectId={project.id} reference={reference} parcels={qaParcels} traverseData={qaTraverse} />
       </div>
 
       {/* Batch Parcel Import */}

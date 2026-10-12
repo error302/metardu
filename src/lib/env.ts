@@ -41,7 +41,7 @@ const envSchema = z.object({
   NEXT_PUBLIC_WHATSAPP_NUMBER: z.string().regex(/^\d*$/).optional(),
   ADMIN_EMAILS: z.string().optional(),
 
-  DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
+  DATABASE_URL: z.string().min(1).optional(),
   AUTH_SECRET: z.string().min(1, 'AUTH_SECRET is required'),
   
   DB_HOST: z.string().optional(),
@@ -56,6 +56,10 @@ const envSchema = z.object({
   SMTP_PORT: z.coerce.number().optional(),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
+  SMTP_PASSWORD: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  EMAIL_REPLY_TO: z.string().optional(),
+  SUPPORT_EMAIL: z.string().email().optional().or(z.literal('')),
 
   AFRICASTALKING_USERNAME: z.string().optional(),
   AFRICASTALKING_API_KEY: z.string().optional(),
@@ -70,7 +74,7 @@ if (!parsedEnv.success) {
 
   // Required fields — crash at runtime so misconfiguration is caught at startup
   // During build (next build), env vars may not be available, so we warn instead of throwing
-  const requiredFields = ['DATABASE_URL', 'AUTH_SECRET']
+  const requiredFields = ['AUTH_SECRET']
   const missingRequired = issues.filter(i =>
     i.path.some(p => requiredFields.includes(String(p)))
   )
@@ -89,7 +93,22 @@ if (!parsedEnv.success) {
   }
 
   // Optional fields — warn but continue
-  logger.warn('[env] Some optional environment variables are missing — related features will be disabled.')
+  logger.warn('[env] Some optional environment variables are invalid — related features will be disabled.')
+}
+
+const hasDatabaseUrl = Boolean(process.env.DATABASE_URL?.trim())
+const hasDiscreteDatabaseConfig = Boolean(
+  process.env.DB_HOST?.trim() &&
+    process.env.DB_NAME?.trim() &&
+    process.env.DB_USER?.trim(),
+)
+if (!hasDatabaseUrl && !hasDiscreteDatabaseConfig) {
+  const message = '[env] Configure DATABASE_URL or DB_HOST, DB_NAME, and DB_USER before starting the application.'
+  if (process.env.NEXT_PHASE === 'phase-production-build') {
+    logger.warn(message)
+  } else {
+    throw new Error(message)
+  }
 }
 
 const defaults = {
@@ -98,7 +117,16 @@ const defaults = {
   SMTP_PORT: Number(process.env.SMTP_PORT) || 465,
 } as const
 
-export const env = { ...defaults, ...(parsedEnv.data ?? {}) } as typeof defaults & Partial<z.infer<typeof envSchema>>
+// One malformed optional provider value must not discard independently valid
+// database/authentication configuration. Required runtime failures still throw above.
+const validatedEnv = parsedEnv.success ? parsedEnv.data : Object.fromEntries(
+  Object.entries(envSchema.shape).flatMap(([name, schema]) => {
+    const field = schema.safeParse(process.env[name])
+    return field.success ? [[name, field.data]] : []
+  }),
+) as Partial<z.infer<typeof envSchema>>
+
+export const env = { ...defaults, ...validatedEnv } as typeof defaults & Partial<z.infer<typeof envSchema>>
 
 export function requireEnv(name: keyof typeof env): string {
   const value = env[name]

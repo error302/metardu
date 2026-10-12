@@ -19,7 +19,7 @@
  *  - Project badge in each panel header links to /project/[id]
  */
 
-import React, { memo, useState, useCallback, useEffect, useRef } from 'react'
+import React, { memo, useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import {
   Binoculars, Crosshair, Calculator, Target,
   Layers, Download,
@@ -43,7 +43,9 @@ import { SurveyWorkflowBadge } from '@/app/map/components/SurveyWorkflowBadge'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
 import { useSearchParams } from 'next/navigation'
+import { mapTopologyVertices } from '@/lib/survey/mapTopologyInput'
 import type { SurveyPoint } from '@/lib/map/turfHelpers'
+import type { CachedSourceInfo } from '@/lib/offline/tileCache'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -233,19 +235,20 @@ const DockPanel = memo(function DockPanel({ label, accent, isOpen, onClose, chil
 // Helper: polygon vertices from OL feature
 // ---------------------------------------------------------------------------
 
-function extractPolygonVertices(feature: import('ol/Feature').default | null): SurveyPoint[] {
+function extractPolygonVertices(feature: import('ol/Feature').default | null, viewCrs: string | null, surveyCrs: string | null): SurveyPoint[] {
   if (!feature) return []
   try {
     const geom = feature.getGeometry()
     if (!geom) return []
     const type = geom.getType()
     if (type === 'Polygon') {
-      const ring = (geom as import('ol/geom/Polygon').default).getCoordinates()[0] || []
-      return ring.slice(0, -1).map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+      const rings = (geom as import('ol/geom/Polygon').default).getCoordinates()
+      if (rings.length !== 1) return [] // This guardrail assesses a single exterior boundary.
+      return mapTopologyVertices(rings[0], viewCrs, surveyCrs)
     }
     if (type === 'LineString') {
       const coords = (geom as import('ol/geom/LineString').default).getCoordinates()
-      return coords.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+      return mapTopologyVertices(coords, viewCrs, surveyCrs)
     }
   } catch {}
   return []
@@ -275,8 +278,8 @@ export const ReconContent = memo(function ReconContent() {
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
-          aria-label="Coord, beacon, or parcel"
-          placeholder="Coord, beacon, or parcel…"
+          aria-label="Coord, MGRS, beacon, or parcel"
+          placeholder="Coord, MGRS, beacon, parcel…"
           className="w-full h-8 bg-white/[0.03] border border-white/[0.07] rounded-lg pl-8 pr-3 text-[11px] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
         />
       </div>
@@ -302,12 +305,18 @@ export const ReconContent = memo(function ReconContent() {
 
 export const CaptureContent = memo(function CaptureContent() {
   const ctx = useMapContext()
-  const polygonVertices: SurveyPoint[] = extractPolygonVertices(ctx.selectedFeature)
+  const { selectedFeature, currentSurveyCrs } = ctx
+  const viewCrs = ctx.mapInstance.current?.getView().getProjection().getCode() ?? null
+  const geometryRevision = selectedFeature?.getGeometry()?.getRevision() ?? 0
+  const polygonVertices: SurveyPoint[] = useMemo(() => {
+    if (selectedFeature?.getGeometry()?.getRevision() !== geometryRevision) return []
+    return extractPolygonVertices(selectedFeature, viewCrs, currentSurveyCrs)
+  }, [selectedFeature, geometryRevision, viewCrs, currentSurveyCrs])
 
   return (
     <div className="space-y-0.5">
       <SectionLabel hint="D">Draw</SectionLabel>
-      <div className="grid grid-cols-4 gap-1.5">
+      <div className="grid grid-cols-3 gap-1.5">
         <ToolBtn label="Point"   icon={<MapPin className="w-5 h-5" />}  isActive={ctx.drawMode === 'Point'}      onClick={() => ctx.toggleDraw('Point')}      shortcut="1" />
         <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => ctx.toggleDraw('LineString')} shortcut="2" />
         <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => ctx.toggleDraw('Polygon')}    shortcut="3" />
@@ -348,7 +357,7 @@ export const CaptureContent = memo(function CaptureContent() {
       <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} danger shortcut="Del" />
 
       <SectionLabel hint="X">Advanced</SectionLabel>
-      <div className="grid grid-cols-5 gap-1">
+      <div className="grid grid-cols-3 gap-1">
         <ToolBtn label="Split"   icon={<Scissors className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'split'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'split'   ? null : 'split')}   shortcut="S" />
         <ToolBtn label="Merge"   icon={<GitMerge className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'merge'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'merge'   ? null : 'merge')}   shortcut="M" />
         <ToolBtn label="Reshape" icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'reshape'} onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'reshape' ? null : 'reshape')} shortcut="R" />
@@ -425,10 +434,13 @@ export const CaptureContent = memo(function CaptureContent() {
         </div>
       )}
 
+      {ctx.selectedFeature && ['Polygon', 'LineString'].includes(ctx.selectedFeature.getGeometry()?.getType() ?? '') && polygonVertices.length === 0 && (
+        <p role="status" className="text-xs text-[var(--text-muted)]">Topology is not assessed. Select a projected survey reference system and a valid single parcel boundary.</p>
+      )}
       {polygonVertices.length >= 3 && (
         <>
           <SectionLabel hint="T">Topology Check</SectionLabel>
-          <TopologyGuardrail vertices={polygonVertices} compact />
+          <TopologyGuardrail vertices={polygonVertices} epsg={ctx.currentSurveyCrs} compact />
         </>
       )}
     </div>
@@ -507,7 +519,7 @@ export const SetOutContent = memo(function SetOutContent() {
 
 export const LayersContent = memo(function LayersContent() {
   const {
-    basemap, toggleBasemap, setOfflineDialogOpen,
+    mapInstance, basemap, toggleBasemap, setOfflineDialogOpen,
     layerOpacity, handleOpacityChange,
     showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
     toggleSchemeParcelVisibility, toggleSchemeBlockVisibility, toggleSchemeBeaconVisibility,
@@ -515,15 +527,118 @@ export const LayersContent = memo(function LayersContent() {
     zoomToScheme, removeScheme, loadSchemeData, schemeLoading,
     showOsmBuildings, toggleOsmBuildings,
   } = useMapContext()
+  const [cachedTileSources, setCachedTileSources] = useState<CachedSourceInfo[]>([])
+  const [cachedTilesLoading, setCachedTilesLoading] = useState(false)
+  const [cachedTilesError, setCachedTilesError] = useState<string | null>(null)
+  const [activeCachedSourceId, setActiveCachedSourceId] = useState<string | null>(null)
+
+  const refreshCachedTileSources = useCallback(async () => {
+    setCachedTilesLoading(true)
+    setCachedTilesError(null)
+    try {
+      const { listCachedSources } = await import('@/lib/offline/tileCache')
+      setCachedTileSources(await listCachedSources())
+    } catch {
+      setCachedTilesError('Could not read downloaded map packages on this device.')
+    } finally {
+      setCachedTilesLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshCachedTileSources()
+  }, [refreshCachedTileSources])
+
+  useEffect(() => {
+    window.addEventListener('metardu:offline-tiles-updated', refreshCachedTileSources)
+    return () => window.removeEventListener('metardu:offline-tiles-updated', refreshCachedTileSources)
+  }, [refreshCachedTileSources])
+
+  const selectCachedBasemap = useCallback(async (source: CachedSourceInfo) => {
+    const map = mapInstance.current
+    if (!map) return
+
+    if (activeCachedSourceId === source.sourceId) {
+      setActiveCachedSourceId(null)
+      toggleBasemap(basemap)
+      return
+    }
+
+    setCachedTilesError(null)
+    try {
+      const { createCachedXyzLayer, isUsableCachedTileSource } = await import('@/lib/offline/cachedXyzLayer')
+      if (!isUsableCachedTileSource(source)) {
+        throw new Error('This cached source predates map-source registration. Download it again to use it as a basemap.')
+      }
+
+      const offlineLayerId = `offline-${source.sourceId}`
+      let offlineLayer = map.getLayers().getArray().find(
+        (layer) => layer.get('basemapId') === offlineLayerId,
+      ) as import('ol/layer/Tile').default | undefined
+      if (!offlineLayer) {
+        offlineLayer = await createCachedXyzLayer(source)
+        map.addLayer(offlineLayer)
+      }
+
+      for (const layer of map.getLayers().getArray()) {
+        const basemapId = layer.get('basemapId') as string | undefined
+        if (basemapId && (['osm', 'satellite', 'dark', 'terrain'].includes(basemapId) || basemapId.startsWith('offline-'))) {
+          layer.setVisible(layer === offlineLayer)
+        }
+      }
+      offlineLayer.setVisible(true)
+      map.render()
+      setActiveCachedSourceId(source.sourceId)
+    } catch (error) {
+      setCachedTilesError(error instanceof Error ? error.message : 'Could not activate this cached map.')
+    }
+  }, [mapInstance, activeCachedSourceId, basemap, toggleBasemap])
+
+  const selectStandardBasemap = useCallback((mode: 'osm' | 'satellite' | 'dark' | 'terrain') => {
+    setActiveCachedSourceId(null)
+    toggleBasemap(mode)
+  }, [toggleBasemap])
 
   return (
     <div className="space-y-0.5">
       <SectionLabel hint="⌘B">Basemap</SectionLabel>
-      <div className="grid grid-cols-2 gap-1.5">
-        <ToolBtn label="OSM"       icon={<Globe className="w-5 h-5" />}     isActive={basemap === 'osm'}       onClick={() => toggleBasemap('osm')} />
-        <ToolBtn label="Satellite" icon={<Satellite className="w-5 h-5" />} isActive={basemap === 'satellite'} onClick={() => toggleBasemap('satellite')} />
-        <ToolBtn label="Dark"      icon={<Moon className="w-5 h-5" />}      isActive={basemap === 'dark'}      onClick={() => toggleBasemap('dark')} />
-        <ToolBtn label="Terrain"   icon={<Mountain className="w-5 h-5" />}  isActive={basemap === 'terrain'}   onClick={() => toggleBasemap('terrain')} />
+      <div className="grid grid-cols-3 gap-1.5">
+        <ToolBtn label="OSM"       icon={<Globe className="w-5 h-5" />}     isActive={!activeCachedSourceId && basemap === 'osm'}       onClick={() => selectStandardBasemap('osm')} />
+        <ToolBtn label="Satellite" icon={<Satellite className="w-5 h-5" />} isActive={!activeCachedSourceId && basemap === 'satellite'} onClick={() => selectStandardBasemap('satellite')} />
+        <ToolBtn label="Dark"      icon={<Moon className="w-5 h-5" />}      isActive={!activeCachedSourceId && basemap === 'dark'}      onClick={() => selectStandardBasemap('dark')} />
+        <ToolBtn label="Terrain"   icon={<Mountain className="w-5 h-5" />}  isActive={!activeCachedSourceId && basemap === 'terrain'}  onClick={() => selectStandardBasemap('terrain')} />
+      </div>
+
+      <SectionLabel>Downloaded Basemaps</SectionLabel>
+      <div className="space-y-1">
+        <button
+          type="button"
+          onClick={() => void refreshCachedTileSources()}
+          disabled={cachedTilesLoading}
+          className="flex w-full items-center gap-1.5 px-1 py-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] disabled:opacity-50"
+        >
+          <RefreshCw className={`h-3 w-3 ${cachedTilesLoading ? 'animate-spin' : ''}`} />
+          {cachedTilesLoading ? 'Checking this device…' : 'Refresh cached maps'}
+        </button>
+        {cachedTileSources.length === 0 && !cachedTilesLoading && (
+          <p className="px-1 text-[10px] leading-relaxed text-[var(--text-muted)]">
+            Download an area from a licensed XYZ provider to use it here without a connection.
+          </p>
+        )}
+        {cachedTileSources.map((source) => (
+          <div key={source.sourceId}>
+            <ActionBtn
+              label={source.label}
+              icon={<Layers className="h-4 w-4" />}
+              isActive={activeCachedSourceId === source.sourceId}
+              onClick={() => void selectCachedBasemap(source)}
+            />
+            <p className="px-2 pb-1 text-[9px] text-[var(--text-muted)]">
+              {source.stats.count.toLocaleString()} tiles · zoom {source.minZoom ?? '?'}–{source.maxZoom ?? '?'}
+            </p>
+          </div>
+        ))}
+        {cachedTilesError && <p role="alert" className="px-1 text-[10px] text-red-400">{cachedTilesError}</p>}
       </div>
 
       <SectionLabel>3D Footprints</SectionLabel>
@@ -697,8 +812,8 @@ export const MapToolDock = memo(function MapToolDock() {
           const catDef = CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
           return (
             <div
-              className="fixed inset-x-0 bottom-0 z-40 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border-t border-white/[0.08] rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)] transition-transform duration-300"
-              style={{ maxHeight: '70vh' }}
+              className="fixed inset-x-0 z-40 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border-t border-white/[0.08] rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)] transition-transform duration-300"
+              style={{ maxHeight: '70vh', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
             >
               <div className="flex justify-center pt-2 pb-1">
                 <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
@@ -722,7 +837,7 @@ export const MapToolDock = memo(function MapToolDock() {
         })()}
 
         {/* Bottom horizontal dock bar */}
-        <div className="fixed bottom-0 inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-2xl border-t border-white/[0.06]">
+        <div className="fixed inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-2xl border-t border-white/[0.06]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}>
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
             const open = openPanels.has(cat.id)

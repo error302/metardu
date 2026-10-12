@@ -1,4 +1,5 @@
 'use client';
+import { useParams } from 'next/navigation'
 
 import { useState, useEffect, useCallback } from 'react';
 import { createClient } from '@/lib/api-client/client';
@@ -43,7 +44,8 @@ interface CrossSection {
   elevation: number;
 }
 
-export default function ProfilesPage({ params }: PageProps) {
+export default function ProfilesPage() {
+  const params = useParams<{ id: string }>()
   const dbClient = createClient();
   const [project, setProject] = useState<Project | null>(null);
   const [points, setPoints] = useState<SurveyPoint[]>([]);

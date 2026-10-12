@@ -15,7 +15,7 @@ The AI must strictly avoid the following generic web development defaults:
 - DO NOT use generic, thin-line icon libraries like "Lucide", "Feather", or standard "Heroicons".
 - DO NOT use Tailwind's default heavy drop shadows (e.g., `shadow-md`, `shadow-lg`, `shadow-xl`). Shadows must be practically non-existent or heavily customized to be ultra-diffuse and low opacity (< 0.05).
 - DO NOT use primary colored backgrounds for large elements or sections (e.g., no bright blue, green, or red hero sections).
-- DO NOT use decorative gradients or neon colors. Subtle ambient radial gradients (`opacity: 0.02-0.04`) for background depth are exempted. No 3D glassmorphism (beyond subtle navbar blurs).
+- DO NOT use gradients, neon colors, or 3D glassmorphism (beyond subtle navbar blurs).
 - DO NOT use `rounded-full` (pill shapes) for large containers, cards, or primary buttons.
 - DO NOT use emojis anywhere in code, markup, text content, headings, or alt text. Replace with proper icons or clean SVG primitives.
 - DO NOT use generic placeholder names like "John Doe", "Acme Corp", or "Lorem Ipsum". Use realistic, contextual content.

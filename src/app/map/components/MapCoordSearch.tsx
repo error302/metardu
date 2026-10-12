@@ -21,18 +21,21 @@ export const MapCoordSearch = memo(function MapCoordSearch() {
   }, [searchInput, handleCoordSearch])
 
   return (
-    <div className="absolute top-3 left-[344px] z-20 md:left-[344px]">
+    <div className="absolute left-4 right-16 top-14 z-20 md:left-[344px] md:right-auto md:top-3">
       <div className="relative">
         <input
           type="text"
           value={searchInput}
           onChange={(e) => setSearchInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
-          aria-label="Search coord, beacon, or parcel"
-          className="h-8 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-xl border border-[var(--border-color)]/[0.06] rounded-lg pl-7 pr-3 text-[11px] text-[var(--text-primary)] placeholder-gray-600 focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors w-[160px] sm:w-[200px] md:w-[280px]"
+          placeholder="Search Lat/Lon, UTM, MGRS, Beacon..."
+          aria-label="Search Lat/Lon, UTM, MGRS, beacon, or parcel"
+          className="h-9 w-full rounded-lg border border-[var(--border-color)]/[0.12] bg-[color-mix(in_srgb,var(--bg-secondary)_92%,transparent)] pl-8 pr-9 text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] shadow-lg backdrop-blur-xl transition-colors focus:border-[color-mix(in_srgb,var(--accent)_45%,transparent)] focus:outline-none md:h-8 md:w-[280px] md:text-[11px]"
         />
         <button
+          type="button"
           onClick={handleSearch}
+          aria-label="Search map location"
           className="absolute right-2 top-1/2 -translate-y-1/2 text-[var(--text-muted)] hover:text-[var(--accent)] transition-colors"
           title="Search"
         >

@@ -1,8 +1,25 @@
 let withBundleAnalyzer = (c) => c
 try {
-  withBundleAnalyzer = require('@next/bundle-analyzer')({
+  const analyzeBundles = require('@next/bundle-analyzer')({
     enabled: process.env.ANALYZE === 'true',
+    openAnalyzer: false,
+    analyzerMode: process.env.ANALYZE_REPORT_MODE === 'json' ? 'json' : 'static',
   })
+  withBundleAnalyzer = (config) => {
+    const analyzed = analyzeBundles(config)
+    if (process.env.ANALYZE !== 'true' || process.env.ANALYZE_TARGET !== 'client') return analyzed
+    return {
+      ...analyzed,
+      webpack(webpackConfig, options) {
+        // Server bundle reports add substantial parsing/serialization memory.
+        // A client diagnostic still builds and strictly checks the whole app.
+        if (options.nextRuntime) {
+          return typeof config.webpack === 'function' ? config.webpack(webpackConfig, options) : webpackConfig
+        }
+        return analyzed.webpack(webpackConfig, options)
+      },
+    }
+  }
 } catch (e) {
   // bundle-analyzer not available, pass-through
 }
@@ -11,39 +28,15 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   register: true,
   skipWaiting: true,
-  disable:
-    process.env.NODE_ENV !== 'production' ||
-    process.env.DISABLE_PWA === 'true' ||
-    (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
-  workboxOptions: { 
-    disableDevLogs: true,
-    runtimeCaching: [
-      {
-        urlPattern: /^https:\/\/server\.arcgisonline\.com\/.*$/,
-        handler: 'StaleWhileRevalidate',
-        options: {
-          cacheName: 'esri-map-tiles',
-          expiration: {
-            maxEntries: 5000,
-            maxAgeSeconds: 30 * 24 * 60 * 60, // 30 Days
-          },
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      },
-      {
-        urlPattern: /^https:\/\/[a-z]\.tile\.openstreetmap\.org\/.*$/,
-        handler: 'StaleWhileRevalidate',
-        options: {
-          cacheName: 'osm-map-tiles',
-          expiration: {
-            maxEntries: 5000,
-            maxAgeSeconds: 30 * 24 * 60 * 60,
-          },
-          cacheableResponse: { statuses: [0, 200] },
-        },
-      }
-    ]
-  },
+    disable:
+      process.env.NODE_ENV !== 'production' ||
+      process.env.DISABLE_PWA === 'true' ||
+      (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
+    workboxOptions: {
+      disableDevLogs: true,
+      runtimeCaching: [
+      ]
+    },
 })
 
 /** @type {import('next').NextConfig} */
@@ -51,14 +44,69 @@ const nextConfig = {
   // Standalone output — smaller deploy, lower RAM
   // Use 'export' for Capacitor mobile builds (set MOBILE_BUILD=true)
   output: process.env.MOBILE_BUILD === 'true' ? 'export' : 'standalone',
+  // Isolate analyzer builds from a running local app's .next output.
+  // Analyzer jobs can opt into a separate output directory via this variable.
+  distDir: process.env.METARDU_NEXT_DIST_DIR || '.next',
+
+  // PDF.js loads standard font files at runtime for text extraction. They are
+  // not discovered by Next's standalone tracer from the dynamic font path, so
+  // include them only with the authenticated parser upload route.
+  outputFileTracingIncludes: {
+    '/api/**': ['./node_modules/pdfkit/js/data/*.afm'],
+    '/api/parsers/upload': [
+      './node_modules/pdfjs-dist/standard_fonts/**/*',
+      './node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs',
+    ],
+  },
+// Local test and audit artifacts are not application inputs. Keep them out of
+// the standalone deployment trace without weakening runtime dependency tracing.
+  outputFileTracingExcludes: {
+    '/*': [
+      './.env*',
+      './**/.env*',
+      './.pytest_cache',
+      './.pytest_cache/**/*',
+      './**/.pytest_cache/**/*',
+      './coverage/**/*',
+      // Test and audit artifacts can contain local runtimes or permission-
+      // restricted files; none are production inputs, so keep them out of the
+      // standalone trace instead of shipping the workspace's test outputs.
+      './live-test-results',
+      './live-test-results/**/*',
+      './test-results',
+      './test-results/**/*',
+      './e2e-results',
+      './e2e-results/**/*',
+      './map-audit-results',
+      './map-audit-results/**/*',
+      './.playwright-mcp',
+      './.playwright-mcp/**/*',
+      './agent-ctx',
+      './agent-ctx/**/*',
+      './.artifacts',
+      './.artifacts/**/*',
+    ],
+    // The local storage fallback keeps share-target uploads under this
+    // default path. These user files are never deploy-time assets.
+    '/import/share-target': ['./upload/shared/**/*-*'],
+  },
 
   reactStrictMode: true,
+
+  async redirects() {
+    return [
+      {
+        source: '/community',
+        destination: '/marketplace',
+        permanent: false,
+      },
+    ]
+  },
 
   // SWC minifier — 20x faster than Terser, enabled by default in Next 14.
   // (Earlier comment said "Disabled — breaks OpenLayers" but the value was
   // actually `true`. OpenLayers tile rendering issues were traced to a
   // different cause and fixed separately. swcMinify stays on for speed.)
-  swcMinify: true,
 
   // ─── Image optimization (enabled for web, disabled for Capacitor mobile builds) ───
   images: {
@@ -71,6 +119,9 @@ const nextConfig = {
     ignoreDuringBuilds: true,  // ESLint still has ~1300 any warnings; run via CI separately
   },
   typescript: {
+    // Keep isolated bundle-analysis builds from rewriting the app's tsconfig
+    // with analyzer-generated route types.
+    tsconfigPath: process.env.ANALYZE === 'true' ? 'tsconfig.analyze.json' : 'tsconfig.json',
     // AUDIT FIX (C10, 2026-07-02): Was `ignoreBuildErrors: process.env.IGNORE_TYPE_ERRORS === 'true'`.
     // Type errors now block the build — tsc --noEmit passes clean.
     ignoreBuildErrors: false,
@@ -83,9 +134,7 @@ const nextConfig = {
 
   // ─── Tree-shaking for heavy packages ───
   // Only imports the named exports actually used instead of the entire package
-  experimental: {
-    // Next 14 expects server-only externals under the experimental flag.
-    serverComponentsExternalPackages: [
+  serverExternalPackages: [
       'pg',
       'canvas',
       '@google-cloud/storage',
@@ -93,7 +142,18 @@ const nextConfig = {
       'better-sqlite3',
       'three',
       'pdfjs-dist',
+      // PDFKit reads built-in font metrics relative to its installed module.
+      // Bundling relocates __dirname and breaks native document routes.
+      'pdfkit',
     ],
+  experimental: {
+    // A custom webpack config disables Next's worker by default. Release its
+    // compilation heap before the mandatory strict type-check and page build.
+    webpackBuildWorker: true,
+    webpackMemoryOptimizations: true,
+    cpus: 2,
+    parallelServerCompiles: false,
+    parallelServerBuildTraces: false,
     optimizePackageImports: [
       // NOTE: 'ol' removed — it breaks dynamic imports of 42+ ol/* submodules
       // used by MapClient.tsx. The ol package uses side-effectful modules
@@ -137,7 +197,12 @@ const nextConfig = {
       ...config.resolve.fallback,
       fs: false,
       path: false,
-      crypto: isServer ? false : require.resolve('crypto-browserify'),
+      // AUDIT (2026-09-13): was crypto-browserify on client (~300 KB dead polyfill
+      //      bytes co-located with react in an eager chunk). No client-reachable module
+      //      imports node 'crypto' anymore (renderers migrated to WebCrypto sha256Hex),
+      //      so false is safe; if a build fails here, the offender must be migrated or
+      //      made server-only — NOT reverted.
+      crypto: false,
     }
 
     // Middleware/edge bundles must stay self-contained. The catch-all
@@ -158,6 +223,16 @@ const nextConfig = {
       // Externalize heavy server-only native modules
       config.externals.push('better-sqlite3', 'canvas')
     } else {
+      // jszip's CJS lib requires readable-stream@2 (a Node polyfill: ~150 KB of
+      // stream machinery + its buffer dep) even though jszip ships a fully
+      // self-contained browser bundle with the identical API and zero stream
+      // requires. Alias the client build to that bundle so the polyfill tree
+      // never enters the client graph. Server keeps the CJS lib (real Node
+      // streams, better memory behaviour for large batch ZIPs).
+      config.resolve.alias = {
+        ...(Array.isArray(config.resolve.alias) ? {} : config.resolve.alias),
+        jszip: require.resolve('jszip/dist/jszip.min.js'),
+      }
       // Client-side: externalize Node.js built-ins that pg transitively depends on.
       // These are pulled in when client components (e.g. checkout/page.tsx) import
       // server modules (enterprise/auditTrail → db.ts → pg).
@@ -166,7 +241,10 @@ const nextConfig = {
         'pg-pool', 'pg-types', 'pg-cursor', 'async_hooks', 'dns', 'net', 'tls')
     }
 
-    // Improve chunk splitting for large dependencies
+    // These vendor groups are for browser delivery only. Splitting the Node
+    // server build provides no browser benefit and can separate a server
+    // action from the worker map Next uses to emit its manifest.
+    if (!isServer) {
     config.optimization = {
       ...config.optimization,
       splitChunks: {
@@ -265,18 +343,42 @@ const nextConfig = {
             chunks: 'all',
             priority: 15,
           },
-          // Catch-all vendor chunk for everything else from node_modules
-          // (keeps the per-route bundle small)
-          vendor: {
-            test: /[\\/]node_modules[\\/]/,
-            name: 'vendor-common',
+          // Keep any Node polyfills that reach the browser graph out of the
+          // eager React vendor chunk. crypto-browserify is not a direct app
+          // dependency; this isolates any remaining transitive polyfills.
+          nodePolyfills: {
+            test(module) {
+              const p = module.resource || module.nameForCondition?.() || ''
+              return /[\\/]node_modules[\\/](crypto-browserify|browserify-sign|browserify-cipher|browserify-des|browserify-rsa|browserify-aes|create-ecdh|create-hash|create-hmac|diffie-hellman|pbkdf2|public-encrypt|randomfill|readable-stream|asn1|elliptic|bn\.js|hash\.js|vm-browserify|process)([\\/]|$)/.test(p)
+            },
+            name: 'vendor-node-polyfills',
             chunks: 'all',
-            priority: 1,
-            // Don't let vendor-common steal from the named groups above
-            reuseExistingChunk: true,
+            priority: 28,
+            enforce: true,
           },
+          // Sentry SDK (@sentry/nextjs + deps). Every app-code entry point
+          // (instrumentation-client, webVitals, error boundaries, apiHandler,
+          // logger) now loads it via dynamic import, so the SDK is only
+          // reachable from async chunks. But the catch-all vendor-common
+          // cacheGroup co-locates those async-only modules into shared chunks
+          // that initial chunks must fetch (~145 KB on every eager page load).
+          // Isolating them into their own async-fetched group mirrors the
+          // nodePolyfills fix above.
+          sentrySdk: {
+            test(module) {
+              const p = module.resource || module.nameForCondition?.() || ''
+              return /[\\/]node_modules[\\/](@sentry|@opentelemetry)[\\/]/.test(p)
+            },
+            name: 'vendor-sentry',
+            chunks: 'async',
+            priority: 28,
+            enforce: true,
+          },
+          // Preserve Next's default sharing for other dependencies. Giving
+          // every vendor the same name merges lazy-only modules into startup.
         },
       },
+    }
     }
 
     return config
@@ -337,12 +439,6 @@ const nextConfig = {
         ],
       },
       {
-        source: '/static/:path*',
-        headers: [
-          { key: 'Cache-Control', value: 'public, max-age=31536000, immutable' },
-        ],
-      },
-      {
         source: '/sw.js',
         headers: [
           { key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' },
@@ -350,31 +446,111 @@ const nextConfig = {
         ],
       },
       {
-        source: '/api/projects/:path*',
+        // Production output has versioned paths. Development chunk URLs are
+        // reused, so caching them immutably hides source updates even on reload.
+        source: '/_next/static/:path*',
         headers: [
-          // User-specific data — must not be cached by CDNs/proxies
+          { key: 'Cache-Control', value: isProd ? 'public, max-age=31536000, immutable' : 'no-cache, no-store, must-revalidate' },
+        ],
+      },
+      {
+        // Only fingerprinted font filenames receive immutable public caching.
+        source: '/fonts/:font([a-f0-9]{16}[-.a-z]*\\.woff2)',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=31536000, immutable' }],
+      },
+      {
+        // API responses may contain account, project, report, or export data.
+        // Default them all to private; Cloudflare rules must never override it.
+        source: '/api/:path*',
+        headers: [
           { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
-        source: '/api/survey-report/:path*',
+        // Authenticated workspaces render user-specific RSC/HTML responses.
+        source: '/project/:path*',
         headers: [
-          // User-specific report data — must not be cached by CDNs/proxies
           { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
-        source: '/api/tools/:path*',
+        source: '/dashboard/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=3600' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
       {
-        source: '/api/field/mbtiles/tiles/:path*',
+        source: '/projects/:path*',
         headers: [
-          { key: 'Cache-Control', value: 'public, max-age=86400, stale-while-revalidate=604800' },
+          { key: 'Cache-Control', value: 'private, no-store' },
         ],
       },
+      {
+        source: '/field/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/fieldbook/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/map/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/admin/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/reports/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/account/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/connect/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/login/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/register/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      {
+        source: '/documents/:path*',
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      },
+      ...['survey', 'organization', 'settings', 'subscription', 'checkout'].map((route) => ({
+        source: `/${route}/:path*`,
+        headers: [
+          { key: 'Cache-Control', value: 'private, no-store' },
+        ],
+      })),
     ]
   },
 }

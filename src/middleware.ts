@@ -3,14 +3,18 @@ import { getToken } from 'next-auth/jwt'
 import { rateLimit, RATE_LIMITS, getClientIdentifier } from '@/lib/security/rateLimit'
 import type { RateLimitCategory } from '@/lib/security/rateLimit'
 import { generateNonce, getCspHeaders } from '@/lib/security/csp'
-import { corsHeaders } from '@/lib/cors'
+import { corsHeaders, mcpCorsHeaders } from '@/lib/cors'
 
 export async function middleware(request: NextRequest) {
   // AUDIT FIX (M9, 2026-07-02): Handle CORS preflight (OPTIONS) globally
   // so individual API routes don't need to. Returns 204 with CORS headers.
   if (request.method === 'OPTIONS' && request.nextUrl.pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin')
-    const cors = corsHeaders(origin)
+    const isMcp = request.nextUrl.pathname === '/api/mcp'
+    if (isMcp && request.headers.get('access-control-request-method') !== 'POST') {
+      return new NextResponse(null, { status: 403 })
+    }
+    const cors = isMcp ? mcpCorsHeaders(origin) : corsHeaders(origin)
     if (Object.keys(cors).length === 0) {
       return new NextResponse(null, { status: 403 })
     }
@@ -22,7 +26,11 @@ export async function middleware(request: NextRequest) {
     secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
   })
 
-  const isAuthenticated = !!token?.email
+  // A session callback that detects a version mismatch persists this marker in
+  // the refreshed JWT cookie. The middleware then blocks protected pages even
+  // though it cannot query PostgreSQL from the edge runtime itself.
+  const sessionRevoked = (token as { metarduSessionRevoked?: boolean } | null)?.metarduSessionRevoked === true
+  const isAuthenticated = !!token?.email && !sessionRevoked
   const userId = (token as { id?: string })?.id
 
   // ─── Protected routes ───
@@ -55,9 +63,11 @@ export async function middleware(request: NextRequest) {
 
   // ─── Public pages (accessible without auth) ───
   // /subscription/success must be public so returning PayPal/Stripe users can access it
-  const publicPages = ['/subscription/success']
+  const publicPages = ['/subscription/success', '/organization/invitations/accept']
   const isPublicPage = publicPages.some(path =>
-    request.nextUrl.pathname.startsWith(path)
+    path === '/organization/invitations/accept'
+      ? request.nextUrl.pathname === path
+      : request.nextUrl.pathname.startsWith(path)
   )
 
   // ─── API routes: let them handle auth themselves ───
@@ -65,7 +75,9 @@ export async function middleware(request: NextRequest) {
   // Redirect unauthenticated users from protected pages (skip public pages)
   if (isProtected && !isAuthenticated && !isPublicPage) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('next', request.nextUrl.pathname)
+    // Preserve checkout plans and provider selection across sign-in so an
+    // unauthenticated customer returns to the exact flow they started.
+    loginUrl.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`)
     return NextResponse.redirect(loginUrl)
   }
 
@@ -93,7 +105,7 @@ export async function middleware(request: NextRequest) {
   const csrfExemptPaths = ['/api/webhooks/', '/api/public/']
   const isCsrfExempt = csrfExemptPaths.some(path =>
     request.nextUrl.pathname.startsWith(path)
-  )
+  ) || request.nextUrl.pathname === '/api/mcp'
 
   if (isStateChanging && !isCsrfExempt) {
     const origin = request.headers.get('origin')
@@ -149,7 +161,11 @@ export async function middleware(request: NextRequest) {
     let category: RateLimitCategory | null = 'api'
     const path = request.nextUrl.pathname
 
-    if (path.startsWith('/api/auth/')) {
+    if (path === '/api/mcp') {
+      // The MCP handler applies its own per-IP and per-user limits.
+      category = null
+    }
+    else if (path.startsWith('/api/auth/')) {
       // The auth budget exists to slow credential brute-force, which is
       // POST-only. NextAuth's discovery/session endpoints (session, csrf,
       // providers, signout, error, verify-request) are GETs the client fires
@@ -184,6 +200,12 @@ export async function middleware(request: NextRequest) {
 
   // Add security headers to all responses
   const response = NextResponse.next()
+  // NOTE: Do NOT set `Cache-Control: no-transform` here. Next's bundled
+  // compression middleware and Cloudflare's edge both treat it as a prohibition
+  // on ANY content change, including gzip Content-Encoding, which silently
+  // served every HTML page uncompressed (~171 KB raw instead of ~30 KB gzip).
+  // Protection from Cloudflare HTML rewrites is handled by keeping Rocket
+  // Loader / Email Obfuscation disabled in the CF dashboard instead.
 
   // ─── API Versioning ──────────────────────────────────────────────────────
   // ByteByteGo audit fix: support /api/v1/* paths by rewriting to /api/*
@@ -233,7 +255,7 @@ export async function middleware(request: NextRequest) {
   // function checks the Origin against the allow-list internally.
   if (request.nextUrl.pathname.startsWith('/api/')) {
     const origin = request.headers.get('origin')
-    const cors = corsHeaders(origin)
+    const cors = request.nextUrl.pathname === '/api/mcp' ? mcpCorsHeaders(origin) : corsHeaders(origin)
     for (const [key, value] of Object.entries(cors)) {
       response.headers.set(key, value)
     }

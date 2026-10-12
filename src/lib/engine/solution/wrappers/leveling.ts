@@ -42,7 +42,9 @@ export function levelingSolved(input: LevelingInput, result: LevelingResult): So
         title: 'Allowable misclosure (ordinary leveling)',
         formula: 'Allowable = ±10√K mm',
         substitution: `K = ${fullNumber(distanceKm)} km`,
-        computation: `Allowable = ±${fullNumber(result.allowableMisclosure * 1000)} mm`,
+        computation: result.allowableMisclosure !== undefined
+          ? `Allowable = ±${fullNumber(result.allowableMisclosure * 1000)} mm`
+          : 'Allowable misclosure unverified (route distance unknown)',
       },
     ],
     check: [
@@ -55,7 +57,7 @@ export function levelingSolved(input: LevelingInput, result: LevelingResult): So
         ? [
             {
               label: 'Misclosure within allowable',
-              value: `${result.misclosure.toFixed(4)} m vs ±${result.allowableMisclosure.toFixed(4)} m`,
+              value: `${result.misclosure.toFixed(4)} m vs ±${result.allowableMisclosure !== undefined ? result.allowableMisclosure.toFixed(4) + ' m' : 'N/A'}`,
               ok: result.isAcceptable,
             },
           ]

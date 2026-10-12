@@ -1,302 +1,400 @@
+import type { BoundingBox2D, CadCoordinate, ExtractedCadEntity, ParsedInput } from './types'
 
-import type { ParsedInput, ExtractedBuildingData, ExtractedWall, ExtractedRoom, ExtractedAnnotation, BoundingBox2D, Point2D } from './types'
-import { calculateConfidence } from './fileRouter'
-
-interface DXFEntity {
-  type: string
-  layer?: string
-  x?: number
-  y?: number
-  x1?: number
-  y1?: number
-  x2?: number
-  y2?: number
-  thickness?: number
-  elevation?: number
-  text?: string
-  height?: number
+interface DxfPair {
+  code: number
+  value: string
 }
 
-interface DXFParseResult {
-  entities: DXFEntity[]
-  units: string
-  layers: string[]
-  boundingBox: BoundingBox2D
+type CadEntity = ExtractedCadEntity
+
+interface DxfSection {
+  name: string
+  pairs: DxfPair[]
 }
 
-function parseDXFFile(content: string): DXFParseResult {
-  const entities: DXFEntity[] = []
-  const layers = new Set<string>()
-  const lines = content.split('\n')
-  
-  let i = 0
-  let currentEntity: Record<string, string> = {}
-  
-  while (i < lines.length) {
-    const line = lines[i]?.trim()
-    if (!line) {
-      i++
+const UNIT_NAMES: Record<number, string> = {
+  0: 'unitless',
+  1: 'inches',
+  2: 'feet',
+  3: 'miles',
+  4: 'millimeters',
+  5: 'centimeters',
+  6: 'meters',
+  7: 'kilometers',
+  8: 'microinches',
+  9: 'mils',
+  10: 'yards',
+  11: 'angstroms',
+  12: 'nanometers',
+  13: 'microns',
+  14: 'decimeters',
+  15: 'dekameters',
+  16: 'hectometers',
+  17: 'gigameters',
+  18: 'astronomical units',
+  19: 'light years',
+  20: 'parsecs',
+  21: 'US survey feet',
+  22: 'US survey inches',
+  23: 'US survey yards',
+  24: 'US survey miles',
+}
+
+const SPATIAL_ENTITY_KINDS = new Set([
+  'POINT', 'LINE', 'LWPOLYLINE', 'POLYLINE', 'CIRCLE', 'ARC', 'TEXT', 'MTEXT',
+])
+
+function readPairs(content: string): { pairs: DxfPair[]; malformedLines: number } {
+  const lines = content.replace(/^\uFEFF/, '').split(/\r?\n/)
+  const pairs: DxfPair[] = []
+  let malformedLines = 0
+
+  for (let i = 0; i < lines.length;) {
+    const codeText = lines[i]?.trim() ?? ''
+    if (codeText === '' && i === lines.length - 1) break
+    const code = Number(codeText)
+    const value = lines[i + 1]
+    if (!/^-?\d+$/.test(codeText) || !Number.isInteger(code) || code < -5 || code > 1071 || value === undefined) {
+      malformedLines += 1
+      i += value === undefined ? 1 : 2
       continue
     }
-    
-    const code = parseInt(line, 10)
-    const nextLine = lines[i + 1]?.trim() || ''
-    
-    if (code >= 0 && code <= 999) {
-      currentEntity[code] = nextLine
-      
-      if (code === 0 && nextLine) {
-        if (Object.keys(currentEntity).length > 1) {
-          const entity = convertToEntity(currentEntity)
-          if (entity) {
-            entities.push(entity)
-            if (entity.layer) layers.add(entity.layer)
-          }
-        }
-        currentEntity = { 0: nextLine }
-      }
-    }
+    pairs.push({ code, value: value.trim() })
     i += 2
   }
-  
-  if (Object.keys(currentEntity).length > 1) {
-    const entity = convertToEntity(currentEntity)
-    if (entity) {
-      entities.push(entity)
-      if (entity.layer) layers.add(entity.layer)
-    }
-  }
-  
-  let units = 'meters'
-  const unitsEntity = entities.find((e) => e.type === 'INSUNITS')
-  if (unitsEntity && unitsEntity.text) {
-    const unitCode = parseInt(unitsEntity.text)
-    const unitMap: Record<number, string> = {
-      1: 'units', 2: 'inches', 3: 'feet', 4: 'miles',
-      5: 'millimeters', 6: 'centimeters', 7: 'meters', 8: 'kilometers',
-    }
-    units = unitMap[unitCode] || 'meters'
-  }
-  
-  let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity
-  entities.forEach((e) => {
-    const coords = getEntityCoordinates(e)
-    coords.forEach((p) => {
-      if (p.easting < minE) minE = p.easting
-      if (p.easting > maxE) maxE = p.easting
-      if (p.northing < minN) minN = p.northing
-      if (p.northing > maxN) maxN = p.northing
-    })
-  })
-  
-  const boundingBox: BoundingBox2D = minE === Infinity 
-    ? { minEasting: 0, maxEasting: 0, minNorthing: 0, maxNorthing: 0 }
-    : { minEasting: minE, maxEasting: maxE, minNorthing: minN, maxNorthing: maxN }
-  
-  return { entities, units, layers: Array.from(layers), boundingBox }
+
+  return { pairs, malformedLines }
 }
 
-function convertToEntity(data: Record<string, string>): DXFEntity | null {
-  const type = data[0]
-  if (!type) return null
-  
-  const entity: DXFEntity = { type, layer: data[8] }
-  
-  switch (type) {
-    case 'LINE':
-      entity.x1 = parseFloat(data[10])
-      entity.y1 = parseFloat(data[20])
-      entity.x2 = parseFloat(data[11])
-      entity.y2 = parseFloat(data[21])
-      entity.thickness = parseFloat(data[39])
-      entity.elevation = parseFloat(data[30])
+function readSections(pairs: DxfPair[]): DxfSection[] {
+  const sections: DxfSection[] = []
+  let i = 0
+
+  while (i < pairs.length - 1) {
+    if (pairs[i]?.code !== 0 || pairs[i]?.value !== 'SECTION') {
+      i += 1
+      continue
+    }
+
+    const sectionName = pairs[i + 1]?.code === 2 ? pairs[i + 1].value.toUpperCase() : ''
+    const start = i + 2
+    let end = start
+    while (end < pairs.length && !(pairs[end]?.code === 0 && pairs[end]?.value === 'ENDSEC')) end += 1
+    sections.push({ name: sectionName, pairs: pairs.slice(start, end) })
+    i = end + 1
+  }
+
+  return sections
+}
+
+function firstValue(pairs: DxfPair[], code: number): string | undefined {
+  return pairs.find((pair) => pair.code === code)?.value
+}
+
+function numberValue(pairs: DxfPair[], code: number): number | undefined {
+  const value = firstValue(pairs, code)
+  if (value === undefined || value.trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isFinite(parsed) ? parsed : undefined
+}
+
+function makeCoordinate(x: number | undefined, y: number | undefined, z?: number): CadCoordinate | undefined {
+  if (x === undefined || y === undefined) return undefined
+  return { easting: x, northing: y, ...(z !== undefined ? { elevation: z } : {}) }
+}
+
+function getExtrusion(pairs: DxfPair[]): [number, number, number] | undefined {
+  const x = numberValue(pairs, 210)
+  const y = numberValue(pairs, 220)
+  const z = numberValue(pairs, 230)
+  if (x === undefined && y === undefined && z === undefined) return undefined
+  return [x ?? 0, y ?? 0, z ?? 1]
+}
+
+function readLightweightPolyline(pairs: DxfPair[]): CadCoordinate[] {
+  const xs = pairs.filter((pair) => pair.code === 10).map((pair) => Number(pair.value))
+  const ys = pairs.filter((pair) => pair.code === 20).map((pair) => Number(pair.value))
+  const elevation = numberValue(pairs, 38)
+  const coordinates: CadCoordinate[] = []
+
+  for (let i = 0; i < Math.min(xs.length, ys.length); i += 1) {
+    const coordinate = makeCoordinate(xs[i], ys[i], elevation)
+    if (coordinate) coordinates.push(coordinate)
+  }
+
+  return coordinates
+}
+
+function readVertex(pairs: DxfPair[]): CadCoordinate | undefined {
+  return makeCoordinate(numberValue(pairs, 10), numberValue(pairs, 20), numberValue(pairs, 30))
+}
+
+function readEntity(kind: string, pairs: DxfPair[], polylineVertices?: CadCoordinate[]): CadEntity {
+  const layer = firstValue(pairs, 8)
+  const coordinates: CadCoordinate[] = []
+  const extrusion = getExtrusion(pairs)
+  const entity: CadEntity = {
+    kind,
+    ...(layer ? { layer } : {}),
+    coordinates,
+    ...(extrusion ? { extrusion } : {}),
+  }
+
+  switch (kind) {
+    case 'LINE': {
+      const start = makeCoordinate(numberValue(pairs, 10), numberValue(pairs, 20), numberValue(pairs, 30))
+      const end = makeCoordinate(numberValue(pairs, 11), numberValue(pairs, 21), numberValue(pairs, 31))
+      if (start) coordinates.push(start)
+      if (end) coordinates.push(end)
+      break
+    }
+    case 'LWPOLYLINE':
+      coordinates.push(...readLightweightPolyline(pairs))
+      entity.closed = ((numberValue(pairs, 70) ?? 0) & 1) === 1
       break
     case 'POLYLINE':
-    case 'LWPOLYLINE':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
+      coordinates.push(...(polylineVertices ?? []))
+      entity.closed = ((numberValue(pairs, 70) ?? 0) & 1) === 1
       break
+    case 'POINT': {
+      const point = makeCoordinate(numberValue(pairs, 10), numberValue(pairs, 20), numberValue(pairs, 30))
+      if (point) coordinates.push(point)
+      break
+    }
     case 'CIRCLE':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
-      entity.thickness = parseFloat(data[40])
+    case 'ARC': {
+      const center = makeCoordinate(numberValue(pairs, 10), numberValue(pairs, 20), numberValue(pairs, 30))
+      if (center) coordinates.push(center)
+      entity.radius = numberValue(pairs, 40)
+      if (kind === 'ARC') {
+        entity.startAngle = numberValue(pairs, 50)
+        entity.endAngle = numberValue(pairs, 51)
+      }
       break
-    case 'ARC':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
-      entity.thickness = parseFloat(data[40])
-      break
+    }
     case 'TEXT':
-    case 'MTEXT':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
-      entity.text = data[1] || data[3]
-      entity.height = parseFloat(data[40])
+    case 'MTEXT': {
+      const insertion = makeCoordinate(numberValue(pairs, 10), numberValue(pairs, 20), numberValue(pairs, 30))
+      if (insertion) coordinates.push(insertion)
+      const chunks = pairs.filter((pair) => pair.code === 3 || pair.code === 1).map((pair) => pair.value)
+      entity.text = chunks.join('')
       break
-    case 'DIMENSION':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
-      entity.text = data[1]
-      break
-    case 'INSERT':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
-      break
-    case 'POINT':
-      entity.x = parseFloat(data[10])
-      entity.y = parseFloat(data[20])
-      break
+    }
   }
-  
+
   return entity
 }
 
-function getEntityCoordinates(entity: DXFEntity): Point2D[] {
-  const points: Point2D[] = []
-  
-  if (entity.x1 !== undefined && entity.y1 !== undefined) {
-    points.push({ easting: entity.x1, northing: entity.y1 })
+function readEntities(section: DxfSection): { entities: CadEntity[]; malformedPolylines: number } {
+  const entities: CadEntity[] = []
+  let malformedPolylines = 0
+  let i = 0
+
+  while (i < section.pairs.length) {
+    const header = section.pairs[i]
+    if (header?.code !== 0) {
+      i += 1
+      continue
+    }
+
+    const kind = header.value.toUpperCase()
+    let next = i + 1
+    while (next < section.pairs.length && section.pairs[next]?.code !== 0) next += 1
+    const fields = section.pairs.slice(i + 1, next)
+
+    if (kind === 'POLYLINE') {
+      const vertices: CadCoordinate[] = []
+      let cursor = next
+      let sawSequenceEnd = false
+
+      while (cursor < section.pairs.length && section.pairs[cursor]?.code === 0) {
+        const childKind = section.pairs[cursor]?.value.toUpperCase()
+        let childEnd = cursor + 1
+        while (childEnd < section.pairs.length && section.pairs[childEnd]?.code !== 0) childEnd += 1
+        const childFields = section.pairs.slice(cursor + 1, childEnd)
+
+        if (childKind === 'VERTEX') {
+          const vertex = readVertex(childFields)
+          if (vertex) vertices.push(vertex)
+          cursor = childEnd
+          continue
+        }
+        if (childKind === 'SEQEND') {
+          cursor = childEnd
+          sawSequenceEnd = true
+        }
+        break
+      }
+
+      if (!sawSequenceEnd) malformedPolylines += 1
+      entities.push(readEntity(kind, fields, vertices))
+      i = cursor
+      continue
+    }
+
+    if (kind !== 'ENDSEC' && kind !== 'SEQEND' && kind !== 'VERTEX') {
+      entities.push(readEntity(kind, fields))
+    }
+    i = next
   }
-  if (entity.x2 !== undefined && entity.y2 !== undefined) {
-    points.push({ easting: entity.x2, northing: entity.y2 })
-  }
-  if (entity.x !== undefined && entity.y !== undefined) {
-    points.push({ easting: entity.x, northing: entity.y })
-  }
-  
-  return points
+
+  return { entities, malformedPolylines }
 }
 
-function inferWalls(entities: DXFEntity[], _boundingBox: BoundingBox2D): ExtractedWall[] {
-  const walls: ExtractedWall[] = []
-  const wallLayers = ['WALLS', 'WALL', 'A-WALL', 'STRUCTURAL', 'MAIN', 'PARTITION']
-  const lineEntities = entities.filter((e) => 
-    e.type === 'LINE' && 
-    e.x1 !== undefined && e.y1 !== undefined &&
-    e.x2 !== undefined && e.y2 !== undefined
-  )
-  
-  lineEntities.forEach((line, idx) => {
-    const length = Math.sqrt(
-      Math.pow((line.x2 || 0) - (line.x1 || 0), 2) + 
-      Math.pow((line.y2 || 0) - (line.y1 || 0), 2)
-    )
-    
-    if (length > 0.5) {
-      const layer = line.layer?.toUpperCase() || ''
-      const isLoadBearing = wallLayers.some(() => 
-        layer.includes('MAIN') || layer.includes('STRUCTURAL') || layer.includes('BEARING')
-      )
-      
-      walls.push({
-        id: `wall_${idx}`,
-        type: isLoadBearing ? 'load-bearing' : 'partition',
-        startPoint: { easting: line.x1 || 0, northing: line.y1 || 0 },
-        endPoint: { easting: line.x2 || 0, northing: line.y2 || 0 },
-        thickness: 0.2,
-        height: 3.0,
-        material: 'concrete',
-        level: 0,
-      })
+function readUnits(header: DxfSection | undefined): number | null {
+  if (!header) return null
+  for (let i = 0; i < header.pairs.length; i += 1) {
+    if (header.pairs[i]?.code !== 9 || header.pairs[i]?.value !== '$INSUNITS') continue
+    for (let j = i + 1; j < header.pairs.length && header.pairs[j]?.code !== 9; j += 1) {
+      if (header.pairs[j]?.code !== 70) continue
+      const value = Number(header.pairs[j].value)
+      return Number.isInteger(value) ? value : null
+    }
+  }
+  return null
+}
+
+function arcAngleContains(angle: number, start: number, end: number): boolean {
+  const normalizedStart = ((start % 360) + 360) % 360
+  const normalizedEnd = ((end % 360) + 360) % 360
+  const normalizedAngle = ((angle % 360) + 360) % 360
+  const span = (normalizedEnd - normalizedStart + 360) % 360
+  const offset = (normalizedAngle - normalizedStart + 360) % 360
+  return offset <= span
+}
+
+function getExtentCoordinates(entity: CadEntity): CadCoordinate[] {
+  const center = entity.coordinates[0]
+  if (!center || entity.radius === undefined || !Number.isFinite(entity.radius) || entity.radius < 0) {
+    return entity.coordinates
+  }
+
+  const radius = entity.radius
+  if (entity.kind === 'CIRCLE') {
+    return [
+      { easting: center.easting - radius, northing: center.northing - radius },
+      { easting: center.easting + radius, northing: center.northing + radius },
+    ]
+  }
+
+  if (entity.kind !== 'ARC' || entity.startAngle === undefined || entity.endAngle === undefined) {
+    return entity.coordinates
+  }
+
+  const angles = [entity.startAngle, entity.endAngle]
+  for (const cardinal of [0, 90, 180, 270]) {
+    if (arcAngleContains(cardinal, entity.startAngle, entity.endAngle)) angles.push(cardinal)
+  }
+  return angles.map((degrees) => {
+    const radians = degrees * Math.PI / 180
+    return {
+      easting: center.easting + radius * Math.cos(radians),
+      northing: center.northing + radius * Math.sin(radians),
     }
   })
-  
-  return walls
 }
 
-function extractAnnotations(entities: DXFEntity[]): ExtractedAnnotation[] {
-  const annotations: ExtractedAnnotation[] = []
-  const textEntities = entities.filter((e) => 
-    (e.type === 'TEXT' || e.type === 'MTEXT') && 
-    e.text && e.x !== undefined && e.y !== undefined
-  )
-  
-  textEntities.forEach((text, idx) => {
-    annotations.push({
-      id: `annotation_${idx}`,
-      type: 'text',
-      position: { easting: text.x || 0, northing: text.y || 0 },
-      content: text.text || '',
-      level: 0,
-    })
+function computeBoundingBox(entities: CadEntity[]): BoundingBox2D | undefined {
+  const coordinates = entities.flatMap(getExtentCoordinates)
+    .filter((point) => Number.isFinite(point.easting) && Number.isFinite(point.northing))
+  if (coordinates.length === 0) return undefined
+
+  return coordinates.reduce<BoundingBox2D>((bounds, point) => ({
+    minEasting: Math.min(bounds.minEasting, point.easting),
+    maxEasting: Math.max(bounds.maxEasting, point.easting),
+    minNorthing: Math.min(bounds.minNorthing, point.northing),
+    maxNorthing: Math.max(bounds.maxNorthing, point.northing),
+  }), {
+    minEasting: Infinity,
+    maxEasting: -Infinity,
+    minNorthing: Infinity,
+    maxNorthing: -Infinity,
   })
-  
-  return annotations
 }
 
-function inferRoomsFromWalls(walls: ExtractedWall[], boundingBox: BoundingBox2D): ExtractedRoom[] {
-  const rooms: ExtractedRoom[] = []
-  
-
-
-  
-  rooms.push({
-    id: 'room_1',
-    name: 'Living Room',
-    floor: 0,
-    boundary: [
-      { easting: boundingBox.minEasting, northing: boundingBox.minNorthing },
-      { easting: boundingBox.maxEasting, northing: boundingBox.minNorthing },
-      { easting: boundingBox.maxEasting, northing: boundingBox.maxNorthing },
-      { easting: boundingBox.minEasting, northing: boundingBox.maxNorthing },
-    ],
-    area: (boundingBox.maxEasting - boundingBox.minEasting) * (boundingBox.maxNorthing - boundingBox.minNorthing),
-    perimeter: 2 * ((boundingBox.maxEasting - boundingBox.minEasting) + (boundingBox.maxNorthing - boundingBox.minNorthing)),
-    height: 3.0,
-    function: 'living',
-  })
-  
-  return rooms
+function isDefaultExtrusion(entity: CadEntity): boolean {
+  if (!entity.extrusion) return true
+  const [x, y, z] = entity.extrusion
+  return Math.abs(x) < 1e-12 && Math.abs(y) < 1e-12 && Math.abs(z - 1) < 1e-12
 }
 
 export async function parseDXFFileContent(content: string, filename: string): Promise<ParsedInput> {
-  const parseResult = parseDXFFile(content)
-  
-  const walls = inferWalls(parseResult.entities, parseResult.boundingBox)
-  const annotations = extractAnnotations(parseResult.entities)
-  const rooms = inferRoomsFromWalls(walls, parseResult.boundingBox)
-  
-  const building: ExtractedBuildingData = {
-    floors: [{
-      id: 'floor_0',
-      level: 0,
-      name: 'Ground Floor',
-      elevation: 0,
-      boundingBox: parseResult.boundingBox,
-    }],
-    walls,
-    rooms,
-    doors: [],
-    windows: [],
-    columns: [],
-    beams: [],
-    annotations,
-    boundingBox: parseResult.boundingBox,
-    metadata: {
-      units: parseResult.units as 'meters' | 'centimeters' | 'millimeters',
-      projectName: filename.replace(/\.[^/.]+$/, ''),
-    },
-  }
-  
-  const confidence = calculateConfidence(building)
-  
-  return {
+  const sourceFileSize = Buffer.byteLength(content, 'utf8')
+  const base: ParsedInput = {
     type: 'DXF',
     sourceFileName: filename,
-    sourceFileSize: Buffer.byteLength(content, 'utf8'),
+    sourceFileSize,
     sourceFileLastModified: Date.now(),
     parsedAt: new Date().toISOString(),
-    version: '1.0.0',
-    building,
+    version: '2.0.0',
     errors: [],
-    warnings: [
-      parseResult.units !== 'meters' ? `Detected units: ${parseResult.units}` : '',
-    ].filter(Boolean),
-    confidence,
+    warnings: [],
+    confidence: 0,
+  }
+
+  if (content.startsWith('AutoCAD Binary DXF')) {
+    return { ...base, errors: ['Binary DXF is not supported. Export the drawing as ASCII DXF and try again.'] }
+  }
+
+  const { pairs, malformedLines } = readPairs(content)
+  const sections = readSections(pairs)
+  const header = sections.find((section) => section.name === 'HEADER')
+  const entitiesSection = sections.find((section) => section.name === 'ENTITIES')
+  if (!entitiesSection) {
+    return { ...base, errors: ['The file has no DXF ENTITIES section, so no drawing geometry could be read.'] }
+  }
+
+  const parsedEntities = readEntities(entitiesSection)
+  const entities = parsedEntities.entities
+  const unitCode = readUnits(header)
+  const units = unitCode === null ? null : UNIT_NAMES[unitCode] ?? `unknown units code ${unitCode}`
+  const bbox = computeBoundingBox(entities)
+  const layerNames = [...new Set(entities.map((entity) => entity.layer).filter((layer): layer is string => Boolean(layer)))].sort()
+  const typeCounts = entities.reduce<Record<string, number>>((counts, entity) => {
+    counts[entity.kind] = (counts[entity.kind] ?? 0) + 1
+    return counts
+  }, {})
+  const unsupportedKinds = Object.keys(typeCounts).filter((kind) => !SPATIAL_ENTITY_KINDS.has(kind)).sort()
+  const warnings: string[] = [
+    'No coordinate reference system was interpreted from the DXF. Coordinates remain in drawing space and are not ready for map overlay or set-out until the CRS is confirmed.',
+  ]
+
+  if (unitCode === null) {
+    warnings.push('The DXF does not declare $INSUNITS. Coordinate units are unknown; no scale conversion was applied.')
+  } else if (unitCode === 0) {
+    warnings.push('The DXF declares unitless coordinates. Confirm the drawing units before measuring or setting out.')
+  } else if (!UNIT_NAMES[unitCode]) {
+    warnings.push(`The DXF uses unrecognized $INSUNITS code ${unitCode}. Coordinate units could not be interpreted.`)
+  }
+  if (malformedLines > 0) warnings.push(`${malformedLines} malformed DXF group-code line(s) were skipped.`)
+  if (parsedEntities.malformedPolylines > 0) warnings.push(`${parsedEntities.malformedPolylines} POLYLINE sequence(s) had no SEQEND marker; review the imported vertices.`)
+  if (unsupportedKinds.length > 0) {
+    warnings.push(`These entity types were counted but not converted to survey geometry: ${unsupportedKinds.join(', ')}.`)
+  }
+  if (entities.some((entity) => entity.kind === 'INSERT')) {
+    warnings.push('Block INSERT references were not expanded; geometry stored inside blocks is not included in the feature geometry.')
+  }
+  if (entities.some((entity) => !isDefaultExtrusion(entity))) {
+    warnings.push('One or more entities use a non-default object coordinate system. Their coordinates were preserved without transformation to world coordinates.')
+  }
+  if (entities.length === 0) warnings.push('The DXF ENTITIES section is empty.')
+
+  return {
+    ...base,
+    cad: {
+      entities,
+      entityCount: entities.length,
+      typeCounts,
+      layers: layerNames,
+      units,
+      unitCode,
+      coordinateReferenceSystem: null,
+      boundingBox: bbox,
+    },
+    warnings,
   }
 }
 
 export function parseDXFBuffer(buffer: Buffer, filename: string): Promise<ParsedInput> {
-  const content = buffer.toString('utf8')
-  return parseDXFFileContent(content, filename)
+  return parseDXFFileContent(buffer.toString('utf8'), filename)
 }

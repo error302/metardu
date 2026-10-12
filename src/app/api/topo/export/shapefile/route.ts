@@ -80,10 +80,37 @@ export async function POST(req: NextRequest) {
       ? zipResult
       : Buffer.from(zipResult)
 
+    // Register the issued shapefile against its surface revision (blueprint §15/§28).
+    let registerWarning: string | null = null
+    try {
+      const { currentDesignRevision } = await import('@/lib/engineering/designRevisions')
+      const { registerDeliverable } = await import('@/lib/deliverables/deliverableRegister')
+      const design = await currentDesignRevision(String(projectId), 'surface')
+      const registered = await registerDeliverable({
+        projectId: String(projectId),
+        documentType: 'other',
+        content: zipBuffer,
+        title: 'Topographic contours shapefile',
+        sourceRevision: design?.revision ?? null,
+        projectCrs: design?.crs ?? null,
+        generator: 'api/topo/export/shapefile',
+        manifest: { contour_count: contours.length, format: 'shapefile-zip' },
+        userId: userId ? String(userId) : null,
+      })
+      logger.info('[topo/export/shapefile] registered', {
+        deliverable: registered.deliverable.id,
+        revision: registered.revision.revision,
+      })
+    } catch (error) {
+      registerWarning = error instanceof Error ? error.message : 'register failed'
+      logger.error('[topo/export/shapefile] deliverable not registered', { error })
+    }
+
     return new NextResponse(zipBuffer as unknown as BodyInit, {
       headers: {
         'Content-Type': 'application/zip',
         'Content-Disposition': `attachment; filename="contours_${projectId ?? 'export'}.zip"`,
+        ...(registerWarning ? { 'X-Metardu-Register-Warning': registerWarning } : {}),
       },
     })
   } catch (error) {

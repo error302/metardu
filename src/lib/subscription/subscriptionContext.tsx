@@ -13,6 +13,12 @@ interface SubscriptionContextType {
   canAddPoints: boolean
   hasFeature: (feature: string) => boolean
   projectCount: number
+  /** Base seats included in the plan price. -1 = unlimited. */
+  includedSeats: number
+  /** Additional seats purchased beyond the base. */
+  purchasedExtraSeats: number
+  /** Whether the current plan supports purchasing additional seats. */
+  isPerSeat: boolean
   loading: boolean
   refresh: () => void
 }
@@ -26,6 +32,9 @@ const SubscriptionContext = createContext<SubscriptionContextType>({
   canAddPoints: true,
   hasFeature: () => false,
   projectCount: 0,
+  includedSeats: 1,
+  purchasedExtraSeats: 0,
+  isPerSeat: false,
   loading: true,
   refresh: () => {},
 })
@@ -39,6 +48,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
   const [trialDaysLeft, setTrialDaysLeft] = useState(0)
   const [features, setFeatures] = useState<string[]>([])
   const [projectCount, setProjectCount] = useState(0)
+  const [includedSeats, setIncludedSeats] = useState(1)
+  const [purchasedExtraSeats, setPurchasedExtraSeats] = useState(0)
+  const [isPerSeat, setIsPerSeat] = useState(false)
   const [loading, setLoading] = useState(true)
 
   const resetState = useCallback(() => {
@@ -48,6 +60,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
     setTrialDaysLeft(0)
     setFeatures([])
     setProjectCount(0)
+    setIncludedSeats(1)
+    setPurchasedExtraSeats(0)
+    setIsPerSeat(false)
   }, [])
 
   const loadSubscription = useCallback(async () => {
@@ -70,7 +85,16 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         return
       }
 
-      const data = (await res.json()) as { plan: string; isAdmin: boolean; status: string; trialEndsAt?: string; features?: string[] }
+      const data = (await res.json()) as {
+        plan: string
+        isAdmin: boolean
+        status: string
+        trialEndsAt?: string
+        features?: string[]
+        includedSeats?: number
+        purchasedExtraSeats?: number
+        isPerSeat?: boolean
+      }
 
       resetState()
 
@@ -88,6 +112,12 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
       // Load tier features from the feature gates system
       const tierFeatures = TIERS[data.plan as PlanId]?.features || []
       setFeatures(tierFeatures.map(String))
+
+      // Per-seat billing info
+      const tierData = TIERS[data.plan as PlanId]
+      setIncludedSeats(data.includedSeats ?? tierData?.includedSeats ?? 1)
+      setPurchasedExtraSeats(data.purchasedExtraSeats ?? 0)
+      setIsPerSeat(data.isPerSeat ?? tierData?.isPerSeat ?? false)
 
       // Fetch project count separately (lightweight query)
       const countRes = await fetch('/api/subscription/project-count', {
@@ -179,6 +209,9 @@ export function SubscriptionProvider({ children }: { children: React.ReactNode }
         canAddPoints,
         hasFeature,
         projectCount,
+        includedSeats,
+        purchasedExtraSeats,
+        isPerSeat,
         loading,
         refresh: loadSubscription,
       }}

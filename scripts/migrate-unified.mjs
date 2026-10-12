@@ -26,8 +26,9 @@
 import { readFileSync, readdirSync, existsSync } from 'fs'
 import { join, dirname } from 'path'
 import { createHash } from 'crypto'
-import { fileURLToPath } from 'url'
+import { fileURLToPath, pathToFileURL } from 'url'
 import pg from 'pg'
+import { migrationChecksums } from './verify-migrations.mjs'
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = dirname(__filename)
@@ -126,6 +127,17 @@ function computeChecksum(filePath) {
   return createHash('sha256').update(content).digest('hex')
 }
 
+export function assertMigrationChecksum(filePath, storedChecksum) {
+  const { checksum, equivalentChecksums } = migrationChecksums(readFileSync(filePath))
+  if (storedChecksum && storedChecksum !== checksum && !equivalentChecksums.includes(storedChecksum)) {
+    throw new Error(`Applied migration content changed: ${filePath}. Add a new migration instead of editing applied SQL.`)
+  }
+}
+
+function checksumMatches(filePath, storedChecksum) {
+  try { assertMigrationChecksum(filePath, storedChecksum); return true } catch { return false }
+}
+
 /**
  * Extract the DOWN section from a migration SQL file.
  * Supports these patterns:
@@ -151,6 +163,12 @@ function extractDownSql(sql) {
 
   if (executableLines.length === 0) return null
   return downSql
+}
+
+/** Extract the forward-only section so rollback SQL never runs during apply. */
+function extractUpSql(sql) {
+  const downMarker = /^\s*--\s*DOWN\b[^\r\n]*$/im.exec(sql)
+  return (downMarker ? sql.slice(0, downMarker.index) : sql).trim()
 }
 
 // ── Schema Migrations Table Management ───────────────────────────────────────
@@ -263,19 +281,30 @@ async function ensureMigrationsTable(pool) {
 /**
  * Get applied migrations as a Map<version, { checksum, applied_at }>.
  */
-async function getAppliedMigrations(pool) {
-  try {
-    const { rows } = await pool.query(
-      'SELECT version, checksum, applied_at FROM schema_migrations ORDER BY applied_at'
-    )
-    const map = new Map()
-    for (const row of rows) {
-      map.set(row.version, { checksum: row.checksum, applied_at: row.applied_at })
-    }
-    return map
-  } catch {
-    return new Map()
+export async function getAppliedMigrations(pool) {
+  // Read the tracker shape instead of treating every query failure as an
+  // empty database. In particular, DNS/authentication failures must make a
+  // dry run fail, and legacy `filename` trackers should still be readable.
+  const { rows: columns } = await pool.query(
+    `SELECT column_name FROM information_schema.columns
+     WHERE table_schema = 'public' AND table_name = 'schema_migrations'`
+  )
+  if (columns.length === 0) return new Map()
+
+  const columnNames = new Set(columns.map(row => row.column_name))
+  const versionColumn = columnNames.has('version') ? 'version' : columnNames.has('filename') ? 'filename' : null
+  if (!versionColumn) throw new Error('schema_migrations has an unsupported schema; inspect it before running migrations.')
+  const checksumColumn = columnNames.has('checksum') ? 'checksum' : 'NULL AS checksum'
+  const appliedColumn = columnNames.has('applied_at') ? 'applied_at' : 'NULL AS applied_at'
+  const { rows } = await pool.query(
+    `SELECT ${versionColumn} AS version, ${checksumColumn}, ${appliedColumn}
+     FROM public.schema_migrations ORDER BY ${versionColumn}`
+  )
+  const map = new Map()
+  for (const row of rows) {
+    map.set(String(row.version).replace(/\.sql$/, ''), { checksum: row.checksum, applied_at: row.applied_at })
   }
+  return map
 }
 
 // ── Core Operations ──────────────────────────────────────────────────────────
@@ -285,7 +314,13 @@ async function getAppliedMigrations(pool) {
  */
 async function applyMigration(pool, migration, dryRun = false, force = false) {
   const sql = readFileSync(migration.filepath, 'utf8')
+  const upSql = extractUpSql(sql)
   const checksum = computeChecksum(migration.filepath)
+
+  if (!upSql) {
+    error(`No UP SQL found in ${migration.filename}`)
+    process.exit(1)
+  }
 
   if (dryRun) {
     log(`[DRY RUN] Would apply: ${migration.filename}  (sha256: ${checksum.slice(0, 12)}…)`)
@@ -299,7 +334,7 @@ async function applyMigration(pool, migration, dryRun = false, force = false) {
     await client.query('BEGIN')
 
     // Run the migration SQL
-    await client.query(sql)
+    await client.query(upSql)
 
     // Record as applied (use ON CONFLICT for --force re-applies)
     await client.query(
@@ -393,7 +428,7 @@ async function showStatus(pool, allMigrations, applied) {
     let status = '(pending)'
 
     if (record) {
-      if (record.checksum && record.checksum !== currentChecksum) {
+      if (!checksumMatches(m.filepath, record.checksum)) {
         marker = '⚠'
         status = `(checksum mismatch! stored: ${(record.checksum || '').slice(0, 12)}…)`
         mismatchCount++
@@ -426,23 +461,25 @@ async function main() {
   })
 
   try {
-    log('Connected to database.')
-    log(`Database: ${databaseUrl.replace(/:[^:@]*@/, ':***@')}`)
+    log('Connecting with configured database settings.')
     log(`Migrations dir: ${MIGRATIONS_DIR}`)
     console.log('')
 
-    // Ensure the tracking table exists with the correct schema
-    await ensureMigrationsTable(pool)
-
-    // Ensure Supabase-compatibility roles exist. Several migrations (e.g.
-    // 044_boundary_monuments.sql) still GRANT to the `authenticated` role,
-    // which only exists in a Supabase-hosted Postgres. A fresh plain-Postgres
-    // deploy fails with `role "authenticated" does not exist` without this.
-    await ensureCompatibilityRoles(pool)
+    // A dry run must be read-only. The normal bootstrap helpers create or
+    // alter the migration table and roles, so only run them during an apply.
+    // getAppliedMigrations below safely returns an empty map when history is
+    // unavailable, allowing dry runs against a new database without writes.
+    if (!DRY_RUN) {
+      await ensureMigrationsTable(pool)
+      await ensureCompatibilityRoles(pool)
+    } else {
+      log('Dry run is read-only: skipping migration-table and role bootstrap.')
+    }
 
     // Get all migration files and already-applied records
     const allMigrations = getMigrationFiles()
     const applied = await getAppliedMigrations(pool)
+    log('Connected to database and read migration history.')
 
     if (allMigrations.length === 0) {
       log('No migration files found.')
@@ -494,7 +531,7 @@ async function main() {
       if (FORCE) {
         // --force: re-apply even if tracked
         const currentChecksum = computeChecksum(m.filepath)
-        if (record.checksum !== currentChecksum) {
+        if (!checksumMatches(m.filepath, record.checksum)) {
           warn(`${m.filename} was previously applied but file has changed — re-applying with --force`)
         } else {
           log(`${m.filename} already applied — re-applying with --force`)
@@ -504,13 +541,7 @@ async function main() {
       }
 
       // Already applied — check checksum
-      const currentChecksum = computeChecksum(m.filepath)
-      if (record.checksum && record.checksum !== currentChecksum) {
-        warn(`${m.filename} was previously applied but the file has changed.`)
-        warn(`  Stored checksum: ${record.checksum.slice(0, 12)}…`)
-        warn(`  Current checksum: ${currentChecksum.slice(0, 12)}…`)
-        warn(`  Skipping. Use --force to re-apply, or delete the row from schema_migrations.`)
-      }
+      assertMigrationChecksum(m.filepath, record.checksum)
       // else: already applied with matching checksum — skip silently
     }
 
@@ -541,4 +572,6 @@ async function main() {
   }
 }
 
-main()
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main()
+}

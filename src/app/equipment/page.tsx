@@ -2,9 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import {
-  getAll, addEquipment, updateEquipment, deleteEquipment, logCalibration, getLogsFor,
-  getEquipmentTypes, EquipmentWithStatus, Equipment, CalibrationLog, BRANDS, INTERVALS,
+  EquipmentWithStatus, Equipment, CalibrationLog, BRANDS, INTERVALS, getEquipmentTypes, calcStatus
 } from '@/lib/integrations/equipment'
+import {
+  fetchAllEquipment, createEquipmentApi, updateEquipmentApi, deleteEquipmentApi, logCalibrationApi, fetchCalibrationLogs
+} from '@/lib/integrations/equipmentApi'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -205,9 +208,9 @@ function LogForm({ equipment, onSave, onCancel }: { equipment: EquipmentWithStat
         </div>
         <div className="flex gap-3 px-6 pb-5">
           <button onClick={onCancel} className="btn btn-secondary flex-1">Cancel</button>
-          <button onClick={() => {
+          <button onClick={async () => {
             if (!form.date) return
-            logCalibration({ equipmentId: equipment.id, ...form })
+            await logCalibrationApi({ equipmentId: equipment.id, ...form })
             onSave()
           }} className="btn btn-primary flex-1">
             Save calibration record
@@ -227,7 +230,10 @@ function DetailDrawer({ equipment, onClose, onEdit, onLog, onDelete }: {
   onLog: () => void
   onDelete: () => void
 }) {
-  const logs = getLogsFor(equipment.id)
+  const { data: logs = [] } = useQuery({
+    queryKey: ['calibrationLogs', equipment.id],
+    queryFn: () => fetchCalibrationLogs(equipment.id),
+  })
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
     document.addEventListener('keydown', onKey)
@@ -321,15 +327,19 @@ function DetailDrawer({ equipment, onClose, onEdit, onLog, onDelete }: {
 // ── Main page ────────────────────────────────────────────────────────────────
 
 export default function EquipmentPage() {
-  const [items, setItems] = useState<EquipmentWithStatus[]>([])
+  const queryClient = useQueryClient()
+  const { data: items = [], isLoading } = useQuery({
+    queryKey: ['equipment'],
+    queryFn: fetchAllEquipment,
+  })
+
   const [view, setView] = useState<'all' | 'overdue' | 'due_soon' | 'ok'>('all')
   const [showAdd, setShowAdd] = useState(false)
   const [editItem, setEditItem] = useState<EquipmentWithStatus | null>(null)
   const [logItem, setLogItem] = useState<EquipmentWithStatus | null>(null)
   const [detailItem, setDetailItem] = useState<EquipmentWithStatus | null>(null)
 
-  const reload = useCallback(() => setItems(getAll()), [])
-  useEffect(() => { reload() }, [reload])
+  const reload = useCallback(() => queryClient.invalidateQueries({ queryKey: ['equipment'] }), [queryClient])
 
   const filtered = view === 'all' ? items : items.filter((i) => i.status === view)
 
@@ -337,6 +347,10 @@ export default function EquipmentPage() {
     overdue: items.filter((i) => i.status === 'overdue').length,
     due_soon: items.filter((i) => i.status === 'due_soon').length,
     ok: items.filter((i) => i.status === 'ok').length,
+  }
+
+  if (isLoading) {
+    return <div className="min-h-screen bg-[var(--bg-primary)] p-8">Loading equipment...</div>
   }
 
   return (
@@ -432,14 +446,14 @@ export default function EquipmentPage() {
       {/* Modals */}
       {showAdd && (
         <EquipmentForm
-          onSave={data => { addEquipment(data); reload(); setShowAdd(false) }}
+          onSave={async (data) => { await createEquipmentApi(data); reload(); setShowAdd(false) }}
           onCancel={() => setShowAdd(false)}
         />
       )}
       {editItem && (
         <EquipmentForm
           initial={editItem}
-          onSave={data => { updateEquipment(editItem.id, data); reload(); setEditItem(null); setDetailItem(null) }}
+          onSave={async (data) => { await updateEquipmentApi(editItem.id, data); reload(); setEditItem(null); setDetailItem(null) }}
           onCancel={() => setEditItem(null)}
         />
       )}
@@ -456,7 +470,7 @@ export default function EquipmentPage() {
           onClose={() => setDetailItem(null)}
           onEdit={() => { setEditItem(detailItem); setDetailItem(null) }}
           onLog={() => { setLogItem(detailItem); setDetailItem(null) }}
-          onDelete={() => { deleteEquipment(detailItem.id); reload(); setDetailItem(null) }}
+          onDelete={async () => { await deleteEquipmentApi(detailItem.id); reload(); setDetailItem(null) }}
         />
       )}
     </div>

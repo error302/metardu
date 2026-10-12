@@ -174,107 +174,67 @@ function solveLinear4x4(A: number[][], b: number[]): number[] {
 
 // ─── Forward Transformation: Cassini Feet → UTM Metres ───────────────────
 
-export function cassiniFeetToUTM(
-  points: CassiniFeetPoint[],
-  params: TopoSheetParams,
-): ConversionResult[] {
-  return points.map((pt) => {
-    try {
-      const cassE = pt.easting
-      const cassN = pt.northing
-
-      const E_conf = applyConformalCorrection(cassE)
-      const N_abs = cassN
-
-      let utmE = params.P * E_conf + params.Q * N_abs + params.Cx
-      const utmN = -params.Q * E_conf + params.P * N_abs + params.Cy
-
-      if (params.A !== undefined && params.B !== undefined) {
-        utmE += params.A * E_conf * E_conf + params.B * N_abs * N_abs
-      }
-
-      const roundedCassE = Math.round(cassE * 10) / 10
-      const roundedCassN = Math.round(cassN * 10) / 10
-      const roundedUtmE = Math.round(utmE * 1000) / 1000
-      const roundedUtmN = Math.round(utmN * 1000) / 1000
-      const roundedE_conf = Math.round(E_conf * 10) / 10
-
-      return {
-        id: pt.id,
-        cassiniE: roundedCassE,
-        cassiniN: roundedCassN,
-        conformalE: roundedE_conf,
-        utmE: roundedUtmE,
-        utmN: roundedUtmN,
-      }
-    } catch (err) {
-      return {
-        id: pt.id,
-        cassiniE: pt.easting,
-        cassiniN: pt.northing,
-        conformalE: applyConformalCorrection(pt.easting),
-        utmE: 0,
-        utmN: 0,
-        warning: `Conversion failed: ${err instanceof Error ? err.message : String(err)}`,
-      }
-    }
+function validateTransform(points: Array<{ easting: number; northing: number }>, params: TopoSheetParams): void {
+  if (![params.P, params.Q, params.Cx, params.Cy, params.A ?? 0, params.B ?? 0].every(Number.isFinite)
+    || Math.hypot(params.P, params.Q) < 1e-12) throw new RangeError('Transformation parameters must be finite and non-singular.')
+  if ((params.A === undefined) !== (params.B === undefined)) throw new RangeError('Polynomial correction needs both A and B coefficients.')
+  if (!points.every(p => Number.isFinite(p.easting) && Number.isFinite(p.northing))) throw new RangeError('Transformation coordinates must be finite.')
+}
+function resultFor(id: string | undefined, cassE: number, cassN: number, confE: number, utmE: number, utmN: number): ConversionResult {
+  if (![cassE, cassN, confE, utmE, utmN].every(Number.isFinite)) throw new RangeError('Transformation exceeded its numerical range.')
+  const result = { id, cassiniE: Math.round(cassE * 10) / 10, cassiniN: Math.round(cassN * 10) / 10,
+    conformalE: Math.round(confE * 10) / 10, utmE: Math.round(utmE * 1000) / 1000, utmN: Math.round(utmN * 1000) / 1000 }
+  if (![result.cassiniE, result.cassiniN, result.conformalE, result.utmE, result.utmN].every(Number.isFinite)) throw new RangeError('Transformation exceeded its output range.')
+  return result
+}
+export function cassiniFeetToUTM(points: CassiniFeetPoint[], params: TopoSheetParams): ConversionResult[] {
+  validateTransform(points, params)
+  return points.map(pt => {
+    const confE = applyConformalCorrection(pt.easting)
+    const utmE = params.P * confE + params.Q * pt.northing + params.Cx
+      + (params.A ?? 0) * confE ** 2 + (params.B ?? 0) * pt.northing ** 2
+    const utmN = -params.Q * confE + params.P * pt.northing + params.Cy
+    return resultFor(pt.id, pt.easting, pt.northing, confE, utmE, utmN)
   })
 }
 
-// ─── Inverse Transformation: UTM Metres → Cassini Feet ────────────────────
-
-export function utmToCassiniFeet(
-  utmPoints: UTMPoint[],
-  params: TopoSheetParams,
-): ConversionResult[] {
-  return utmPoints.map((pt) => {
-    try {
-      const utmE = pt.easting
-      const utmN = pt.northing
-
-      const dE = utmE - params.Cx
-      const dN = utmN - params.Cy
-
-      const det = params.P * params.P + params.Q * params.Q
-
-      const E_conf = (params.P * dE - params.Q * dN) / det
-      const N_abs = (params.Q * dE + params.P * dN) / det
-
-      let cassE = E_conf
-      for (let iter = 0; iter < 3; iter++) {
-        const ab = CLARKE_1858_A_FT * CLARKE_1858_B_FT
-        const correction = (cassE * cassE * cassE) / (6 * ab)
-          + (cassE ** 5) / (24 * ab * ab)
-        cassE = E_conf - correction
+// Invert the exact selected sheet model, including both polynomial terms.
+// This establishes numerical reversibility, not independent control accuracy.
+export function utmToCassiniFeet(points: UTMPoint[], params: TopoSheetParams): ConversionResult[] {
+  validateTransform(points, params)
+  const { P, Q, Cx, Cy } = params, A = params.A ?? 0, B = params.B ?? 0
+  return points.map(pt => {
+    const dE = pt.easting - Cx, dN = pt.northing - Cy, det = P * P + Q * Q
+    let confE = (P * dE - Q * dN) / det, cassN = (Q * dE + P * dN) / det
+    let converged = false
+    for (let i = 0; i < 24; i++) {
+      const f = P * confE + Q * cassN + A * confE ** 2 + B * cassN ** 2 - dE
+      const g = -Q * confE + P * cassN - dN
+      const error = Math.hypot(f, g)
+      if (error <= 1e-7) { converged = true; break }
+      const j11 = P + 2 * A * confE, j12 = Q + 2 * B * cassN, jac = j11 * P + j12 * Q
+      if (!Number.isFinite(jac) || Math.abs(jac) < 1e-24) throw new RangeError('Inverse transformation is singular at this point.')
+      const dx = (P * f - j12 * g) / jac, dn = (Q * f + j11 * g) / jac
+      let accepted = false
+      for (let damping = 1; damping >= 1 / 4096; damping /= 2) {
+        const x = confE - damping * dx, n = cassN - damping * dn
+        const nextError = Math.hypot(P * x + Q * n + A * x ** 2 + B * n ** 2 - dE, -Q * x + P * n - dN)
+        if (Number.isFinite(nextError) && nextError < error) { confE = x; cassN = n; accepted = true; break }
       }
-
-      const cassN = -N_abs
-
-      const roundedCassE = Math.round(cassE * 10) / 10
-      const roundedCassN = Math.round(cassN * 10) / 10
-      const roundedUtmE = Math.round(utmE * 1000) / 1000
-      const roundedUtmN = Math.round(utmN * 1000) / 1000
-      const roundedE_conf = Math.round(E_conf * 10) / 10
-
-      return {
-        id: pt.id,
-        cassiniE: roundedCassE,
-        cassiniN: roundedCassN,
-        conformalE: roundedE_conf,
-        utmE: roundedUtmE,
-        utmN: roundedUtmN,
-        warning: 'Approximate inverse — conformal correction removed iteratively. Verify for cadastral use.',
-      }
-    } catch (err) {
-      return {
-        id: pt.id,
-        cassiniE: 0,
-        cassiniN: 0,
-        conformalE: 0,
-        utmE: pt.easting,
-        utmN: pt.northing,
-        warning: `Inverse conversion failed: ${err instanceof Error ? err.message : String(err)}`,
-      }
+      if (!accepted) throw new RangeError('Inverse transformation did not converge.')
     }
+    if (!converged) throw new RangeError('Inverse transformation did not converge.')
+    const ab = CLARKE_1858_A_FT * CLARKE_1858_B_FT
+    let cassE = confE, conformalConverged = false
+    for (let i = 0; i < 16; i++) {
+      const residual = applyConformalCorrection(cassE) - confE
+      if (Math.abs(residual) <= 1e-8) { conformalConverged = true; break }
+      const derivative = 1 + cassE ** 2 / (2 * ab) + 5 * cassE ** 4 / (24 * ab * ab)
+      cassE -= residual / derivative
+      if (!Number.isFinite(cassE)) break
+    }
+    if (!conformalConverged) throw new RangeError('Inverse conformal correction did not converge.')
+    return { ...resultFor(pt.id, cassE, cassN, confE, pt.easting, pt.northing),
+      warning: 'Numerical inverse of the selected sheet model; verify source control before cadastral use.' }
   })
 }

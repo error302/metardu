@@ -16,6 +16,8 @@ interface EquipmentRow {
   purchase_cost: number | null
   status: string
   notes: string | null
+  interval_days: number
+  location: string | null
   created_at: string | Date
   updated_at: string | Date
 }
@@ -111,14 +113,15 @@ export const POST = apiHandler(
     }
 
     const result = await db.query<EquipmentRow>(
-      `INSERT INTO equipment (user_id, name, type, manufacturer, model, serial_number, purchase_date, purchase_cost, status, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      `INSERT INTO equipment (user_id, name, type, manufacturer, model, serial_number, purchase_date, purchase_cost, status, notes, interval_days, location)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
        RETURNING *`,
       [
         user.id, name, type,
         body.manufacturer || null, body.model || null, body.serialNumber || null,
         body.purchaseDate || null, body.purchaseCost || null,
         body.status || 'active', body.notes || null,
+        body.intervalDays ?? 365, body.location || null,
       ],
     )
 
@@ -153,7 +156,7 @@ export const PATCH = apiHandler(
     const params: unknown[] = []
     let idx = 1
 
-    for (const field of ['name', 'type', 'manufacturer', 'model', 'serial_number', 'status', 'notes']) {
+    for (const field of ['name', 'type', 'manufacturer', 'model', 'serial_number', 'status', 'notes', 'interval_days', 'location', 'purchase_date']) {
       const camelField = field.replace(/_([a-z])/g, (_: string, c: string) => c.toUpperCase())
       if (body[camelField] !== undefined || body[field] !== undefined) {
         updates.push(`${field} = $${idx}`)

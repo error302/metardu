@@ -409,6 +409,9 @@ export default function FieldMapPage() {
                 <span>Import MBTiles</span>
                 <input type="file" accept=".mbtiles" className="hidden" onChange={handleMBTilesImport} disabled={mbtilesLoading} />
               </label>
+              <p className="px-3 pt-1 text-[10px] leading-relaxed text-white/45">
+                Raster PNG, JPEG, or WebP packages are stored with your account and need an internet connection. Device-only offline MBTiles are not supported yet.
+              </p>
               <button
                 onClick={() => { setGeoPDFOpen(true); setDrawerOpen(false); }}
                 className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-white/[0.04] hover:bg-white/[0.08] text-sm text-white/80 hover:text-white transition-colors mt-1"

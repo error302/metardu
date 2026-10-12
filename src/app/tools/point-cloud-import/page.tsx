@@ -19,6 +19,7 @@ import {
   type TINTriangle,
 } from '@/lib/compute/tin';
 import { parsePly } from '@/lib/importers/parsers/ply';
+import { parseLidar } from '@/lib/importers/parsers/las';
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { VolumeTab } from './VolumeTab';
 import { autoClassifyPoint } from '@/lib/topo/featureCodeAutomation';
@@ -26,6 +27,7 @@ import { autoClassifyPoint } from '@/lib/topo/featureCodeAutomation';
 // ─── Constants ──────────────────────────────────────────────────────────────
 
 const MAX_POINTS = 100_000;
+const MAX_UPLOAD_BYTES = 32 * 1024 * 1024;
 const SLOPE_CLASS_LABELS: Record<string, { label: string; range: string; color: string }> = {
   flat: { label: 'Flat', range: '0–2%', color: '#22c55e' },
   gentle: { label: 'Gentle', range: '2–5%', color: '#86efac' },
@@ -142,6 +144,7 @@ function parseXYZText(text: string): {
   totalLines: number;
   delimiter: string;
   hasHeader: boolean;
+  truncated: boolean;
 } {
   const delimiter = detectDelimiter(text);
   const lines = text.split('\n');
@@ -189,7 +192,8 @@ function parseXYZText(text: string): {
     }
   }
 
-  for (let i = startIdx; i < lines.length && points.length < MAX_POINTS; i++) {
+  let truncated = false;
+  for (let i = startIdx; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (trimmed === '' || trimmed.startsWith('#')) continue;
 
@@ -220,6 +224,11 @@ function parseXYZText(text: string): {
       ? parts[nameIdx]
       : `P${points.length + 1}`;
 
+    if (points.length >= MAX_POINTS) {
+      truncated = true;
+      continue;
+    }
+
     points.push({
       id: `pt-${points.length}`,
       name: pointName,
@@ -235,6 +244,7 @@ function parseXYZText(text: string): {
     totalLines: lines.length,
     delimiter,
     hasHeader,
+    truncated,
   };
 }
 
@@ -267,6 +277,18 @@ export default function PointCloudImportPage() {
   } | null>(null);
   const [isParsing, setIsParsing] = useState(false);
   const [warningMsg, setWarningMsg] = useState('');
+  const [importTruncated, setImportTruncated] = useState(false);
+  const [sourceCrs, setSourceCrs] = useState<string | null>(null);
+  const [sourceCrsDeclaration, setSourceCrsDeclaration] = useState('');
+  const [sourceCrsStatus, setSourceCrsStatus] = useState<'unknown' | 'metric' | 'nonmetric'>('unknown');
+  const [coordinateBasisConfirmed, setCoordinateBasisConfirmed] = useState(false);
+  const canRunTerrainAnalysis = !importTruncated && (
+    sourceCrsStatus === 'metric' || (
+      sourceCrsStatus === 'unknown' &&
+      sourceCrsDeclaration.trim().length > 0 &&
+      coordinateBasisConfirmed
+    )
+  );
 
   // Statistics state
   const [sortCol, setSortCol] = useState<SortColumn>('name');
@@ -303,6 +325,11 @@ export default function PointCloudImportPage() {
     setTinTriangles(null);
     setCutFillResult(null);
     setWarningMsg('');
+    setImportTruncated(false);
+    setSourceCrs(null);
+    setSourceCrsDeclaration('');
+    setSourceCrsStatus('unknown');
+    setCoordinateBasisConfirmed(false);
 
     try {
       const result = parseXYZText(text);
@@ -314,6 +341,13 @@ export default function PointCloudImportPage() {
         hasHeader: result.hasHeader,
         pointCount: result.points.length,
       });
+
+      setImportTruncated(result.truncated);
+      if (result.truncated) {
+        setWarningMsg(`This input contains more than ${MAX_POINTS.toLocaleString()} valid points. The first ${MAX_POINTS.toLocaleString()} are available for preview only; slope, TIN, and volume calculations are disabled for partial data.`);
+      } else if (result.points.length > 0) {
+        setWarningMsg('Text coordinates have no embedded CRS. Declare the source CRS and confirm metre units before terrain calculations.');
+      }
 
       if (result.points.length === 0 && text.trim().length > 0) {
         setWarningMsg('No valid points parsed. Check your data format and column mapping.');
@@ -342,9 +376,49 @@ export default function PointCloudImportPage() {
     setSlopeResult(null);
     setTinTriangles(null);
     setCutFillResult(null);
+    setImportTruncated(false);
+    setSourceCrs(null);
+    setSourceCrsDeclaration('');
+    setSourceCrsStatus('unknown');
+    setCoordinateBasisConfirmed(false);
 
     try {
+      if (file.size > MAX_UPLOAD_BYTES) {
+        throw new Error('Web point-cloud uploads are limited to 32 MiB per file.');
+      }
       const ext = file.name.toLowerCase().split('.').pop();
+
+      if (ext === 'las' || ext === 'laz') {
+        const result = await parseLidar(file);
+        const imported: ImportedPoint[] = result.points.map((point, index) => ({
+          id: `pt-${index}`,
+          name: `P${index + 1}`,
+          easting: point.easting,
+          northing: point.northing,
+          elevation: point.rl,
+        }));
+        const totalPoints = result.metadata.totalPoints;
+        const truncated = result.metadata.truncated ?? imported.length < totalPoints;
+        const metricProjected = result.metadata.droneSpecific?.metricProjected === true;
+        const sourceHasCrs = Boolean(result.metadata.crs);
+
+        setPoints(imported);
+        setImportTruncated(truncated);
+        setSourceCrs(result.metadata.crs ?? null);
+        setSourceCrsDeclaration('');
+        setSourceCrsStatus(!sourceHasCrs ? 'unknown' : metricProjected ? 'metric' : 'nonmetric');
+        setCoordinateBasisConfirmed(metricProjected);
+        setImportStats({ totalLines: totalPoints, delimiter: ext.toUpperCase(), hasHeader: true, pointCount: imported.length });
+        setRawText(`[${result.metadata.format}: ${imported.length.toLocaleString()} of ${totalPoints.toLocaleString()} points loaded]`);
+        if (truncated) {
+          setWarningMsg(`This ${ext.toUpperCase()} file contains ${totalPoints.toLocaleString()} points. The first ${imported.length.toLocaleString()} are available for preview only; terrain calculations are disabled for partial data.`);
+        } else if (sourceHasCrs && !metricProjected) {
+          setWarningMsg(`The embedded source CRS (${result.metadata.crs}) is not a projected metre CRS. Reproject the file before slope, TIN, or volume calculations.`);
+        } else if (!sourceHasCrs) {
+          setWarningMsg('This file does not declare a source CRS. Confirm its coordinate system and units before enabling terrain calculations.');
+        }
+        return;
+      }
 
       if (ext === 'ply') {
         // Use existing PLY parser
@@ -360,9 +434,13 @@ export default function PointCloudImportPage() {
             elevation: p.rl,
           }
         });
-        if (imported.length > MAX_POINTS) {
-          setWarningMsg(`PLY file contains ${result.metadata.totalPoints.toLocaleString()} points. Only the first ${MAX_POINTS.toLocaleString()} will be processed.`);
-        }
+        const truncated = result.metadata.truncated ?? imported.length < result.metadata.totalPoints;
+        setImportTruncated(truncated);
+        setSourceCrs(null);
+        setSourceCrsDeclaration('');
+        setSourceCrsStatus('unknown');
+        setCoordinateBasisConfirmed(false);
+        if (truncated) setWarningMsg(`PLY file contains ${result.metadata.totalPoints.toLocaleString()} points. The first ${imported.length.toLocaleString()} are available for preview only; terrain calculations are disabled for partial data.`);
         setPoints(imported);
         setImportStats({
           totalLines: result.metadata.totalPoints,
@@ -371,6 +449,7 @@ export default function PointCloudImportPage() {
           pointCount: imported.length,
         });
         setRawText(`[PLY format: ${result.metadata.totalPoints} vertices loaded]`);
+        if (!truncated) setWarningMsg('PLY does not provide a declared CRS in this importer. Confirm that X/Y are projected metres and Z is metres before terrain calculations.');
       } else {
         // CSV / TXT / XYZ
         const text = await file.text();
@@ -378,6 +457,8 @@ export default function PointCloudImportPage() {
         processText(text);
       }
     } catch (err) {
+      setPoints([]);
+      setImportStats(null);
       setParseErrors([{ row: 0, message: `Failed to read file: ${err instanceof Error ? err.message : 'Unknown error'}` }]);
     } finally {
       setIsParsing(false);
@@ -404,14 +485,21 @@ export default function PointCloudImportPage() {
   // ─── Computed statistics ─────────────────────────────────────────────────
 
   const boundingBox = points.length > 0
-    ? {
-        minE: Math.min(...points.map(p => p.easting)),
-        maxE: Math.max(...points.map(p => p.easting)),
-        minN: Math.min(...points.map(p => p.northing)),
-        maxN: Math.max(...points.map(p => p.northing)),
-        minZ: Math.min(...points.map(p => p.elevation)),
-        maxZ: Math.max(...points.map(p => p.elevation)),
-      }
+    ? points.reduce((bounds, point) => ({
+        minE: Math.min(bounds.minE, point.easting),
+        maxE: Math.max(bounds.maxE, point.easting),
+        minN: Math.min(bounds.minN, point.northing),
+        maxN: Math.max(bounds.maxN, point.northing),
+        minZ: Math.min(bounds.minZ, point.elevation),
+        maxZ: Math.max(bounds.maxZ, point.elevation),
+      }), {
+        minE: Number.POSITIVE_INFINITY,
+        maxE: Number.NEGATIVE_INFINITY,
+        minN: Number.POSITIVE_INFINITY,
+        maxN: Number.NEGATIVE_INFINITY,
+        minZ: Number.POSITIVE_INFINITY,
+        maxZ: Number.NEGATIVE_INFINITY,
+      })
     : null;
 
   const avgSpacing = (() => {
@@ -478,6 +566,12 @@ export default function PointCloudImportPage() {
   // ─── Slope analysis ──────────────────────────────────────────────────────
 
   const runSlopeAnalysis = useCallback(() => {
+    if (!canRunTerrainAnalysis) {
+      setSlopeError(importTruncated
+        ? 'Slope analysis requires the complete point set, not a truncated preview.'
+        : 'Verify and declare a projected metre CRS before slope analysis.');
+      return;
+    }
     if (points.length < 3) {
       setSlopeError('At least 3 points are required for slope analysis.');
       return;
@@ -507,7 +601,7 @@ export default function PointCloudImportPage() {
         setIsSlopeRunning(false);
       }
     }, 50);
-  }, [points, slopeGridRes]);
+  }, [canRunTerrainAnalysis, importTruncated, points, slopeGridRes]);
 
   const exportSlopeCSV = useCallback(() => {
     if (!slopeResult) return;
@@ -518,6 +612,12 @@ export default function PointCloudImportPage() {
   // ─── TIN & Volume ──────────────────────────────────────────────────────────
 
   const runTINGeneration = useCallback(() => {
+    if (!canRunTerrainAnalysis) {
+      setTinError(importTruncated
+        ? 'TIN generation requires the complete point set, not a truncated preview.'
+        : 'Verify and declare a projected metre CRS before TIN generation.');
+      return;
+    }
     if (points.length < 3) {
       setTinError('At least 3 points are required for TIN generation.');
       return;
@@ -572,9 +672,15 @@ export default function PointCloudImportPage() {
         setIsTinRunning(false);
       }
     }, 50);
-  }, [points]);
+  }, [canRunTerrainAnalysis, importTruncated, points]);
 
   const runCutFill = useCallback(() => {
+    if (!canRunTerrainAnalysis) {
+      setCutFillError(importTruncated
+        ? 'Cut/fill analysis requires the complete point set, not a truncated preview.'
+        : 'Verify and declare a projected metre CRS before cut/fill analysis.');
+      return;
+    }
     if (points.length < 3) {
       setCutFillError('At least 3 points are required for cut/fill computation.');
       return;
@@ -602,7 +708,7 @@ export default function PointCloudImportPage() {
         setIsCutFillRunning(false);
       }
     }, 50);
-  }, [points, datumRL]);
+  }, [canRunTerrainAnalysis, datumRL, importTruncated, points]);
 
   const exportCutFillCSV = useCallback(() => {
     if (!cutFillResult) return;
@@ -646,9 +752,9 @@ export default function PointCloudImportPage() {
   const tabs: { id: TabId; label: string; disabled?: boolean }[] = [
     { id: 'import', label: 'Import' },
     { id: 'statistics', label: 'Statistics & Preview', disabled: points.length === 0 },
-    { id: 'slope', label: 'Slope Analysis', disabled: points.length < 3 },
-    { id: 'tin', label: 'TIN & Volume', disabled: points.length < 3 },
-    { id: 'volume', label: 'Volume (Cut/Fill)', disabled: points.length < 3 },
+    { id: 'slope', label: 'Slope Analysis', disabled: points.length < 3 || !canRunTerrainAnalysis },
+    { id: 'tin', label: 'TIN & Volume', disabled: points.length < 3 || !canRunTerrainAnalysis },
+    { id: 'volume', label: 'Volume (Cut/Fill)', disabled: points.length < 3 || !canRunTerrainAnalysis },
   ];
 
   return (
@@ -661,7 +767,7 @@ export default function PointCloudImportPage() {
       <ComputeLimitNotice
         maxPoints={MAX_POINTS}
         tool="Point cloud import"
-        message="The web importer keeps the first 100,000 points for speed and stability. Large scans, dense TINs, and batch processing run best in the METARDU desktop app — full engine locally, no caps, no uploads."
+        message="This web tool can preview at most 100,000 points. Full-dataset, tiled point-cloud processing is not available here yet; calculations are blocked when an import is truncated."
       />
 
       {/* Tab bar */}
@@ -684,6 +790,16 @@ export default function PointCloudImportPage() {
         ))}
       </div>
 
+      {points.length > 0 && !canRunTerrainAnalysis && (
+        <p role="status" className="mb-6 rounded border border-amber-700/60 bg-amber-950/20 px-4 py-3 text-sm text-amber-200">
+          {importTruncated
+            ? 'This is a partial point preview. Slope, TIN, and volume analysis stay disabled until a complete dataset is loaded.'
+            : sourceCrsStatus === 'nonmetric'
+              ? `The embedded CRS${sourceCrs ? ` (${sourceCrs})` : ''} is not a projected metre system. Reproject the file before terrain analysis.`
+              : 'Declare and verify the source CRS and metre units in the Import summary before running terrain analysis.'}
+        </p>
+      )}
+
       {/* ═══════════════════ TAB 1: Import ═══════════════════ */}
       {activeTab === 'import' && (
         <div className="space-y-6">
@@ -693,8 +809,7 @@ export default function PointCloudImportPage() {
               <span className="label">Upload Point Cloud File</span>
             </div>
             <p className="text-sm text-[var(--text-secondary)] mb-4">
-              Accepts CSV, TXT, XYZ, and PLY files from CloudCompare, Agisoft Metashape, or manual exports.
-              Maximum {MAX_POINTS.toLocaleString()} points.
+              Accepts CSV, TXT, XYZ, ASCII PLY 1.0, LAS, and LAZ files. Web processing is limited to {MAX_POINTS.toLocaleString()} points and 32 MiB per file.
             </p>
             <div
               onDrop={handleDropZone}
@@ -707,13 +822,13 @@ export default function PointCloudImportPage() {
                 Drag & drop a file here, or click to browse
               </p>
               <p className="text-xs text-[var(--text-muted)] mt-1">
-                .csv .txt .xyz .ply — max {MAX_POINTS.toLocaleString()} points
+                .csv .txt .xyz .ply .las .laz — max {MAX_POINTS.toLocaleString()} points
               </p>
               <input
                 ref={fileInputRef}
                 type="file"
-                accept=".csv,.txt,.xyz,.ply"
-                aria-label="Upload point cloud file (CSV, TXT, XYZ, PLY)"
+                accept=".csv,.txt,.xyz,.ply,.las,.laz"
+                aria-label="Upload point cloud file (CSV, TXT, XYZ, ASCII PLY, LAS, LAZ)"
                 className="hidden"
                 onChange={handleFileInput}
               />
@@ -777,6 +892,58 @@ export default function PointCloudImportPage() {
                 </div>
               </div>
 
+              <div className="mb-4 rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-4">
+                <p className="text-sm font-medium text-[var(--text-primary)]">Coordinate basis</p>
+                {sourceCrsStatus === 'metric' ? (
+                  <p className="mt-1 text-sm text-green-300">
+                    Embedded CRS {sourceCrs} uses projected metre axes. Coordinates are used as stored; METARDU has not reprojected them.
+                  </p>
+                ) : sourceCrsStatus === 'nonmetric' ? (
+                  <p className="mt-1 text-sm text-amber-200">
+                    Embedded CRS {sourceCrs} is not a projected metre CRS. Reproject the source file before terrain calculations.
+                  </p>
+                ) : (
+                  <div className="mt-2 space-y-3">
+                    <p className="text-sm text-[var(--text-secondary)]">
+                      This file has no machine-readable CRS. Enter the source CRS and confirm the source metadata; this declaration does not transform coordinates.
+                    </p>
+                    <label className="block text-xs text-[var(--text-secondary)]" htmlFor="pointcloud-source-crs">
+                      Source CRS identifier
+                    </label>
+                    <input
+                      id="pointcloud-source-crs"
+                      value={sourceCrsDeclaration}
+                      onChange={event => {
+                        setSourceCrsDeclaration(event.target.value)
+                        setCoordinateBasisConfirmed(false)
+                        setSlopeResult(null)
+                        setTinTriangles(null)
+                        setCutFillResult(null)
+                      }}
+                      placeholder="For example, EPSG:32737"
+                      className="input w-full max-w-sm"
+                      maxLength={120}
+                    />
+                    {!importTruncated && points.length > 0 && (
+                      <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
+                        <input
+                          type="checkbox"
+                          className="mt-1"
+                          checked={coordinateBasisConfirmed}
+                          onChange={event => {
+                            setCoordinateBasisConfirmed(event.target.checked)
+                            setSlopeResult(null)
+                            setTinTriangles(null)
+                            setCutFillResult(null)
+                          }}
+                        />
+                        <span>I verified that X/Y are in a projected metre CRS and elevations are in metres.</span>
+                      </label>
+                    )}
+                  </div>
+                )}
+              </div>
+
               {boundingBox && (
                 <div className="mb-4">
                   <span className="text-sm text-[var(--text-secondary)]">Bounding Box: </span>
@@ -813,7 +980,7 @@ export default function PointCloudImportPage() {
               </div>
               {points.length > 5 && (
                 <p className="text-xs text-[var(--text-muted)] mt-2">
-                  Showing first 5 of {points.length.toLocaleString()} points. Go to Statistics tab for full view.
+                  Showing the first 5 of {points.length.toLocaleString()} loaded points in this preview.
                 </p>
               )}
             </div>

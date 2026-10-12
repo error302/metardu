@@ -1,5 +1,6 @@
 import ExcelJS from 'exceljs';
 import db from '@/lib/db';
+import { computeDeedPlanGeometry } from './deedPlanGeometry';
 
 export async function generateCoordinateSchedule(
   projectId: string
@@ -11,11 +12,15 @@ export async function generateCoordinateSchedule(
   );
   const project = projectRes.rows[0] as { name: string; survey_type: string | null; ref_no: string | null } | undefined;
 
-  const beaconsRes = await db.query(
+  const beaconsRes = project?.survey_type === 'cadastral' ? {rows:(await computeDeedPlanGeometry(projectId)).stations.map(st=>({
+    beacon_no:st.beaconNo || st.station,easting:st.easting,northing:st.northing,rl:st.elevation,
+    description:`Station ${st.station}`,monument_type:st.monument,
+  }))} : await db.query(
     'SELECT * FROM project_beacons WHERE project_id = $1 ORDER BY beacon_no ASC',
     [projectId]
   );
   const beacons = beaconsRes.rows;
+  if (!beacons.length) throw new Error('No coordinates are available for the coordinate schedule. Compute the survey first.');
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'Metardu';

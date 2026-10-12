@@ -28,6 +28,7 @@ interface FieldRecordRow {
   fr_number: string | null
   easting: string | number
   northing: string | number
+  horizontal_crs?: string | null
   county: string | null
   locality: string | null
   survey_year: string | number | null
@@ -74,6 +75,7 @@ export const GET = apiHandler(
     // AUDIT FIX (2026-07-03): parcels.geometry → parcels.geom,
     // removed non-existent owner_name/lr_number, JOIN projects
     // (parcels has no user_id), errors logged not swallowed.
+    // 1. Fetch parcels in viewport (join projects for ownership)
     if (types.includes('parcel')) {
       try {
         const result = await db.query<ParcelRow>(
@@ -83,7 +85,9 @@ export const GET = apiHandler(
            JOIN projects pr ON pr.id = p.project_id
            WHERE pr.user_id = $1
              AND p.geom IS NOT NULL
-             AND p.geom && ST_Transform(ST_MakeEnvelope($2, $3, $4, $5, 4326), 21037)
+             AND ST_SRID(p.geom) <> 0
+             AND EXISTS (SELECT 1 FROM spatial_ref_sys s WHERE s.srid = ST_SRID(p.geom))
+             AND p.geom && ST_Transform(ST_MakeEnvelope($2, $3, $4, $5, 4326), ST_SRID(p.geom))
            LIMIT $6`,
           [user.id, west, south, east, north, Math.floor(limit / 2)],
         )
@@ -108,83 +112,101 @@ export const GET = apiHandler(
       }
     }
 
-    // 2. Fetch beacons in viewport
+    // 2. Fetch beacons in viewport with true PostGIS spatial intersection
     if (types.includes('beacon')) {
       try {
-        // Transform WGS84 bbox to EPSG:21037 for beacon query
-        const result = await db.query<BeaconRow>(
-          `SELECT id, point_name, easting, northing
-           FROM survey_points
-           WHERE project_id IN (SELECT id FROM projects WHERE user_id = $1)
-             AND easting BETWEEN $2 AND $3
-             AND northing BETWEEN $4 AND $5
+        const result = await db.query<BeaconRow & { lon: number; lat: number }>(
+          `WITH owned_project_points AS MATERIALIZED (
+             SELECT sp.id, sp.point_name, sp.easting, sp.northing,
+                    CASE
+                      WHEN prs.horizontal_crs IN ('EPSG:21036', 'EPSG:21037')
+                        OR prs.horizontal_crs ~ '^EPSG:(326|327)(0[1-9]|[1-5][0-9]|60)$'
+                      THEN split_part(prs.horizontal_crs, ':', 2)::integer
+                      ELSE NULL
+                    END AS source_srid
+             FROM survey_points sp
+             JOIN projects pr ON pr.id = sp.project_id
+             JOIN project_reference_systems prs ON prs.project_id = pr.id
+             WHERE pr.user_id = $1
+               AND sp.easting IS NOT NULL AND sp.northing IS NOT NULL
+           ), geographic_points AS MATERIALIZED (
+             SELECT id, point_name, easting, northing,
+                    ST_Transform(
+                      ST_SetSRID(ST_MakePoint(easting, northing), source_srid),
+                      4326
+                    ) AS geom
+             FROM owned_project_points
+             WHERE source_srid IS NOT NULL
+           )
+           SELECT id, point_name, easting, northing,
+                  ST_X(geom) AS lon, ST_Y(geom) AS lat
+           FROM geographic_points
+           WHERE geom && ST_MakeEnvelope($2, $3, $4, $5, 4326)
            LIMIT $6`,
-          [
-            user.id,
-            // Approximate transform: WGS84 to UTM 37S (simplified)
-            // In production, use ST_Transform for accuracy
-            west * 111000, // rough easting
-            east * 111000,
-            south * 111000,
-            north * 111000,
-            Math.floor(limit / 3),
-          ],
+          [user.id, west, south, east, north, Math.floor(limit / 3)],
         )
 
         for (const row of result.rows) {
-          features.push({
-            id: `beacon-${row.id}`,
-            type: 'beacon',
-            geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(String(row.easting)), parseFloat(String(row.northing))],
-            },
-            properties: {
-              beaconNumber: row.point_name || '',
-              beaconType: 'concrete',
-            },
-          })
+          if (row.lon !== null && row.lat !== null && !isNaN(row.lon) && !isNaN(row.lat)) {
+            features.push({
+              id: `beacon-${row.id}`,
+              type: 'beacon',
+              geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(String(row.lon)), parseFloat(String(row.lat))],
+              },
+              properties: {
+                beaconNumber: row.point_name || '',
+                beaconType: 'concrete',
+                easting: parseFloat(String(row.easting)),
+                northing: parseFloat(String(row.northing)),
+              },
+            })
+          }
         }
       } catch (err) {
         // eslint-disable-next-line no-console -- viewport query failure log, not user-facing
         console.error('[spatial-index] beacon query failed:', err)
       }
     }
+
+    // 3. Fetch field records in viewport with true PostGIS spatial intersection
     if (types.includes('field_record')) {
       try {
-        const result = await db.query<FieldRecordRow>(
-          `SELECT id, fr_number, easting, northing, county, locality,
-                  survey_year, surveyor_name, is_verified
-           FROM field_records
-           WHERE easting BETWEEN $1 AND $2
-             AND northing BETWEEN $3 AND $4
+        const result = await db.query<FieldRecordRow & { lon: number; lat: number }>(
+          `SELECT fr.id, fr.fr_number, fr.easting, fr.northing, fr.county, fr.locality,
+                  fr.survey_year, fr.surveyor_name, fr.is_verified, fr.horizontal_crs,
+                  ST_X(fr.location_geom) AS lon,
+                  ST_Y(fr.location_geom) AS lat
+           FROM field_records fr
+           WHERE fr.location_geom IS NOT NULL
+             AND fr.location_geom && ST_MakeEnvelope($1, $2, $3, $4, 4326)
            LIMIT $5`,
-          [
-            west * 111000,
-            east * 111000,
-            south * 111000,
-            north * 111000,
-            Math.floor(limit / 4),
-          ],
+          [west, south, east, north, Math.floor(limit / 4)],
         )
 
         for (const row of result.rows) {
-          features.push({
-            id: `fr-${row.id}`,
-            type: 'field_record',
-            geometry: {
-              type: 'Point',
-              coordinates: [parseFloat(String(row.easting)), parseFloat(String(row.northing))],
-            },
-            properties: {
-              frNumber: row.fr_number,
-              county: row.county,
-              locality: row.locality,
-              surveyYear: row.survey_year,
-              surveyorName: row.surveyor_name,
-              isVerified: row.is_verified,
-            },
-          })
+          if (row.lon !== null && row.lat !== null && !isNaN(row.lon) && !isNaN(row.lat)) {
+            features.push({
+              id: `fr-${row.id}`,
+              type: 'field_record',
+              geometry: {
+                type: 'Point',
+                coordinates: [parseFloat(String(row.lon)), parseFloat(String(row.lat))],
+              },
+              properties: {
+                frNumber: row.fr_number,
+                county: row.county || '',
+                locality: row.locality || '',
+                surveyYear: row.survey_year ? parseInt(String(row.survey_year), 10) : null,
+                surveyorName: row.surveyor_name || '',
+                isVerified: row.is_verified || false,
+                easting: parseFloat(String(row.easting)),
+                northing: parseFloat(String(row.northing)),
+                horizontalCrs: row.horizontal_crs,
+              },
+            })
+          }
         }
       } catch (err) {
         // eslint-disable-next-line no-console -- viewport query failure log, not user-facing

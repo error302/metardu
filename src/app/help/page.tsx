@@ -58,7 +58,7 @@ const FAQS: FAQItem[] = [
   {
     category: 'Documents',
     question: 'How do I generate a deed plan?',
-    answer: 'Open a project, navigate to Documents, and select "Deed Plan". Enter the parcel details, surveyor info, and beacon schedule. The system generates a PDF using the official Survey of Kenya template with grid overlay, north arrow, and scale bar.',
+    answer: 'Open a project, navigate to Documents, and select "Deed Plan". Enter the parcel details, surveyor information, and beacon schedule. METARDU creates a draft plan with a grid, north arrow, and scale bar. Check the drawing and current Survey of Kenya requirements before signing or filing it.',
   },
   {
     category: 'Documents',
@@ -68,7 +68,7 @@ const FAQS: FAQItem[] = [
   {
     category: 'Documents',
     question: 'What document templates are available?',
-    answer: 'METARDU generates: Deed Plans, Form C-22, Beacon Certificates, Traverse Computation Sheets, Setting Out Sheets, Mutation Forms, Form No. 4, Topographic Plans, and NLIMS/ArdhiSasa submission JSON. All comply with Survey Act Cap 299.',
+    answer: 'METARDU can create draft deed plans, Form C-22 layouts, beacon certificates, traverse computation sheets, setting-out sheets, mutation forms, Form No. 4 layouts, topographic plans, and a structured cadastral JSON draft. These are working documents for surveyor review; the JSON is not an official Ardhisasa schema, METARDU does not submit to the portal, and no document is certified as compliant or accepted.',
   },
   {
     category: 'Tools',
@@ -87,8 +87,8 @@ const FAQS: FAQItem[] = [
   },
   {
     category: 'Compliance',
-    question: 'Is METARDU compliant with Kenyan survey law?',
-    answer: 'Yes. METARDU follows the Survey Act (Cap 299), Land Registration Act (2012), Sectional Properties Act (2012), and Data Protection Act (2019). All document templates use official SoK formats. Traverse precision thresholds match statutory requirements (1:10,000 urban, 1:5,000 rural).',
+    question: 'Does METARDU certify that a survey complies with Kenyan law or will be accepted?',
+    answer: 'No. METARDU provides computation, geometry, and document review aids; it does not certify legal compliance, verify title, or guarantee acceptance by the Survey of Kenya or Ardhisasa. Requirements can change and depend on survey type and location. A licensed surveyor must verify the source evidence, current rules, and required documents before signing or filing.',
   },
 ]
 

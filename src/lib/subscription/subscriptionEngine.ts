@@ -1,5 +1,5 @@
 import { db } from '@/lib/db'
-import { TIERS, canAccess, getLimit, type FeatureKey } from './featureGates'
+import { TIERS, canAccess, getLimit, getMaxMembers, type FeatureKey } from './featureGates'
 import type { PlanId } from './catalog'
 
 // Admin emails get free enterprise access - no payment required
@@ -20,7 +20,14 @@ export interface SubscriptionInfo {
   currency: string
   isUnlimitedProjects: boolean
   isUnlimitedPoints: boolean
+  /** Base seats included in the plan price. -1 = unlimited. */
+  includedSeats: number
+  /** Additional seats purchased beyond the base includedSeats. */
+  purchasedExtraSeats: number
+  /** Effective max team members = includedSeats + purchasedExtraSeats. -1 = unlimited. */
   maxTeamMembers: number
+  /** Whether the plan supports purchasing additional seats. */
+  isPerSeat: boolean
 }
 
 export interface UsageInfo {
@@ -33,6 +40,8 @@ export interface AccessCheck {
   allowed: boolean
   reason?: string
   upgradeTo?: PlanId
+  /** If true, the user can resolve by adding seats instead of upgrading. */
+  canAddSeats?: boolean
 }
 
 export async function getSubscription(userId: string, email?: string): Promise<SubscriptionInfo | null> {
@@ -50,7 +59,10 @@ export async function getSubscription(userId: string, email?: string): Promise<S
       currency: 'KES',
       isUnlimitedProjects: true,
       isUnlimitedPoints: true,
+      includedSeats: -1,
+      purchasedExtraSeats: 0,
       maxTeamMembers: -1,
+      isPerSeat: false,
     }
   }
 
@@ -62,8 +74,9 @@ export async function getSubscription(userId: string, email?: string): Promise<S
     current_period_end?: string | null
     payment_method?: string | null
     currency?: string
+    seat_count?: number
   }>(
-    'SELECT plan_id, status, trial_ends_at, current_period_start, current_period_end, payment_method, currency FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
+    'SELECT plan_id, status, trial_ends_at, current_period_start, current_period_end, payment_method, currency, COALESCE(seat_count, 0) AS seat_count FROM user_subscriptions WHERE user_id = $1 LIMIT 1',
     [userId]
   )
 
@@ -99,6 +112,8 @@ export async function getSubscription(userId: string, email?: string): Promise<S
   }
 
   const tier = TIERS[effectivePlan]
+  const purchasedExtraSeats = sub.seat_count ?? 0
+  const effectiveMaxMembers = getMaxMembers(effectivePlan, purchasedExtraSeats)
 
   return {
     plan: effectivePlan,
@@ -110,7 +125,10 @@ export async function getSubscription(userId: string, email?: string): Promise<S
     currency: sub.currency || 'KES',
     isUnlimitedProjects: tier.maxProjects < 0,
     isUnlimitedPoints: tier.maxPointsPerProject < 0,
-    maxTeamMembers: tier.maxTeamMembers,
+    includedSeats: tier.includedSeats,
+    purchasedExtraSeats,
+    maxTeamMembers: effectiveMaxMembers,
+    isPerSeat: tier.isPerSeat,
   }
 }
 
@@ -200,13 +218,23 @@ export async function checkMemberLimit(userId: string, email?: string): Promise<
     return { allowed: true }
   }
 
-  const limit = getLimit(sub.plan, 'members')
-  if (limit < 0) return { allowed: true }
+  // Use the effective limit that includes purchased extra seats
+  const effectiveLimit = sub.maxTeamMembers
+  if (effectiveLimit < 0) return { allowed: true } // unlimited
 
-  if (usage.memberCount >= limit) {
+  if (usage.memberCount >= effectiveLimit) {
+    // If the plan supports per-seat, suggest adding seats as an alternative
+    if (sub.isPerSeat) {
+      return {
+        allowed: false,
+        reason: `Seat limit reached (${usage.memberCount}/${effectiveLimit}). Add more seats or upgrade your plan.`,
+        upgradeTo: sub.plan,
+        canAddSeats: true,
+      }
+    }
     return {
       allowed: false,
-      reason: `Member limit reached (${usage.memberCount}/${limit})`,
+      reason: `Member limit reached (${usage.memberCount}/${effectiveLimit})`,
       upgradeTo: 'team',
     }
   }
@@ -250,4 +278,15 @@ export async function reactivateSubscription(userId: string): Promise<void> {
       ]
     )
   }
+}
+
+/**
+ * Update the number of additional purchased seats on a subscription.
+ * This is called after a successful seat purchase payment.
+ */
+export async function updateSeatCount(userId: string, newSeatCount: number): Promise<void> {
+  await db.query(
+    'UPDATE user_subscriptions SET seat_count = $1 WHERE user_id = $2',
+    [Math.max(0, newSeatCount), userId]
+  )
 }

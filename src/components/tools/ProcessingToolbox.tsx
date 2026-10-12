@@ -66,6 +66,7 @@ const TOOLS: Tool[] = [
   { id: 'volume-comparison', name: 'Volume Comparison', description: 'Compare two surface volumes', category: 'Volumes', href: '/tools/volume-comparison', icon: Mountain, keywords: ['volume', 'comparison', 'surface'] },
 
   // Documents
+  { id: 'fee-quotation', name: 'Statutory Fee Quotation', description: 'Survey Act Cap 299 & SRB gazetted scale fee calculator & proposal PDF', category: 'Documents', href: '/tools/fee-quotation', icon: FileCheck, keywords: ['fee', 'quotation', 'proposal', 'scale', 'srb', 'cap 299', 'pricing', 'quote', 'cost', 'statutory'] },
   { id: 'beacon-certificate', name: 'Beacon Certificate', description: 'Generate beacon certificate PDF', category: 'Documents', href: '/tools/beacon-certificate', icon: FileText, keywords: ['beacon', 'certificate', 'pdf'] },
   { id: 'survey-report', name: 'Survey Report Builder', description: 'Build comprehensive survey report', category: 'Documents', href: '/tools/survey-report-builder', icon: FileText, keywords: ['report', 'survey', 'document'] },
   { id: 'statutory-workbook', name: 'Statutory Workbook', description: 'Generate statutory workbook', category: 'Documents', href: '/tools/statutory-workbook', icon: FileText, keywords: ['statutory', 'workbook', 'submission'] },

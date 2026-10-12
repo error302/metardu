@@ -19,7 +19,7 @@
 
 'use client'
 
-import { useState, useCallback } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { useInstrumentConnection, type StreamedPoint } from '@/hooks/useInstrumentConnection'
 import { INSTRUMENT_PRESETS, BRAND_INFO, type InstrumentBrand } from '@/lib/serial'
 import {
@@ -42,13 +42,17 @@ import {
   Bluetooth,
   BluetoothOff,
   Usb,
+  Mic,
+  Tag,
 } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
 import { WebBluetoothGNSS } from '@/lib/gnss/bluetooth'
 import { CapacitorBLEGNSS, type CapacitorGNSSDevice } from '@/lib/gnss/capacitor-ble'
 import { useInstrumentStore, type InstrumentDevice, type ConnectionTransport } from '@/stores/instrumentStore'
+import { RapidPointKeypad } from '@/components/fieldbook/RapidPointKeypad'
 import type { NMEAPosition } from '@/lib/gnss/nmea-parser'
 import { logger } from '@/lib/logger'
+import { QuickFieldLSA, type FieldObservation, type FieldControlPoint } from '@/components/fieldbook/QuickFieldLSA'
 
 type TransportMode = 'serial' | 'ble'
 
@@ -105,6 +109,65 @@ export function InstrumentConnectionPanel({
   const [customBaud, setCustomBaud] = useState('9600')
   const [connecting, setConnecting] = useState(false)
   const [isTracking, setIsTracking] = useState(false)
+  const [fieldPointName, setFieldPointName] = useState('MB-01')
+  const [fieldDescription, setFieldDescription] = useState('Standard concrete survey beacon (PSC)')
+  const [showKeypad, setShowKeypad] = useState(false)
+  const [showFieldQC, setShowFieldQC] = useState(false)
+
+  // Use streamed points based on transport mode
+  const activePoints = transportMode === 'ble' ? instrumentStore.points : points
+
+  const qcObservations = useMemo(() => {
+    const obs: FieldObservation[] = []
+    if (activePoints.length < 2) return obs
+    
+    for (let i = 0; i < activePoints.length - 1; i++) {
+      const p1 = activePoints[i]
+      const p2 = activePoints[i + 1]
+      
+      const dE = p2.easting - p1.easting
+      const dN = p2.northing - p1.northing
+      
+      const dist = Math.hypot(dE, dN)
+      let bearing = Math.atan2(dE, dN) * (180 / Math.PI)
+      if (bearing < 0) bearing += 360
+      
+      obs.push({
+        from: p1.pointName,
+        to: p2.pointName,
+        bearing,
+        distance: dist
+      })
+    }
+    return obs
+  }, [activePoints])
+
+  const qcControlPoints = useMemo(() => {
+    if (activePoints.length === 0) return []
+    const ctrls: FieldControlPoint[] = []
+    
+    // Assume first point is a known control point
+    ctrls.push({
+      name: activePoints[0].pointName,
+      easting: activePoints[0].easting,
+      northing: activePoints[0].northing
+    })
+
+    // If the last point has the same name as the first point, it's a closed loop, 
+    // so we don't need to add it as a separate control point. 
+    // Otherwise, we add it just in case they're doing a link traverse.
+    if (activePoints.length > 1) {
+      const last = activePoints[activePoints.length - 1]
+      if (last.pointName !== activePoints[0].pointName) {
+        ctrls.push({
+          name: last.pointName,
+          easting: last.easting,
+          northing: last.northing
+        })
+      }
+    }
+    return ctrls
+  }, [activePoints])
 
   // Determine brand from preset key
   const getBrandFromPresetKey = (key: string): InstrumentBrand => {
@@ -616,6 +679,30 @@ export function InstrumentConnectionPanel({
               </div>
             )}
 
+            {/* Rapid Field Feature Coding & Voice Keypad */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <div className="text-[9px] text-gray-400 uppercase tracking-wider flex items-center gap-1">
+                  <Tag className="w-3 h-3 text-amber-400" />
+                  Rapid Feature Coding & Voice
+                </div>
+                <button
+                  onClick={() => setShowKeypad(!showKeypad)}
+                  className="text-[10px] text-amber-400 hover:text-amber-300 font-semibold"
+                >
+                  {showKeypad ? 'Hide Keypad' : 'Open Keypad'}
+                </button>
+              </div>
+              {showKeypad && (
+                <RapidPointKeypad
+                  pointName={fieldPointName}
+                  onPointNameChange={setFieldPointName}
+                  description={fieldDescription}
+                  onDescriptionChange={setFieldDescription}
+                />
+              )}
+            </div>
+
             {/* Instrument Commands */}
             <div className="space-y-1.5">
               <div className="text-[9px] text-gray-400 uppercase tracking-wider">Quick Commands</div>
@@ -705,6 +792,28 @@ export function InstrumentConnectionPanel({
               </button>
             </div>
           </>
+        )}
+
+        {/* Field QC Section */}
+        {((transportMode === 'serial' && status === 'streaming') || (transportMode === 'ble' && status === 'streaming') || activePoints.length > 0) && (
+          <div className="mt-4 pt-4 border-t border-white/5 space-y-2">
+            <button
+              onClick={() => setShowFieldQC(!showFieldQC)}
+              className="w-full flex items-center justify-between text-xs font-semibold text-gray-300 hover:text-white transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4 text-yellow-400" />
+                Field QC Analysis
+              </div>
+              {showFieldQC ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+            </button>
+            {showFieldQC && (
+              <QuickFieldLSA
+                observations={qcObservations}
+                controlPoints={qcControlPoints}
+              />
+            )}
+          </div>
         )}
       </div>
     </div>

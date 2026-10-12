@@ -16,7 +16,8 @@
 #   BACKUP_DIR=/backups GPG_RECIPI=admin@metardu ./scripts/backup.sh
 #
 # Environment variables:
-#   DATABASE_URL        (required) PostgreSQL connection string
+#   DATABASE_URL        (optional) PostgreSQL connection string for local/manual use
+#   PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD (Docker sidecar connection)
 #   BACKUP_DIR          (default ./backups) local backup directory
 #   BACKUP_OFFSITE_DIR  (optional) secondary copy destination
 #   BACKUP_RETENTION    (default 30) days to keep backups
@@ -46,8 +47,12 @@ log() {
   fi
 }
 
-if [ -z "${DATABASE_URL:-}" ]; then
-  log "ERROR: DATABASE_URL is not set"
+if [ -n "${DATABASE_URL:-}" ]; then
+  DB_DUMP_ARGUMENTS=(--dbname="$DATABASE_URL")
+elif [ -n "${PGHOST:-}" ] && [ -n "${PGDATABASE:-}" ] && [ -n "${PGUSER:-}" ]; then
+  DB_DUMP_ARGUMENTS=(--host "$PGHOST" --port "${PGPORT:-5432}" --username "$PGUSER" --dbname "$PGDATABASE")
+else
+  log "ERROR: set DATABASE_URL or PGHOST/PGDATABASE/PGUSER"
   exit 1
 fi
 
@@ -55,7 +60,7 @@ fi
 log "Starting database backup..."
 DB_FILE="$BACKUP_DIR/db_${TIMESTAMP}.sql.gz"
 
-if ! pg_dump "$DATABASE_URL" | gzip > "$DB_FILE"; then
+if ! pg_dump "${DB_DUMP_ARGUMENTS[@]}" | gzip > "$DB_FILE"; then
   log "ERROR: pg_dump failed"
   exit 1
 fi
@@ -88,7 +93,10 @@ if ! gzip -t "$DB_FILE"; then
 fi
 if ! zcat "$DB_FILE" | pg_restore --list 2>/dev/null | head -5 > /dev/null; then
   log "WARN: pg_restore --list failed (may be normal for plain-text dumps). Verifying SQL header..."
-  if ! zcat "$DB_FILE" | head -1 | grep -qi "postgresql\|--"; then
+  # Consume the complete stream: head exits early and makes zcat return SIGPIPE
+  # under pipefail, falsely rejecting large valid dumps. Require the pg_dump
+  # header itself, not an arbitrary line containing a comment or product name.
+  if ! zcat "$DB_FILE" | awk 'NR <= 10 && $0 == "-- PostgreSQL database dump" { header = 1 } END { exit(header ? 0 : 1) }'; then
     log "ERROR: backup does not look like a valid PostgreSQL dump"
     exit 2
   fi

@@ -22,7 +22,7 @@ const WORKER_SECRET = process.env.WORKER_SECRET || ''  // P0-5: fail-closed, no 
 // ~28km square — plenty for any survey context view
 const MAX_BBOX_DEGREES = 0.25
 
-export const GET = apiHandler(
+const handleGet = apiHandler(
   { auth: true, rateLimit: { max: 30, windowMs: 60000 } },
   async (request: NextRequest) => {
     const searchParams = request.nextUrl.searchParams
@@ -54,6 +54,7 @@ export const GET = apiHandler(
     try {
       const params = new URLSearchParams({ minlon, minlat, maxlon, maxlat, types })
       const res = await fetch(`${PYTHON_WORKER_URL}/osm/features?${params}`, {
+        signal: request.signal,
         headers: { 'X-Worker-Secret': WORKER_SECRET },
       })
 
@@ -78,3 +79,9 @@ export const GET = apiHandler(
     }
   }
 )
+
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const response = await handleGet(request)
+  response.headers.set('Cache-Control', 'private, no-store')
+  return response
+}

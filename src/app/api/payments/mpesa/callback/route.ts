@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
-import db from '@/lib/db'
+import db, { setCurrentRlsServiceRole, setCurrentUserId, setRlsContext } from '@/lib/db'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { getPlan } from '@/lib/subscription/catalog'
 import { sendEmail } from '@/lib/email'
@@ -144,6 +144,12 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Payment intent not found' }, { status: 404 })
   }
 
+  // The callback is verified and the payment intent supplies the trusted
+  // owner ID, so all subsequent payment-history and subscription work can
+  // pass the same per-user RLS policies as interactive requests.
+  setCurrentRlsServiceRole('payment_provider')
+  setCurrentUserId(String(paymentRow.user_id))
+
   // Already completed — idempotent response
   if (paymentRow.status === 'completed') {
     return NextResponse.json({ ok: true })
@@ -174,13 +180,15 @@ export async function POST(request: NextRequest) {
   //    skipped whenever paidAmount was falsy, which allowed forged
   //    "success" callbacks carrying no metadata at all.
   const plan = getPlan(planId)
-  const expectedAmount = plan?.prices?.KES ?? Number(paymentRow.amount) ?? 0
+  // The server-created intent records the price actually quoted at checkout.
+  // A later catalog change must not reject an already initiated payment.
+  const expectedAmount = Number(paymentRow.amount)
   if (
     !Number.isFinite(paidAmount) ||
     paidAmount <= 0 ||
     !Number.isFinite(expectedAmount) ||
     expectedAmount <= 0 ||
-    Math.round(paidAmount) !== Math.round(expectedAmount)
+    Math.round(paidAmount * 100) !== Math.round(expectedAmount * 100)
   ) {
     logger.warn(
       `[mpesa] Amount verification failed: paid ${paidAmount} KES, expected ${expectedAmount} KES for plan ${planId} (intent ${paymentRow.id})`
@@ -210,6 +218,7 @@ export async function POST(request: NextRequest) {
   let activated = false
   try {
     await client.query('BEGIN')
+    await setRlsContext(client)
 
     // Conditional completion: rowCount 0 means another callback instance
     // already completed (or concurrently completes) this intent.

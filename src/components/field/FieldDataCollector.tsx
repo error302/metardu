@@ -23,7 +23,7 @@
  *   - PWA — installable, offline-first, sunlight-readable field mode
  */
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Settings, Target, List, Cloud, ChevronRight, X, Camera } from 'lucide-react'
 import { FieldConnectionBar } from './FieldConnectionBar'
 import { FieldMeasureButton } from './FieldMeasureButton'
@@ -33,10 +33,15 @@ import { useFieldSessionState, useFieldSession } from '@/hooks/useFieldSessionSt
 import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
 import type { FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
+import type { RoadFieldPlan } from '@/types/engineering'
+import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan } from '@/lib/engineering/roadFieldPlan'
+import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
+import { createClient } from '@/lib/api-client/client'
 
 interface FieldDataCollectorProps {
   projectId: string
   surveyType?: SurveyType
+  roadSurvey?: boolean
 }
 
 type Panel = 'measure' | 'stakeout' | 'list' | 'sync' | null
@@ -44,6 +49,7 @@ type Panel = 'measure' | 'stakeout' | 'list' | 'sync' | null
 export function FieldDataCollector({
   projectId,
   surveyType = 'cadastral',
+  roadSurvey = false,
 }: FieldDataCollectorProps) {
   const sessionState = useFieldSessionState(projectId, surveyType)
   const session = useFieldSession(projectId, surveyType)
@@ -52,13 +58,77 @@ export function FieldDataCollector({
   const [activePanel, setActivePanel] = useState<Panel>('measure')
   const [showInstrumentPanel, setShowInstrumentPanel] = useState(false)
   const [activeFeatureCode, setActiveFeatureCode] = useState<string>('')
+  const [roadFieldPlan, setRoadFieldPlan] = useState<RoadFieldPlan | null>(null)
+  const [roadPlanLoading, setRoadPlanLoading] = useState(roadSurvey)
+  const [roadPlanLoadError, setRoadPlanLoadError] = useState(false)
+  const [activeRoadStationIndex, setActiveRoadStationIndex] = useState(0)
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number; z: number } | null>(null)
   const [isSunlightMode, setIsSunlightMode] = useState(false)
+  const [isLoadingMeasurements, setIsLoadingMeasurements] = useState(true)
+  const [measurementsLoadFailed, setMeasurementsLoadFailed] = useState(false)
+  const roadStations = useMemo(() => roadFieldPlan ? buildRoadFieldStations(roadFieldPlan) : [], [roadFieldPlan])
+  const activeRoadStation = roadStations[activeRoadStationIndex] ?? null
+  const pointIdPrefix = roadSurvey ? 'RD' : surveyType === 'cadastral' ? 'BP' : 'P'
+  const nextPointNumber = useMemo(
+    () => nextFieldPointNumber(pointIdPrefix, sessionState.measurements.map(measurement => measurement.pointId)),
+    [pointIdPrefix, sessionState.measurements],
+  )
 
-  // Load existing measurements on mount
   useEffect(() => {
-    session.loadMeasurements()
+    if (!roadSurvey) return
+    let current = true
+    const loadRoadPlan = async () => {
+      setRoadPlanLoading(true)
+      setRoadPlanLoadError(false)
+      try {
+        const result = await createClient()
+          .from('projects')
+          .select('engineering_data')
+          .eq('id', projectId)
+          .limit(1) as unknown as { data: Array<{ engineering_data?: unknown }> | null; error: unknown }
+        if (result.error) throw result.error
+        const engineeringData = result.data?.[0]?.engineering_data
+        const planValue = typeof engineeringData === 'object' && engineeringData !== null
+          ? (engineeringData as { roadFieldPlan?: unknown }).roadFieldPlan
+          : undefined
+        if (current) {
+          setRoadFieldPlan(parseRoadFieldPlan(planValue))
+          setActiveRoadStationIndex(0)
+        }
+      } catch {
+        if (current) {
+          setRoadFieldPlan(null)
+          setRoadPlanLoadError(true)
+        }
+      } finally {
+        if (current) setRoadPlanLoading(false)
+      }
+    }
+    void loadRoadPlan()
+    return () => { current = false }
+  }, [projectId, roadSurvey])
+
+  useEffect(() => {
+    if (roadSurvey && roadFieldPlan?.featureCodes.length) {
+      setActiveFeatureCode(roadFieldPlan.featureCodes[0])
+    }
+  }, [roadSurvey, roadFieldPlan])
+
+  // Load existing measurements before capture so resumed sessions do not reuse
+  // point IDs and a failed local read cannot silently begin a duplicate sequence.
+  const loadMeasurements = useCallback(async () => {
+    setIsLoadingMeasurements(true)
+    setMeasurementsLoadFailed(false)
+    const loaded = await session.loadMeasurements()
+    const hasKnownMeasurements = session.getSnapshot().measurements.length > 0
+    const ready = loaded || hasKnownMeasurements
+    setMeasurementsLoadFailed(!ready)
+    setIsLoadingMeasurements(false)
   }, [session])
+
+  useEffect(() => {
+    void loadMeasurements()
+  }, [loadMeasurements])
 
   // Auto-sync when online
   useEffect(() => {
@@ -69,9 +139,14 @@ export function FieldDataCollector({
   }, [sessionState.isOnline, sessionState.pendingSyncCount, sessionState.isSyncing, session])
 
   const handleCapture = useCallback(async (pointId: string, code?: string): Promise<boolean> => {
-    const measurement = await session.captureMeasurement({ pointId, notes: code })
+    if (sessionState.measurements.some(measurement => measurement.pointId === pointId)) return false
+    const captureNotes = roadSurvey
+      ? `ROAD_CODE=${code ?? 'UNCODED'}; CHAINAGE_M=${activeRoadStation ?? 'UNSET'}`
+      : code
+    const notes = appendFieldPointId(captureNotes, pointId)
+    const measurement = await session.captureMeasurement({ pointId, notes })
     return measurement !== null
-  }, [session])
+  }, [session, sessionState.measurements, roadSurvey, activeRoadStation])
 
   const handleSetupComplete = useCallback((setup: typeof sessionState.setup) => {
     if (setup) {
@@ -146,6 +221,40 @@ export function FieldDataCollector({
         </button>
       </div>
 
+      {roadSurvey && (
+        <div className="border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-3">
+          {roadPlanLoading ? (
+            <p className="text-sm text-[var(--text-muted)]">Loading the saved road field plan…</p>
+          ) : roadFieldPlan ? (
+            <div className="flex flex-wrap items-center gap-3">
+              <label htmlFor="road-chainage-station" className="text-sm font-semibold text-[var(--text-primary)]">Chainage station</label>
+              <select
+                id="road-chainage-station"
+                value={activeRoadStationIndex}
+                onChange={event => setActiveRoadStationIndex(Number(event.target.value))}
+                className="min-w-48 rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-mono text-[var(--text-primary)]"
+              >
+                {roadStations.map((chainage, index) => (
+                  <option key={`${chainage}-${index}`} value={index}>
+                    CH {formatRoadChainage(chainage)} · {index + 1}/{roadStations.length}
+                  </option>
+                ))}
+              </select>
+              <span className="text-xs text-[var(--text-muted)]">
+                {roadFieldPlan.leftExtentM == null && roadFieldPlan.rightExtentM == null
+                  ? 'No cross-section extents entered'
+                  : `Survey extents: L ${roadFieldPlan.leftExtentM ?? '—'} m · R ${roadFieldPlan.rightExtentM ?? '—'} m`}
+              </span>
+            </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-2 text-sm text-amber-500">
+              <span>{roadPlanLoadError ? 'Could not load the road field plan.' : 'No valid road field plan is saved for this project.'}</span>
+              <a href={`/project/${projectId}/engineering?step=field_plan`} className="font-semibold underline underline-offset-2">Open road field plan</a>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Live QC Badge (if tolerance status available) */}
       {sessionState.toleranceStatus && (
         <div className="px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)]">
@@ -158,16 +267,25 @@ export function FieldDataCollector({
         {activePanel === 'measure' && (
           <div className="flex flex-col items-center py-8 px-4 w-full">
             {/* Measure Button */}
+            {isLoadingMeasurements && <p role="status" className="mb-4 text-sm text-[var(--text-muted)]">Loading saved points before capture…</p>}
+            {measurementsLoadFailed && (
+              <div role="alert" className="mb-4 max-w-md rounded-lg border border-[var(--error)]/40 bg-[var(--error)]/10 p-3 text-center text-sm text-[var(--error)]">
+                Saved points could not be loaded, so capture is paused to prevent duplicate point IDs.
+                <button type="button" onClick={() => void loadMeasurements()} className="ml-2 font-semibold underline underline-offset-2">Retry</button>
+              </div>
+            )}
             <FieldMeasureButton
               onCapture={(pointId) => handleCapture(pointId, activeFeatureCode || undefined)}
+              disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || activeRoadStation === null || !activeFeatureCode))}
               stationSetup={!!sessionState.setup}
-              pointIdPrefix={surveyType === 'cadastral' ? 'BP' : 'P'}
+              pointIdPrefix={pointIdPrefix}
+              nextPointNumber={nextPointNumber}
             />
 
             {/* Smart Feature Coding */}
             <div className="mt-8 w-full max-w-md">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-[var(--text-secondary)]">Feature Code</span>
+                <span className="text-sm font-semibold text-[var(--text-secondary)]">{roadSurvey ? 'Road point code' : 'Feature Code'}</span>
                 <button 
                   className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] rounded-full hover:bg-[var(--bg-tertiary)] transition-colors border border-[var(--border-color)] text-xs font-medium text-[var(--text-primary)] shadow-sm"
                   title="Attach Photo"
@@ -177,10 +295,10 @@ export function FieldDataCollector({
                 </button>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full">
-                {['FENCE_START', 'FENCE_LINE', 'FENCE_END', 'TREE', 'WALL', 'BLDG', 'ROAD_EDGE'].map(code => (
+                {(roadSurvey ? roadFieldPlan?.featureCodes ?? [] : ['FENCE_START', 'FENCE_LINE', 'FENCE_END', 'TREE', 'WALL', 'BLDG', 'ROAD_EDGE']).map(code => (
                   <button
                     key={code}
-                    onClick={() => setActiveFeatureCode(code === activeFeatureCode ? '' : code)}
+                    onClick={() => setActiveFeatureCode(code === activeFeatureCode ? (roadSurvey ? code : '') : code)}
                     className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-colors ${
                       activeFeatureCode === code
                         ? 'bg-[var(--accent)] text-black border-[var(--accent)] shadow-md'

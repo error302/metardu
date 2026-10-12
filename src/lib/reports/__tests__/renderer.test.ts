@@ -37,13 +37,13 @@ describe('SurveyPlanRenderer', () => {
     controlPoints: [],
   }
 
-  it('renders a valid SVG that matches the snapshot', () => {
+  it('renders a valid SVG that matches the snapshot', async () => {
     const renderer = new SurveyPlanRenderer(mockData, {
       paperSize: 'a3',
       includeGrid: true,
       includePanel: true
     })
-    const svg = renderer.render()
+    const svg = await renderer.render()
     
     expect(svg).toBeDefined()
     expect(svg).toContain('<svg')
@@ -54,9 +54,9 @@ describe('SurveyPlanRenderer', () => {
     expect(svg).toMatchSnapshot()
   })
 
-  it('handles empty control points gracefully', () => {
+  it('handles empty control points gracefully', async () => {
     const renderer = new SurveyPlanRenderer(mockData)
-    const svg = renderer.render()
+    const svg = await renderer.render()
     expect(svg).toContain('COORDINATE SCHEDULE')
   })
 })

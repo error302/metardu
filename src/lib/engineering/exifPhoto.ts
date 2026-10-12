@@ -20,12 +20,18 @@ export interface EXIFGPSData {
   latitude: number;
   /** Longitude in decimal degrees */
   longitude: number;
-  /** Altitude in meters above sea level (may be negative) */
+  /** Datum label recorded by the camera, if present; no transformation is applied. */
+  gpsDatum: string | null;
+  /** Raw EXIF GPS altitude in metres; its vertical datum is not provided. */
   altitude: number;
-  /** Altitude reference: above/below sea level */
+  /** EXIF altitude-reference flag; this does not identify a geodetic vertical datum. */
   altitudeRef: 'above' | 'below' | 'unknown';
+  /** True only when the image contains a valid GPS altitude value. */
+  altitudeRecorded: boolean;
   /** Photo capture timestamp */
   timestamp: Date;
+  /** True only when the file contains a valid EXIF or GPS capture timestamp. */
+  timestampRecorded: boolean;
   /** Camera manufacturer */
   cameraMake: string;
   /** Camera model */
@@ -91,6 +97,7 @@ const TAG_GPS_LONGITUDE_REF = 0x0003;
 const TAG_GPS_LONGITUDE = 0x0004;
 const TAG_GPS_ALTITUDE_REF = 0x0005;
 const TAG_GPS_ALTITUDE = 0x0006;
+const TAG_GPS_MAP_DATUM = 0x0012;
 const TAG_GPS_TIMESTAMP = 0x0007;
 const TAG_GPS_IMG_DIRECTION = 0x0011;
 const TAG_GPS_H_POSITIONING_ERROR = 0x001e;
@@ -164,7 +171,7 @@ class BinaryReader {
   getRational(offset: number): number {
     const num = this.getUint32(offset);
     const den = this.getUint32(offset + 4);
-    return den === 0 ? 0 : num / den;
+    return den === 0 ? Number.NaN : num / den;
   }
 
   /**
@@ -173,7 +180,7 @@ class BinaryReader {
   getSRational(offset: number): number {
     const num = this.getInt32(offset);
     const den = this.getInt32(offset + 4);
-    return den === 0 ? 0 : num / den;
+    return den === 0 ? Number.NaN : num / den;
   }
 
   /**
@@ -536,7 +543,7 @@ function extractThumbnail(
  * reads IFD entries, finds the GPS IFD (tag 0x8825), and extracts:
  *
  * - GPS Latitude/Longitude (DMS rationals → decimal degrees)
- * - GPS Altitude and reference
+ * - Raw GPS altitude and EXIF reference flag (vertical datum unknown)
  * - GPS timestamp
  * - Camera make/model
  * - GPS compass heading and accuracy
@@ -549,8 +556,8 @@ function extractThumbnail(
  * @example
  * ```ts
  * const exif = await extractEXIFGPS(photoFile);
- * }, ${exif.longitude.toFixed(6)}`);
- * } m ${exif.altitudeRef}`);
+ * console.log(`${exif.latitude.toFixed(6)}, ${exif.longitude.toFixed(6)}`);
+ * console.log(exif.altitudeRecorded ? `Raw EXIF altitude: ${exif.altitude} m` : 'No altitude recorded');
  * ```
  */
 export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
@@ -573,12 +580,15 @@ export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
 
   // Try DateTimeOriginal first, fall back to DateTime (0x0132)
   let timestamp = new Date();
+  let timestampRecorded = false;
   if (dateTimeEntry) {
     timestamp = parseEXIFDateTime(readStringValue(reader, dateTimeEntry));
+    timestampRecorded = Number.isFinite(timestamp.getTime());
   } else {
     const dtEntry = findEntry(exif.ifd0Entries, 0x0132);
     if (dtEntry) {
       timestamp = parseEXIFDateTime(readStringValue(reader, dtEntry));
+      timestampRecorded = Number.isFinite(timestamp.getTime());
     }
   }
 
@@ -612,13 +622,20 @@ export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
   const lonDMS = readRationalArray(reader, lonEntry);
   const lonRef = lonRefEntry ? readStringValue(reader, lonRefEntry) : 'E';
   const longitude = gpsDMSToDecimal(lonDMS, lonRef);
+  if (!Number.isFinite(latitude) || Math.abs(latitude) > 90 || !Number.isFinite(longitude) || Math.abs(longitude) > 180) {
+    throw new Error(`Invalid GPS coordinates in "${file.name}".`);
+  }
+  const gpsDatumEntry = findEntry(exif.gpsEntries, TAG_GPS_MAP_DATUM);
+  const gpsDatum = gpsDatumEntry ? readStringValue(reader, gpsDatumEntry).trim() || null : null;
 
   // GPS Altitude
   let altitude = 0;
+  let altitudeRecorded = false;
   let altitudeRef: 'above' | 'below' | 'unknown' = 'unknown';
   if (altEntry) {
     altitude = readRationalValue(reader, altEntry);
-    if (altRefEntry) {
+    altitudeRecorded = Number.isFinite(altitude);
+    if (altitudeRecorded && altRefEntry) {
       const ref = readByteValue(reader, altRefEntry);
       altitudeRef = ref === 0 ? 'above' : ref === 1 ? 'below' : 'unknown';
       if (altitudeRef === 'below') {
@@ -628,7 +645,7 @@ export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
   }
 
   // GPS Timestamp (use if DateTimeOriginal not available)
-  if (!dateTimeEntry) {
+  if (!timestampRecorded) {
     const gpsTimeEntry = findEntry(exif.gpsEntries, TAG_GPS_TIMESTAMP);
     if (gpsTimeEntry) {
       const timeDMS = readRationalArray(reader, gpsTimeEntry);
@@ -639,14 +656,15 @@ export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
           // Format: "YYYY:MM:DD"
           const parts = dateStr.split(':');
           if (parts.length === 3) {
-            timestamp = new Date(
+            timestamp = new Date(Date.UTC(
               parseInt(parts[0], 10),
               parseInt(parts[1], 10) - 1,
               parseInt(parts[2], 10),
               Math.floor(timeDMS[0]),
               Math.floor(timeDMS[1]),
               Math.floor(timeDMS[2])
-            );
+            ));
+            timestampRecorded = Number.isFinite(timestamp.getTime());
           }
         }
       }
@@ -681,9 +699,12 @@ export async function extractEXIFGPS(file: File): Promise<EXIFGPSData> {
   return {
     latitude,
     longitude,
+    gpsDatum,
     altitude: roundTo(altitude, 2),
+    altitudeRecorded,
     altitudeRef,
     timestamp,
+    timestampRecorded,
     cameraMake,
     cameraModel,
     heading: roundTo(heading, 2),
@@ -739,112 +760,38 @@ export async function processPhotoFiles(
   return results;
 }
 
-// ─── Main: photosToGeoJSON ──────────────────────────────────────────────────
+// ─── Main: photosToLocationNotes ────────────────────────────────────────────
 
 /**
- * Convert geotagged photos to a GeoJSON FeatureCollection of Point features.
- *
- * Only photos with valid EXIF GPS data are included. Each feature's properties
- * contain the full EXIF metadata.
+ * Expose camera GPS metadata as location notes only. Phone EXIF metadata is
+ * not control, is not transformed to a project CRS, and its altitude is not
+ * a surveyed or orthometric level.
  *
  * @param photos  Processed photo results from `processPhotoFiles`
- * @returns GeoJSON FeatureCollection with Point geometries
+ * @returns Geographic photo locations and clearly unverified EXIF metadata
  *
  * @example
  * ```ts
- * const geojson = photosToGeoJSON(results);
- * // Use with any GeoJSON-compatible viewer (Leaflet, Mapbox, etc.)
+ * const photoLocations = photosToLocationNotes(results);
  * ```
  */
-export function photosToGeoJSON(
-  photos: PhotoWithLocation[]
-): GeoJSON.FeatureCollection {
-  const features: GeoJSON.Feature[] = [];
-
-  for (const photo of photos) {
-    if (!photo.exif) continue;
-
-    const exif = photo.exif;
-
-    const feature: GeoJSON.Feature = {
-      type: 'Feature',
-      geometry: {
-        type: 'Point',
-        coordinates: [exif.longitude, exif.latitude, exif.altitude],
-      },
-      properties: {
-        filename: exif.filename,
-        altitude: exif.altitude,
-        altitudeRef: exif.altitudeRef,
-        timestamp: exif.timestamp.toISOString(),
-        cameraMake: exif.cameraMake,
-        cameraModel: exif.cameraModel,
-        heading: exif.heading,
-        accuracy: exif.accuracy,
-      },
-    };
-
-    features.push(feature);
-  }
-
-  return {
-    type: 'FeatureCollection',
-    features,
-  };
-}
-
-// ─── Main: photosToSurveyPoints ─────────────────────────────────────────────
-
-/**
- * Convert geotagged photos to survey point format with UTM coordinates.
- *
- * GPS coordinates (WGS84 lat/lon) are converted to UTM Zone 37S (Arc 1960)
- * for Kenya. If the photo is outside Kenya, the appropriate UTM zone is
- * determined from the longitude.
- *
- * The conversion uses a simple Transverse Mercator projection formula
- * with WGS84 ellipsoid parameters (a=6378137.0, f=1/298.257223563).
- * Accuracy is within a few metres — sufficient for photo locations.
- *
- * @param photos  Processed photo results from `processPhotoFiles`
- * @returns Array of survey points with UTM easting, northing, elevation
- *
- * @example
- * ```ts
- * const surveyPoints = photosToSurveyPoints(results);
- * for (const sp of surveyPoints) {
- *   } N: ${sp.northing.toFixed(2)} RL: ${sp.elevation.toFixed(2)}`);
- * }
- * ```
- */
-export function photosToSurveyPoints(
+export function photosToLocationNotes(
   photos: PhotoWithLocation[]
 ): Array<{
-  easting: number;
-  northing: number;
-  elevation: number;
-  code: string;
+  latitude: number;
+  longitude: number;
+  gpsDatum: string | null;
+  exifGpsAltitudeM: number | null;
+  verticalDatum: null;
   description: string;
 }> {
-  const results: Array<{
-    easting: number;
-    northing: number;
-    elevation: number;
-    code: string;
-    description: string;
-  }> = [];
+  const results: Array<{ latitude: number; longitude: number; gpsDatum: string | null; exifGpsAltitudeM: number | null; verticalDatum: null; description: string }> = [];
 
   for (const photo of photos) {
     if (!photo.exif) continue;
 
     const exif = photo.exif;
-    const { easting, northing, zone, hemisphere } = latLonToUTM(
-      exif.latitude,
-      exif.longitude
-    );
-
-    const code = 'PHOTO';
-    const dt = exif.timestamp;
+    const dt = exif.timestampRecorded ? exif.timestamp : null;
     const dateStr = dt
       ? `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
       : 'unknown-date';
@@ -856,133 +803,24 @@ export function photosToSurveyPoints(
       `Photo: ${exif.filename}`,
       exif.cameraMake ? `Camera: ${exif.cameraMake} ${exif.cameraModel}` : '',
       `Date: ${dateStr} ${timeStr}`,
-      `Alt: ${exif.altitude.toFixed(1)}m ${exif.altitudeRef}`,
+      exif.altitudeRecorded ? `EXIF GPS altitude: ${exif.altitude.toFixed(1)}m ${exif.altitudeRef} reference; vertical datum unknown` : 'EXIF GPS altitude: not recorded',
       exif.heading >= 0 ? `Heading: ${exif.heading.toFixed(1)}°` : '',
-      `UTM Zone ${zone}${hemisphere}`,
+      'GPS location is unverified device metadata; no project CRS transform applied',
     ]
       .filter(Boolean)
       .join(' | ');
 
     results.push({
-      easting: roundTo(easting, 3),
-      northing: roundTo(northing, 3),
-      elevation: roundTo(exif.altitude, 3),
-      code,
+      latitude: exif.latitude,
+      longitude: exif.longitude,
+      gpsDatum: exif.gpsDatum,
+      exifGpsAltitudeM: exif.altitudeRecorded ? exif.altitude : null,
+      verticalDatum: null,
       description,
     });
   }
 
   return results;
-}
-
-// ─── UTM Conversion (Transverse Mercator Projection) ────────────────────────
-
-/**
- * WGS84 ellipsoid parameters.
- */
-const WGS84_A = 6378137.0; // Semi-major axis (metres)
-const WGS84_F = 1 / 298.257223563; // Flattening
-const WGS84_E2 = 2 * WGS84_F - WGS84_F * WGS84_F; // First eccentricity squared
-const WGS84_EP2 =
-  WGS84_E2 / (1 - WGS84_E2); // Second eccentricity squared
-const UTM_K0 = 0.9996; // Scale factor
-const UTM_FE = 500000.0; // False easting (metres)
-const UTM_FN = 10000000.0; // False northing for southern hemisphere (metres)
-
-/**
- * Convert latitude/longitude (WGS84) to UTM coordinates.
- *
- * Uses the Transverse Mercator projection formulas from:
- * - "Map Projections — A Working Manual" (Snyder, USGS Professional Paper 1395)
- * - WGS84 Technical Manual (NIMA TR8350.2)
- *
- * For Kenya, defaults to Zone 37S. For other locations, the zone is
- * determined from the longitude: zone = floor((lon + 180) / 6) + 1.
- *
- * @param lat  Latitude in decimal degrees
- * @param lon  Longitude in decimal degrees
- * @returns UTM coordinates with zone and hemisphere info
- */
-function latLonToUTM(
-  lat: number,
-  lon: number
-): { easting: number; northing: number; zone: number; hemisphere: 'N' | 'S' } {
-  const latRad = (lat * Math.PI) / 180;
-  const lonRad = (lon * Math.PI) / 180;
-
-  // Determine UTM zone
-  const zone = Math.floor((lon + 180) / 6) + 1;
-  const centralMeridianRad = ((zone - 1) * 6 - 180 + 3) * (Math.PI / 180);
-
-  // Northern or southern hemisphere
-  const hemisphere = lat >= 0 ? 'N' : 'S';
-
-  const sinPhi = Math.sin(latRad);
-  const cosPhi = Math.cos(latRad);
-  const tanPhi = Math.tan(latRad);
-
-  const N = WGS84_A / Math.sqrt(1 - WGS84_E2 * sinPhi * sinPhi); // Radius of curvature in prime vertical
-  const T = tanPhi * tanPhi; // tan²(φ)
-  const C = WGS84_EP2 * cosPhi * cosPhi; // e'²cos²(φ)
-  const A = cosPhi * (lonRad - centralMeridianRad); // (λ - λ₀)cos(φ)
-
-  // Meridional arc distance from equator
-  const M = computeMeridionalArc(latRad);
-
-  // Transverse Mercator easting
-  let easting =
-    UTM_K0 *
-    N *
-    (A +
-      (1 - T + C) * (A * A * A) / 6 +
-      (5 - 18 * T + T * T + 72 * C - 58 * WGS84_EP2) *
-        (A * A * A * A * A) /
-        120);
-
-  // Transverse Mercator northing
-  let northing =
-    UTM_K0 *
-    (M +
-      N *
-        tanPhi *
-        ((A * A) / 2 +
-          (5 - T + 9 * C + 4 * C * C) * (A * A * A * A) / 24 +
-          (61 -
-            58 * T +
-            T * T +
-            600 * C -
-            330 * WGS84_EP2) *
-            (A * A * A * A * A * A) /
-            720));
-
-  easting += UTM_FE;
-  if (hemisphere === 'S') {
-    northing += UTM_FN;
-  }
-
-  return { easting, northing, zone, hemisphere };
-}
-
-/**
- * Compute meridional arc distance M(φ) from the equator to latitude φ.
- *
- * Uses the series expansion per Snyder (1987):
- *   M = a[(1 − e²/4 − 3e⁴/64 − 5e⁶/256)φ
- *        − (3e²/8 + 3e⁴/32 + 45e⁶/1024)sin(2φ)
- *        + (15e⁴/256 + 45e⁶/1024)sin(4φ)
- *        − (35e⁶/3072)sin(6φ)]
- */
-function computeMeridionalArc(phi: number): number {
-  const e2 = WGS84_E2;
-  const e4 = e2 * e2;
-  const e6 = e4 * e2;
-
-  const m0 = 1 - e2 / 4 - (3 * e4) / 64 - (5 * e6) / 256;
-  const m1 = (3 * e2) / 8 + (3 * e4) / 32 + (45 * e6) / 1024;
-  const m2 = (15 * e4) / 256 + (45 * e6) / 1024;
-  const m3 = (35 * e6) / 3072;
-
-  return WGS84_A * (m0 * phi - m1 * Math.sin(2 * phi) + m2 * Math.sin(4 * phi) - m3 * Math.sin(6 * phi));
 }
 
 // ─── Main: isEXIFSupported ──────────────────────────────────────────────────

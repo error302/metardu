@@ -10,7 +10,12 @@
  */
 
 import type { SubdivisionResult, SplitLine, RoadReserveInfo } from '@/types/subdivision'
-import { to3857, arrayTo3857 } from '@/lib/map/projection'
+import { to3857, arrayTo3857, SRID_21037 } from '@/lib/map/projection'
+
+// Contract: subdivision coordinates are in EPSG:21037 (see hook/panel docs).
+// The CRS is passed explicitly — never defaulted (plan F4).
+const gridTo3857 = (e: number, n: number) => to3857(e, n, SRID_21037)
+const gridArrayTo3857 = (coords: Array<[number, number]>) => arrayTo3857(coords, SRID_21037)
 
 /** Professional color palette for lot fills (RGBA with 0.25 alpha) */
 const LOT_COLORS = [
@@ -58,7 +63,7 @@ export async function createSubdivisionLayer(
 
   // ─── Parent parcel boundary (dashed outline) ────────────────────────────
   const parentClosed = [...result.parentParcel.vertices, result.parentParcel.vertices[0]]
-  const parentCoords3857 = await arrayTo3857(
+  const parentCoords3857 = await gridArrayTo3857(
     parentClosed.map(p => [p.easting, p.northing] as [number, number])
   )
 
@@ -83,7 +88,7 @@ export async function createSubdivisionLayer(
 
     // Close the polygon for rendering
     const closedLot = [...lot.vertices, lot.vertices[0]]
-    const coords3857 = await arrayTo3857(
+    const coords3857 = await gridArrayTo3857(
       closedLot.map(p => [p.easting, p.northing] as [number, number])
     )
 
@@ -102,7 +107,7 @@ export async function createSubdivisionLayer(
     features.push(lotFeature)
 
     // ─── Lot number label at centroid ────────────────────────────────────
-    const centroidCoord = await to3857(lot.centroid.easting, lot.centroid.northing)
+    const centroidCoord = await gridTo3857(lot.centroid.easting, lot.centroid.northing)
 
     const labelFeature = new Feature({
       geometry: new PointGeom(centroidCoord),
@@ -126,7 +131,7 @@ export async function createSubdivisionLayer(
   if (result.roadReserve && result.roadReserve.roadPolygon.length >= 3) {
     const rr = result.roadReserve
     const closedRR = [...rr.roadPolygon, rr.roadPolygon[0]]
-    const rrCoords3857 = await arrayTo3857(
+    const rrCoords3857 = await gridArrayTo3857(
       closedRR.map(p => [p.easting, p.northing] as [number, number])
     )
 
@@ -152,7 +157,7 @@ export async function createSubdivisionLayer(
     }
     rrCx /= rr.roadPolygon.length
     rrCy /= rr.roadPolygon.length
-    const rrCentroidCoord = await to3857(rrCx, rrCy)
+    const rrCentroidCoord = await gridTo3857(rrCx, rrCy)
 
     const rrLabelFeature = new Feature({
       geometry: new PointGeom(rrCentroidCoord),
@@ -199,7 +204,7 @@ export async function createSplitLineLayer(
     import('ol/style/Stroke'),
   ])
 
-  const coords3857 = await arrayTo3857([
+  const coords3857 = await gridArrayTo3857([
     [splitLine.startPoint.easting, splitLine.startPoint.northing] as [number, number],
     [splitLine.endPoint.easting, splitLine.endPoint.northing] as [number, number],
   ])
@@ -253,7 +258,7 @@ export async function createRoadReservePreviewLayer(
 
   // Road corridor polygon
   const closed = [...roadReserve.roadPolygon, roadReserve.roadPolygon[0]]
-  const coords3857 = await arrayTo3857(
+  const coords3857 = await gridArrayTo3857(
     closed.map(p => [p.easting, p.northing] as [number, number])
   )
 
@@ -279,7 +284,7 @@ export async function createRoadReservePreviewLayer(
   }
   cx /= roadReserve.roadPolygon.length
   cy /= roadReserve.roadPolygon.length
-  const centroidCoord = await to3857(cx, cy)
+  const centroidCoord = await gridTo3857(cx, cy)
 
   const labelFeature = new Feature({
     geometry: new PointGeom(centroidCoord),

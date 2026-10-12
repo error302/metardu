@@ -15,11 +15,11 @@ import proj4 from 'proj4'
 /** WGS84 geographic CRS (lat/lon in degrees) */
 export const WGS84_DEF = '+proj=longlat +datum=WGS84 +no_defs'
 
-/** UTM Zone 37 South — Arc 1960 datum (Clarke 1880 ellipsoid, EPSG:1284 7-param shift to WGS84) */
-export const ARC1960_UTM37S_DEF = '+proj=utm +zone=37 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs'
+/** UTM Zone 37 South — Arc 1960 datum (Clarke 1880 ellipsoid, EPSG:1122 3-param shift to WGS84) */
+export const ARC1960_UTM37S_DEF = '+proj=utm +zone=37 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs'
 
 /** UTM Zone 36 South — Arc 1960 datum (for sheets near zone boundary) */
-export const ARC1960_UTM36S_DEF = '+proj=utm +zone=36 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs'
+export const ARC1960_UTM36S_DEF = '+proj=utm +zone=36 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs'
 
 export { proj4 }
 

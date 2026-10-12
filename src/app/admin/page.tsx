@@ -363,18 +363,25 @@ export default function AdminDashboardPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Admin Dashboard</h1>
-          <p className="text-sm text-[var(--text-secondary)] mt-1">
-            Platform overview for Metardu administrators
-          </p>
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-xl md:flex md:items-center md:justify-between md:gap-6 md:p-6">
+        <div className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] blur-3xl" />
+        <div className="relative flex items-start gap-4">
+          <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] sm:flex">
+            <Activity className="h-5 w-5" />
+          </div>
+          <div>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Business operations</p>
+            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] md:text-3xl">METARDU control room</h1>
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
+              Customers, subscriptions, revenue, verification queues, and platform health in one workspace.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="relative mt-5 flex items-center gap-3 md:mt-0">
           <DashboardSearch />
           <button
             onClick={fetchDashboard}
-            className="btn btn-secondary text-sm"
+            className="btn btn-secondary min-h-10 text-sm"
             disabled={loading}
           >
             {loading ? (

@@ -12,8 +12,8 @@
  * - Base station distance (for RTK)
  * - Age of differential correction
  *
- * Generates a QA/QC report for ArdhiSasa submission compliance.
- * Warns if PDOP > 4.0 or fix is RTK Float (not acceptable for cadastral).
+ * Summarizes GNSS quality indicators for surveyor review.
+ * Configured warnings are not a cadastral acceptance decision.
  */
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
@@ -285,7 +285,7 @@ export function GNSSQualityReport({ externalPosition }: {
           </div>
           <div>
             <span className="text-sm font-semibold text-[var(--text-primary)]">GNSS Quality Report</span>
-            <p className="text-[10px] text-gray-500">QA/QC for ArdhiSasa submission compliance</p>
+            <p className="text-[10px] text-gray-500">GNSS quality indicators for surveyor review</p>
           </div>
         </div>
         <div className="flex items-center gap-1.5">

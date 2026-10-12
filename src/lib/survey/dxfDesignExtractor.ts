@@ -18,7 +18,7 @@
  *
  *   const points = extractDesignPointsFromDXF(dxfString, {
  *     layerFilter: ['STAKEOUT', 'SETTING-OUT'],
- *     defaultRL: 0,
+ *     defaultRL: 1500,
  *     defaultTH: 2.0,
  *   })
  */
@@ -30,9 +30,9 @@ import type { DesignPoint } from '@/lib/computations/settingOutEngine'
 export interface DXFExtractionOptions {
   /** Only extract points from these layers (case-insensitive). Empty = all layers. */
   layerFilter?: string[]
-  /** Default reduced level if not specified in the DXF (meters) */
+  /** Explicit fallback reduced level for 2D drawings (meters). Omit to reject 2D points. */
   defaultRL?: number
-  /** Default target height for setting out (meters) */
+  /** Explicit target height for setting out (meters). Omit to reject points without a target height. */
   defaultTH?: number
   /** Prefix for auto-generated point IDs */
   idPrefix?: string
@@ -52,13 +52,17 @@ interface DXFEntity {
   layer: string
   x: number
   y: number
-  z: number
+  z?: number
   x2?: number  // for LINE endpoints
   y2?: number
   z2?: number
   text?: string  // for TEXT/MTEXT
   radius?: number  // for CIRCLE
   handle?: string
+}
+
+function isFiniteNumber(value: number | undefined): value is number {
+  return typeof value === 'number' && Number.isFinite(value)
 }
 
 /**
@@ -111,7 +115,7 @@ function parseDXFEntities(content: string): { entities: DXFEntity[]; layers: Set
       }
 
       if (['POINT', 'LINE', 'CIRCLE', 'INSERT', 'TEXT', 'MTEXT'].includes(value)) {
-        currentEntity = { type: value, layer: '0', x: 0, y: 0, z: 0 }
+        currentEntity = { type: value, layer: '0', x: NaN, y: NaN }
       } else {
         currentEntity = null
       }
@@ -127,26 +131,26 @@ function parseDXFEntities(content: string): { entities: DXFEntity[]; layers: Set
         layers.add(value)
         break
       case 10: // X coordinate (primary point)
-        currentEntity.x = parseFloat(value) || 0
+        currentEntity.x = parseFloat(value)
         break
       case 20: // Y coordinate (primary point)
-        currentEntity.y = parseFloat(value) || 0
+        currentEntity.y = parseFloat(value)
         break
       case 30: // Z coordinate (primary point)
-        currentEntity.z = parseFloat(value) || 0
+        currentEntity.z = parseFloat(value)
         break
       case 11: // X coordinate (second point for LINE)
-        currentEntity.x2 = parseFloat(value) || 0
+        currentEntity.x2 = parseFloat(value)
         break
       case 21: // Y coordinate (second point for LINE)
-        currentEntity.y2 = parseFloat(value) || 0
+        currentEntity.y2 = parseFloat(value)
         break
       case 31: // Z coordinate (second point for LINE)
-        currentEntity.z2 = parseFloat(value) || 0
+        currentEntity.z2 = parseFloat(value)
         break
       case 40: // Radius (CIRCLE) or height (TEXT)
         if (currentEntity.type === 'CIRCLE') {
-          currentEntity.radius = parseFloat(value) || 0
+        currentEntity.radius = parseFloat(value)
         }
         break
       case 1: // Text content (TEXT/MTEXT)
@@ -186,8 +190,8 @@ export function extractDesignPointsFromDXF(
 ): DXFExtractionResult {
   const {
     layerFilter = [],
-    defaultRL = 0,
-    defaultTH = 2.0,
+    defaultRL,
+    defaultTH,
     idPrefix = 'PT',
   } = options
 
@@ -213,69 +217,127 @@ export function extractDesignPointsFromDXF(
   const points: DesignPoint[] = []
   let pointNum = 1
 
+  const resolveVerticalInputs = (entity: DXFEntity, label: string) => {
+    const rlCandidate = isFiniteNumber(entity.z) ? entity.z : defaultRL
+    const th = defaultTH
+    if (!isFiniteNumber(rlCandidate)) {
+      warnings.push(`${label} on ${entity.layer} has no finite RL; provide a 3D DXF or an explicit RL fallback.`)
+      return null
+    }
+    if (!isFiniteNumber(th)) {
+      warnings.push(`${label} on ${entity.layer} has no target height; provide an explicit target height.`)
+      return null
+    }
+    return { rl: rlCandidate, th }
+  }
+
+  const validCoordinate = isFiniteNumber
+
   for (const entity of filteredEntities) {
     const baseId = entity.handle || `${idPrefix}${String(pointNum).padStart(3, '0')}`
 
     switch (entity.type) {
       case 'POINT':
       case 'INSERT':
+        if (!validCoordinate(entity.x) || !validCoordinate(entity.y)) {
+          warnings.push(`${baseId} on ${entity.layer} has invalid east/north coordinates and was skipped.`)
+          break
+        }
+        {
+        const vertical = resolveVerticalInputs(entity, entity.type)
+        if (!vertical) break
+        const e = entity.x
+        const n = entity.y
         points.push({
           id: baseId,
-          e: entity.x,
-          n: entity.y,
-          rl: entity.z || defaultRL,
-          th: defaultTH,
+          e,
+          n,
+          rl: vertical.rl,
+          th: vertical.th,
           description: entity.text || `${entity.type} on ${entity.layer}`,
         })
         pointNum++
+        }
         break
 
       case 'LINE':
+        if (!validCoordinate(entity.x) || !validCoordinate(entity.y)) {
+          warnings.push(`${baseId} on ${entity.layer} has invalid line coordinates and was skipped.`)
+          break
+        }
+        {
+        const startVertical = resolveVerticalInputs(entity, 'LINE start')
+        if (!startVertical) break
         // Start point
+        const e = entity.x
+        const n = entity.y
         points.push({
           id: `${baseId}-A`,
-          e: entity.x,
-          n: entity.y,
-          rl: entity.z || defaultRL,
-          th: defaultTH,
+          e,
+          n,
+          rl: startVertical.rl,
+          th: startVertical.th,
           description: `Line start on ${entity.layer}`,
         })
         pointNum++
         // End point
-        if (entity.x2 !== undefined && entity.y2 !== undefined) {
+        if (validCoordinate(entity.x2) && validCoordinate(entity.y2)) {
+          const endE = entity.x2
+          const endN = entity.y2
+          const endVertical = resolveVerticalInputs({ ...entity, z: entity.z2 }, 'LINE end')
+          if (!endVertical) break
           points.push({
             id: `${baseId}-B`,
-            e: entity.x2,
-            n: entity.y2,
-            rl: entity.z2 || defaultRL,
-            th: defaultTH,
+            e: endE,
+            n: endN,
+            rl: endVertical.rl,
+            th: endVertical.th,
             description: `Line end on ${entity.layer}`,
           })
           pointNum++
         }
+        }
         break
 
       case 'CIRCLE':
+        if (!validCoordinate(entity.x) || !validCoordinate(entity.y)) {
+          warnings.push(`${baseId} on ${entity.layer} has invalid circle coordinates and was skipped.`)
+          break
+        }
+        {
+        const vertical = resolveVerticalInputs(entity, 'CIRCLE')
+        if (!vertical) break
+        const e = entity.x
+        const n = entity.y
         points.push({
           id: baseId,
-          e: entity.x,
-          n: entity.y,
-          rl: entity.z || defaultRL,
-          th: defaultTH,
+          e,
+          n,
+          rl: vertical.rl,
+          th: vertical.th,
           description: `Circle center${entity.radius ? ` (r=${entity.radius.toFixed(3)})` : ''} on ${entity.layer}`,
         })
         pointNum++
+        }
         break
 
       case 'TEXT':
       case 'MTEXT':
         if (entity.text) {
+          if (!validCoordinate(entity.x) || !validCoordinate(entity.y)) {
+            warnings.push(`${baseId} on ${entity.layer} has invalid text coordinates and was skipped.`)
+            break
+          }
+          const vertical = resolveVerticalInputs(entity, entity.type)
+          if (!vertical) break
+          const e = entity.x
+          const n = entity.y
           points.push({
             id: baseId,
-            e: entity.x,
-            n: entity.y,
-            rl: entity.z || defaultRL,
-            th: defaultTH,
+            e,
+            n,
+            rl: vertical.rl,
+            th: vertical.th,
             description: entity.text,
           })
           pointNum++

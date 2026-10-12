@@ -6,40 +6,53 @@ export interface LevelingComputeInput {
   rows: FieldBookRow[];
   openingRL: number;
   closingRL?: number;
+  /** Surveyed route length in kilometres. If omitted, chainage span is used when available. */
+  distanceKm?: number;
   method: 'rise_and_fall' | 'height_of_collimation';
 }
 
 function parseFieldBookRows(rows: FieldBookRow[]): LevelingInput['readings'] {
-  return rows
-    .filter((r) => r.station && (r.bs || r.is || r.fs))
-    .map((r) => ({
-      station: String(r.station || ''),
-      bs: r.bs !== '' && r.bs !== null ? Number(r.bs) : undefined,
-      is: r.is !== '' && r.is !== null ? Number(r.is) : undefined,
-      fs: r.fs !== '' && r.fs !== null ? Number(r.fs) : undefined,
-    }));
-}
-
-function calculateTotalDistance(readings: LevelingInput['readings']): number {
-  let total = 0;
-  for (let i = 1; i < readings.length; i++) {
-    if (readings[i].bs !== undefined) {
-      total += 1;
+  const numeric = (value: unknown, station: string, col: string): number | undefined => {
+    if (value === '' || value === null || value === undefined) return undefined;
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) {
+      throw new Error(`Invalid non-numeric value "${value}" at station "${station}", column "${col}"`);
     }
-  }
-  return total;
+    return parsed;
+  };
+
+  return rows
+    .filter((r) => r.station && (r.bs !== '' && r.bs !== null && r.bs !== undefined || r.is !== '' && r.is !== null && r.is !== undefined || r.fs !== '' && r.fs !== null && r.fs !== undefined))
+    .map((r) => {
+      const station = String(r.station || '');
+      return {
+        station,
+        bs: numeric(r.bs, station, 'BS'),
+        is: numeric(r.is, station, 'IS'),
+        fs: numeric(r.fs, station, 'FS'),
+      };
+    });
 }
 
 export function runLevelingComputation(input: LevelingComputeInput): LevelingResult {
   const readings = parseFieldBookRows(input.rows);
-  const distanceKm = calculateTotalDistance(readings) / 1000;
+  const chainages = input.rows
+    .filter((row) => row.chainage !== undefined && row.chainage !== null && String(row.chainage).trim() !== '')
+    .map((row) => Number(row.chainage))
+    .filter((value) => Number.isFinite(value));
+  const inferredDistanceKm = chainages.length >= 2
+    ? Math.abs(Math.max(...chainages) - Math.min(...chainages)) / 1000
+    : undefined;
+  const distanceKm = Number.isFinite(input.distanceKm) && (input.distanceKm as number) > 0
+    ? input.distanceKm as number
+    : inferredDistanceKm;
 
   const engineInput: LevelingInput = {
     readings,
     openingRL: input.openingRL,
     closingRL: input.closingRL,
     method: input.method,
-    distanceKm: Math.max(distanceKm, 0.001),
+    ...(distanceKm !== undefined && distanceKm > 0 ? { distanceKm } : {}),
   };
 
   if (input.method === 'height_of_collimation') {
@@ -54,8 +67,8 @@ export function getLevelingClosureStatus(result: LevelingResult): {
   misclosureMm: number;
   allowableMm: number;
 } {
-  if (result.allowableMisclosure === 0) {
-    return { status: 'unknown', message: 'No closing benchmark provided', misclosureMm: 0, allowableMm: 0 };
+  if (!result.closingRLProvided || result.allowableMisclosure === undefined || result.allowableMisclosure === 0) {
+    return { status: 'unknown', message: !result.closingRLProvided ? 'No closing benchmark provided' : 'Survey route distance required for allowable misclosure', misclosureMm: 0, allowableMm: 0 };
   }
 
   const misclosureMm = Math.abs(result.misclosure) * 1000;

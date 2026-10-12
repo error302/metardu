@@ -4,7 +4,8 @@
  * No extra computation — formats data from the existing project.
  */
 
-import { utmToGeographic } from '@/lib/geodesy/coordinates'
+import { utmToWgs84 } from '@/lib/spatial/projectReferenceSystem'
+import { reportCrs } from '@/lib/generators/reportCrs'
 
 export interface CivilPoint {
   name: string
@@ -74,10 +75,10 @@ export function exportASCIIPointCloud(points: CivilPoint[]): string {
 }
 
 // ── Shapefile-ready CSV (ESRI-compatible) ────────────────────────────────────
-export function exportShapefileCSV(points: CivilPoint[], utmZone: number, hemisphere: 'N'|'S'): string {
+export function exportShapefileCSV(points: CivilPoint[], utmZone: number, hemisphere: 'N'|'S', datum: string): string {
   const lines = ['Name,Easting,Northing,Elevation,Lat_WGS84,Lon_WGS84,Type,UTM_Zone']
   points.forEach((p: CivilPoint) => {
-    const { lat, lon } = utmToGeographic(p.easting, p.northing, utmZone, hemisphere)
+    const { lat, lon } = utmToWgs84(p.easting, p.northing, utmZone, hemisphere, datum)
     lines.push([
       p.name,
       p.easting.toFixed(4),
@@ -92,18 +93,29 @@ export function exportShapefileCSV(points: CivilPoint[], utmZone: number, hemisp
   return lines.join('\n')
 }
 
+function escapeXml(value: string): string {
+  return value.replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;')
+}
+
 // ── LandXML with surface (for Civil 3D / InfraWorks) ─────────────────────────
 export function exportLandXMLSurface(
   points: CivilPoint[],
   projectName: string,
   utmZone: number,
-  hemisphere: 'N' | 'S'
+  hemisphere: 'N' | 'S',
+  datum: string
 ): string {
   const date = new Date().toISOString()
-  const epsg = hemisphere === 'S' ? 32700 + utmZone : 32600 + utmZone
+  // EPSG code, name and datum all come from the declared project CRS —
+  // never assume the WGS 84 UTM family (EPSG:326xx/327xx) for Arc 1960 data.
+  const crs = reportCrs({ utmZone, hemisphere, datum })
+  if (!crs.verified) {
+    throw new Error('LandXML surface export requires a declared, supported project CRS (datum, UTM zone, and hemisphere).')
+  }
 
   const cgPoints = points.map((p, i) =>
-    `      <CgPoint name="${p.name}" pntRef="${i+1}">${p.northing.toFixed(4)} ${p.easting.toFixed(4)} ${p.elevation.toFixed(4)}</CgPoint>`
+    `      <CgPoint name="${escapeXml(p.name)}" pntRef="${i+1}">${p.northing.toFixed(4)} ${p.easting.toFixed(4)} ${p.elevation.toFixed(4)}</CgPoint>`
   ).join('\n')
 
   const pntList = points.map((_, i) => i + 1).join(' ')
@@ -114,9 +126,10 @@ export function exportLandXMLSurface(
   xsi:schemaLocation="http://www.landxml.org/schema/LandXML-1.2 http://www.landxml.org/schema/LandXML1.2/LandXML1.2.xsd"
   date="${date.split('T')[0]}" time="${date.split('T')[1].split('.')[0]}"
   version="1.2" language="English" readOnly="false">
-  <Project name="${projectName}" />
-  <CoordinateSystem name="UTM_Zone_${utmZone}${hemisphere}" epsgCode="${epsg}"
-    datum="WGS84" horizontalDatum="WGS84" verticalDatum="MSL" />
+  <Project name="${escapeXml(projectName)}" />
+  <CoordinateSystem name="${escapeXml(crs.crsName)}" epsgCode="${crs.epsg}"
+    datum="${escapeXml(crs.datum)}" horizontalDatum="${escapeXml(crs.datum)}" />
+  <!-- Vertical datum not declared by this export. Elevations retain the project's source height reference. -->
   <Units>
     <Metric linearUnit="meter" areaUnit="squareMeter" volumeUnit="cubicMeter" />
   </Units>
@@ -124,7 +137,7 @@ export function exportLandXMLSurface(
 ${cgPoints}
   </CgPoints>
   <Surfaces>
-    <Surface name="${projectName} — Existing Ground" desc="Survey surface for Civil 3D">
+    <Surface name="${escapeXml(projectName)} — Existing Ground" desc="Survey surface for Civil 3D">
       <SourceData>
         <PntList3D>${pntList}</PntList3D>
       </SourceData>
@@ -149,7 +162,8 @@ export function exportCivil(
   format: CivilFormat,
   projectName: string,
   utmZone: number,
-  hemisphere: 'N' | 'S'
+  hemisphere: 'N' | 'S',
+  datum: string
 ): { content: string; ext: string } {
   const fmt = CIVIL_FORMATS.find((f: (typeof CIVIL_FORMATS)[number]) => f.id === format) ?? CIVIL_FORMATS[0]
   switch (format) {
@@ -157,8 +171,8 @@ export function exportCivil(
     case '12d':             return { content: export12dCSV(points, projectName),                  ext: fmt.ext }
     case 'moss':            return { content: exportMossDEF(points),                              ext: fmt.ext }
     case 'pointcloud':      return { content: exportASCIIPointCloud(points),                      ext: fmt.ext }
-    case 'shapefile_csv':   return { content: exportShapefileCSV(points, utmZone, hemisphere),    ext: fmt.ext }
-    case 'landxml_surface': return { content: exportLandXMLSurface(points, projectName, utmZone, hemisphere), ext: fmt.ext }
+    case 'shapefile_csv':   return { content: exportShapefileCSV(points, utmZone, hemisphere, datum), ext: fmt.ext }
+    case 'landxml_surface': return { content: exportLandXMLSurface(points, projectName, utmZone, hemisphere, datum), ext: fmt.ext }
     default:                return { content: exportCivil3DCSV(points, projectName),             ext: 'csv' }
   }
 }

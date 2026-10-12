@@ -9,7 +9,12 @@
  * union, and typed generics. No behavior change.
  */
 
-import { Pool } from 'pg'
+import type { QueryResult as PgQueryResult, QueryResultRow } from 'pg'
+
+/** Runtime callers supply the request-context-aware db helper, not a raw pool. */
+export interface QueryExecutor {
+  query<T extends QueryResultRow = QueryResultRow>(sql: string, params?: unknown[]): Promise<PgQueryResult<T>>
+}
 
 // ponytail: Phase 6 Batch 3 — flipped default to Record<string, unknown> for
 // type safety. Consumer files now cast explicitly via `as unknown as Type`.
@@ -36,7 +41,7 @@ interface OrderClause {
 
 // ponytail: Phase 6 Batch 3 — see QueryResult note above
 export class QueryBuilder<T = Record<string, unknown>> {
-  private pool: Pool
+  private executor: QueryExecutor
   private table: string
   private operation: 'select' | 'insert' | 'update' | 'delete' | 'upsert' = 'select'
   private selectColumns: string = '*'
@@ -91,8 +96,8 @@ export class QueryBuilder<T = Record<string, unknown>> {
     return name
   }
 
-  constructor(pool: Pool, table: string) {
-    this.pool = pool
+  constructor(executor: QueryExecutor, table: string) {
+    this.executor = executor
     this.table = this.validateIdentifier(table, 'table')
   }
 
@@ -481,7 +486,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
       // touches selectColumns, so buildSelectColumns() is intentionally
       // skipped here — nothing user-controlled is interpolated into SQL.
       const sql = `SELECT COUNT(*) as count FROM "${this.table}"${this.buildWhereClause(params)}`
-      const result = await this.pool.query(sql, params as unknown[])
+      const result = await this.executor.query(sql, params as unknown[])
       const count = parseInt((result.rows[0] as { count?: string } | undefined)?.count ?? '0', 10)
       return { data: null, error: null, count }
     }
@@ -500,12 +505,12 @@ export class QueryBuilder<T = Record<string, unknown>> {
       sql += this.limitCount === null ? ' LIMIT 1' : ''
     }
 
-    const result = await this.pool.query(sql, params as unknown[])
+    const result = await this.executor.query(sql, params as unknown[])
 
     if (this.countOnly) {
       const countParams: unknown[] = []
       const countSql = `SELECT COUNT(*) as count FROM "${this.table}"${this.buildWhereClause(countParams)}`
-      const countResult = await this.pool.query(countSql, countParams as unknown[])
+      const countResult = await this.executor.query(countSql, countParams as unknown[])
       const count = parseInt((countResult.rows[0] as { count?: string } | undefined)?.count ?? '0', 10)
 
       if (this.singleRow) {
@@ -553,7 +558,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
     const quotedColumns = columns.map((c) => `"${c}"`).join(', ')
     const sql = `INSERT INTO "${this.table}" (${quotedColumns}) VALUES ${valuesList.join(', ')} RETURNING ${this.buildReturningColumns()}`
 
-    const result = await this.pool.query(sql, params as unknown[])
+    const result = await this.executor.query(sql, params as unknown[])
     const data = Array.isArray(this.insertPayload) ? (result.rows as unknown as T) : ((result.rows[0] ?? null) as unknown as T)
     return { data, error: null }
   }
@@ -586,7 +591,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
     sql += this.buildWhereClause(params)
     sql += ` RETURNING ${this.buildReturningColumns()}`
 
-    const result = await this.pool.query(sql, params as unknown[])
+    const result = await this.executor.query(sql, params as unknown[])
 
     if (this.singleRow || this.maybeSingleRow) {
       return { data: (result.rows[0] ?? null) as T, error: null }
@@ -613,7 +618,7 @@ export class QueryBuilder<T = Record<string, unknown>> {
     sql += this.buildWhereClause(params)
     sql += ` RETURNING ${this.buildReturningColumns()}`
 
-    const result = await this.pool.query(sql, params as unknown[])
+    const result = await this.executor.query(sql, params as unknown[])
     return { data: result.rows as T, error: null }
   }
 
@@ -665,16 +670,16 @@ export class QueryBuilder<T = Record<string, unknown>> {
 
     const sql = `INSERT INTO "${this.table}" (${quotedColumns}) VALUES ${valuesList.join(', ')} ON CONFLICT (${quotedConflict}) ${conflictAction} RETURNING ${this.buildReturningColumns()}`
 
-    const result = await this.pool.query(sql, params as unknown[])
+    const result = await this.executor.query(sql, params as unknown[])
     const data = Array.isArray(this.insertPayload) ? (result.rows as unknown as T) : ((result.rows[0] ?? null) as unknown as T)
     return { data, error: null }
   }
 }
 
-export function createQueryBuilder(pool: Pool) {
+export function createQueryBuilder(executor: QueryExecutor) {
   return {
     from(table: string): QueryBuilder {
-      return new QueryBuilder(pool, table)
+      return new QueryBuilder(executor, table)
     },
   }
 }

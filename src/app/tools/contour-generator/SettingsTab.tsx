@@ -13,6 +13,14 @@ interface SettingsTabProps {
   setContourInterval: (v: number) => void;
   indexMultiplier: number;
   setIndexMultiplier: (v: number) => void;
+  mapTitle: string;
+  setMapTitle: (v: string) => void;
+  horizontalCrs: string;
+  setHorizontalCrs: (v: string) => void;
+  verticalDatum: string;
+  setVerticalDatum: (v: string) => void;
+  heightsInMetres: boolean;
+  setHeightsInMetres: (value: boolean) => void;
   points: { length: number } & unknown;
   bounds: Bounds | null;
   isGenerating: boolean;
@@ -23,6 +31,7 @@ interface SettingsTabProps {
   volumeResult: VolumeResult | null;
   generateProgress?: number;
   usingWorker?: boolean;
+  executionMode?: 'worker' | 'main-thread' | null;
   breaklineCount?: number;
 }
 
@@ -31,6 +40,14 @@ export function SettingsTab({
   setContourInterval,
   indexMultiplier,
   setIndexMultiplier,
+  mapTitle,
+  setMapTitle,
+  horizontalCrs,
+  setHorizontalCrs,
+  verticalDatum,
+  setVerticalDatum,
+  heightsInMetres,
+  setHeightsInMetres,
   points,
   bounds,
   isGenerating,
@@ -41,19 +58,50 @@ export function SettingsTab({
   volumeResult,
   generateProgress = 0,
   usingWorker = false,
+  executionMode = null,
   breaklineCount = 0,
 }: SettingsTabProps) {
+  const heightUnits = heightsInMetres ? 'm' : 'source units';
   return (
     <div className="space-y-6">
       <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
         <h2 className="text-sm font-semibold text-white mb-4">Contour Generation Settings</h2>
 
+        <h3 className="text-xs font-semibold uppercase tracking-wider text-[var(--text-secondary)] mb-2">Plan identity and survey reference</h3>
+        <p className="text-xs text-[var(--text-secondary)] mb-3">
+          Enter a registered projected metre CRS and the source height reference before exporting. Source coordinates and heights are used as entered; no unit conversion is applied.
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
+          <div>
+            <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-map-title">Map title</label>
+            <input id="contour-map-title" value={mapTitle} onChange={event => setMapTitle(event.target.value)} maxLength={120}
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--accent)]" />
+          </div>
+          <div>
+            <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-horizontal-crs">Horizontal CRS / EPSG</label>
+            <input id="contour-horizontal-crs" value={horizontalCrs} onChange={event => setHorizontalCrs(event.target.value)} maxLength={120}
+              placeholder="EPSG:21037 (use your source CRS)"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]" />
+          </div>
+          <div>
+            <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-vertical-datum">Vertical datum / height source</label>
+            <input id="contour-vertical-datum" value={verticalDatum} onChange={event => setVerticalDatum(event.target.value)} maxLength={120}
+              placeholder="Enter the source height reference"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]" />
+          </div>
+        </div>
+        <label className="mb-3 flex min-h-11 items-center gap-3 text-sm text-[var(--text-secondary)]">
+          <input type="checkbox" checked={heightsInMetres} onChange={event => setHeightsInMetres(event.target.checked)} />
+          I confirm that the source height values are in metres.
+        </label>
+        <p className="text-xs text-amber-300 mb-6">Record the CRS, vertical datum and source units before exporting a metric plan. These declarations do not verify survey control or measurement accuracy.</p>
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
           <div>
             <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-interval-m">
-              Contour Interval (m)
+              Contour Interval ({heightsInMetres ? 'm' : 'source height units'})
             </label>
-            <input id="contour-interval-m" aria-label="Contour Interval (m)"
+            <input id="contour-interval-m" aria-label="Contour interval"
               type="number"
               step="0.1"
               min="0.01"
@@ -76,7 +124,7 @@ export function SettingsTab({
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
             />
             <p className="text-xs text-zinc-500 mt-1">
-              Every Nth contour is an index (thick) line (interval &times; {indexMultiplier} = {(contourInterval * indexMultiplier).toFixed(1)} m)
+              Every Nth contour is an index (thick) line (interval &times; {indexMultiplier} = {(contourInterval * indexMultiplier).toFixed(1)} {heightUnits})
             </p>
           </div>
           <div className="flex flex-col">
@@ -85,7 +133,7 @@ export function SettingsTab({
               {points.length.toLocaleString()} points
             </div>
             <p className="text-xs text-zinc-500 mt-1">
-              {bounds ? `Elevation range: ${fmt(bounds.minZ, 1)} \u2013 ${fmt(bounds.maxZ, 1)} m` : '\u2014'}
+              {bounds ? `Elevation range: ${fmt(bounds.minZ, 1)} – ${fmt(bounds.maxZ, 1)} ${heightUnits}` : '—'}
             </p>
           </div>
         </div>
@@ -153,6 +201,7 @@ export function SettingsTab({
       {contours.length > 0 && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
           <h2 className="text-sm font-semibold text-white mb-4">Generation Results</h2>
+          {executionMode && <p className="text-xs text-[var(--text-secondary)] mb-4" role="status">{executionMode === 'worker' ? 'Calculated in the background worker.' : 'Calculated in this browser tab using the fallback engine. Large datasets may pause the page.'}</p>}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 bg-[var(--bg-tertiary)] rounded">
               <span className="text-[var(--text-secondary)] text-sm block">Contour Lines</span>

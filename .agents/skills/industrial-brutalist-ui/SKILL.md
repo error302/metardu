@@ -47,7 +47,7 @@ Typography is the primary structural and decorative infrastructure. Imagery is s
 *   **Implementation Parameters:** Used exceedingly sparingly. Must be subjected to heavy post-processing (halftone filters, 1-bit dithering) to degrade vector perfection and create textural juxtaposition against the clean sans-serifs.
 
 ## 4. Color System
-The color architecture is uncompromising. Soft drop shadows and modern translucency are strictly prohibited; decorative gradients are prohibited. Colors simulate physical media or primitive emissive displays. Procedural gradients used exclusively for technical effects (e.g., CRT scanlines) are exempt from this rule.
+The color architecture is uncompromising. Gradients, soft drop shadows, and modern translucency are strictly prohibited. Colors simulate physical media or primitive emissive displays.
 
 **CRITICAL: Choose ONE substrate palette per project and use it consistently. Never mix light and dark substrates within the same interface.**
 

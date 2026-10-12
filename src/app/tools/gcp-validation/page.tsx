@@ -26,6 +26,7 @@ export default function GCPValidationPage() {
     selectedClass,
     setSelectedClass,
     knownGCPs,
+    sampleDataLoaded,
     residualText,
     setResidualText,
     residualFormat,
@@ -35,8 +36,10 @@ export default function GCPValidationPage() {
     parsedResiduals,
     setParsedResiduals,
     parseError,
+    gcpImportError,
     validationSummary,
     setValidationSummary,
+    invalidateValidation,
     fileInputRef,
     csvInputRef,
     addGCP,
@@ -74,7 +77,7 @@ export default function GCPValidationPage() {
       <PageHeader
         title={t('tools.gcpValidation')}
         subtitle={t('tools.gcpValidationDesc')}
-        reference="ISK Survey Standards | Kenya Accuracy Classes I/II/III | Agisoft Metashape / Pix4D"
+        reference="GCP residual comparison | Agisoft Metashape / Pix4D | verify CRS and acceptance limits"
         badge="GCP VALIDATION"
       />
 
@@ -84,7 +87,7 @@ export default function GCPValidationPage() {
           <span className="label">Settings</span>
           <div className="flex flex-wrap gap-4 items-end">
             <div>
-              <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="utm-zone">UTM Zone</label>
+              <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="utm-zone">Declared UTM zone</label>
               <select id="utm-zone"
                 className="input w-24"
                 value={utmZone}
@@ -93,6 +96,7 @@ export default function GCPValidationPage() {
                 <option value={36}>36S</option>
                 <option value={37}>37S</option>
               </select>
+              <p className="mt-1 max-w-48 text-xs text-[var(--text-muted)]">Report label only; no projection or datum transformation is performed.</p>
             </div>
             <div>
               <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="accuracy-class">Accuracy Class</label>
@@ -180,6 +184,8 @@ export default function GCPValidationPage() {
       {activeTab === 'gcp' && (
         <GcpTab
           knownGCPs={knownGCPs}
+          sampleDataLoaded={sampleDataLoaded}
+          gcpImportError={gcpImportError}
           addGCP={addGCP}
           removeGCP={removeGCP}
           updateGCP={updateGCP}
@@ -210,6 +216,7 @@ export default function GCPValidationPage() {
           loadSampleResiduals={loadSampleResiduals}
           clearResiduals={clearResiduals}
           handleResidualFileUpload={handleResidualFileUpload}
+          invalidateValidation={invalidateValidation}
           handleParseResiduals={handleParseResiduals}
           handleRunValidation={handleRunValidation}
         />
@@ -221,6 +228,7 @@ export default function GCPValidationPage() {
       {activeTab === 'results' && (
         <ResultsTab
           validationSummary={validationSummary}
+          sampleDataLoaded={sampleDataLoaded}
           selectedClass={selectedClass}
           knownGCPs={knownGCPs}
           parsedResiduals={parsedResiduals}
@@ -235,6 +243,7 @@ export default function GCPValidationPage() {
       {activeTab === 'report' && (
         <ReportTab
           validationSummary={validationSummary}
+          sampleDataLoaded={sampleDataLoaded}
           selectedClass={selectedClass}
           generateReportText={generateReportText}
           handleCopyReport={handleCopyReport}

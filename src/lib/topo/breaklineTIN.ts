@@ -1,59 +1,31 @@
 /**
- * Breakline-Aware TIN — constrained Delaunay triangulation
- *
- * PROBLEM
- * -------
- * Standard Delaunay triangulation treats all points equally. For topographic
- * surveys, this produces absurd contours: a TIN edge cutting across a road
- * edge, drainage channel, or retaining wall produces a contour line that
- * crosses a hard feature. The surveyor then has to manually draw breaklines
- * in AutoCAD to fix it.
- *
- * This module extends the standard TIN with breakline support: breaklines
- * are treated as hard edges that the triangulation must respect. Triangles
- * never cross a breakline. This produces contours that follow the ground
- * truth — road edges stay sharp, drainage channels stay defined.
- *
- * APPROACH
- * --------
- * 1. Build a standard Delaunay TIN from all points
- * 2. For each breakline segment, find triangles that cross it
- * 3. Split those triangles at the breakline, creating new triangles
- *    that respect the hard edge
- *
- * For a production system you'd use a proper constrained Delaunay library
- * (e.g., earcut or poly2tri). This module implements a simpler approach:
- * after building the Delaunay TIN, it removes triangles whose edges cross
- * breaklines, then re-triangulates the gaps. This is less elegant but
- * avoids adding a new dependency.
- *
- * USAGE
- * -----
- *   import { buildBreaklineTIN, type Breakline } from '@/lib/topo/breaklineTIN'
- *
- *   const tin = buildBreaklineTIN(points, breaklines)
- *   // tin.triangles respects all breakline edges
+ * Complete breakline-constrained Delaunay surfaces and contour diagnostics.
+ * Supplied 3D breakline vertices participate in the surface. Crossings are split
+ * only when their interpolated heights agree; conflicting evidence fails closed.
+ * Retessellated triangles replace crossing edges without leaving surface holes.
  */
 
 import { buildTIN, type TIN, type SurfacePoint, type Triangle } from '@/lib/survey/surfaceTIN'
+import { buildConstrainedTIN } from './constrainedTIN'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface Breakline {
   /** Ordered points defining the breakline polyline */
   points: SurfacePoint[]
-  /** Type of breakline — affects how it constrains the TIN */
+  /** Survey feature classification; every supplied line is a mesh constraint. */
   type: 'hard' | 'soft' | 'ridge' | 'valley'
   /** Optional description */
   description?: string
 }
 
 export interface BreaklineTINResult extends TIN {
+  constraintEdges: Array<[number, number]>
   /** Breaklines used as constraints */
   breaklines: Breakline[]
-  /** Number of triangles removed for crossing breaklines */
+  /** Number of baseline triangles replaced by constrained retriangulation */
   removedTriangles: number
-  /** Number of triangles added to fill gaps */
+  /** Number of replacement constrained triangles */
   addedTriangles: number
   /** Whether any breakline constraints were applied */
   hasConstraints: boolean
@@ -72,65 +44,17 @@ export function buildBreaklineTIN(
   points: SurfacePoint[],
   breaklines: Breakline[] = [],
 ): BreaklineTINResult {
-  if (breaklines.length === 0) {
-    // No breaklines — just build a standard TIN
-    const tin = buildTIN(points)
-    return {
-      ...tin,
-      breaklines: [],
-      removedTriangles: 0,
-      addedTriangles: 0,
-      hasConstraints: false,
-    }
-  }
-
-  // Build initial Delaunay TIN
-  const tin = buildTIN(points)
-
-  // Collect all breakline segments
-  const breaklineSegments: Array<{ p1: SurfacePoint; p2: SurfacePoint }> = []
-  for (const bl of breaklines) {
-    for (let i = 0; i < bl.points.length - 1; i++) {
-      breaklineSegments.push({ p1: bl.points[i], p2: bl.points[i + 1] })
-    }
-  }
-
-  // Remove triangles that cross any breakline segment
-  const validTriangles: Triangle[] = []
-  let removedCount = 0
-
-  for (const tri of tin.triangles) {
-    const a = tin.points[tri.a]
-    const b = tin.points[tri.b]
-    const c = tin.points[tri.c]
-
-    let crosses = false
-    for (const seg of breaklineSegments) {
-      // Check if any triangle edge crosses this breakline segment
-      if (
-        segmentsCross(a, b, seg.p1, seg.p2) ||
-        segmentsCross(b, c, seg.p1, seg.p2) ||
-        segmentsCross(c, a, seg.p1, seg.p2)
-      ) {
-        crosses = true
-        break
-      }
-    }
-
-    if (!crosses) {
-      validTriangles.push(tri)
-    } else {
-      removedCount++
-    }
-  }
-
+  const constrained = buildConstrainedTIN(points, breaklines)
+  if (constrained.constraintEdges.length === 0) return { ...constrained, breaklines, removedTriangles: 0, addedTriangles: 0, hasConstraints: false }
+  const baseline = buildTIN(constrained.points)
+  const key = (t: Triangle) => [t.a, t.b, t.c].sort((a, b) => a - b).join(':')
+  const previous = new Set(baseline.triangles.map(key))
+  const current = new Set(constrained.triangles.map(key))
   return {
-    ...tin,
-    triangles: validTriangles,
-    breaklines,
-    removedTriangles: removedCount,
-    addedTriangles: 0, // simplified approach: we just remove, don't re-fill
-    hasConstraints: true,
+    ...constrained, breaklines,
+    removedTriangles: baseline.triangles.filter(t => !current.has(key(t))).length,
+    addedTriangles: constrained.triangles.filter(t => !previous.has(key(t))).length,
+    hasConstraints: constrained.constraintEdges.length > 0,
   }
 }
 

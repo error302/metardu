@@ -2,6 +2,7 @@
 jest.mock('@/lib/db', () => ({
   db: { query: jest.fn() },
   setCurrentUserId: jest.fn(),
+  setCurrentOrgId: jest.fn(),
 }))
 
 jest.mock('@/lib/auth', () => ({
@@ -17,6 +18,7 @@ jest.mock('@/lib/security/rateLimit', () =>
 
 jest.mock('@/lib/logger', () => ({
   auditLog: jest.fn(),
+  logger: { error: jest.fn(), warn: jest.fn() },
 }))
 
 import { POST, GET } from '../parcels/route'
@@ -31,6 +33,11 @@ const mockSession = getServerSession as jest.MockedFunction<typeof getServerSess
 
 const TEST_PROJECT_UUID = '00000000-0000-0000-0000-000000000001'
 const TEST_BLOCK_UUID = '00000000-0000-0000-0000-000000000002'
+
+beforeEach(() => {
+  mockDb.mockReset()
+  mockDb.mockResolvedValue(mr([]))
+})
 
 
 

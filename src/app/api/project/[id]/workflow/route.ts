@@ -16,6 +16,7 @@ interface ProjectRow {
   location: string | null
   utm_zone: number | null
   hemisphere: string | null
+  boundary_data: { computation?: { source?: string; passes?: boolean }; adjustedStations?: unknown[] } | null
   workflow_step: number | null
   workflow_max_unlocked: number | null
 }
@@ -39,7 +40,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   // Fetch project data
   const { rows } = await db.query<ProjectRow>(
     `SELECT p.id, p.name, p.survey_type, p.location, p.utm_zone, p.hemisphere,
-            p.workflow_step, p.workflow_max_unlocked
+            p.workflow_step, p.workflow_max_unlocked, p.boundary_data
      FROM projects p
      WHERE p.id = $1 AND p.user_id = $2`,
     [id, ctx.userId]
@@ -54,15 +55,15 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   // Fetch related counts
   const [pointsRes, fieldbookRes, computationsRes, deedPlanRes, submissionRes] = await Promise.all([
     db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM survey_points WHERE project_id = $1', [id]),
-    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
+    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
     db.query<CntRow>("SELECT COUNT(*)::int AS cnt FROM computations WHERE project_id = $1 AND status = 'completed'", [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
-    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM deed_plans WHERE project_id = $1', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
-    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM submissions WHERE project_id = $1', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
+    db.query<CntRow>("SELECT COUNT(*)::int AS cnt FROM submission_documents WHERE project_id = $1 AND document_id = 'deed-plan' AND status = 'ready' AND file_url IS NOT NULL", [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
+    db.query<CntRow>("SELECT COUNT(*)::int AS cnt FROM submission_documents WHERE project_id = $1 AND document_id = 'full-package' AND status = 'ready' AND file_url IS NOT NULL", [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
   ])
 
   const pointCount = pointsRes.rows[0]?.cnt ?? 0
   const fieldbookEntryCount = fieldbookRes.rows[0]?.cnt ?? 0
-  const hasComputationResults = (computationsRes.rows[0]?.cnt ?? 0) > 0
+  const hasComputationResults = project.survey_type === 'cadastral' ? project.boundary_data?.computation?.source === 'field-observations' && (project.boundary_data?.adjustedStations?.length ?? 0) >= 3 : (computationsRes.rows[0]?.cnt ?? 0) > 0
   const hasDeedPlan = (deedPlanRes.rows[0]?.cnt ?? 0) > 0
   const hasSubmissionPackage = (submissionRes.rows[0]?.cnt ?? 0) > 0
 
@@ -80,6 +81,11 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
     }
   } catch {
     // quality_checks table may not exist yet — that's OK
+  }
+
+  if(project.survey_type === 'cadastral') {
+    toleranceCheckPassed = project.boundary_data?.computation?.passes ?? null;
+    toleranceAcknowledged = false;
   }
 
   const workflowData: ProjectWorkflowData = {
@@ -102,7 +108,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
   const status = getWorkflowStatus(workflowData)
 
-  return NextResponse.json({ data: status })
+  return NextResponse.json({ data: status, projectData: workflowData })
 })
 
 /**
@@ -117,7 +123,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   // Fetch project data
   const { rows } = await db.query<ProjectRow>(
     `SELECT p.id, p.name, p.survey_type, p.location, p.utm_zone, p.hemisphere,
-            p.workflow_step, p.workflow_max_unlocked
+            p.workflow_step, p.workflow_max_unlocked, p.boundary_data
      FROM projects p
      WHERE p.id = $1 AND p.user_id = $2`,
     [id, ctx.userId]
@@ -146,10 +152,10 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   // Fetch related counts
   const [pointsRes, fieldbookRes, computationsRes, deedPlanRes, submissionRes] = await Promise.all([
     db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM survey_points WHERE project_id = $1', [id]),
-    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
+    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
     db.query<CntRow>("SELECT COUNT(*)::int AS cnt FROM computations WHERE project_id = $1 AND status = 'completed'", [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
-    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM deed_plans WHERE project_id = $1', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
-    db.query<CntRow>('SELECT COUNT(*)::int AS cnt FROM submissions WHERE project_id = $1', [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
+    db.query<CntRow>("SELECT COUNT(*)::int AS cnt FROM submission_documents WHERE project_id = $1 AND document_id = 'deed-plan' AND status = 'ready' AND file_url IS NOT NULL", [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
+    db.query<CntRow>("SELECT COUNT(*)::int AS cnt FROM submission_documents WHERE project_id = $1 AND document_id = 'full-package' AND status = 'ready' AND file_url IS NOT NULL", [id]).catch(() => ({ rows: [{ cnt: 0 }] })),
   ])
 
   let toleranceCheckPassed: boolean | null = null
@@ -167,6 +173,11 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     // OK
   }
 
+  if(project.survey_type === 'cadastral') {
+    toleranceCheckPassed = project.boundary_data?.computation?.passes ?? null;
+    toleranceAcknowledged = false;
+  }
+
   const workflowData: ProjectWorkflowData = {
     id: project.id,
     name: project.name,
@@ -178,7 +189,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     maxUnlocked: project.workflow_max_unlocked ?? 1,
     pointCount: pointsRes.rows[0]?.cnt ?? 0,
     fieldbookEntryCount: fieldbookRes.rows[0]?.cnt ?? 0,
-    hasComputationResults: (computationsRes.rows[0]?.cnt ?? 0) > 0,
+    hasComputationResults: project.survey_type === 'cadastral' ? project.boundary_data?.computation?.source === 'field-observations' && (project.boundary_data?.adjustedStations?.length ?? 0) >= 3 : (computationsRes.rows[0]?.cnt ?? 0) > 0,
     toleranceCheckPassed,
     toleranceAcknowledged,
     hasDeedPlan: (deedPlanRes.rows[0]?.cnt ?? 0) > 0,

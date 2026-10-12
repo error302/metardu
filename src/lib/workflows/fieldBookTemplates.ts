@@ -33,6 +33,22 @@ const TEMPLATES: Record<SurveyType, FieldBookTemplate> = {
       { key: 'remark', label: 'Remark', type: 'text', fixedColumn: 'remark', width: '40', placeholder: 'TBM on kerb' },
     ],
   },
+  construction: {
+    surveyType: 'construction',
+    title: 'Building Grid & Level Book',
+    description: 'Record structural grid line offsets, foundation levels, and column verticality.',
+    columns: [
+      { key: 'station', label: 'Grid Line / Point', type: 'text', fixedColumn: 'station', width: '24', required: true, placeholder: 'Grid A-1' },
+      { key: 'bs', label: 'BS (m)', type: 'number', fixedColumn: 'bs', width: '24', placeholder: '1.245' },
+      { key: 'is', label: 'IS (m)', type: 'number', fixedColumn: 'is', width: '24', placeholder: '' },
+      { key: 'fs', label: 'FS (m)', type: 'number', fixedColumn: 'fs', width: '24', placeholder: '2.335' },
+      { key: 'rl', label: 'RL (m)', type: 'number', fixedColumn: 'rl', width: '28', placeholder: '100.000' },
+      { key: 'instrument_height', label: 'IH (m)', type: 'number', fixedColumn: 'instrument_height', width: '24', placeholder: '' },
+      { key: 'chainage', label: 'Chainage / Offset (m)', type: 'number', width: '28', placeholder: '0.000' },
+      { key: 'area', label: 'Area (m²)', type: 'number', width: '24', placeholder: '' },
+      { key: 'remark', label: 'Remark', type: 'text', fixedColumn: 'remark', width: '40', placeholder: 'Column center' },
+    ],
+  },
   topographic: {
     surveyType: 'topographic',
     title: 'Tacheometry / Radial Field Book',

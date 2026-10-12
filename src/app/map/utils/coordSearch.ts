@@ -7,7 +7,7 @@ import type Map from 'ol/Map'
  * Accepts formats:
  *  - Lat/Lon decimal (e.g. "-1.0, 37.0" or "-1.0 37.0")
  *  - DMS format (e.g. "1°15'30"S 37°45'20"E" or "1 15 30 S 37 45 20 E")
- *  - UTM Easting/Northing in EPSG:21037 (large numbers, e.g. "500000 9800000")
+ *  - Easting/Northing in the explicitly selected project survey CRS
  *  - Beacon names (e.g. "Beacon 5" or "BM12")
  *  - Parcel numbers (e.g. "LR12345" or "Parcel 5")
  *
@@ -239,7 +239,8 @@ function looksLikeParcelNumber(input: string): boolean {
 export async function handleCoordSearch(
   searchInput: string,
   mapInstance: MutableRefObject<Map | null>,
-  epsg: string = 'EPSG:21037',
+  epsg: string | null,
+  onMessage?: (message: string) => void,
 ): Promise<void> {
   if (!mapInstance.current || !searchInput.trim()) return
   const map = mapInstance.current
@@ -285,6 +286,23 @@ export async function handleCoordSearch(
     return
   }
 
+  // ── Try MGRS format (e.g. "37M CV 12345 67890" or "37MCV1234567890") ──
+  const mgrsCandidate = searchInput.trim().replace(/\s+/g, '')
+  if (/^\d{1,2}[C-X][A-HJ-NP-Z]{2}(\d{2}|\d{4}|\d{6}|\d{8}|\d{10})$/i.test(mgrsCandidate)) {
+    try {
+      const { mgrsToLatLon } = await import('@/lib/geodesy/coordinates')
+      const pt = mgrsToLatLon(mgrsCandidate)
+      if (pt) {
+        const { fromLonLat } = await import('ol/proj')
+        const center = fromLonLat([pt.lon, pt.lat])
+        map.getView().animate({ center, zoom: 17, duration: 600 })
+        return
+      }
+    } catch {
+      /* fallback */
+    }
+  }
+
   // ── Try decimal lat/lon or UTM ──
   const parts = searchInput.trim().split(/[,\s]+/).map(Number).filter(n => !isNaN(n))
 
@@ -295,11 +313,17 @@ export async function handleCoordSearch(
     // If values look like Eastings/Northings (large numbers), treat differently
     if (Math.abs(parts[0]) > 100 && Math.abs(parts[1]) > 100) {
       // Likely UTM coordinates - try to transform from the active UTM zone
+      if (!epsg) {
+        onMessage?.('Set the project survey CRS before searching eastings and northings.')
+        return
+      }
       try {
         const { transform } = await import('ol/proj')
         const [x, y] = transform([parts[0], parts[1]], epsg, 'EPSG:3857')
         map.getView().animate({ center: [x, y], zoom: 16, duration: 600 })
-      } catch { /* fallback */ }
+      } catch {
+        onMessage?.(`These coordinates could not be transformed from ${epsg}. Verify the CRS and values.`)
+      }
     } else {
       if (lon > lat) { [lon, lat] = [lat, lon] } // common swap
       const { fromLonLat } = await import('ol/proj')

@@ -57,7 +57,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   if (!isArdhisasaConfigured()) {
-    return NextResponse.json({ error: 'ARDHISASA integration not configured. Set ARDHISASA_API_KEY, ARDHISASA_CLIENT_ID, and ARDHISASA_CLIENT_SECRET environment variables.' }, { status: 400 })
+    return NextResponse.json({ error: 'Direct Ardhisasa API access is disabled. Enable it only after METARDU has verified a Ministry-issued API contract, endpoint, environment, and credentials.' }, { status: 503 })
   }
 
   const { action, data } = ctx.body as { action?: string; data?: Record<string, unknown> }

@@ -34,5 +34,7 @@ declare module 'next-auth/jwt' {
     verified_isk?: boolean
     role?: string
     provider?: string
+    sessionVersion?: number
+    metarduSessionRevoked?: boolean
   }
 }

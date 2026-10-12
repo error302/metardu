@@ -1,28 +1,14 @@
 import type { Metadata, Viewport } from 'next'
-import { Instrument_Serif, JetBrains_Mono, Newsreader } from 'next/font/google'
 
 import './globals.css'
+import './fonts.css'
 import AuthProvider from '@/components/AuthProvider'
 import { ThemeProvider } from 'next-themes'
 import AppShell from '@/components/layout/AppShell'
 import QueryProvider from '@/lib/api/QueryProvider'
 import { getPublicAppUrl } from '@/lib/site'
 import { WebVitals } from './web-vitals'
-import { SRID_21037 } from '@/lib/map/projection'
-
-const instrumentSerif = Instrument_Serif({
-  subsets: ['latin'],
-  weight: '400',
-  style: ['normal', 'italic'],
-  variable: '--font-instrument',
-  display: 'swap',
-})
-const jetbrainsMono = JetBrains_Mono({
-  subsets: ['latin'],
-  variable: '--font-jetbrains',
-  display: 'swap',
-})
-const newsreader = Newsreader({ subsets: ['latin'], variable: '--font-newsreader', display: 'swap' })
+import { SRID_21037 } from '@/lib/map/projectionConstants'
 
 const publicAppUrl = getPublicAppUrl()
 
@@ -38,7 +24,7 @@ export const metadata: Metadata = {
   metadataBase: new URL(publicAppUrl),
   title: 'METARDU - Precise earth measurements.',
   description:
-    'Professional land surveying platform built in Kenya. Traverse adjustment, leveling, COGO, deed plans, GPS stakeout, and PDF reports. Supports Kenya UTM zones 36S and 37S.',
+    'Survey project workspace for field observations, coordinate and traverse checks, CAD drafting, and reports for professional review. Built in Kenya; confirm the project reference system and control for every job.',
   keywords: [
     'surveying software',
     'traverse calculation',
@@ -68,20 +54,20 @@ export const metadata: Metadata = {
     url: publicAppUrl,
     siteName: 'METARDU',
     title: 'METARDU - Precise earth measurements.',
-    description: 'Complete surveying platform for professional land surveyors in Kenya.',
+    description: 'Keep survey observations, calculations, CAD work, and reviewable reports together in one project workspace.',
     images: [
       {
         url: '/opengraph-image',
         width: 1200,
         height: 630,
-        alt: 'METARDU - Professional Surveying Platform',
+        alt: 'METARDU survey project workspace',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'METARDU - Professional Surveying Platform',
-    description: 'Complete surveying platform for professional land surveyors.',
+    title: 'METARDU - Survey project workspace',
+    description: 'Field observations, survey calculations, CAD work, and reports for professional review.',
     images: ['/opengraph-image'],
   },
   robots: {
@@ -114,7 +100,6 @@ export default function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${instrumentSerif.variable} ${jetbrainsMono.variable} ${newsreader.variable}`}
     >
       <head>
         <meta charSet="utf-8" />
@@ -134,15 +119,8 @@ export default function RootLayout({
         <link rel="icon" href="/metardu-icon.png" type="image/png" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <link rel="shortcut icon" href="/metardu-icon.png" />
-        {/* Geist (Vercel's sans) isn't in next/font's frozen index for Next 14.2,
-            so it's loaded from Google Fonts as a plain stylesheet (no media flip
-            script — that caused a hydration mismatch). */}
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
+        {/* Shared body font is local; other families load only when used. */}
+        <link rel="preload" href="/fonts/19f9c92546aa300c.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>
       <body className="antialiased" suppressHydrationWarning>
         {/* Skip link is rendered by AppShell's SkipToContent on every page —

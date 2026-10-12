@@ -8,7 +8,7 @@
  * - EPSG:21037 — Arc 1960 / UTM Zone 37S
  * - EPSG:4210 — Arc 1960 (Geographic)
  * - EPSG:4326 — WGS84
- * - EPSG:1165 — Arc 1960 → WGS84 transformation (Kenya)
+ * - EPSG:1122 — Arc 1960 → WGS84 transformation (registered 3-parameter)
  * - Clarke 1880 (RGS) ellipsoid: a=6378249.145, 1/f=293.465
  * 
  * Kenya Survey Regulations 1994 require Arc 1960 / UTM Zone 37S (SRID 21037)
@@ -28,19 +28,17 @@ const WGS84 = 'EPSG:4326';
 /**
  * Arc 1960 / UTM Zone 37S (EPSG:21037)
  * Uses Clarke 1880 (RGS) ellipsoid with Transverse Mercator projection.
- * The towgs84 parameters are from EPSG transformation 1165 (Arc 1960 → WGS84, Kenya).
- * Parameters: 7-parameter Bursa-Wolf (EPSG:1314)
- *   dx=-160, dy=-6, dz=-302 (metres)
- *   rx=-0.807, ry=0.339, rz=-1.619 (arc-seconds)
- *   ds=-2.554 (ppm)
+ * The towgs84 parameters are the EPSG-registered transformation
+ * EPSG:1122 (Arc 1960 to WGS 84 (1), 3-parameter geocentric translation):
+ *   dx=-160, dy=-6, dz=-302 (metres); rotations/scale are zero.
  */
-const ARC1960_UTM37S = '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs +type=crs';
+const ARC1960_UTM37S = '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs +type=crs';
 
 /**
  * Arc 1960 geographic (EPSG:4210)
- * Clarke 1880 (RGS) ellipsoid with datum shift parameters for Kenya.
+ * Clarke 1880 (RGS) ellipsoid with the EPSG:1122 datum shift parameters.
  */
-const ARC1960_GEO = '+proj=longlat +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +no_defs +type=crs';
+const ARC1960_GEO = '+proj=longlat +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +no_defs +type=crs';
 
 // Register custom projections with proj4
 proj4.defs(SRID_21037, ARC1960_UTM37S);

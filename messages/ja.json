@@ -275,6 +275,7 @@
   },
   "resources": {
     "datumConverter": "測地系変換",
+    "onlineServices": "オンラインサービス",
     "kencorsRtk": "KenCORS RTK",
     "knowledgeBase": "ナレッジベース"
   },

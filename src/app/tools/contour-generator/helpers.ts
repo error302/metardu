@@ -6,6 +6,16 @@
 
 import type { SpotHeight } from '@/lib/engine/contours';
 import type { ColMapping, ParseError, ParsedPoint } from './types';
+import Papa from 'papaparse';
+
+const DECIMAL = /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i;
+const decimal = (value: string | undefined) => value != null && DECIMAL.test(value.trim()) && Number.isFinite(Number(value)) ? Number(value) : Number.NaN;
+function splitSourceLine(line: string, delimiter: string): string[] {
+  if (delimiter === ' ') return line.trim().split(/\s+/);
+  const parsed = Papa.parse<string[]>(line, { delimiter, skipEmptyLines: false });
+  if (parsed.errors.length) return [];
+  return (parsed.data[0] ?? []).map(value => value.trim());
+}
 
 export function fmt(n: number, d: number = 3): string {
   return n.toFixed(d);
@@ -45,7 +55,7 @@ export function isHeaderLine(line: string): boolean {
   const tokens = lower.split(/[\t,; ]+/).filter(t => t.length > 0);
   if (tokens.length === 0) return false;
   const matchCount = tokens.filter(t =>
-    headerKeywords.some(kw => t === kw || t.includes(kw))
+    !DECIMAL.test(t) && headerKeywords.some(kw => t === kw || (kw.length > 1 && t.includes(kw)))
   ).length;
   return matchCount >= Math.ceil(tokens.length * 0.5);
 }
@@ -70,9 +80,9 @@ export function guessColumnIndices(headers: string[]): ColMapping {
 
   return {
     name: nameIdx >= 0 ? nameIdx : -1,
-    easting: eastingIdx >= 0 ? eastingIdx : 0,
-    northing: northingIdx >= 0 ? northingIdx : 1,
-    elevation: elevIdx >= 0 ? elevIdx : 2,
+    easting: eastingIdx,
+    northing: northingIdx,
+    elevation: elevIdx,
   };
 }
 
@@ -86,19 +96,23 @@ export function parseXYZText(text: string): {
   const lines = text.split('\n');
   const errors: ParseError[] = [];
   const points: ParsedPoint[] = [];
-  const splitRe = delimiter === ' ' ? /\s+/ : new RegExp(`(?:${delimiter === '\t' ? '\\t' : delimiter})+`);
-  let startIdx = 0;
+  const firstContent = lines.findIndex(line => line.trim() && !line.trim().startsWith('#'));
+  let startIdx = firstContent < 0 ? lines.length : firstContent;
   let hasHeader = false;
 
-  if (lines.length > 0 && isHeaderLine(lines[0])) {
+  if (firstContent >= 0 && isHeaderLine(lines[firstContent])) {
     hasHeader = true;
-    startIdx = 1;
+    startIdx = firstContent + 1;
   }
 
   let colMapping: ColMapping | null = null;
   if (hasHeader) {
-    const headers = lines[0].split(splitRe).map(h => h.trim());
+    const headers = splitSourceLine(lines[firstContent], delimiter);
     colMapping = guessColumnIndices(headers);
+    const axes = [colMapping.easting, colMapping.northing, colMapping.elevation];
+    if (axes.some(index => index < 0) || new Set(axes).size !== 3) {
+      return { points: [], errors: [{ row: firstContent + 1, message: 'The header must identify Easting, Northing and Elevation/Height; missing coordinates are not substituted.' }], delimiter, hasHeader };
+    }
   }
 
   // Determine column count from first data row
@@ -106,7 +120,7 @@ export function parseXYZText(text: string): {
   for (let i = startIdx; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (trimmed === '' || trimmed.startsWith('#')) continue;
-    const parts = trimmed.split(splitRe);
+    const parts = splitSourceLine(trimmed, delimiter);
     if (parts.length >= 3) {
       colCount = parts.length;
       break;
@@ -127,7 +141,7 @@ export function parseXYZText(text: string): {
     const trimmed = lines[i].trim();
     if (trimmed === '' || trimmed.startsWith('#')) continue;
 
-    const parts = trimmed.split(splitRe).map(s => s.trim());
+    const parts = splitSourceLine(trimmed, delimiter);
     if (parts.length < 3) {
       errors.push({ row: i + 1, message: `Too few columns (${parts.length})` });
       continue;
@@ -138,12 +152,12 @@ export function parseXYZText(text: string): {
       continue;
     }
     const mapping = colMapping;
-    const easting = parseFloat(parts[mapping.easting]);
-    const northing = parseFloat(parts[mapping.northing]);
-    const elevation = parseFloat(parts[mapping.elevation]);
+    const easting = decimal(parts[mapping.easting]);
+    const northing = decimal(parts[mapping.northing]);
+    const elevation = decimal(parts[mapping.elevation]);
 
-    if (isNaN(easting) || isNaN(northing) || isNaN(elevation)) {
-      errors.push({ row: i + 1, message: 'Non-numeric coordinate value' });
+    if (![easting, northing, elevation].every(Number.isFinite)) {
+      errors.push({ row: i + 1, message: 'Missing or invalid coordinate: enter complete finite decimal Easting, Northing and Height values.' });
       continue;
     }
 
@@ -259,12 +273,17 @@ export function computeHypsometricBands(
   return bands;
 }
 
-export function downloadBlob(content: string, filename: string, mime = 'text/plain') {
-  const blob = new Blob([content], { type: mime });
+export function downloadBlob(content: string | Blob, filename: string, mime = 'text/plain') {
+  const blob = content instanceof Blob ? content : new Blob([content], { type: mime });
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
   link.download = filename;
+  link.style.display = 'none';
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // Give the browser's download manager time to consume the object URL. A
+  // synchronous revoke can cancel downloads in embedded browsers.
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -14,9 +14,12 @@ interface UploadResult {
   type: string
   confidence: number
   hasBuilding: boolean
+  hasCad: boolean
   hasBoq: boolean
   errors: string[]
   warnings: string[]
+  extractedTextPreview?: string
+  extractedTextCharacters?: number
   building?: {
     floors: number
     walls: number
@@ -24,9 +27,18 @@ interface UploadResult {
     doors: number
     windows: number
   }
+  cad?: {
+    entities: number
+    points: number
+    lines: number
+    polylines: number
+    layers: number
+    units: string | null
+    coordinateReferenceSystem: string | null
+  }
   boq?: {
     items: number
-    total: number
+    total: number | null
   }
 }
 
@@ -171,12 +183,32 @@ export default function UploadZone({
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-sm">
-            <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
-              <div className="text-[var(--text-muted)] text-xs">Confidence</div>
+            {!result.cad && <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
+              <div className="text-[var(--text-muted)] text-xs">{result.extractedTextCharacters !== undefined ? 'Extracted text' : 'Confidence'}</div>
               <div className="font-medium text-[var(--text-primary)]">
-                {Math.round(result.confidence * 100)}%
+                {result.extractedTextCharacters !== undefined
+                  ? `${result.extractedTextCharacters.toLocaleString()} characters`
+                  : `${Math.round(result.confidence * 100)}%`}
               </div>
-            </div>
+            </div>}
+            {result.cad && <>
+              <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
+                <div className="text-[var(--text-muted)] text-xs">CAD entities</div>
+                <div className="font-medium text-[var(--text-primary)]">{result.cad.entities}</div>
+              </div>
+              <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
+                <div className="text-[var(--text-muted)] text-xs">Points · lines · polylines</div>
+                <div className="font-medium text-[var(--text-primary)]">{result.cad.points} · {result.cad.lines} · {result.cad.polylines}</div>
+              </div>
+              <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
+                <div className="text-[var(--text-muted)] text-xs">Layers · units</div>
+                <div className="font-medium text-[var(--text-primary)]">{result.cad.layers} · {result.cad.units ?? 'Unknown'}</div>
+              </div>
+              <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
+                <div className="text-[var(--text-muted)] text-xs">Coordinate system</div>
+                <div className="font-medium text-[var(--text-primary)]">{result.cad.coordinateReferenceSystem ?? 'Not interpreted'}</div>
+              </div>
+            </>}
             {result.building && (
               <>
                 <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
@@ -201,16 +233,32 @@ export default function UploadZone({
                 </div>
                 <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-2">
                   <div className="text-[var(--text-muted)] text-xs">Total</div>
-                  <div className="font-medium text-[var(--text-primary)]">{result.boq.total.toLocaleString()}</div>
+                  <div className="font-medium text-[var(--text-primary)]">{result.boq.total?.toLocaleString() ?? '—'}</div>
                 </div>
               </>
             )}
           </div>
 
+          {result.errors.length > 0 && (
+            <ul role="alert" className="space-y-1 rounded border border-red-700/40 bg-red-900/10 p-3 text-xs text-red-300">
+              {result.errors.map((message, index) => <li key={`${index}-${message}`}>{message}</li>)}
+            </ul>
+          )}
+
           {result.warnings.length > 0 && (
-            <div className="text-xs text-[var(--text-muted)]">
-              <span className="font-medium">Warnings:</span> {result.warnings.join(', ')}
-            </div>
+            <ul className="space-y-1 text-xs text-[var(--text-muted)]">
+              {result.warnings.map((message, index) => <li key={`${index}-${message}`}>• {message}</li>)}
+            </ul>
+          )}
+
+          {result.extractedTextPreview && (
+            <details className="rounded border border-[var(--border-color)] p-3">
+              <summary className="cursor-pointer text-xs font-medium text-[var(--text-secondary)]">View extracted text preview</summary>
+              <pre className="mt-3 max-h-64 overflow-auto whitespace-pre-wrap break-words text-xs text-[var(--text-muted)]">{result.extractedTextPreview}</pre>
+              {(result.extractedTextCharacters ?? result.extractedTextPreview.length) > result.extractedTextPreview.length && (
+                <p className="mt-2 text-[10px] text-[var(--text-muted)]">Preview limited to {result.extractedTextPreview.length.toLocaleString()} characters.</p>
+              )}
+            </details>
           )}
         </div>
       )}

@@ -1,8 +1,15 @@
 # Dependencies
 node_modules/
+.cache/npm/
+.cache/
 
 # Next.js
 .next/
+.next-analyze/
+.next-analyze-audit/
+.next-analyze-*/
+.next-*/
+.next-setout-review/
 out/
 build/
 scripts/.out/
@@ -27,13 +34,17 @@ db/*.db-shm
 # Debug
 npm-debug.log*
 *.log
+*.err
+build-log.txt
 
 # Environment files with secrets - NEVER commit these
 .env
 .env.local
+.env.tunnel-token
 .env.*.local
 .env.production
 .env.staging
+update_pw.sql
 
 # Scripts with potential credentials (use env vars instead)
 scripts/create-tables.js
@@ -45,6 +56,7 @@ next-env.d.ts
 
 # Test coverage
 coverage/
+.pytest_cache/
 
 # IDE
 .idea/
@@ -216,4 +228,5 @@ __pycache__/
 tunnel-log.txt
 
 !public/landing/captures/*.png
+!docs/marketing/archive-unverified-concepts/captures/*.png
 

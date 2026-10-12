@@ -165,8 +165,8 @@ html[data-theme="light"] {
 }
 
 /* ========================================================================
-    1d. AUTH PAGES — force dark frosted-glass regardless of saved theme
-   Login/register are designed as dark glass cards with white text. In
+    1d. AUTH PAGES — consistent dark palette regardless of saved theme
+   Login/register use dark backgrounds with white text. In
    light or field mode the --bg-* vars flip to near-white and the
    hardcoded white text becomes invisible (white-on-white). Scope the
    dark palette to the .auth-page root so the auth flow always renders.
@@ -200,6 +200,41 @@ html[data-theme="light"] {
   --border: rgba(255, 255, 255, 0.08);
   --popover-foreground: #FFFFFF;
   color-scheme: dark;
+}
+
+/* Frameless sign-in: the page carries the contrast, only fields are glass. */
+.metardu-login {
+  --auth-border: rgba(209, 123, 71, 0.35);
+  --auth-field: rgba(255, 255, 255, 0.06);
+}
+.metardu-login-veil {
+  background: linear-gradient(135deg, rgba(15, 19, 23, 0.88), rgba(18, 18, 18, 0.85) 55%, rgba(29, 23, 20, 0.88));
+}
+.metardu-login-field {
+  min-height: 48px;
+  border: 1px solid var(--auth-border);
+  border-radius: 12px;
+  background: var(--auth-field);
+  color: white;
+  font-size: 16px;
+  backdrop-filter: blur(12px);
+  box-shadow: 0 0 12px rgba(209, 123, 71, 0.07);
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.metardu-login-field::placeholder { color: rgba(255, 255, 255, 0.58); }
+.metardu-login-field:focus {
+  border-color: var(--accent);
+  background: rgba(255, 255, 255, 0.09);
+  outline: 2px solid rgba(209, 123, 71, 0.55);
+  outline-offset: 3px;
+  box-shadow: 0 0 20px rgba(209, 123, 71, 0.14);
+}
+.metardu-login-submit { background: var(--accent); color: #181411; }
+.metardu-login-submit:hover:not(:disabled) { background: #E09968; }
+.metardu-login a:focus-visible,
+.metardu-login button:focus-visible {
+  outline: 2px solid #E7A77D;
+  outline-offset: 4px;
 }
 
 /* Neutralize field-mode/outdoor-mode !important overrides inside auth pages */
@@ -242,6 +277,18 @@ html.field-mode .auth-page select {
 html.field-mode .auth-page input::placeholder,
 html.field-mode .auth-page textarea::placeholder {
   color: rgba(255, 255, 255, 0.3) !important;
+}
+html.field-mode .metardu-login input.metardu-login-field {
+  background: var(--auth-field) !important;
+  border: 1px solid var(--auth-border) !important;
+  border-radius: 12px;
+  font-size: 16px !important;
+}
+html.field-mode .metardu-login input.metardu-login-field:focus {
+  border-color: var(--accent) !important;
+}
+html.field-mode .metardu-login input.metardu-login-field::placeholder {
+  color: rgba(255, 255, 255, 0.58) !important;
 }
 html.field-mode .auth-page button {
   min-height: 0 !important;
@@ -451,6 +498,50 @@ html.field-mode .table-row {
 html.field-mode .table-cell {
   color: #1A1A1A !important;
   font-weight: 500 !important;
+}
+
+/* --- Direct Midday Sun / Equatorial Field Overrides ----------------- */
+html.field-mode [class*="bg-zinc-9"],
+html.field-mode [class*="bg-zinc-8"],
+html.field-mode [class*="bg-black/"],
+html.field-mode [class*="bg-gray-9"],
+html.field-mode [class*="bg-gray-8"],
+html[data-theme="field"] [class*="bg-zinc-9"],
+html[data-theme="field"] [class*="bg-zinc-8"],
+html[data-theme="field"] [class*="bg-black/"],
+html[data-theme="field"] [class*="bg-gray-9"],
+html[data-theme="field"] [class*="bg-gray-8"] {
+  background-color: #FFFFFF !important;
+  background-image: none !important;
+  color: #000000 !important;
+  border-color: #000000 !important;
+}
+
+html.field-mode [class*="text-zinc-4"],
+html.field-mode [class*="text-zinc-5"],
+html.field-mode [class*="text-gray-4"],
+html.field-mode [class*="text-gray-5"],
+html[data-theme="field"] [class*="text-zinc-4"],
+html[data-theme="field"] [class*="text-zinc-5"],
+html[data-theme="field"] [class*="text-gray-4"],
+html[data-theme="field"] [class*="text-gray-5"] {
+  color: #111111 !important;
+  font-weight: 600 !important;
+}
+
+html.field-mode [class*="border-zinc-7"],
+html.field-mode [class*="border-zinc-8"],
+html.field-mode [class*="border-white/"],
+html[data-theme="field"] [class*="border-zinc-7"],
+html[data-theme="field"] [class*="border-zinc-8"],
+html[data-theme="field"] [class*="border-white/"] {
+  border-color: #000000 !important;
+}
+
+html.field-mode [class*="backdrop-blur"],
+html[data-theme="field"] [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 /* --- Glow border: solid border instead of glow --------------------- */
@@ -1229,4 +1320,125 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
 .focus-ring:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px rgba(209, 123, 71, 0.4), 0 0 0 4px rgba(209, 123, 71, 0.1);
+}
+
+/* Only the basemap is darkened; survey graphics and attribution keep their colors. */
+.metardu-dark-basemap canvas {
+  filter: grayscale(1) invert(1) brightness(0.85);
+}
+
+/* Shared METARDU loading identity: charcoal ground, sienna ASCII wave, one logo. */
+.metardu-loading-screen {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  min-height: 100vh;
+  min-height: 100dvh;
+  isolation: isolate;
+  background: var(--bg-primary, #050505);
+  color: var(--text-primary, #fff);
+}
+
+.metardu-loading-ascii {
+  position: absolute;
+  inset: -5% -20%;
+  display: grid;
+  grid-template-rows: repeat(18, minmax(0, 1fr));
+  align-items: center;
+  overflow: hidden;
+  opacity: 0.22;
+  pointer-events: none;
+  font: 500 clamp(0.85rem, 1.3vw, 1.1rem) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.28em;
+  text-shadow: 0 0 16px rgba(209, 123, 71, 0.18);
+  mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
+}
+
+.metardu-loading-ascii-row {
+  width: max-content;
+  white-space: pre;
+  animation: metardu-loading-wave 6s ease-in-out infinite;
+  animation-delay: var(--wave-delay, 0ms);
+  color: var(--accent, #D17B47);
+}
+
+.metardu-loading-ascii-row:nth-child(3n + 1) { color: #D17B47; }
+.metardu-loading-ascii-row:nth-child(3n + 2) { color: #B35C2B; }
+.metardu-loading-ascii-row:nth-child(3n) { color: #E5B89B; }
+.metardu-loading-ascii-row:nth-child(even) { justify-self: end; }
+
+.metardu-loading-scrim {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(5, 5, 5, 0.1) 0%, rgba(5, 5, 5, 0.48) 52%, #050505 100%);
+}
+
+.metardu-loading-brand {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: metardu-loading-brand-breathe 3.2s ease-in-out infinite;
+}
+
+@keyframes metardu-loading-wave {
+  0%, 100% { transform: translate3d(-0.65rem, 0.25rem, 0); opacity: 0.48; }
+  50% { transform: translate3d(0.65rem, -0.25rem, 0); opacity: 1; }
+}
+
+@keyframes metardu-loading-brand-breathe {
+  0%, 100% { opacity: 0.94; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .metardu-loading-ascii-row,
+  .metardu-loading-brand {
+    animation: none;
+  }
+  .metardu-loading-ascii-row { opacity: 0.65; }
+}
+
+/* Project-map attribution stays readable without depending on another route
+   to load the OpenLayers stylesheet. It is scoped to this map surface. */
+.metardu-survey-map .ol-attribution {
+  position: absolute;
+  right: 0.5rem;
+  bottom: 0.5rem;
+  max-width: calc(100% - 1rem);
+  padding: 0.25rem 0.5rem;
+  background: rgb(255 255 255 / 92%);
+  color: #1e293b;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1.5;
+  text-align: right;
+}
+.metardu-survey-map .ol-attribution ul { margin: 0; padding: 0; list-style: none; }
+.metardu-survey-map .ol-attribution li { display: inline; }
+.metardu-survey-map .ol-attribution a { color: #1b3a5c; text-decoration: underline; }
+.metardu-survey-map .ol-attribution button { display: none; }
+
+.metardu-imagery-map .ol-zoom { position: absolute; top: 0.5rem; left: 0.5rem; border-radius: 0.375rem; overflow: hidden; }
+.metardu-imagery-map .ol-zoom button { display: block; width: 2.75rem; height: 2.75rem; background: #fff; color: #1b3a5c; font-size: 1.25rem; border: 1px solid #cbd5e1; }
+.metardu-imagery-map .ol-zoom button:focus-visible { outline: 2px solid #1b3a5c; outline-offset: -3px; }
+.metardu-imagery-dialog {
+  margin: 0;
+  max-width: none;
+  max-height: none;
+}
+.metardu-imagery-dialog-expanded {
+  position: fixed;
+  inset: 0;
+  width: 100dvw;
+  height: 100dvh;
+  overflow: hidden;
 }

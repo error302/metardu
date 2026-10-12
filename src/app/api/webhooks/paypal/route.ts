@@ -17,7 +17,7 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { getPayPalService } from '@/lib/payments/paypal'
 import { sendTemplatedEmail } from '@/lib/email-templates'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole, setCurrentUserId, setRlsContext } from '@/lib/db'
 import { createVerify, createPublicKey } from 'crypto'
 import { crc32 } from 'zlib'
 import { logger } from '@/lib/logger'
@@ -52,6 +52,16 @@ interface PaymentHistoryRow {
 
 interface UserSubscriptionRow {
   id: string
+}
+
+async function establishPaymentOwnerContext(providerKey: string): Promise<string | null> {
+  const ownerResult = await db.query<{ user_id: string | null }>(
+    'SELECT public.metardu_payment_owner_for_provider_key($1) AS user_id',
+    [providerKey],
+  )
+  const userId = ownerResult.rows[0]?.user_id ?? null
+  if (userId) setCurrentUserId(String(userId))
+  return userId
 }
 
 // ── Payment email helpers (fire-and-forget — webhooks must respond fast) ──
@@ -189,6 +199,7 @@ export async function POST(request: NextRequest) {
     if (!HANDLED_EVENTS.has(eventType)) {
       return NextResponse.json({ received: true })
     }
+    setCurrentRlsServiceRole('payment_provider')
 
     // ─── Handle CHECKOUT.ORDER.APPROVED ──────────────────────────────
     // SECURITY/FIX (audit H-02, 2026-08-30): this handler used to look up
@@ -224,6 +235,7 @@ export async function POST(request: NextRequest) {
           // Unknown order (not created by our checkout) or already credited.
           return NextResponse.json({ received: true })
         }
+        setCurrentUserId(String(intent.user_id))
 
         const capture = await paypal.captureOrder(orderId)
         const captureStatus = capture.status?.toLowerCase()
@@ -240,6 +252,7 @@ export async function POST(request: NextRequest) {
           const client = await db.getClient()
           try {
             await client.query('BEGIN')
+            await setRlsContext(client)
             const completeRes = await client.query(
               `UPDATE payment_intents SET status = 'completed', updated_at = NOW()
                 WHERE id = $1 AND status <> 'completed'`,
@@ -319,32 +332,35 @@ export async function POST(request: NextRequest) {
       const orderId = event.resource?.supplementary_data?.related_ids?.order_id
 
       if (orderId) {
+        await establishPaymentOwnerContext(orderId)
         const { rows: payRows } = await db.query<PaymentHistoryRow>(
           'SELECT id, user_id, plan_id, status FROM payment_history WHERE transaction_id = $1 LIMIT 1',
           [orderId]
         )
 
-        if (payRows.length > 0 && payRows[0].status !== 'completed') {
-          await db.query<never>(
-            `UPDATE payment_history SET status = 'completed', transaction_id = $1 WHERE id = $2`,
-            [captureId, payRows[0].id]
-          )
-        }
+        if (payRows.length > 0) {
+          if (payRows[0].status !== 'completed') {
+            await db.query<never>(
+              `UPDATE payment_history SET status = 'completed', transaction_id = $1 WHERE id = $2`,
+              [captureId, payRows[0].id]
+            )
+          }
 
-        // Receipt email (fire-and-forget)
-        const paidUser = await lookupUser(payRows[0].user_id).catch(() => undefined)
-        if (paidUser?.email) {
-          const amount = event.resource?.amount
-          notify('receipt', sendTemplatedEmail('paymentReceipt', {
-            to: paidUser.email,
-            name: paidUser.full_name,
-            planName: planDisplayName(payRows[0].plan_id),
-            amount: Number(amount?.value ?? 0),
-            currency: (amount?.currency_code || 'USD').toUpperCase(),
-            paidAt: new Date().toISOString(),
-            transactionId: captureId || 'N/A',
-            paymentMethod: 'PayPal',
-          }))
+          // Receipt email (fire-and-forget)
+          const paidUser = await lookupUser(payRows[0].user_id).catch(() => undefined)
+          if (paidUser?.email) {
+            const amount = event.resource?.amount
+            notify('receipt', sendTemplatedEmail('paymentReceipt', {
+              to: paidUser.email,
+              name: paidUser.full_name,
+              planName: planDisplayName(payRows[0].plan_id),
+              amount: Number(amount?.value ?? 0),
+              currency: (amount?.currency_code || 'USD').toUpperCase(),
+              paidAt: new Date().toISOString(),
+              transactionId: captureId || 'N/A',
+              paymentMethod: 'PayPal',
+            }))
+          }
         }
       }
     }
@@ -354,6 +370,7 @@ export async function POST(request: NextRequest) {
       const orderId = event.resource?.supplementary_data?.related_ids?.order_id
 
       if (orderId) {
+        await establishPaymentOwnerContext(orderId)
         const { rows: payRows } = await db.query<PaymentHistoryRow>(
           'SELECT id, user_id FROM payment_history WHERE transaction_id = $1 LIMIT 1',
           [orderId]
@@ -386,6 +403,7 @@ export async function POST(request: NextRequest) {
       const orderId = event.resource?.supplementary_data?.related_ids?.order_id
 
       if (orderId) {
+        await establishPaymentOwnerContext(orderId)
         const { rows: payRows } = await db.query<PaymentHistoryRow>(
           'SELECT id, user_id FROM payment_history WHERE transaction_id = $1 LIMIT 1',
           [orderId]
@@ -404,6 +422,7 @@ export async function POST(request: NextRequest) {
     if (['BILLING.SUBSCRIPTION.CANCELLED', 'BILLING.SUBSCRIPTION.EXPIRED', 'BILLING.SUBSCRIPTION.SUSPENDED'].includes(eventType)) {
       const subscriptionId = event.resource?.id
       if (subscriptionId) {
+        await establishPaymentOwnerContext(subscriptionId)
         // Look up user by PayPal subscription ID stored in payment_history
         const { rows: payRows } = await db.query<Pick<PaymentHistoryRow, 'user_id'>>(
           `SELECT ph.user_id FROM payment_history ph WHERE ph.transaction_id = $1 LIMIT 1`,
@@ -427,6 +446,7 @@ export async function POST(request: NextRequest) {
     if (eventType === 'BILLING.SUBSCRIPTION.ACTIVATED') {
       const subscriptionId = event.resource?.id
       if (subscriptionId) {
+        await establishPaymentOwnerContext(subscriptionId)
         const { rows: payRows } = await db.query<PaymentHistoryRow>(
           'SELECT id, user_id, plan_id FROM payment_history WHERE transaction_id = $1 LIMIT 1',
           [subscriptionId]
@@ -470,6 +490,7 @@ export async function POST(request: NextRequest) {
     if (eventType === 'PAYMENT.SALE.COMPLETED') {
       const subscriptionId = event.resource?.billing_agreement_id
       if (subscriptionId) {
+        await establishPaymentOwnerContext(subscriptionId)
         const { rows: payRows } = await db.query<Pick<PaymentHistoryRow, 'user_id'>>(
           `SELECT ph.user_id FROM payment_history ph WHERE ph.transaction_id = $1 LIMIT 1`,
           [subscriptionId]

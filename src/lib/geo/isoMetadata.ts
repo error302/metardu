@@ -20,6 +20,17 @@
  *   - ISO/TS 19139-2 — Extensions for imagery and gridded data
  */
 
+import { reportCrs, describeVertical } from '@/lib/generators/reportCrs'
+
+/**
+ * Normalise an EPSG label for XML output: codes arrive prefixed
+ * ('EPSG:21037') or as UNVERIFIED — never emit a doubled prefix.
+ */
+function formatEpsgCode(code: string): string {
+  if (code === 'UNVERIFIED' || code.startsWith('EPSG:')) return code
+  return `EPSG:${code}`
+}
+
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 export interface MetadataCitation {
@@ -121,6 +132,13 @@ export interface MetadataInput {
   surveyType: string
   /** Legal references (e.g., 'Survey Act Cap. 299') */
   legalReferences?: string[]
+  /**
+   * Vertical datum statement (e.g. 'Orthometric heights — Kenya Vertical
+   * Datum 2005'). Emitted as a metadata extension element so the export
+   * never silently implies a height reference. Undeclared case is the
+   * explicit 'UNVERIFIED — no vertical datum declared' text.
+   */
+  verticalText?: string
 }
 
 // ─── XML Generation ─────────────────────────────────────────────────────────
@@ -194,6 +212,17 @@ export function generateISO19139Metadata(input: MetadataInput): string {
   const legalRefs = (input.legalReferences || [])
     .map(ref => `          <gmd:otherConstraints><gco:CharacterString>${xmlEscape(ref)}</gco:CharacterString></gmd:otherConstraints>`)
     .join('\n')
+
+  const verticalExtension = input.verticalText
+    ? `  <gmd:metadataExtensionInfo>
+    <gmd:MD_ExtendedElementInformation>
+      <gmd:name><gco:CharacterString>verticalDatum</gco:CharacterString></gmd:name>
+      <gmd:definition><gco:CharacterString>${xmlEscape(input.verticalText)}</gco:CharacterString></gmd:definition>
+      <gmd:obligation><gmd:MD_ObligationCode>optional</gmd:MD_ObligationCode></gmd:obligation>
+      <gmd:domainValue><gco:CharacterString>${xmlEscape(input.verticalText)}</gco:CharacterString></gmd:domainValue>
+    </gmd:MD_ExtendedElementInformation>
+  </gmd:metadataExtensionInfo>`
+    : ''
 
   return `<?xml version="1.0" encoding="UTF-8"?>
 <gmd:MD_Metadata xmlns:gmd="http://www.isotc211.org/2005/gmd"
@@ -381,9 +410,10 @@ ${distribution}
       <gmd:name><gco:CharacterString>coordinateReferenceSystem</gco:CharacterString></gmd:name>
       <gmd:definition><gco:CharacterString>${xmlEscape(input.spatialReference.crsName)} (${xmlEscape(input.spatialReference.datum)}, ${xmlEscape(input.spatialReference.ellipsoid)})</gco:CharacterString></gmd:definition>
       <gmd:obligation><gmd:MD_ObligationCode>mandatory</gmd:MD_ObligationCode></gmd:obligation>
-      <gmd:domainValue><gco:CharacterString>EPSG:${input.spatialReference.epsgCode}, Epoch: ${input.spatialReference.epoch}${input.spatialReference.referenceFrame ? ', Frame: ' + input.spatialReference.referenceFrame : ''}</gco:CharacterString></gmd:domainValue>
+      <gmd:domainValue><gco:CharacterString>${xmlEscape(formatEpsgCode(input.spatialReference.epsgCode))}, Epoch: ${input.spatialReference.epoch}${input.spatialReference.referenceFrame ? ', Frame: ' + input.spatialReference.referenceFrame : ''}</gco:CharacterString></gmd:domainValue>
     </gmd:MD_ExtendedElementInformation>
   </gmd:metadataExtensionInfo>
+${verticalExtension}
 
   <gmd:metadataStandardName><gco:CharacterString>ISO 19115 Geographic Information - Metadata</gco:CharacterString></gmd:metadataStandardName>
   <gmd:metadataStandardVersion><gco:CharacterString>ISO 19115:2014</gco:CharacterString></gmd:metadataStandardVersion>
@@ -413,11 +443,35 @@ export function generateProjectMetadata(project: {
   lsaPassed?: boolean
   accuracy?: number
   surveyorLicense?: string
+  /** Declared vertical datum fields (project_reference_systems columns). */
+  vertical_datum?: string
+  vertical_reference?: string
+  geoid_model?: string
+  benchmark_basis?: string
 }): string {
-  const epsg = `EPSG:210${project.utm_zone || 37}`
+  // Describe only the declared CRS — never fall back to a default zone or
+  // datum (a Zone 36 or WGS 84 project would otherwise be mislabelled).
+  const crs = reportCrs({
+    utmZone: project.utm_zone,
+    hemisphere: project.hemisphere,
+    datum: project.datum,
+    verticalDatum: project.vertical_datum,
+    verticalReference: project.vertical_reference,
+    geoidModel: project.geoid_model,
+    benchmarkBasis: project.benchmark_basis,
+  })
+  const epsg = crs.verified ? crs.epsgCode : 'UNVERIFIED'
+  const crsLabel = crs.verified
+    ? `${crs.datum} / UTM Zone ${crs.zone}${crs.hemi}`
+    : 'an undeclared CRS (project datum, UTM zone and hemisphere must be set in Project Settings)'
   const epoch = project.survey_date
     ? parseFloat(project.survey_date.split('-')[0]) + 0.5
     : new Date().getFullYear() + 0.5
+  const datumTransformation = !crs.verified
+    ? 'UNVERIFIED - project CRS not declared'
+    : crs.ellipsoid === 'Clarke 1880 (RGS)'
+      ? 'EPSG:1122 (Arc 1960 → WGS84, 3-parameter geocentric translation)'
+      : `${crs.epsgCode} datum definition (no datum shift applied)`
 
   return generateISO19139Metadata({
     citation: {
@@ -427,13 +481,13 @@ export function generateProjectMetadata(project: {
       publisher: project.organization || 'METARDU',
       identifier: project.id,
     },
-    abstract: `${project.survey_type || 'Survey'} conducted at ${project.location || 'Kenya'} using METARDU survey computation platform. Coordinates referenced to ${project.datum || 'Arc 1960'} / UTM Zone ${project.utm_zone || 37}${project.hemisphere || 'S'} (epoch ${epoch.toFixed(1)}).`,
+    abstract: `${project.survey_type || 'Survey'} conducted at ${project.location || 'Kenya'} using METARDU survey computation platform. Coordinates referenced to ${crsLabel} (epoch ${epoch.toFixed(1)}).`,
     purpose: `Statutory ${project.survey_type || 'cadastral'} survey for submission to Survey of Kenya.`,
     spatialReference: {
-      crsName: `${project.datum || 'Arc 1960'} / UTM Zone ${project.utm_zone || 37}${project.hemisphere || 'S'}`,
+      crsName: crs.verified ? crs.crsName : 'UNVERIFIED',
       epsgCode: epsg,
-      datum: project.datum || 'Arc 1960',
-      ellipsoid: 'Clarke 1880 (RGS)',
+      datum: crs.verified ? crs.datum : 'UNVERIFIED',
+      ellipsoid: crs.verified ? crs.ellipsoid : 'UNVERIFIED',
       epoch,
       referenceFrame: 'ITRF2014',
     },
@@ -442,7 +496,7 @@ export function generateProjectMetadata(project: {
       endDate: project.survey_date || new Date().toISOString().split('T')[0],
     },
     quality: {
-      lineage: `Survey observations collected via GNSS/total station, processed through METARDU least-squares adjustment. Datum transformation: EPSG:1165 (Arc 1960 → WGS84, 7-parameter Bursa-Wolf).${project.lsaPassed !== undefined ? ' Global chi-square test: ' + (project.lsaPassed ? 'PASSED' : 'FAILED') + ' at 95% confidence.' : ''}`,
+      lineage: `Survey observations collected via GNSS/total station, processed through METARDU least-squares adjustment. Datum transformation: ${datumTransformation}.${project.lsaPassed !== undefined ? ' Global chi-square test: ' + (project.lsaPassed ? 'PASSED' : 'FAILED') + ' at 95% confidence.' : ''}`,
       positionalAccuracy: project.accuracy || 0.05,
       confidenceLevel: 0.95,
       lsaGlobalTestPassed: project.lsaPassed,
@@ -458,7 +512,7 @@ export function generateProjectMetadata(project: {
       'Kenya',
       'Survey Act Cap. 299',
       'RDM 1.1',
-      project.datum || 'Arc 1960',
+      crs.verified ? crs.datum : 'UNVERIFIED',
       epsg,
     ],
     surveyType: project.survey_type || 'cadastral',
@@ -468,5 +522,8 @@ export function generateProjectMetadata(project: {
       'RDM 1.1 Accuracy Standards',
       ...(project.surveyorLicense ? [`Surveyor License: ${project.surveyorLicense}`] : []),
     ],
+    // Always carry the vertical statement — declared or the explicit
+    // UNVERIFIED text — so the metadata never implies a height reference.
+    verticalText: describeVertical(crs.vertical),
   })
 }

@@ -15,11 +15,11 @@ const sections = [
   },
   {
     title: 'Categories of personal data',
-    body: 'We process the following categories of personal data: Identity data (full name, email, ISK/EBK registration number); Professional data (firm name, license number, surveyor role); Account data (authentication credentials, session tokens, subscription status); Project data (survey coordinates, field observations, computed results, generated documents); Financial data (payment history, billing records, payment method identifiers); Technical data (IP addresses, browser type, device information, error logs). Survey coordinates and project data are owned by the surveyor and treated as professional work product.',
+    body: 'We process the following categories of personal data: Identity data (full name, email, ISK/EBK registration number); Professional data (firm name, license number, surveyor role); Account data (authentication credentials, session tokens, subscription status); Project data (survey coordinates, field observations, computed results, generated documents); Financial data (payment history, billing records, payment method identifiers); Technical data (IP addresses, browser type, device information, error logs). If you separately connect your account to ChatGPT and use its project tools, METARDU sends the project ID and link, name, survey type, saved location text (limited to 1,000 characters), and a coordinate-reference summary to OpenAI. The location text may contain coordinates or other details you entered. The connector does not return field observations or generated documents. Survey coordinates and project data are owned by the surveyor and treated as professional work product.',
   },
   {
     title: 'Cross-border data transfers',
-    body: 'METARDU is hosted on servers that may process data outside Kenya. Where data is transferred internationally, we ensure appropriate safeguards are in place, including encryption in transit (TLS 1.3), encryption at rest, and contractual protections with service providers. Kenyan surveyors should be aware that survey data submitted to the platform may be processed on infrastructure located in other jurisdictions, but is always protected by the access controls and encryption measures described in this policy.',
+    body: 'METARDU is hosted on servers that may process data outside Kenya. Where data is transferred internationally, we ensure appropriate safeguards are in place, including encryption in transit (TLS 1.3), encryption at rest, and contractual protections with service providers. If you use the optional ChatGPT connector, the project information described above is sent to OpenAI and may be processed outside Kenya under OpenAI service terms and your ChatGPT plan or workspace data controls. Kenyan surveyors should be aware that survey data submitted to the platform may be processed on infrastructure located in other jurisdictions, but is always protected by the access controls and encryption measures described in this policy.',
   },
   {
     title: 'Your rights',
@@ -49,7 +49,8 @@ export default function DataProtectionPage() {
 
         <p className="mb-3 text-sm uppercase tracking-[0.2em] text-[var(--text-muted)]">Legal</p>
         <h1 className="mb-4 text-4xl font-bold text-[var(--text-primary)]">Data Protection Policy</h1>
-        <p className="mb-10 text-[var(--text-secondary)]">Effective date: May 12, 2026</p>
+        <p className="mb-2 text-[var(--text-secondary)]">Effective date: May 12, 2026</p>
+        <p className="mb-10 text-sm text-[var(--text-muted)]">Last updated: October 4, 2026</p>
 
         <div className="space-y-6">
           {sections.map((section) => (

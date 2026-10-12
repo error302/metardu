@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
-interface ProjectRow { id: string; name: string; utm_zone: number; hemisphere: 'N' | 'S' }
+interface ProjectRow { id: string; name: string; utm_zone: number; hemisphere: 'N' | 'S'; datum: string | null }
 interface SurveyPointRow {
   name?: string | null
   easting?: number | null
@@ -38,7 +38,7 @@ function CivilExportPage() {
     sb.auth.getSession().then(({ data: { session } }) => {
       const user = session?.user
       if (!user) return
-      sb.from('projects').select('id,name,utm_zone,hemisphere').eq('user_id', user.id)
+      sb.from('projects').select('id,name,utm_zone,hemisphere,datum').eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .then(({ data }) => { if (data) setProjects(data as ProjectRow[]) })
     })
@@ -71,17 +71,21 @@ function CivilExportPage() {
   useEffect(() => {
     if (!filteredPoints.length || !project) { setPreview(''); return }
     try {
-      const { content } = exportCivil(filteredPoints, format, project.name, project.utm_zone, project.hemisphere)
+      const { content } = exportCivil(filteredPoints, format, project.name, project.utm_zone, project.hemisphere, project.datum ?? '')
       setPreview(content.slice(0, 1000) + (content.length > 1000 ? '\n…' : ''))
-    } catch { setPreview('Error') }
+    } catch (err) { setPreview(err instanceof Error ? `Error: ${err.message}` : 'Error') }
   }, [filteredPoints, format, project])
 
   const handleExport = () => {
     if (!filteredPoints.length || !project) return
     const fmt = CIVIL_FORMATS.find((f) => f.id === format)
     if (!fmt) return
-    const { content, ext } = exportCivil(filteredPoints, format, project.name, project.utm_zone, project.hemisphere)
-    download(content, `${project.name}_${fmt.label.replace(/[\s/]/g, '_')}.${ext}`)
+    try {
+      const { content, ext } = exportCivil(filteredPoints, format, project.name, project.utm_zone, project.hemisphere, project.datum ?? '')
+      download(content, `${project.name}_${fmt.label.replace(/[\s/]/g, '_')}.${ext}`)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Export failed — set the project CRS in Project Settings.')
+    }
   }
 
   return (

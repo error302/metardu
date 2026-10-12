@@ -10,6 +10,7 @@ import { fmt } from './helpers';
 
 interface ResultsTabProps {
   validationSummary: ValidationSummary | null;
+  sampleDataLoaded: boolean;
   selectedClass: AccuracyClass;
   knownGCPs: { length: number } & unknown;
   parsedResiduals: { length: number } & unknown;
@@ -19,6 +20,7 @@ interface ResultsTabProps {
 
 export function ResultsTab({
   validationSummary,
+  sampleDataLoaded,
   selectedClass,
   knownGCPs,
   parsedResiduals,
@@ -52,13 +54,23 @@ export function ResultsTab({
         </div>
       ) : (
         <>
+          <div className="rounded border border-amber-800 bg-amber-950/30 p-3 text-sm text-amber-200">
+            Numerical comparison only. Confirm the coordinates share the correct CRS, datum, units, epoch and vertical reference, and verify the selected limits against the project specification. METARDU does not approve survey accuracy.
+          </div>
+          {sampleDataLoaded && (
+            <div role="status" className="rounded border border-amber-700 bg-amber-950/40 p-4 text-sm text-amber-200">
+              EXAMPLE ONLY — fictional control or residual data is included. This pass/fail result is not survey evidence or a project accuracy approval.
+            </div>
+          )}
           {/* Overall Banner */}
           <div className={`p-4 rounded text-center text-lg font-semibold ${
-            validationSummary.pass
+            sampleDataLoaded
+              ? 'bg-amber-900/30 border border-amber-600 text-amber-300'
+              : validationSummary.pass
               ? 'bg-green-900/30 border border-green-600 text-green-400'
               : 'bg-red-900/30 border border-red-600 text-red-400'
           }`}>
-            {validationSummary.pass ? ' OVERALL PASS' : '[x] OVERALL FAIL'} — {selectedClass.name} ({selectedClass.scale})
+            {sampleDataLoaded ? 'EXAMPLE RESULT — NOT FOR ACCEPTANCE' : validationSummary.pass ? ' OVERALL PASS' : '[x] OVERALL FAIL'} — {selectedClass.name} ({selectedClass.scale})
           </div>
 
           {/* Summary Cards */}

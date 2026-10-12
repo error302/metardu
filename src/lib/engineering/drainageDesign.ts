@@ -15,24 +15,18 @@ export interface PipeInput {
 export interface PipeCapacity {
   fullBoreCapacity: number   // m³/s
   fullBoreVelocity: number   // m/s
-  timeOfConcentration: number // min estimate
-  isSelfCleansing: boolean
-  minSelfCleansingGradient: number
-  isVelocityAcceptable: boolean
 }
 
 export interface CatchmentInput {
   area: number            // hectares
   runoffCoefficient: number // 0-1
   rainfallIntensity: number // mm/hr
-  timeOfConcentration: number // min
 }
 
 export interface CatchmentResult {
   peakFlow: number        // m³/s
   catchmentArea: number
   effectiveArea: number
-  returnPeriod: string
 }
 
 export interface ChannelInput {
@@ -50,7 +44,6 @@ export interface ChannelCapacity {
   velocity: number
   discharge: number
   topWidth: number
-  isSelfCleansing: boolean
 }
 
 // ─── MANNING'S N VALUES ───────────────────────────────────────────────────────
@@ -91,6 +84,9 @@ export const STANDARD_PIPE_SIZES = [100, 150, 200, 225, 300, 375, 450, 525, 600,
 
 export function manningPipeCapacity(input: PipeInput): PipeCapacity {
   const { diameter, manningN, slope } = input
+  if (!Number.isFinite(diameter) || diameter <= 0) throw new RangeError('Pipe internal diameter must be finite and positive.')
+  if (!Number.isFinite(manningN) || manningN <= 0) throw new RangeError('Manning roughness must be finite and positive.')
+  if (!Number.isFinite(slope) || slope <= 0) throw new RangeError('Pipe slope must be finite and positive in the flow direction.')
   const D = diameter / 1000 // mm to m
 
   // Full bore calculations
@@ -100,23 +96,21 @@ export function manningPipeCapacity(input: PipeInput): PipeCapacity {
   const velocity = (1 / manningN) * Math.pow(hydraulicRadius, 2 / 3) * Math.pow(slope, 0.5)
   const capacity = velocity * area
 
-  // Min slope for self-cleansing (V >= 0.6 m/s per RDM 1.3)
-  const minSlope = Math.pow(0.6 * manningN / Math.pow(hydraulicRadius, 2 / 3), 2)
-
-  // Max velocity check (V < 3.0 m/s for concrete, higher for HDPE/uPVC)
-  const maxVelocity = manningN <= 0.012 ? 5.0 : 3.0
+  if (!Number.isFinite(velocity) || !Number.isFinite(capacity)) throw new RangeError('Pipe calculation exceeded the supported numeric range.')
 
   return {
-    fullBoreCapacity: Math.round(capacity * 10000) / 10000,
-    fullBoreVelocity: Math.round(velocity * 1000) / 1000,
-    timeOfConcentration: Math.round((D * 1000 / velocity / 60) * 10) / 10, // rough estimate in minutes
-    isSelfCleansing: velocity >= 0.6,
-    minSelfCleansingGradient: Math.round(minSlope * 100000) / 100000,
-    isVelocityAcceptable: velocity < maxVelocity,
+    // Keep calculation precision here. Callers use capacity for threshold
+    // checks and pipe sizing; rounding before those decisions can turn a
+    // marginal exceedance into a false pass. Round only when formatting UI.
+    fullBoreCapacity: capacity,
+    fullBoreVelocity: velocity,
   }
 }
 
-export function minPipeSlope(diameterMm: number, manningN: number, minVelocity: number = 0.6): number {
+export function minPipeSlope(diameterMm: number, manningN: number, minVelocity: number): number {
+  if (!Number.isFinite(diameterMm) || diameterMm <= 0) throw new RangeError('Pipe diameter must be finite and positive.')
+  if (!Number.isFinite(manningN) || manningN <= 0) throw new RangeError('Manning roughness must be finite and positive.')
+  if (!Number.isFinite(minVelocity) || minVelocity <= 0) throw new RangeError('Target velocity must be finite and positive.')
   const D = diameterMm / 1000
   const R = D / 4
   return Math.pow(minVelocity * manningN / Math.pow(R, 2 / 3), 2)
@@ -126,20 +120,20 @@ export function minPipeSlope(diameterMm: number, manningN: number, minVelocity: 
 
 export function rationalMethodCatchment(input: CatchmentInput): CatchmentResult {
   const { area, runoffCoefficient, rainfallIntensity } = input
+  if (!Number.isFinite(area) || area <= 0) throw new RangeError('Catchment area must be finite and positive.')
+  if (!Number.isFinite(runoffCoefficient) || runoffCoefficient <= 0 || runoffCoefficient > 1) throw new RangeError('Runoff coefficient must be greater than zero and no more than one.')
+  if (!Number.isFinite(rainfallIntensity) || rainfallIntensity <= 0) throw new RangeError('Rainfall intensity must be finite and positive.')
 
   // Q = (C × I × A) / 360
   // Converts mm/hr × ha to m³/s: divide by 3.6 × 100
   const peakFlow = (runoffCoefficient * rainfallIntensity * area) / 360
 
-  // Return period recommendation (RDM 1.3)
-  const isUrban = runoffCoefficient > 0.5
-  const returnPeriod = isUrban ? '1 in 50 years' : '1 in 25 years'
+  if (!Number.isFinite(peakFlow)) throw new RangeError('Catchment flow exceeded the supported numeric range.')
 
   return {
     peakFlow: Math.round(peakFlow * 10000) / 10000,
     catchmentArea: area,
     effectiveArea: Math.round(runoffCoefficient * area * 100) / 100,
-    returnPeriod,
   }
 }
 
@@ -148,25 +142,17 @@ export function rationalMethodCatchment(input: CatchmentInput): CatchmentResult 
 export function sizePipe(
   peakFlow: number,
   manningN: number,
-  slope: number,
-  fillRatio: number = 0.75
-): { diameter: number; velocity: number; capacity: number; isSelfCleansing: boolean } | null {
-  if (peakFlow <= 0 || slope <= 0) return null
+  slope: number
+): { diameter: number; velocity: number; capacity: number } | null {
+  if (!Number.isFinite(peakFlow) || peakFlow <= 0 || !Number.isFinite(manningN) || manningN <= 0 || !Number.isFinite(slope) || slope <= 0) return null
 
   for (const diameter of STANDARD_PIPE_SIZES) {
     const result = manningPipeCapacity({ diameter, manningN, slope })
-
-    // At partial fill, capacity ≈ full × flowRatio
-    // Simplified: for fillRatio, capacity ≈ full × (theta - sin(theta)) / (2*pi)
-    // More accurate: use hydraulic elements chart approximation
-    const partialCapacity = result.fullBoreCapacity * (0.85 + 0.15 * fillRatio) // reasonable approximation
-
-    if (partialCapacity >= peakFlow && result.isSelfCleansing) {
+    if (result.fullBoreCapacity >= peakFlow) {
       return {
         diameter,
         velocity: result.fullBoreVelocity,
         capacity: result.fullBoreCapacity,
-        isSelfCleansing: result.isSelfCleansing,
       }
     }
   }
@@ -178,6 +164,11 @@ export function sizePipe(
 
 export function manningChannelCapacity(input: ChannelInput): ChannelCapacity {
   const { bedWidth, sideSlope, manningN, slope, flowDepth } = input
+  if (!Number.isFinite(bedWidth) || bedWidth <= 0) throw new RangeError('Channel bed width must be finite and positive.')
+  if (!Number.isFinite(sideSlope) || sideSlope < 0) throw new RangeError('Channel side slope must be finite and non-negative.')
+  if (!Number.isFinite(manningN) || manningN <= 0) throw new RangeError('Manning roughness must be finite and positive.')
+  if (!Number.isFinite(slope) || slope <= 0) throw new RangeError('Channel bed slope must be finite and positive in the flow direction.')
+  if (!Number.isFinite(flowDepth) || flowDepth <= 0) throw new RangeError('Channel flow depth must be finite and positive.')
 
   const y = flowDepth
   const z = sideSlope
@@ -198,7 +189,6 @@ export function manningChannelCapacity(input: ChannelInput): ChannelCapacity {
     velocity: Math.round(velocity * 1000) / 1000,
     discharge: Math.round(discharge * 10000) / 10000,
     topWidth: Math.round(topWidth * 100) / 100,
-    isSelfCleansing: velocity >= 0.6,
   }
 }
 

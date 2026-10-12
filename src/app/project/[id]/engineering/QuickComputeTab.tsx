@@ -22,6 +22,18 @@ const NetworkAdjustmentPanel = dynamic(() => import('@/components/compute/Networ
 const RoadReservePanel = dynamic(() => import('@/components/engineering/RoadReservePanel'), {
   ssr: false, loading: () => <EngineeringPanelSkeleton />
 })
+const ChainagePanel = dynamic(() => import('@/components/compute/ChainagePanel').then(m => ({ default: m.ChainagePanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const TacheometryPanel = dynamic(() => import('@/components/compute/TacheometryPanel').then(m => ({ default: m.TacheometryPanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const CrossSectionsPanel = dynamic(() => import('@/components/compute/CrossSectionsPanel').then(m => ({ default: m.CrossSectionsPanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
+const SettingOutPanel = dynamic(() => import('@/components/compute/SettingOutPanel').then(m => ({ default: m.SettingOutPanel })), {
+  ssr: false, loading: () => <EngineeringPanelSkeleton />
+})
 
 const QUICK_COMPUTE_TABS = [
   { id: 'curves', label: 'Horizontal Curves' },
@@ -38,8 +50,7 @@ const QUICK_COMPUTE_TABS = [
 
 /**
  * Quick Compute tab — secondary tab bar of the engineering page that hosts
- * the standalone compute panels (horizontal curves, superelevation, volumes,
- * network adjustment, road reserve).
+ * standalone engineering and survey calculation panels.
  *
  * Extracted verbatim from src/app/project/[id]/engineering/page.tsx —
  * the JSX, the dynamic() panel imports, and the tab array are unchanged.
@@ -87,16 +98,18 @@ export function QuickComputeTab({
           </div>
         </div>
 
-        <div className="flex gap-2 mb-6 border-b border-zinc-800 pb-2">
+        <div role="tablist" aria-label="Engineering calculations" className="mb-6 flex gap-2 overflow-x-auto border-b border-zinc-800 pb-2">
           {QUICK_COMPUTE_TABS.map(tab => (
             <button
               key={tab.id}
               onClick={() => router.push(`/project/${projectId}/engineering?tab=${tab.id}`)}
+              role="tab"
+              aria-selected={activeTab === tab.id}
               className={`px-4 py-2 rounded-t-lg text-sm font-medium ${
                 activeTab === tab.id
                   ? 'bg-zinc-800 text-white border-t border-l border-r border-zinc-700'
                   : 'text-zinc-500 hover:text-zinc-300'
-              }`}
+              } whitespace-nowrap`}
             >
               {tab.label}
             </button>
@@ -105,6 +118,10 @@ export function QuickComputeTab({
 
         <div className="bg-zinc-900 rounded-xl p-6">
           {activeTab === 'curves' && <HorizontalCurvePanel projectId={projectId} projectData={projectData} surveyorProfile={surveyorProfile} />}
+          {activeTab === 'chainage' && <ChainagePanel />}
+          {activeTab === 'tacheometry' && <TacheometryPanel />}
+          {activeTab === 'cross_sections' && <CrossSectionsPanel />}
+          {activeTab === 'setting_out' && <SettingOutPanel />}
           {activeTab === 'superelevation' && <SuperelevationPanel projectId={projectId} projectData={projectData} surveyorProfile={surveyorProfile} />}
           {activeTab === 'volumes' && <VolumesPanel projectId={projectId} projectData={projectData} surveyorProfile={surveyorProfile} />}
           {activeTab === 'network' && <NetworkAdjustmentPanel projectId={projectId} projectData={project as unknown as Record<string, unknown>} />}

@@ -27,13 +27,19 @@ import {
   runValidation,
 } from './helpers';
 
+let nextGcpId = 0;
+const allocateGcpId = () => ++nextGcpId;
+
 export function useGCPValidation() {
   const [activeTab, setActiveTab] = useState<TabId>('gcp');
   const [utmZone, setUtmZone] = useState<number>(36);
   const [selectedClass, setSelectedClass] = useState<AccuracyClass>(accuracyClasses[0]);
 
   // Tab 1: Known GCPs
-  const [knownGCPs, setKnownGCPs] = useState<KnownGCP[]>(SAMPLE_GCPS);
+  const [knownGCPs, setKnownGCPs] = useState<KnownGCP[]>([]);
+  const [sampleGCPsLoaded, setSampleGCPsLoaded] = useState(false);
+  const [sampleResidualsLoaded, setSampleResidualsLoaded] = useState(false);
+  const sampleDataLoaded = sampleGCPsLoaded || sampleResidualsLoaded;
 
   // Tab 2: Residuals
   const [residualText, setResidualText] = useState('');
@@ -41,6 +47,7 @@ export function useGCPValidation() {
   const [detectedFormat, setDetectedFormat] = useState<ResidualFormat | null>(null);
   const [parsedResiduals, setParsedResiduals] = useState<ResidualRow[]>([]);
   const [parseError, setParseError] = useState<string | null>(null);
+  const [gcpImportError, setGcpImportError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const csvInputRef = useRef<HTMLInputElement>(null);
 
@@ -53,29 +60,38 @@ export function useGCPValidation() {
     const last = knownGCPs[knownGCPs.length - 1];
     const num = last ? parseInt(last.name.replace(/\D/g, '') || '0') + 1 : 1;
     setKnownGCPs(prev => [...prev, {
-      id: Date.now(),
+      id: allocateGcpId(),
       name: `GCP-${String(num).padStart(2, '0')}`,
       easting: '', northing: '', elevation: '',
     }]);
+    setValidationSummary(null);
   }, [knownGCPs]);
 
   const removeGCP = useCallback((id: number) => {
     setKnownGCPs(prev => prev.filter(g => g.id !== id));
+    setValidationSummary(null);
   }, []);
 
   const updateGCP = useCallback((id: number, field: keyof KnownGCP, value: string) => {
     setKnownGCPs(prev => prev.map(g => g.id === id ? { ...g, [field]: value } : g));
+    setValidationSummary(null);
   }, []);
 
   const clearGCPs = useCallback(() => {
     setKnownGCPs([]);
+    setSampleGCPsLoaded(false);
+    setGcpImportError(null);
+    setValidationSummary(null);
   }, []);
 
   const loadSampleGCPs = useCallback(() => {
-    setKnownGCPs(SAMPLE_GCPS.map(g => ({ ...g, id: Date.now() + Math.random() })));
+    setKnownGCPs(SAMPLE_GCPS.map(g => ({ ...g, id: allocateGcpId() })));
+    setSampleGCPsLoaded(true);
+    setValidationSummary(null);
   }, []);
 
   const parseCSVText = useCallback((text: string) => {
+    setGcpImportError(null);
     const lines = text.trim().split('\n');
     const imported: KnownGCP[] = [];
     for (const line of lines) {
@@ -89,7 +105,7 @@ export function useGCPValidation() {
         const elevation = parseFloat(parts[3]);
         if (!isNaN(easting) && !isNaN(northing)) {
           imported.push({
-            id: Date.now() + Math.random(),
+            id: allocateGcpId(),
             name,
             easting: fmt(easting, 4),
             northing: fmt(northing, 4),
@@ -100,6 +116,9 @@ export function useGCPValidation() {
     }
     if (imported.length > 0) {
       setKnownGCPs(prev => [...prev, ...imported]);
+      setValidationSummary(null);
+    } else {
+      setGcpImportError('No valid rows found. Expected Name,Easting,Northing,Elevation with projected coordinates in the same CRS as the residual data.');
     }
   }, []);
 
@@ -121,38 +140,56 @@ export function useGCPValidation() {
     const reader = new FileReader();
     reader.onload = (evt) => {
       try {
+        setGcpImportError(null);
         const json = JSON.parse(evt.target?.result as string) as {
+          type?: string;
           features?: Array<{
             geometry?: { type?: string; coordinates?: number[] };
             properties?: Record<string, unknown>;
           }>;
         };
+        if (json.type !== 'FeatureCollection' || !Array.isArray(json.features)) {
+          setGcpImportError('Expected a GeoJSON FeatureCollection. Geographic geometry coordinates are not accepted as projected survey coordinates.');
+          return;
+        }
         const features = json.features || [];
         const imported: KnownGCP[] = [];
+        let skippedGeographic = false;
         for (const f of features) {
           if (f.geometry?.type !== 'Point') continue;
-          const coords = f.geometry.coordinates ?? [];
           const props = f.properties || {};
           const name = props.name || props.id || `GCP-${imported.length + 1}`;
-          // GeoJSON is WGS84, but we just take the UTM props if available
-          const easting = props.easting || (coords.length > 0 ? coords[0] : '');
-          const northing = props.northing || (coords.length > 1 ? coords[1] : '');
-          const elevation = props.elevation || (coords.length > 2 ? coords[2] : '');
-          if (typeof easting === 'number' && typeof northing === 'number') {
+          const parseCoordinate = (value: unknown) => {
+            if (typeof value === 'number') return value;
+            if (typeof value === 'string' && value.trim()) return Number(value);
+            return Number.NaN;
+          };
+          const easting = parseCoordinate(props.easting);
+          const northing = parseCoordinate(props.northing);
+          const elevation = parseCoordinate(props.elevation);
+          if (Number.isFinite(easting) && Number.isFinite(northing)) {
             imported.push({
-              id: Date.now() + Math.random(),
+              id: allocateGcpId(),
               name: String(name),
               easting: fmt(easting, 4),
               northing: fmt(northing, 4),
-              elevation: typeof elevation === 'number' ? fmt(elevation, 4) : '',
+              elevation: Number.isFinite(elevation) ? fmt(elevation, 4) : '',
             });
+          } else if (f.geometry.coordinates?.length) {
+            skippedGeographic = true;
           }
         }
         if (imported.length > 0) {
           setKnownGCPs(prev => [...prev, ...imported]);
+          setValidationSummary(null);
+          if (skippedGeographic) setGcpImportError('Some points were skipped because they contained longitude/latitude only. Accepted points must include numeric easting and northing properties already in the same projected CRS as the residual data.');
+        } else {
+          setGcpImportError(skippedGeographic
+            ? 'No projected GCPs imported. GeoJSON longitude/latitude coordinates are not transformed; provide numeric easting and northing properties in the same projected CRS as the residual data.'
+            : 'No Point features with numeric easting and northing properties were found.');
         }
       } catch {
-        /* ignore invalid JSON */
+        setGcpImportError('Could not read valid GeoJSON. Check that the file contains a valid FeatureCollection.');
       }
     };
     reader.readAsText(file);
@@ -162,6 +199,7 @@ export function useGCPValidation() {
   /* ── Residual Helpers ── */
 
   const handleParseResiduals = useCallback(() => {
+    setValidationSummary(null);
     setParseError(null);
     setParsedResiduals([]);
     if (!residualText.trim()) {
@@ -189,6 +227,7 @@ export function useGCPValidation() {
     reader.onload = (evt) => {
       const text = evt.target?.result as string;
       setResidualText(text);
+      setValidationSummary(null);
     };
     reader.readAsText(file);
     e.target.value = '';
@@ -197,6 +236,8 @@ export function useGCPValidation() {
   const loadSampleResiduals = useCallback(() => {
     setResidualText(SAMPLE_AGISOFT);
     setResidualFormat('auto');
+    setSampleResidualsLoaded(true);
+    setValidationSummary(null);
   }, []);
 
   const clearResiduals = useCallback(() => {
@@ -204,6 +245,8 @@ export function useGCPValidation() {
     setParsedResiduals([]);
     setDetectedFormat(null);
     setParseError(null);
+    setSampleResidualsLoaded(false);
+    setValidationSummary(null);
   }, []);
 
   /* ── Validation ── */
@@ -221,12 +264,17 @@ export function useGCPValidation() {
 
   const clearAll = useCallback(() => {
     setKnownGCPs([]);
+    setSampleGCPsLoaded(false);
+    setGcpImportError(null);
     setResidualText('');
     setParsedResiduals([]);
     setDetectedFormat(null);
     setParseError(null);
     setValidationSummary(null);
+    setSampleResidualsLoaded(false);
   }, []);
+
+  const invalidateValidation = useCallback(() => setValidationSummary(null), []);
 
   /* ── Report ── */
 
@@ -236,6 +284,7 @@ export function useGCPValidation() {
     lines.push('════════════════════════════════════════════════════════════════');
     lines.push('           GCP RESIDUAL VALIDATION REPORT');
     lines.push('           METARDU Survey Platform');
+    if (sampleDataLoaded) lines.push('           EXAMPLE ONLY — NOT SURVEY EVIDENCE');
     lines.push('════════════════════════════════════════════════════════════════');
     lines.push('');
     lines.push(`Date:                 ${now}`);
@@ -243,6 +292,7 @@ export function useGCPValidation() {
     lines.push(`Accuracy Standard:    ${selectedClass.name} (${selectedClass.scale})`);
     lines.push(`Horizontal Limit:     ≤ ${selectedClass.horizontal} m`);
     lines.push(`Vertical Limit:       ≤ ${selectedClass.vertical} m`);
+    lines.push('Interpretation:       Numerical comparison only; no CRS, datum, geoid, unit, epoch, or standard verification.');
     lines.push('');
 
     if (!validationSummary) {
@@ -267,7 +317,7 @@ export function useGCPValidation() {
     lines.push(`Max 3D Error:                  ${fmt(s.max3D)} m`);
     lines.push(`Pass Rate:                     ${s.matchedGCPs > 0 ? ((s.passCount / s.matchedGCPs) * 100).toFixed(1) : '0.0'}% (${s.passCount}/${s.matchedGCPs})`);
     lines.push('');
-    lines.push(`OVERALL RESULT:                 ${s.pass ? ' PASS' : '[x] FAIL'}`);
+    lines.push(`OVERALL PRESET RESULT:          ${s.pass ? ' PASS' : '[x] FAIL'} (not an acceptance approval)`);
     lines.push('');
 
     lines.push('──────────────────────────────────────────────────────────────');
@@ -310,7 +360,7 @@ export function useGCPValidation() {
     lines.push('  End of Report');
     lines.push('════════════════════════════════════════════════════════════════');
     return lines.join('\n');
-  }, [validationSummary, selectedClass, utmZone]);
+  }, [validationSummary, selectedClass, utmZone, sampleDataLoaded]);
 
   const handleCopyReport = useCallback(() => {
     const text = generateReportText();
@@ -325,7 +375,7 @@ export function useGCPValidation() {
     const rows = validationSummary.points.map(p =>
       `${p.name},${fmt(p.knownE)},${fmt(p.knownN)},${fmt(p.knownZ)},${fmt(p.softwareE)},${fmt(p.softwareN)},${fmt(p.softwareZ)},${fmt(p.deltaE)},${fmt(p.deltaN)},${fmt(p.deltaZ)},${fmt(p.horizontalError)},${fmt(p.error3D)},${p.overallPass ? 'PASS' : 'FAIL'}`
     );
-    const csv = [header, ...rows].join('\n');
+    const csv = [sampleDataLoaded ? '# EXAMPLE ONLY - NOT SURVEY EVIDENCE' : '', header, ...rows].filter(Boolean).join('\n');
     const blob = new Blob([csv], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -333,7 +383,7 @@ export function useGCPValidation() {
     a.download = 'gcp_validation_report.csv';
     a.click();
     URL.revokeObjectURL(url);
-  }, [validationSummary]);
+  }, [validationSummary, sampleDataLoaded]);
 
   const handlePrint = useCallback(() => {
     window.print();
@@ -348,6 +398,7 @@ export function useGCPValidation() {
     selectedClass,
     setSelectedClass,
     knownGCPs,
+    sampleDataLoaded,
     setKnownGCPs,
     residualText,
     setResidualText,
@@ -358,8 +409,10 @@ export function useGCPValidation() {
     parsedResiduals,
     setParsedResiduals,
     parseError,
+    gcpImportError,
     validationSummary,
     setValidationSummary,
+    invalidateValidation,
     // refs
     fileInputRef,
     csvInputRef,

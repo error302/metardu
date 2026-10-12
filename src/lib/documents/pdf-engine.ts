@@ -82,6 +82,8 @@ export interface PDFGenerationOptions {
   scale: number;
   metadata: DocumentMetadata;
   dpi?: number;
+  /** Keep pages for final numbering in explicitly paginated reports. */
+  bufferPages?: boolean;
   /** Company logo buffer for paid plans. If provided, rendered in title block. */
   companyLogo?: Buffer | null;
   /** User subscription plan. Controls watermark behavior. */
@@ -109,6 +111,7 @@ export function createSurveyDocument(options: PDFGenerationOptions): PDFKit.PDFD
   const pageHeightPt = height * mmToPt;
   
   const doc = new PDFDocument({
+    bufferPages: options.bufferPages ?? false,
     size: [pageWidthPt, pageHeightPt],
     margins: {
       top: 10 * mmToPt,

@@ -8,13 +8,13 @@
  * - Area reconciliation (parent vs sum of parts)
  * - Traverse precision (linear + angular closure)
  * - Beacon validation (duplicates, missing coordinates)
- * - Document compliance (SoK standards)
- * - NLIMS readiness
+ * - Document review status
+ * - Manual registry handoff review
  *
  * Green = pass, Amber = warning, Red = fail
  */
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import {
   ShieldCheck, AlertTriangle, AlertCircle, CheckCircle2,
   Loader2, RefreshCw, FileText, MapPin, Ruler, Calculator,
@@ -23,6 +23,7 @@ import {
 import { runTopologyCheck, type ExistingParcel } from '@/lib/survey/topologyChecker'
 import { evaluateTraversePrecision, type TraverseCategory } from '@/lib/engine/computationalAccuracy'
 import { computeAreaWithPrecision } from '@/lib/engine/computationalAccuracy'
+import type { StageReference } from '@/lib/workspaces/stageReference'
 import { memoize } from '@/lib/performance'
 
 // Memoized area computation — caches results for same vertex sets
@@ -39,10 +40,15 @@ interface QACheck {
   message: string
   details?: string
   count?: number
+  measuredValue?: number
+  thresholdValue?: number
+  unit?: string
+  comparison?: 'lte' | 'gte' | 'eq'
 }
 
 interface QADashboardProps {
   projectId: string
+  reference?: StageReference
   parcels?: ExistingParcel[]
   traverseData?: {
     linearErrorM: number
@@ -70,22 +76,95 @@ const STATUS_CONFIG = {
   pending: { icon: Loader2, color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30', label: 'PENDING' },
 }
 
+/**
+ * Stable empty default. A fresh `[]` literal per render changes the
+ * `runAllChecks` identity on every render, which re-triggers the effect that
+ * calls it — an infinite render loop on any project without parcels.
+ */
+const EMPTY_PARCELS: ExistingParcel[] = []
+
+/** Evidence persistence is best-effort; never let it hold up the dashboard. */
+const QA_PERSIST_TIMEOUT_MS = 10000
+
 export function QADashboard({
-  parcels = [],
+  projectId,
+  reference,
+  parcels = EMPTY_PARCELS,
   traverseData,
   parentAreaHa,
   surveyCategory = 'urban',
 }: QADashboardProps) {
   const [checks, setChecks] = useState<QACheck[]>([])
   const [running, setRunning] = useState(false)
+  const persistedRuns = useRef<Set<string>>(new Set())
+  const savingRuns = useRef<Set<string>>(new Set())
+  const [evidenceState, setEvidenceState] = useState<'saving' | 'saved' | 'failed'>('saving')
+  const currentProject = useRef(projectId)
+  currentProject.current = projectId
+  const runSequence = useRef(0)
+
+  /**
+   * Persist the run as QA evidence (blueprint §2.5): a PASS must carry the
+   * rule, the measurement and the revision, otherwise this dashboard is
+   * decoration. Fingerprinted so re-renders never spam the ledger, and
+   * time-boxed so a slow or unavailable register can never block a surveyor
+   * from seeing their own results.
+   */
+  const persistQaRun = useCallback(
+    async (results: QACheck[]) => {
+      const payload = {
+        trigger: 'manual',
+        inputSnapshot: JSON.stringify({ reference, parcels, traverseData, parentAreaHa, surveyCategory }),
+        results: results.map(check => ({
+          checkType: `dashboard.${check.id}`,
+          result: check.status === 'pass' ? 'PASS' : check.status === 'warning' ? 'WARN' : check.status === 'fail' ? 'FAIL' : 'INFO',
+          message: check.message,
+          measuredValue: check.measuredValue ?? check.count ?? null,
+          thresholdValue: check.thresholdValue ?? null,
+          unit: check.unit ?? null,
+          details: { category: check.category, rule: check.details ?? check.message, comparison: check.comparison },
+        })),
+      }
+      const fingerprint = JSON.stringify({ projectId, ...payload })
+      if (persistedRuns.current.has(fingerprint)) {
+        setEvidenceState('saved')
+        return
+      }
+      if (savingRuns.current.has(fingerprint)) return
+      savingRuns.current.add(fingerprint)
+      setEvidenceState('saving')
+      const controller = new AbortController()
+      const timer = setTimeout(() => controller.abort(), QA_PERSIST_TIMEOUT_MS)
+      try {
+        const response = await fetch(`/api/project/${projectId}/qa`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          signal: controller.signal, body: JSON.stringify(payload),
+        })
+        if (!response.ok) throw new Error('QA record was not saved')
+        persistedRuns.current.add(fingerprint)
+        if (currentProject.current === projectId) setEvidenceState('saved')
+      } catch {
+        if (currentProject.current === projectId) setEvidenceState('failed')
+      } finally {
+        clearTimeout(timer)
+        savingRuns.current.delete(fingerprint)
+      }
+    },
+    [projectId, reference, parcels, traverseData, parentAreaHa, surveyCategory]
+  )
 
   const runAllChecks = useCallback(async () => {
+    const sequence = ++runSequence.current
     setRunning(true)
 
     const results: QACheck[] = []
+    const epsg = reference?.source === 'declared' ? reference.code : null
+    try {
+    if (!epsg) results.push({ id: 'qa-reference', category: 'topology', name: 'Project Reference System', status: 'pending', message: 'Declare a projected reference system in project settings before checking spatial data.' })
 
     // ─── 1. Topology Checks ──────────────────────────────────
-    if (parcels.length > 0) {
+    if (epsg && parcels.length > 0) {
+      if (parcels.some(parcel => parcel.vertices.length < 3)) throw new Error('Parcel boundary is incomplete')
       let totalOverlaps = 0
       let totalSlivers = 0
       let totalSelfIntersections = 0
@@ -93,7 +172,7 @@ export function QADashboard({
       for (const parcel of parcels) {
         const otherParcels = parcels.filter(p => p.id !== parcel.id)
         const topoResult = await runTopologyCheck({
-          newVertices: parcel.vertices,
+          newVertices: parcel.vertices, epsg,
           existingParcels: otherParcels,
         })
 
@@ -108,8 +187,8 @@ export function QADashboard({
         name: 'Parcel Overlaps',
         status: totalOverlaps === 0 ? 'pass' : 'fail',
         message: totalOverlaps === 0 ? 'No overlapping parcels detected' : `${totalOverlaps} overlap(s) found`,
-        details: 'Overlapping parcels will be rejected by the registry',
-        count: totalOverlaps,
+        details: 'Review flagged overlaps with a licensed surveyor and check the current official process.',
+        count: totalOverlaps, thresholdValue: 0, unit: 'count', comparison: 'eq',
       })
 
       results.push({
@@ -119,7 +198,7 @@ export function QADashboard({
         status: totalSlivers === 0 ? 'pass' : 'warning',
         message: totalSlivers === 0 ? 'No sliver gaps detected' : `${totalSlivers} sliver gap(s) found`,
         details: 'Micro-gaps between adjacent parcels may cause registration issues',
-        count: totalSlivers,
+        count: totalSlivers, thresholdValue: 0, unit: 'count', comparison: 'eq',
       })
 
       results.push({
@@ -127,9 +206,9 @@ export function QADashboard({
         category: 'topology',
         name: 'Self-Intersections',
         status: totalSelfIntersections === 0 ? 'pass' : 'fail',
-        message: totalSelfIntersections === 0 ? 'All parcel boundaries are valid' : `${totalSelfIntersections} self-intersection(s) found`,
+        message: totalSelfIntersections === 0 ? 'No self-intersections detected' : `${totalSelfIntersections} self-intersection(s) found`,
         details: 'A boundary that crosses itself produces an invalid parcel',
-        count: totalSelfIntersections,
+        count: totalSelfIntersections, thresholdValue: 0, unit: 'count', comparison: 'eq',
       })
     } else {
       results.push({
@@ -142,7 +221,7 @@ export function QADashboard({
     }
 
     // ─── 2. Area Reconciliation ──────────────────────────────
-    if (parentAreaHa && parcels.length > 0) {
+    if (epsg && typeof parentAreaHa === 'number' && Number.isFinite(parentAreaHa) && parentAreaHa > 0 && parcels.length > 0) {
       const sumOfParts = parcels.reduce((sum, p) => {
         const area = memoizedComputeArea(p.vertices)
         return sum + area.areaHectares
@@ -164,36 +243,50 @@ export function QADashboard({
     }
 
     // ─── 3. Traverse Precision ───────────────────────────────
-    if (traverseData) {
+    if (epsg && traverseData) {
       const precision = evaluateTraversePrecision(
-        traverseData.linearErrorM,
+        Math.abs(traverseData.linearErrorM),
         traverseData.totalDistanceM,
-        traverseData.angularMisclosureSec,
+        Math.abs(traverseData.angularMisclosureSec),
         traverseData.stationCount,
         surveyCategory,
       )
 
+      const linearMeasured = Number.isFinite(traverseData.linearErrorM) && traverseData.linearErrorM >= 0
+        && Number.isFinite(traverseData.totalDistanceM) && traverseData.totalDistanceM > 0
+      const maximumLinearError = traverseData.totalDistanceM / precision.minRequiredLinear
       results.push({
         id: 'trav-linear',
         category: 'traverse',
         name: 'Linear Precision',
-        status: precision.passesLinear ? 'pass' : 'fail',
-        message: `1:${precision.linearPrecision.toLocaleString()} (min 1:${precision.minRequiredLinear})`,
-        details: `Survey Act Cap 299 requires 1:${precision.minRequiredLinear} for ${surveyCategory} surveys`,
+        status: !linearMeasured ? 'pending' : traverseData.linearErrorM <= maximumLinearError ? 'pass' : 'fail',
+        message: linearMeasured ? `${traverseData.linearErrorM.toFixed(4)} m closure (max ${maximumLinearError.toFixed(4)} m; 1:${precision.minRequiredLinear})` : 'Valid measured linear closure and traverse distance were not supplied.',
+        details: `Absolute linear closure <= perimeter / ${precision.minRequiredLinear}; METARDU ${surveyCategory} preset requires surveyor confirmation`,
+        measuredValue: linearMeasured ? traverseData.linearErrorM : undefined, thresholdValue: linearMeasured ? maximumLinearError : undefined, unit: 'm', comparison: 'lte',
       })
 
+      // A misclosure that was never measured is PENDING, not a failure: when
+      // independent angle readings are not supplied there is nothing to
+      // judge, and reporting FAIL (NaN <= max is false) turns missing data
+      // into a verdict against the surveyor's work.
+      const angularMeasured = Number.isFinite(traverseData.angularMisclosureSec) && Number.isInteger(traverseData.stationCount) && traverseData.stationCount >= 3
       results.push({
         id: 'trav-angular',
         category: 'traverse',
         name: 'Angular Closure',
-        status: precision.passesAngular ? 'pass' : 'fail',
-        message: `${precision.angularMisclosure.toFixed(1)}" (max ${precision.maxAllowedAngular.toFixed(1)}")`,
-        details: `Maximum allowed: ${precision.maxAllowedAngular.toFixed(1)}" for ${precision.stationCount} stations`,
+        status: !angularMeasured ? 'pending' : precision.passesAngular ? 'pass' : 'fail',
+        message: angularMeasured
+          ? `${precision.angularMisclosure.toFixed(1)}" (max ${precision.maxAllowedAngular.toFixed(1)}")`
+          : 'Independent angular observations were not supplied.',
+        details: angularMeasured
+          ? `Maximum allowed: ${precision.maxAllowedAngular.toFixed(1)}" for ${precision.stationCount} stations`
+          : 'Angular misclosure needs observed horizontal angles and at least three stations; supply them to complete this check.',
+        measuredValue: angularMeasured ? Math.abs(traverseData.angularMisclosureSec) : undefined, thresholdValue: angularMeasured ? precision.maxAllowedAngular : undefined, unit: 'arcsec', comparison: 'lte',
       })
     }
 
     // ─── 4. Beacon Validation ────────────────────────────────
-    if (parcels.length > 0) {
+    if (epsg && parcels.length > 0) {
       const allBeacons = parcels.flatMap(p => p.vertices)
       let duplicates = 0
 
@@ -212,40 +305,50 @@ export function QADashboard({
         status: duplicates === 0 ? 'pass' : 'warning',
         message: duplicates === 0 ? 'No duplicate beacons' : `${duplicates} potential duplicate(s) found`,
         details: 'Beacons less than 0.1m apart may be the same physical beacon',
-        count: duplicates,
+        count: duplicates, thresholdValue: 0, unit: 'count', comparison: 'eq',
       })
     }
 
-    // ─── 5. Document Compliance ──────────────────────────────
+    // ─── 5. Document review ──────────────────────────────
     results.push({
       id: 'doc-sok',
       category: 'documents',
-      name: 'SoK Standards Compliance',
-      status: 'pass',
-      message: 'All document templates use SoK 2020 line weights and text sizes',
-      details: 'Line weights: 0.3mm parcels, 0.5mm scheme, 0.7mm title. Text: 2.5mm coordinates, 2mm bearings',
+      name: 'Document review',
+      status: 'pending',
+      message: 'A generated document has not been reviewed by a licensed surveyor.',
+      details: 'Review the plan, reference system, signatures and current requirements with a licensed surveyor. METARDU does not certify legal or registry compliance.',
     })
 
     // ─── 6. NLIMS Readiness ──────────────────────────────────
-    const hasAllFields = parcels.every(p => p.id && p.vertices.length >= 3)
     results.push({
       id: 'nlims-ready',
       category: 'nlims',
-      name: 'NLIMS/ArdhiSasa Readiness',
-      status: hasAllFields && parcels.length > 0 ? 'pass' : 'pending',
-      message: hasAllFields && parcels.length > 0
-        ? 'All parcels have required fields for NLIMS submission'
-        : 'Missing required parcel data for NLIMS export',
-      details: 'Requires: parcel number, 3+ vertices, owner data',
+      name: 'Manual registry handoff review',
+      status: 'pending',
+      message: 'A surveyor has not completed the manual handoff review for this project.',
+      details: 'METARDU does not submit to a government registry. Check the current official process, ownership records and required documents before filing.',
     })
 
+    if (sequence !== runSequence.current) return
     setChecks(results)
     setRunning(false)
-  }, [parcels, parentAreaHa, traverseData, surveyCategory])
 
-  // Auto-run on mount
-  useMemo(() => {
-    runAllChecks()
+    // Evidence is additive: a failure here must never hide the results the
+    // surveyor is waiting for.
+    void persistQaRun(results).catch(() => {})
+    } catch {
+      if (sequence !== runSequence.current) return
+      setRunning(false)
+      setEvidenceState('failed')
+      setChecks([{ id: 'qa-incomplete', category: 'topology', name: 'QA checks incomplete', status: 'pending', message: 'Review the coordinates and declared reference system, then retry.' }])
+    }
+  }, [reference, parcels, parentAreaHa, traverseData, surveyCategory, persistQaRun])
+
+  // Auto-run on mount / when the inputs change. This is a side effect, so it
+  // belongs in an effect — running it during render (via useMemo) re-entered
+  // on every render and could loop.
+  useEffect(() => {
+    void runAllChecks()
   }, [runAllChecks])
 
   const stats = useMemo(() => {
@@ -258,7 +361,17 @@ export function QADashboard({
     }
   }, [checks])
 
-  const overallStatus = stats.fail > 0 ? 'fail' : stats.warning > 0 ? 'warning' : stats.pass > 0 ? 'pass' : 'pending'
+  // Readiness is only claimable when every check has a verdict: a pending
+  // check (no parcels, no observations, nothing to measure) is not a pass.
+  // Reporting "READY FOR SUBMISSION" for an empty project is the exact false
+  // assurance this dashboard must never give (blueprint §2.5).
+  const overallStatus = stats.fail > 0
+    ? 'fail'
+    : stats.warning > 0
+      ? 'warning'
+      : stats.pending > 0 || stats.total === 0 || stats.pass === 0
+        ? 'pending'
+        : 'pass'
 
   return (
     <div className="space-y-4">
@@ -300,6 +413,10 @@ export function QADashboard({
           <StatBox label="Pending" value={stats.pending} color="text-gray-400" bg="bg-gray-500/10" />
         </div>
       </div>
+
+      <p role="status" className="text-xs text-[var(--text-secondary)]">
+        {evidenceState === 'saved' ? 'Saved as reported QA evidence. These checks do not certify a survey or registry submission.' : evidenceState === 'saving' ? 'Saving QA evidence…' : 'Checks are visible, but this run was not saved. Re-run checks to retry.'}
+      </p>
 
       {/* Checks by category */}
       {Object.entries(CATEGORY_ICONS).map(([cat, CatIcon]) => {
@@ -364,14 +481,17 @@ export function QADashboard({
                 overallStatus === 'warning' ? 'text-amber-400' :
                 'text-red-400'
               }`}>
-                {overallStatus === 'pass' ? 'READY FOR SUBMISSION' :
-                 overallStatus === 'warning' ? 'READY WITH WARNINGS' :
+                {overallStatus === 'pass' ? 'AVAILABLE CHECKS PASSED' :
+                 overallStatus === 'warning' ? 'REVIEW WARNINGS' :
+                 overallStatus === 'pending' ? 'NOT ASSESSED YET' :
                  'NOT READY — FIX ERRORS'}
               </span>
               <p className="text-[10px] text-gray-500 mt-0.5">
-                {stats.fail > 0 ? `${stats.fail} error(s) must be fixed before registry submission` :
+                {stats.fail > 0 ? `${stats.fail} check(s) failed — review measurements and inputs` :
                  stats.warning > 0 ? `${stats.warning} warning(s) — review recommended` :
-                 'All quality checks passed'}
+                 stats.pending > 0 || stats.pass === 0
+                   ? `${stats.pending} check(s) cannot be judged until there is data — Generated plans require surveyor review before submission`
+                   : 'All quality checks passed'}
               </p>
             </div>
           </div>

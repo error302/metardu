@@ -26,8 +26,26 @@ jobs:
       - name: Install dependencies
         run: npm ci --legacy-peer-deps
 
+      - name: Restore Next.js build cache
+        uses: actions/cache@v4
+        with:
+          path: .next/cache
+          key: ${{ runner.os }}-next-cache-${{ hashFiles('package-lock.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-next-cache-${{ hashFiles('package-lock.json') }}-
+
+      - name: Restore TypeScript incremental cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            tsconfig.tsbuildinfo
+            tsconfig.tests.tsbuildinfo
+          key: ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-
+
       - name: TypeScript check
-        run: npx tsc --noEmit
+        run: npm run typecheck
 
       # Changed-files gate (PR-only: the base ref resolves from
       # GITHUB_BASE_REF → origin/<base> inside the script). Fast ~30s
@@ -84,6 +102,16 @@ jobs:
           DISABLE_PWA: 'true'
         run: npx next build
         timeout-minutes: 12
+
+      - name: Landing bundle budget gate
+        # BUNDLE BUDGET (2026-09-12): fails when the landing route's initial
+        # JS exceeds the budget. Guards against the regression class that
+        # bloated it before: heavy deps statically imported into the shared
+        # graph (OpenLayers via ProjectionInit, all i18n locales, the Sentry
+        # SDK, crypto-browserify). Default budget in scripts/bundle-budget.mjs;
+        # override per-run with BUNDLE_BUDGET_KB when a deliberate raise is
+        # justified in the PR description.
+        run: node scripts/bundle-budget.mjs
 
       - name: Run tests
         # AUDIT FIX (2026-07-05): Add --coverage so the coverageThreshold

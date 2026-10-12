@@ -1,21 +1,21 @@
 /**
  * Topological Validator — v0.3
  *
- * Pre-flights cadastral boundary geometry before submission to NLIMS / ArdhiSasa.
- * Catches the common rejection reasons:
+ * Reviews cadastral boundary geometry before professional review.
+ * Flags common geometry concerns:
  *   1. Self-intersecting boundary (line crosses itself)
  *   2. Sliver polygons (tiny area from coordinate snap errors)
  *   3. Adjoiner overlaps (new boundary overlaps existing cadastral fabric)
  *   4. Unclosed rings (first point != last point)
  *   5. Insufficient vertices (need at least 3 for a polygon)
- *   6. Area below statutory minimum (configurable per land use)
+ *   6. Area below a configured local review threshold
  *
  * Uses turf.js for geometry operations — runs entirely client-side, no API call.
- * This is the "ArdhiSasa pre-flight" — if it fails here, it would fail at the registry.
+ * This is a geometry check only; it does not predict registry acceptance.
  */
 
 import * as turf from '@turf/turf'
-import type { Feature, Polygon } from 'geojson'
+import type { Feature, MultiPolygon, Polygon } from 'geojson'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -46,7 +46,7 @@ export interface ValidationResult {
 }
 
 export interface ValidationOptions {
-  /** Minimum parcel area in m² (default: 100 = 0.01 ha, urban plot minimum) */
+  /** Optional local review threshold in m²; omitted means no area threshold */
   minAreaSqM?: number
   /** Maximum sliver area in m² — polygons smaller than this are flagged (default: 5) */
   sliverThresholdSqM?: number
@@ -72,7 +72,7 @@ export function validateCadastralBoundary(
   options: ValidationOptions = {},
 ): ValidationResult {
   const {
-    minAreaSqM = 100,
+    minAreaSqM,
     sliverThresholdSqM = 5,
     sliverRatioThreshold = 0.01,
     adjoiners = [],
@@ -113,7 +113,7 @@ export function validateCadastralBoundary(
       severity: 'warning',
       rule: 'RING_NOT_CLOSED',
       message: 'Boundary ring was not explicitly closed (first point ≠ last point). Auto-closed for validation.',
-      detail: 'NLIMS requires closed rings. The export will close this automatically, but verify the last vertex is correct.',
+      detail: 'The validator closes the ring for this geometry check. Confirm the intended final vertex before using the boundary.',
     })
   }
 
@@ -147,22 +147,25 @@ export function validateCadastralBoundary(
       rule: 'SELF_INTERSECT',
       message: `Boundary self-intersects at ${kinks.features.length} location${kinks.features.length > 1 ? 's' : ''}.`,
       location: firstKink,
-      detail: `Self-intersecting boundaries are invalid and will be rejected by NLIMS. The boundary line crosses itself at [${firstKink[0].toFixed(3)}, ${firstKink[1].toFixed(3)}]. Fix the bearing/distance of the offending leg.`,
+      detail: `The boundary crosses itself at [${firstKink[0].toFixed(3)}, ${firstKink[1].toFixed(3)}]. Review the coordinates and correct the geometry before professional review.`,
     })
   }
 
   // ─── Compute area and perimeter ─────────────────────────────────────────
-  const areaSqM = turf.area(polygon)
-  const perimeterM = turf.length(turf.lineString(workingCoords), { units: 'meters' })
+  // Inputs are projected Easting/Northing coordinates in metres. Turf's
+  // area/length helpers treat values as longitude/latitude, so use planar
+  // calculations to preserve the declared coordinate units.
+  const areaSqM = planarRingArea(workingCoords)
+  const perimeterM = planarRingLength(workingCoords)
 
-  // ─── Check 4: Minimum statutory area ────────────────────────────────────
-  if (areaSqM < minAreaSqM) {
-    errors.push({
-      id: 'area-too-small',
-      severity: 'error',
+  // ─── Check 4: Optional configured area threshold ────────────────────────
+  if (minAreaSqM !== undefined && areaSqM < minAreaSqM) {
+    warnings.push({
+      id: 'area-below-review-threshold',
+      severity: 'warning',
       rule: 'MIN_AREA',
-      message: `Parcel area is ${areaSqM.toFixed(2)} m² — below the ${minAreaSqM} m² minimum.`,
-      detail: `Minimum plot size varies by zone: 100m² (urban), 250m² (residential), 500m² (agricultural). Check the local zoning by-laws for this parcel.`,
+      message: `Parcel area is ${areaSqM.toFixed(2)} m² — below the configured ${minAreaSqM} m² review threshold.`,
+      detail: 'This is an optional local review threshold, not a statutory minimum. Check the applicable planning and survey requirements for this parcel.',
     })
   }
 
@@ -178,7 +181,7 @@ export function validateCadastralBoundary(
       severity: 'error',
       rule: 'SLIVER_POLYGON',
       message: `Parcel area is only ${areaSqM.toFixed(4)} m² — this is a sliver polygon.`,
-      detail: `Slivers below ${sliverThresholdSqM} m² are typically coordinate errors (snap to wrong point, bearing typo). NLIMS will reject this.`,
+      detail: `This geometry is below the configured ${sliverThresholdSqM} m² review threshold. Inspect the source coordinates and project-specific criteria; this heuristic does not determine registry acceptance.`,
     })
   } else if (sliverRatio < sliverRatioThreshold && areaSqM < 1000) {
     warnings.push({
@@ -221,14 +224,14 @@ export function validateCadastralBoundary(
       const overlap = turf.intersect(turf.featureCollection([polygon, adjoinerPolygon]))
 
       if (overlap) {
-        const overlapArea = turf.area(overlap)
+        const overlapArea = planarGeometryArea(overlap.geometry)
         if (overlapArea > 0.01) {
           errors.push({
             id: `adjoiner-overlap-${adjoiner.id}`,
             severity: 'error',
             rule: 'ADJOINER_OVERLAP',
             message: `Boundary overlaps adjoiner "${adjoiner.id}" by ${overlapArea.toFixed(2)} m².`,
-            detail: `Overlapping boundaries create title disputes. Adjust the shared boundary line so the overlap is zero. NLIMS will reject overlapping parcels.`,
+            detail: 'Review the shared boundary against source observations and current project records. This geometry check does not determine title status or registry acceptance.',
           })
         }
       }
@@ -238,15 +241,16 @@ export function validateCadastralBoundary(
   }
 
   // ─── Check 8: Winding order (clockwise vs counter-clockwise) ────────────
-  // NLIMS / GeoJSON spec requires counter-clockwise exterior rings
+  // Report orientation for downstream format review; do not claim every
+  // format requires the same orientation or that this check edits geometry.
   const winding = computeWindingOrder(workingCoords)
   if (winding === 'clockwise') {
     warnings.push({
       id: 'winding-order',
       severity: 'warning',
       rule: 'WINDING_ORDER',
-      message: 'Boundary ring is clockwise — GeoJSON spec requires counter-clockwise for exterior rings.',
-      detail: 'The export will flip the winding order automatically, but some older GIS tools may display this incorrectly.',
+      message: 'Boundary ring is clockwise. Review the target format\'s exterior-ring orientation requirement.',
+      detail: 'This check reports orientation only; it does not change geometry or guarantee downstream display.',
     })
   }
 
@@ -280,6 +284,36 @@ function computeWindingOrder(coords: [number, number][]): 'clockwise' | 'counter
   // In standard math coordinates (Y up), positive sum = clockwise
   // In surveying coordinates (Northing up), this is the same
   return sum > 0 ? 'clockwise' : 'counter-clockwise'
+}
+
+function planarRingArea(coords: [number, number][]): number {
+  let twiceArea = 0
+  for (let i = 0; i < coords.length - 1; i++) {
+    const [x1, y1] = coords[i]
+    const [x2, y2] = coords[i + 1]
+    twiceArea += x1 * y2 - x2 * y1
+  }
+  return Math.abs(twiceArea) / 2
+}
+
+function planarRingLength(coords: [number, number][]): number {
+  let length = 0
+  for (let i = 0; i < coords.length - 1; i++) {
+    length += Math.hypot(coords[i + 1][0] - coords[i][0], coords[i + 1][1] - coords[i][1])
+  }
+  return length
+}
+
+function planarGeometryArea(geometry: Polygon | MultiPolygon): number {
+  if (geometry.type === 'Polygon') {
+    const [outerRing, ...holes] = geometry.coordinates as [number, number][][]
+    return Math.max(0, planarRingArea(outerRing) - holes.reduce((sum, ring) => sum + planarRingArea(ring), 0))
+  }
+
+  return geometry.coordinates.reduce((sum, polygonCoordinates) => {
+    const [outerRing, ...holes] = polygonCoordinates as [number, number][][]
+    return sum + Math.max(0, planarRingArea(outerRing) - holes.reduce((holeSum, ring) => holeSum + planarRingArea(ring), 0))
+  }, 0)
 }
 
 /**

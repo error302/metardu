@@ -22,16 +22,11 @@ import {
   Upload,
 } from 'lucide-react'
 import {
-  KENYA_TOPO_SHEETS,
   CLARKE_1858_A_FT,
   CLARKE_1880_A_M,
-} from '@/lib/geo/cassini'
-import type {
-  SubSheetDef,
-  TopoSheetParams,
-  TransformMethod,
-  VerificationResult,
-} from '@/lib/geo/cassini'
+} from '@/lib/geo/cassini/constants'
+import { KENYA_TOPO_SHEETS } from '@/lib/geo/cassini/sheets'
+import type { SubSheetDef, TopoSheetParams, TransformMethod, VerificationResult } from '@/lib/geo/cassini/types'
 import { SubSheetGridPicker } from './SubSheetInspector'
 import { CommonPointsVerification, CalibrationResidualsTable } from './VerificationTable'
 
@@ -55,6 +50,12 @@ interface InputFormProps {
   activeSubSheet?: SubSheetDef
   availableSubSheets: { subId: string; fullId: string; bounds: { minX: number; minY: number }; corners: unknown[] }[]
   hasSubSheets: boolean
+  subSheetDataLoadedFor: string | null
+  subSheetDataLoading: boolean
+  subSheetDataError: string | null
+  handleLoadSubSheetData: () => void
+  conversionPending: boolean
+  conversionError: string | null
   // transform method
   transformMethod: TransformMethod | 'auto'
   setTransformMethod: (v: TransformMethod | 'auto') => void
@@ -98,11 +99,11 @@ interface InputFormProps {
   setSingleE: (v: string) => void
   singleN: string
   setSingleN: (v: string) => void
-  handleSingleConvert: () => void
+  handleSingleConvert: () => void | Promise<void>
   // batch
   batchText: string
   setBatchText: (v: string) => void
-  handleBatchConvert: () => void
+  handleBatchConvert: () => void | Promise<void>
   handleLoadExample: () => void
 }
 
@@ -124,6 +125,12 @@ export function InputForm(props: InputFormProps) {
     activeSubSheet,
     availableSubSheets,
     hasSubSheets,
+    subSheetDataLoadedFor,
+    subSheetDataLoading,
+    subSheetDataError,
+    handleLoadSubSheetData,
+    conversionPending,
+    conversionError,
     transformMethod,
     setTransformMethod,
     customP,
@@ -236,6 +243,27 @@ export function InputForm(props: InputFormProps) {
               </p>
             )}
           </div>
+
+          {!useCustomParams && !hasSubSheets && (
+            <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)]/40 p-3">
+              <p className="text-[10px] text-[var(--text-muted)]">
+                {subSheetDataLoadedFor === selectedSheetId
+                  ? 'No detailed sub-sheet corner control is published for this sheet; conversions use the selected sheet parameters.'
+                  : 'Detailed corner-control data stays unloaded until you need sub-sheet selection. Conversion loads it before calculating.'}
+              </p>
+              {subSheetDataLoadedFor !== selectedSheetId && (
+                <button
+                  type="button"
+                  onClick={handleLoadSubSheetData}
+                  disabled={subSheetDataLoading || conversionPending}
+                  className="mt-2 text-[10px] font-semibold text-[var(--accent)] hover:underline disabled:opacity-60"
+                >
+                  {subSheetDataLoading ? 'Loading detailed sheet data…' : 'Load detailed sub-sheet data'}
+                </button>
+              )}
+              {subSheetDataError && <p role="alert" className="mt-2 text-[10px] text-red-400">{subSheetDataError}</p>}
+            </div>
+          )}
 
           {/* Sub-sheet selector (when sheet has sub-sheets) */}
           {!useCustomParams && hasSubSheets && (
@@ -538,7 +566,7 @@ Central meridian: 39°E, Scale: 0.9996`}
                 <label className="label text-xs text-[var(--text-muted)]">
                   Easting ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
                 </label>
-                <input aria-label="Easting ({direction === 'cassini-to-utm' ? 'ft' : 'm'})"
+                <input aria-label={`Easting (${direction === 'cassini-to-utm' ? 'ft' : 'm'})`}
                   className="input font-mono"
                   value={singleE}
                   onChange={e => setSingleE(e.target.value)}
@@ -549,7 +577,7 @@ Central meridian: 39°E, Scale: 0.9996`}
                 <label className="label text-xs text-[var(--text-muted)]">
                   Northing ({direction === 'cassini-to-utm' ? 'ft' : 'm'})
                 </label>
-                <input aria-label="Northing ({direction === 'cassini-to-utm' ? 'ft' : 'm'})"
+                <input aria-label={`Northing (${direction === 'cassini-to-utm' ? 'ft' : 'm'})`}
                   className="input font-mono"
                   value={singleN}
                   onChange={e => setSingleN(e.target.value)}
@@ -560,10 +588,10 @@ Central meridian: 39°E, Scale: 0.9996`}
 
             <button
               onClick={handleSingleConvert}
-              disabled={!singleE || !singleN}
+              disabled={!singleE || !singleN || conversionPending}
               className="btn btn-primary w-full"
             >
-              Convert
+              {conversionPending ? 'Loading calibration…' : 'Convert'}
             </button>
           </div>
         </div>
@@ -592,10 +620,10 @@ Central meridian: 39°E, Scale: 0.9996`}
             <div className="flex gap-2">
               <button
                 onClick={handleBatchConvert}
-                disabled={!batchText.trim()}
+                disabled={!batchText.trim() || conversionPending}
                 className="btn btn-primary flex-1"
               >
-                Convert Batch
+                {conversionPending ? 'Loading calibration…' : 'Convert Batch'}
               </button>
               <button
                 onClick={handleLoadExample}
@@ -607,6 +635,7 @@ Central meridian: 39°E, Scale: 0.9996`}
           </div>
         </div>
       )}
+      {conversionError && <p role="alert" className="text-xs text-red-400">{conversionError}</p>}
     </div>
   )
 }

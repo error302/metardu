@@ -34,11 +34,16 @@ jest.mock('next/server', () => ({
 import { db } from '@/lib/db'
 import {
   requireProjectOwnership,
+  requireProjectReadAccess,
   requireSurveyPointOwnership,
   requireVersionOwnership,
 } from '../ownership'
+import { canAccessProject } from '../rbac'
+
+jest.mock('../rbac', () => ({ canAccessProject: jest.fn() }))
 
 const mockDb = db.query as jest.MockedFunction<typeof db.query>
+const mockProjectAccess = canAccessProject as jest.MockedFunction<typeof canAccessProject>
 
 // Helper to build a fake pg QueryResult-like object
 function rows(rows: Array<{ user_id: string | null }>) {
@@ -53,6 +58,7 @@ function rows(rows: Array<{ user_id: string | null }>) {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  mockProjectAccess.mockReset()
 })
 
 describe('requireProjectOwnership', () => {
@@ -83,18 +89,19 @@ describe('requireProjectOwnership', () => {
     expect(defined(result.error).status).toBe(403)
   })
 
-  it('returns ok:true for legacy projects with null user_id (no lockout)', async () => {
-    // Projects created before user_id was added must remain accessible
+  it('retains unassigned legacy projects privately for reviewed recovery', async () => {
     mockDb.mockResolvedValueOnce(rows([{ user_id: null }]))
     const result = await requireProjectOwnership('legacy-1', 'user-1')
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
+    expect(result.error?.status).toBe(403)
     expect(result.projectUserId).toBeNull()
   })
 
-  it('returns ok:true when called with no userId (legacy compatibility)', async () => {
+  it('refuses access when called without an authenticated actor', async () => {
     mockDb.mockResolvedValueOnce(rows([{ user_id: null }]))
     const result = await requireProjectOwnership('proj-1', undefined)
-    expect(result.ok).toBe(true)
+    expect(result.ok).toBe(false)
+    expect(result.error?.status).toBe(403)
   })
 
   it('queries the projects table with the correct SQL', async () => {
@@ -105,6 +112,48 @@ describe('requireProjectOwnership', () => {
     expect(sql).toContain('SELECT user_id FROM projects')
     expect(sql).toContain('WHERE id = $1')
     expect(params).toEqual(['proj-1'])
+  })
+})
+
+describe('requireProjectReadAccess', () => {
+  it('allows a project owner without an RBAC lookup', async () => {
+    mockDb.mockResolvedValueOnce(rows([{ user_id: 'user-1' }]))
+
+    const result = await requireProjectReadAccess('proj-1', 'user-1')
+
+    expect(result.ok).toBe(true)
+    expect(mockProjectAccess).not.toHaveBeenCalled()
+  })
+
+  it('allows a shared project member with a read role', async () => {
+    mockDb.mockResolvedValueOnce(rows([{ user_id: 'user-2' }]))
+    mockProjectAccess.mockResolvedValueOnce('viewer')
+
+    const result = await requireProjectReadAccess('proj-1', 'user-1')
+
+    expect(result.ok).toBe(true)
+    expect(result.projectUserId).toBe('user-2')
+    expect(mockProjectAccess).toHaveBeenCalledWith('user-1', 'proj-1')
+  })
+
+  it('denies an unrelated user with the original ownership error', async () => {
+    mockDb.mockResolvedValueOnce(rows([{ user_id: 'user-2' }]))
+    mockProjectAccess.mockResolvedValueOnce(null)
+
+    const result = await requireProjectReadAccess('proj-1', 'user-1')
+
+    expect(result.ok).toBe(false)
+    expect(defined(result.error).status).toBe(403)
+  })
+
+  it('refuses automatic access to unassigned legacy projects', async () => {
+    mockDb.mockResolvedValueOnce(rows([{ user_id: null }]))
+
+    const result = await requireProjectReadAccess('legacy-project', 'user-1')
+
+    expect(result.ok).toBe(false)
+    expect(result.error?.status).toBe(403)
+    expect(mockProjectAccess).not.toHaveBeenCalled()
   })
 })
 

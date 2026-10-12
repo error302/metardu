@@ -10,91 +10,29 @@
 import React, { memo, useMemo } from 'react'
 import { ShieldCheck, ShieldAlert } from 'lucide-react'
 import { useMapContext } from '@/app/map/MapReactContext'
-import { distanceBearing } from '@/lib/engine/distance'
-import { evaluateTraverseClosure } from '@/lib/engine/traverse'
-import type { Point2D } from '@/lib/engine/types'
+import {
+  evaluateInstantClosure,
+  type ClosureGrade,
+} from '@/lib/surveyMapEngine/ol/qaOverlays'
 
-interface GradeInfo {
-  label: string
-  color: string
-}
-
-function getGrade(ratio: number): GradeInfo {
-  if (ratio >= 10000) {
-    return {
-      label: 'Excellent',
-      color: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
-    }
-  }
-  if (ratio >= 5000) {
-    return {
-      label: 'Good',
-      color: 'bg-green-500/15 text-green-400 border border-green-500/30',
-    }
-  }
-  if (ratio >= 3000) {
-    return {
-      label: 'Acceptable',
-      color: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
-    }
-  }
-  if (ratio >= 1000) {
-    return {
-      label: 'Poor',
-      color: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
-    }
-  }
-  return {
-    label: 'Fail',
-    color: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
-  }
+/**
+ * Grade → color chips. The grade thresholds and misclosure math live in the
+ * survey map engine (`ol/qaOverlays.evaluateInstantClosure`); this component
+ * only renders style variants.
+ */
+const GRADE_COLORS: Record<ClosureGrade, string> = {
+  Excellent: 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30',
+  Good: 'bg-green-500/15 text-green-400 border border-green-500/30',
+  Acceptable: 'bg-amber-500/15 text-amber-400 border border-amber-500/30',
+  Poor: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
+  Fail: 'bg-rose-500/15 text-rose-400 border border-rose-500/30',
 }
 
 export const InstantClosureFeedback = memo(function InstantClosureFeedback() {
   const { vertexEditingVertices } = useMapContext()
 
   const closureData = useMemo(() => {
-    if (!vertexEditingVertices || vertexEditingVertices.length < 3) {
-      return null
-    }
-
-    const n = vertexEditingVertices.length
-    let sumDeltaE = 0
-    let sumDeltaN = 0
-    let perimeter = 0
-
-    for (let i = 0; i < n; i++) {
-      const from: Point2D = {
-        easting: vertexEditingVertices[i].easting,
-        northing: vertexEditingVertices[i].northing,
-      }
-      const to: Point2D = {
-        easting: vertexEditingVertices[(i + 1) % n].easting,
-        northing: vertexEditingVertices[(i + 1) % n].northing,
-      }
-
-      const leg = distanceBearing(from, to)
-      sumDeltaE += leg.deltaE
-      sumDeltaN += leg.deltaN
-      perimeter += leg.distance
-    }
-
-    const linearMisclosure = Math.sqrt(sumDeltaE ** 2 + sumDeltaN ** 2)
-    const precisionRatio = linearMisclosure === 0 ? Infinity : perimeter / linearMisclosure
-    const evaluation = evaluateTraverseClosure(linearMisclosure, perimeter, 'cadastral')
-    const grade = getGrade(precisionRatio)
-
-    return {
-      sumDeltaE,
-      sumDeltaN,
-      linearMisclosure,
-      perimeter,
-      precisionRatio,
-      passes: evaluation.passes,
-      minimum: evaluation.minimum,
-      gradeLabel: grade.label,
-      gradeColor: grade.color,
-    }
+    return evaluateInstantClosure(vertexEditingVertices || [])
   }, [vertexEditingVertices])
 
   if (!closureData) {
@@ -109,8 +47,7 @@ export const InstantClosureFeedback = memo(function InstantClosureFeedback() {
     precisionRatio,
     passes,
     minimum,
-    gradeLabel,
-    gradeColor,
+    grade,
   } = closureData
 
   const Icon = passes ? ShieldCheck : ShieldAlert
@@ -127,8 +64,8 @@ export const InstantClosureFeedback = memo(function InstantClosureFeedback() {
         <span className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--text-secondary)]">
           Closure Check
         </span>
-        <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full ${gradeColor}`}>
-          {gradeLabel}
+        <span className={`ml-auto text-[9px] font-bold px-1.5 py-0.5 rounded-full ${GRADE_COLORS[grade]}`}>
+          {grade}
         </span>
       </div>
 

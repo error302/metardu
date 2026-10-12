@@ -75,10 +75,30 @@ export const smartImport = async (file: File): Promise<SmartImportResult> => {
     };
   }
 
+  const invalidMeasurementRows = points.flatMap((point, index) => {
+    const hasFiniteBearing = typeof point.bearing === 'number' && Number.isFinite(point.bearing)
+    const hasPositiveDistance = typeof point.distance === 'number' && Number.isFinite(point.distance) && point.distance > 0
+    return hasFiniteBearing && hasPositiveDistance ? [] : [index + 1]
+  })
+
+  if (invalidMeasurementRows.length > 0) {
+    return {
+      success: false,
+      entries: [],
+      errors: [
+        `Traverse adjustment was not run: ${invalidMeasurementRows.length} record(s) lack a finite bearing and positive distance (record${invalidMeasurementRows.length === 1 ? '' : 's'} ${invalidMeasurementRows.join(', ')}). Import coordinate-only points through the survey-point workflow.`,
+      ],
+      warnings: parseResult.warnings,
+      totalEntries: points.length,
+      parserUsed: format,
+      message: 'No traverse precision or adjusted legs were generated because the source has no complete traverse measurements.',
+    };
+  }
+
   const entries: FieldbookEntry[] = points.map((p: ParsedPoint) => ({
     station: p.point_no || 'UNKNOWN',
-    bearing: p.bearing || 0,
-    distance: p.distance || 0,
+    bearing: p.bearing as number,
+    distance: p.distance as number,
     deltaE: (p.raw_data as Record<string, number>)?.deltaE || 0,
     deltaN: (p.raw_data as Record<string, number>)?.deltaN || 0,
   }));

@@ -169,7 +169,6 @@ export type OLDraw = OLInteraction
 
 export type OLModify = OLInteraction
 
-export type OLSnap = OLInteraction
 
 export type OLDragAndDrop = OLInteraction
 
@@ -189,6 +188,5 @@ export interface OLGeolocation {
 
 export interface MapCleanupRefs {
   geolocation: OLGeolocation
-  snap: OLSnap
   dragAndDrop: OLDragAndDrop
 }

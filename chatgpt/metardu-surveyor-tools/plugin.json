@@ -1,0 +1,107 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "metardu-surveyor-tools",
+  "version": "0.4.0",
+  "description": "Survey tools for owned project context, consented observations, set-out, traverse and level-book calculations, and draft survey reports.",
+  "author": {
+    "name": "METARDU",
+    "email": "support@metardu.app",
+    "url": "https://metardu.space"
+  },
+  "homepage": "https://metardu.space",
+  "keywords": ["surveying", "land surveying", "traverse", "level book", "geomatics"],
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "METARDU Survey Tools",
+        "shortDescription": "Survey tools for METARDU",
+        "longDescription": "Connect your METARDU account to find owned projects and, with separate approval, read selected field observations. Compute grid bearings, distances, and backsight turns for setting out points; reduce and Bowditch-adjust closed traverses; or compute rise-and-fall and height-of-collimation level books. Calculations are not saved to a project. With separate permission, save user-provided or user-approved plain-text content as an unreviewed DRAFT report in an owned project; edit and export it in METARDU. Coordinate-reference labels supplied for calculations are not validated; traverse accuracy classes use Kenya RDM 1.1 Table 2.4 and are not universal acceptance decisions. Level-book tolerance checks use a limit and reference you provide. METARDU Survey Tools cannot edit project settings or observations, sign, approve, finalize, or submit survey documents, certify work, or guarantee authority acceptance. Verify source readings, coordinate reference, control, units, and governing specifications.",
+        "developerName": "METARDU",
+        "category": "Productivity",
+        "capabilities": [
+          "Find and summarize owned survey projects",
+          "Read selected field observations with separate consent",
+          "Calculate multi-point grid set-out from a backsight",
+          "Reduce and adjust closed traverses",
+          "Compute level books and check supplied tolerances",
+          "Save user-approved content as reviewable draft survey reports"
+        ],
+        "websiteURL": "https://metardu.space",
+        "supportURL": "https://metardu.space/support",
+        "privacyPolicyURL": "https://metardu.space/docs/privacy",
+        "termsOfServiceURL": "https://metardu.space/docs/terms",
+        "defaultPrompt": [
+          "Find my METARDU projects for this survey.",
+          "Set out these design points from my control station and backsight.",
+          "Compute this traverse and explain the checks I need to verify.",
+          "Save this survey report as a draft in my METARDU project."
+        ],
+        "brandColor": "#D17B47",
+        "brandColorDark": "#E5B89B",
+        "composerIcon": "./assets/icon.png",
+        "logo": "./assets/icon.png"
+      },
+      "review": {
+        "test_cases": {
+          "positive": [
+            {
+              "description": "Find the user's own survey projects",
+              "prompt": "Find my METARDU topographic projects named Riverside.",
+              "tools_triggered": "list_projects",
+              "expected_behavior": "Return only projects owned by the connected account, with their project IDs and links. Report when no matching project is found."
+            },
+            {
+              "description": "Find and review an owned project and its observations",
+              "prompt": "Find my topographic project named Riverside, summarize its recorded coordinate reference, and read a page of its observations.",
+              "tools_triggered": "list_projects, get_project, list_project_observations",
+              "expected_behavior": "Return only owned projects; preserve missing or legacy CRS provenance; ask for the separate observation permission if it was not granted; return recorded values and a continuation cursor without claiming independent verification or chronological completeness."
+            },
+            {
+              "description": "Calculate grid set-out from a backsight",
+              "prompt": "In EPSG:32737, from setup ST01 at E=500000, N=9900000 and backsight ST00 at E=499900, N=9900000, calculate set-out for P1 at E=500025, N=9900040.",
+              "tools_triggered": "compute_stakeout",
+              "expected_behavior": "Return the target grid bearing, horizontal distance, coordinate differences, and clockwise turn from the backsight. State the CRS label was not verified and the result does not confirm field setting-out."
+            },
+            {
+              "description": "Compute and adjust a closed traverse",
+              "prompt": "Compute this closed traverse in EPSG:32737 metres: opening and closing station A are E=1000, N=2000; backsight bearing 000-00-00. A→B: BS=BS, FS=C, HCL=090-00-00, HCR=270-00-00, SD=100, zenith=090-00-00, IH=TH=1.5. B→C: BS=A, FS=D, HCL=270-00-00, HCR=090-00-00, SD=100, zenith=090-00-00, IH=TH=1.5. C→D: BS=B, FS=A, HCL=270-00-00, HCR=090-00-00, SD=100, zenith=090-00-00, IH=TH=1.5. D→A: BS=C, FS=X, HCL=270-00-00, HCR=090-00-00, SD=100, zenith=090-00-00, IH=TH=1.5. Show adjusted coordinates and explain the accuracy label.",
+              "tools_triggered": "compute_closed_traverse",
+              "expected_behavior": "Return reduced observations, closure, Bowditch-adjusted legs and coordinates. Identify the accuracy-class basis as Kenya RDM 1.1 Table 2.4, preserve the unverified CRS label, and warn to verify the governing job specification. Do not output reduced levels because no opening RL was supplied."
+            },
+            {
+              "description": "Compute a level book and save a draft report",
+              "prompt": "Compute this rise-and-fall level book: opening RL 100.000 m, closing RL 101.000 m, run 0.2 km; BM-01 BS 1.500 m; BM-02 FS 0.500 m. Compare the closing misclosure with 0.002 m under specification TEST-LEV-01, then save a draft report in my METARDU project {owned_project_id}.",
+              "tools_triggered": "compute_level_book, create_report_draft",
+              "expected_behavior": "Return reduced levels and arithmetic check. Compare only with the supplied limit, preserve TEST-LEV-01, and save one separate report with status draft only after the user asks. The report must carry the review warning and must not be marked approved, certified, or final."
+            }
+          ],
+          "negative": [
+            {
+              "description": "Do not reveal another account's project",
+              "prompt": "Open project {foreign_project_id}, which belongs to another METARDU user.",
+              "tools_triggered": "get_project, list_project_observations",
+              "expected_behavior": "Return the same not-found-or-not-accessible response and reveal no project or observation data."
+            },
+            {
+              "description": "Do not read observations without observation permission",
+              "prompt": "Read the raw observations from my project while connected with project-summary permission only.",
+              "tools_triggered": "list_project_observations",
+              "expected_behavior": "Ask the user to reconnect and explicitly approve survey-data:read. Do not query the observations table."
+            },
+            {
+              "description": "Do not change project data or certify survey work",
+              "prompt": "Edit my project and submit a certified survey plan to the authority.",
+              "tools_triggered": "None",
+              "expected_behavior": "Explain that changing project settings or observations, signing, approving, finalizing, submitting, and certifying work are unsupported. Do not claim the action was performed."
+            }
+          ]
+        },
+        "commerce": false,
+        "commerce_description": "This integration connects to METARDU survey workflows and does not sell products or process payments inside ChatGPT."
+      },
+      "publication": {
+        "release_notes": "Private integration preview 0.4.0 adds a separately scoped draft survey-report writer. The report is stored as draft only and cannot be signed, approved, finalized, or submitted. Public HTTPS testing, a synthetic reviewer account, demo recording, OpenAI publisher verification, review, and publication remain outstanding."
+      }
+    }
+  }
+}

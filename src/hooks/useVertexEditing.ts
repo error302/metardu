@@ -3,10 +3,12 @@
  *
  * React hook for managing vertex editing on the survey map.
  * Provides OpenLayers Modify, Snap interactions, vertex insertion (dblclick),
- * vertex removal (right-click), and coordinate readback in EPSG:21037.
+ * vertex removal (right-click), and coordinate readback in the project CRS.
  *
  * All OL imports are dynamic (await import()) to match existing patterns.
- * Coordinate math in EPSG:21037, rendering in EPSG:3857.
+ * Coordinate math in the project CRS (required `epsg`), rendering in EPSG:3857.
+ * Snap config + ring geometry helpers live in the engine
+ * (`@/lib/surveyMapEngine/ol/snapping`, plan Phase 3).
  */
 
 'use client';
@@ -15,7 +17,13 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import type Map from 'ol/Map';
 import type { Feature } from 'ol';
 import type { Polygon as OlPolygon } from 'ol/geom';
-import { to21037, arrayTo3857 } from '@/lib/map/projection';
+import { toProjectCrs, arrayTo3857 } from '@/lib/map/projection';
+import {
+  createSnapInteraction,
+  nearestEdgeOnRing,
+  nearestPointOnSegment,
+  nearestVertexOnRing,
+} from '@/lib/surveyMapEngine/ol/snapping';
 
 /* ------------------------------------------------------------------ */
 /*  Public types                                                       */
@@ -29,12 +37,14 @@ export interface VertexPoint {
 export interface VertexEditingOptions {
   /** OpenLayers map instance */
   map: Map | null;
-  /** Current parcel vertices in EPSG:21037 (used to initialise the editable polygon) */
+  /** Current parcel vertices in the project CRS (used to initialise the editable polygon) */
   vertices: VertexPoint[];
   /** Whether editing interactions are active */
   enabled: boolean;
   /** Callback with updated vertices after every edit */
   onVerticesChange: (updated: VertexPoint[]) => void;
+  /** Project UTM EPSG (e.g. 'EPSG:21037') — required; never defaulted (plan F4) */
+  epsg: string | null;
   /** Snap tolerance in pixels (default 10) */
   snapTolerance?: number;
   /** Whether magnetic snap is on (default true) */
@@ -48,50 +58,6 @@ export interface VertexEditingState {
 }
 
 /* ------------------------------------------------------------------ */
-/*  Geometry helpers (all in map projection – EPSG:3857)              */
-/* ------------------------------------------------------------------ */
-
-function pointToSegmentDist(
-  p: [number, number],
-  a: [number, number],
-  b: [number, number]
-): number {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0)
-    return Math.sqrt((p[0] - a[0]) ** 2 + (p[1] - a[1]) ** 2);
-  const t = Math.max(
-    0,
-    Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)
-  );
-  return Math.sqrt((p[0] - (a[0] + t * dx)) ** 2 + (p[1] - (a[1] + t * dy)) ** 2);
-}
-
-function nearestPointOnSegment(
-  p: [number, number],
-  a: [number, number],
-  b: [number, number]
-): [number, number] {
-  const dx = b[0] - a[0];
-  const dy = b[1] - a[1];
-  const len2 = dx * dx + dy * dy;
-  if (len2 === 0) return [a[0], a[1]];
-  const t = Math.max(
-    0,
-    Math.min(1, ((p[0] - a[0]) * dx + (p[1] - a[1]) * dy) / len2)
-  );
-  return [a[0] + t * dx, a[1] + t * dy];
-}
-
-function vertexDist(
-  p: [number, number],
-  v: [number, number]
-): number {
-  return Math.sqrt((p[0] - v[0]) ** 2 + (p[1] - v[1]) ** 2);
-}
-
-/* ------------------------------------------------------------------ */
 /*  Hook                                                               */
 /* ------------------------------------------------------------------ */
 
@@ -100,6 +66,7 @@ export function useVertexEditing({
   vertices,
   enabled,
   onVerticesChange,
+  epsg,
   snapTolerance = 10,
   snapEnabled = true,
 }: VertexEditingOptions) {
@@ -131,8 +98,9 @@ export function useVertexEditing({
   useEffect(() => { verticesRef.current = vertices; }, [vertices]);
   useEffect(() => { onVerticesChangeRef.current = onVerticesChange; }, [onVerticesChange]);
 
-  // --- Read polygon geometry → EPSG:21037 vertices ---
+  // --- Read polygon geometry → project-CRS vertices ---
   const readVerticesFromFeature = useCallback(async (): Promise<VertexPoint[]> => {
+    if (!epsg) return []
     const feat = featureRef.current;
     if (!feat) return verticesRef.current;
     const geom = feat.getGeometry();
@@ -140,9 +108,9 @@ export function useVertexEditing({
     const ring = geom.getCoordinates()[0] as number[][];
     // Remove closing vertex (duplicate of first)
     const open = ring.slice(0, -1);
-    const pts = await Promise.all(open.map(([x, y]) => to21037(x, y)));
+    const pts = await Promise.all(open.map(([x, y]) => toProjectCrs(x, y, epsg)));
     return pts.map(([e, n]) => ({ easting: e, northing: n }));
-  }, []);
+  }, [epsg]);
 
   // --- Callback after any geometry edit ---
   const syncVertices = useCallback(async () => {
@@ -195,10 +163,11 @@ export function useVertexEditing({
 
   // --- Main setup effect ---
   useEffect(() => {
-    if (!map || !enabled) {
+    if (!map || !enabled || !epsg) {
       cleanup();
       return;
     }
+    const surveyCrs = epsg
 
     if (vertices.length < 3) return;
 
@@ -212,7 +181,6 @@ export function useVertexEditing({
         { default: Feature },
         { default: Polygon },
         { default: Modify },
-        { default: Snap },
         olStyle,
       ] = await Promise.all([
         import('ol/source/Vector'),
@@ -220,7 +188,6 @@ export function useVertexEditing({
         import('ol/Feature'),
         import('ol/geom/Polygon'),
         import('ol/interaction/Modify'),
-        import('ol/interaction/Snap'),
         import('ol/style'),
       ]);
 
@@ -244,8 +211,8 @@ export function useVertexEditing({
       });
 
       // --- Convert vertices to 3857 and build closed ring ---
-      const coords21037 = vertices.map(v => [v.easting, v.northing] as [number, number]);
-      const coords3857 = await arrayTo3857(coords21037);
+      const coordsGrid = vertices.map(v => [v.easting, v.northing] as [number, number]);
+      const coords3857 = await arrayTo3857(coordsGrid, surveyCrs);
       const closedRing: number[][] = [...coords3857.map(c => [...c]), [...coords3857[0]]];
 
       const polygon = new Polygon([closedRing]);
@@ -295,10 +262,7 @@ export function useVertexEditing({
       // --- Snap interaction (magnetic snap to own vertices) ---
       let snap: import('ol/interaction/Snap').default | null = null;
       if (snapEnabled) {
-        snap = new Snap({
-          source,
-          pixelTolerance: snapTolerance,
-        });
+        snap = await createSnapInteraction(source, snapTolerance);
         map.addInteraction(snap);
         snapRef.current = snap;
       }
@@ -312,29 +276,22 @@ export function useVertexEditing({
         const geom = feature.getGeometry() as OlPolygon;
         const ring = geom.getCoordinates()[0] as number[][];
 
-        // Find nearest edge
-        let minDist = Infinity;
-        let bestIdx = -1;
-        for (let i = 0; i < ring.length - 1; i++) {
-          const d = pointToSegmentDist(coord, ring[i] as [number, number], ring[i + 1] as [number, number]);
-          if (d < minDist) {
-            minDist = d;
-            bestIdx = i + 1;
-          }
-        }
+        // Nearest edge (engine helper; index = insertion position)
+        const edge = nearestEdgeOnRing(ring, coord);
+        if (!edge) return;
 
         // Use a generous pixel-based threshold (30 px ≈ 30 m at zoom 16-18)
         const resolution = map.getView().getResolution() ?? 1;
         const threshold = resolution * 30;
-        if (minDist > threshold) return;
+        if (edge.distance > threshold) return;
 
         // Compute insertion point
-        const segStart = ring[bestIdx - 1] as [number, number];
-        const segEnd = ring[bestIdx] as [number, number];
+        const segStart = ring[edge.index - 1] as [number, number];
+        const segEnd = ring[edge.index] as [number, number];
         const insertPt = nearestPointOnSegment(coord, segStart, segEnd);
 
         // Insert into ring (before closing vertex)
-        const newRing = [...ring.slice(0, bestIdx), insertPt, ...ring.slice(bestIdx)];
+        const newRing = [...ring.slice(0, edge.index), insertPt, ...ring.slice(edge.index)];
         geom.setCoordinates([newRing]);
 
         const updated = await readVerticesFromFeature();
@@ -342,8 +299,8 @@ export function useVertexEditing({
         setState(prev => ({
           ...prev,
           vertexCount: updated.length,
-          lastEditedVertex: updated[bestIdx]
-            ? { ...updated[bestIdx], index: bestIdx }
+          lastEditedVertex: updated[edge.index]
+            ? { ...updated[edge.index], index: edge.index }
             : prev.lastEditedVertex,
         }));
       };
@@ -363,24 +320,16 @@ export function useVertexEditing({
 
         if (ring.length - 1 <= 3) return; // need at least 3 unique vertices
 
-        // Find nearest vertex (exclude closing vertex)
-        let minDist = Infinity;
-        let bestIdx = -1;
-        for (let i = 0; i < ring.length - 1; i++) {
-          const d = vertexDist(coord, ring[i] as [number, number]);
-          if (d < minDist) {
-            minDist = d;
-            bestIdx = i;
-          }
-        }
+        // Nearest vertex, excluding the closing duplicate (engine helper)
+        const hit = nearestVertexOnRing(ring, coord);
 
         const resolution = map.getView().getResolution() ?? 1;
         const threshold = resolution * 15;
-        if (minDist > threshold) return;
+        if (!hit || hit.distance > threshold) return;
 
-        // Remove vertex at bestIdx and rebuild closed ring
+        // Remove vertex at hit.index and rebuild closed ring
         const openRing = ring.slice(0, -1);
-        openRing.splice(bestIdx, 1);
+        openRing.splice(hit.index, 1);
         const newRing = [...openRing, [...openRing[0]]];
         geom.setCoordinates([newRing]);
 
@@ -405,25 +354,17 @@ export function useVertexEditing({
         if (!geom) return;
 
         const ring = geom.getCoordinates()[0] as number[][];
-        let minDist = Infinity;
-        let bestIdx = -1;
-        for (let i = 0; i < ring.length - 1; i++) {
-          const d = vertexDist(coord, ring[i] as [number, number]);
-          if (d < minDist) {
-            minDist = d;
-            bestIdx = i;
-          }
-        }
+        const hit = nearestVertexOnRing(ring, coord);
 
         const resolution = map.getView().getResolution() ?? 1;
         const threshold = resolution * 15;
 
-        if (minDist <= threshold && bestIdx >= 0) {
-          const [x, y] = ring[bestIdx];
-          const [e, n] = await to21037(x, y);
+        if (hit && hit.distance <= threshold) {
+          const [x, y] = ring[hit.index];
+          const [e, n] = await toProjectCrs(x, y, surveyCrs);
           setState(prev => ({
             ...prev,
-            hoveredVertex: { easting: e, northing: n, index: bestIdx },
+            hoveredVertex: { easting: e, northing: n, index: hit.index },
           }));
         } else {
           setState(prev =>
@@ -453,7 +394,7 @@ export function useVertexEditing({
       cleanup();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [map, enabled, snapTolerance, snapEnabled, cleanup, readVerticesFromFeature]);
+  }, [map, enabled, snapTolerance, snapEnabled, epsg, cleanup, readVerticesFromFeature]);
 
   // --- Public API ---
   return {

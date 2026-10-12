@@ -108,6 +108,12 @@ export const DXF_LAYERS = {
   ROW_BDY:           { name: 'ROW_BDY',    color: 2, linetype: 'DASHED'     },
   /** Setting-out pegs */
   SETOUT:            { name: 'SETOUT',     color: 5, linetype: 'CONTINUOUS' },
+  /** Generic points sketched on the global map */
+  MAP_POINT:         { name: 'MAP_POINT', color: 2, linetype: 'CONTINUOUS' },
+  /** Generic open linework sketched on the global map */
+  MAP_LINE:          { name: 'MAP_LINE',  color: 4, linetype: 'CONTINUOUS' },
+  /** Generic closed boundary rings sketched on the global map */
+  MAP_BOUNDARY:      { name: 'MAP_BOUNDARY', color: 1, linetype: 'CONTINUOUS' },
   /** Cut slope edge */
   CUT_EDGE:          { name: 'CUT_EDGE',   color: 1, linetype: 'DASHED'     },
   /** Fill slope edge */

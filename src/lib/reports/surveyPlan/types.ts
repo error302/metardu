@@ -38,6 +38,12 @@ export interface SurveyPlanData {
     utm_zone: number
     hemisphere: 'N' | 'S'
     datum?: 'ARC1960' | 'WGS84' | 'WGS84Geographic'
+    // Vertical declaration (blueprint §31 P0) — from project_reference_systems;
+    // absent when the project never declared one (renders as UNVERIFIED).
+    vertical_datum?: string
+    vertical_reference?: 'orthometric' | 'ellipsoidal' | 'trig' | 'local'
+    geoid_model?: string
+    benchmark_basis?: string
     client_name?: string
     surveyor_name?: string
     surveyor_licence?: string

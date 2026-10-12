@@ -6,8 +6,9 @@
 // Extracted from src/app/tools/cassini-utm/page.tsx.
 
 import { Grid3X3 } from 'lucide-react'
-import { verifyWithCommonPoints, getSubSheetGrid } from '@/lib/geo/cassini'
-import type { SubSheetDef } from '@/lib/geo/cassini'
+import { useEffect, useState } from 'react'
+import { verifyWithCommonPoints } from '@/lib/geo/cassini/verify'
+import type { SubSheetDef } from '@/lib/geo/cassini/types'
 
 interface SubSheetCornerBannerProps {
   activeSubSheet: SubSheetDef
@@ -83,7 +84,16 @@ export function SubSheetGridPicker({
   detectedSubSheet,
   activeSubSheet,
 }: SubSheetGridPickerProps) {
-  const grid = getSubSheetGrid(selectedSheetId)
+  const [grid, setGrid] = useState<(SubSheetDef | null)[][]>([])
+
+  useEffect(() => {
+    let cancelled = false
+    void import('@/lib/geo/cassini/subsheets').then(({ getSubSheetGrid }) => {
+      if (!cancelled) setGrid(getSubSheetGrid(selectedSheetId))
+    })
+    return () => { cancelled = true }
+  }, [selectedSheetId])
+
   if (grid.length === 0) return null
 
   return (

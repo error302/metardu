@@ -11,7 +11,9 @@
  * - Click beacon to view details and copy coordinates
  */
 
-import { useState, useCallback, useEffect } from 'react'
+import { BeaconReestablishmentForm } from './BeaconReestablishmentForm'
+import { RegistryProjectField, type RegistryProject } from './RegistryProjectField'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import {
   Search, MapPin, Plus, Loader2, Copy, Check,
   Building2, Navigation, X,
@@ -31,6 +33,11 @@ interface Beacon {
   condition?: string | null
   description?: string | null
   distance_m?: number
+  vertical_datum?: string | null
+  horizontal_crs?: string | null
+  project_id?: string | null
+  owned?: boolean
+  status?: string
 }
 
 type SearchMode = 'text' | 'proximity'
@@ -38,6 +45,10 @@ type SearchMode = 'text' | 'proximity'
 export function BeaconRegistryPanel() {
   const [mode, setMode] = useState<SearchMode>('text')
   const [query, setQuery] = useState('')
+  const [crs, setCrs] = useState('')
+  const [replacement, setReplacement] = useState<Beacon | null>(null)
+  const [notice, setNotice] = useState<string | null>(null)
+  const searchSequence = useRef(0)
   const [easting, setEasting] = useState('')
   const [northing, setNorthing] = useState('')
   const [radius, setRadius] = useState('500')
@@ -50,6 +61,7 @@ export function BeaconRegistryPanel() {
   const [copiedId, setCopiedId] = useState<string | null>(null)
 
   const search = useCallback(async () => {
+    const sequence = ++searchSequence.current
     setLoading(true)
     setError(null)
     try {
@@ -57,29 +69,31 @@ export function BeaconRegistryPanel() {
       if (mode === 'text') {
         if (query) params.set('q', query)
       } else {
-        if (!easting || !northing) {
-          setError('Enter easting and northing for proximity search')
+        if (!easting || !northing || !crs.trim()) {
+          setError('Enter easting, northing and their declared EPSG grid')
           setLoading(false)
           return
         }
         params.set('easting', easting)
         params.set('northing', northing)
         params.set('radius', radius)
+        params.set('crs', crs.trim())
       }
       if (county) params.set('county', county)
       if (beaconType) params.set('beacon_type', beaconType)
       params.set('limit', '50')
 
       const res = await fetch(`/api/beacons?${params}`)
-      if (!res.ok) throw new Error('Search failed')
-      const data = await res.json() as { data?: { beacons?: Beacon[] } }
+      const data = await res.json() as { error?: string; data?: { beacons?: Beacon[] } }
+      if (!res.ok) throw new Error(data.error ?? 'Search failed')
+      if (sequence !== searchSequence.current) return
       setResults(data.data?.beacons || [])
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed')
+      if (sequence === searchSequence.current) { setResults([]); setError(err instanceof Error ? err.message : 'Search failed') }
     } finally {
-      setLoading(false)
+      if (sequence === searchSequence.current) setLoading(false)
     }
-  }, [mode, query, easting, northing, radius, county, beaconType])
+  }, [crs, mode, query, easting, northing, radius, county, beaconType])
 
   // Auto-search on mount - intentionally mount-only (explicit Search button / Enter
   // re-search), so `search` is deliberately omitted from deps.
@@ -88,11 +102,14 @@ export function BeaconRegistryPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  const handleCopy = useCallback((beacon: Beacon) => {
-    const text = `${beacon.beacon_number} E:${beacon.easting.toFixed(3)} N:${beacon.northing.toFixed(3)}`
-    navigator.clipboard.writeText(text)
-    setCopiedId(beacon.id)
-    setTimeout(() => setCopiedId(null), 2000)
+  const handleCopy = useCallback(async (beacon: Beacon) => {
+    if (!beacon.horizontal_crs) return
+    const text = `${beacon.beacon_number} Grid:${beacon.horizontal_crs} E:${beacon.easting} N:${beacon.northing}${beacon.elevation == null ? '' : ` RL:${beacon.elevation} Vertical datum:${beacon.vertical_datum ?? 'not declared; verify before reuse'}`} — registered reference; verify before adoption`
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedId(beacon.id)
+      setTimeout(() => setCopiedId(null), 2000)
+    } catch { setError('Coordinates could not be copied. Select the displayed values to copy them manually.') }
   }, [])
 
   return (
@@ -106,7 +123,7 @@ export function BeaconRegistryPanel() {
             </div>
             <div>
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">Beacon Registry</h2>
-              <p className="text-[10px] text-gray-500">Search the global survey beacon database</p>
+              <p className="text-[10px] text-gray-500">Find registered marks and review their declared references</p>
             </div>
           </div>
           <button
@@ -187,6 +204,9 @@ export function BeaconRegistryPanel() {
           </div>
         )}
 
+        {mode === 'proximity' && <label className="block text-xs text-[var(--text-secondary)]">Search grid (EPSG code)
+          <input aria-label="Search grid" value={crs} onChange={event => setCrs(event.target.value)} placeholder="Use the grid declared for your coordinates" className="input mt-1 w-full" />
+        </label>}
         {/* Filters */}
         <div className="grid grid-cols-2 gap-2">
           <input
@@ -220,6 +240,8 @@ export function BeaconRegistryPanel() {
         </button>
       </div>
 
+      {notice && <p role="status" className="text-xs text-[var(--text-secondary)]">{notice}</p>}
+      {replacement && <BeaconReestablishmentForm beacon={replacement} onClose={() => setReplacement(null)} onSaved={() => { setReplacement(null); setNotice('Observed replacement recorded. Control verification remains required.'); void search() }} />}
       {/* Add form */}
       {showAddForm && (
         <AddBeaconForm
@@ -266,8 +288,8 @@ export function BeaconRegistryPanel() {
                   <MapPin className="w-4 h-4 text-[var(--accent)]" />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-medium text-[var(--text-primary)] font-mono">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="w-full min-w-0 break-all text-sm font-medium text-[var(--text-primary)] font-mono sm:w-auto">
                       {beacon.beacon_number}
                     </span>
                     <span className="text-[9px] px-1.5 py-0.5 rounded bg-white/[0.04] text-gray-400 uppercase">
@@ -292,6 +314,9 @@ export function BeaconRegistryPanel() {
                       </span>
                     )}
                   </div>
+                  <p className="mt-1 text-xs text-[var(--text-muted)]">{beacon.horizontal_crs ?? 'Coordinate reference not declared'} — verify before control adoption.</p>
+                  <p className="mt-1 text-xs font-mono text-[var(--text-secondary)]">E {beacon.easting} · N {beacon.northing}{beacon.elevation == null ? '' : ` · RL ${beacon.elevation} (${beacon.vertical_datum ?? 'datum not declared'})`}</p>
+                  {beacon.owned && <button type="button" onClick={() => setReplacement(beacon)} className="mt-2 text-xs text-[var(--accent)]">Record observed replacement</button>}
                   {beacon.county && (
                     <div className="flex items-center gap-1 mt-0.5 text-[10px] text-gray-600">
                       <Building2 className="w-2.5 h-2.5" />
@@ -302,9 +327,11 @@ export function BeaconRegistryPanel() {
                   )}
                 </div>
                 <button
-                  onClick={() => handleCopy(beacon)}
-                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] opacity-0 group-hover:opacity-100 transition-all"
-                  title="Copy coordinates"
+                  onClick={() => void handleCopy(beacon)}
+                  disabled={!beacon.horizontal_crs}
+                  className="shrink-0 w-8 h-8 flex items-center justify-center rounded-lg text-gray-500 hover:text-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] disabled:opacity-40 transition-all"
+                  title={beacon.horizontal_crs ? 'Copy coordinates with their grid' : 'Declare the reference before reusing these coordinates'}
+                  aria-label={`Copy coordinates for ${beacon.beacon_number}`}
                 >
                   {copiedId === beacon.id ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
                 </button>
@@ -320,6 +347,8 @@ export function BeaconRegistryPanel() {
 // ─── Add Beacon Form ─────────────────────────────────────────────────────
 
 function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () => void }) {
+  const [project, setProject] = useState<RegistryProject | null>(null)
+  const [elevation, setElevation] = useState('')
   const [beaconNumber, setBeaconNumber] = useState('')
   const [beaconType, setBeaconType] = useState('concrete')
   const [easting, setEasting] = useState('')
@@ -338,8 +367,9 @@ function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          beaconNumber, beaconType,
-          easting: parseFloat(easting), northing: parseFloat(northing),
+          projectId: project?.id, beaconNumber, beaconType,
+          easting: Number(easting), northing: Number(northing),
+          elevation: elevation.trim() ? Number(elevation) : null, verticalDatum: elevation.trim() ? project?.verticalDatum : null,
           county, locality, condition,
         }),
       })
@@ -353,7 +383,7 @@ function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
     } finally {
       setSaving(false)
     }
-  }, [beaconNumber, beaconType, easting, northing, county, locality, condition, onAdded])
+  }, [project, elevation, beaconNumber, beaconType, easting, northing, county, locality, condition, onAdded])
 
   return (
     <div className="card p-4 space-y-3">
@@ -364,6 +394,9 @@ function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
         </button>
       </div>
 
+      <p className="text-xs text-[var(--text-muted)]">This registers coordinates in the shared registry. It does not certify a control point.</p>
+      <RegistryProjectField value={project} onChange={setProject} />
+      <label className="block text-xs">Observed height (m, optional)<input aria-label="Observed height" type="number" step="any" value={elevation} onChange={event => setElevation(event.target.value)} className="input mt-1 w-full" /></label>
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="block text-[9px] text-gray-500 uppercase tracking-wider mb-1" htmlFor="beacon-number">Beacon Number</label>
@@ -408,7 +441,7 @@ function AddBeaconForm({ onClose, onAdded }: { onClose: () => void; onAdded: () 
         <button onClick={onClose} className="flex-1 h-9 rounded-lg bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-xs text-gray-400 hover:text-gray-200">Cancel</button>
         <button
           onClick={handleSave}
-          disabled={saving || !beaconNumber || !easting || !northing}
+          disabled={saving || !beaconNumber || !easting || !northing || !project?.horizontalCrs || Boolean(elevation.trim() && !project?.verticalDatum)}
           className="flex-1 h-9 rounded-lg bg-[var(--accent)] text-black text-xs font-semibold hover:bg-[var(--accent-dim)] disabled:opacity-40"
         >
           {saving ? 'Saving...' : 'Add Beacon'}

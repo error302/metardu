@@ -81,6 +81,34 @@ services:
       - no-new-privileges:true
     restart: unless-stopped
 
+  # The only service that receives the PostgreSQL bootstrap login. It creates
+  # the limited app role, applies schema changes, and exits before web startup.
+  metardu-db-migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: metardu-db-migrate
+    entrypoint: ["node"]
+    command: ["/app/provision-runtime-db-role.mjs"]
+    environment:
+      - MIGRATION_DB_HOST=metardu-postgres
+      - MIGRATION_DB_PORT=5432
+      - MIGRATION_DB_NAME=${POSTGRES_DB:-metardu}
+      - MIGRATION_DB_USER=${POSTGRES_USER:-metardu}
+      - MIGRATION_DB_PASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      - APP_DB_HOST=metardu-postgres
+      - APP_DB_PORT=5432
+      - APP_DB_NAME=${POSTGRES_DB:-metardu}
+      - APP_DB_USER=${APP_DB_USER:-metardu_app}
+      - APP_DB_PASSWORD=${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}
+      - NODE_ENV=production
+    depends_on:
+      metardu-postgres:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: "no"
+
   # ── Redis (Caching + Rate Limiting + Pub/Sub) ──────────────────────────
   metardu-redis:
     image: redis:7-alpine
@@ -152,7 +180,11 @@ services:
     ports:
       - "3000:3000"   # Exposed to host for Caddy/reverse proxy
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-metardu}:${POSTGRES_PASSWORD}@metardu-postgres:5432/${POSTGRES_DB:-metardu}
+      - DB_HOST=metardu-postgres
+      - DB_PORT=5432
+      - DB_NAME=${POSTGRES_DB:-metardu}
+      - DB_USER=${APP_DB_USER:-metardu_app}
+      - DB_PASSWORD=${APP_DB_PASSWORD:?APP_DB_PASSWORD must be set}
       - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET must be set}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
@@ -163,9 +195,42 @@ services:
       - HOSTNAME=0.0.0.0
       - DISABLE_PWA=${DISABLE_PWA:-false}
       - NODE_ENV=production
+      - PAYPAL_CLIENT_ID=${PAYPAL_CLIENT_ID:-}
+      - PAYPAL_CLIENT_SECRET=${PAYPAL_CLIENT_SECRET:-}
+      - PAYPAL_MODE=${PAYPAL_MODE:-sandbox}
+      - PAYPAL_WEBHOOK_ID=${PAYPAL_WEBHOOK_ID:-}
+      - PAYPAL_PLAN_PRO_USD=${PAYPAL_PLAN_PRO_USD:-}
+      - PAYPAL_PLAN_PRO_EUR=${PAYPAL_PLAN_PRO_EUR:-}
+      - PAYPAL_PLAN_PRO_GBP=${PAYPAL_PLAN_PRO_GBP:-}
+      - PAYPAL_PLAN_PRO_AUD=${PAYPAL_PLAN_PRO_AUD:-}
+      - PAYPAL_PLAN_TEAM_USD=${PAYPAL_PLAN_TEAM_USD:-}
+      - PAYPAL_PLAN_TEAM_EUR=${PAYPAL_PLAN_TEAM_EUR:-}
+      - PAYPAL_PLAN_TEAM_GBP=${PAYPAL_PLAN_TEAM_GBP:-}
+      - PAYPAL_PLAN_TEAM_AUD=${PAYPAL_PLAN_TEAM_AUD:-}
+      - PAYPAL_PLAN_FIRM_USD=${PAYPAL_PLAN_FIRM_USD:-}
+      - PAYPAL_PLAN_FIRM_EUR=${PAYPAL_PLAN_FIRM_EUR:-}
+      - PAYPAL_PLAN_FIRM_GBP=${PAYPAL_PLAN_FIRM_GBP:-}
+      - PAYPAL_PLAN_FIRM_AUD=${PAYPAL_PLAN_FIRM_AUD:-}
+      - PAYPAL_PLAN_PRO=${PAYPAL_PLAN_PRO:-}
+      - PAYPAL_PLAN_TEAM=${PAYPAL_PLAN_TEAM:-}
+      - PAYPAL_PLAN_FIRM=${PAYPAL_PLAN_FIRM:-}
+      - PAYPAL_PLAN_ENTERPRISE=${PAYPAL_PLAN_ENTERPRISE:-}
+      - NEXT_PUBLIC_PAYPAL_CLIENT_ID=${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
+      - SMTP_HOST=${SMTP_HOST:-}
+      - SMTP_PORT=${SMTP_PORT:-465}
+      - SMTP_USER=${SMTP_USER:-}
+      - SMTP_PASS=${SMTP_PASS:-}
+      - SMTP_PASSWORD=${SMTP_PASSWORD:-}
+      - EMAIL_FROM=${EMAIL_FROM:-}
+      - EMAIL_REPLY_TO=${EMAIL_REPLY_TO:-}
+      - SUPPORT_EMAIL=${SUPPORT_EMAIL:-}
+      - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-}
+      - RESEND_API_KEY=${RESEND_API_KEY:-}
     depends_on:
       metardu-postgres:
         condition: service_healthy
+      metardu-db-migrate:
+        condition: service_completed_successfully
       metardu-worker:
         condition: service_healthy
       metardu-redis:
@@ -256,7 +321,11 @@ services:
       dockerfile: Dockerfile.backup
     container_name: metardu-backup
     environment:
-      - DATABASE_URL=postgresql://${POSTGRES_USER:-metardu}:${POSTGRES_PASSWORD}@metardu-postgres:5432/${POSTGRES_DB:-metardu}
+      - PGHOST=metardu-postgres
+      - PGPORT=5432
+      - PGDATABASE=${POSTGRES_DB:-metardu}
+      - PGUSER=${POSTGRES_USER:-metardu}
+      - PGPASSWORD=${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
       - BACKUP_DIR=/backups
       - BACKUP_CRON=${BACKUP_CRON:-0 2 * * *}
       - BACKUP_RETENTION=${BACKUP_RETENTION:-30}

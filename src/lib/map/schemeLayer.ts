@@ -5,18 +5,19 @@
  * (parcels, blocks, beacons) on an OpenLayers map.
  *
  * All OpenLayers imports are dynamic for SSR compatibility.
- * Coordinates are transformed from EPSG:21037 (Arc 1960 / UTM 37S)
+ * Coordinates are transformed from the project's declared projected CRS
  * to EPSG:3857 (Web Mercator) for display.
  *
  * @module schemeLayer
  * @see layers.ts — base layer factories
  * @see cadastralStyles.ts — status-aware styling
- * @see projection.ts — EPSG:21037 registration
+ * @see projection.ts — registered project CRS definitions
  */
 
 import type { OLMap, OLFeature, OLLayer, OLEvent, OLOverlay } from './olTypes'
 
 import { registerProjections } from '@/lib/map/projection'
+import { requireMatchingSchemeCrs } from '@/lib/map/schemeCrs'
 import {
   createParcelStyleFunction,
   createBeaconStyleFunction,
@@ -31,7 +32,7 @@ export interface SchemeGeoJSON {
   type: 'FeatureCollection'
   features: SchemeFeature[]
   bounds: [number, number, number, number] | null
-  crs: { type: 'string'; properties: { name: string } }
+  crs: { type: 'name'; properties: { name: string } }
 }
 
 export interface SchemeFeature {
@@ -76,8 +77,8 @@ export interface SchemeLayerOptions {
   onParcelClick?: (properties: SchemeFeature['properties']) => void
   /** Callback when a beacon feature is clicked */
   onBeaconClick?: (properties: SchemeFeature['properties']) => void
-  /** T1.5 FIX (2026-07-09): UTM EPSG for coordinate transforms (default 'EPSG:21037') */
-  epsg?: string
+  /** T1.5 FIX (2026-07-09): UTM EPSG for coordinate transforms (REQUIRED) */
+  epsg: string
 }
 
 // ─── Data Fetching ────────────────────────────────────────────────────────
@@ -86,7 +87,7 @@ export interface SchemeLayerOptions {
  * Fetch scheme GeoJSON data from the API.
  *
  * @param projectId - The project ID to load scheme data for
- * @returns GeoJSON FeatureCollection with EPSG:21037 coordinates
+ * @returns GeoJSON FeatureCollection with coordinates in the saved project CRS
  * @throws Error if the API request fails
  */
 export async function loadSchemeData(projectId: string): Promise<SchemeGeoJSON> {
@@ -103,17 +104,21 @@ export async function loadSchemeData(projectId: string): Promise<SchemeGeoJSON> 
     throw new Error('Invalid scheme data response')
   }
 
+  if (data.crs?.type !== 'name' || !data.crs.properties?.name) {
+    throw new Error('Scheme coordinates are missing their declared CRS.')
+  }
+
   return data
 }
 
 // ─── Coordinate Transformation ────────────────────────────────────────────
 
 /**
- * Transform a GeoJSON polygon ring from EPSG:21037 to EPSG:3857.
+ * Transform a GeoJSON polygon ring from the declared project CRS to EPSG:3857.
  */
 async function transformRing(
   ring: number[][],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<Array<[number, number]>> {
   const { transform } = await import('ol/proj')
   return ring.map(coord => {
@@ -127,11 +132,11 @@ async function transformRing(
 }
 
 /**
- * Transform a single coordinate from EPSG:21037 to EPSG:3857.
+ * Transform a single coordinate from the declared project CRS to EPSG:3857.
  */
 async function transformCoord(
   coord: number[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<[number, number]> {
   const { transform } = await import('ol/proj')
   return transform([coord[0], coord[1]], epsg, 'EPSG:3857') as [number, number]
@@ -152,9 +157,9 @@ async function transformCoord(
  */
 export async function createSchemeParcelLayer(
   projectId: string,
-  options: SchemeLayerOptions = {},
+  options: SchemeLayerOptions,
 ): Promise<import('ol/layer/Vector').default> {
-  const { showParcelLabels = true, epsg = 'EPSG:21037' } = options
+  const { showParcelLabels = true, epsg } = options
 
   // Ensure projections are registered before any transforms
   await registerProjections()
@@ -235,7 +240,7 @@ export async function createSchemeParcelLayer(
  */
 export async function createSchemeBlockLayer(
   projectId: string,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<import('ol/layer/Vector').default> {
   await registerProjections()
 
@@ -328,7 +333,7 @@ export async function createSchemeBlockLayer(
  */
 export async function createSchemeBeaconLayer(
   projectId: string,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<import('ol/layer/Vector').default> {
   await registerProjections()
 
@@ -379,7 +384,7 @@ export async function createSchemeBeaconLayer(
       blockNumber: feat.properties.block_number,
     })
 
-    // Store original EPSG:21037 coordinates for vertex editing / COGO
+    // Store original project-grid coordinates for vertex editing / COGO.
     olFeature.set('easting', coord[0])
     olFeature.set('northing', coord[1])
 
@@ -719,9 +724,9 @@ export async function zoomToSchemeExtent(
  */
 async function buildParcelLayerFromData(
   data: SchemeGeoJSON,
-  options: { showParcelLabels?: boolean; epsg?: string } = {},
+  options: { showParcelLabels?: boolean; epsg: string },
 ): Promise<import('ol/layer/Vector').default> {
-  const { showParcelLabels = true, epsg = 'EPSG:21037' } = options
+  const { showParcelLabels = true, epsg } = options
 
   const [
     { default: VectorLayer },
@@ -786,7 +791,7 @@ async function buildParcelLayerFromData(
  */
 async function buildBlockLayerFromData(
   data: SchemeGeoJSON,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<import('ol/layer/Vector').default> {
   const [
     { default: VectorLayer },
@@ -868,7 +873,7 @@ async function buildBlockLayerFromData(
  */
 async function buildBeaconLayerFromData(
   data: SchemeGeoJSON,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<import('ol/layer/Vector').default> {
   const [
     { default: VectorLayer },
@@ -913,7 +918,7 @@ async function buildBeaconLayerFromData(
       blockNumber: feat.properties.block_number,
     })
 
-    // Store original EPSG:21037 coordinates for vertex editing / COGO
+    // Store original project-grid coordinates for vertex editing / COGO.
     olFeature.set('easting', coord[0])
     olFeature.set('northing', coord[1])
 
@@ -949,7 +954,7 @@ async function buildBeaconLayerFromData(
 export async function createSchemeLayers(
   projectId: string,
   map: OLMap,
-  options: SchemeLayerOptions = {},
+  options: SchemeLayerOptions,
 ): Promise<{
   parcelLayer: import('ol/layer/Vector').default
   blockLayer: import('ol/layer/Vector').default
@@ -961,13 +966,14 @@ export async function createSchemeLayers(
   beaconCount: number
   extent: number[] | null
 }> {
-  const { autoZoom = true, showParcelLabels = true, epsg = 'EPSG:21037' } = options
+  const { autoZoom = true, showParcelLabels = true, epsg } = options
 
   // Ensure projections are registered
   await registerProjections()
 
   // Fetch data ONCE and share across all layers (prevents triple API call)
   const data = await loadSchemeData(projectId)
+  requireMatchingSchemeCrs(data.crs.properties.name, epsg)
 
   // Create all three layers using the shared data
   const [parcelLayer, blockLayer, beaconLayer] = await Promise.all([

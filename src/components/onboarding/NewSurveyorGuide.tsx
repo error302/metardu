@@ -45,14 +45,14 @@ const TOUR_STEPS = [
   {
     icon: FileCheck,
     title: 'Step 4: Review',
-    description: 'Review the traverse diagram, boundary plan, and computation results. The statutory validation gate checks Cap. 299 compliance and flags any issues before you can export.',
-    tip: 'The cross-checks verify your area computation using two independent methods. If they disagree, there is a computation error.',
+    description: 'Review the traverse diagram, boundary plan, and computation results. METARDU checks the available project data against its configured rules; this is a review aid, not a certification of legal or registry compliance.',
+    tip: 'Compare the checks with your source observations and the current requirements that apply to this survey.',
   },
   {
     icon: Send,
-    title: 'Step 5: Submission',
-    description: 'Generate the deed plan (Form No. 4), Form C22, and NLIMS-ready export. Download all documents as a package for submission to the Survey of Kenya.',
-    tip: 'The statutory gate must pass before you can export. If it blocks, fix the issues in Steps 2-4 first.',
+    title: 'Step 5: Prepare and review',
+    description: 'Generate METARDU document drafts and a project-backed cadastral JSON draft from saved boundary observations. Download the available files, review every value, and confirm the current official filing process yourself.',
+    tip: 'METARDU does not send files to Ardhisasa or certify their acceptance. A licensed surveyor must review and sign the work as required.',
   },
 ]
 

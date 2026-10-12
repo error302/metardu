@@ -9,6 +9,7 @@ import { fmt } from './helpers';
 
 interface ReportTabProps {
   validationSummary: ValidationSummary | null;
+  sampleDataLoaded: boolean;
   selectedClass: AccuracyClass;
   generateReportText: () => string;
   handleCopyReport: () => void;
@@ -18,6 +19,7 @@ interface ReportTabProps {
 
 export function ReportTab({
   validationSummary,
+  sampleDataLoaded,
   selectedClass,
   generateReportText,
   handleCopyReport,
@@ -44,6 +46,7 @@ export function ReportTab({
         </div>
 
         <div className="print-area p-6 bg-[var(--bg-tertiary)] rounded border border-[var(--border-color)]">
+          {sampleDataLoaded && <div className="mb-3 border border-amber-600 bg-amber-950/40 p-3 text-sm font-bold text-amber-200">EXAMPLE ONLY — FICTIONAL DATA; NOT SURVEY EVIDENCE</div>}
           <pre className="font-mono text-sm whitespace-pre-wrap overflow-x-auto leading-relaxed text-[var(--text-secondary)]">
             {generateReportText()}
           </pre>
@@ -100,8 +103,9 @@ export function ReportTab({
       {/* Accuracy Class Reference */}
       <div className="card">
         <div className="card-header">
-          <span className="label">Kenya ISK Accuracy Classes Reference</span>
+          <span className="label">Built-in comparison presets</span>
         </div>
+        <p className="px-4 pb-3 text-xs text-amber-300">These app presets are not verified here as current statutory or professional acceptance classes. Confirm the governing limits and survey specification for each project.</p>
         <div className="overflow-x-auto">
           <table className="table">
             <thead>
@@ -110,7 +114,7 @@ export function ReportTab({
                 <th>Map Scale</th>
                 <th>Horizontal Limit (m)</th>
                 <th>Vertical Limit (m)</th>
-                <th>Typical Application</th>
+                <th>Use</th>
               </tr>
             </thead>
             <tbody>
@@ -119,21 +123,21 @@ export function ReportTab({
                 <td>1:500</td>
                 <td className="font-mono">≤ 0.075</td>
                 <td className="font-mono">≤ 0.150</td>
-                <td className="text-[var(--text-muted)] text-sm">Engineering surveys, as-built, high-precision topographic</td>
+                <td className="text-[var(--text-muted)] text-sm">Illustrative comparison preset</td>
               </tr>
               <tr className={selectedClass.name === 'Class II' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : ''}>
                 <td className="font-semibold">Class II</td>
                 <td>1:1000</td>
                 <td className="font-mono">≤ 0.150</td>
                 <td className="font-mono">≤ 0.300</td>
-                <td className="text-[var(--text-muted)] text-sm">General topographic, cadastral, planning surveys</td>
+                <td className="text-[var(--text-muted)] text-sm">Illustrative comparison preset</td>
               </tr>
               <tr className={selectedClass.name === 'Class III' ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : ''}>
                 <td className="font-semibold">Class III</td>
                 <td>1:2500</td>
                 <td className="font-mono">≤ 0.375</td>
                 <td className="font-mono">≤ 0.750</td>
-                <td className="text-[var(--text-muted)] text-sm">Reconnaissance, route surveys, feasibility studies</td>
+                <td className="text-[var(--text-muted)] text-sm">Illustrative comparison preset</td>
               </tr>
             </tbody>
           </table>

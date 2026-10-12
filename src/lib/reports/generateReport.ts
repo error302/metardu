@@ -6,6 +6,34 @@ import { appendSolutionToPdf } from '@/lib/reports/solutionToPdf'
 
 type jsPDFWithAutoTable = jsPDF & { lastAutoTable?: { finalY: number } }
 
+/**
+ * The datum a sheet actually declares. Never substitute a convenient default:
+ * a report that claims WGS84 when the survey was computed on Arc 1960 is a
+ * correctness defect the surveyor signs for (blueprint §2.4, §20.1).
+ */
+function declaredDatum(datum: string | null | undefined): string {
+  const value = datum?.trim()
+  return value ? value : 'NOT DECLARED'
+}
+
+/**
+ * Deterministic drawing number: the same project must always produce the same
+ * drawing reference, so a re-issued sheet is recognisably the same drawing
+ * instead of silently acquiring a new number on every render.
+ */
+function deterministicDrawingNumber(project: {
+  name: string
+  created_at: string
+  drawing_number?: string | null
+  survey_number?: string | null
+}): string {
+  const explicit = project.drawing_number?.trim() || project.survey_number?.trim()
+  if (explicit) return `GN-${explicit.replace(/\s+/g, '-').toUpperCase()}`
+  const slug = project.name.trim().replace(/\s+/g, '-').toUpperCase() || 'PROJECT'
+  const created = (project.created_at ?? '').slice(0, 10).replace(/-/g, '') || '00000000'
+  return `GN-${slug}-${created}`
+}
+
 interface ReportOptions {
   project: {
     name: string
@@ -16,6 +44,12 @@ interface ReportOptions {
     survey_type?: string
     client_name?: string | null
     surveyor_name?: string | null
+    /**
+     * Declared project datum. A report must state the datum it was computed
+     * in; it is never assumed (blueprint §2.4). When absent the sheet says so
+     * rather than printing a convenient lie.
+     */
+    datum?: string | null
   }
   points: Array<{
     name: string
@@ -89,7 +123,7 @@ export function generateSurveyReport(options: ReportOptions, onBlob?: (blob: Blo
   doc.setTextColor(80, 80, 80)
   doc.text(`Location: ${project.location}`, 15, 55)
   doc.text(`UTM Zone: ${project.utm_zone}${project.hemisphere}`, 15, 61)
-  doc.text(`Datum: WGS84`, 15, 67)
+  doc.text(`Datum: ${declaredDatum(project.datum)}`, 15, 67)
   
   let yPos = 75
   if (project.client_name || project.surveyor_name || project.survey_type) {
@@ -292,6 +326,11 @@ interface SurveyPlanOptions {
     utm_zone: number
     hemisphere: string
     created_at: string
+    /** Declared project datum — stated on the sheet, never assumed. */
+    datum?: string | null
+    /** Stable drawing reference (LR/plan number) for deterministic numbering. */
+    drawing_number?: string | null
+    survey_number?: string | null
   }
   points: Array<{
     name: string
@@ -367,7 +406,7 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
   doc.setTextColor(80, 80, 80)
   doc.text(`Location: ${project.location || 'N/A'}`, 10, 38)
   doc.text(`UTM Zone: ${project.utm_zone}${project.hemisphere}`, 10, 43)
-  doc.text(`Datum: WGS84`, 80, 38)
+  doc.text(`Datum: ${declaredDatum(project.datum)}`, 80, 38)
   doc.text(`Date: ${new Date().toLocaleDateString('en-GB')}`, 80, 43)
   doc.text(`Scale: 1:${transform.ratio.toLocaleString()}`, 160, 38)
 
@@ -387,10 +426,10 @@ export function generateSurveyPlan(options: SurveyPlanOptions, onBlob?: (blob: B
       name: project.name,
       location: project.location || 'N/A',
       utm: `${project.utm_zone}${project.hemisphere}`,
-      datum: 'WGS84',
+      datum: declaredDatum(project.datum),
       date: new Date().toLocaleDateString('en-GB'),
       scale: `1:${transform.ratio.toLocaleString()}`,
-      drawingNo: `GN-${new Date().toISOString().slice(0, 10).replace(/-/g, '')}-${String(Date.now()).slice(-4)}`,
+      drawingNo: deterministicDrawingNumber(project),
     }
   })
 

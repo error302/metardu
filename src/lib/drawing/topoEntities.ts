@@ -9,7 +9,7 @@
  *
  * All geometry is in world coordinates (easting/northing metres).
  */
-import Drawing from 'dxf-writer'
+import Drawing, { type TagsManager } from 'dxf-writer'
 import {
   type SurveyPointWithCode,
   type LayerMappingResult,
@@ -30,7 +30,7 @@ export interface Extents {
 
 export type DrawingEntity =
   | { kind: 'line'; layer: string; x1: number; y1: number; x2: number; y2: number }
-  | { kind: 'polyline'; layer: string; pts: Array<[number, number]>; closed?: boolean }
+  | { kind: 'polyline'; layer: string; pts: Array<[number, number]>; closed?: boolean; elevation?: number }
   | { kind: 'point'; layer: string; e: number; n: number }
   | { kind: 'text'; layer: string; e: number; n: number; height: number; text: string; rotation?: number }
 
@@ -72,7 +72,7 @@ const STANDARD_ANNOTATION_LAYERS: Array<[string, string, string]> = [
 
 // ─── Builder ────────────────────────────────────────────────────────────────
 
-export function computeExtents(points: Array<{ easting: number; northing: number }>, paddingFactor = 0.15): Extents {
+export function computeExtents(points: Iterable<{ easting: number; northing: number }>, paddingFactor = 0.15): Extents {
   let minX = Infinity, maxX = -Infinity
   let minY = Infinity, maxY = -Infinity
   for (const p of points) {
@@ -121,7 +121,11 @@ export function buildTopoEntities(
     }
   }
 
-  const extents = computeExtents(points)
+  function* drawingCoordinates() {
+    yield* points
+    for (const contour of contours) for (const path of contour.coordinates) for (const [easting, northing] of path) yield { easting, northing }
+  }
+  const extents = computeExtents(drawingCoordinates())
   const { minX, maxX, minY, maxY } = extents
   const worldW = maxX - minX
   const worldH = maxY - minY
@@ -160,19 +164,30 @@ export function buildTopoEntities(
   }
 
   // ─── Contours ────────────────────────────────────────────────────────────
+  const minXValid = minX + inset
+  const maxXValid = maxX - inset
+  const minYValid = minY + inset
+  const maxYValid = maxY - inset
+
   for (const c of contours) {
     const layer = c.isIndex ? 'CONTOUR_I' : 'CONTOURS'
     for (const ring of c.coordinates) {
       if (ring.length < 2) continue
-      entities.push({ kind: 'polyline', layer, pts: ring, closed: true })
+      // Padding belongs to the sheet frame, never to the survey coordinates.
+      const vertices: Array<[number, number]> = ring.map(([e, n]) => [e, n])
+      const first = vertices[0], last = vertices[vertices.length - 1]
+      const closed = vertices.length > 2 && first[0] === last[0] && first[1] === last[1]
+      entities.push({ kind: 'polyline', layer, pts: vertices, closed, elevation: c.elevation })
       if (c.isIndex && labelContours) {
-        const mid = ring[Math.floor(ring.length / 4)]
-        entities.push({
-          kind: 'text', layer: 'ANNOTATIONS',
-          e: mid[0], n: mid[1],
-          height: worldW * 0.006,
-          text: c.elevation.toFixed(1),
-        })
+        const mid = vertices[Math.floor(vertices.length / 4)]
+        if (mid[0] > minXValid + inset && mid[0] < maxXValid - inset && mid[1] > minYValid + inset && mid[1] < maxYValid - inset) {
+          entities.push({
+            kind: 'text', layer: 'ANNOTATIONS',
+            e: mid[0], n: mid[1],
+            height: worldW * 0.006,
+            text: c.elevation.toFixed(1),
+          })
+        }
       }
     }
   }
@@ -217,13 +232,13 @@ export function buildTopoEntities(
 
   // ─── North arrow ─────────────────────────────────────────────────────────
   {
-    const ax = maxX - worldW * 0.06
+    const ax = maxX - worldW * 0.05
     const ay = maxY - worldH * 0.06
-    const len = worldW * 0.04
+    const len = worldW * 0.03
     entities.push({ kind: 'line', layer: 'NORTH_ARROW', x1: ax, y1: ay - len, x2: ax, y2: ay + len })
-    entities.push({ kind: 'line', layer: 'NORTH_ARROW', x1: ax, y1: ay + len, x2: ax - len * 0.2, y2: ay + len * 0.6 })
-    entities.push({ kind: 'line', layer: 'NORTH_ARROW', x1: ax, y1: ay + len, x2: ax + len * 0.2, y2: ay + len * 0.6 })
-    entities.push({ kind: 'text', layer: 'NORTH_ARROW', e: ax, n: ay + len * 1.3, height: worldW * 0.012, text: 'N' })
+    entities.push({ kind: 'line', layer: 'NORTH_ARROW', x1: ax, y1: ay + len, x2: ax - len * 0.25, y2: ay + len * 0.6 })
+    entities.push({ kind: 'line', layer: 'NORTH_ARROW', x1: ax, y1: ay + len, x2: ax + len * 0.25, y2: ay + len * 0.6 })
+    entities.push({ kind: 'text', layer: 'NORTH_ARROW', e: ax - len * 0.15, n: ay + len * 1.25, height: worldW * 0.011, text: 'N' })
   }
 
   // ─── Scale bar ───────────────────────────────────────────────────────────
@@ -257,21 +272,35 @@ export function buildTopoEntities(
     entities.push({ kind: 'text', layer: 'TITLE_BLOCK', e: tbX, n: tbY - titleSize * 8, height: subSize * 0.85, text: `Coordinate System: Arc 1960 / UTM Zone ${minX > 500000 ? '37S' : '36N'}` })
   }
 
-  // ─── Legend ──────────────────────────────────────────────────────────────
+  // ─── Legend (Positioned cleanly below North Arrow with neat container box) ──
   if (settings.includeLegend && layerResults.length > 0) {
-    const lgX = maxX - worldW * 0.2
-    const lgY = maxY - inset * 2
-    const rowH = worldH * 0.025
-    const textH = worldW * 0.007
+    const lgW = worldW * 0.18
+    const lgX = maxX - lgW - inset * 1.5
+    const lgY = maxY - worldH * 0.14
+    const rowH = worldH * 0.024
+    const textH = worldW * 0.0065
 
-    entities.push({ kind: 'text', layer: 'LEGEND', e: lgX, n: lgY, height: textH * 1.4, text: 'LEGEND' })
+    const totalBoxH = rowH * (layerResults.length + 1.2)
+    entities.push({
+      kind: 'polyline',
+      layer: 'LEGEND',
+      pts: [
+        [lgX - inset * 0.5, lgY + rowH * 0.8],
+        [lgX + lgW, lgY + rowH * 0.8],
+        [lgX + lgW, lgY - totalBoxH],
+        [lgX - inset * 0.5, lgY - totalBoxH],
+      ],
+      closed: true,
+    })
+
+    entities.push({ kind: 'text', layer: 'LEGEND', e: lgX, n: lgY, height: textH * 1.3, text: 'LEGEND' })
 
     let row = 0
     for (const lr of layerResults) {
       const y = lgY - rowH * (row + 1)
       if (y < minY + inset * 5) break
-      entities.push({ kind: 'line', layer: lr.layer, x1: lgX, y1: y, x2: lgX + worldW * 0.015, y2: y })
-      entities.push({ kind: 'text', layer: 'LEGEND', e: lgX + worldW * 0.02, n: y, height: textH, text: `${lr.layer} (${lr.points.length} pts)` })
+      entities.push({ kind: 'line', layer: lr.layer, x1: lgX, y1: y, x2: lgX + worldW * 0.018, y2: y })
+      entities.push({ kind: 'text', layer: 'LEGEND', e: lgX + worldW * 0.024, n: y - textH * 0.3, height: textH, text: `${lr.layer} (${lr.points.length} pts)` })
       row++
     }
   }
@@ -304,11 +333,8 @@ export function entitiesToDxfString(entities: DrawingEntity[], layers: DrawingLa
     }
   }
 
-  const active = new Set<string>()
   function setLayer(layer: string) {
-    if (active.has(layer)) return
     drawing.setActiveLayer(layer)
-    active.add(layer)
   }
 
   for (const e of entities) {
@@ -319,12 +345,26 @@ export function entitiesToDxfString(entities: DrawingEntity[], layers: DrawingLa
         break
       case 'polyline':
         setLayer(e.layer)
-        for (let i = 0; i < e.pts.length - 1; i++) {
-          drawing.drawLine(e.pts[i][0], e.pts[i][1], e.pts[i + 1][0], e.pts[i + 1][1])
-        }
-        if (e.closed && e.pts.length > 2) {
-          const last = e.pts[e.pts.length - 1]
-          drawing.drawLine(last[0], last[1], e.pts[0][0], e.pts[0][1])
+        if (e.pts.length < 2) break
+        if (e.pts.some(point => !point.every(Number.isFinite)) || e.elevation !== undefined && !Number.isFinite(e.elevation)) throw new RangeError('DXF polylines require finite coordinates and elevations.')
+        drawing.drawPolyline(e.pts, e.closed ?? false)
+        if (e.elevation !== undefined) {
+          // dxf-writer exposes shape tags but has no elevation option. Extend
+          // this contour's tags with standard LWPOLYLINE group 38 before its
+          // first vertex. All handles, owner IDs and normal tags remain native.
+          const shape = drawing.activeLayer?.getShapes().slice(-1)[0]
+          if (!shape || !('tags' in shape) || typeof shape.tags !== 'function') throw new Error('DXF writer did not create a tagged polyline.')
+          const originalTags = shape.tags as (manager: TagsManager) => void
+          const elevation = e.elevation
+          shape.tags = function (manager: TagsManager) {
+            const contourTags = Object.create(manager) as TagsManager
+            let wroteElevation = false
+            contourTags.push = (code, value) => {
+              if (Number(code) === 10 && !wroteElevation) { manager.push(38, elevation); wroteElevation = true }
+              manager.push(code, value)
+            }
+            originalTags.call(this, contourTags)
+          }
         }
         break
       case 'point':

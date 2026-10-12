@@ -3,6 +3,10 @@
 import { useState, useMemo } from 'react';
 import { ENGINEERING_QA, type EngineeringSubtype, computeHorizontalCurve, computeVerticalCurve, crossSectionCutFill, prismoidalVolume } from '@/lib/engine/engineering';
 
+type AlignmentPointDraft = { chainage: string; easting: string; northing: string; elevation: string }
+type HorizontalCurveDraft = { radius: string; delta: string; piChainage: string }
+type VerticalCurveDraft = { pvIChainage: string; pvIElevation: string; gradeIn: string; gradeOut: string; length: string }
+
 interface EngineeringPanelProps {
   projectId: string;
   subtype: EngineeringSubtype;
@@ -10,12 +14,74 @@ interface EngineeringPanelProps {
 
 export function RoadPanel({ projectId: _projectId, subtype: _subtype }: EngineeringPanelProps) {
   const [activeTab, setActiveTab] = useState<'alignment' | 'horizontal' | 'vertical' | 'cross' | 'earthworks' | 'settingout'>('alignment');
+  const [formError, setFormError] = useState('');
   const qa = ENGINEERING_QA.road;
 
   const [alignment, setAlignment] = useState<Array<{ chainage: number; easting: number; northing: number; elevation?: number; label: string }>>([]);
   const [horizontalCurves, setHorizontalCurves] = useState<Array<{ radius: number; delta: number; piChainage: number }>>([]);
   const [verticalCurves, setVerticalCurves] = useState<Array<{ pvIChainage: number; pvIElevation: number; gradeIn: number; gradeOut: number; length: number }>>([]);
+  const [alignmentDraft, setAlignmentDraft] = useState<AlignmentPointDraft>({ chainage: '', easting: '', northing: '', elevation: '' });
+  const [horizontalDraft, setHorizontalDraft] = useState<HorizontalCurveDraft>({ radius: '', delta: '', piChainage: '' });
+  const [verticalDraft, setVerticalDraft] = useState<VerticalCurveDraft>({ pvIChainage: '', pvIElevation: '', gradeIn: '', gradeOut: '', length: '' });
   const [crossSections] = useState<Array<{ chainage: number; designLevel: number; levels: Array<{ offset: number; elevation: number }> }>>([]);
+
+  const addAlignmentPoint = () => {
+    const values = [alignmentDraft.chainage, alignmentDraft.easting, alignmentDraft.northing].map(Number);
+    if (values.some((value, i) => !alignmentDraft[['chainage', 'easting', 'northing'][i] as keyof AlignmentPointDraft].trim() || !Number.isFinite(value))) {
+      setFormError('Enter a finite chainage, easting, and northing from the survey data.');
+      return;
+    }
+    const [chainage, easting, northing] = values;
+    if (chainage < 0 || (alignment.length && chainage <= alignment[alignment.length - 1].chainage)) {
+      setFormError('Chainage must be non-negative and greater than the previous alignment point.');
+      return;
+    }
+    const elevation = alignmentDraft.elevation.trim() === '' ? undefined : Number(alignmentDraft.elevation);
+    if (elevation !== undefined && !Number.isFinite(elevation)) {
+      setFormError('Elevation must be finite or left blank.');
+      return;
+    }
+    setAlignment([...alignment, { chainage, easting, northing, elevation, label: `P${alignment.length + 1}` }]);
+    setAlignmentDraft({ chainage: '', easting: '', northing: '', elevation: '' });
+    setFormError('');
+  };
+
+  const addHorizontalCurve = () => {
+    const { radius, delta, piChainage } = horizontalDraft;
+    const r = Number(radius), d = Number(delta), pi = Number(piChainage);
+    if ([radius, delta, piChainage].some(v => !v.trim()) || ![r, d, pi].every(Number.isFinite) || r <= 0 || d <= 0 || d >= 180 || pi < 0) {
+      setFormError('Enter radius > 0, deflection between 0° and 180°, and a non-negative PI chainage.');
+      return;
+    }
+    const curve = computeHorizontalCurve(r, d, pi);
+    if (![curve.pcChainage, curve.ptChainage, curve.curveLength].every(Number.isFinite) || curve.pcChainage < 0) {
+      setFormError('This curve places the PC before chainage zero. Check the entered PI chainage and geometry.');
+      return;
+    }
+    if (horizontalCurves.some(existing => {
+      const prior = computeHorizontalCurve(existing.radius, existing.delta, existing.piChainage);
+      return curve.pcChainage < prior.ptChainage && curve.ptChainage > prior.pcChainage;
+    })) {
+      setFormError('This curve overlaps a curve already in the list.');
+      return;
+    }
+    setHorizontalCurves([...horizontalCurves, { radius: r, delta: d, piChainage: pi }]);
+    setHorizontalDraft({ radius: '', delta: '', piChainage: '' });
+    setFormError('');
+  };
+
+  const addVerticalCurve = () => {
+    const { pvIChainage, pvIElevation, gradeIn, gradeOut, length } = verticalDraft;
+    const strings = [pvIChainage, pvIElevation, gradeIn, gradeOut, length];
+    const [pvi, elev, g1, g2, len] = strings.map(Number);
+    if (strings.some(v => !v.trim()) || ![pvi, elev, g1, g2, len].every(Number.isFinite) || pvi < 0 || len <= 0 || pvi < len / 2) {
+      setFormError('Enter finite PVI data and a positive curve length that keeps the PVC at or after chainage zero.');
+      return;
+    }
+    setVerticalCurves([...verticalCurves, { pvIChainage: pvi, pvIElevation: elev, gradeIn: g1, gradeOut: g2, length: len }]);
+    setVerticalDraft({ pvIChainage: '', pvIElevation: '', gradeIn: '', gradeOut: '', length: '' });
+    setFormError('');
+  };
 
   const computedHorizontal = useMemo(() => {
     return horizontalCurves.map(c => computeHorizontalCurve(c.radius, c.delta, c.piChainage));
@@ -60,6 +126,8 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
           <span>Horizontal: ±{qa.horizontalClosureMM}mm/km</span>
         </div>
       </div>
+      <p className="mb-4 text-xs text-amber-200/80">This legacy panel keeps inputs in the current page only. It does not save them to the project. Confirm the project CRS and approved design basis before using any calculated values for construction.</p>
+      {formError && <p role="alert" className="mb-4 rounded border border-red-700 bg-red-950/50 p-3 text-sm text-red-200">{formError}</p>}
 
       <div className="flex border-b border-zinc-700 mb-4">
         {tabs.map(tab => (
@@ -98,12 +166,21 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
               ))}
             </tbody>
           </table>
-          <button
-            onClick={() => setAlignment([...alignment, { chainage: alignment.length > 0 ? alignment[alignment.length - 1].chainage + 20 : 0, easting: 0, northing: 0, label: `P${alignment.length + 1}` }])}
-            className="mt-3 px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded"
-          >
-            Add Point
-          </button>
+          {crossSections.length === 0 && <p className="mt-3 text-sm text-zinc-400">No cross-section survey or design levels are loaded. Import/enter real section data in Quick Compute to calculate areas.</p>}
+          {alignment.length === 0 && <p className="mt-3 text-sm text-zinc-400">No surveyed alignment points entered.</p>}
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-2 mt-3">
+            {([
+              ['chainage', 'Chainage (m)', alignmentDraft.chainage],
+              ['easting', 'Easting', alignmentDraft.easting],
+              ['northing', 'Northing', alignmentDraft.northing],
+              ['elevation', 'Elevation (optional)', alignmentDraft.elevation],
+            ] as const).map(([field, label, value]) => (
+              <input key={field} type="number" step="any" aria-label={label} placeholder={label} value={value}
+                onChange={e => setAlignmentDraft(current => ({ ...current, [field]: e.target.value }))}
+                className="min-w-0 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm" />
+            ))}
+            <button onClick={addAlignmentPoint} className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded">Add surveyed point</button>
+          </div>
         </div>
       )}
 
@@ -126,49 +203,18 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
               </div>
             </div>
           ))}
-          <div className="flex gap-2 mt-3">
-            <input
-              type="number"
-              aria-label="Radius (m)" placeholder="e.g. 250"
-              value={horizontalCurves[horizontalCurves.length - 1]?.radius || ''}
-              onChange={(e) => {
-                const newCurves = [...horizontalCurves];
-                if (!newCurves[newCurves.length - 1]) newCurves[newCurves.length - 1] = { radius: 0, delta: 0, piChainage: 0 };
-                newCurves[newCurves.length - 1].radius = parseFloat(e.target.value) || 0;
-                setHorizontalCurves(newCurves);
-              }}
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-32"
-            />
-            <input
-              type="number"
-              aria-label="Delta (°)" placeholder="e.g. 12.5"
-              value={horizontalCurves[horizontalCurves.length - 1]?.delta || ''}
-              onChange={(e) => {
-                const newCurves = [...horizontalCurves];
-                if (!newCurves[newCurves.length - 1]) newCurves[newCurves.length - 1] = { radius: 0, delta: 0, piChainage: 0 };
-                newCurves[newCurves.length - 1].delta = parseFloat(e.target.value) || 0;
-                setHorizontalCurves(newCurves);
-              }}
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-32"
-            />
-            <input
-              type="number"
-              aria-label="PI Chainage" placeholder="e.g. 1+250"
-              value={horizontalCurves[horizontalCurves.length - 1]?.piChainage || ''}
-              onChange={(e) => {
-                const newCurves = [...horizontalCurves];
-                if (!newCurves[newCurves.length - 1]) newCurves[newCurves.length - 1] = { radius: 0, delta: 0, piChainage: 0 };
-                newCurves[newCurves.length - 1].piChainage = parseFloat(e.target.value) || 0;
-                setHorizontalCurves(newCurves);
-              }}
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-32"
-            />
-            <button
-              onClick={() => setHorizontalCurves([...horizontalCurves, { radius: 200, delta: 20, piChainage: 500 }])}
-              className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded"
-            >
-              Add Curve
-            </button>
+          {horizontalCurves.length === 0 && <p className="text-sm text-zinc-400">Enter a curve from the approved horizontal alignment. Nothing is assumed.</p>}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
+            {([
+              ['radius', 'Radius (m)', horizontalDraft.radius],
+              ['delta', 'Deflection (°)', horizontalDraft.delta],
+              ['piChainage', 'PI chainage (m)', horizontalDraft.piChainage],
+            ] as const).map(([field, label, value]) => (
+              <input key={field} type="number" step="any" aria-label={label} placeholder={label} value={value}
+                onChange={e => setHorizontalDraft(current => ({ ...current, [field]: e.target.value }))}
+                className="min-w-0 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm" />
+            ))}
+            <button onClick={addHorizontalCurve} className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded">Calculate curve</button>
           </div>
         </div>
       )}
@@ -194,38 +240,20 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
               </div>
             </div>
           ))}
-          <div className="flex gap-2 mt-3">
-            <input
-              type="number"
-              aria-label="PVI Chainage" placeholder="e.g. 1+250"
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-32"
-            />
-            <input
-              type="number"
-              aria-label="PVI Elev" placeholder="e.g. 1580.00"
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-32"
-            />
-            <input
-              type="number"
-              aria-label="Grade In %" placeholder="e.g. -3.5"
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-24"
-            />
-            <input
-              type="number"
-              aria-label="Grade Out %" placeholder="e.g. 2.5"
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-24"
-            />
-            <input
-              type="number"
-              aria-label="Length" placeholder="e.g. 120"
-              className="px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm w-24"
-            />
-            <button
-              onClick={() => setVerticalCurves([...verticalCurves, { pvIChainage: 1000, pvIElevation: 1500, gradeIn: 3, gradeOut: -2, length: 200 }])}
-              className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded"
-            >
-              Add
-            </button>
+          {verticalCurves.length === 0 && <p className="text-sm text-zinc-400">Enter a PVI and approved grades/curve length. Nothing is assumed.</p>}
+          <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3">
+            {([
+              ['pvIChainage', 'PVI chainage (m)', verticalDraft.pvIChainage],
+              ['pvIElevation', 'PVI elevation (m)', verticalDraft.pvIElevation],
+              ['gradeIn', 'Incoming grade (%)', verticalDraft.gradeIn],
+              ['gradeOut', 'Outgoing grade (%)', verticalDraft.gradeOut],
+              ['length', 'Curve length (m)', verticalDraft.length],
+            ] as const).map(([field, label, value]) => (
+              <input key={field} type="number" step="any" aria-label={label} placeholder={label} value={value}
+                onChange={e => setVerticalDraft(current => ({ ...current, [field]: e.target.value }))}
+                className="min-w-0 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm" />
+            ))}
+            <button onClick={addVerticalCurve} className="px-3 py-1.5 text-sm bg-amber-600 hover:bg-amber-700 rounded">Calculate curve</button>
           </div>
         </div>
       )}
@@ -262,7 +290,7 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
       {activeTab === 'earthworks' && (
         <div>
           <div className="text-lg font-medium mb-3">Earthworks Summary</div>
-          <div className="grid grid-cols-3 gap-4">
+          {crossSections.length < 2 ? <p className="rounded border border-dashed border-zinc-700 p-4 text-sm text-zinc-400">Earthworks quantities need at least two ordered cross-sections with surveyed ground points and design levels. No zero-volume result is implied.</p> : <div className="grid grid-cols-3 gap-4">
             <div className="p-4 bg-zinc-800 rounded-lg">
               <div className="text-sm text-zinc-400">Total Cut</div>
               <div className="text-xl text-red-400">{earthworks.totalCut.toFixed(2)} m³</div>
@@ -277,46 +305,16 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
                 {earthworks.net.toFixed(2)} m³
               </div>
             </div>
-          </div>
+          </div>}
         </div>
       )}
 
       {activeTab === 'settingout' && (
         <div>
           <div className="text-lg font-medium mb-3">Setting Out</div>
-          <div className="p-4 bg-zinc-800 rounded-lg text-sm">
-            <div className="text-zinc-400 mb-2">Stakeout Point Calculator</div>
-            <div className="flex gap-2">
-              <input
-                type="number"
-                aria-label="PC Easting" placeholder="e.g. 500000"
-                className="px-2 py-1.5 bg-zinc-700 border border-zinc-600 rounded text-sm w-28"
-              />
-              <input
-                type="number"
-                aria-label="PC Northing" placeholder="e.g. 9900000"
-                className="px-2 py-1.5 bg-zinc-700 border border-zinc-600 rounded text-sm w-28"
-              />
-              <input
-                type="number"
-                aria-label="Initial Bearing" placeholder="e.g. 45°"
-                className="px-2 py-1.5 bg-zinc-700 border border-zinc-600 rounded text-sm w-28"
-              />
-              <input
-                type="number"
-                aria-label="Radius" placeholder="e.g. 250"
-                className="px-2 py-1.5 bg-zinc-700 border border-zinc-600 rounded text-sm w-24"
-              />
-              <input
-                type="number"
-                aria-label="Chainage" placeholder="e.g. 1+250"
-                className="px-2 py-1.5 bg-zinc-700 border border-zinc-600 rounded text-sm w-24"
-              />
-              <select className="px-2 py-1.5 bg-zinc-700 border border-zinc-600 rounded text-sm">
-                <option value="right">Right</option>
-                <option value="left">Left</option>
-              </select>
-            </div>
+          <div className="rounded-lg border border-zinc-700 bg-zinc-800 p-4 text-sm">
+            <p className="text-zinc-300">The point inputs previously shown here did not calculate or validate a stakeout. Use the functional set-out calculator, which requires an instrument station, backsight, target heights, and explicit project coordinates.</p>
+            <a className="mt-3 inline-flex rounded bg-amber-600 px-3 py-2 font-medium text-white hover:bg-amber-700" href={`/project/${encodeURIComponent(_projectId)}/engineering?tab=setting_out`}>Open functional set-out calculator</a>
           </div>
         </div>
       )}

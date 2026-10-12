@@ -15,15 +15,17 @@ import { mr } from '@/test-utils/mock-rows'
 
 jest.mock('@/lib/db', () => ({
   db: { query: jest.fn() },
+  setCurrentRlsServiceRole: jest.fn(),
 }))
 jest.mock('@/lib/logger', () => ({
   logger: { info: jest.fn(), warn: jest.fn(), error: jest.fn() },
 }))
 
 import { POST } from '../route'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
+const mockSetCurrentRlsServiceRole = setCurrentRlsServiceRole as jest.MockedFunction<typeof setCurrentRlsServiceRole>
 
 const KEY = 'cron-admin-key-9d3f'
 
@@ -48,6 +50,7 @@ describe('POST /api/cron/reconcile-payments — auth', () => {
     const res = await POST(cronRequest())
     expect(res.status).toBe(401)
     expect(mockDbQuery).not.toHaveBeenCalled()
+    expect(mockSetCurrentRlsServiceRole).not.toHaveBeenCalled()
   })
 
   test('wrong key → 401', async () => {
@@ -78,6 +81,7 @@ describe('POST /api/cron/reconcile-payments — auth', () => {
     expect(body.expiredIntentIds).toEqual(['i1'])
     expect(body.intentStatusCounts).toEqual({ completed: 3 })
     expect(body.tillClaimStatusCounts).toEqual({ pending_review: 2 })
+    expect(mockSetCurrentRlsServiceRole).toHaveBeenCalledWith('billing_reconciliation')
   })
 })
 

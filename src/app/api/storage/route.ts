@@ -12,6 +12,8 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { checkProjectAccess } from '@/lib/security/projectAccess'
+import { deleteFile, downloadFile } from '@/lib/storage'
 import { promises as fs } from 'fs'
 import path from 'path'
 import crypto from 'crypto'
@@ -21,18 +23,25 @@ import crypto from 'crypto'
 interface FileUploadRow {
   user_id: string
   id: string
+  project_id?: string | null
 }
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT || path.join(process.cwd(), 'upload')
 const MAX_FILE_SIZE = 50 * 1024 * 1024
 
 async function ensureDir(dirPath: string) {
-  await fs.mkdir(dirPath, { recursive: true }).catch(() => {})
+  await fs.mkdir(dirPath, { recursive: true })
 }
 
 function safeResolvePath(relativePath: string): string | null {
-  const full = path.resolve(path.join(STORAGE_ROOT, relativePath))
-  return full.startsWith(path.resolve(STORAGE_ROOT)) ? full : null
+  // Authorize exactly the path that will be read. Never let path normalization
+  // erase an owner directory or turn a different DB key into the same file.
+  if (typeof relativePath !== 'string' || /[\\\x00-\x1f:]/.test(relativePath)) return null
+  const segments = relativePath.split('/')
+  if (segments.some(segment => !segment || segment === '.' || segment === '..' || /[. ]$/.test(segment))) return null
+  const root = path.resolve(STORAGE_ROOT)
+  const full = path.resolve(root, relativePath)
+  return full.startsWith(`${root}${path.sep}`) ? full : null
 }
 
 export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ctx) => {
@@ -40,29 +49,62 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
   const file = formData.get('file') as File | null
   const bucket = (formData.get('bucket') as string | null) ?? 'default'
   const filePath = (formData.get('path') as string | null) ?? ''
+  const projectId = (formData.get('projectId') as string | null) ?? ''
+  const clientId = (formData.get('clientId') as string | null) ?? ''
 
   if (!file) return NextResponse.json({ error: 'No file provided' }, { status: 400 })
   if (file.size > MAX_FILE_SIZE) return NextResponse.json({ error: 'File too large (max 50MB)' }, { status: 400 })
+  if (bucket === 'survey-photos' && !['image/jpeg', 'image/png', 'image/heic', 'image/heif'].includes(file.type.toLowerCase())) {
+    return NextResponse.json({ error: 'Field photos must be JPEG, PNG, HEIC, or HEIF images' }, { status: 415 })
+  }
+  if (projectId && !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(projectId)) {
+    return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
+  }
+  if (projectId) {
+    const access = await checkProjectAccess(ctx.userId, projectId)
+    if (!access.allowed) return NextResponse.json({ error: 'Project not found or access denied' }, { status: 403 })
+  }
+  if (clientId && !/^[A-Za-z0-9_-]{1,100}$/.test(clientId)) {
+    return NextResponse.json({ error: 'Invalid upload client ID' }, { status: 400 })
+  }
 
   const hash = crypto.randomBytes(8).toString('hex')
-  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
-  const storagePath = filePath || `${bucket}/${ctx.userId}/${hash}-${safeName}`
+  const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_').replace(/[. ]+$/g, '') || 'upload'
+  const stableName = clientId ? `${clientId}-${safeName}` : `${hash}-${safeName}`
+  const storagePath = filePath || `${bucket}/${ctx.userId}/${stableName}`
 
   const fullPath = safeResolvePath(storagePath)
   if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
 
-  await ensureDir(path.dirname(fullPath))
   const buffer = Buffer.from(await file.arrayBuffer())
-  await fs.writeFile(fullPath, buffer)
-
-  await db.query<never>(
-    `INSERT INTO file_uploads (user_id, bucket, file_path, original_name, mime_type, size_bytes, created_at)
-     VALUES ($1, $2, $3, $4, $5, $6, NOW())
-     ON CONFLICT (file_path) DO UPDATE SET updated_at = NOW()`,
-    [ctx.userId, bucket, storagePath, file.name, file.type, file.size]
-  ).catch(() => {
-    // Table might not exist yet — file is still stored on disk
+  const saved = await db.transaction(async client => {
+    // The canonical table has no unique storage_path constraint. Serialize
+    // uploads to a key before checking ownership and registering the file.
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [storagePath])
+    const { rows } = await client.query<FileUploadRow>(
+      'SELECT id, user_id, project_id FROM file_uploads WHERE storage_path = $1', [storagePath]
+    )
+    if (rows.length ? rows.some(row => row.user_id !== ctx.userId || (projectId && row.project_id && row.project_id !== projectId)) : !storagePath.includes(`/${ctx.userId}/`)) {
+      return false
+    }
+    const registered = rows.length
+      ? await client.query<FileUploadRow>(
+        `UPDATE file_uploads SET project_id = COALESCE(project_id, $6), filename = $3, mime_type = $4, size_bytes = $5
+         WHERE storage_path = $1 AND user_id = $2 AND ($6::uuid IS NULL OR project_id IS NULL OR project_id = $6)
+         RETURNING id, user_id, project_id`,
+        [storagePath, ctx.userId, file.name, file.type, file.size, projectId || null]
+      )
+      : await client.query<FileUploadRow>(
+        `INSERT INTO file_uploads (user_id, project_id, upload_purpose, storage_path, filename, mime_type, size_bytes)
+         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, user_id, project_id`,
+        [ctx.userId, projectId || null, bucket, storagePath, file.name, file.type, file.size]
+      )
+    if (!registered.rows.some(row => row.user_id === ctx.userId)) return false
+    await ensureDir(path.dirname(fullPath))
+    await fs.writeFile(fullPath, buffer)
+    return true
   })
+  if (!saved) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
 
   return NextResponse.json({
     data: { path: storagePath, fullPath: `/api/storage?path=${encodeURIComponent(storagePath)}` },
@@ -78,11 +120,11 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
 
   const { rows } = await db.query<FileUploadRow>(
-    'SELECT user_id FROM file_uploads WHERE file_path = $1',
+    'SELECT user_id FROM file_uploads WHERE storage_path = $1',
     [filePath]
-  ).catch(() => ({ rows: [] as { user_id: string }[] }))
+  )
 
-  const isOwner = rows.some(row => row.user_id === ctx.userId)
+  const isOwner = rows.length > 0 && rows.every(row => row.user_id === ctx.userId)
   const pathOwnedByUser = filePath.includes(`/${ctx.userId}/`)
 
   if (rows.length > 0 && !isOwner) {
@@ -108,13 +150,15 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   }
 
   try {
-    const buffer = await fs.readFile(fullPath)
+    const buffer = await downloadFile(filePath)
     const contentType = mimeMap[ext] ?? 'application/octet-stream'
-    return new NextResponse(buffer, {
+    return new NextResponse(new Uint8Array(buffer), {
       headers: {
         'Content-Type': contentType,
         'Content-Disposition': `inline; filename="${path.basename(filePath)}"`,
-        'Cache-Control': 'private, max-age=3600',
+        // These files are owner-scoped and may contain survey deliverables.
+        // Do not retain them in browser or shared edge caches after download.
+        'Cache-Control': 'private, no-store',
       },
     })
   } catch {
@@ -136,25 +180,25 @@ export const DELETE = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6
   // the file_uploads row, or (for untracked paths) when the path sits under
   // the caller's own /<userId>/ directory.
   const { rows } = await db.query<FileUploadRow>(
-    'SELECT id, user_id FROM file_uploads WHERE file_path = $1',
+    'SELECT id, user_id FROM file_uploads WHERE storage_path = $1',
     [filePath]
-  ).catch(() => ({ rows: [] as FileUploadRow[] }))
+  )
 
   const trackedOwner = rows.find(row => row.user_id === ctx.userId)
   const pathOwnedByUser = filePath.includes(`/${ctx.userId}/`)
 
-  if (rows.length > 0 && !trackedOwner) {
+  if (rows.some(row => row.user_id !== ctx.userId)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
   if (rows.length === 0 && !pathOwnedByUser) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
-  await fs.unlink(fullPath).catch(() => {})
+  await deleteFile(filePath).catch(() => {})
 
   if (rows.length > 0 && trackedOwner) {
     await db.query<never>(
-      'DELETE FROM file_uploads WHERE file_path = $1 AND user_id = $2',
+      'DELETE FROM file_uploads WHERE storage_path = $1 AND user_id = $2',
       [filePath, ctx.userId]
     ).catch(() => {})
   }

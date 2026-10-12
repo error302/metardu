@@ -3,12 +3,33 @@ import { MBTilesSession } from '@/types/field';
 export async function uploadMBTiles(file: File): Promise<MBTilesSession> {
   const form = new FormData();
   form.append('file', file);
+  // This viewer reads tiles from the authenticated server route. Device-only
+  // storage requires a browser SQLite reader and a local tile resolver, which
+  // the current viewer does not have yet.
+  form.append('storage', 'server');
   const res = await fetch('/api/field/mbtiles/upload', { method: 'POST', body: form });
   if (!res.ok) {
     const err = (await res.json()) as { error?: string };
     throw new Error(err.error ?? 'Upload failed');
   }
-  return (await res.json()) as unknown as MBTilesSession;
+
+  const payload = (await res.json()) as { data?: Partial<MBTilesSession> };
+  const session = payload.data;
+  const minZoom = session?.minZoom
+  const maxZoom = session?.maxZoom
+  const format = session?.format
+  if (
+    !session || typeof session.key !== 'string' || !session.key ||
+    typeof session.name !== 'string' ||
+    typeof format !== 'string' || !['png', 'jpg', 'jpeg', 'webp'].includes(format) ||
+    typeof minZoom !== 'number' || !Number.isInteger(minZoom) ||
+    typeof maxZoom !== 'number' || !Number.isInteger(maxZoom) ||
+    minZoom < 0 || maxZoom < minZoom
+  ) {
+    throw new Error('The server returned incomplete metadata for this MBTiles package.');
+  }
+
+  return { ...session, storage: 'server' } as MBTilesSession;
 }
 
 // buildOLMBTilesLayer is only called inside MapViewer useEffect (browser-only)

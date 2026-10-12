@@ -1,0 +1,11 @@
+{
+  "version": "chatgpt-sharing-v1",
+  "title": "Optional ChatGPT connection",
+  "paragraphs": [
+    "You choose whether to connect METARDU to ChatGPT. Connecting requires a signed-in METARDU account and a separate permission review. METARDU does not automatically send your projects to ChatGPT.",
+    "The permissions you approve may allow ChatGPT to request your project summaries and selected field observations, including coordinates, heights and recorded reference, fix, accuracy and capture metadata. Calculation inputs you provide and their results are also returned to ChatGPT. A separate permission allows METARDU to store report text you approve as an unreviewed draft. The connection cannot edit project settings or observations, certify, sign, approve, finalize or submit survey documents.",
+    "When you use a connected tool, its selected information is disclosed to OpenAI. OpenAI handles it under its service terms and your ChatGPT plan or workspace data controls. Review those controls before connecting; do not assume that all ChatGPT accounts have the same data-use settings.",
+    "You can revoke the connection from METARDU at any time. Revocation stops future access through that connection. It does not remove information already returned to ChatGPT. Survey control, observations, computations and draft documents still require professional verification.",
+    "METARDU's existing privacy policy requires a 30-day notice period for this sharing change before customer linking is available. The publication record for this version starts that period. Publication does not connect an account or grant permission."
+  ]
+}

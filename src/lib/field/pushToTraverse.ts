@@ -2,9 +2,10 @@ import proj4 from 'proj4';
 import { FieldBeacon, TraverseStationInput } from '@/types/field';
 import { SRID_21036, SRID_21037 } from '@/lib/map/projection'
 
-// Define Kenya Arc 1960 UTM projections (Kenya's official cadastral datum)
-proj4.defs(SRID_21036, '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs'); // Arc 1960 / UTM 36S
-proj4.defs(SRID_21037, '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,-0.807,0.339,-1.619,-2.554 +units=m +no_defs'); // Arc 1960 / UTM 37S
+// Define Kenya Arc 1960 UTM projections (Kenya's official cadastral datum).
+// towgs84 = EPSG:1122 registered Arc 1960 → WGS84 3-parameter translation.
+proj4.defs(SRID_21036, '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs'); // Arc 1960 / UTM 36S
+proj4.defs(SRID_21037, '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs'); // Arc 1960 / UTM 37S
 
 export type TargetCRS = typeof SRID_21036 | typeof SRID_21037;
 

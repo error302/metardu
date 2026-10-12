@@ -7,7 +7,7 @@
  * Extends base SurveyPlanRenderer with Form No. 4 specific features
  */
 
-import { createHash } from 'crypto'
+import { sha256Hex } from '@/lib/crypto/sha256'
 import { SurveyPlanRenderer } from './renderer'
 import type { SurveyPlanData, PlanOptions, CoordinateScheduleEntry } from './types'
 import { getRoadReserveWidth } from './types'
@@ -69,7 +69,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
   /**
    * Render Form No. 4 compliant survey plan
    */
-  renderFormNo4(): string {
+  async renderFormNo4(): Promise<string> {
     const layers: string[] = []
     
     // Base layers
@@ -99,7 +99,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawFormNo4TitleBlock())
     layers.push(this.drawSubmissionNumberHeader())
     layers.push(this.drawLegalReferenceLine())
-    layers.push(this.drawPrintVerification())
+    layers.push(await this.drawPrintVerification())
     
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
   }
@@ -581,7 +581,7 @@ private drawFormNo4RightPanel(): string {
    * Overrides base class to include Form No. 4 specific data (folio, register).
    * Uses SHA-256 cryptographic hash for production-grade verification.
    */
-  protected drawPrintVerification(): string {
+  protected async drawPrintVerification(): Promise<string> {
     const d = this.formNo4Data
     const pts = this.rotatedPoints
     const p = this.data.project
@@ -599,7 +599,7 @@ private drawFormNo4RightPanel(): string {
 
     // SHA-256 cryptographic hash for deterministic verification code
     const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${folio}|${register}|${surveyorLicence}|${revisionsCount}`
-    const verCode = createHash('sha256').update(rawString).digest('hex').toUpperCase().slice(0, 16)
+    const verCode = (await sha256Hex(rawString)).toUpperCase().slice(0, 16)
 
     const y = this.pageH - mmToPx(3)
     const cx = this.pageW / 2

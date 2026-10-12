@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { Mountain } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import {
@@ -26,17 +27,28 @@ import {
 } from './helpers';
 import {
   generateDXF,
+  generateContourPDF,
   generateSVGExport,
   generateContourCSV,
-  generateGeoJSON,
+  contourExportReferenceIssue,
+  type ContourExportMetadata,
 } from './generators';
-import { ImportTab } from './ImportTab';
-import { SettingsTab } from './SettingsTab';
-import { MapTab, type SvgElements } from './MapTab';
-import { ExportTab } from './ExportTab';
-import { BreaklineTab } from './BreaklineTab';
+import type { SvgElements } from './MapTab';
+
+const tabLoading = () => (
+  <div aria-busy="true" className="flex min-h-24 items-center justify-center rounded-lg border border-[var(--border-color)]" role="status" aria-live="polite" aria-label="Loading contour panel">
+    <MetarduLogo size={32} showWordmark={false} />
+    <span className="sr-only">Loading contour panel</span>
+  </div>
+);
+const ImportTab = dynamic(() => import('./ImportTab').then((module) => module.ImportTab), { ssr: false, loading: tabLoading });
+const SettingsTab = dynamic(() => import('./SettingsTab').then((module) => module.SettingsTab), { ssr: false, loading: tabLoading });
+const MapTab = dynamic(() => import('./MapTab').then((module) => module.MapTab), { ssr: false, loading: tabLoading });
+const ExportTab = dynamic(() => import('./ExportTab').then((module) => module.ExportTab), { ssr: false, loading: tabLoading });
+const BreaklineTab = dynamic(() => import('./BreaklineTab').then((module) => module.BreaklineTab), { ssr: false, loading: tabLoading });
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 import { ComputeLimitNotice } from '@/components/tools/ComputeLimitNotice'
+import MetarduLogo from '@/components/MetarduLogo'
 
 // ─── Project point row shape (from /api/project/[id]/points) ───────────────
 interface ProjectPointRow {
@@ -65,10 +77,16 @@ export default function ContourGeneratorPage() {
   // Tab 2: Settings state
   const [contourInterval, setContourInterval] = useState(1.0);
   const [indexMultiplier, setIndexMultiplier] = useState(5);
+  const [mapTitle, setMapTitle] = useState('Topographic Contour Plan')
+  const [horizontalCrs, setHorizontalCrs] = useState('')
+  const [verticalDatum, setVerticalDatum] = useState('')
+  const [heightsInMetres, setHeightsInMetres] = useState(false)
+  const [exportError, setExportError] = useState('')
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const [generateProgress, setGenerateProgress] = useState(0);
   const [usingWorker, setUsingWorker] = useState(false);
+  const [executionMode, setExecutionMode] = useState<'worker' | 'main-thread' | null>(null);
 
   // Breaklines (AUDIT FIX 2026-07-03: expose engine's breakline support in UI)
   const [breaklines, setBreaklines] = useState<Breakline[]>([]);
@@ -131,6 +149,15 @@ export default function ContourGeneratorPage() {
     }
     return { minE, maxE, minN, maxN, minZ, maxZ };
   }, [points]);
+
+  const exportMetadata = useMemo<ContourExportMetadata>(() => ({
+    title: mapTitle,
+    horizontalCrs,
+    verticalDatum,
+    contourInterval,
+    heightsInMetres,
+  }), [mapTitle, horizontalCrs, verticalDatum, contourInterval, heightsInMetres])
+  const referenceIssue = useMemo(() => contourExportReferenceIssue(exportMetadata), [exportMetadata])
 
   // ─── File upload handler ──────────────────────────────────────────────────
 
@@ -205,14 +232,15 @@ export default function ContourGeneratorPage() {
     setTinSurface(null);
     setVolumeResult(null);
     setParseErrors([]);
-    setFileName('demo_terrain.csv');
+    setFileName('demo_synthetic_terrain.csv');
     setImportStats({ delimiter: 'comma', hasHeader: true });
-    // Build a demo CSV text for display
-    const csvLines = ['Name,Easting,Northing,Elevation'];
-    for (const p of demoPoints.slice(0, 10)) {
-      csvLines.push(`${p.name},${fmt(p.easting, 3)},${fmt(p.northing, 3)},${fmt(p.elevation, 2)}`);
-    }
-    csvLines.push(`... (${demoPoints.length} points total)`);
+    // Keep the editable sample CSV complete so parsing it again cannot turn
+    // the synthetic 400-point surface into a partial dataset plus an invalid
+    // ellipsis row.
+    const csvLines = [
+      'Name,Easting,Northing,Elevation',
+      ...demoPoints.map(p => `${p.name},${fmt(p.easting, 3)},${fmt(p.northing, 3)},${fmt(p.elevation, 2)}`),
+    ];
     setRawText(csvLines.join('\n'));
   }, []);
 
@@ -231,6 +259,7 @@ export default function ContourGeneratorPage() {
     setIsGenerating(true);
     setGenerateError('');
     setGenerateProgress(0);
+    setExecutionMode(null);
     setUsingWorker(isWorkerAvailable());
 
     try {
@@ -270,6 +299,7 @@ export default function ContourGeneratorPage() {
         indexInterval,
         breaklines: breaklines.length > 0 ? breaklines : undefined,
         onProgress: p => setGenerateProgress(p),
+        onExecutionMode: mode => setExecutionMode(previous => previous === 'main-thread' ? previous : mode),
       });
       setContours(result);
 
@@ -278,6 +308,7 @@ export default function ContourGeneratorPage() {
         breaklines.length > 0 ? breaklines : undefined,
         {
           onProgress: p => setGenerateProgress(p),
+          onExecutionMode: mode => setExecutionMode(previous => previous === 'main-thread' ? previous : mode),
         },
       );
       setTinSurface(surface);
@@ -299,27 +330,39 @@ export default function ContourGeneratorPage() {
 
   const exportDXF = useCallback(() => {
     if (!contours.length || !bounds) return;
-    const dxf = generateDXF(contours, bounds);
+    setExportError('');
+    try {
+    const dxf = generateDXF(contours, bounds, exportMetadata);
     downloadBlob(dxf, 'contours.dxf', 'application/dxf');
-  }, [contours, bounds]);
+    } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.'); }
+  }, [contours, bounds, exportMetadata]);
+
+  const exportPDF = useCallback(async () => {
+    if (!contours.length || !bounds) return;
+    setExportError('')
+    try {
+    const pdf = await generateContourPDF(contours, bounds, points, exportMetadata)
+    downloadBlob(pdf, 'contour-plan-a3.pdf', 'application/pdf')
+    } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.') }
+  }, [contours, bounds, points, exportMetadata])
 
   const exportSVG = useCallback(() => {
     if (!contours.length || !bounds) return;
-    const svg = generateSVGExport(contours, bounds, points);
+    setExportError('');
+    try {
+    const svg = generateSVGExport(contours, bounds, points, exportMetadata);
     downloadBlob(svg, 'contours.svg', 'image/svg+xml');
-  }, [contours, bounds, points]);
+    } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.'); }
+  }, [contours, bounds, points, exportMetadata]);
 
   const exportCSV = useCallback(() => {
     if (!contours.length) return;
-    const csv = generateContourCSV(contours);
+    setExportError('');
+    try {
+    const csv = generateContourCSV(contours, exportMetadata);
     downloadBlob(csv, 'contours.csv', 'text/csv');
-  }, [contours]);
-
-  const exportGeoJSON = useCallback(() => {
-    if (!contours.length) return;
-    const geojson = generateGeoJSON(contours);
-    downloadBlob(geojson, 'contours.geojson', 'application/geo+json');
-  }, [contours]);
+    } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.'); }
+  }, [contours, exportMetadata]);
 
   // ─── SVG rendering computations ──────────────────────────────────────────
 
@@ -339,8 +382,15 @@ export default function ContourGeneratorPage() {
     const minElev = Math.min(...contourElevations);
     const maxElev = Math.max(...contourElevations);
 
-    function toSvgX(e: number) { return MARGIN + ((e - minE) / rangeE) * usableW; }
-    function toSvgY(n: number) { return MARGIN + ((maxN - n) / rangeN) * usableH; }
+    // A projected metre must occupy the same drawing distance on both axes.
+    // Fit the survey extents into the map frame without stretching its geometry.
+    const mapScale = Math.min(usableW / rangeE, usableH / rangeN)
+    const plottedW = rangeE * mapScale
+    const plottedH = rangeN * mapScale
+    const offsetX = (usableW - plottedW) / 2
+    const offsetY = (usableH - plottedH) / 2
+    function toSvgX(e: number) { return MARGIN + offsetX + ((e - minE) / rangeE) * plottedW; }
+    function toSvgY(n: number) { return MARGIN + offsetY + ((maxN - n) / rangeN) * plottedH; }
 
     // Subsample spot height points for rendering if too many
     const spotStep = Math.max(1, Math.floor(points.length / 2000));
@@ -381,7 +431,7 @@ export default function ContourGeneratorPage() {
 
       <ComputeLimitNotice
         tool="Contour generation"
-        message="The web contour engine runs in a browser worker and is tuned for typical field datasets. For very large point clouds, dense contours, or batch terrain processing, the METARDU desktop app runs the full engine locally — no size limits, no uploads."
+        message="Contour generation runs in a browser worker. Large point clouds and dense contours increase processing time and memory use. Review the source points, derived surface and export before field use."
       />
 
       {/* Tab bar */}
@@ -420,6 +470,7 @@ export default function ContourGeneratorPage() {
           handleFileInput={handleFileInput}
           handlePasteParse={handlePasteParse}
           handleLoadDemo={handleLoadDemo}
+          metricReference={referenceIssue == null}
         />
       )}
 
@@ -439,6 +490,14 @@ export default function ContourGeneratorPage() {
           setContourInterval={setContourInterval}
           indexMultiplier={indexMultiplier}
           setIndexMultiplier={setIndexMultiplier}
+          mapTitle={mapTitle}
+          setMapTitle={setMapTitle}
+          horizontalCrs={horizontalCrs}
+          setHorizontalCrs={setHorizontalCrs}
+          verticalDatum={verticalDatum}
+          setVerticalDatum={setVerticalDatum}
+          heightsInMetres={heightsInMetres}
+          setHeightsInMetres={setHeightsInMetres}
           points={points}
           bounds={bounds}
           isGenerating={isGenerating}
@@ -446,9 +505,10 @@ export default function ContourGeneratorPage() {
           handleGenerate={handleGenerate}
           contours={contours}
           tinSurface={tinSurface}
-          volumeResult={volumeResult}
+          volumeResult={referenceIssue == null ? volumeResult : null}
           generateProgress={generateProgress}
           usingWorker={usingWorker}
+          executionMode={executionMode}
           breaklineCount={breaklines.length}
         />
       )}
@@ -461,6 +521,7 @@ export default function ContourGeneratorPage() {
           points={points}
           contourInterval={contourInterval}
           svgElements={svgElements}
+          metricReference={referenceIssue == null}
         />
       )}
 
@@ -468,11 +529,14 @@ export default function ContourGeneratorPage() {
       {activeTab === 'export' && (
         <ExportTab
           exportDXF={exportDXF}
+          exportPDF={exportPDF}
           exportSVG={exportSVG}
           exportCSV={exportCSV}
-          exportGeoJSON={exportGeoJSON}
           volumeResult={volumeResult}
           bounds={bounds}
+          metadata={exportMetadata}
+          referenceIssue={referenceIssue}
+          exportError={exportError}
         />
       )}
     </div>

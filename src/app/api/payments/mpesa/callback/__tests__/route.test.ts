@@ -27,7 +27,17 @@ import { makeRequest } from '@/test-utils/request'
 jest.mock('@/lib/db', () => {
   const query = jest.fn()
   const getClient = jest.fn()
-  return { __esModule: true, default: { query, getClient }, db: { query, getClient } }
+  const setCurrentRlsServiceRole = jest.fn()
+  const setCurrentUserId = jest.fn()
+  const setRlsContext = jest.fn().mockResolvedValue(undefined)
+  return {
+    __esModule: true,
+    default: { query, getClient },
+    db: { query, getClient },
+    setCurrentRlsServiceRole,
+    setCurrentUserId,
+    setRlsContext,
+  }
 })
 jest.mock('@/lib/payments/mpesa', () => ({
   getMpesaService: jest.fn(),
@@ -43,7 +53,7 @@ jest.mock('@/lib/logger', () => ({
 }))
 
 import { POST } from '../route'
-import db from '@/lib/db'
+import db, { setCurrentRlsServiceRole } from '@/lib/db'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { mr } from '@/test-utils/mock-rows'
 import successPayload from '@/lib/payments/__tests__/fixtures/mpesa/callback-success.json'
@@ -54,6 +64,7 @@ import userCancelledPayload from '@/lib/payments/__tests__/fixtures/mpesa/callba
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockGetClient = db.getClient as jest.MockedFunction<typeof db.getClient>
 const mockGetMpesaService = getMpesaService as jest.MockedFunction<typeof getMpesaService>
+const mockSetCurrentRlsServiceRole = setCurrentRlsServiceRole as jest.MockedFunction<typeof setCurrentRlsServiceRole>
 
 const SAFARICOM_IP = '196.201.214.200'
 const USER_ID = '11111111-1111-1111-1111-111111111111'
@@ -117,6 +128,7 @@ describe('POST /api/payments/mpesa/callback — IP gate (C-05)', () => {
     const res = await POST(callbackRequest(successPayload, '1.2.3.4'))
     expect(res.status).toBe(403)
     expect(mockDbQuery).not.toHaveBeenCalled()
+    expect(mockSetCurrentRlsServiceRole).not.toHaveBeenCalled()
   })
 
   test('rejects requests with spoofed XFF chains — rightmost hop wins', async () => {
@@ -157,6 +169,7 @@ describe('POST /api/payments/mpesa/callback — success path credits exactly onc
 
     const res = await POST(callbackRequest(successPayload))
     expect(res.status).toBe(200)
+    expect(mockSetCurrentRlsServiceRole).toHaveBeenCalledWith('payment_provider')
 
     // Transaction ordering: BEGIN → conditional UPDATE ... WHERE status <> 'completed'
     const beginIdx = clientQuery.mock.calls.findIndex((c) => c[0] === 'BEGIN')

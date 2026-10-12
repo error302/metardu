@@ -63,11 +63,31 @@ export function reduceSlopeByAngle(input: SlopeReductionByAngle): SlopeReduction
   if (slopeDistance <= 0) {
     throw new Error(`Slope distance must be positive, got ${slopeDistance}`);
   }
-  if (verticalAngle <= 0 || verticalAngle >= 180) {
+
+  // Pure horizontal sightline (0° elevation angle or 90° zenith angle)
+  if (verticalAngle === 0 || verticalAngle === 90) {
+    return {
+      slopeDistance,
+      horizontalDistance: slopeDistance,
+      verticalComponent: 0,
+      reduction: 0,
+      method: 'vertical_angle',
+    };
+  }
+
+  // Handle zenith angle (0 < VA < 180)
+  // or elevation angle (-90 < VA < 90)
+  let vaZenith = verticalAngle;
+  if (verticalAngle > -90 && verticalAngle < 90 && Math.abs(verticalAngle - 90) > 45) {
+    // Elevation angle (e.g. +2.5° or -1.8°): zenith = 90° - elevation
+    vaZenith = 90 - verticalAngle;
+  }
+
+  if (vaZenith <= 0 || vaZenith >= 180) {
     throw new Error(`Vertical angle must be 0-180°, got ${verticalAngle}`);
   }
   
-  const vaRad = verticalAngle * Math.PI / 180;
+  const vaRad = vaZenith * Math.PI / 180;
   
   const horizontalDistance = slopeDistance * Math.sin(vaRad);
   const verticalComponent = slopeDistance * Math.cos(vaRad);

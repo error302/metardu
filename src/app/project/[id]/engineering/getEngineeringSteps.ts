@@ -1,5 +1,6 @@
 import type { EngineeringData } from '@/types/engineering'
 import type { EngineeringStep } from './shared'
+import { parseRoadFieldPlan } from '@/lib/engineering/roadFieldPlan'
 
 /**
  * Build the workflow step list for the engineering workspace sidebar.
@@ -22,6 +23,14 @@ export function getEngineeringSteps(data: EngineeringData | null): EngineeringSt
   ]
 
   if (mode === 'road') {
+    const roadFieldPlanDone = !!parseRoadFieldPlan(data?.roadFieldPlan)
+    steps.push({
+      id: 'field_plan',
+      label: 'Road Field Plan',
+      description: 'Chainages, survey extents, control notes and point codes',
+      status: roadFieldPlanDone ? 'complete' : 'in_progress',
+    })
+
     const roadSetupDone = rd?.roadName && rd?.designSpeed && rd?.roadClass && rd?.standard
     steps.push({
       id: 'horizontal',

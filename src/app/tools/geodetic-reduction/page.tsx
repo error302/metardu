@@ -36,19 +36,21 @@ export default function GeodeticReductionPage() {
       const easting1 = parseFloat(e1)
       const northing1 = parseFloat(n1)
       const elev1 = parseFloat(h1)
-      const und1 = parseFloat(nUndulation1) || -16.2
+      const und1Parsed = parseFloat(nUndulation1)
+      const und1 = Number.isFinite(und1Parsed) ? und1Parsed : -16.2
 
       const easting2 = parseFloat(e2)
       const northing2 = parseFloat(n2)
       const elev2 = parseFloat(h2)
-      const und2 = parseFloat(nUndulation2) || -16.2
+      const und2Parsed = parseFloat(nUndulation2)
+      const und2 = Number.isFinite(und2Parsed) ? und2Parsed : -16.2
 
-      if (isNaN(s) || s <= 0) {
+      if (!Number.isFinite(s) || s <= 0) {
         setError('Please enter a valid positive ground distance.')
         return
       }
 
-      if ([easting1, northing1, elev1, easting2, northing2, elev2].some(isNaN)) {
+      if ([easting1, northing1, elev1, easting2, northing2, elev2].some((value) => !Number.isFinite(value))) {
         setError('Please fill in all coordinates and elevation values.')
         return
       }

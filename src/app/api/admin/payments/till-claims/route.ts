@@ -1,5 +1,5 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
@@ -50,6 +50,7 @@ const ActionSchema = z.object({
 export const GET = apiHandler(
   { auth: true, roles: ['super_admin', 'admin'], rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, _ctx) => {
+    setCurrentRlsServiceRole('platform_admin')
     const res = await db.query<ClaimRow>(
       `SELECT ph.id, ph.user_id, u.email AS user_email,
               COALESCE(u.full_name, SPLIT_PART(u.email, '@', 1)) AS user_name,
@@ -92,6 +93,7 @@ export const GET = apiHandler(
 export const POST = apiHandler(
   { auth: true, roles: ['super_admin', 'admin'], rateLimit: { max: 60, windowMs: 60000 }, schema: ActionSchema },
   async (_req, ctx) => {
+    setCurrentRlsServiceRole('platform_admin')
     const { paymentId, action, reason } = ctx.body as z.infer<typeof ActionSchema>
 
     const claimRes = await db.query<ClaimRow>(

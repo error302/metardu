@@ -98,13 +98,27 @@ export function prismoidalVolume(sections: VolumeSection[]): VolumeResult {
 
   // Uses triplets: A1, Am, A2 across equal spacing:
   // V = (L/6) * (A1 + 4Am + A2), where L = chainage2 - chainage0
-  for (let i = 0; i + 2 < sorted.length; i += 2) {
+  // Standard Surveying Practice (N.N. Basak Ch. 8 / Ghilani & Wolf):
+  // When number of intervals is odd (even section count), prismoidal rule covers pairs,
+  // and the final remaining single interval is computed using the End Area method.
+  let i = 0
+  for (; i + 2 < sorted.length; i += 2) {
     const s1 = sorted[i]
     const sm = sorted[i + 1]
     const s2 = sorted[i + 2]
     const L = s2.chainage - s1.chainage
     const v = (L / 6) * (s1.area + 4 * sm.area + s2.area)
     segments.push({ from: s1.chainage, to: s2.chainage, L, A1: s1.area, Am: sm.area, A2: s2.area, volume: v })
+    total += v
+  }
+
+  // If there is an odd remaining interval (e.g. 2 sections, 4 sections, 6 sections)
+  if (i === sorted.length - 2) {
+    const s1 = sorted[i]
+    const s2 = sorted[i + 1]
+    const L = s2.chainage - s1.chainage
+    const v = (L / 2) * (s1.area + s2.area)
+    segments.push({ from: s1.chainage, to: s2.chainage, L, A1: s1.area, A2: s2.area, volume: v })
     total += v
   }
 
@@ -226,8 +240,6 @@ function clampBboxIntersection(a: ReturnType<typeof bboxOf>, b: ReturnType<typeo
 function idwZ(points: SurfacePoint[], x: number, y: number, power: number, maxDist: number): number | null {
   let wSum = 0
   let wzSum = 0
-  let nearestD2 = Infinity
-  let nearestZ = 0
 
   const maxD2 = maxDist * maxDist
   for (const p of points) {
@@ -235,10 +247,6 @@ function idwZ(points: SurfacePoint[], x: number, y: number, power: number, maxDi
     const dy = p.northing - y
     const d2 = dx * dx + dy * dy
     if (d2 === 0) return p.elevation
-    if (d2 < nearestD2) {
-      nearestD2 = d2
-      nearestZ = p.elevation
-    }
     if (d2 > maxD2) continue
     const d = Math.sqrt(d2)
     const w = 1 / Math.pow(d, power)
@@ -247,7 +255,6 @@ function idwZ(points: SurfacePoint[], x: number, y: number, power: number, maxDi
   }
 
   if (wSum > 0) return wzSum / wSum
-  if (nearestD2 < Infinity) return nearestZ
   return null
 }
 

@@ -1,33 +1,10 @@
 'use client';
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { ModernPricingPage, PricingCardProps } from '@/components/ui/animated-glassy-pricing'
-import { PLAN_CATALOG, getPlanPrice, type CurrencyCode } from '@/lib/subscription/catalog'
+import { PLAN_CATALOG, getPlanPrice, getTotalPrice, getPerSeatPrice, type CurrencyCode } from '@/lib/subscription/catalog'
 import { MpesaCheckoutModal } from '@/components/pricing/MpesaCheckoutModal'
 import { getMpesaTillNumber } from '@/lib/payments/mpesaConfig'
 import { Smartphone, CreditCard } from 'lucide-react'
-import { logger } from '@/lib/logger'
-
-// Minimal typed surface for the PayPal v6 SDK global (window.paypal)
-interface PayPalV6PaymentSession {
-  start(opts: { presentationMode: string }, createOrder: () => Promise<{ orderId: string }>): Promise<void>
-}
-interface PayPalV6SDKInstance {
-  createPayPalOneTimePaymentSession(options: {
-    onApprove: (data: { orderId: string }) => void
-    onCancel: (data: unknown) => void
-    onError: (error: unknown) => void
-  }): PayPalV6PaymentSession
-}
-interface PayPalV6SDK {
-  createInstance(config: { clientId: string; components: string[]; pageType: string; currency: CurrencyCode }): Promise<PayPalV6SDKInstance>
-}
-
-declare global {
-  interface Window {
-    paypal?: PayPalV6SDK
-  }
-}
-
 
 const currencyMap: Record<string, CurrencyCode> = {
   'KE': 'KES', 'UG': 'UGX', 'TZ': 'TZS', 'NG': 'NGN',
@@ -47,7 +24,6 @@ const formatPrice = (price: number, currency: CurrencyCode) => {
 
 export default function PricingPage() {
   const [currency, setCurrency] = useState<CurrencyCode>('KES')
-  const paypalLoadedRef = useRef(false)
 
   useEffect(() => { document.title = 'Pricing — METARDU' }, [])
 
@@ -76,134 +52,71 @@ export default function PricingPage() {
   }, [])
 
   const [selectedPlanId, setSelectedPlanId] = useState<string>('pro')
-
-  // Load PayPal SDK v6
-  useEffect(() => {
-    if (paypalLoadedRef.current) return
-
-    const script = document.createElement('script')
-    const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID || ''
-    if (!clientId) {
-      return
-    }
-    
-    script.src = `https://www.paypal.com/web-sdk/v6/core`
-    script.async = true
-    script.onload = async () => {
-      paypalLoadedRef.current = true
-      try {
-        if (!window.paypal) {
-          return
-        }
-        const sdkInstance = await window.paypal.createInstance({
-          clientId,
-          components: ["paypal-payments"],
-          pageType: "checkout",
-          currency: currency
-        })
-
-        const paymentSessionOptions = {
-          async onApprove(data: { orderId: string }) {
-            try {
-              const res = await fetch('/api/payments/paypal/capture', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ orderId: data.orderId })
-              })
-              const captureData = (await res.json()) as { error?: string }
-              if (captureData.error) throw new Error(captureData.error)
-              alert("Payment successful! Thank you for subscribing.")
-            } catch {
-              alert("Payment capture failed.")
-            }
-          },
-          onCancel() {
-            /* cancelled */
-          },
-          onError() {
-            alert("An error occurred during payment.")
-          },
-        }
-
-        const paypalPaymentSession = sdkInstance.createPayPalOneTimePaymentSession(paymentSessionOptions)
-
-        const paypalButton = document.getElementById("paypal-v6-button")
-        if (paypalButton) {
-          paypalButton.removeAttribute("hidden")
-          paypalButton.addEventListener("click", async () => {
-            try {
-              await paypalPaymentSession.start(
-                { presentationMode: "auto" },
-                () => {
-                  return fetch("/api/payments/paypal/create", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    // Access the current selectedPlanId and currency from a mutable ref or closures if necessary,
-                    // but since this is bound once, we should fetch the current value from the DOM or state.
-                    // We'll use a hack to read from a data attribute or global, but easiest is reading a data-plan attribute.
-                    body: JSON.stringify({ 
-                      planId: document.getElementById('paypal-v6-button')?.getAttribute('data-plan') || 'pro', 
-                      currency: document.getElementById('paypal-v6-button')?.getAttribute('data-currency') || 'USD' 
-                    })
-                  })
-                  .then(response => response.json())
-                  .then((data: { error?: string; orderId?: string }) => {
-                    if (data.error) throw new Error(data.error)
-                    if (!data.orderId) throw new Error('Missing order ID from create response')
-                    return { orderId: data.orderId }
-                  })
-                }
-              )
-            } catch (error) {
-              logger.error("PayPal payment start error:", { error })
-            }
-          })
-        }
-      } catch (err) {
-        logger.warn('[Pricing] PayPal SDK v6 render error:', { error: err })
-      }
-    }
-    document.body.appendChild(script)
-
-    return () => {
-      if (script.parentNode) script.parentNode.removeChild(script)
-    }
-  }, [currency]) // Re-bind if currency changes to ensure correct currency in createInstance (though technically sdkInstance might not re-init easily, keeping it simple for now)
+  const [seatCount, setSeatCount] = useState<number>(3) // default for Team plan
 
   const [mpesaModalOpen, setMpesaModalOpen] = useState(false)
   const [activeTab, setActiveTab] = useState<'mpesa' | 'paypal'>('mpesa')
 
-  // Show Free, Pro, and Team plans on pricing page (single source of truth from PLAN_CATALOG)
-  const visiblePlans = PLAN_CATALOG.filter(p => ['free', 'pro', 'team'].includes(p.id))
+  // Show Free, Pro, Team, Firm, Enterprise on pricing page
+  const visiblePlans = PLAN_CATALOG
 
-  const selectedPlan = PLAN_CATALOG.find(p => p.id === selectedPlanId) || visiblePlans[1]
-  const amountKes = getPlanPrice(selectedPlan.id as any, 'KES')
+  const selectedPlan = PLAN_CATALOG.find(p => p.id === selectedPlanId) || PLAN_CATALOG[1]
+  const totalAmountKes = getTotalPrice(selectedPlan.id as any, 'KES', seatCount)
 
-  const plans: PricingCardProps[] = visiblePlans.map(plan => ({
-    planId: plan.id,
-    planName: plan.name,
-    description: plan.id === 'free'
-      ? 'Perfect for students and hobbyist surveyors'
-      : plan.id === 'pro'
-        ? 'For professional surveyors and small firms'
-        : 'Collaborate with your survey crew',
-    price: formatPrice(getPlanPrice(plan.id, currency), currency),
-    features: plan.features,
-    buttonText: plan.id === 'free'
-      ? 'Get Started Free'
-      : plan.id === 'team'
-        ? 'Start Free Trial'
-        : 'Start Free Trial',
-    buttonVariant: plan.id === 'free' ? 'secondary' as const : 'primary' as const,
-    isPopular: plan.id === 'pro',
-  }))
+  // When switching plans, reset seat count to the plan's included seats
+  const handlePlanChange = (newPlanId: string) => {
+    setSelectedPlanId(newPlanId)
+    const plan = PLAN_CATALOG.find(p => p.id === newPlanId)
+    if (plan) {
+      setSeatCount(Math.max(plan.includedSeats, 1))
+    }
+  }
+
+  const plans: PricingCardProps[] = visiblePlans.map(plan => {
+    const isEnterprise = plan.contactSales
+    const perSeat = getPerSeatPrice(plan.id, currency)
+    const basePrice = getPlanPrice(plan.id, currency)
+
+    // Build price label
+    let priceLabel: string
+    if (isEnterprise) {
+      priceLabel = 'Custom'
+    } else if (plan.isPerSeat) {
+      priceLabel = `${formatPrice(basePrice, currency)} + ${formatPrice(perSeat, currency)}/seat`
+    } else {
+      priceLabel = formatPrice(basePrice, currency)
+    }
+
+    return {
+      planId: plan.id,
+      planName: plan.name,
+      description: plan.id === 'free'
+        ? 'Perfect for students and hobbyist surveyors'
+        : plan.id === 'pro'
+          ? 'For professional surveyors and individual practitioners'
+          : plan.id === 'team'
+            ? 'For survey crews and small firms (3 seats included)'
+            : plan.id === 'firm'
+              ? 'For established firms with multiple teams (5 seats included)'
+              : 'Custom deployment for government and large organizations',
+      price: priceLabel,
+      features: plan.features,
+      buttonText: isEnterprise
+        ? 'Contact Sales'
+        : plan.id === 'free'
+          ? 'Get Started Free'
+          : 'Start Free Trial',
+      buttonVariant: plan.id === 'free' ? 'secondary' as const : 'primary' as const,
+      isPopular: plan.id === 'pro',
+    }
+  })
 
   return (
     <>
       <ModernPricingPage
         title={
           <>
-            Simple, <span className="text-cyan-400">Transparent</span> Pricing
+            Simple, <span className="text-[var(--accent)]">Transparent</span> Pricing
           </>
         }
         subtitle="Start free, upgrade when you need more. Two trusted payment options: M-Pesa Buy Goods Till & PayPal."
@@ -251,7 +164,7 @@ export default function PricingPage() {
           </div>
 
           {/* Plan Selector */}
-          <div className="max-w-md mx-auto mb-8 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between">
+          <div className="max-w-md mx-auto mb-4 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)] flex items-center justify-between">
             <div>
               <span className="text-xs text-[var(--text-muted)] block">Selected Plan:</span>
               <span className="text-base font-bold text-white">{selectedPlan.name}</span>
@@ -260,16 +173,55 @@ export default function PricingPage() {
               <select
                 className="bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:ring-2 focus:ring-[var(--accent)]"
                 value={selectedPlanId}
-                onChange={(e) => setSelectedPlanId(e.target.value as string)}
+                onChange={(e) => handlePlanChange(e.target.value)}
               >
-                {visiblePlans.filter(p => p.id !== 'free').map(p => (
+                {visiblePlans.filter(p => p.id !== 'free' && !p.contactSales).map(p => (
                   <option key={p.id} value={p.id}>
-                    {p.name} — {formatPrice(getPlanPrice(p.id, currency), currency)}
+                    {p.name} — {formatPrice(getPlanPrice(p.id, currency), currency)}/mo
                   </option>
                 ))}
               </select>
             </div>
           </div>
+
+          {/* Seat Quantity Selector — only for per-seat plans */}
+          {selectedPlan.isPerSeat && (
+            <div className="max-w-md mx-auto mb-8 p-4 rounded-xl bg-[var(--bg-secondary)] border border-[var(--border-color)]">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <span className="text-xs text-[var(--text-muted)] block">Team Seats</span>
+                  <span className="text-xs text-[var(--text-secondary)]">
+                    {selectedPlan.includedSeats} included · {formatPrice(getPerSeatPrice(selectedPlan.id, currency), currency)}/extra seat
+                  </span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setSeatCount(Math.max(selectedPlan.includedSeats, seatCount - 1))}
+                    disabled={seatCount <= selectedPlan.includedSeats}
+                    className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 text-white font-bold text-lg flex items-center justify-center disabled:opacity-30 hover:bg-white/10 transition-colors"
+                  >
+                    −
+                  </button>
+                  <span className="text-xl font-bold text-white w-8 text-center">{seatCount}</span>
+                  <button
+                    type="button"
+                    onClick={() => setSeatCount(seatCount + 1)}
+                    className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 text-white font-bold text-lg flex items-center justify-center hover:bg-white/10 transition-colors"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
+              {seatCount > selectedPlan.includedSeats && (
+                <div className="text-xs text-[var(--text-secondary)] bg-black/20 rounded-lg px-3 py-2">
+                  {formatPrice(getPlanPrice(selectedPlan.id, currency), currency)} base +{' '}
+                  {seatCount - selectedPlan.includedSeats} extra seat{seatCount - selectedPlan.includedSeats > 1 ? 's' : ''} × {formatPrice(getPerSeatPrice(selectedPlan.id, currency), currency)} ={' '}
+                  <strong className="text-white">{formatPrice(getTotalPrice(selectedPlan.id, currency, seatCount), currency)}/mo</strong>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Tab 1: M-Pesa Buy Goods Till */}
           {activeTab === 'mpesa' && (
@@ -290,7 +242,7 @@ export default function PricingPage() {
                 className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-sm rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
               >
                 <Smartphone className="w-4 h-4" />
-                <span>Pay KSh {amountKes.toLocaleString()} via M-Pesa Till →</span>
+                <span>Pay KSh {totalAmountKes.toLocaleString()} via M-Pesa Till →</span>
               </button>
             </div>
           )}
@@ -298,18 +250,18 @@ export default function PricingPage() {
           {/* Tab 2: PayPal Checkout */}
           {activeTab === 'paypal' && (
             <div className="max-w-md mx-auto text-center space-y-4">
-              <div className="flex justify-center min-h-[160px] items-center">
-                {/* @ts-expect-error custom web component */}
-                <paypal-button
-                  id="paypal-v6-button"
-                  hidden
-                  data-plan={selectedPlanId}
-                  data-currency={currency}
-                />
+              <div className="rounded-xl border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] p-5 text-left">
+                <p className="text-sm font-semibold text-[var(--text-primary)]">PayPal checkout</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Continue to the secure METARDU checkout to approve PayPal or an international card. Your plan and currency stay attached to the order.</p>
               </div>
-              <p className="text-xs text-[var(--text-muted)]">
-                Supports Visa, Mastercard, American Express, and PayPal balances.
-              </p>
+              <button
+                type="button"
+                onClick={() => { window.location.href = `/checkout?plan=${encodeURIComponent(selectedPlanId)}&method=paypal` }}
+                className="w-full min-h-12 rounded-xl bg-[#f2c14e] px-4 py-3 font-semibold text-[#16130b] shadow-[0_10px_24px_rgba(242,193,78,0.18)] transition hover:bg-[#ffd56d]"
+              >
+                Continue with PayPal →
+              </button>
+              <p className="text-xs text-[var(--text-muted)]">Supports PayPal balances and cards where PayPal is available.</p>
             </div>
           )}
         </div>
@@ -321,7 +273,7 @@ export default function PricingPage() {
         onClose={() => setMpesaModalOpen(false)}
         planId={selectedPlanId as any}
         planName={selectedPlan.name}
-        amountKes={amountKes}
+        amountKes={totalAmountKes}
       />
     </>
   )

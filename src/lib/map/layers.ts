@@ -6,7 +6,7 @@
  *
  * Layer hierarchy (zIndex):
  *   0  — OSM basemap
- *   1  — KenCORS control stations
+ *   1  — Reviewed GNSS reference locations
  *   2  — Simple parcel layer (legacy, coord-based)
  *   3  — Beacon markers (legacy, station-based)
  *   20 — Scheme parcel polygons (from API)
@@ -17,7 +17,7 @@
  * @see schemeLayer.ts — enhanced scheme data layers with API integration
  */
 
-import { registerProjections } from '@/lib/map/projection'
+import { registerProjectProjection } from '@/lib/map/projection'
 import { createParcelStyleFunction, type ParcelStatus } from '@/lib/map/cadastralStyles'
 
 // Scheme map API GeoJSON shapes (mirrors src/app/api/scheme/map/route.ts)
@@ -92,7 +92,8 @@ export async function createParcelLayer(
   const polygon = new Polygon([coords3857]);
   const feature = new Feature({ geometry: polygon, type: 'parcel' });
 
-  const source = new VectorSource({ features: [feature] });
+  // Field-point views pass no ordered ring; do not manufacture a parcel.
+  const source = new VectorSource({ features: coords3857.length >= 4 ? [feature] : [] });
 
   return new VectorLayer({
     source,
@@ -127,12 +128,12 @@ export async function createParcelLayer(
  */
 export async function createParcelLayerFromScheme(
   projectId: string,
-  options: { showLabels?: boolean; epsg?: string } = {},
+  options: { showLabels?: boolean; epsg: string },
 ): Promise<import('ol/layer/Vector').default> {
-  const { showLabels = true, epsg = 'EPSG:21037' } = options
+  const { showLabels = true, epsg } = options
 
   // Ensure projections are registered before any coordinate transforms
-  await registerProjections()
+  await registerProjectProjection(epsg)
 
   const [
     { default: VectorLayer },
@@ -288,7 +289,7 @@ export async function createBeaconLayer(
   return new VectorLayer({ source, zIndex: 3 });
 }
 
-// ─── KenCORS Layer ────────────────────────────────────────────────────────
+// ─── Reviewed GNSS reference layer (compatibility export name) ────────────
 
 export async function createKenCORSLayer(
   stations: Array<{ id: string; name: string; coord3857: [number, number]; distanceKm: number; status: string }>
@@ -321,14 +322,14 @@ export async function createKenCORSLayer(
       image: new RegularShape({
         points: 3,
         radius: 8,
-        stroke: new Stroke({ color: status === 'active' ? '#006400' : '#888888', width: 2 }),
-        fill: new Fill({ color: status === 'active' ? 'rgba(0,100,0,0.15)' : 'rgba(136,136,136,0.15)' }),
+        stroke: new Stroke({ color: status === 'catalogue_reviewed' ? '#1B3A5C' : '#888888', width: 2 }),
+        fill: new Fill({ color: status === 'catalogue_reviewed' ? 'rgba(27,58,92,0.15)' : 'rgba(136,136,136,0.15)' }),
       }),
       text: new Text({
-        text: `${id}\n${distanceKm.toFixed(1)} km`,
+        text: `${name}\n${distanceKm.toFixed(1)} km grid`,
         offsetY: 18,
         font: '10px Calibri, sans-serif',
-        fill: new Fill({ color: status === 'active' ? '#006400' : '#888888' }),
+        fill: new Fill({ color: status === 'catalogue_reviewed' ? '#1B3A5C' : '#888888' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 2 }),
         textAlign: 'center',
       }),

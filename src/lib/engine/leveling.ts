@@ -27,7 +27,7 @@ export interface LevelingInput {
 }
 
 export function riseAndFall(input: LevelingInput): LevelingResult {
-  const { readings, openingRL, closingRL, distanceKm = 1 } = input;
+  const { readings, openingRL, closingRL, distanceKm } = input;
 
   const results: LevelingReading[] = [{ station: 'BM', reducedLevel: openingRL }];
 
@@ -47,40 +47,7 @@ export function riseAndFall(input: LevelingInput): LevelingResult {
   for (const reading of readings) {
     const row: LevelingReading = { station: reading.station };
 
-    if (reading.bs !== undefined && reading.bs !== null) {
-      const backsightRL = stationRL.get(reading.station) ?? currentRL;
-      row.bs = reading.bs;
-      row.reducedLevel = backsightRL;
-      sumBS += reading.bs;
-      hi = backsightRL + reading.bs;
-    }
-
-    if (reading.is !== undefined && reading.is !== null) {
-      if (hi === null) {
-        results.push(row);
-        continue;
-      }
-      row.is = reading.is;
-      const rl = hi - reading.is;
-      row.reducedLevel = rl;
-      stationRL.set(reading.station, rl);
-
-      const diff = rl - previousComputedRL;
-      if (diff >= 0) {
-        row.rise = diff;
-        row.fall = 0;
-        sumRise += diff;
-      } else {
-        row.rise = 0;
-        row.fall = Math.abs(diff);
-        sumFall += Math.abs(diff);
-      }
-
-      previousComputedRL = rl;
-      currentRL = rl;
-      lastComputedRL = rl;
-    }
-
+    // 1. Evaluate Foresight first using current setup HI
     if (reading.fs !== undefined && reading.fs !== null) {
       if (hi === null) {
         results.push(row);
@@ -89,7 +56,7 @@ export function riseAndFall(input: LevelingInput): LevelingResult {
       row.fs = reading.fs;
       sumFS += reading.fs;
 
-      const rl = hi - reading.fs;
+      const rl: number = hi - reading.fs;
       row.reducedLevel = rl;
       stationRL.set(reading.station, rl);
 
@@ -107,6 +74,45 @@ export function riseAndFall(input: LevelingInput): LevelingResult {
       previousComputedRL = rl;
       currentRL = rl;
       lastComputedRL = rl;
+    }
+
+    // 2. Evaluate Intermediate Sight using current setup HI
+    if (reading.is !== undefined && reading.is !== null) {
+      if (hi === null) {
+        results.push(row);
+        continue;
+      }
+      row.is = reading.is;
+      const rl: number = hi - reading.is;
+      row.reducedLevel = rl;
+      stationRL.set(reading.station, rl);
+
+      const diff = rl - previousComputedRL;
+      if (diff >= 0) {
+        row.rise = diff;
+        row.fall = 0;
+        sumRise += diff;
+      } else {
+        row.rise = 0;
+        row.fall = Math.abs(diff);
+        sumFall += Math.abs(diff);
+      }
+
+      previousComputedRL = rl;
+      currentRL = rl;
+      lastComputedRL = rl;
+    }
+
+    // 3. Evaluate Backsight to establish new setup HI
+    if (reading.bs !== undefined && reading.bs !== null) {
+      const backsightRL: number = row.reducedLevel ?? stationRL.get(reading.station) ?? currentRL;
+      row.bs = reading.bs;
+      row.reducedLevel = backsightRL;
+      stationRL.set(reading.station, backsightRL);
+      sumBS += reading.bs;
+      hi = backsightRL + reading.bs;
+      currentRL = backsightRL;
+      previousComputedRL = backsightRL;
     }
 
     results.push(row);
@@ -118,8 +124,12 @@ export function riseAndFall(input: LevelingInput): LevelingResult {
 
   const misclosure = closingRL !== undefined ? (lastComputedRL - closingRL) : 0;
 
-  const allowableMisclosure = 10 * Math.sqrt(distanceKm) / 1000;
-  const isAcceptable = closingRL === undefined ? true : Math.abs(misclosure) <= allowableMisclosure;
+  const allowableMisclosure = distanceKm !== undefined && distanceKm > 0
+    ? 10 * Math.sqrt(distanceKm) / 1000
+    : undefined;
+  const isAcceptable = closingRL !== undefined && allowableMisclosure !== undefined
+    ? Math.abs(misclosure) <= allowableMisclosure
+    : false;
 
   if (closingRL !== undefined && isAcceptable && misclosure !== 0) {
     const adjustableIndexes: number[] = [];
@@ -145,14 +155,15 @@ export function riseAndFall(input: LevelingInput): LevelingResult {
     readings: results,
     misclosure,
     arithmeticCheck,
-    allowableMisclosure,
+    ...(allowableMisclosure !== undefined ? { allowableMisclosure } : {}),
     isAcceptable,
+    closingRLProvided: closingRL !== undefined,
     method: 'rise_and_fall'
   };
 }
 
 export function heightOfCollimation(input: LevelingInput): LevelingResult {
-  const { readings, openingRL, closingRL, distanceKm = 1 } = input;
+  const { readings, openingRL, closingRL, distanceKm } = input;
 
   const results: LevelingReading[] = [{ station: 'BM', reducedLevel: openingRL }];
 
@@ -169,27 +180,7 @@ export function heightOfCollimation(input: LevelingInput): LevelingResult {
   for (const reading of readings) {
     const row: LevelingReading = { station: reading.station };
 
-    if (reading.bs !== undefined && reading.bs !== null) {
-      const backsightRL = stationRL.get(reading.station) ?? currentRL;
-      row.bs = reading.bs;
-      row.reducedLevel = backsightRL;
-      sumBS += reading.bs;
-      hi = backsightRL + reading.bs;
-    }
-
-    if (reading.is !== undefined && reading.is !== null) {
-      if (hi === null) {
-        results.push(row);
-        continue;
-      }
-      row.is = reading.is;
-      const rl = hi - reading.is;
-      row.reducedLevel = rl;
-      stationRL.set(reading.station, rl);
-      currentRL = rl;
-      lastComputedRL = rl;
-    }
-
+    // 1. Evaluate Foresight first using current setup HI
     if (reading.fs !== undefined && reading.fs !== null) {
       if (hi === null) {
         results.push(row);
@@ -197,11 +188,36 @@ export function heightOfCollimation(input: LevelingInput): LevelingResult {
       }
       row.fs = reading.fs;
       sumFS += reading.fs;
-      const rl = hi - reading.fs;
+      const rl: number = hi - reading.fs;
       row.reducedLevel = rl;
       stationRL.set(reading.station, rl);
       currentRL = rl;
       lastComputedRL = rl;
+    }
+
+    // 2. Evaluate Intermediate Sight using current setup HI
+    if (reading.is !== undefined && reading.is !== null) {
+      if (hi === null) {
+        results.push(row);
+        continue;
+      }
+      row.is = reading.is;
+      const rl: number = hi - reading.is;
+      row.reducedLevel = rl;
+      stationRL.set(reading.station, rl);
+      currentRL = rl;
+      lastComputedRL = rl;
+    }
+
+    // 3. Evaluate Backsight to establish new setup HI
+    if (reading.bs !== undefined && reading.bs !== null) {
+      const backsightRL: number = row.reducedLevel ?? stationRL.get(reading.station) ?? currentRL;
+      row.bs = reading.bs;
+      row.reducedLevel = backsightRL;
+      stationRL.set(reading.station, backsightRL);
+      sumBS += reading.bs;
+      hi = backsightRL + reading.bs;
+      currentRL = backsightRL;
     }
 
     results.push(row);
@@ -211,15 +227,20 @@ export function heightOfCollimation(input: LevelingInput): LevelingResult {
   const arithmeticCheck = Math.abs(arithmeticDiff) < 0.001;
 
   const misclosure = closingRL !== undefined ? (lastComputedRL - closingRL) : 0;
-  const allowableMisclosure = 10 * Math.sqrt(distanceKm) / 1000;
-  const isAcceptable = closingRL === undefined ? true : Math.abs(misclosure) <= allowableMisclosure;
+  const allowableMisclosure = distanceKm !== undefined && distanceKm > 0
+    ? 10 * Math.sqrt(distanceKm) / 1000
+    : undefined;
+  const isAcceptable = closingRL !== undefined && allowableMisclosure !== undefined
+    ? Math.abs(misclosure) <= allowableMisclosure
+    : false;
 
   return {
     readings: results,
     misclosure,
     arithmeticCheck,
-    allowableMisclosure,
+    ...(allowableMisclosure !== undefined ? { allowableMisclosure } : {}),
     isAcceptable,
+    closingRLProvided: closingRL !== undefined,
     method: 'height_of_collimation'
   };
 }

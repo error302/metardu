@@ -3,10 +3,9 @@
  *
  * PROBLEM
  * -------
- * The existing datumTransformer.ts uses the national-standard 7-parameter
- * Bursa-Wolf (EPSG:1165) for ALL transformations. This is correct for
- * general use, but for country-boundary and high-accuracy work, surveyors
- * need:
+ * The existing datumTransformer.ts applies one built-in Arc 1960 → WGS84
+ * transformation for ALL transformations. This is correct for general use,
+ * but for country-boundary and high-accuracy work, surveyors need:
  *   1. Locally-calibrated transformations (derived from control points in
  *      the project area) that are more accurate than the national average
  *   2. Provenance tracking — every transformed coordinate records WHICH
@@ -21,9 +20,9 @@
  *   - name (human-readable)
  *   - method ('7param' | '3param' | 'grid')
  *   - parameters (dx, dy, dz, rx, ry, rz, ds)
- *   - source (citation — e.g., "EPSG:1165", "SoK 1994 adjustment",
+ *   - source (citation — e.g., "EPSG:1122", "SoK 1994 adjustment",
  *     "Local calibration, Nairobi CBD, 2024-03-15")
- *   - accuracy (expected accuracy in meters, e.g., 5.0 for national, 0.05 for local)
+ *   - accuracy (expected accuracy in meters, e.g., 35.0 for national, 0.05 for local)
  *   - validArea (bounding box or description)
  *   - createdAt / createdBy
  *
@@ -34,9 +33,16 @@
  *
  * REFERENCES
  * ----------
- * - EPSG:1165 — Arc 1960 → WGS84, Kenya, 7-parameter Bursa-Wolf
- * - EPSG:1314 — Bursa-Wolf transformation method
- * - Survey of Kenya, "The Geodetic Network of Kenya" (1994)
+ * - EPSG:1122 — Arc 1960 to WGS 84 (1): 3-parameter geocentric translation
+ *   (-160, -6, -302), 35 m, Kenya + Tanzania. This is the transformation
+ *   carried by the official EPSG definitions of EPSG:21036/21037.
+ * - EPSG:1284 — Arc 1960 to WGS 84 (2): (-157, -2, -299), 6 m, Kenya.
+ * - CORRECTION (Sprint A audit): this file previously cited "EPSG:1165"
+ *   for a 7-parameter Bursa-Wolf set. EPSG:1165 is actually "Massawa to
+ *   WGS 84 (1)" (Eritrea) / the ITRF2014 datum — the 7-parameter values
+ *   (-0.807, 0.339, -1.619, -2.554) match no registered transformation.
+ *   The legacy ids 'EPSG:1165' and 'EPSG:1164-3param' are kept as aliases
+ *   so stored provenance records keep resolving.
  * - Clarke 1880 (RGS) ellipsoid: a=6378249.145, 1/f=293.465
  */
 
@@ -62,7 +68,7 @@ export interface TransformParameters {
 }
 
 export interface TransformationSet {
-  /** Unique identifier (e.g., 'EPSG:1165', 'local-nairobi-cbd-2024') */
+  /** Unique identifier (e.g., 'EPSG:1122', 'local-nairobi-cbd-2024') */
   id: string
   /** Human-readable name */
   name: string
@@ -121,42 +127,20 @@ export interface TransformedCoordinate {
 /**
  * The registry of known transformation parameter sets.
  *
- * T1.5c FIX (2026-07-10): The national-standard 7-parameter (EPSG:1165) is
- * registered as the default. Projects can add locally-calibrated sets via
+ * T1.5c FIX (2026-07-10): a national-standard set is registered as the
+ * default. Projects can add locally-calibrated sets via
  * registerLocalTransformation().
+ *
+ * SPRINT A FIX: the default is now the EPSG-registered EPSG:1122
+ * 3-parameter translation (see correction note in the file header).
  */
 const registry = new Map<string, TransformationSet>()
 
-// ─── Built-in: National Standard (EPSG:1165) ───────────────────────────────
+// ─── Built-in: EPSG:1122 (Arc 1960 to WGS 84 (1)) ──────────────────────────
 
-const EPSG_1165: TransformationSet = {
-  id: 'EPSG:1165',
-  name: 'Arc 1960 → WGS84 (Kenya National Standard)',
-  method: '7param',
-  parameters: {
-    dx: -160,
-    dy: -6,
-    dz: -302,
-    rx: -0.807,
-    ry: 0.339,
-    rz: -1.619,
-    ds: -2.554,
-  },
-  source: 'EPSG Geodetic Parameter Registry, transformation 1165. Arc 1960 to WGS 84 (7-parameter Bursa-Wolf per EPSG:1314). Published by Survey of Kenya.',
-  accuracy: 5.0,
-  validArea: {
-    description: 'Kenya — national coverage',
-    bbox: [33.5, -5.0, 42.0, 4.5],
-  },
-  publishedAt: '1994-01-01',
-  publishedBy: 'Survey of Kenya',
-}
-
-// ─── Built-in: 3-parameter fallback (for legacy compatibility) ─────────────
-
-const EPSG_1164_3PARAM: TransformationSet = {
-  id: 'EPSG:1164-3param',
-  name: 'Arc 1960 → WGS84 (3-parameter fallback)',
+const EPSG_1122: TransformationSet = {
+  id: 'EPSG:1122',
+  name: 'Arc 1960 → WGS84 (EPSG:1122, 3-parameter)',
   method: '3param',
   parameters: {
     dx: -160,
@@ -167,19 +151,45 @@ const EPSG_1164_3PARAM: TransformationSet = {
     rz: 0,
     ds: 0,
   },
-  source: 'EPSG transformation 1164 (3-parameter, translation only). Lower accuracy than 1165 — use only when 7-parameter is unavailable.',
-  accuracy: 10.0,
+  source: 'EPSG Geodetic Parameter Registry, transformation 1122 — "Arc 1960 to WGS 84 (1)": geocentric translation (-160, -6, -302), accuracy 35 m, Kenya + Tanzania, DMA.',
+  accuracy: 35.0,
   validArea: {
-    description: 'Kenya — national coverage (approximate)',
+    description: 'Kenya — national coverage',
     bbox: [33.5, -5.0, 42.0, 4.5],
   },
-  publishedAt: '1994-01-01',
-  publishedBy: 'Survey of Kenya',
+  publishedAt: '', // date unknown — parameters published by DMA, registered by EPSG
+  publishedBy: 'EPSG (parameters from DMA)',
+}
+
+// ─── Built-in: legacy aliases (kept so stored provenance resolves) ─────────
+
+/**
+ * Former default. The id cited a non-existent "EPSG:1165 Arc 1960 7-param"
+ * (EPSG:1165 is Massawa/ITRF2014); its 7-parameter values matched no
+ * registered transformation. Parameters now equal EPSG:1122.
+ */
+const LEGACY_1165: TransformationSet = {
+  ...EPSG_1122,
+  id: 'EPSG:1165',
+  name: 'Arc 1960 → WGS84 (legacy alias of EPSG:1122)',
+  source: 'Legacy alias — corrected to the EPSG:1122 registered parameters (the pre-correction 7-parameter values matched no EPSG transformation).',
+}
+
+/** Legacy fallback alias — parameters now equal EPSG:1122. */
+const LEGACY_1164_3PARAM: TransformationSet = {
+  ...EPSG_1122,
+  id: 'EPSG:1164-3param',
+  name: 'Arc 1960 → WGS84 (legacy 3-parameter fallback alias of EPSG:1122)',
+  source: 'Legacy alias of EPSG:1122 (3-parameter, translation only). The pre-correction citation "EPSG:1164" was incorrect.',
 }
 
 // Register built-in sets
-registry.set(EPSG_1165.id, EPSG_1165)
-registry.set(EPSG_1164_3PARAM.id, EPSG_1164_3PARAM)
+registry.set(EPSG_1122.id, EPSG_1122)
+registry.set(LEGACY_1165.id, LEGACY_1165)
+registry.set(LEGACY_1164_3PARAM.id, LEGACY_1164_3PARAM)
+
+/** Ids that must never be unregistered (canonical + legacy aliases). */
+const BUILTIN_IDS = new Set(['EPSG:1122', 'EPSG:1165', 'EPSG:1164-3param'])
 
 // ─── Registry API ───────────────────────────────────────────────────────────
 
@@ -233,7 +243,7 @@ export function registerLocalTransformation(set: Omit<TransformationSet, 'method
  * Remove a locally-calibrated transformation (built-ins cannot be removed).
  */
 export function unregisterTransformation(id: string): boolean {
-  if (id === 'EPSG:1165' || id === 'EPSG:1164-3param') {
+  if (BUILTIN_IDS.has(id)) {
     return false // cannot remove built-ins
   }
   return registry.delete(id)
@@ -251,7 +261,7 @@ export function unregisterTransformation(id: string): boolean {
  * @param lon - Longitude (WGS84 degrees)
  * @param lat - Latitude (WGS84 degrees)
  * @param targetCrs - Target CRS (e.g., 'EPSG:21037')
- * @param transformationId - Which transformation set to use (default: 'EPSG:1165')
+ * @param transformationId - Which transformation set to use (default: 'EPSG:1122')
  * @param userId - Optional: the user applying the transform
  * @returns TransformedCoordinate with provenance
  */
@@ -259,7 +269,7 @@ export function transformWithProvenance(
   lon: number,
   lat: number,
   targetCrs: string,
-  transformationId: string = 'EPSG:1165',
+  transformationId: string = 'EPSG:1122',
   userId?: string,
 ): TransformedCoordinate {
   const ts = getTransformation(transformationId)
@@ -296,7 +306,7 @@ export function transformWithProvenance(
  * Get the proj4 towgs84 string for a transformation set.
  * Useful when registering projections with proj4.defs().
  */
-export function getTowgs84String(transformationId: string = 'EPSG:1165'): string {
+export function getTowgs84String(transformationId: string = 'EPSG:1122'): string {
   const ts = getTransformation(transformationId)
   const p = ts.parameters
   return `${p.dx},${p.dy},${p.dz},${p.rx},${p.ry},${p.rz},${p.ds}`

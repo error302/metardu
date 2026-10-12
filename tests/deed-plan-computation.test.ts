@@ -35,6 +35,10 @@ describe('Deed Plan Computation', () => {
     expect(r90).toMatch(/^090\u00b000'/)
     expect(r90).toContain('"')
   })
+  test('bearing rounding carries seconds into minutes and wraps north', () => {
+    expect(degreesToDMS(12 + 59 / 60 + 59.99 / 3600)).toBe('013°00\'00.0"')
+    expect(degreesToDMS(359.999999)).toBe('000°00\'00.0"')
+  })
   test('area ~16000 sqm', () => {
     const a = computeArea(PTS)
     expect(a).toBeGreaterThan(10000)
@@ -52,7 +56,7 @@ describe('Deed Plan Computation', () => {
     expect(c.passes).toBe(true)
     expect(c.closingErrorE).toBe(0)
   })
-  test('bad closure fails', () => {
+  test('geometric closure does not measure field traverse error', () => {
     // Use 5 points where the last ≠ first, so there's actual misclosure
     // The closureCheck computes sum of all deltas (including closing leg back to start)
     // We need points that DON'T naturally close

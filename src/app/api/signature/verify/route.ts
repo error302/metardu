@@ -21,13 +21,11 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/signature/verify?token=XXX
  *
- * Public endpoint — anyone with a verification token can check whether a
- * document signature is valid. This is by design: third parties (banks,
- * advocates, registry officials) need to verify signatures without logging in.
+ * Public endpoint — anyone with a record token can check whether METARDU has
+ * a non-revoked record. This lookup does not authenticate the signer's identity,
+ * validate professional registration, or compare the original document.
  *
- * Rate-limited (60/min per IP) to prevent token enumeration attacks.
- * Tokens are 8-char uppercase random strings — 36^8 = 2.8 trillion combinations,
- * so 60/min = ~89 years to enumerate the full keyspace.
+ * Rate-limited to reduce token enumeration.
  */
 export const GET = apiHandler(
   { auth: false, rateLimit: { max: 60, windowMs: 60_000 } },
@@ -37,7 +35,7 @@ export const GET = apiHandler(
 
     if (!token) {
       return NextResponse.json(
-        { status: 'NOT_FOUND' as const, valid: false } as VerifySignatureResponse,
+        { status: 'NOT_FOUND' as const, recordFound: false } as VerifySignatureResponse,
         { status: 400 },
       )
     }
@@ -52,13 +50,13 @@ export const GET = apiHandler(
     if (!signature) {
       return NextResponse.json({
         status: 'NOT_FOUND',
-        valid: false,
+        recordFound: false,
       } as VerifySignatureResponse)
     }
 
     if (!signature.valid) {
       return NextResponse.json({
-        valid: false,
+        recordFound: true,
         surveyorName: signature.surveyor_name ?? undefined,
         iskNumber: signature.isk_number ?? undefined,
         firmName: signature.firm_name ?? undefined,
@@ -71,13 +69,13 @@ export const GET = apiHandler(
     }
 
     return NextResponse.json({
-      valid: true,
+      recordFound: true,
       surveyorName: signature.surveyor_name ?? undefined,
       iskNumber: signature.isk_number ?? undefined,
       firmName: signature.firm_name ?? undefined,
       signedAt: signature.signed_at ?? undefined,
       documentType: (signature.document_type ?? undefined) as VerifySignatureResponse['documentType'],
-      status: 'VALID',
+      status: 'RECORD_FOUND',
     } as VerifySignatureResponse)
   },
 )

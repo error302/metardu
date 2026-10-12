@@ -385,6 +385,7 @@ const TEMPLATES: Record<SurveyType, SurveyTypeTemplate> = {
   cadastral: cadastralTemplate,
   topographic: topographicTemplate,
   engineering: engineeringTemplate,
+  construction: engineeringTemplate,
   geodetic: geodeticTemplate,
   drone: droneTemplate,
   deformation: deformationTemplate,

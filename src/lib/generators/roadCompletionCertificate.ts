@@ -1,7 +1,5 @@
 // METARDU Road Completion Certificate Generator
-// Source: Kenya Roads Act, Cap 407
-// Source: KeNHA Construction Supervision Manual
-// Source: Survey Act Cap 299
+// Produces a user-entered draft record. It does not determine legal compliance or issue certification.
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -36,11 +34,11 @@ export interface RoadCompletionData {
   maxDeviation: number
   rmsError: number
   pavementLayers: Array<{ name: string; material: string; thicknessMm: number }>
-  earthworksCertified: boolean
-  pavementCertified: boolean
-  drainageCertified: boolean
-  signageCertified: boolean
-  roadFurnitureCertified: boolean
+  earthworksReviewed: boolean
+  pavementReviewed: boolean
+  drainageReviewed: boolean
+  signageReviewed: boolean
+  roadFurnitureReviewed: boolean
   defectsNoted: string[]
   reservations: string[]
 }
@@ -55,7 +53,7 @@ export interface RoadCompletionCertificate {
   certificateNumber: string
   issueDate: string
   sections: CertificateSection[]
-  certificationChecklist: Array<{ item: string; certified: boolean }>
+  reviewChecklist: Array<{ item: string; markedReviewed: boolean }>
   declaration: string
   signatureBlock: {
     surveyorName: string
@@ -64,36 +62,33 @@ export interface RoadCompletionCertificate {
     licenseNumber: string
     date: string
   }
-  isComplete: boolean
-  complianceNotes: string[]
+  checklistComplete: boolean
+  recordNotes: string[]
 }
 
 // ─── CERTIFICATION CHECKLIST ──────────────────────────────────────────────────
 
 export const CERTIFICATION_ITEMS = [
-  { key: 'earthworks', label: 'Earthworks & Formation Levels', description: 'Formation levels within tolerance, compaction tested per RDM 1.1' },
-  { key: 'pavement', label: 'Pavement Layers', description: 'Layer thicknesses verified, surface regularity within tolerance' },
-  { key: 'drainage', label: 'Drainage System', description: 'Longitudinal drains, cross drains, culverts installed and functional' },
-  { key: 'signage', label: 'Road Signs & Markings', description: 'Warning, regulatory, informatory signs per MUTCD Kenya' },
-  { key: 'roadFurniture', label: 'Road Furniture', description: 'Guardrails, kerbs, barriers, kilometre posts installed' },
+  { key: 'earthworks', label: 'Earthworks & formation', description: 'Project records reviewed by the responsible professional' },
+  { key: 'pavement', label: 'Pavement layers', description: 'Project records reviewed by the responsible professional' },
+  { key: 'drainage', label: 'Drainage system', description: 'Project records reviewed by the responsible professional' },
+  { key: 'signage', label: 'Signs and markings', description: 'Project records reviewed by the responsible professional' },
+  { key: 'roadFurniture', label: 'Road furniture', description: 'Project records reviewed by the responsible professional' },
 ] as const
 
 // ─── CERTIFICATE NUMBER GENERATION ────────────────────────────────────────────
 
-let certificateCounter = 0
-
 function generateCertificateNumber(): string {
-  certificateCounter++
   const year = new Date().getFullYear()
-  const seq = String(certificateCounter).padStart(3, '0')
-  return `RCC-${year}-${seq}`
+  return `DRAFT-RCR-${year}-${globalThis.crypto.randomUUID().slice(0, 8).toUpperCase()}`
 }
 
 // ─── FORMAT HELPERS ───────────────────────────────────────────────────────────
 
 function formatChainage(ch: number): string {
-  const km = Math.floor(ch / 1000)
-  const m = Math.round(ch % 1000)
+  const roundedMetres = Math.round(ch)
+  const km = Math.floor(roundedMetres / 1000)
+  const m = roundedMetres - km * 1000
   return `${km}+${String(m).padStart(3, '0')}`
 }
 
@@ -104,36 +99,39 @@ function formatNumber(n: number, decimals = 0): string {
 // ─── MAIN GENERATOR ───────────────────────────────────────────────────────────
 
 export function generateCertificate(data: RoadCompletionData): RoadCompletionCertificate {
+  const requiredText = [data.projectName, data.roadName, data.roadClass, data.county, data.designStandard, data.contractorName, data.clientName, data.completionDate, data.surveyorName, data.surveyorRegistration]
+  const requiredNumbers = [data.chainageStart, data.chainageEnd, data.designSpeed, data.carriagewayWidth, data.shoulderWidth, data.asBuiltTotalPoints, data.asBuiltPassPoints, data.maxDeviation, data.rmsError, data.asBuiltPassRate]
+  if (requiredText.some(value => !value.trim())) throw new Error('Complete required project, construction, design, and surveyor details before generating the draft record.')
+  if (requiredNumbers.some(value => !Number.isFinite(value)) || data.chainageStart < 0 || data.chainageEnd <= data.chainageStart || data.designSpeed <= 0 || data.carriagewayWidth <= 0 || data.shoulderWidth < 0 || !Number.isInteger(data.asBuiltTotalPoints) || !Number.isInteger(data.asBuiltPassPoints) || data.asBuiltTotalPoints <= 0 || data.asBuiltPassPoints < 0 || data.asBuiltPassPoints > data.asBuiltTotalPoints || data.maxDeviation < 0 || data.rmsError < 0 || data.asBuiltPassRate < 0 || data.asBuiltPassRate > 100) {
+    throw new Error('Enter valid finite chainage, design dimensions, and as-built summary values before generating the draft record.')
+  }
   const certNum = generateCertificateNumber()
-  const complianceNotes: string[] = []
+  const recordNotes: string[] = []
 
   // Check all certifications
-  const certifications: Array<{ item: string; certified: boolean }> = [
-    { item: 'Earthworks & Formation Levels', certified: data.earthworksCertified },
-    { item: 'Pavement Layers', certified: data.pavementCertified },
-    { item: 'Drainage System', certified: data.drainageCertified },
-    { item: 'Road Signs & Markings', certified: data.signageCertified },
-    { item: 'Road Furniture (Guardrails, Kerbs, KM Posts)', certified: data.roadFurnitureCertified },
+  const reviewChecklist: Array<{ item: string; markedReviewed: boolean }> = [
+    { item: 'Earthworks & Formation Levels', markedReviewed: data.earthworksReviewed },
+    { item: 'Pavement Layers', markedReviewed: data.pavementReviewed },
+    { item: 'Drainage System', markedReviewed: data.drainageReviewed },
+    { item: 'Road Signs & Markings', markedReviewed: data.signageReviewed },
+    { item: 'Road Furniture (Guardrails, Kerbs, KM Posts)', markedReviewed: data.roadFurnitureReviewed },
   ]
 
-  const allCertified = certifications.every(c => c.certified)
-  const isComplete = allCertified && data.asBuiltPassRate >= 95
+  const allReviewed = reviewChecklist.every(item => item.markedReviewed)
 
-  if (!allCertified) {
-    const missing = certifications.filter(c => !c.certified).map(c => c.item)
-    complianceNotes.push(`Incomplete certifications: ${missing.join(', ')}`)
+  if (!allReviewed) {
+    const missing = reviewChecklist.filter(item => !item.markedReviewed).map(item => item.item)
+    recordNotes.push(`Not marked reviewed: ${missing.join(', ')}`)
   }
 
-  if (data.asBuiltPassRate < 95) {
-    complianceNotes.push(`As-built pass rate (${data.asBuiltPassRate.toFixed(1)}%) is below the 95% threshold`)
-  }
+  recordNotes.push('METARDU has not verified survey evidence, professional registration, tolerances, approvals, or statutory compliance. This record requires independent professional review and sign-off.')
 
   if (data.defectsNoted.length > 0) {
-    complianceNotes.push(`${data.defectsNoted.length} defect(s) noted`)
+    recordNotes.push(`${data.defectsNoted.length} defect(s) noted`)
   }
 
   if (data.reservations.length > 0) {
-    complianceNotes.push(`${data.reservations.length} reservation(s) recorded`)
+    recordNotes.push(`${data.reservations.length} reservation(s) recorded`)
   }
 
   // Build certificate sections
@@ -181,7 +179,7 @@ export function generateCertificate(data: RoadCompletionData): RoadCompletionCer
         { label: 'Pass Rate', value: `${data.asBuiltPassRate.toFixed(1)}%` },
         { label: 'Maximum Deviation', value: `${data.maxDeviation.toFixed(1)} mm` },
         { label: 'RMS Error', value: `${data.rmsError.toFixed(1)} mm` },
-        { label: 'Compliance', value: data.asBuiltPassRate >= 95 ? 'PASS' : 'FAIL' },
+        { label: 'Reported pass rate (not assessed)', value: `${data.asBuiltPassRate.toFixed(1)}%` },
       ],
     },
     {
@@ -194,22 +192,18 @@ export function generateCertificate(data: RoadCompletionData): RoadCompletionCer
   ]
 
   // Declaration text
-  const declaration = `I, ${data.surveyorName} (${data.surveyorRegistration}), being a Licensed Surveyor registered under the Survey Act, Cap 299 of the Laws of Kenya, and a member of the Institution of Surveyors of Kenya (ISK), hereby certify that I have supervised the construction of the above-described road and have carried out an as-built survey to verify compliance with the approved design.
+  const declaration = `DRAFT RECORD FOR PROFESSIONAL REVIEW. Prepared with the survey method/instrument recorded as: [instrument/method]. The values and checklist selections in this document are user supplied and have not been independently verified by METARDU. This draft does not certify professional registration, construction completion, survey accuracy, compliance with a design or standard, statutory approval, or legal rights. An appropriately authorized professional must review the source evidence, applicable project criteria, and this record before signing or issuing any formal certification.
 
-The as-built survey was conducted using [instrument/method] and the results demonstrate that the constructed road meets the required tolerances as specified in the Kenya Road Design Manual (RDM 1.3) and the applicable Detail Tolerances (RDM 1.1).
+${data.reservations.length > 0 ? `Reservations recorded: ${data.reservations.join('; ')}.` : 'No reservations were entered in this draft; this does not establish that none exist.'}
 
-${data.reservations.length > 0 ? `Reservations: ${data.reservations.join('; ')}.` : 'No reservations are noted.'}
-
-${data.defectsNoted.length > 0 ? `Defects noted: ${data.defectsNoted.join('; ')}.` : 'No defects are noted.'}
-
-This certificate is issued without prejudice to any rights or obligations under the contract between the Client and the Contractor.`
+${data.defectsNoted.length > 0 ? `Defects recorded: ${data.defectsNoted.join('; ')}.` : 'No defects were entered in this draft; this does not establish that none exist.'}`
 
   return {
-    title: 'ROAD COMPLETION CERTIFICATE',
+    title: 'ROAD COMPLETION RECORD — DRAFT',
     certificateNumber: certNum,
     issueDate: data.completionDate,
     sections,
-    certificationChecklist: certifications,
+    reviewChecklist,
     declaration,
     signatureBlock: {
       surveyorName: data.surveyorName,
@@ -218,8 +212,8 @@ This certificate is issued without prejudice to any rights or obligations under 
       licenseNumber: data.surveyorLicense || 'N/A',
       date: data.completionDate,
     },
-    isComplete,
-    complianceNotes,
+    checklistComplete: allReviewed,
+    recordNotes,
   }
 }
 

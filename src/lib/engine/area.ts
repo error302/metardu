@@ -31,12 +31,16 @@ export function coordinateArea(points: Point2D[]): AreaResult {
     closed.push(points[0]);
   }
   
-  // Shoelace formula (Source: Basak, Chapter 4 / Ghilani & Wolf, Eq. 12.5)
-  // 2A = |Σ(E_n × N_{n+1}) - Σ(N_n × E_{n+1})|
+  // Translate to a local origin before applying the shoelace formula. This
+  // avoids subtracting large Easting×Northing products for small site parcels.
+  const reference = closed[0]
   let doubleArea = 0;
   for (let i = 0; i < closed.length - 1; i++) {
-    doubleArea += closed[i].easting * closed[i + 1].northing;
-    doubleArea -= closed[i + 1].easting * closed[i].northing;
+    const e1 = closed[i].easting - reference.easting;
+    const n1 = closed[i].northing - reference.northing;
+    const e2 = closed[i + 1].easting - reference.easting;
+    const n2 = closed[i + 1].northing - reference.northing;
+    doubleArea += e1 * n2 - e2 * n1;
   }
   
   const signedArea = doubleArea / 2;
@@ -54,15 +58,18 @@ export function coordinateArea(points: Point2D[]): AreaResult {
   let centroidX = 0;
   let centroidY = 0;
   for (let i = 0; i < closed.length - 1; i++) {
-    const cross = (closed[i].easting * closed[i + 1].northing) -
-                  (closed[i + 1].easting * closed[i].northing);
-    centroidX += (closed[i].easting + closed[i + 1].easting) * cross;
-    centroidY += (closed[i].northing + closed[i + 1].northing) * cross;
+    const e1 = closed[i].easting - reference.easting;
+    const n1 = closed[i].northing - reference.northing;
+    const e2 = closed[i + 1].easting - reference.easting;
+    const n2 = closed[i + 1].northing - reference.northing;
+    const cross = e1 * n2 - e2 * n1;
+    centroidX += (e1 + e2) * cross;
+    centroidY += (n1 + n2) * cross;
   }
 
   if (doubleArea !== 0) {
-    centroidX = centroidX / (3 * doubleArea);
-    centroidY = centroidY / (3 * doubleArea);
+    centroidX = reference.easting + centroidX / (3 * doubleArea);
+    centroidY = reference.northing + centroidY / (3 * doubleArea);
   } else {
     // Degenerate polygon: fall back to average of vertices
     const unique = closed.slice(0, -1);

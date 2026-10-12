@@ -1,5 +1,5 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 
 interface CountRow {
   count: number
@@ -52,6 +52,7 @@ export const dynamic = 'force-dynamic'
 export const GET = apiHandler(
   { auth: true, roles: ['super_admin', 'admin', 'org_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
   async () => {
+    setCurrentRlsServiceRole('platform_admin')
     const startTime = Date.now()
 
     // ── User stats ──

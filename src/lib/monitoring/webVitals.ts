@@ -7,7 +7,21 @@
  *  - Sent to Sentry as breadcrumbs in production
  *  - Tracked with custom survey-specific metrics (map load, compute time)
  */
-import { addBreadcrumb } from '@/lib/monitoring/sentry'
+// Bundle-weight: fire-and-forget dynamic import keeps the Sentry SDK out of
+// the root-layout initial graph (see scripts/bundle-budget.mjs). Breadcrumbs
+// are buffered until the SDK chunk arrives.
+import type { Breadcrumb } from '@sentry/nextjs'
+
+let sentryReady: Promise<{ addBreadcrumb: (b: Breadcrumb) => void }> | null = null
+
+function sendBreadcrumb(breadcrumb: Breadcrumb): void {
+  if (!sentryReady) {
+    sentryReady = import('@/lib/monitoring/sentry') as Promise<{ addBreadcrumb: (b: Breadcrumb) => void }>
+  }
+  void sentryReady.then((m) => m.addBreadcrumb(breadcrumb)).catch(() => {
+    /* monitoring unavailable — breadcrumbs are best-effort */
+  })
+}
 import { performanceMonitor } from '@/lib/performance/monitor'
 
 // Define a local Metric type since next/web-vitals may not export it
@@ -47,7 +61,7 @@ export function reportWebVital(metric: WebVitalMetric): void {
   // Send to Sentry as a breadcrumb (production only — addBreadcrumb
   // already guards internally, but we keep the conditional for clarity)
   if (isCoreVital) {
-    addBreadcrumb({
+    sendBreadcrumb({
       category: 'web-vital',
       message: `${name}: ${value.toFixed(2)}ms (${rating})`,
       level: rating === 'good' ? 'info' : rating === 'needs-improvement' ? 'warning' : 'error',
@@ -81,7 +95,7 @@ export function reportCustomMetric(
     console.log(`[CustomMetric] ${name}: ${value.toFixed(2)}ms`, extra ?? '')
   }
 
-  addBreadcrumb({
+  sendBreadcrumb({
     category: 'custom-metric',
     message: `${name}: ${value.toFixed(2)}ms`,
     level: 'info',

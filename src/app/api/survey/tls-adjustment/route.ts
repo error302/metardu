@@ -64,12 +64,33 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(result)
   } catch (error) {
+    const rawMsg = error instanceof Error ? error.message : String(error)
+    const isSVD = /svd|singular|rank|dimension/i.test(rawMsg)
+    const isConvergence = /converge|iteration/i.test(rawMsg)
+
+    let code = 'TLS_ADJUSTMENT_FAILED'
+    let remedy = 'Check design matrix dimensions and condition number. Ensure A has more rows than columns.'
+
+    if (isSVD) {
+      code = 'SVD_DECOMPOSITION_DEFECT'
+      remedy = 'Singular Value Decomposition failed or smallest singular value is not distinct. Ensure the augmented matrix [A l] has full column rank.'
+    } else if (isConvergence) {
+      code = 'CONVERGENCE_FAILURE'
+      remedy = 'Iterative Schaffrin-Wieser weighted TLS failed to converge. Try standard SVD-based TLS or verify weight matrix.'
+    }
+
     return NextResponse.json(
       {
-        error: 'Failed to run TLS adjustment',
-        message: error instanceof Error ? error.message : 'Unknown error',
+        error: isSVD
+          ? 'Total Least Squares SVD rank defect'
+          : isConvergence
+          ? 'Weighted TLS did not converge'
+          : 'Total Least Squares adjustment failed',
+        code,
+        message: rawMsg,
+        remedy,
       },
-      { status: 500 },
+      { status: 422 },
     )
   }
 }

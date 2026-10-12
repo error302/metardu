@@ -13,6 +13,7 @@
 
 import { useRef, useCallback } from 'react'
 import type { BasemapMode } from '@/app/map/mapTypes'
+import { switchBasemapById, STANDARD_BASEMAP_IDS } from '@/lib/surveyMapEngine/ol/layers'
 
 interface UseMapBasemapsReturn {
   basemapsRef: React.MutableRefObject<Record<string, import('ol/layer/Tile').default>>
@@ -50,13 +51,9 @@ export function useMapBasemaps(): UseMapBasemapsReturn {
         zIndex: 0,
       }),
       dark: new TileLayer({
-        source: new XYZ({
-          url: 'https://{a-d}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
-          crossOrigin: 'anonymous',
-          maxZoom: 19,
-          attributions: '\u00A9 CartoDB',
-          cacheSize: 2048,
-        }),
+        source: new OSM({ crossOrigin: 'anonymous' }),
+        // A separate canvas container keeps the dark filter off survey vectors.
+        className: 'metardu-dark-basemap',
         visible: false,
         zIndex: 0,
       }),
@@ -117,13 +114,11 @@ export function useMapBasemaps(): UseMapBasemapsReturn {
     setBasemap: (m: BasemapMode) => void
   ) => {
     if (!mapInstance.current) return
-    const basemapIds = ['osm', 'satellite', 'dark', 'terrain']
     for (const layer of mapInstance.current.getLayers().getArray()) {
-      const id = layer.get('basemapId') as string | undefined
-      if (id && basemapIds.includes(id)) {
-        layer.setVisible(id === mode)
-      }
+      const basemapId = layer.get('basemapId') as string | undefined
+      if (basemapId?.startsWith('offline-')) layer.setVisible(false)
     }
+    switchBasemapById(mapInstance.current, mode, { onlyIds: STANDARD_BASEMAP_IDS })
     setBasemap(mode)
   }, [])
 

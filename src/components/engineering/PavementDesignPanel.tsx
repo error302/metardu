@@ -17,30 +17,42 @@ interface ValidationErrors {
   growthRate?: string
   designPeriod?: string
   heavyVehiclePercentage?: string
-  roadLength?: string
+  directionalSplit?: string
+  laneFactor?: string
+  numberOfLanes?: string
+  vehicleDamageFactor?: string
 }
 
-function validate(data: { traffic: TrafficData; subgrade: SubgradeData; roadLength: number }): ValidationErrors {
+function validate(data: { traffic: TrafficData; subgrade: SubgradeData }): ValidationErrors {
   const errors: ValidationErrors = {}
-  const { traffic, subgrade, roadLength } = data
+  const { traffic, subgrade } = data
 
-  if (traffic.aadt <= 0) {
-    errors.aadt = 'AADT must be greater than 0'
+  if (!Number.isFinite(traffic.aadt) || traffic.aadt <= 0) {
+    errors.aadt = 'Enter a finite AADT greater than 0.'
   }
-  if (subgrade.cbr < 2 || subgrade.cbr > 100) {
-    errors.cbr = 'CBR must be between 2 and 100'
+  if (!Number.isFinite(subgrade.cbr) || subgrade.cbr < 2 || subgrade.cbr > 100) {
+    errors.cbr = 'Enter a measured/design CBR between 2 and 100.'
   }
-  if (traffic.growthRate < 0) {
-    errors.growthRate = 'Growth rate must be >= 0'
+  if (!Number.isFinite(traffic.growthRate) || traffic.growthRate < 0) {
+    errors.growthRate = 'Enter a finite, non-negative annual growth rate.'
   }
-  if (traffic.designPeriod < 10 || traffic.designPeriod > 40) {
-    errors.designPeriod = 'Design period must be between 10 and 40 years'
+  if (!Number.isFinite(traffic.designPeriod) || traffic.designPeriod < 10 || traffic.designPeriod > 40) {
+    errors.designPeriod = 'Enter a design period from 10 to 40 years.'
   }
-  if (traffic.heavyVehiclePercentage < 0 || traffic.heavyVehiclePercentage > 100) {
-    errors.heavyVehiclePercentage = 'Heavy vehicle % must be between 0 and 100'
+  if (!Number.isFinite(traffic.heavyVehiclePercentage) || traffic.heavyVehiclePercentage < 0 || traffic.heavyVehiclePercentage > 100) {
+    errors.heavyVehiclePercentage = 'Enter a heavy-vehicle percentage from 0 to 100.'
   }
-  if (roadLength <= 0) {
-    errors.roadLength = 'Road length must be greater than 0'
+  if (!Number.isFinite(traffic.directionalSplit) || traffic.directionalSplit <= 0 || traffic.directionalSplit > 1) {
+    errors.directionalSplit = 'Enter the design-direction share from greater than 0 to 1.'
+  }
+  if (!Number.isFinite(traffic.laneFactor) || traffic.laneFactor <= 0 || traffic.laneFactor > 1) {
+    errors.laneFactor = 'Enter the design-lane factor from greater than 0 to 1.'
+  }
+  if (!Number.isInteger(traffic.numberOfLanes) || traffic.numberOfLanes <= 0) {
+    errors.numberOfLanes = 'Enter a positive whole number of lanes.'
+  }
+  if (!Number.isFinite(traffic.vehicleDamageFactor) || (traffic.vehicleDamageFactor ?? 0) <= 0) {
+    errors.vehicleDamageFactor = 'Enter a finite vehicle damage factor greater than 0.'
   }
 
   return errors
@@ -50,31 +62,49 @@ const safeNum = (v: number, fallback: string = '—') =>
   Number.isFinite(v) && !Number.isNaN(v) ? v : fallback
 
 export default function PavementDesignPanel({
-  carriagewayWidth = 7.0,
-  roadLength: roadLengthProp = 1000,
+  carriagewayWidth: carriagewayWidthProp,
+  roadLength: roadLengthProp,
 }: PavementDesignPanelProps) {
   const [traffic, setTraffic] = useState<TrafficData>({
-    aadt: 5000, heavyVehiclePercentage: 15, growthRate: 4, designPeriod: 20,
-    directionalSplit: 0.5, laneFactor: 0.85, numberOfLanes: 2, vehicleDamageFactor: 1.5,
+    aadt: Number.NaN, heavyVehiclePercentage: Number.NaN, growthRate: Number.NaN, designPeriod: Number.NaN,
+    directionalSplit: Number.NaN, laneFactor: Number.NaN, numberOfLanes: Number.NaN, vehicleDamageFactor: Number.NaN,
   })
-  const [subgrade, setSubgrade] = useState<SubgradeData>({ cbr: 8 })
-  const [roadLength, setRoadLength] = useState(roadLengthProp)
+  const [subgrade, setSubgrade] = useState<SubgradeData>({ cbr: Number.NaN })
+  const [roadLength, setRoadLength] = useState(roadLengthProp ?? Number.NaN)
+  const [carriagewayWidth, setCarriagewayWidth] = useState(carriagewayWidthProp ?? Number.NaN)
   const [result, setResult] = useState<PavementDesignResult | null>(null)
   const [errors, setErrors] = useState<ValidationErrors>({})
 
   const quantities = useMemo(() => {
-    if (!result) return []
+    if (!result || !Number.isFinite(roadLength) || roadLength <= 0 || !Number.isFinite(carriagewayWidth) || carriagewayWidth <= 0) return []
     return computeLayerQuantities(result.layers, roadLength, carriagewayWidth)
   }, [result, roadLength, carriagewayWidth])
 
   const handleDesign = () => {
-    const validationErrors = validate({ traffic, subgrade, roadLength })
+    const validationErrors = validate({ traffic, subgrade })
     setErrors(validationErrors)
-    if (Object.keys(validationErrors).length > 0) return
+    if (Object.keys(validationErrors).length > 0) {
+      setResult(null)
+      return
+    }
 
     const r = designPavement(traffic, subgrade)
     setResult(r)
   }
+
+  const updateTraffic = (key: keyof TrafficData, value: string) => {
+    const number = value.trim() ? Number(value) : Number.NaN
+    setTraffic(current => ({ ...current, [key]: number }))
+    setErrors(current => ({ ...current, [key]: undefined }))
+    setResult(null)
+  }
+
+  const updateDimension = (setter: (value: number) => void, value: string) => {
+    setter(value.trim() ? Number(value) : Number.NaN)
+    setResult(null)
+  }
+
+  const inputValue = (value: number) => Number.isFinite(value) ? value : ''
 
   const handleExportCSV = useCallback(() => {
     if (!result || quantities.length === 0) return
@@ -113,8 +143,8 @@ export default function PavementDesignPanel({
     <div className="space-y-6">
       {/* Header */}
       <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6">
-        <h3 className="text-lg font-semibold text-white">Pavement Layer Design</h3>
-        <p className="text-sm text-zinc-400 mt-1">KeNHA Pavement &amp; Materials Design Manual — CBR-based method</p>
+        <h3 className="text-lg font-semibold text-white">Preliminary pavement structure screening</h3>
+        <p className="mt-1 text-sm text-zinc-400">Enter project traffic and laboratory CBR evidence. Catalog outputs are screening results; verify the current governing manual, traffic method, material specifications and geotechnical design before approval or construction.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -129,8 +159,8 @@ export default function PavementDesignPanel({
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.aadt ? ' border-red-500' : ''}`}
-                value={traffic.aadt}
-                onChange={e => setTraffic({ ...traffic, aadt: parseFloat(e.target.value) || 0 })}
+                value={inputValue(traffic.aadt)}
+                onChange={e => updateTraffic('aadt', e.target.value)}
               />
               {errors.aadt && <p className={errorCls}>{errors.aadt}</p>}
             </div>
@@ -142,8 +172,8 @@ export default function PavementDesignPanel({
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.heavyVehiclePercentage ? ' border-red-500' : ''}`}
-                value={traffic.heavyVehiclePercentage}
-                onChange={e => setTraffic({ ...traffic, heavyVehiclePercentage: parseFloat(e.target.value) || 0 })}
+                value={inputValue(traffic.heavyVehiclePercentage)}
+                onChange={e => updateTraffic('heavyVehiclePercentage', e.target.value)}
               />
               {errors.heavyVehiclePercentage && <p className={errorCls}>{errors.heavyVehiclePercentage}</p>}
             </div>
@@ -155,8 +185,8 @@ export default function PavementDesignPanel({
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.growthRate ? ' border-red-500' : ''}`}
-                value={traffic.growthRate}
-                onChange={e => setTraffic({ ...traffic, growthRate: parseFloat(e.target.value) || 0 })}
+                value={inputValue(traffic.growthRate)}
+                onChange={e => updateTraffic('growthRate', e.target.value)}
               />
               {errors.growthRate && <p className={errorCls}>{errors.growthRate}</p>}
             </div>
@@ -168,8 +198,8 @@ export default function PavementDesignPanel({
                 type="number"
                 step="any"
                 className={`${inputCls}${errors.designPeriod ? ' border-red-500' : ''}`}
-                value={traffic.designPeriod}
-                onChange={e => setTraffic({ ...traffic, designPeriod: parseFloat(e.target.value) || 0 })}
+                value={inputValue(traffic.designPeriod)}
+                onChange={e => updateTraffic('designPeriod', e.target.value)}
               />
               {errors.designPeriod && <p className={errorCls}>{errors.designPeriod}</p>}
             </div>
@@ -180,10 +210,11 @@ export default function PavementDesignPanel({
               <input id="directional-split" aria-label="Directionalsplit"
                 type="number"
                 step="any"
-                className={inputCls}
-                value={traffic.directionalSplit}
-                onChange={e => setTraffic({ ...traffic, directionalSplit: parseFloat(e.target.value) || 0 })}
+                className={`${inputCls}${errors.directionalSplit ? ' border-red-500' : ''}`}
+                value={inputValue(traffic.directionalSplit)}
+                onChange={e => updateTraffic('directionalSplit', e.target.value)}
               />
+              {errors.directionalSplit && <p className={errorCls}>{errors.directionalSplit}</p>}
             </div>
 
             {/* Lane Factor */}
@@ -192,22 +223,26 @@ export default function PavementDesignPanel({
               <input id="lane-factor" aria-label="Lanefactor"
                 type="number"
                 step="any"
-                className={inputCls}
-                value={traffic.laneFactor}
-                onChange={e => setTraffic({ ...traffic, laneFactor: parseFloat(e.target.value) || 0 })}
+                className={`${inputCls}${errors.laneFactor ? ' border-red-500' : ''}`}
+                value={inputValue(traffic.laneFactor)}
+                onChange={e => updateTraffic('laneFactor', e.target.value)}
               />
+              {errors.laneFactor && <p className={errorCls}>{errors.laneFactor}</p>}
+              <p className="mt-1 text-[11px] text-zinc-500">This user-entered factor is applied to directional traffic in the calculation.</p>
             </div>
 
             {/* Number of Lanes */}
             <div>
-              <label className={labelCls} htmlFor="no-of-lanes">No. of Lanes</label>
+              <label className={labelCls} htmlFor="no-of-lanes">No. of Lanes (reference)</label>
               <input id="no-of-lanes" aria-label="Numberoflanes"
                 type="number"
                 step="any"
-                className={inputCls}
-                value={traffic.numberOfLanes}
-                onChange={e => setTraffic({ ...traffic, numberOfLanes: parseFloat(e.target.value) || 0 })}
+                className={`${inputCls}${errors.numberOfLanes ? ' border-red-500' : ''}`}
+                value={inputValue(traffic.numberOfLanes)}
+                onChange={e => updateTraffic('numberOfLanes', e.target.value)}
               />
+              {errors.numberOfLanes && <p className={errorCls}>{errors.numberOfLanes}</p>}
+              <p className="mt-1 text-[11px] text-zinc-500">Recorded for context; it is not separately applied by this calculation.</p>
             </div>
 
             {/* Vehicle Damage Factor */}
@@ -216,10 +251,11 @@ export default function PavementDesignPanel({
               <input id="vehicle-damage-factor" aria-label="Vehicle Damage Factor"
                 type="number"
                 step="any"
-                className={inputCls}
-                value={traffic.vehicleDamageFactor ?? 1.0}
-                onChange={e => setTraffic({ ...traffic, vehicleDamageFactor: parseFloat(e.target.value) || 0 })}
+                className={`${inputCls}${errors.vehicleDamageFactor ? ' border-red-500' : ''}`}
+                value={inputValue(traffic.vehicleDamageFactor ?? Number.NaN)}
+                onChange={e => updateTraffic('vehicleDamageFactor', e.target.value)}
               />
+              {errors.vehicleDamageFactor && <p className={errorCls}>{errors.vehicleDamageFactor}</p>}
             </div>
           </div>
         </div>
@@ -230,18 +266,24 @@ export default function PavementDesignPanel({
           <div className="space-y-3">
             {/* CBR */}
             <div>
-              <label className={labelCls}>CBR (%) — {classifySubgrade(subgrade.cbr)}</label>
+              <label className={labelCls} htmlFor="subgrade-cbr">Measured/design CBR (%) — {Number.isFinite(subgrade.cbr) && subgrade.cbr >= 2 && subgrade.cbr <= 100 ? classifySubgrade(subgrade.cbr) : 'enter test result'}</label>
               <input aria-label="Cbr"
-                type="range"
-                min={1}
+                id="subgrade-cbr"
+                type="number"
+                step="any"
+                min={2}
                 max={100}
-                className="w-full"
-                value={subgrade.cbr}
-                onChange={e => setSubgrade({ ...subgrade, cbr: parseInt(e.target.value) })}
+                className={`${inputCls}${errors.cbr ? ' border-red-500' : ''}`}
+                value={inputValue(subgrade.cbr)}
+                onChange={e => {
+                  setSubgrade(current => ({ ...current, cbr: e.target.value.trim() ? Number(e.target.value) : Number.NaN }))
+                  setErrors(current => ({ ...current, cbr: undefined }))
+                  setResult(null)
+                }}
               />
               <div className="flex justify-between text-xs text-zinc-500">
-                <span>1% (SG4)</span>
-                <span className="font-medium text-zinc-200">{subgrade.cbr}%</span>
+                <span>2% minimum</span>
+                <span className="font-medium text-zinc-200">{inputValue(subgrade.cbr) || '—'}%</span>
                 <span>100% (SG1)</span>
               </div>
               {errors.cbr && <p className={errorCls}>{errors.cbr}</p>}
@@ -269,11 +311,14 @@ export default function PavementDesignPanel({
               <label className={labelCls} htmlFor="road-length-m">Road Length (m)</label>
               <input  id="road-length-m" aria-label="Road Length (m)"
                 type="number"
-                className={`${inputCls}${errors.roadLength ? ' border-red-500' : ''}`}
-                value={roadLength}
-                onChange={e => setRoadLength(parseFloat(e.target.value) || 0)}
+                className={inputCls}
+                value={inputValue(roadLength)}
+                onChange={e => updateDimension(setRoadLength, e.target.value)}
               />
-              {errors.roadLength && <p className={errorCls}>{errors.roadLength}</p>}
+            </div>
+            <div>
+              <label className={labelCls} htmlFor="carriageway-width-m">Carriageway width (m)</label>
+              <input id="carriageway-width-m" type="number" step="any" min="0" value={inputValue(carriagewayWidth)} onChange={e => updateDimension(setCarriagewayWidth, e.target.value)} className={inputCls} />
             </div>
           </div>
 
@@ -289,6 +334,7 @@ export default function PavementDesignPanel({
       {/* Results */}
       {result && (
         <>
+          <p role="note" className="rounded border border-amber-700 bg-amber-950/30 p-3 text-sm text-amber-200">This catalog lookup is not an approved pavement design. Check the governing project criteria, drainage, climate, materials, construction method and geotechnical report independently.</p>
           {/* Summary Cards */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-blue-950/40 rounded-xl border border-blue-800 p-4">
@@ -366,9 +412,7 @@ export default function PavementDesignPanel({
           {quantities.length > 0 && (
             <div className="bg-zinc-900 rounded-xl border border-zinc-700 overflow-hidden">
               <div className="px-6 py-4 border-b border-zinc-700 flex items-center justify-between">
-                <h4 className="font-medium text-white">
-                  Material Quantities (L={roadLength}m &times; W={carriagewayWidth}m)
-                </h4>
+                <h4 className="font-medium text-white">Estimated quantities using configured material densities (L={roadLength}m × W={carriagewayWidth}m)</h4>
                 <button
                   onClick={handleExportCSV}
                   className="px-4 py-2 bg-emerald-600 text-white text-sm rounded-lg font-medium hover:bg-emerald-700 transition-colors"
@@ -381,8 +425,8 @@ export default function PavementDesignPanel({
                   <tr>
                     <th className="px-4 py-2 text-left text-xs font-medium text-zinc-400">Layer</th>
                     <th className="px-4 py-2 text-right text-xs font-medium text-zinc-400">Volume (m&sup3;)</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-zinc-400">Tonnage</th>
-                    <th className="px-4 py-2 text-right text-xs font-medium text-zinc-400">Density (kg/m&sup3;)</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-zinc-400">Estimated mass (t)</th>
+                    <th className="px-4 py-2 text-right text-xs font-medium text-zinc-400">Configured density (kg/m&sup3;)</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -404,6 +448,7 @@ export default function PavementDesignPanel({
               </table>
             </div>
           )}
+          {quantities.length === 0 && <p role="status" className="rounded border border-zinc-700 p-3 text-sm text-zinc-400">Material quantities are unavailable until actual road length and carriageway width are entered.</p>}
         </>
       )}
     </div>

@@ -10,5 +10,7 @@
 module.exports = {
   rules: {
     'no-placeholder-as-aria-label': require('./rules/no-placeholder-as-aria-label'),
+    'no-hardcoded-srid-default': require('./rules/no-hardcoded-srid-default'),
+    'no-web-mercator-measure': require('./rules/no-web-mercator-measure'),
   },
 }

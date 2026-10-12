@@ -28,7 +28,9 @@ export interface NigeriaParcel {
 export interface NigeriaSearchResult {
   query: string
   results: NigeriaParcel[]
-  searchTime: number
+  available: boolean
+  message: string
+  searchTime: number | null
 }
 
 // Pending: Nigeria land registry API integration.
@@ -36,21 +38,13 @@ export interface NigeriaSearchResult {
 const nigeriaRegistryData: NigeriaParcel[] = []
 
 export function searchNigeriaRegistry(query: string): NigeriaSearchResult {
-  const q = query.toLowerCase()
-  const results = nigeriaRegistryData.filter((p) => 
-    p.parcelId.toLowerCase().includes(q) ||
-    p.fileNumber.toLowerCase().includes(q) ||
-    p.plotNumber.toLowerCase().includes(q) ||
-    p.layoutName.toLowerCase().includes(q) ||
-    p.lga.toLowerCase().includes(q) ||
-    p.state.toLowerCase().includes(q) ||
-    p.ownerName.toLowerCase().includes(q)
-  )
-  
+  void nigeriaRegistryData
   return {
     query,
-    results,
-    searchTime: 0,
+    results: [],
+    available: false,
+    message: 'Live Nigerian registry access is not configured. No parcel search was performed.',
+    searchTime: null,
   }
 }
 

@@ -12,7 +12,7 @@ import {
 } from '@/lib/integrations/digitalSignature'
 
 export default function DigitalSignaturePage() {
-  const [, setValidationMsg] = useState<string|null>(null)
+  const [validationMsg, setValidationMsg] = useState<string|null>(null)
   const [activeTab, setActiveTab] = useState<'sign' | 'verify'>('sign')
   const [signForm, setSignForm] = useState({
     documentId: '',
@@ -33,14 +33,19 @@ export default function DigitalSignaturePage() {
     if (!signForm.documentId || !signForm.content || !signForm.signerId || !signForm.secret) {
       setValidationMsg('Please fill all required fields.'); return
     }
-    const signed = await signDocument(
-      signForm.documentId,
-      signForm.content,
-      signForm.signerId,
-      signForm.secret
-    )
-    setSignedDoc(signed)
-    setQrCode(generateQRPayload(signed))
+    setValidationMsg(null)
+    try {
+      const signed = await signDocument(
+        signForm.documentId,
+        signForm.content,
+        signForm.signerId,
+        signForm.secret
+      )
+      setSignedDoc(signed)
+      setQrCode(generateQRPayload(signed))
+    } catch {
+      setValidationMsg('The browser could not create the local HMAC example.')
+    }
   }
 
   const handleVerify = async () => {
@@ -56,8 +61,13 @@ export default function DigitalSignaturePage() {
       })
       return
     }
-    const result = await verifySignature(parsed, verifyForm.originalContent, verifyForm.secret)
-    setVerificationResult(result)
+    setValidationMsg(null)
+    try {
+      const result = await verifySignature(parsed, verifyForm.originalContent, verifyForm.secret)
+      setVerificationResult(result)
+    } catch {
+      setValidationMsg('The browser could not check this local HMAC example.')
+    }
   }
 
   const handleSurveySign = async () => {
@@ -72,21 +82,29 @@ export default function DigitalSignaturePage() {
       distance_AB: 141.42,
       bearing_AB_Value: 45.0
     }
-    const signed = await createSurveyReportSignature(
-      `SURVEY-${Date.now()}`,
-      signForm.signerId,
-      measurements,
-      signForm.secret
-    )
-    setSignedDoc(signed)
-    setQrCode(generateQRPayload(signed))
+    setValidationMsg(null)
+    try {
+      const signed = await createSurveyReportSignature(
+        `EXAMPLE-SURVEY-${Date.now()}`,
+        signForm.signerId,
+        measurements,
+        signForm.secret
+      )
+      setSignedDoc(signed)
+      setQrCode(generateQRPayload(signed))
+    } catch {
+      setValidationMsg('The browser could not create the fictional local example.')
+    }
   }
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Digital Signature & QR Verification</h1>
-        <p className="text-[var(--text-muted)] mb-8">Sign survey documents and verify signatures with QR codes</p>
+        <h1 className="text-3xl font-bold text-[var(--text-primary)] mb-2">Local HMAC Demonstration</h1>
+        <p className="text-[var(--text-muted)] mb-4">Training example for content hashing and keyed checks; it is not connected to project records.</p>
+        <div role="note" className="mb-8 rounded-lg border border-amber-600 bg-amber-950/30 p-4 text-sm text-amber-100">
+          This browser-only demonstration uses a secret entered by the user and a shared fixed salt. It does not verify signer identity, professional registration, key ownership, document custody, or legal acceptance. Do not use its output for survey submissions or engineering decisions.
+        </div>
 
         <div className="flex gap-2 mb-6">
           <button
@@ -110,6 +128,8 @@ export default function DigitalSignaturePage() {
             Verify Signature
           </button>
         </div>
+
+        {validationMsg && <p role="alert" className="mb-4 rounded border border-red-700 bg-red-950/30 p-3 text-sm text-red-200">{validationMsg}</p>}
 
         {activeTab === 'sign' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
@@ -175,25 +195,25 @@ export default function DigitalSignaturePage() {
                 onClick={handleSign}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
-                Sign Document
+                Create local HMAC demo
               </button>
               <button
                 onClick={handleSurveySign}
                 className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
               >
-                Quick Survey Report Sign
+                Generate fictional survey example
               </button>
             </div>
 
             {signedDoc && (
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                <h3 className="font-medium text-green-800 mb-2"> Document Signed Successfully</h3>
+                <h3 className="font-medium text-amber-900 mb-2">Local HMAC example created — not an authenticated signature</h3>
                 <div className="text-sm text-green-700 space-y-1">
                   <p><strong>Document ID:</strong> {signedDoc.documentId}</p>
-                  <p><strong>Signer:</strong> {signedDoc.signerId}</p>
+                  <p><strong>User-entered signer label (unverified):</strong> {signedDoc.signerId}</p>
                   <p><strong>Timestamp:</strong> {new Date(signedDoc.timestamp).toLocaleString()}</p>
                   <p><strong>Document Hash:</strong> <code className="text-xs">{signedDoc.documentHash}</code></p>
-                  <p><strong>Signature:</strong> <code className="text-xs">{signedDoc.signature}</code></p>
+                  <p><strong>HMAC output:</strong> <code className="text-xs">{signedDoc.signature}</code></p>
                 </div>
                 
                 {qrCode && (
@@ -214,7 +234,7 @@ export default function DigitalSignaturePage() {
 
         {activeTab === 'verify' && (
           <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h2 className="text-xl font-semibold mb-4">Verify a Signature</h2>
+            <h2 className="text-xl font-semibold mb-4">Check a local HMAC example</h2>
             
             <div className="space-y-4 mb-6">
               <div>
@@ -262,7 +282,7 @@ export default function DigitalSignaturePage() {
               onClick={handleVerify}
               className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 mb-6"
             >
-              Verify Signature
+              Check HMAC and content hash
             </button>
 
             {verificationResult && (
@@ -274,7 +294,7 @@ export default function DigitalSignaturePage() {
                 <h3 className={`font-medium mb-2 ${
                   verificationResult.valid ? 'text-green-800' : 'text-red-800'
                 }`}>
-                  {verificationResult.valid ? ' Signature Verified' : '[x] Verification Failed'}
+                  {verificationResult.valid ? 'HMAC and content hash match' : 'HMAC or content hash did not match'}
                 </h3>
                 <p className="text-sm">{verificationResult.message}</p>
                 <p className="text-xs text-[var(--text-muted)] mt-2">

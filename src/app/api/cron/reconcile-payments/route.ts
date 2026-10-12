@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextRequest, NextResponse } from 'next/server'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { logger } from '@/lib/logger'
 
 /**
@@ -44,6 +44,7 @@ export async function POST(req: NextRequest) {
   if (!serviceKey || authHeader !== `Bearer ${serviceKey}`) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+  setCurrentRlsServiceRole('billing_reconciliation')
 
   try {
     // ── 1. Expire stale payment intents ─────────────────────────────────

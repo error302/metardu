@@ -31,7 +31,7 @@ jest.mock('ol/proj', () => ({ transform: jest.fn() }))
 jest.mock('ol/Observable', () => ({ unByKey: jest.fn() }))
 jest.mock('proj4', () => ({ default: { defs: jest.fn(), fromProj4: jest.fn() } }))
 
-import { HistoryManager, type HistorySource } from '../cadastralEditing'
+import { HistoryManager, type HistorySource } from '@/lib/surveyMapEngine/ol/cadastralEditing'
 
 // ---------------------------------------------------------------------------
 // Helpers to create mock OL features and sources
@@ -495,12 +495,12 @@ describe('HistoryManager', () => {
 describe('createHistoryManager', () => {
   it('is exported as a function', async () => {
     // createHistoryManager is an async factory exported from the module
-    const mod = await import('../cadastralEditing')
+    const mod = await import('@/lib/surveyMapEngine/ol/cadastralEditing')
     expect(typeof mod.createHistoryManager).toBe('function')
   })
 
   it('returns a HistoryManager instance', async () => {
-    const { createHistoryManager } = await import('../cadastralEditing')
+    const { createHistoryManager } = await import('@/lib/surveyMapEngine/ol/cadastralEditing')
     const source = createMockSource()
     const hm = await createHistoryManager(source as unknown as HistorySource)
     expect(hm).toBeInstanceOf(HistoryManager)

@@ -110,6 +110,15 @@ describe('generatePileGrid()', () => {
     expect(result.totalPiles).toBe(1);
     expect(result.area).toBe(0); // (1-1)*spacing * (1-1)*spacing = 0
   });
+
+  it('rejects grids that exceed the set-out persistence limit', () => {
+    expect(() => generatePileGrid({ ...basicDef, rows: 101, columns: 50 })).toThrow(/cannot exceed/);
+  });
+
+  it('rejects non-finite design values instead of persisting fabricated coordinates', () => {
+    expect(() => generatePileGrid({ ...basicDef, originEasting: Number.NaN })).toThrow(/finite coordinates/);
+    expect(() => generatePileGrid({ ...basicDef, originRL: Number.POSITIVE_INFINITY })).toThrow(/Design RL/);
+  });
 });
 
 // ─── computeSettingOut ─────────────────────────────────────────────────────
@@ -135,6 +144,12 @@ describe('computeSettingOut()', () => {
     for (const item of so) {
       expect(item.targetHeight).toBeCloseTo(designRL - stationRL - HI, 4);
     }
+  });
+
+  it('leaves target height unknown when no design level is supplied', () => {
+    const result = generatePileGrid({ ...basicDef, originRL: null });
+    const [settingOut] = computeSettingOut(result.piles, 1000, 2000, 1245, 1.5);
+    expect(settingOut.targetHeight).toBeNull();
   });
 
   it('bearing to due East is 90°', () => {

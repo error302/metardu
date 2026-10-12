@@ -46,9 +46,10 @@
  *  - Select interaction + Popup overlays
  *  - Undo / Redo history (via useMapHistory hook)
  *  - Measurement (Distance & Area with bearing)
- *  - GeoJSON / KML / WKT import & export (DXF/LandXML export only — no import)
+ *  - GeoJSON / KML / WKT import; limited ASCII DXF import with project CRS and unit confirmation
+ *  - GeoJSON / KML / WKT / DXF / LandXML export (LandXML import is not supported)
  *  - Drag & Drop file import
- *  - MousePosition (live EPSG:21037 coords)
+ *  - MousePosition (live coordinates in the declared survey CRS)
  *  - Geolocation (GPS tracking)
  *  - GPS Stakeout mode (Pro+)
  *  - Cluster source for project markers
@@ -73,27 +74,24 @@ import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
-import { createSchemeLayers, zoomToSchemeExtent } from '@/lib/map/schemeLayer'
-import { createProjectPointsLayer } from '@/lib/map/projectPointsLayer'
+import { useSchemeLayers } from '@/app/map/hooks/useSchemeLayers'
+import { useDigitizingTools } from '@/app/map/hooks/useDigitizingTools'
+import { useTraverseParcelPreview } from '@/app/map/hooks/useTraverseParcelPreview'
+import { useGpsTracking } from '@/app/map/hooks/useGpsTracking'
+import { useProjectPoints } from '@/app/map/hooks/useProjectPoints'
+import { useMapPrintFlow } from '@/app/map/hooks/useMapPrintFlow'
+import { useMapSnapping } from '@/app/map/hooks/useMapSnapping'
 import { SchemeLayerPanel } from '@/app/map/components/SchemeLayerPanel'
-import type { StakeoutState } from '@/lib/map/stakeout'
+import type { StakeoutState } from '@/lib/surveyMapEngine/ol/stakeout'
 import type { MapCleanupRefs } from '@/lib/map/olTypes'
-import type { PlanGeometry } from '@/lib/engine/planGeometry'
-import {
-  createTraversePolygonPreview,
-  removeTraversePolygonPreview,
-  createParcelFromTraverse,
-} from '@/lib/map/traverseToParcel'
 
 // ── Sub-components (lazy where appropriate) ──
 import { MapOverlays } from '@/app/map/components/MapOverlays'
 import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
-import { RotationControl } from '@/app/map/components/RotationControl'
-import { NorthArrowOverlay } from '@/app/map/components/NorthArrowOverlay'
+import { MapRightDock } from '@/app/map/components/MapRightDock'
 import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
-import { MapPrintButton } from '@/app/map/components/MapPrintButton'
 import MapRail from '@/app/map/components/MapRail'
 import { SurveyWorkflowBadge } from '@/app/map/components/SurveyWorkflowBadge'
 import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
@@ -103,12 +101,11 @@ import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
-import { StakeoutRadar } from '@/components/survey/StakeoutRadar'
 import { OsmBuildingsLayer } from '@/app/map/components/OsmBuildingsLayer'
 import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
-import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
-import { switchMapView } from '@/lib/map/nativeProjectionView'
-import { SRID_21037, SRID_32737, SRID_3857, SRID_4326 } from '@/lib/map/projection'
+import { resolveMapSurveyCrs } from '@/app/map/mapSurveyCrs'
+import { useSelectionStore } from '@/lib/surveyMapEngine/ol/selection'
+import type { SnapMode, SnapType } from '@/lib/surveyMapEngine/ol/snapping'
 
 // ── Hooks ──
 import { useMapBasemaps } from '@/app/map/hooks/useMapBasemaps'
@@ -116,7 +113,8 @@ import { useMapInit } from '@/app/map/hooks/useMapInit'
 import { useMapState } from '@/app/map/hooks/useMapState'
 import { useMapInteractions } from '@/app/map/hooks/useMapInteractions'
 import { useVertexEditing } from '@/hooks/useVertexEditing'
-import { usePrint, type PrintOptions } from '@/hooks/usePrint'
+import { usePrint } from '@/lib/surveyMapEngine/io/printSurface'
+import { SurveyMapEngineProvider } from '@/lib/surveyMapEngine/react/SurveyMapEngineContext'
 import type { MapExtent } from './MapReactContext'
 import { MapProvider, useMapContext, type MapContextValue } from '@/app/map/MapReactContext'
 // LINT FIX (2026-08-30): StakeoutPanel is rendered by MapToolDock (and
@@ -280,18 +278,24 @@ export default function MapClient() {
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   const [measureMode, setMeasureMode] = useState<MeasureMode>('none')
   const [editMode, setEditMode] = useState(false)
-  const [mouseCoord, setMouseCoord] = useState<{ lon: number; lat: number; e: number; n: number } | null>(null)
+  const [mouseCoord, setMouseCoord] = useState<{
+    lon: number
+    lat: number
+    e: number | null
+    n: number | null
+    epsg: string | null
+  } | null>(null)
   const [gpsTracking, setGpsTracking] = useState(false)
   const [gpsPos, setGpsPos] = useState<{ lon: number; lat: number; accuracy: number } | null>(null)
-  const [gpsPos21037, setGpsPos21037] = useState<{ easting: number; northing: number; accuracy: number } | null>(null)
   const [featureCount, setFeatureCount] = useState(0)
   const [importMsg, setImportMsg] = useState('')
   const [panelOpen, setPanelOpen] = useState(false)
   const [dragHint, setDragHint] = useState(true)
   const [selectedFeature, setSelectedFeature] = useState<import('ol/Feature').default | null>(null)
+  const [selectedFeatures, setSelectedFeatures] = useState<import('ol/Feature').default[]>([])
   const [featureName, setFeatureName] = useState('')
   const [measureResult, setMeasureResult] = useState('')
-  const [layerOpacity, setLayerOpacity] = useState(100)
+  const [layerOpacity, setLayerOpacity] = useState(1)
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number } | null>(null)
   const [stakeoutActive, setStakeoutActive] = useState(false)
   const [stakeoutState, setStakeoutState] = useState<StakeoutState | null>(null)
@@ -301,42 +305,14 @@ export default function MapClient() {
   const [showAnnotations, setShowAnnotations] = useState(false)
   const [projectSearch, setProjectSearch] = useState('')
 
-  // ── Scheme layer state ──
-  const [schemeLoading, setSchemeLoading] = useState(false)
-  const [schemeError, setSchemeError] = useState('')
-  const [schemeLoaded, setSchemeLoaded] = useState(false)
-  const [schemeParcelCount, setSchemeParcelCount] = useState(0)
-  const [schemeBlockCount, setSchemeBlockCount] = useState(0)
-  const [schemeBeaconCount, setSchemeBeaconCount] = useState(0)
-  const [showSchemeParcels, setShowSchemeParcels] = useState(true)
-  const [showSchemeBlocks, setShowSchemeBlocks] = useState(true)
-  const [showSchemeBeacons, setShowSchemeBeacons] = useState(true)
-  const schemeCleanupRef = useRef<(() => void) | null>(null)
-  const schemeLayersRef = useRef<{ parcelLayer: import('ol/layer/Vector').default | null; blockLayer: import('ol/layer/Vector').default | null; beaconLayer: import('ol/layer/Vector').default | null; extent: number[] | null } | null>(null)
-
-  // ── Project survey points state (the #1 map gap — show your field data) ──
-  const [projectPointsCount, setProjectPointsCount] = useState(0)
-  const [projectPointsLoading, setProjectPointsLoading] = useState(false)
-  const [showProjectPoints, setShowProjectPoints] = useState(true)
-  const projectPointsCleanupRef = useRef<(() => void) | null>(null)
-  const projectPointsLayerRef = useRef<import('ol/layer/Vector').default | null>(null)
-
-  // ── Traverse-to-parcel state ──
-  const [traverseParcelPreviewActive, setTraverseParcelPreviewActive] = useState(false)
-  const [hasTraverse, setHasTraverse] = useState(false)
-  const traversePreviewLayerRef = useRef<import('ol/layer/Vector').default | null>(null)
+  // ── Scheme / project-points / traverse / print state ── (Phase 5: lives in
+  //    useSchemeLayers, useProjectPoints, useTraverseParcelPreview, useMapPrintFlow)
 
   // ── Vertex editing state (Tier 1: VertexEditToolbar) ──
   const [vertexEditingEnabled, setVertexEditingEnabled] = useState(false)
   const [snapEnabled, setSnapEnabled] = useState(true)
   const [snapTolerance, setSnapTolerance] = useState(10)
   const [vertexEditingVertices, setVertexEditingVertices] = useState<Array<{ easting: number; northing: number }>>([])
-
-  // ── Print/PDF state (Tier 1: usePrint + SheetLayout) ──
-  const [showSheetLayout, setShowSheetLayout] = useState(false)
-  // Derived at print time from the largest drawn polygon so the sheet's scale,
-  // area and perimeter reflect the actual survey (not the "As Noted" fallback).
-  const [printPlanGeometry, setPrintPlanGeometry] = useState<PlanGeometry | null>(null)
 
   // ── Identify Panel state ──
   const [identifiedFeature, setIdentifiedFeature] = useState<IdentifiedFeature | null>(null)
@@ -346,14 +322,10 @@ export default function MapClient() {
   const [offsetDistance, setOffsetDistance] = useState(5)
   const [rotateAngle, setRotateAngle] = useState(15)
   const [snappingEnabled, setSnappingEnabled] = useState(true)
-  const [snappingMode, setSnappingMode] = useState<'vertex' | 'segment' | 'vertex_segment'>('vertex_segment')
+  const [snappingMode, setSnappingMode] = useState<SnapMode>('vertex_segment')
   const [snappingTolerance, setSnappingTolerance] = useState(10)
-  const [snappingTypes, setSnappingTypes] = useState<Set<'osm' | 'parcels' | 'beacons' | 'grid' | 'all'>>(new Set(['parcels', 'beacons']))
+  const [snappingTypes, setSnappingTypes] = useState<Set<SnapType>>(new Set(['drawn', 'parcels', 'beacons']))
   const [showSnappingOptions, setShowSnappingOptions] = useState(false)
-
-  // ── Stakeout Radar state ──
-  const [showStakeoutRadar, setShowStakeoutRadar] = useState(false)
-  const [stakeoutRadarTarget, setStakeoutRadarTarget] = useState<{ e: number; n: number } | null>(null)
 
   // ── OSM Buildings overlay toggle ──
   const [showOsmBuildings, setShowOsmBuildings] = useState(false)
@@ -371,8 +343,10 @@ export default function MapClient() {
   // ── Map extent for offline tile dialog (async resolve) ──
   const [offlineMapExtent, setOfflineMapExtent] = useState<MapExtent | null>(null)
 
-  // ── Map projection (Tier 2: Projection switching) ──
-  const [activeProjection, setActiveProjection] = useState<string>('EPSG:3857')
+  // Map geometry and tile sources stay in EPSG:3857. For an unlinked map,
+  // this is only the explicitly selected working survey grid; linked projects
+  // always use their persisted reference system instead.
+  const [unlinkedSurveyCrs, setUnlinkedSurveyCrs] = useState<string>('EPSG:3857')
 
   // ── History hook ──
   const ctx: MapContext = useMemo(() => ({
@@ -401,6 +375,15 @@ export default function MapClient() {
   // ── Basemaps hook ──
   const { createBasemaps, toggleBasemap: toggleBasemapHook } = useMapBasemaps()
 
+  // Project points API returns the saved project CRS even when there are no
+  // points, so the map never infers survey mathematics from its display view.
+  const { projectPointsError, projectCrs } = useProjectPoints({ schemeProjectId, mapInstance, mapReady })
+  const currentSurveyCrs = useMemo(() => resolveMapSurveyCrs({
+    projectId: schemeProjectId,
+    declaredProjectCrs: projectCrs,
+    selectedUnlinkedSurveyCrs: unlinkedSurveyCrs,
+  }), [schemeProjectId, projectCrs, unlinkedSurveyCrs])
+
   // ── Map initialization ──
   useMapInit({
     mapRef,
@@ -411,6 +394,7 @@ export default function MapClient() {
     setFeatureCount,
     setImportMsg,
     setSelectedFeature,
+    setSelectedFeatures,
     setFeatureName,
     mouseCoordThrottleRef,
     searchParams,
@@ -424,6 +408,7 @@ export default function MapClient() {
     cleanupRef,
     popupRef,
     createBasemaps,
+    currentSurveyCrs,
     onPopupRender: renderPopup,
   })
 
@@ -431,16 +416,78 @@ export default function MapClient() {
   useMapState(mapInstance, drawSourceRef, mapReady)
 
   // ── Interactions hook ──
-  const currentUtmEpsg = useMemo(() => {
-    if (activeProjection.startsWith(SRID_21037)) return SRID_21037
-    if (activeProjection.startsWith(SRID_32737)) return SRID_32737
-    return SRID_21037
-  }, [activeProjection])
 
-  const applyOneShotTool = useCallback(() => {
-    // Placeholder — one-shot digitizing tools are triggered via activeDigitizingTool state
-    if (activeDigitizingTool) setActiveDigitizingTool(null)
-  }, [activeDigitizingTool])
+  // ── Scheme layer lifecycle (Phase 5: extracted from MapClient) ──
+  const {
+    schemeLoading,
+    schemeError,
+    schemeLoaded,
+    schemeParcelCount,
+    schemeBlockCount,
+    schemeBeaconCount,
+    schemeParcelSnapSource,
+    schemeBeaconSnapSource,
+    showSchemeParcels,
+    showSchemeBlocks,
+    showSchemeBeacons,
+    loadSchemeData,
+    toggleSchemeParcelVisibility,
+    toggleSchemeBlockVisibility,
+    toggleSchemeBeaconVisibility,
+    zoomToScheme,
+    removeScheme,
+  } = useSchemeLayers({
+    schemeProjectId,
+    mapInstance,
+    mapReady,
+    currentSurveyCrs,
+    setVertexEditingVertices,
+  })
+
+  const availableSnapTypes = useMemo(() => {
+    const available = new Set<SnapType>(['drawn'])
+    if (schemeLoaded && showSchemeParcels && schemeParcelCount > 0 && schemeParcelSnapSource) {
+      available.add('parcels')
+    }
+    if (schemeLoaded && showSchemeBeacons && schemeBeaconCount > 0 && schemeBeaconSnapSource) {
+      available.add('beacons')
+    }
+    return available
+  }, [
+    schemeLoaded,
+    showSchemeParcels,
+    showSchemeBeacons,
+    schemeParcelCount,
+    schemeBeaconCount,
+    schemeParcelSnapSource,
+    schemeBeaconSnapSource,
+  ])
+
+  // ── GPS tracking + project-CRS position (Phase 5: extracted to useGpsTracking) ──
+  // Declared before useMapInteractions because the interactions hook consumes
+  // the project-CRS GPS position this derives.
+  const { gpsPosInSurveyCrs } = useGpsTracking({
+    mapInstance,
+    mapReady,
+    cleanupRef,
+    gpsPos,
+    setGpsPos,
+    currentSurveyCrs,
+  })
+
+  // Snap one interaction to all enabled vector layers. It is installed before
+  // drawing/editing interactions so OpenLayers can adjust their input coords.
+  useMapSnapping({
+    mapInstance,
+    mapReady,
+    drawSource: drawSourceRef.current,
+    parcelSource: showSchemeParcels ? schemeParcelSnapSource : null,
+    beaconSource: showSchemeBeacons ? schemeBeaconSnapSource : null,
+    enabled: snappingEnabled,
+    mode: snappingMode,
+    pixelTolerance: snappingTolerance,
+    snapTypes: snappingTypes,
+  })
 
   const interactions = useMapInteractions({
     mapInstance,
@@ -462,8 +509,8 @@ export default function MapClient() {
     stakeoutActive,
     stakeoutTarget,
     gpsPos,
-    gpsPos21037,
-    currentUtmEpsg,
+    gpsPosInSurveyCrs,
+    currentSurveyCrs,
     projectId: schemeProjectId,
     onDrawEnd: (areaSqM, perimeterM, featureType) => {
       if (featureType === 'Polygon') {
@@ -477,6 +524,7 @@ export default function MapClient() {
     },
     onIdentify: (feature) => {
       setSelectedFeature(feature)
+      setSelectedFeatures(feature ? [feature] : [])
       const name = (feature?.get?.('pointName') || feature?.get?.('parcelNumber') || feature?.get?.('name')) as string | undefined
       if (name) setFeatureName(name)
     },
@@ -509,6 +557,7 @@ export default function MapClient() {
     onVerticesChange: setVertexEditingVertices,
     snapTolerance,
     snapEnabled,
+    epsg: currentSurveyCrs,
   })
 
   // Wire GPS toggle (needs interactions reference)
@@ -539,36 +588,28 @@ export default function MapClient() {
     toggleBasemapHook(mapInstance, mode, setBasemap)
   }, [toggleBasemapHook])
 
-  // ── Projection switch handler (Tier 2) ──
-  const handleProjectionSwitch = useCallback(async (targetProjection: string) => {
-    if (!mapInstance.current) return
+  // ── Survey-grid selection (map tiles and geometry remain EPSG:3857) ──
+  const handleSurveyGridSelection = useCallback((targetCrs: string) => {
+    if (schemeProjectId) {
+      setSaveMsg('This project uses its saved CRS for survey calculations. Change it in Project Settings.')
+      setTimeout(() => setSaveMsg(''), 4000)
+      return
+    }
     try {
-      if (targetProjection === 'EPSG:3857') {
-        // Switch back to Web Mercator (default)
-        const { default: View } = await import('ol/View')
-        const { transform } = await import('ol/proj')
-        const currentView = mapInstance.current.getView()
-        const currentCenter = currentView.getCenter()
-        const currentZoom = currentView.getZoom() ?? 14
-        const newCenter = currentCenter
-          ? transform(currentCenter, currentView.getProjection(), 'EPSG:3857') as [number, number]
-          : undefined
-        mapInstance.current.setView(new View({
-          projection: 'EPSG:3857',
-          center: newCenter ?? [3900000, -500000],
-          zoom: currentZoom,
-        }))
-        setActiveProjection('EPSG:3857')
-      } else {
-        await switchMapView(mapInstance.current, targetProjection)
-        setActiveProjection(targetProjection)
-      }
+      resolveMapSurveyCrs({
+        projectId: null,
+        declaredProjectCrs: null,
+        selectedUnlinkedSurveyCrs: targetCrs,
+      })
+      setUnlinkedSurveyCrs(targetCrs)
+      setMeasureMode('none')
+      setMeasureResult('')
     } catch (err) {
-      logger.error('[MapClient] Projection switch failed:', { error: err })
-      setSaveMsg('Failed to switch projection')
+      logger.warn('[MapClient] Rejected unsupported survey grid:', { error: err })
+      setSaveMsg(err instanceof Error ? err.message : 'Choose a supported projected CRS.')
       setTimeout(() => setSaveMsg(''), 3000)
     }
-  }, [])
+  }, [schemeProjectId])
 
   // ── Keyboard shortcuts ──
   useEffect(() => {
@@ -610,6 +651,23 @@ export default function MapClient() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [undo, redo, selectedFeature, drawMode, editMode, measureMode, interactions])
 
+  useEffect(() => {
+    const store = useSelectionStore.getState()
+    if (selectedFeature) {
+      const rawId = selectedFeature.get('id') as unknown
+      store.setSelection({
+        kind: 'feature',
+        surface: 'map',
+        id: typeof rawId === 'string' ? rawId : null,
+        name: featureName,
+      })
+    } else {
+      store.clearSelectionFrom('map')
+    }
+  }, [selectedFeature, featureName])
+
+  useEffect(() => () => useSelectionStore.getState().clearSelectionFrom('map'), [])
+
   // ── Fade drag hint after 5s ──
   useEffect(() => {
     const timer = setTimeout(() => setDragHint(false), 5000)
@@ -643,46 +701,9 @@ export default function MapClient() {
     await interactions.handleCoordSearchLocal(input)
   }, [interactions])
 
-  // ── Print handler: show sheet layout overlay then trigger browser print ──
-  const handlePrintMap = useCallback(async (overrides?: Partial<PrintOptions>) => {
-    // Force the SheetLayout chunk to load BEFORE we show + print. Without this,
-    // the dynamic import races the 500ms delay and the first print can come out
-    // blank (overlay not yet mounted) on slow connections.
-    try { await import('@/components/map/SheetLayout') } catch {}
-    // Derive plan geometry from the largest drawn polygon so the sheet shows a
-    // real scale / area / perimeter instead of "As Noted". The state is
-    // cleared first so the sheet can never mount with a previous run's value.
-    setPrintPlanGeometry(null)
-    try {
-      const { derivePlanGeometryFromDrawSource } = await import('./utils/derivePlanGeometry')
-      const geom = await derivePlanGeometryFromDrawSource(drawSourceRef.current, currentUtmEpsg)
-      setPrintPlanGeometry(geom)
-    } catch {
-      setPrintPlanGeometry(null)
-    }
-    setShowSheetLayout(true)
-    await new Promise(resolve => setTimeout(resolve, 500))
-    await printMap(overrides)
-
-    // Fallback timer: clear sheet layout and plan geometry if afterprint never fires (iOS Safari / cancel path)
-    setTimeout(() => {
-      setShowSheetLayout(false)
-      setPrintPlanGeometry(null)
-    }, 10000)
-  }, [printMap, currentUtmEpsg])
-
-  // Hide the sheet-layout overlay when the print dialog closes. Also drop the
-  // derived geometry so a future sheet-open can never render the previous
-  // print's stale scale label — the sheet only ever shows a value derived in
-  // the same tick it was opened.
-  useEffect(() => {
-    const onAfterPrint = () => {
-      setShowSheetLayout(false)
-      setPrintPlanGeometry(null)
-    }
-    window.addEventListener('afterprint', onAfterPrint)
-    return () => window.removeEventListener('afterprint', onAfterPrint)
-  }, [])
+  // ── Print/sheet-layout flow (Phase 5: extracted to useMapPrintFlow) ──
+  const { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi } =
+    useMapPrintFlow({ print: printMap, drawSourceRef, currentSurveyCrs })
 
   // ── Offline dialog toggle (async: resolves map extent when opening) ──
   const handleToggleOfflineDialog = useCallback(async (open: boolean) => {
@@ -693,617 +714,34 @@ export default function MapClient() {
     }
   }, [interactions])
 
-  // ── Scheme layer: load scheme data ── (projectId declared at top of component)
-  const loadSchemeData = useCallback(async () => {
-    if (!schemeProjectId || !mapInstance.current || schemeLoading) return
+  // ── Digitizing tool interactions (Phase 5: extracted to useDigitizingTools) ──
+  const { applyOneShotTool } = useDigitizingTools({
+    activeDigitizingTool,
+    setActiveDigitizingTool,
+    mapInstance,
+    mapReady,
+    selectedFeature,
+    selectedFeatures,
+    setSelectedFeature,
+    setSelectedFeatures,
+    selectInteractionRef,
+    offsetDistance,
+    rotateAngle,
+    drawSourceRef,
+    currentSurveyCrs,
+    pushHistory,
+    setSaveMsg,
+  })
+
+  // ── Traverse-to-parcel (Phase 5: extracted to useTraverseParcelPreview) ──
+  const {
+    traverseParcelPreviewActive,
+    hasTraverse,
+    createParcelFromTraversePreview: handleCreateParcelFromTraverse,
+    confirmTraverseParcel: handleConfirmTraverseParcel,
+    cancelTraverseParcel: handleCancelTraverseParcel,
+  } = useTraverseParcelPreview({ schemeProjectId, mapInstance, schemeLoaded, setSaveMsg })
 
-    setSchemeLoading(true)
-    setSchemeError('')
-
-    try {
-      // Clean up any existing scheme layers first
-      if (schemeCleanupRef.current) {
-        schemeCleanupRef.current()
-        schemeCleanupRef.current = null
-        schemeLayersRef.current = null
-      }
-
-      const result = await createSchemeLayers(schemeProjectId, mapInstance.current as unknown as import('@/lib/map/olTypes').OLMap, {
-        autoZoom: true,
-        showParcelLabels: true,
-      })
-
-      schemeCleanupRef.current = result.cleanup
-      schemeLayersRef.current = {
-        parcelLayer: result.parcelLayer,
-        blockLayer: result.blockLayer,
-        beaconLayer: result.beaconLayer,
-        extent: result.extent,
-      }
-
-      // ── Add scheme parcel + beacon sources to the Snap interaction ──
-      const snapInteraction = (mapInstance.current as unknown as { _snapInteraction?: import('ol/interaction/Snap').default } | null)?._snapInteraction
-      if (snapInteraction) {
-        const parcelSource = result.parcelLayer?.getSource?.()
-        const beaconSource = result.beaconLayer?.getSource?.()
-        if (parcelSource) {
-          // Add additional Snap interaction for parcels
-          const { default: Snap } = await import('ol/interaction/Snap')
-          const parcelSnap = new Snap({ source: parcelSource })
-          mapInstance.current.addInteraction(parcelSnap)
-          ;(mapInstance.current as unknown as { _parcelSnap?: import('ol/interaction/Snap').default })._parcelSnap = parcelSnap
-        }
-        if (beaconSource) {
-          const { default: Snap } = await import('ol/interaction/Snap')
-          const beaconSnap = new Snap({ source: beaconSource })
-          mapInstance.current.addInteraction(beaconSnap)
-          ;(mapInstance.current as unknown as { _beaconSnap?: import('ol/interaction/Snap').default })._beaconSnap = beaconSnap
-        }
-      }
-
-      setSchemeParcelCount(result.parcelCount)
-      setSchemeBlockCount(result.blockCount)
-      setSchemeBeaconCount(result.beaconCount)
-      setSchemeLoaded(true)
-
-      // ── Extract beacon vertices for vertex editing (Tier 2) ──
-      // Read beacon coordinates from the beacon layer source (already in EPSG:21037)
-      const beaconSource = result.beaconLayer.getSource()
-      if (beaconSource) {
-        const beaconFeatures = beaconSource.getFeatures()
-        const beaconVertices = beaconFeatures
-          .map((f: import('ol/Feature').default) => {
-            const geom = f.getGeometry()
-            if (!geom || geom.getType() !== 'Point') return null
-            // Beacon coordinates are stored in EPSG:3857 (display projection)
-            // We need to transform them back to EPSG:21037 for vertex editing
-            return { easting: f.get('easting') as number, northing: f.get('northing') as number }
-          })
-          .filter((v: { easting: number; northing: number } | null): v is { easting: number; northing: number } =>
-            v !== null && v.easting !== undefined && v.northing !== undefined
-          )
-        if (beaconVertices.length >= 3) {
-          setVertexEditingVertices(beaconVertices)
-        }
-      }
-    } catch (err) {
-      logger.error('[MapClient] Failed to load scheme data:', { error: err })
-      setSchemeError(err instanceof Error ? err.message : 'Failed to load scheme data')
-      setSchemeLoaded(false)
-    } finally {
-      setSchemeLoading(false)
-    }
-  }, [schemeProjectId, schemeLoading])
-
-  // ── Scheme layer: auto-load when projectId is available ──
-  useEffect(() => {
-    if (schemeProjectId && mapReady && !schemeLoaded && !schemeLoading && !schemeError) {
-      loadSchemeData()
-    }
-  }, [schemeProjectId, mapReady, schemeLoaded, schemeLoading, schemeError, loadSchemeData])
-
-  // ── Project survey points: load when projectId is available ──
-  const loadProjectPoints = useCallback(async () => {
-    if (!schemeProjectId || !mapInstance.current || projectPointsLoading) return
-
-    setProjectPointsLoading(true)
-    try {
-      // Clean up existing points layer
-      if (projectPointsCleanupRef.current) {
-        projectPointsCleanupRef.current()
-        projectPointsCleanupRef.current = null
-        projectPointsLayerRef.current = null
-      }
-
-      const result = await createProjectPointsLayer(schemeProjectId, mapInstance.current)
-      projectPointsCleanupRef.current = result.cleanup
-      projectPointsLayerRef.current = result.pointsLayer
-      setProjectPointsCount(result.pointCount)
-    } catch (err) {
-      logger.error('[MapClient] Failed to load project points:', { error: err })
-      setProjectPointsCount(0)
-    } finally {
-      setProjectPointsLoading(false)
-    }
-  }, [schemeProjectId, projectPointsLoading])
-
-  // Auto-load when projectId is available
-  useEffect(() => {
-    if (schemeProjectId && mapReady && !projectPointsLoading && projectPointsCount === 0) {
-      loadProjectPoints()
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [schemeProjectId, mapReady])
-
-  // Toggle points layer visibility
-  const _toggleProjectPointsVisibility = useCallback(() => {
-    if (!projectPointsLayerRef.current) return
-    const newVisible = !showProjectPoints
-    projectPointsLayerRef.current.setVisible(newVisible)
-    setShowProjectPoints(newVisible)
-  }, [showProjectPoints])
-
-  // ── Digitizing tool: create OL interactions for split/merge/reshape/rotate/offset ──
-  const editingToolRef = useRef<import('ol/interaction').Interaction | null>(null) // current editing interaction
-
-  useEffect(() => {
-    if (!mapInstance.current || !mapReady) return
-
-    // Clean up previous editing interaction
-    if (editingToolRef.current) {
-      try { mapInstance.current.removeInteraction(editingToolRef.current) } catch { /* */ }
-      editingToolRef.current = null
-    }
-
-    if (!activeDigitizingTool || activeDigitizingTool === 'draw') return
-
-    const map = mapInstance.current
-    const drawSource = drawSourceRef.current
-
-    ;(async () => {
-      try {
-        if (activeDigitizingTool === 'split' || activeDigitizingTool === 'reshape') {
-          // Create a line draw interaction for splitting/reshaping
-          const { default: Draw } = await import('ol/interaction/Draw')
-          const { default: VectorSource } = await import('ol/source/Vector')
-          const { default: Style } = await import('ol/style/Style')
-          const { default: Stroke } = await import('ol/style/Stroke')
-          const { default: Fill } = await import('ol/style/Fill')
-
-          const tempSource = new VectorSource()
-          const draw = new Draw({
-            source: tempSource,
-            type: 'LineString',
-            style: new Style({
-              fill: new Fill({ color: 'rgba(209, 123, 71, 0.2)' }),
-              stroke: new Stroke({ color: '#D17B47', width: 2, lineDash: [8, 4] }),
-            }),
-          })
-
-          draw.on('drawend', async (e: import('ol/interaction/Draw').DrawEvent) => {
-            const lineFeature = e.feature
-            const lineGeom = lineFeature.getGeometry()
-            if (!lineGeom || !drawSource) return
-
-            const lineCoords3857 = (lineGeom as import('ol/geom/LineString').default).getCoordinates()
-            // Transform to UTM for geometry operations
-            const proj = await import('ol/proj')
-            const lineCoordsUTM = lineCoords3857.map((c: number[]) =>
-              proj.transform(c, SRID_3857, currentUtmEpsg),
-            )
-
-            if (activeDigitizingTool === 'split') {
-              // Find the first polygon in the draw source
-              const polygons = drawSource.getFeatures().filter((f: import('ol/Feature').default) => {
-                const g = f.getGeometry()
-                return g && g.getType() === 'Polygon'
-              })
-
-              if (polygons.length === 0) {
-                setSaveMsg('No polygon to split — draw a polygon first')
-                setTimeout(() => setSaveMsg(''), 3000)
-                return
-              }
-
-              const targetPolygon = polygons[0]
-              const polyCoords3857 = (targetPolygon.getGeometry() as import('ol/geom/Polygon').default).getCoordinates()[0]
-              const polyCoordsUTM = polyCoords3857.map((c: number[]) =>
-                proj.transform(c, SRID_3857, currentUtmEpsg),
-              )
-
-              const { splitPolygonWithLine } = await import('@/lib/map/editingTools')
-              const result = splitPolygonWithLine(polyCoordsUTM as [number, number][], lineCoordsUTM as [number, number][])
-
-              if (!result) {
-                setSaveMsg('Split failed — line must cross the polygon at two points')
-                setTimeout(() => setSaveMsg(''), 4000)
-                return
-              }
-
-              // Transform results back to 3857
-              const p1_3857 = result.polygon1.map(([e, n]) => proj.transform([e, n], currentUtmEpsg, SRID_3857))
-              const p2_3857 = result.polygon2.map(([e, n]) => proj.transform([e, n], currentUtmEpsg, SRID_3857))
-
-              const { default: Feature } = await import('ol/Feature')
-              const { default: Polygon } = await import('ol/geom/Polygon')
-
-              // Remove original polygon, add two new ones
-              drawSource.removeFeature(targetPolygon)
-              drawSource.addFeature(new Feature({ geometry: new Polygon([p1_3857]), source: 'split' }))
-              drawSource.addFeature(new Feature({ geometry: new Polygon([p2_3857]), source: 'split' }))
-
-              setSaveMsg(`Split into 2 polygons (${result.area1.toFixed(1)}m² + ${result.area2.toFixed(1)}m²)`)
-              setTimeout(() => setSaveMsg(''), 5000)
-            } else if (activeDigitizingTool === 'reshape') {
-              // Find the first polygon in the draw source to reshape
-              const polygons = drawSource.getFeatures().filter((f: import('ol/Feature').default) => {
-                const g = f.getGeometry()
-                return g && g.getType() === 'Polygon'
-              })
-
-              if (polygons.length === 0) {
-                setSaveMsg('No polygon to reshape — draw a polygon first')
-                setTimeout(() => setSaveMsg(''), 3000)
-                return
-              }
-
-              const targetPolygon = polygons[0]
-              const polyCoords3857 = (targetPolygon.getGeometry() as import('ol/geom/Polygon').default).getCoordinates()[0]
-              const polyCoordsUTM = polyCoords3857.map((c: number[]) =>
-                proj.transform(c, SRID_3857, currentUtmEpsg),
-              )
-
-              const { reshapePolygon } = await import('@/lib/map/editingTools')
-              const result = reshapePolygon(polyCoordsUTM as [number, number][], lineCoordsUTM as [number, number][])
-
-              if (!result) {
-                setSaveMsg('Reshape failed — line must intersect the polygon boundary')
-                setTimeout(() => setSaveMsg(''), 4000)
-                return
-              }
-
-              const reshaped3857 = result.map(([e, n]) => proj.transform([e, n], currentUtmEpsg, SRID_3857))
-
-              const { default: Feature } = await import('ol/Feature')
-              const { default: Polygon } = await import('ol/geom/Polygon')
-
-              // Remove original, add reshaped polygon
-              drawSource.removeFeature(targetPolygon)
-              drawSource.addFeature(new Feature({ geometry: new Polygon([reshaped3857]), source: 'reshape' }))
-
-              setSaveMsg('Polygon reshaped')
-              setTimeout(() => setSaveMsg(''), 3000)
-            }
-          })
-
-          map.addInteraction(draw)
-          editingToolRef.current = draw
-        }
-
-        if (activeDigitizingTool === 'merge') {
-          // Merge uses the selected features
-          const { mergePolygons } = await import('@/lib/map/editingTools')
-          const selectedFeatures = drawSource?.getFeatures().filter((f: import('ol/Feature').default) => {
-            const g = f.getGeometry()
-            return g && g.getType() === 'Polygon'
-          }) || []
-
-          if (selectedFeatures.length < 2) {
-            setSaveMsg('Select 2+ polygons to merge (draw them first)')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
-          }
-
-          const proj = await import('ol/proj')
-          const polyCoordsUTM = selectedFeatures.map((f: import('ol/Feature').default) => {
-            const coords3857 = (f.getGeometry() as import('ol/geom/Polygon').default).getCoordinates()[0]
-            return coords3857.map((c: number[]) => proj.transform(c, SRID_3857, currentUtmEpsg))
-          })
-
-          const merged = mergePolygons(polyCoordsUTM as [number, number][][])
-          if (!merged) {
-            setSaveMsg('Merge failed — polygons must be adjacent')
-            setTimeout(() => setSaveMsg(''), 4000)
-            return
-          }
-
-          const merged3857 = merged.map(([e, n]) => proj.transform([e, n], currentUtmEpsg, SRID_3857))
-
-          const { default: Feature } = await import('ol/Feature')
-          const { default: Polygon } = await import('ol/geom/Polygon')
-
-          // Remove originals, add merged
-          if (!drawSource) return
-          selectedFeatures.forEach((f) => drawSource.removeFeature(f))
-          drawSource.addFeature(new Feature({ geometry: new Polygon([merged3857]), source: 'merge' }))
-
-          setSaveMsg(`Merged ${selectedFeatures.length} polygons into 1`)
-          setTimeout(() => setSaveMsg(''), 4000)
-          setActiveDigitizingTool(null)
-        }
-
-        if (activeDigitizingTool === 'rotate' && selectedFeature) {
-          // Rotate the selected feature by 15° (simplified — full drag rotation is complex)
-          const { rotatePolygon } = await import('@/lib/map/editingTools')
-          const geom = selectedFeature.getGeometry?.()
-          if (!geom || geom.getType() !== 'Polygon') {
-            setSaveMsg('Select a polygon to rotate')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
-          }
-
-          const proj = await import('ol/proj')
-          const coords3857 = (geom as import('ol/geom/Polygon').default).getCoordinates()[0]
-          const coordsUTM = coords3857.map((c: number[]) => proj.transform(c, SRID_3857, currentUtmEpsg))
-
-          const rotated = rotatePolygon(coordsUTM as [number, number][], 15)
-          const rotated3857 = rotated.map(([e, n]) => proj.transform([e, n], currentUtmEpsg, SRID_3857))
-
-          const { default: Polygon } = await import('ol/geom/Polygon')
-          selectedFeature.setGeometry(new Polygon([rotated3857]))
-
-          setSaveMsg('Rotated 15° clockwise')
-          setTimeout(() => setSaveMsg(''), 3000)
-        }
-
-        if (activeDigitizingTool === 'offset' && selectedFeature) {
-          const { createOffset } = await import('@/lib/map/editingTools')
-          const geom = selectedFeature.getGeometry?.()
-          if (!geom) {
-            setSaveMsg('Select a feature to offset')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
-          }
-
-          const isPolygon = geom.getType() === 'Polygon'
-          const coords3857 = isPolygon ? (geom as import('ol/geom/Polygon').default).getCoordinates()[0] : (geom as import('ol/geom/LineString').default).getCoordinates()
-          const proj = await import('ol/proj')
-          const coordsUTM = coords3857.map((c: number[]) => proj.transform(c, SRID_3857, currentUtmEpsg))
-
-          const offset = createOffset(coordsUTM as [number, number][], offsetDistance, isPolygon)
-          if (!offset) {
-            setSaveMsg('Offset failed')
-            setTimeout(() => setSaveMsg(''), 3000)
-            return
-          }
-
-          const offset3857 = offset.map(([e, n]) => proj.transform([e, n], currentUtmEpsg, SRID_3857))
-
-          const { default: Feature } = await import('ol/Feature')
-          let newFeature: import('ol/Feature').default
-          if (isPolygon) {
-            const { default: Polygon } = await import('ol/geom/Polygon')
-            newFeature = new Feature({
-              geometry: new Polygon([offset3857]),
-              source: 'offset',
-              offsetDistance,
-            })
-          } else {
-            const { default: LineString } = await import('ol/geom/LineString')
-            newFeature = new Feature({
-              geometry: new LineString(offset3857),
-              source: 'offset',
-              offsetDistance,
-            })
-          }
-          drawSource?.addFeature(newFeature)
-
-          setSaveMsg(`Offset created at ${offsetDistance}m`)
-          setTimeout(() => setSaveMsg(''), 3000)
-          setActiveDigitizingTool(null)
-        }
-      } catch (err) {
-        logger.error('[DigitizingTool] Error:', { error: err })
-      }
-    })()
-
-    const mapToClean = mapInstance.current
-    const toolToClean = editingToolRef.current
-    return () => {
-      if (toolToClean && mapToClean) {
-        try { mapToClean.removeInteraction(toolToClean) } catch { /* */ }
-      }
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeDigitizingTool, mapReady, selectedFeature, offsetDistance])
-
-  // ── Scheme layer: toggle layer visibility ──
-  const toggleSchemeParcelVisibility = useCallback(() => {
-    if (!schemeLayersRef.current?.parcelLayer) return
-    const newVisible = !showSchemeParcels
-    schemeLayersRef.current.parcelLayer.setVisible(newVisible)
-    setShowSchemeParcels(newVisible)
-  }, [showSchemeParcels])
-
-  const toggleSchemeBlockVisibility = useCallback(() => {
-    if (!schemeLayersRef.current?.blockLayer) return
-    const newVisible = !showSchemeBlocks
-    schemeLayersRef.current.blockLayer.setVisible(newVisible)
-    setShowSchemeBlocks(newVisible)
-  }, [showSchemeBlocks])
-
-  const toggleSchemeBeaconVisibility = useCallback(() => {
-    if (!schemeLayersRef.current?.beaconLayer) return
-    const newVisible = !showSchemeBeacons
-    schemeLayersRef.current.beaconLayer.setVisible(newVisible)
-    setShowSchemeBeacons(newVisible)
-  }, [showSchemeBeacons])
-
-  // ── Scheme layer: zoom to scheme extent ──
-  const handleZoomToScheme = useCallback(() => {
-    if (!mapInstance.current || !schemeLayersRef.current?.extent) return
-    zoomToSchemeExtent(mapInstance.current as unknown as import('@/lib/map/olTypes').OLMap, schemeLayersRef.current.extent)
-  }, [])
-
-  // ── Scheme layer: remove all scheme layers ──
-  const handleRemoveScheme = useCallback(() => {
-    if (schemeCleanupRef.current) {
-      schemeCleanupRef.current()
-      schemeCleanupRef.current = null
-    }
-    schemeLayersRef.current = null
-    setSchemeLoaded(false)
-    setSchemeParcelCount(0)
-    setSchemeBlockCount(0)
-    setSchemeBeaconCount(0)
-    setSchemeError('')
-  }, [])
-
-  // ── Scheme layer: cleanup on unmount ──
-  useEffect(() => {
-    return () => {
-      if (schemeCleanupRef.current) {
-        schemeCleanupRef.current()
-      }
-    }
-  }, [])
-
-  // ── Traverse-to-parcel: check if traverse exists ──
-  useEffect(() => {
-    if (!schemeProjectId || !schemeLoaded) return
-    // Check if there are computed traverses for this project
-    const checkTraverse = async () => {
-      try {
-        const res = await fetch(`/api/scheme/traverse/summary?project_id=${schemeProjectId}`)
-        if (res.ok) {
-          const data = await res.json() as { data?: { hasTraverses?: boolean } }
-          setHasTraverse(data.data?.hasTraverses ?? false)
-        }
-      } catch {
-        // API not available — assume no traverse
-        setHasTraverse(false)
-      }
-    }
-    checkTraverse()
-  }, [schemeProjectId, schemeLoaded])
-
-  // ── Traverse-to-parcel: create preview ──
-  const handleCreateParcelFromTraverse = useCallback(async () => {
-    if (!schemeProjectId || !mapInstance.current) return
-
-    try {
-      // Fetch traverse data to get coordinates
-      const res = await fetch(`/api/scheme/traverse/summary?project_id=${schemeProjectId}`)
-      if (!res.ok) throw new Error('Failed to fetch traverse summary')
-      const summaryData = await res.json() as { data?: { parcels?: Array<{ id: string | number }> } }
-
-      // Get the first parcel with a traverse
-      const parcelId = summaryData.data?.parcels?.[0]?.id
-      if (!parcelId) throw new Error('No parcels with traverses found')
-
-      // Fetch the actual traverse coordinates
-      const traverseRes = await fetch(`/api/scheme/traverse?parcel_id=${parcelId}`)
-      if (!traverseRes.ok) throw new Error('Failed to fetch traverse coordinates')
-      const traverseData = await traverseRes.json() as { data?: { coordinates?: Array<{ easting: number; northing: number; station?: string }> } }
-
-      const coordinates = traverseData.data?.coordinates
-      if (!coordinates || coordinates.length < 3) {
-        throw new Error('Traverse has fewer than 3 stations — cannot form a polygon')
-      }
-
-      const traversePoints = coordinates.map((c) => ({
-        easting: c.easting,
-        northing: c.northing,
-        pointName: c.station || '',
-      }))
-
-      // Create the preview layer
-      const { layer } = await createTraversePolygonPreview(traversePoints)
-      mapInstance.current.addLayer(layer)
-      traversePreviewLayerRef.current = layer
-
-      // Zoom to the preview
-      const source = layer.getSource()
-      if (source) {
-        const extent = source.getExtent()
-        if (extent && extent[0] !== Infinity) {
-          mapInstance.current.getView().fit(extent, { padding: [80, 80, 80, 80], duration: 600 })
-        }
-      }
-
-      setTraverseParcelPreviewActive(true)
-    } catch (err) {
-      logger.error('[MapClient] Traverse preview failed:', { error: err })
-      setSaveMsg(err instanceof Error ? err.message : 'Failed to preview traverse')
-      setTimeout(() => setSaveMsg(''), 4000)
-    }
-  }, [schemeProjectId])
-
-  // ── Traverse-to-parcel: confirm and save ──
-  const handleConfirmTraverseParcel = useCallback(async () => {
-    if (!schemeProjectId) return
-
-    try {
-      // Get the first parcel with a traverse
-      const summaryRes = await fetch(`/api/scheme/traverse/summary?project_id=${schemeProjectId}`)
-      const summaryData = await summaryRes.json() as { data?: { parcels?: Array<{ id: string | number }> } }
-      const parcelId = summaryData.data?.parcels?.[0]?.id
-
-      if (!parcelId) throw new Error('No parcel found for traverse')
-
-      const result = await createParcelFromTraverse(schemeProjectId, String(parcelId))
-
-      // Remove the preview layer
-      removeTraversePolygonPreview(mapInstance.current, traversePreviewLayerRef.current)
-      traversePreviewLayerRef.current = null
-      setTraverseParcelPreviewActive(false)
-
-      const areaHa = result.areaHa?.toFixed(4) ?? 'unknown'
-      setSaveMsg(`Parcel boundary created: ${areaHa} ha`)
-      setTimeout(() => setSaveMsg(''), 4000)
-    } catch (err) {
-      logger.error('[MapClient] Traverse confirm failed:', { error: err })
-      setSaveMsg(err instanceof Error ? err.message : 'Failed to save parcel boundary')
-      setTimeout(() => setSaveMsg(''), 4000)
-    }
-  }, [schemeProjectId])
-
-  // ── Traverse-to-parcel: cancel and remove preview ──
-  const handleCancelTraverseParcel = useCallback(() => {
-    if (mapInstance.current && traversePreviewLayerRef.current) {
-      removeTraversePolygonPreview(mapInstance.current, traversePreviewLayerRef.current)
-      traversePreviewLayerRef.current = null
-    }
-    setTraverseParcelPreviewActive(false)
-  }, [])
-
-  // ── Geolocation position tracking ──
-  useEffect(() => {
-    if (!mapInstance.current) return
-    if (!cleanupRef.current?.geolocation) return
-
-    const geolocation = cleanupRef.current.geolocation
-
-    const onPositionChange = async () => {
-      const pos = geolocation.getPosition()
-      if (!pos) return
-      try {
-        const { transform } = await import('ol/proj')
-        const lonLat = transform(pos, 'EPSG:3857', 'EPSG:4326') as [number, number]
-        setGpsPos({ lon: lonLat[0], lat: lonLat[1], accuracy: geolocation.getAccuracy() })
-      } catch {
-        // If transform fails, skip this update rather than corrupt state with wrong coords.
-        // This can happen if the position is somehow not a valid coordinate.
-      }
-    }
-
-    geolocation.on('change:position', onPositionChange)
-    geolocation.on('change:error', () => {
-      setGpsPos(null)
-    })
-    return () => {
-      geolocation.un('change:position', onPositionChange)
-      geolocation.un('change:error', () => {
-        setGpsPos(null)
-      })
-    }
-  }, [mapReady])
-
-  // ── GPS position in EPSG:21037 (for StakeoutPanel) ──
-  // This replaces the synchronous require('ol/proj') that breaks ESM.
-  // We compute it asynchronously in an effect and store the result.
-  // (gpsPos21037 state declared at top with other GPS state)
-
-  useEffect(() => {
-    if (!gpsPos) {
-      setGpsPos21037(null)
-      return
-    }
-    const currentGpsPos = gpsPos // capture for async closure
-    let cancelled = false
-    async function transformGpsPos() {
-      try {
-        const { transform } = await import('ol/proj')
-        if (cancelled) return
-        const [e, n] = transform([currentGpsPos.lon, currentGpsPos.lat], SRID_4326, currentUtmEpsg) as [number, number]
-        setGpsPos21037({ easting: e, northing: n, accuracy: currentGpsPos.accuracy })
-      } catch {
-        if (!cancelled) setGpsPos21037({ easting: 0, northing: 0, accuracy: currentGpsPos.accuracy })
-      }
-    }
-    transformGpsPos()
-    return () => { cancelled = true }
-  }, [gpsPos, currentUtmEpsg])
 
   // ── Update stakeout overlay on each GPS position change ──
   useEffect(() => {
@@ -1340,10 +778,12 @@ export default function MapClient() {
     gpsTracking,
     gpsPos,
     featureCount,
+    projectPointsError,
     importMsg,
     panelOpen,
     dragHint,
     selectedFeature,
+    selectedFeatures,
     featureName,
     measureResult,
     layerOpacity,
@@ -1352,6 +792,7 @@ export default function MapClient() {
     stakeoutState,
     audioMuted,
     saveMsg,
+    setSaveMsg,
     offlineDialogOpen,
     showAnnotations,
     projectSearch,
@@ -1375,9 +816,9 @@ export default function MapClient() {
     snapTolerance,
     vertexEditState: vertexEditState,
     vertexEditingVertices,
-    gpsPos21037,
-    activeProjection,
-    currentUtmEpsg,
+    gpsPosInSurveyCrs,
+    activeSurveyCrs: unlinkedSurveyCrs,
+    currentSurveyCrs,
     applyOneShotTool,
     showSheetLayout,
     isPrinting,
@@ -1424,27 +865,27 @@ export default function MapClient() {
     toggleSchemeParcelVisibility,
     toggleSchemeBlockVisibility,
     toggleSchemeBeaconVisibility,
-    zoomToScheme: handleZoomToScheme,
-    removeScheme: handleRemoveScheme,
+    zoomToScheme,
+    removeScheme,
     createParcelFromTraverse: handleCreateParcelFromTraverse,
     confirmTraverseParcel: handleConfirmTraverseParcel,
     cancelTraverseParcel: handleCancelTraverseParcel,
-    switchProjection: handleProjectionSwitch,
+    selectSurveyGrid: handleSurveyGridSelection,
     printMap: handlePrintMap,
     toggleOfflineDialog: handleToggleOfflineDialog,
   }), [
     mapInstance, popupRef, mapReady, initError, projectCount, basemap, drawMode,
     activeDigitizingTool, offsetDistance, rotateAngle, snappingEnabled, showSnappingOptions,
-    measureMode, editMode, mouseCoord, gpsTracking, gpsPos, featureCount, importMsg,
-    panelOpen, dragHint, selectedFeature, featureName, measureResult, layerOpacity,
+    measureMode, editMode, mouseCoord, gpsTracking, gpsPos, featureCount, projectPointsError, importMsg,
+    panelOpen, dragHint, selectedFeature, selectedFeatures, featureName, measureResult, layerOpacity,
     stakeoutTarget, stakeoutActive, stakeoutState, audioMuted, saveMsg,
     offlineDialogOpen, showAnnotations, projectSearch, isMobile, showOsmBuildings,
     schemeLoading, schemeError, schemeLoaded, schemeParcelCount, schemeBlockCount,
     schemeBeaconCount, showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
     hasTraverse, traverseParcelPreviewActive, schemeProjectId,
     vertexEditingEnabled, snapEnabled, snapTolerance, vertexEditState, vertexEditingVertices,
-    gpsPos21037,
-    activeProjection, currentUtmEpsg, applyOneShotTool, showSheetLayout, isPrinting,
+    gpsPosInSurveyCrs,
+    unlinkedSurveyCrs, currentSurveyCrs, setSaveMsg, applyOneShotTool, showSheetLayout, isPrinting,
     paperSize, orientation, offlineMapExtent,
     hasFeature, canUndo, canRedo,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
@@ -1453,9 +894,9 @@ export default function MapClient() {
     interactions, toggleBasemap, toggleGPS,
     handleUpdateFeatureName, handleOpacityChange, handleCoordSearch,
     loadSchemeData, toggleSchemeParcelVisibility, toggleSchemeBlockVisibility,
-    toggleSchemeBeaconVisibility, handleZoomToScheme, handleRemoveScheme,
+    toggleSchemeBeaconVisibility, zoomToScheme, removeScheme,
     handleCreateParcelFromTraverse, handleConfirmTraverseParcel,
-    handleCancelTraverseParcel, handleProjectionSwitch, handlePrintMap,
+    handleCancelTraverseParcel, handleSurveyGridSelection, handlePrintMap,
     handleToggleOfflineDialog,
     undo, redo,
   ])
@@ -1465,11 +906,12 @@ export default function MapClient() {
   // ══════════════════════════════════════════════════════════════════
   return (
     <MapErrorBoundary>
+      <SurveyMapEngineProvider printApi={printApi}>
       <MapProvider value={mapContextValue}>
       <MapOverlayProvider>
       <div
         id="metardu-global-map"
-        className="h-[calc(100vh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
+        className="h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
         style={{ '--map-bottom-offset': isMobile ? '64px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
@@ -1477,6 +919,18 @@ export default function MapClient() {
         {/* Map container */}
         <div className="w-full h-full relative">
           <div ref={mapRef} className="w-full h-full" aria-label="Interactive survey map" />
+
+          {/* A quiet workspace header keeps the map context visible while the
+              tool rails remain dedicated to actions. */}
+          <div className="pointer-events-none absolute left-4 top-4 z-20 max-w-[min(17rem,calc(100vw-8rem))]">
+            <div className="rounded-xl border border-white/[0.08] bg-[color-mix(in_srgb,var(--bg-secondary)_82%,transparent)] px-3 py-2 shadow-lg backdrop-blur-xl">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Survey workspace</p>
+              <div className="mt-0.5 flex min-w-0 items-center gap-2">
+                <h1 className="text-sm font-semibold text-[var(--text-primary)]">Map &amp; capture</h1>
+                {schemeProjectId && <span className="min-w-0 truncate text-[10px] font-mono text-[var(--text-muted)]">Project {schemeProjectId}</span>}
+              </div>
+            </div>
+          </div>
 
           {/* ── Overlays (only when map is ready) ── */}
           {mapReady && (
@@ -1496,17 +950,20 @@ export default function MapClient() {
                 open={showSnappingOptions}
                 onClose={() => setShowSnappingOptions(false)}
                 enabled={snappingEnabled}
-                onToggleEnabled={() => setSnappingEnabled(!snappingEnabled)}
+                onToggleEnabled={() => setSnappingEnabled((current) => !current)}
                 mode={snappingMode}
                 onModeChange={setSnappingMode}
                 tolerance={snappingTolerance}
                 onToleranceChange={setSnappingTolerance}
                 snapTypes={snappingTypes}
+                availableSnapTypes={availableSnapTypes}
                 onSnapTypeToggle={(type) => {
-                  const next = new Set(snappingTypes)
-                  if (next.has(type)) next.delete(type)
-                  else next.add(type)
-                  setSnappingTypes(next)
+                  setSnappingTypes((current) => {
+                    const next = new Set(current)
+                    if (next.has(type)) next.delete(type)
+                    else next.add(type)
+                    return next
+                  })
                 }}
               />
 
@@ -1535,17 +992,6 @@ export default function MapClient() {
                 }}
               />
 
-              {/* Stakeout Radar moved into the right-side control dock */}
-              {/* ── Stakeout Radar (full-screen when active) ── */}
-              {showStakeoutRadar && stakeoutRadarTarget && (
-                <StakeoutRadar
-                  targetE={stakeoutRadarTarget.e}
-                  targetN={stakeoutRadarTarget.n}
-                  onClose={() => setShowStakeoutRadar(false)}
-                />
-              )}
-
-              {/* ── Offline Download button (bottom-left, above radar) ── */}
               {/* ── Offline Tile Download Button (bottom-right) ── */}
               <OfflineDownloadButton />
 
@@ -1556,42 +1002,8 @@ export default function MapClient() {
               {/* Scheme Layer Panel (right side, zero-prop) */}
               <SchemeLayerPanel />
 
-              {/* ── Right side controls ── */}
-              <div className="absolute top-14 right-3 z-20 sm:top-16 sm:right-4 flex flex-col gap-2 items-end">
-                {/* Projection Switcher (zero-prop) */}
-                <ProjectionSwitcher />
-
-                {/* Rotation Control (north reset) */}
-                <RotationControl />
-
-
-                {/* Always-on North Arrow (rotates with map) */}
-                <NorthArrowOverlay mapInstance={mapInstance} />
-
-                {/* Stakeout Radar — beacon recovery from current map center */}
-                {!showStakeoutRadar && (
-                  <button
-                    onClick={() => {
-                      const view = mapInstance.current?.getView()
-                      if (view) {
-                        const center = view.getCenter()
-                        if (center) {
-                          setStakeoutRadarTarget({ e: center[0], n: center[1] })
-                          setShowStakeoutRadar(true)
-                        }
-                      }
-                    }}
-                    className="flex items-center justify-center w-9 h-9 rounded-lg bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] backdrop-blur-xl border border-[var(--border-color)]/[0.08] text-[var(--text-secondary)] hover:text-[var(--accent)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all shadow-lg"
-                    title="Launch stakeout radar for beacon recovery"
-                    aria-label="Stakeout radar"
-                  >
-                    <Target className="w-4 h-4" />
-                  </button>
-                )}
-
-                {/* Print */}
-                <MapPrintButton />
-              </div>
+              {/* ── Unified Collapsible Right Dock (Zoom, Projection, North Arrow, Print) ── */}
+              <MapRightDock />
 
               {/* OSM Buildings Overlay Layer */}
               {mapInstance.current && (
@@ -1646,6 +1058,7 @@ export default function MapClient() {
                   show={showSheetLayout}
                   map={mapInstance.current}
                   planGeometry={printPlanGeometry}
+                  epsg={currentSurveyCrs}
                   projectName={schemeProjectId ? `Project ${schemeProjectId}` : 'Global Map'}
                 />
               )}
@@ -1667,6 +1080,7 @@ export default function MapClient() {
       </div>
       </MapOverlayProvider>
       </MapProvider>
+      </SurveyMapEngineProvider>
     </MapErrorBoundary>
   )
 }

@@ -6,20 +6,22 @@ import type { ProjectDocument } from '@/types/submission';
 import type { SurveyType } from '@/types/project';
 
 interface Props {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }
 
 function normalizeSurveyType(subtype: string | null | undefined): SurveyType {
   const value = (subtype ?? '').toLowerCase();
   if (value.includes('cadastral') || value.includes('boundary')) return 'cadastral';
-  if (value.includes('engineering') || value.includes('road') || value.includes('construction')) return 'engineering';
+  if (value.includes('construction') || value.includes('building') || value.includes('pile')) return 'construction';
+  if (value.includes('engineering') || value.includes('road')) return 'engineering';
   if (value.includes('geodetic') || value.includes('control')) return 'geodetic';
   if (value.includes('drone') || value.includes('uav')) return 'drone';
   if (value.includes('deformation') || value.includes('monitor')) return 'deformation';
   return 'topographic';
 }
 
-export default async function SubmissionPage({ params }: Props) {
+export default async function SubmissionPage({ params: paramsPromise }: Props) {
+  const params = await paramsPromise;
   const user = await getAuthUser();
   if (!user) redirect('/login');
 

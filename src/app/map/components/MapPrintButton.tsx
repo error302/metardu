@@ -29,6 +29,7 @@ export const MapPrintButton = memo(function MapPrintButton() {
       orientation={orientation}
       setOrientation={setOrientation}
       compact
+      className="w-11 h-11 sm:w-10 sm:h-10 !rounded-xl !p-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--bg-secondary)_85%,transparent)] backdrop-blur-xl border border-[var(--border-color)]/[0.15] shadow-lg hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
       printTarget="metardu-global-map"
       printTitle="METARDU Global Map"
     />

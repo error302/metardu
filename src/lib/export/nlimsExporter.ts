@@ -1,31 +1,40 @@
 /**
  * @module nlimsExporter
  *
- * NLIMS / ArdhiSasa submission-grade parcel exporter.
+ * METARDU structured cadastral draft exporter.
  *
- * Produces a JSON payload that matches the National Land Information
- * Management System (NLIMS) schema for digital parcel submission.
+ * Produces a METARDU JSON draft for surveyor review. This module does not
+ * implement an independently verified NLIMS/Ardhisasa submission schema.
  *
- * Features:
- * 1. Area reconciliation — sum of subdivision parts must equal parent title area
- * 2. Beacon nomenclature validation — KP/MB/numbered patterns per SoK standards
- * 3. Coordinate format compliance — UTM Zone 37S (EPSG:21037) to 3 decimal places
- * 4. Encumbrance formatting per Land Registration Act
- * 5. Surveyor license validation
- * 6. SHA-256 integrity hash for tamper detection
+ * Draft checks and formatting:
+ * 1. Area reconciliation against a configured local tolerance
+ * 2. Beacon identifier check against a local pattern
+ * 3. Coordinate formatting using an explicitly declared project CRS
+ * 4. Fields for manual surveyor review
+ * 5. SHA-256 digest to detect changes to the draft
  *
- * Schema reference: Kenya Land Registration Act 2012, Survey Act Cap 299,
- * ArdhiSasa portal submission specification (2024).
+ * Official portal schema and acceptance requirements are not verified here.
  */
 
 import type { SurveyPoint } from '@/lib/map/turfHelpers'
 
 // ---------------------------------------------------------------------------
-// Types — NLIMS Submission Schema
+// Types — METARDU cadastral draft shape
 // ---------------------------------------------------------------------------
 
 export interface NLIMSSubmissionPayload {
-  /** Submission metadata */
+  /** Explicitly identifies this as a METARDU draft, not an official registry payload. */
+  draftMetadata: {
+    format: 'METARDU_CADASTRAL_DRAFT_V1'
+    projectId: string
+    projectName: string
+    coordinateReference: string
+    distanceMode: 'grid' | 'ground'
+    geometrySource: 'saved_field_observation_adjustment'
+    officialRegistryFormatVerified: false
+    registryTransmission: 'not_sent'
+  }
+  /** Draft metadata; this does not identify a registry submission. */
   submissionId: string
   submissionDate: string
   submissionType: 'mutation' | 'subdivision' | 'amalgamation' | 'new_registration' | 'boundary_adjustment'
@@ -93,9 +102,8 @@ export interface NLIMSParcelCoordinate {
   easting: number
   northing: number
   utmZone: number
-  // AUDIT FIX (C7, 2026-07-02): Widened from literal types to strings
-  // so the exporter can emit Zone 36S, 37N, WGS84, etc. when the
-  // project's CRS requires it. The default is still Arc_1960/UTM/37S.
+  // These fields describe coordinates in the draft; they do not verify
+  // the declared CRS or the field coordinate realization.
   datum: string
   projection: string
   hemisphere: 'N' | 'S'
@@ -159,6 +167,7 @@ export interface BeaconInput {
 }
 
 export interface NLIMSExportParams {
+  draftMetadata: NLIMSSubmissionPayload['draftMetadata']
   submissionType: 'mutation' | 'subdivision' | 'amalgamation' | 'new_registration' | 'boundary_adjustment'
   registry: string
   county: string
@@ -179,50 +188,60 @@ export interface NLIMSExportParams {
     vertices: SurveyPoint[]
   }
   encumbrances?: NLIMSEncumbrance[]
-  /** Tolerance for area reconciliation (hectares). Default: 0.001 ha (10 m²) */
+  /** Configured local tolerance for area reconciliation (hectares). */
   areaToleranceHectares?: number
   /**
-   * Coordinate Reference System metadata. Defaults to Arc 1960 / UTM Zone 37S
-   * (the most common CRS for Kenyan cadastral work in the central/southern
-   * region including Nairobi). Override for surveys in:
+   * Coordinate Reference System the parcel coordinates are written in —
+   * REQUIRED. There is no default: a draft must not silently claim
+   * Arc 1960 / UTM 37S.
+   * Pass the project's declared CRS from project metadata, e.g.:
+   *   - Central/southern Kenya (Nairobi): 37S / Arc 1960 (EPSG:21037)
    *   - Western Kenya (Kisumu, Eldoret, Kakamega): UTM Zone 36S
    *   - Northern Kenya (Turkana, Marsabit): UTM Zone 36N or 37N
-   *   - Coastal region north of Mombasa: UTM Zone 37S (default is fine)
+   *   - Coastal region north of Mombasa: UTM Zone 37S
    *
-   * AUDIT FIX (C7, 2026-07-02): Previously these values were hardcoded
-   * constants — a survey in Zone 36S would be mislabeled as Zone 37S on
-   * the NLIMS submission, which is statutory non-compliance. Now the
-   * caller can supply the correct CRS from project metadata.
+   * The explicit declaration avoids an invented default but does not
+   * independently verify that the CRS matches the survey observations.
    */
-  crs?: {
-    utmZone?: number       // 1-60; default 37
-    hemisphere?: 'N' | 'S' // default 'S'
-    datum?: string         // default 'Arc_1960'
-    projection?: string    // default 'UTM'
+  crs: {
+    utmZone: number       // 1-60
+    hemisphere: 'N' | 'S'
+    datum: string         // e.g. 'Arc_1960', 'WGS 84'
+    projection?: string   // default 'UTM' (NLIMS format constant)
   }
 }
 
 // ---------------------------------------------------------------------------
-// CRS Defaults (Arc 1960 / UTM Zone 37S — most common for Kenyan cadastral)
+// CRS declaration (REQUIRED — no positional defaults; see resolveCRS)
 // ---------------------------------------------------------------------------
 
-const DEFAULT_UTM_ZONE = 37
-const DEFAULT_HEMISPHERE = 'S' as const
-const DEFAULT_DATUM = 'Arc_1960' as const
 const DEFAULT_PROJECTION = 'UTM' as const
 
-/** Resolve CRS params from the export params, falling back to defaults. */
+/**
+ * Resolve the declared CRS. An undeclared CRS throws rather than silently
+ * applying a default coordinate label.
+ */
 function resolveCRS(params: NLIMSExportParams) {
+  const crs = params.crs
+  if (!crs || !crs.utmZone || !crs.hemisphere || !crs.datum) {
+    throw new Error(
+      'Cadastral draft export requires an explicit CRS declaration (crs.utmZone, crs.hemisphere, crs.datum).',
+    )
+  }
+  if (!Number.isInteger(crs.utmZone) || crs.utmZone < 1 || crs.utmZone > 60) {
+    throw new Error(`NLIMS CRS utmZone must be an integer 1-60 (received: ${String(crs.utmZone)}).`)
+  }
   return {
-    utmZone: params.crs?.utmZone ?? DEFAULT_UTM_ZONE,
-    hemisphere: params.crs?.hemisphere ?? DEFAULT_HEMISPHERE,
-    datum: params.crs?.datum ?? DEFAULT_DATUM,
-    projection: params.crs?.projection ?? DEFAULT_PROJECTION,
+    utmZone: crs.utmZone,
+    hemisphere: crs.hemisphere,
+    datum: crs.datum,
+    projection: crs.projection ?? DEFAULT_PROJECTION,
   }
 }
 
 /**
- * SoK beacon nomenclature patterns (Survey of Kenya standards):
+ * Local beacon identifier pattern used to show a formatting warning only.
+ * It is not a verified Survey of Kenya nomenclature rule.
  * - KP/XX/YY: Kenya Pattern (sheet/beacon)
  * - MB/XXX: Mutation Beacon
  * - BBB/XXX: Standard numbered beacon
@@ -268,6 +287,15 @@ export function validateNLIMSExport(params: NLIMSExportParams): NLIMSValidationR
     })
   }
 
+  if (params.beacons.length === 0) {
+    warnings.push({
+      field: 'beacons',
+      severity: 'warning',
+      message: 'No beacon or monument observations are included in this draft.',
+      code: 'BEACON_DATA_NOT_INCLUDED',
+    })
+  }
+
   // Registry validation
   if (!params.registry?.trim()) {
     errors.push({
@@ -284,6 +312,32 @@ export function validateNLIMSExport(params: NLIMSExportParams): NLIMSValidationR
       severity: 'error',
       message: 'County is required',
       code: 'MISSING_COUNTY',
+    })
+  }
+
+  // Keep the draft CRS explicit; this does not independently verify it.
+  const crs = params.crs
+  if (!crs || !crs.utmZone || !crs.hemisphere || !crs.datum) {
+    errors.push({
+      field: 'crs',
+      severity: 'error',
+      message:
+        'CRS must be declared (crs.utmZone, crs.hemisphere, crs.datum) — NLIMS coordinates may not be silently labelled Arc 1960 / UTM 37S',
+      code: 'MISSING_CRS',
+    })
+  } else if (!Number.isInteger(crs.utmZone) || crs.utmZone < 1 || crs.utmZone > 60) {
+    errors.push({
+      field: 'crs.utmZone',
+      severity: 'error',
+      message: `UTM zone must be an integer 1-60 (received: ${String(crs.utmZone)})`,
+      code: 'INVALID_UTM_ZONE',
+    })
+  } else if (crs.hemisphere !== 'N' && crs.hemisphere !== 'S') {
+    errors.push({
+      field: 'crs.hemisphere',
+      severity: 'error',
+      message: `Hemisphere must be N or S (received: ${String(crs.hemisphere)})`,
+      code: 'INVALID_HEMISPHERE',
     })
   }
 
@@ -331,7 +385,7 @@ export function validateNLIMSExport(params: NLIMSExportParams): NLIMSValidationR
       warnings.push({
         field: `beacons[${i}].beaconNumber`,
         severity: 'warning',
-        message: `Beacon "${beacon.beaconNumber}" does not match SoK nomenclature (KP/MB/IRP/RMB patterns)`,
+        message: `Beacon "${beacon.beaconNumber}" does not match this draft's configured identifier pattern. Confirm the required format for the project.`,
         code: 'BEACON_NOMENCLATURE',
       })
     }
@@ -425,32 +479,34 @@ export function calculateAreaHectares(vertices: SurveyPoint[]): number {
 // ---------------------------------------------------------------------------
 
 /**
- * Compute a SHA-256 integrity hash of the submission payload.
+ * Compute a SHA-256 integrity hash of the complete draft payload.
  *
  * This ensures the payload hasn't been tampered with after the surveyor
  * signs off on it. Uses the Web Crypto API (available in browsers and
  * Node.js 18+).
  */
 export async function computeIntegrityHash(payload: Omit<NLIMSSubmissionPayload, 'integrity'>): Promise<string> {
-  // Sort keys for deterministic hashing
-  const sorted = JSON.stringify(payload, Object.keys(payload).sort())
+  // Sort every object recursively. A top-level replacer array would omit
+  // nested coordinate, parcel and surveyor properties from the digest.
+  const canonicalize = (value: unknown): unknown => {
+    if (Array.isArray(value)) return value.map(canonicalize)
+    if (value && typeof value === 'object') {
+      return Object.fromEntries(
+        Object.entries(value as Record<string, unknown>)
+          .sort(([left], [right]) => left.localeCompare(right))
+          .map(([key, entry]) => [key, canonicalize(entry)]),
+      )
+    }
+    return value
+  }
+  const sorted = JSON.stringify(canonicalize(payload))
   const encoder = new TextEncoder()
   const data = encoder.encode(sorted)
 
-  if (typeof crypto !== 'undefined' && crypto.subtle) {
-    const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-    const hashArray = Array.from(new Uint8Array(hashBuffer))
-    return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
-  }
-
-  // Fallback: simple hash (not cryptographically secure, but deterministic)
-  let hash = 0
-  for (let i = 0; i < sorted.length; i++) {
-    const char = sorted.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  return hash.toString(16).padStart(64, '0')
+  if (!globalThis.crypto?.subtle) throw new Error('Secure SHA-256 is unavailable; refusing to generate a draft integrity hash.')
+  const hashBuffer = await globalThis.crypto.subtle.digest('SHA-256', data)
+  const hashArray = Array.from(new Uint8Array(hashBuffer))
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('')
 }
 
 // ---------------------------------------------------------------------------
@@ -458,7 +514,7 @@ export async function computeIntegrityHash(payload: Omit<NLIMSSubmissionPayload,
 // ---------------------------------------------------------------------------
 
 /**
- * Generate an NLIMS/ArdhiSasa submission payload from survey data.
+ * Generate a METARDU cadastral draft from saved project survey data.
  *
  * @param params - Export parameters (parcels, beacons, surveyor info, etc.)
  * @returns The submission payload with integrity hash, or throws on validation error.
@@ -476,7 +532,7 @@ export async function exportToNLIMS(params: NLIMSExportParams): Promise<{
     )
   }
 
-  // Resolve CRS from params (falls back to Arc 1960 / UTM 37S)
+  // Resolve CRS from the saved project declaration; never invent a default.
   const crs = resolveCRS(params)
 
   // Build resulting parcels
@@ -552,10 +608,11 @@ export async function exportToNLIMS(params: NLIMSExportParams): Promise<{
   }
 
   // Build payload (without integrity hash first)
-  const submissionId = `NLIMS-${Date.now()}-${Math.random().toString(36).substr(2, 9).toUpperCase()}`
+  const submissionId = `METARDU-DRAFT-${Date.now()}-${Math.random().toString(36).slice(2, 11).toUpperCase()}`
   const submissionDate = new Date().toISOString()
 
   const payloadWithoutHash: Omit<NLIMSSubmissionPayload, 'integrity'> = {
+    draftMetadata: params.draftMetadata,
     submissionId,
     submissionDate,
     submissionType: params.submissionType,
@@ -586,7 +643,7 @@ export async function exportToNLIMS(params: NLIMSExportParams): Promise<{
 }
 
 /**
- * Generate a downloadable JSON file from the NLIMS payload.
+ * Download the JSON draft with an explicit METARDU filename.
  */
 export function downloadNLIMSPayload(payload: NLIMSSubmissionPayload, filename?: string): void {
   const json = JSON.stringify(payload, null, 2)
@@ -594,7 +651,7 @@ export function downloadNLIMSPayload(payload: NLIMSSubmissionPayload, filename?:
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = filename || `${payload.submissionId}.json`
+  a.download = filename || `METARDU-cadastral-draft-${payload.submissionId}.json`
   document.body.appendChild(a)
   a.click()
   document.body.removeChild(a)

@@ -5,8 +5,6 @@
  * of computation results as PDF or CSV files.
  */
 
-import jsPDF from 'jspdf'
-
 // ── CSV helpers ───────────────────────────────────────────────────────────────
 
 /** Join rows (arrays of strings) into a CSV string with proper escaping */
@@ -58,11 +56,15 @@ export interface PdfExportMeta {
  * Generate and download a PDF using jsPDF with METARDU branding.
  * Supports sections with key-value rows and tabular data.
  */
-export function generatePDF(
+export async function generatePDF(
   meta: PdfExportMeta,
   sections: PdfSection[],
   tables: PdfTableSection[] = [],
-): void {
+): Promise<void> {
+  try {
+  // Load the PDF engine only when the user requests a PDF export. CSV-only
+  // tools reuse this module but should not pay the jsPDF startup cost.
+  const { default: jsPDF } = await import('jspdf')
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const margin = 15
@@ -193,4 +195,13 @@ export function generatePDF(
   // ── Save ────────────────────────────────────────────────────────────────
   const filename = `${meta.title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
   doc.save(filename)
+  } catch (error) {
+    console.error('[METARDU] PDF export failed to load or render', error)
+    try {
+      const { toast } = await import('sonner')
+      toast.error('Could not create the PDF. Please try again.')
+    } catch {
+      if (typeof window !== 'undefined') window.alert('Could not create the PDF. Please try again.')
+    }
+  }
 }

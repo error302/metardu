@@ -28,27 +28,21 @@ export interface SouthAfricaParcel {
 export interface SouthAfricaSearchResult {
   query: string
   results: SouthAfricaParcel[]
-  searchTime: number
+  available: boolean
+  message: string
+  searchTime: number | null
 }
 
 const southAfricaRegistryData: SouthAfricaParcel[] = []
 
 export function searchSouthAfricaRegistry(query: string): SouthAfricaSearchResult {
-  const q = query.toLowerCase()
-  const results = southAfricaRegistryData.filter((p) => 
-    p.parcelId.toLowerCase().includes(q) ||
-    p.erfNumber.toLowerCase().includes(q) ||
-    p.township.toLowerCase().includes(q) ||
-    p.municipality.toLowerCase().includes(q) ||
-    p.province.toLowerCase().includes(q) ||
-    p.ownerName.toLowerCase().includes(q) ||
-    p.sgCode.toLowerCase().includes(q)
-  )
-  
+  void southAfricaRegistryData
   return {
     query,
-    results,
-    searchTime: Math.floor(Math.random() * 500) + 100,
+    results: [],
+    available: false,
+    message: 'Live South African registry access is not configured. No parcel search was performed.',
+    searchTime: null,
   }
 }
 

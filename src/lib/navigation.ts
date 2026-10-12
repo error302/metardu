@@ -89,7 +89,7 @@ export const NAV_ITEMS: NavItem[] = [
   // DATA
   { label: 'Projects', href: '/project', icon: FolderKanban, group: 'DATA', description: 'Manage survey projects and revision history' },
   { label: 'Online Services', href: '/online', icon: Globe, group: 'DATA', description: 'GNSS baseline, coordinate API, Sentinel-2 imagery' },
-  { label: 'Land Registry', href: '/registry', icon: IdCard, group: 'DATA', badge: 'NEW', description: 'NLIMS parcel lookup and title verification' },
+  { label: 'Parcel Records', href: '/parcel', icon: IdCard, group: 'DATA', description: 'Account records, shared references, and official Ardhisasa handoff' },
   { label: 'Land Law', href: '/land-law', icon: Scale, group: 'DATA', badge: 'NEW', description: 'Boundary law, dispute resolution, plan compliance' },
   { label: 'KenCORS', href: '/kencors', icon: RadioTower, group: 'DATA', description: 'Kenya CORS RTK correction network' },
   { label: 'Field Data', href: '/field', icon: HardDrive, group: 'DATA', description: 'Field data collection and sync' },

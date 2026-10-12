@@ -17,7 +17,8 @@ export interface PileGridDefinition {
   name: string;
   originEasting: number;
   originNorthing: number;
-  originRL: number;
+  /** Optional design level; null means the grid is horizontal-only. */
+  originRL: number | null;
   rows: number;
   columns: number;
   rowSpacing: number;
@@ -38,7 +39,7 @@ export interface PileCoordinate {
   column: number;
   easting: number;
   northing: number;
-  designRL: number;
+  designRL: number | null;
   gridOffsetE: number;
   gridOffsetN: number;
 }
@@ -51,12 +52,15 @@ export interface PileGridResult {
   area: number;
 }
 
+/** Guard synchronous generation and persistence from accidental or hostile mega-grids. */
+export const MAX_PILE_GRID_POINTS = 5000
+
 export interface PileSettingOutData {
   pile: PileCoordinate;
   bearingDeg: number;
   bearingDMS: string;
   horizontalDistance: number;
-  targetHeight: number;
+  targetHeight: number | null;
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
@@ -138,6 +142,25 @@ function parseStartLabel(
  *   northing = originN + ry
  */
 export function generatePileGrid(def: PileGridDefinition): PileGridResult {
+  if (!Number.isInteger(def.rows) || def.rows < 1 || !Number.isInteger(def.columns) || def.columns < 1) {
+    throw new RangeError('Grid rows and columns must be positive whole numbers.')
+  }
+  if (def.rows * def.columns > MAX_PILE_GRID_POINTS) {
+    throw new RangeError(`A set-out grid cannot exceed ${MAX_PILE_GRID_POINTS.toLocaleString()} points.`)
+  }
+  if (!Number.isFinite(def.originEasting) || !Number.isFinite(def.originNorthing)) {
+    throw new RangeError('Grid origin Easting and Northing must be finite coordinates.')
+  }
+  if (def.originRL !== null && !Number.isFinite(def.originRL)) {
+    throw new RangeError('Design RL must be finite or left blank when no design level is available.')
+  }
+  if (!Number.isFinite(def.rowSpacing) || def.rowSpacing <= 0 || !Number.isFinite(def.columnSpacing) || def.columnSpacing <= 0) {
+    throw new RangeError('Grid row and column spacing must be finite positive distances.')
+  }
+  if (!Number.isFinite(def.rotation)) {
+    throw new RangeError('Grid rotation must be a finite angle.')
+  }
+
   const theta = (def.rotation * Math.PI) / 180;
   const cosT = Math.cos(theta);
   const sinT = Math.sin(theta);
@@ -218,7 +241,9 @@ export function computeSettingOut(
     const bearingDeg = (bearingRad * 180) / Math.PI;
 
     const horizontalDistance = Math.sqrt(dE * dE + dN * dN);
-    const targetHeight = pile.designRL - stationRL - heightOfInstrument;
+    const targetHeight = pile.designRL == null
+      ? null
+      : pile.designRL - stationRL - heightOfInstrument;
 
     return {
       pile,
@@ -278,7 +303,9 @@ export function parsePileGridCSV(csv: string): Partial<PileGridDefinition> {
   if (result['Name']) def.name = result['Name'];
   if (result['Origin E']) def.originEasting = parseFloat(result['Origin E']);
   if (result['Origin N']) def.originNorthing = parseFloat(result['Origin N']);
-  if (result['Origin RL']) def.originRL = parseFloat(result['Origin RL']);
+  if (Object.prototype.hasOwnProperty.call(result, 'Origin RL')) {
+    def.originRL = result['Origin RL'] ? parseFloat(result['Origin RL']) : null;
+  }
   if (result['Rows']) def.rows = parseInt(result['Rows'], 10);
   if (result['Columns']) def.columns = parseInt(result['Columns'], 10);
   if (result['Row Spacing']) def.rowSpacing = parseFloat(result['Row Spacing']);
@@ -317,7 +344,7 @@ export function pileGridToCSV(result: PileGridResult): string {
   const rows = result.piles.map((p) =>
     [
       p.label, p.row, p.column,
-      p.easting.toFixed(4), p.northing.toFixed(4), p.designRL.toFixed(4),
+      p.easting.toFixed(4), p.northing.toFixed(4), p.designRL?.toFixed(4) ?? '',
       p.gridOffsetE.toFixed(4), p.gridOffsetN.toFixed(4),
     ].join(',')
   );

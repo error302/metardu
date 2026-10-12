@@ -1,570 +1,140 @@
-'use client';
+'use client'
 
-import React, { useState, useCallback } from 'react'
-import { AlertTriangle } from 'lucide-react'
-import { manningPipeCapacity, rationalMethodCatchment, manningChannelCapacity, sizePipe, MANNING_N, RUNOFF_COEFFICIENTS, STANDARD_PIPE_SIZES } from '@/lib/engineering/drainageDesign'
+import { useState } from 'react'
+import { manningChannelCapacity, manningPipeCapacity, rationalMethodCatchment, STANDARD_PIPE_SIZES } from '@/lib/engineering/drainageDesign'
+import { downloadRowsCsv } from '@/components/compute/csvDownload'
 
 type Tab = 'pipe' | 'catchment' | 'channel'
+type PipeRow = { diameterMm: number; capacityLs: number; velocityMs: number; meetsFlow: boolean }
+const numberFrom = (text: string) => text.trim() !== '' && Number.isFinite(Number(text)) ? Number(text) : undefined
+const inputClass = 'w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-sm text-white placeholder-zinc-500 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500'
 
-// ─── HELPERS ──────────────────────────────────────────────────────────────────
-
-/** Returns formatted number or "—" when value is NaN / Infinity / negative-where-invalid */
-function safeNum(value: number, decimals: number = 4): string {
-  if (value === null || value === undefined || !Number.isFinite(value) || Number.isNaN(value)) return '—'
-  return value.toFixed(decimals)
+function NumericField({ label, value, onChange, step = 'any', hint }: { label: string; value: string; onChange: (value: string) => void; step?: string; hint?: string }) {
+  const id = `drainage-${label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`
+  return <label htmlFor={id} className="block text-xs text-zinc-400">{label}<input id={id} type="number" step={step} value={value} onChange={event => onChange(event.target.value)} className={`${inputClass} mt-1`} />{hint && <span className="mt-1 block text-[11px] text-zinc-500">{hint}</span>}</label>
 }
 
-/** Returns a boolean — true when value is usable for display */
-function isValid(v: number): boolean {
-  return Number.isFinite(v) && !Number.isNaN(v)
-}
-
-function downloadCsv(filename: string, rows: string[][]) {
-  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n')
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
-  const url = URL.createObjectURL(blob)
-  const a = document.createElement('a')
-  a.href = url
-  a.download = filename
-  a.click()
-  URL.revokeObjectURL(url)
-}
-
-// ─── INLINE ERROR COMPONENT ───────────────────────────────────────────────────
-
-function FieldError({ message }: { message: string | undefined }) {
-  if (!message) return null
-  return <p className="text-xs text-red-400 mt-1">{message}</p>
-}
-
-// ─── SHARED INPUT CLASSES ─────────────────────────────────────────────────────
-
-const inputCls = 'w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-const selectCls = 'w-full border border-zinc-700 rounded-lg px-3 py-2 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent'
-
-// ─── MAIN PANEL ───────────────────────────────────────────────────────────────
-
-export default function DrainageDesignPanel({ roadLength: _roadLength = 1000 }: { roadLength?: number }) {
+export default function DrainageDesignPanel() {
   const [tab, setTab] = useState<Tab>('pipe')
+  const [pipeInputs, setPipeInputs] = useState({ flowLs: '', slopePercent: '', manningN: '' })
+  const [pipeRows, setPipeRows] = useState<PipeRow[]>([])
+  const [pipeError, setPipeError] = useState('')
+  const [catchmentInputs, setCatchmentInputs] = useState({ areaHa: '', coefficient: '', intensityMmHr: '' })
+  const [catchmentResult, setCatchmentResult] = useState<ReturnType<typeof rationalMethodCatchment> | null>(null)
+  const [catchmentError, setCatchmentError] = useState('')
+  const [channelInputs, setChannelInputs] = useState({ bedWidthM: '', sideSlope: '', manningN: '', slopePercent: '', flowDepthM: '' })
+  const [channelResult, setChannelResult] = useState<ReturnType<typeof manningChannelCapacity> | null>(null)
+  const [channelError, setChannelError] = useState('')
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6">
-        <h3 className="text-lg font-semibold text-white">Drainage Design</h3>
-        <p className="text-sm text-zinc-400 mt-1">Manning&apos;s equation, Rational Method, pipe &amp; channel sizing — RDM 1.3</p>
-      </div>
-
-      {/* Tabs */}
-      <div className="flex gap-1 bg-zinc-800 rounded-lg p-1">
-        {([['pipe', 'Pipe Sizing'], ['catchment', 'Catchment'], ['channel', 'Channel']] as const).map(([k, l]) => (
-          <button key={k} onClick={() => setTab(k)}
-            className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-colors ${tab === k ? 'bg-zinc-700 shadow text-white' : 'text-zinc-400 hover:text-white'}`}>
-            {l}
-          </button>
-        ))}
-      </div>
-
-      {tab === 'pipe' && <PipeSizingTab />}
-      {tab === 'catchment' && <CatchmentTab />}
-      {tab === 'channel' && <ChannelTab />}
-    </div>
-  )
-}
-
-// ─── PIPE SIZING TAB ──────────────────────────────────────────────────────────
-
-function PipeSizingTab() {
-  const [peakFlow, setPeakFlow] = useState(0.5)
-  const [slope, setSlope] = useState(0.5)
-  const [material, setMaterial] = useState('Concrete pipe')
-  const [customDiameter, setCustomDiameter] = useState(300)
-  const [showResult, setShowResult] = useState(false)
-
-  const manningN = MANNING_N[material] || 0.013
-  const slopeDecimal = slope / 100
-
-  // ── Validation ──
-  const errors = {
-    peakFlow: peakFlow <= 0 ? 'Peak flow must be > 0' : undefined,
-    slope: slope <= 0 ? 'Slope must be > 0' : undefined,
-  }
-
-  const hasAnyError = Object.values(errors).some(Boolean)
-
-  // ── Computed results (NaN-safe) ──
-  const sizing = peakFlow > 0 && slopeDecimal > 0 ? sizePipe(peakFlow, manningN, slopeDecimal) : null
-  const customResult = customDiameter > 0 && slopeDecimal > 0
-    ? manningPipeCapacity({ diameter: customDiameter, manningN, slope: slopeDecimal })
-    : null
-  const minSlopeForCustom = (manningN && customDiameter > 0)
-    ? Math.pow(0.6 * manningN / Math.pow((customDiameter / 1000) / 4, 2 / 3), 2) * 100
-    : NaN
-
-  const hasWarning = slope <= 0 || peakFlow <= 0 || customDiameter <= 0
-
-  // ── CSV Export ──
-  const handleExport = useCallback(() => {
-    const rows: string[][] = [
-      ['Drainage Design — Pipe Sizing Summary'],
-      [],
-      ['Parameter', 'Value'],
-      ['Peak Flow (m³/s)', String(peakFlow)],
-      ['Slope (%)', String(slope)],
-      ['Slope (m/m)', String(slopeDecimal)],
-      ['Material', material],
-      ["Manning's n", String(manningN)],
-      ['Custom Diameter (mm)', String(customDiameter)],
-      [],
-      ['Result', 'Value'],
-      ['Full Bore Capacity (m³/s)', customResult ? String(customResult.fullBoreCapacity) : '—'],
-      ['Full Bore Velocity (m/s)', customResult ? String(customResult.fullBoreVelocity) : '—'],
-      ['Self-Cleansing', customResult ? String(customResult.isSelfCleansing) : '—'],
-      ['Velocity Acceptable', customResult ? String(customResult.isVelocityAcceptable) : '—'],
-      ['Min Slope for Self-Cleansing (%)', isValid(minSlopeForCustom) ? String(minSlopeForCustom) : '—'],
-    ]
-    if (sizing) {
-      rows.push([], ['Recommended Pipe', 'Value'])
-      rows.push(['Diameter (mm)', String(sizing.diameter)])
-      rows.push(['Capacity (m³/s)', String(sizing.capacity)])
-      rows.push(['Velocity (m/s)', String(sizing.velocity)])
+  const calculatePipe = () => {
+    const flowLs = numberFrom(pipeInputs.flowLs)
+    const slopePercent = numberFrom(pipeInputs.slopePercent)
+    const manningN = numberFrom(pipeInputs.manningN)
+    const issues: string[] = []
+    if (flowLs === undefined || flowLs <= 0) issues.push('Enter a finite design flow greater than zero.')
+    if (slopePercent === undefined || slopePercent <= 0) issues.push('Enter a finite positive pipe slope in the flow direction.')
+    if (manningN === undefined || manningN <= 0) issues.push('Enter a finite positive Manning roughness value from the specified pipe product.')
+    setPipeError(issues.join(' '))
+    if (issues.length || flowLs === undefined || slopePercent === undefined || manningN === undefined) {
+      setPipeRows([])
+      return
     }
-    downloadCsv('drainage_pipe_sizing.csv', rows)
-  }, [peakFlow, slope, slopeDecimal, material, manningN, customDiameter, customResult, minSlopeForCustom, sizing])
-
-  return (
-    <div className="space-y-6">
-      {/* Warning banner */}
-      {hasWarning && (
-        <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Inputs */}
-        <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6 space-y-4">
-          <h4 className="font-medium text-white">Pipe Sizing</h4>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="peak-flow-m-s">Peak Flow (m³/s)</label>
-            <input id="peak-flow-m-s" aria-label="Peak Flow (m³/s)" type="number" step="0.01" className={`${inputCls} ${errors.peakFlow ? 'border-red-500' : ''}`}
-              value={peakFlow} onChange={e => { setPeakFlow(parseFloat(e.target.value) || 0); setShowResult(false) }} />
-            <FieldError message={errors.peakFlow} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="pipe-slope">Pipe Slope (%)</label>
-            <input id="pipe-slope" aria-label="Pipe Slope (%)" type="number" step="0.1" className={`${inputCls} ${errors.slope ? 'border-red-500' : ''}`}
-              value={slope} onChange={e => { setSlope(parseFloat(e.target.value) || 0); setShowResult(false) }} />
-            <FieldError message={errors.slope} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Material (Manning&apos;s n = {manningN})</label>
-            <select className={selectCls}
-              value={material} onChange={e => setMaterial(e.target.value)}>
-              {Object.entries(MANNING_N).map(([name, n]) => (
-                <option key={name} value={name}>{name} (n={n})</option>
-              ))}
-            </select>
-          </div>
-          <button onClick={() => setShowResult(true)}
-            disabled={hasAnyError}
-            className="w-full px-4 py-3 bg-blue-600 text-white rounded-lg font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed">
-            Size Pipe
-          </button>
-        </div>
-
-        {/* Right: Custom Pipe Check */}
-        <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-white">Custom Pipe Check</h4>
-            <button onClick={handleExport}
-              className="text-xs px-3 py-1.5 border border-zinc-600 rounded-md text-zinc-300 hover:text-white hover:border-zinc-400 transition-colors">
-              ↓ Download CSV
-            </button>
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="diameter-mm">Diameter (mm)</label>
-            <select id="diameter-mm" className={selectCls}
-              value={customDiameter} onChange={e => setCustomDiameter(parseInt(e.target.value))}>
-              {STANDARD_PIPE_SIZES.map(d => <option key={d} value={d}>{d} mm</option>)}
-            </select>
-          </div>
-          {customResult ? (
-            <div className="space-y-2 pt-2">
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Full Bore Capacity</span>
-                <span className="font-mono font-medium text-white">{safeNum(customResult.fullBoreCapacity)} m³/s</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Full Bore Velocity</span>
-                <span className={`font-mono font-medium ${customResult.isSelfCleansing ? 'text-emerald-400' : 'text-red-400'}`}>
-                  {safeNum(customResult.fullBoreVelocity, 2)} m/s
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Self-Cleansing (≥0.6 m/s)</span>
-                <span className={customResult.isSelfCleansing ? 'text-emerald-400' : 'text-red-400'}>
-                  {customResult.isSelfCleansing ? 'YES' : 'NO'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Velocity Acceptable</span>
-                <span className={customResult.isVelocityAcceptable ? 'text-emerald-400' : 'text-amber-400'}>
-                  {customResult.isVelocityAcceptable ? 'YES' : 'NO (check lining)'}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Min Slope for Self-Cleansing</span>
-                <span className="font-mono">{safeNum(minSlopeForCustom, 2)}%</span>
-              </div>
-            </div>
-          ) : (
-            <div className="pt-2 text-sm text-zinc-500">Enter valid slope and diameter to see results.</div>
-          )}
-        </div>
-      </div>
-
-      {/* Sizing result */}
-      {showResult && sizing && (
-        <div className={`rounded-xl border-2 p-6 border-emerald-500 bg-emerald-950/30`}>
-          <h4 className="font-medium text-white mb-3">Recommended Pipe Size</h4>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <div className="text-xs text-zinc-400">Diameter</div>
-              <div className="text-xl font-bold text-white">{sizing.diameter} mm</div>
-            </div>
-            <div>
-              <div className="text-xs text-zinc-400">Capacity</div>
-              <div className="text-xl font-bold text-white">{safeNum(sizing.capacity)} m³/s</div>
-            </div>
-            <div>
-              <div className="text-xs text-zinc-400">Velocity</div>
-              <div className="text-xl font-bold text-white">{safeNum(sizing.velocity, 2)} m/s</div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* No sizing result warning */}
-      {showResult && !sizing && (
-        <div className="rounded-xl border-2 p-6 border-amber-500 bg-amber-950/30">
-          <h4 className="font-medium text-amber-300 mb-2">No Suitable Standard Size Found</h4>
-          <p className="text-sm text-zinc-400">No standard pipe size meets both the capacity and self-cleansing requirements. Try increasing slope or using a non-standard diameter.</p>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ─── CATCHMENT TAB ────────────────────────────────────────────────────────────
-
-function CatchmentTab() {
-  const [area, setArea] = useState(10)
-  const [landUse, setLandUse] = useState('Grass/Park')
-  const [intensity, setIntensity] = useState(50)
-
-  const C = RUNOFF_COEFFICIENTS[landUse]?.typical || 0.15
-
-  // ── Validation ──
-  const errors = {
-    area: area <= 0 ? 'Catchment area must be > 0' : undefined,
-    intensity: intensity <= 0 ? 'Rainfall intensity must be > 0' : undefined,
+    const rows = STANDARD_PIPE_SIZES.map(diameterMm => {
+      const result = manningPipeCapacity({ diameter: diameterMm, manningN, slope: slopePercent / 100 })
+      return { diameterMm, capacityLs: result.fullBoreCapacity * 1000, velocityMs: result.fullBoreVelocity, meetsFlow: result.fullBoreCapacity * 1000 >= flowLs }
+    })
+    setPipeRows(rows)
   }
 
-  // ── Computed (NaN-safe) ──
-  const result = area > 0 && intensity > 0
-    ? rationalMethodCatchment({ area, runoffCoefficient: C, rainfallIntensity: intensity, timeOfConcentration: 10 })
-    : null
-
-  const hasWarning = area <= 0 || intensity <= 0
-
-  // ── CSV Export ──
-  const handleExport = useCallback(() => {
-    const rows: string[][] = [
-      ['Drainage Design — Catchment Analysis Summary'],
-      [],
-      ['Parameter', 'Value'],
-      ['Catchment Area (ha)', String(area)],
-      ['Land Use', landUse],
-      ['Runoff Coefficient (C)', String(C)],
-      ['Rainfall Intensity (mm/hr)', String(intensity)],
-      ['Time of Concentration (min)', '10'],
-      [],
-      ['Result', 'Value'],
-      ['Peak Flow (m³/s)', result ? String(result.peakFlow) : '—'],
-      ['Effective Area (ha)', result ? String(result.effectiveArea) : '—'],
-      ['Return Period', result ? result.returnPeriod : '—'],
-    ]
-    downloadCsv('drainage_catchment.csv', rows)
-  }, [area, landUse, C, intensity, result])
-
-  return (
-    <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6 space-y-6">
-      {/* Warning banner */}
-      {hasWarning && (
-        <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
-        </div>
-      )}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Inputs */}
-        <div className="space-y-4">
-          <h4 className="font-medium text-white">Catchment Analysis (Rational Method)</h4>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="catchment-area-hectares">Catchment Area (hectares)</label>
-            <input id="catchment-area-hectares" aria-label="Catchment Area (hectares)" type="number" step="0.1" className={`${inputCls} ${errors.area ? 'border-red-500' : ''}`}
-              value={area} onChange={e => setArea(parseFloat(e.target.value) || 0)} />
-            <FieldError message={errors.area} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1">Land Use (C = {C})</label>
-            <select className={selectCls} value={landUse} onChange={e => setLandUse(e.target.value)}>
-              {Object.entries(RUNOFF_COEFFICIENTS).map(([name, val]) => (
-                <option key={name} value={name}>{name} (C: {val.min}–{val.max}, typical {val.typical})</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="rainfall-intensity-mm-hr">Rainfall Intensity (mm/hr)</label>
-            <input id="rainfall-intensity-mm-hr" aria-label="Rainfall Intensity (mm/hr)" type="number" step="1" className={`${inputCls} ${errors.intensity ? 'border-red-500' : ''}`}
-              value={intensity} onChange={e => setIntensity(parseFloat(e.target.value) || 0)} />
-            <FieldError message={errors.intensity} />
-          </div>
-        </div>
-
-        {/* Right: Results */}
-        <div className="bg-zinc-800 rounded-xl p-6 space-y-3">
-          <div className="flex items-center justify-between">
-            <h4 className="font-medium text-white">Results</h4>
-            <button onClick={handleExport}
-              className="text-xs px-3 py-1.5 border border-zinc-600 rounded-md text-zinc-300 hover:text-white hover:border-zinc-400 transition-colors">
-              ↓ Download CSV
-            </button>
-          </div>
-          {result ? (
-            <>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Peak Flow (Q = CIA/360)</span>
-                <span className="font-mono font-bold text-blue-400">{safeNum(result.peakFlow)} m³/s</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Catchment Area</span>
-                <span className="font-mono text-white">{result.catchmentArea} ha</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Effective Area (C × A)</span>
-                <span className="font-mono text-white">{safeNum(result.effectiveArea, 2)} ha</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Recommended Return Period</span>
-                <span className="font-medium text-white">{result.returnPeriod}</span>
-              </div>
-              <div className="mt-4 p-3 bg-zinc-900 rounded-lg border border-zinc-700 text-xs text-zinc-400">
-                <strong className="text-white">Formula:</strong> Q = (C × I × A) / 360 = ({C} × {intensity} × {area}) / 360 = {safeNum(result.peakFlow)} m³/s
-              </div>
-            </>
-          ) : (
-            <p className="text-sm text-zinc-500">Enter valid area and intensity to see results.</p>
-          )}
-        </div>
-      </div>
-    </div>
-  )
-}
-
-// ─── CHANNEL TAB ─────────────────────────────────────────────────────────────
-
-function ChannelTab() {
-  const [bedWidth, setBedWidth] = useState(1.0)
-  const [sideSlope, setSideSlope] = useState(1.5)
-  const [manningN, setManningN] = useState(0.015)
-  const [slope, setSlope] = useState(0.5)
-  const [flowDepth, setFlowDepth] = useState(0.5)
-
-  const slopeDecimal = slope / 100
-
-  // ── Validation ──
-  const errors = {
-    bedWidth: bedWidth <= 0 ? 'Bed width must be > 0' : undefined,
-    slope: slope <= 0 ? 'Slope must be > 0' : undefined,
-    manningN: manningN <= 0 ? "Manning's n must be > 0" : undefined,
-    flowDepth: flowDepth <= 0 ? 'Flow depth must be > 0' : undefined,
+  const calculateCatchment = () => {
+    const area = numberFrom(catchmentInputs.areaHa)
+    const runoffCoefficient = numberFrom(catchmentInputs.coefficient)
+    const rainfallIntensity = numberFrom(catchmentInputs.intensityMmHr)
+    const issues: string[] = []
+    if (area === undefined || area <= 0) issues.push('Enter a finite catchment area greater than zero.')
+    if (runoffCoefficient === undefined || runoffCoefficient <= 0 || runoffCoefficient > 1) issues.push('Enter the project runoff coefficient C, greater than zero and no more than one.')
+    if (rainfallIntensity === undefined || rainfallIntensity <= 0) issues.push('Enter rainfall intensity from the approved project storm analysis.')
+    setCatchmentError(issues.join(' '))
+    if (issues.length || area === undefined || runoffCoefficient === undefined || rainfallIntensity === undefined) {
+      setCatchmentResult(null)
+      return
+    }
+    setCatchmentResult(rationalMethodCatchment({ area, runoffCoefficient, rainfallIntensity }))
   }
 
-  const hasAnyError = Object.values(errors).some(Boolean)
-  const hasWarning = hasAnyError
+  const calculateChannel = () => {
+    const bedWidth = numberFrom(channelInputs.bedWidthM)
+    const sideSlope = numberFrom(channelInputs.sideSlope)
+    const manningN = numberFrom(channelInputs.manningN)
+    const slopePercent = numberFrom(channelInputs.slopePercent)
+    const flowDepth = numberFrom(channelInputs.flowDepthM)
+    const issues: string[] = []
+    if (bedWidth === undefined || bedWidth <= 0) issues.push('Enter a finite bed width greater than zero.')
+    if (sideSlope === undefined || sideSlope < 0) issues.push('Enter a finite non-negative side slope (horizontal to vertical).')
+    if (manningN === undefined || manningN <= 0) issues.push('Enter a finite positive channel Manning roughness from the specified lining.')
+    if (slopePercent === undefined || slopePercent <= 0) issues.push('Enter a finite positive bed slope in the flow direction.')
+    if (flowDepth === undefined || flowDepth <= 0) issues.push('Enter a finite flow depth greater than zero.')
+    setChannelError(issues.join(' '))
+    if (issues.length || bedWidth === undefined || sideSlope === undefined || manningN === undefined || slopePercent === undefined || flowDepth === undefined) {
+      setChannelResult(null)
+      return
+    }
+    setChannelResult(manningChannelCapacity({ bedWidth, sideSlope, manningN, slope: slopePercent / 100, flowDepth }))
+  }
 
-  // ── Computed (NaN-safe) ──
-  const allValid = bedWidth > 0 && slopeDecimal > 0 && manningN > 0 && flowDepth > 0 && sideSlope > 0
-  const result = allValid
-    ? manningChannelCapacity({ bedWidth, sideSlope, manningN, slope: slopeDecimal, flowDepth })
-    : null
-
-  // ── CSV Export ──
-  const handleExport = useCallback(() => {
-    const rows: string[][] = [
-      ['Drainage Design — Trapezoidal Channel Summary'],
-      [],
-      ['Parameter', 'Value'],
-      ['Bed Width (m)', String(bedWidth)],
-      ['Side Slope (H:V)', String(sideSlope)],
-      ["Manning's n", String(manningN)],
-      ['Slope (%)', String(slope)],
-      ['Slope (m/m)', String(slopeDecimal)],
-      ['Flow Depth (m)', String(flowDepth)],
-      [],
-      ['Result', 'Value'],
-      ['Flow Area (m²)', result ? String(result.flowArea) : '—'],
-      ['Wetted Perimeter (m)', result ? String(result.wettedPerimeter) : '—'],
-      ['Hydraulic Radius (m)', result ? String(result.hydraulicRadius) : '—'],
-      ['Velocity (m/s)', result ? String(result.velocity) : '—'],
-      ['Discharge (m³/s)', result ? String(result.discharge) : '—'],
-      ['Top Width (m)', result ? String(result.topWidth) : '—'],
-      ['Self-Cleansing', result ? String(result.isSelfCleansing) : '—'],
-    ]
-    downloadCsv('drainage_channel.csv', rows)
-  }, [bedWidth, sideSlope, manningN, slope, slopeDecimal, flowDepth, result])
-
+  const tabs: Array<[Tab, string]> = [['pipe', 'Pipe capacity'], ['catchment', 'Catchment flow'], ['channel', 'Open channel']]
   return (
     <div className="space-y-6">
-      {/* Warning banner */}
-      {hasWarning && (
-        <div className="bg-amber-950/50 border border-amber-700 rounded-lg p-3 text-sm text-amber-300">
-          <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Invalid inputs detected — computed results may be unavailable. Fix highlighted fields below.
-        </div>
-      )}
+      <section className="rounded-xl border border-zinc-700 bg-zinc-900 p-5">
+        <h3 className="text-lg font-semibold text-white">Hydraulic screening calculators</h3>
+        <p className="mt-1 text-sm text-zinc-400">These tools compute from the inputs you provide. They do not choose a design storm, infer field levels, check a drainage network/HGL, or certify standards compliance.</p>
+      </section>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Left: Inputs */}
-        <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6 space-y-4">
-          <h4 className="font-medium text-white">Trapezoidal Channel Design</h4>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="bed-width-m">Bed Width (m)</label>
-            <input id="bed-width-m" aria-label="Bed Width (m)" type="number" step="0.1" className={`${inputCls} ${errors.bedWidth ? 'border-red-500' : ''}`}
-              value={bedWidth} onChange={e => setBedWidth(parseFloat(e.target.value) || 0)} />
-            <FieldError message={errors.bedWidth} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="side-slope-h-v">Side Slope (H:V)</label>
-            <input id="side-slope-h-v" aria-label="Side Slope (H:V)" type="number" step="0.1" className={inputCls}
-              value={sideSlope} onChange={e => setSideSlope(parseFloat(e.target.value) || 0)} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="manning-apos-s-n">Manning&apos;s n</label>
-            <input id="manning-apos-s-n" aria-label="Mannings n" type="number" step="0.001" className={`${inputCls} ${errors.manningN ? 'border-red-500' : ''}`}
-              value={manningN} onChange={e => setManningN(parseFloat(e.target.value) || 0)} />
-            <FieldError message={errors.manningN} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="slope">Slope (%)</label>
-            <input id="slope" aria-label="Slope (%)" type="number" step="0.1" className={`${inputCls} ${errors.slope ? 'border-red-500' : ''}`}
-              value={slope} onChange={e => setSlope(parseFloat(e.target.value) || 0)} />
-            <FieldError message={errors.slope} />
-          </div>
-          <div>
-            <label className="block text-xs text-zinc-400 mb-1" htmlFor="flow-depth-m">Flow Depth (m)</label>
-            <input  id="flow-depth-m" aria-label="Flow Depth (m)" type="number" step="0.1" className={`${inputCls} ${errors.flowDepth ? 'border-red-500' : ''}`}
-              value={flowDepth} onChange={e => setFlowDepth(parseFloat(e.target.value) || 0)} />
-            <FieldError message={errors.flowDepth} />
-          </div>
-        </div>
-
-        {/* Right: Cross-section SVG + Results */}
-        <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="font-medium text-white">Channel Cross-Section</h4>
-            <button onClick={handleExport}
-              className="text-xs px-3 py-1.5 border border-zinc-600 rounded-md text-zinc-300 hover:text-white hover:border-zinc-400 transition-colors">
-              ↓ Download CSV
-            </button>
-          </div>
-          <ChannelCrossSectionSvg bedWidth={bedWidth} sideSlope={sideSlope} flowDepth={flowDepth} />
-          <div className="mt-4 space-y-2">
-            {result ? (
-              <>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Flow Area</span>
-                  <span className="font-mono text-white">{safeNum(result.flowArea)} m²</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Wetted Perimeter</span>
-                  <span className="font-mono text-white">{safeNum(result.wettedPerimeter)} m</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Hydraulic Radius</span>
-                  <span className="font-mono text-white">{safeNum(result.hydraulicRadius)} m</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Velocity</span>
-                  <span className={`font-mono font-bold ${result.isSelfCleansing ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {safeNum(result.velocity, 3)} m/s
-                  </span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Discharge</span>
-                  <span className="font-mono font-bold text-blue-400">{safeNum(result.discharge)} m³/s</span>
-                </div>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Top Width</span>
-                  <span className="font-mono text-white">{safeNum(result.topWidth, 2)} m</span>
-                </div>
-              </>
-            ) : (
-              <p className="text-sm text-zinc-500">Enter valid inputs to see computed results.</p>
-            )}
-          </div>
-        </div>
+      <div role="tablist" aria-label="Drainage screening calculators" className="flex gap-1 overflow-x-auto rounded-lg bg-zinc-800 p-1">
+        {tabs.map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={`whitespace-nowrap rounded-md px-4 py-2 text-sm font-medium ${tab === id ? 'bg-zinc-700 text-white shadow' : 'text-zinc-400 hover:text-white'}`}>{label}</button>)}
       </div>
+
+      {tab === 'pipe' && <section className="space-y-5 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
+        <div><h4 className="font-medium text-white">Circular pipe full-bore capacity</h4><p className="mt-1 text-sm text-zinc-400">Compare entered flow with calculated full-bore capacities for the listed internal diameters. Passing this comparison alone does not size or approve a pipe.</p></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <NumericField label="Design flow (L/s)" value={pipeInputs.flowLs} onChange={value => { setPipeInputs(current => ({ ...current, flowLs: value })); setPipeRows([]); setPipeError('') }} />
+          <NumericField label="Slope (%)" value={pipeInputs.slopePercent} onChange={value => { setPipeInputs(current => ({ ...current, slopePercent: value })); setPipeRows([]); setPipeError('') }} hint="Use a positive downstream fall." />
+          <NumericField label="Manning n" value={pipeInputs.manningN} onChange={value => { setPipeInputs(current => ({ ...current, manningN: value })); setPipeRows([]); setPipeError('') }} hint="Confirm against the selected pipe product." />
+        </div>
+        <button type="button" onClick={calculatePipe} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">Calculate listed capacities</button>
+        {pipeError && <p role="alert" className="rounded border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">{pipeError}</p>}
+        {pipeRows.length > 0 && <>
+          <div className="overflow-x-auto rounded border border-zinc-800"><table className="w-full min-w-[520px] text-sm"><thead className="bg-zinc-800 text-zinc-300"><tr><th className="px-3 py-2 text-right">Internal diameter (mm)</th><th className="px-3 py-2 text-right">Full-bore capacity (L/s)</th><th className="px-3 py-2 text-right">Full-bore velocity (m/s)</th><th className="px-3 py-2 text-left">Flow comparison</th></tr></thead><tbody>{pipeRows.map(row => <tr key={row.diameterMm} className="border-t border-zinc-800"><td className="px-3 py-2 text-right">{row.diameterMm}</td><td className="px-3 py-2 text-right">{row.capacityLs.toFixed(2)}</td><td className="px-3 py-2 text-right">{row.velocityMs.toFixed(3)}</td><td className="px-3 py-2">{row.meetsFlow ? 'Calculated capacity ≥ entered flow' : 'Calculated capacity < entered flow'}</td></tr>)}</tbody></table></div>
+          <button type="button" onClick={() => downloadRowsCsv('metardu-pipe-capacity-screen.csv', ['Internal_diameter_mm', 'Full_bore_capacity_L_s', 'Full_bore_velocity_m_s', 'Capacity_at_least_entered_flow'], pipeRows.map(row => [row.diameterMm, row.capacityLs, row.velocityMs, row.meetsFlow]))} className="rounded border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800">Download capacity CSV</button>
+          <p className="text-xs text-zinc-500">Full-bore circular flow only; no partial-flow depth, inlet/outlet losses, HGL, surcharge, cover, structural loading or product compatibility is checked.</p>
+        </>}
+      </section>}
+
+      {tab === 'catchment' && <section className="space-y-5 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
+        <div><h4 className="font-medium text-white">Rational-method flow estimate</h4><p className="mt-1 text-sm text-zinc-400">Q = C × I × A / 360. Supply C and rainfall intensity from the project’s approved hydrology and design-storm basis; this calculator does not select a return period or time of concentration.</p></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+          <NumericField label="Catchment area (ha)" value={catchmentInputs.areaHa} onChange={value => { setCatchmentInputs(current => ({ ...current, areaHa: value })); setCatchmentResult(null); setCatchmentError('') }} />
+          <NumericField label="Runoff coefficient C" value={catchmentInputs.coefficient} onChange={value => { setCatchmentInputs(current => ({ ...current, coefficient: value })); setCatchmentResult(null); setCatchmentError('') }} hint="Project-selected value, between 0 and 1." />
+          <NumericField label="Rainfall intensity I (mm/hr)" value={catchmentInputs.intensityMmHr} onChange={value => { setCatchmentInputs(current => ({ ...current, intensityMmHr: value })); setCatchmentResult(null); setCatchmentError('') }} />
+        </div>
+        <button type="button" onClick={calculateCatchment} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">Calculate flow</button>
+        {catchmentError && <p role="alert" className="rounded border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">{catchmentError}</p>}
+        {catchmentResult && <div className="space-y-3 rounded border border-zinc-800 p-4"><p className="text-sm text-zinc-300">Peak flow: <strong className="text-white">{catchmentResult.peakFlow.toFixed(5)} m³/s ({(catchmentResult.peakFlow * 1000).toFixed(2)} L/s)</strong></p><p className="text-sm text-zinc-400">Effective area C × A: {catchmentResult.effectiveArea.toFixed(3)} ha</p><button type="button" onClick={() => downloadRowsCsv('metardu-rational-method-flow.csv', ['Catchment_area_ha', 'Runoff_coefficient_C', 'Rainfall_intensity_mm_hr', 'Peak_flow_m3_s', 'Effective_area_ha'], [[catchmentResult.catchmentArea, catchmentInputs.coefficient, catchmentInputs.intensityMmHr, catchmentResult.peakFlow, catchmentResult.effectiveArea]])} className="rounded border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800">Download flow CSV</button></div>}
+      </section>}
+
+      {tab === 'channel' && <section className="space-y-5 rounded-xl border border-zinc-700 bg-zinc-900 p-5">
+        <div><h4 className="font-medium text-white">Trapezoidal open-channel capacity</h4><p className="mt-1 text-sm text-zinc-400">Compute Manning discharge and velocity from entered section geometry, roughness, bed slope and flow depth.</p></div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          <NumericField label="Bed width (m)" value={channelInputs.bedWidthM} onChange={value => { setChannelInputs(current => ({ ...current, bedWidthM: value })); setChannelResult(null); setChannelError('') }} />
+          <NumericField label="Side slope (H:V)" value={channelInputs.sideSlope} onChange={value => { setChannelInputs(current => ({ ...current, sideSlope: value })); setChannelResult(null); setChannelError('') }} />
+          <NumericField label="Manning n" value={channelInputs.manningN} onChange={value => { setChannelInputs(current => ({ ...current, manningN: value })); setChannelResult(null); setChannelError('') }} hint="Confirm against the channel lining." />
+          <NumericField label="Bed slope (%)" value={channelInputs.slopePercent} onChange={value => { setChannelInputs(current => ({ ...current, slopePercent: value })); setChannelResult(null); setChannelError('') }} />
+          <NumericField label="Flow depth (m)" value={channelInputs.flowDepthM} onChange={value => { setChannelInputs(current => ({ ...current, flowDepthM: value })); setChannelResult(null); setChannelError('') }} />
+        </div>
+        <button type="button" onClick={calculateChannel} className="rounded bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-500">Calculate channel capacity</button>
+        {channelError && <p role="alert" className="rounded border border-amber-700 bg-amber-950/40 p-3 text-sm text-amber-200">{channelError}</p>}
+        {channelResult && <div className="space-y-3 rounded border border-zinc-800 p-4"><div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4"><p>Area: <strong>{channelResult.flowArea.toFixed(4)} m²</strong></p><p>Wetted perimeter: <strong>{channelResult.wettedPerimeter.toFixed(4)} m</strong></p><p>Velocity: <strong>{channelResult.velocity.toFixed(3)} m/s</strong></p><p>Discharge: <strong>{channelResult.discharge.toFixed(5)} m³/s</strong></p></div><button type="button" onClick={() => downloadRowsCsv('metardu-channel-capacity.csv', ['Flow_area_m2', 'Wetted_perimeter_m', 'Hydraulic_radius_m', 'Flow_depth_m', 'Velocity_m_s', 'Discharge_m3_s', 'Top_width_m'], [[channelResult.flowArea, channelResult.wettedPerimeter, channelResult.hydraulicRadius, channelInputs.flowDepthM, channelResult.velocity, channelResult.discharge, channelResult.topWidth]])} className="rounded border border-zinc-700 px-4 py-2 text-sm text-zinc-200 hover:bg-zinc-800">Download channel CSV</button><p className="text-xs text-zinc-500">No freeboard, erosion, sediment, lining, transition or downstream control check is included.</p></div>}
+      </section>}
     </div>
-  )
-}
-
-// ─── CHANNEL CROSS-SECTION SVG ────────────────────────────────────────────────
-
-function ChannelCrossSectionSvg({ bedWidth, sideSlope, flowDepth }: { bedWidth: number; sideSlope: number; flowDepth: number }) {
-  const svgW = 350
-  const svgH = 200
-  const scale = 40 // px per metre
-  const cx = svgW / 2
-  const groundY = 40
-  const channelBottom = groundY + 80
-
-  const bw = Math.max(0, bedWidth) * scale
-  const z = Math.max(0, sideSlope)
-  const fd = Math.max(0, flowDepth) * scale
-  const y = fd
-
-  const leftToeX = cx - bw / 2 - z * y
-  const rightToeX = cx + bw / 2 + z * y
-  const waterY = channelBottom - y
-  const leftWaterX = cx - bw / 2 - z * y
-  const rightWaterX = cx + bw / 2 + z * y
-
-  return (
-    <svg viewBox={`0 0 ${svgW} ${svgH}`} className="w-full rounded-lg">
-      {/* Ground */}
-      <rect x={0} y={groundY} width={svgW} height={svgH - groundY} fill="#27272a" />
-      {/* Channel excavation */}
-      <polygon points={`${leftToeX},${channelBottom} ${cx - bw / 2},${channelBottom} ${cx + bw / 2},${channelBottom} ${rightToeX},${channelBottom}`} fill="#3f3f46" />
-      {/* Channel sides */}
-      <line x1={leftToeX} y1={groundY} x2={cx - bw / 2} y2={channelBottom} stroke="#71717a" strokeWidth={2} />
-      <line x1={rightToeX} y1={groundY} x2={cx + bw / 2} y2={channelBottom} stroke="#71717a" strokeWidth={2} />
-      <line x1={cx - bw / 2} y1={channelBottom} x2={cx + bw / 2} y2={channelBottom} stroke="#71717a" strokeWidth={2} />
-      {/* Water */}
-      <polygon
-        points={`${leftWaterX},${channelBottom} ${cx - bw / 2},${channelBottom} ${cx + bw / 2},${channelBottom} ${rightWaterX},${channelBottom} ${rightWaterX},${waterY} ${cx + bw / 2},${waterY} ${cx - bw / 2},${waterY} ${leftWaterX},${waterY}`}
-        fill="rgba(59,130,246,0.2)" stroke="#3b82f6" strokeWidth={1}
-      />
-      {/* Flow depth arrow */}
-      <line x1={cx + bw / 2 + 15} y1={channelBottom} x2={cx + bw / 2 + 15} y2={waterY} stroke="#60a5fa" strokeWidth={1.5} markerEnd="url(#arrowUp)" />
-      <text x={cx + bw / 2 + 25} y={(channelBottom + waterY) / 2 + 4} fill="#60a5fa" fontSize="10">{flowDepth.toFixed(2)}m</text>
-      {/* Bed width */}
-      <text x={cx} y={channelBottom + 15} textAnchor="middle" fill="#a1a1aa" fontSize="10">{bedWidth.toFixed(1)}m</text>
-      <defs>
-        <marker id="arrowUp" viewBox="0 0 10 10" refX="5" refY="10" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-          <path d="M 0 10 L 5 0 L 10 10" fill="none" stroke="#60a5fa" strokeWidth="1.5" />
-        </marker>
-      </defs>
-    </svg>
   )
 }

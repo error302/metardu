@@ -17,7 +17,7 @@
  *   - Shows last measurement summary for 2 seconds
  */
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
 import { Crosshair, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react'
 import { useInstrumentStore } from '@/stores/instrumentStore'
 import { logger } from '@/lib/logger'
@@ -27,6 +27,7 @@ interface FieldMeasureButtonProps {
   disabled?: boolean
   pointIdPrefix?: string  // e.g., 'P', 'BP', 'STN'
   stationSetup?: boolean  // is station set up?
+  nextPointNumber?: number
 }
 
 export function FieldMeasureButton({
@@ -34,8 +35,10 @@ export function FieldMeasureButton({
   disabled = false,
   pointIdPrefix = 'P',
   stationSetup = false,
+  nextPointNumber = 1,
 }: FieldMeasureButtonProps) {
-  const [pointNumber, setPointNumber] = useState(1)
+  const [pointNumber, setPointNumber] = useState(Math.max(1, nextPointNumber))
+  const manuallySelectedPointNumber = useRef(false)
   const [isCapturing, setIsCapturing] = useState(false)
   const [lastResult, setLastResult] = useState<'success' | 'error' | null>(null)
   const [lastPointId, setLastPointId] = useState<string | null>(null)
@@ -46,6 +49,12 @@ export function FieldMeasureButton({
   const isDisabled = disabled || !isConnected || !stationSetup || isCapturing
 
   const pointId = `${pointIdPrefix}${pointNumber}`
+
+  useEffect(() => {
+    if (!manuallySelectedPointNumber.current) {
+      setPointNumber(Math.max(1, nextPointNumber))
+    }
+  }, [nextPointNumber])
 
   const handleMeasure = useCallback(async () => {
     if (isDisabled) return
@@ -156,10 +165,19 @@ export function FieldMeasureButton({
         </div>
       )}
 
+      {lastResult === 'error' && (
+        <p role="status" className="max-w-xs text-center text-xs text-[var(--error)]">
+          No point was saved. Check that the point ID is unused, the instrument is streaming, and device storage is available, then retry.
+        </p>
+      )}
+
       {/* Quick point ID controls */}
       <div className="flex items-center gap-2 mt-1">
         <button
-          onClick={() => setPointNumber(n => Math.max(1, n - 1))}
+          onClick={() => {
+            manuallySelectedPointNumber.current = true
+            setPointNumber(n => Math.max(1, n - 1))
+          }}
           className="px-2 py-0.5 text-xs rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
         >
           −
@@ -170,13 +188,17 @@ export function FieldMeasureButton({
           onChange={(e) => {
             const match = e.target.value.match(/(\D+)(\d+)/)
             if (match) {
+              manuallySelectedPointNumber.current = true
               setPointNumber(parseInt(match[2]) || 1)
             }
           }}
           className="w-20 text-center text-xs font-mono bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded px-1 py-0.5 text-[var(--text-primary)]"
         />
         <button
-          onClick={() => setPointNumber(n => n + 1)}
+          onClick={() => {
+            manuallySelectedPointNumber.current = true
+            setPointNumber(n => n + 1)
+          }}
           className="px-2 py-0.5 text-xs rounded bg-[var(--bg-tertiary)] hover:bg-[var(--bg-secondary)] text-[var(--text-secondary)]"
         >
           +

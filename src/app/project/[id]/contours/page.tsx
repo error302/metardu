@@ -1,4 +1,5 @@
 'use client';
+import { useParams } from 'next/navigation'
 import { useState, useEffect, use } from 'react'
 import { createClient } from '@/lib/api-client/client'
 import { generateContours, SpotHeight, ContourLine } from '@/lib/engine/contours'
@@ -24,7 +25,8 @@ interface SpotHeightRow {
   elevation?: number | null
 }
 
-export default function ContoursPage({ params }: { params: { id: string } }) {
+export default function ContoursPage() {
+  const params = useParams<{ id: string }>()
   const { id: projectId } = params
   const dbClient = createClient()
 

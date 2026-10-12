@@ -3,9 +3,8 @@
 /**
  * QuickAddModal — Legacy quick-add for traverse observations (polar only).
  *
- * Now properly integrated with BeaconPhotoCapture for evidence-chain
- * photo capture with EXIF GPS extraction. Photos are embedded into
- * the observation's remarks field for legal traceability.
+ * Now integrated with BeaconPhotoCapture for original field-photo
+ * capture and descriptive, unverified device EXIF extraction.
  *
  * For multi-survey-type entry, use UniversalMobileObservationForm instead.
  */
@@ -59,7 +58,8 @@ export function QuickAddModal({ onAdd, onClose }: QuickAddModalProps) {
     if (gpsPhotos.length > 0) {
       const markers = gpsPhotos.map((p, i) => {
         const caption = p.caption ? ` "${p.caption}"` : '';
-        return `[photo${i + 1} @${p.exif?.latitude.toFixed(6) ?? ''},${p.exif?.longitude.toFixed(6) ?? ''}${caption}]`;
+        const datum = p.exif?.gpsDatum ? `; device datum label ${p.exif.gpsDatum}` : '; datum not recorded';
+        return `[photo${i + 1}; unverified device EXIF GPS ${p.exif?.latitude.toFixed(6) ?? ''},${p.exif?.longitude.toFixed(6) ?? ''}${datum}; not survey control${caption}]`;
       });
       remarks = remarks ? `${remarks} ${markers.join(' ')}` : markers.join(' ');
     }

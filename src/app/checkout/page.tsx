@@ -2,21 +2,21 @@
 
 import { Suspense, useEffect, useMemo, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
 import { PLAN_CATALOG } from '@/lib/subscription/catalog'
+import { resolvePayPalCurrency } from '@/lib/payments/paypalCurrency'
 import {
   checkMpesaPaymentStatus,
   getCurrencyForCountry,
   getPaymentMethods,
   startSubscriptionPayment,
   type PaymentMethod,
-} from '@/lib/enterprise'
-
-// PayPal only supports these currencies
-const PAYPAL_CURRENCIES = new Set(['USD', 'EUR', 'GBP', 'AUD', 'CAD', 'CHF', 'CZK', 'DKK', 'HKD', 'HUF', 'ILS', 'JPY', 'MXN', 'NOK', 'NZD', 'PHP', 'PLN', 'SEK', 'SGD', 'THB', 'TWD'])
+} from '@/lib/enterprise/payments'
 
 function CheckoutContent() {
   const searchParams = useSearchParams()
+  const { data: session } = useSession()
   const [step, setStep] = useState<1 | 2 | 3 | 4>(1)
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>(() => {
     const planParam = searchParams.get('plan') as PlanId | null
@@ -25,25 +25,65 @@ function CheckoutContent() {
   })
   const [country, setCountry] = useState('Kenya')
   const [currency, setCurrency] = useState<CurrencyCode>('KES')
-  const [method, setMethod] = useState<PaymentMethod['type']>('mpesa')
+  const [method, setMethod] = useState<PaymentMethod['type']>(() => {
+    const requested = searchParams.get('method')
+    return requested === 'paypal' || requested === 'card' || requested === 'mpesa' ? requested : 'mpesa'
+  })
   const [phoneNumber, setPhoneNumber] = useState('')
   const [email, setEmail] = useState('')
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [mpesa, setMpesa] = useState<{ paymentId: string; checkoutRequestId: string } | null>(null)
+  const [availableProviders, setAvailableProviders] = useState<{ stripe: boolean; paypal: boolean; mpesa: boolean } | null>(null)
 
   const plan = useMemo(
     () => PLAN_CATALOG.find((p) => p.id === selectedPlanId) ?? PLAN_CATALOG[0],
     [selectedPlanId]
   )
+  const paypalChargeCurrency = resolvePayPalCurrency(currency)
+  const chargeCurrency = method === 'paypal' ? paypalChargeCurrency : currency
 
-  const paymentMethods = useMemo(() => getPaymentMethods(country), [country])
+  const paymentMethods = useMemo(() => getPaymentMethods(country).filter((paymentMethod) => {
+    if (!availableProviders) return true
+    if (paymentMethod.type === 'mpesa') return availableProviders.mpesa
+    if (paymentMethod.type === 'paypal') return availableProviders.paypal
+    return paymentMethod.type === 'card' && availableProviders.stripe
+  }), [country, availableProviders])
 
   useEffect(() => {
-    if (!paymentMethods.some((m) => m.type === method)) {
-      setMethod(paymentMethods[0]?.type ?? 'card')
+    const sessionEmail = session?.user?.email
+    if (sessionEmail) setEmail((current) => current || sessionEmail)
+  }, [session?.user?.email])
+
+  useEffect(() => {
+    let active = true
+    void fetch('/api/payments').then(async (response) => {
+      if (!response.ok) return
+      const data = await response.json() as { providers?: { stripe?: boolean; paypal?: boolean; mpesa?: boolean } }
+      if (active && data.providers) {
+        setAvailableProviders({
+          stripe: data.providers.stripe === true,
+          paypal: data.providers.paypal === true,
+          mpesa: data.providers.mpesa === true,
+        })
+      }
+    }).catch(() => { /* provider availability stays unknown; the server remains authoritative */ })
+    return () => { active = false }
+  }, [])
+
+  useEffect(() => {
+    const requested = searchParams.get('method')
+    if (
+      (requested === 'paypal' || requested === 'card' || requested === 'mpesa') &&
+      paymentMethods.some((paymentMethod) => paymentMethod.type === requested)
+    ) {
+      if (method !== requested) setMethod(requested)
+      return
     }
-  }, [paymentMethods, method])
+    if (!paymentMethods.some((m) => m.type === method)) {
+      setMethod(paymentMethods.find((paymentMethod) => paymentMethod.type === 'mpesa')?.type ?? paymentMethods[0]?.type ?? 'card')
+    }
+  }, [paymentMethods, method, searchParams])
 
   // ─── M-Pesa auto-polling (step 4) ────────────────────────────────────────
   // Poll the authoritative Daraja status every 4s while the customer is on
@@ -98,7 +138,7 @@ function CheckoutContent() {
   }, [step, mpesa?.paymentId, mpesa?.checkoutRequestId])
 
 
-  const formatPrice = (amount: number) => {
+  const formatPrice = (amount: number, priceCurrency: CurrencyCode = currency) => {
     const symbols: Partial<Record<CurrencyCode, string>> = {
       KES: 'KSh ',
       UGX: 'USh ',
@@ -114,7 +154,7 @@ function CheckoutContent() {
       BRL: 'R$ ',
       AUD: 'A$ ',
     }
-    return `${symbols[currency] ?? `${currency} `}${amount.toLocaleString()}`
+    return `${symbols[priceCurrency] ?? `${priceCurrency} `}${amount.toLocaleString()}`
   }
 
   const onStart = async () => {
@@ -156,12 +196,19 @@ function CheckoutContent() {
 
   const canContinueDetails =
     !!email && (method !== 'mpesa' || !!phoneNumber) && paymentMethods.some((m) => m.type === method)
+  const requestedPayPalUnavailable = searchParams.get('method') === 'paypal' && availableProviders !== null && !availableProviders.paypal
 
   return (
     <div className="min-h-screen">
       <div className="max-w-4xl mx-auto px-4 py-8 md:py-10">
         <h1 className="text-2xl md:text-3xl font-bold text-[var(--text-primary)] mb-2">Checkout</h1>
         <p className="text-[var(--text-secondary)] mb-8">Choose a plan and complete payment.</p>
+
+        {requestedPayPalUnavailable && (
+          <div role="status" className="mb-6 rounded-lg border border-amber-700/40 bg-amber-900/10 px-4 py-3 text-sm text-amber-100">
+            PayPal is temporarily unavailable. Choose another enabled payment method or contact METARDU support.
+          </div>
+        )}
 
         <div className="flex gap-2 mb-8">
           {[1, 2, 3].map((s) => (
@@ -290,6 +337,11 @@ function CheckoutContent() {
                     <span className="text-[var(--text-primary)]">{pm.name}</span>
                   </label>
                 ))}
+                {availableProviders && paymentMethods.length === 0 && (
+                  <p className="rounded-lg border border-amber-700/40 bg-amber-900/10 px-3 py-3 text-sm text-amber-100">
+                    Online payment is not configured right now. Please contact METARDU support to complete your subscription.
+                  </p>
+                )}
               </div>
             </div>
 
@@ -319,26 +371,27 @@ function CheckoutContent() {
               <div className="flex items-center justify-between text-[var(--text-primary)] mb-2">
                 <span>Plan</span>
                 <span className="font-semibold">{plan.name}</span>
-              </div>
+                </div>
               <div className="flex items-center justify-between text-[var(--text-primary)] mb-2">
-                <span>Currency</span>
-                <span className="font-semibold">{currency}</span>
+                <span>{method === 'paypal' ? 'PayPal charge currency' : 'Currency'}</span>
+                <span className="font-semibold">{chargeCurrency}</span>
               </div>
               <div className="flex items-center justify-between text-[var(--text-primary)] mb-2">
                 <span>Method</span>
                 <span className="font-semibold">{paymentMethods.find((p) => p.type === method)?.name ?? method}</span>
               </div>
               <div className="flex items-center justify-between border-t border-[var(--border-color)] pt-2 mt-2 text-[var(--text-primary)]">
-                <span className="font-semibold">Total</span>
-                <span className="font-bold text-lg text-[var(--accent)]">{formatPrice(plan.prices[currency])}</span>
+                <span className="font-semibold">Monthly total</span>
+                <span className="font-bold text-lg text-[var(--accent)]">{formatPrice(plan.prices[chargeCurrency], chargeCurrency)}</span>
               </div>
             </div>
 
             <div className="text-xs text-[var(--text-muted)] mb-6">
               Card payments use Stripe Checkout (Visa/Mastercard). PayPal redirects to PayPal approval. M-Pesa triggers STK push.
-              {method === 'paypal' && !PAYPAL_CURRENCIES.has(currency) && (
+              {method === 'paypal' && (
                 <span className="block mt-2 text-amber-400">
-                  PayPal does not support {currency}. You will be charged the USD equivalent.
+                  PayPal will charge {formatPrice(plan.prices[paypalChargeCurrency], paypalChargeCurrency)} {paypalChargeCurrency} each month.
+                  {paypalChargeCurrency !== currency && ` Your selected price is in ${currency}; PayPal or your card provider may apply its own exchange rate.`}
                 </span>
               )}
             </div>

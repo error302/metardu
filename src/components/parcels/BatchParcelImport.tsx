@@ -11,6 +11,7 @@ import {
   Upload, Loader2, CheckCircle2, AlertTriangle,
   Download, Table, Layers, Users,
 } from 'lucide-react'
+import { parseCsvRecords } from '@/lib/parcel/csvRecords'
 
 interface GeoJSONParcelProps {
   parcel_number?: string
@@ -63,18 +64,21 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
   const [importProgress, setImportProgress] = useState(0)
   const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [sourceCrs, setSourceCrs] = useState('')
+  const [confirmTransformation, setConfirmTransformation] = useState(false)
+  const [importNotes, setImportNotes] = useState<string[]>([])
   const [importResult, setImportResult] = useState<{ success: number; failed: number } | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const parseCSV = useCallback((text: string): ParsedParcel[] => {
-    const lines = text.split('\n').filter(l => l.trim())
-    if (lines.length < 2) return []
+    const records = parseCsvRecords(text)
+    if (records.length < 2) throw new Error('CSV needs a header and at least one data row.')
 
-    const header = lines[0].split(',').map(h => h.trim().toLowerCase())
+    const header = records[0].map((value, index) => (index === 0 ? value.replace(/^\uFEFF/, '') : value).trim().toLowerCase())
     const parcelsMap = new Map<string, ParsedParcel>()
 
     const colIdx = {
-      parcelNumber: header.findIndex(h => h.includes('parcel') || h.includes('plot')),
+      parcelNumber: header.findIndex(h => ['parcel_number', 'parcel', 'parcel_no', 'plot_number', 'plot_no'].includes(h)),
       easting: header.findIndex(h => h.includes('easting') || h === 'e'),
       northing: header.findIndex(h => h.includes('northing') || h === 'n'),
       ownerName: header.findIndex(h => h.includes('owner') && h.includes('name')),
@@ -83,13 +87,17 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
       areaHa: header.findIndex(h => h.includes('area') || h.includes('ha')),
     }
 
-    for (let i = 1; i < lines.length; i++) {
-      const cols = lines[i].split(',').map(c => c.trim())
-      const parcelNum = colIdx.parcelNumber >= 0 ? cols[colIdx.parcelNumber] : `PARCEL-${i}`
+    if (colIdx.parcelNumber < 0 || colIdx.easting < 0 || colIdx.northing < 0) {
+      throw new Error('CSV needs parcel_number, easting, and northing columns. Each data row represents one vertex.')
+    }
+
+    for (let i = 1; i < records.length; i++) {
+      const cols = records[i]
+      const parcelNum = cols[colIdx.parcelNumber]?.trim()
       const easting = colIdx.easting >= 0 ? parseFloat(cols[colIdx.easting]) : NaN
       const northing = colIdx.northing >= 0 ? parseFloat(cols[colIdx.northing]) : NaN
 
-      if (!parcelNum || !isFinite(easting) || !isFinite(northing)) continue
+      if (!parcelNum) throw new Error(`CSV row ${i + 1} has no parcel number; parcel names are never generated.`)
 
       let parcelEntry = parcelsMap.get(parcelNum)
       if (!parcelEntry) {
@@ -99,7 +107,7 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
           ownerName: colIdx.ownerName >= 0 ? cols[colIdx.ownerName] : undefined,
           ownerId: colIdx.ownerId >= 0 ? cols[colIdx.ownerId] : undefined,
           lrNumber: colIdx.lrNumber >= 0 ? cols[colIdx.lrNumber] : undefined,
-          areaHa: colIdx.areaHa >= 0 ? parseFloat(cols[colIdx.areaHa]) : undefined,
+          areaHa: colIdx.areaHa >= 0 && Number.isFinite(parseFloat(cols[colIdx.areaHa])) ? parseFloat(cols[colIdx.areaHa]) : undefined,
           vertices: [],
           valid: true,
           errors: [],
@@ -108,6 +116,10 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
       }
 
       parcelEntry.vertices.push({ easting, northing })
+      if (!Number.isFinite(easting) || !Number.isFinite(northing)) {
+        parcelEntry.valid = false
+        parcelEntry.errors.push(`Row ${i + 1}: coordinates must be finite numbers`)
+      }
     }
 
     const parcels = Array.from(parcelsMap.values())
@@ -129,28 +141,38 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
     const geojson = JSON.parse(text) as { features?: GeoJSONFeature[] }
     if (!geojson.features || !Array.isArray(geojson.features)) return []
 
-    return geojson.features.map((feature, idx: number) => {
+    return geojson.features.map((feature) => {
       const props: GeoJSONParcelProps = feature.properties || {}
       const geom: GeoJSONGeometry = feature.geometry || {}
 
       let vertices: Array<{ easting: number; northing: number }> = []
+      const errors: string[] = []
 
       if (geom.type === 'Polygon') {
-        const ring = ((geom.coordinates as number[][][]) || [])[0] || []
-        const verts = ring.slice(0, -1)
-        vertices = verts.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+        const rings = Array.isArray(geom.coordinates) ? geom.coordinates : []
+        if (rings.length !== 1) errors.push('Only a single-ring Polygon is supported; polygon holes need separate review.')
+        const ring = (rings[0] as number[][] | undefined) || []
+        const closed = ring.length > 1 && ring[0]?.[0] === ring[ring.length - 1]?.[0]
+          && ring[0]?.[1] === ring[ring.length - 1]?.[1]
+        const verts = closed ? ring.slice(0, -1) : ring
+        vertices = verts.map((c) => ({
+          easting: typeof c?.[0] === 'number' ? c[0] : Number.NaN,
+          northing: typeof c?.[1] === 'number' ? c[1] : Number.NaN,
+        }))
       } else if (geom.type === 'MultiPolygon') {
-        const ring = ((geom.coordinates as number[][][][]) || [])[0]?.[0] || []
-        const verts = ring.slice(0, -1)
-        vertices = verts.map((c: number[]) => ({ easting: c[0], northing: c[1] }))
+        errors.push('MultiPolygon features are not supported as one parcel; split each part into a separately identified parcel before import.')
+      } else {
+        errors.push('Geometry must be a Polygon.')
       }
 
-      const errors: string[] = []
       if (vertices.length < 3) errors.push('Needs at least 3 vertices')
+      if (vertices.some((vertex) => !Number.isFinite(vertex.easting) || !Number.isFinite(vertex.northing))) {
+        errors.push('Coordinates must be finite numbers')
+      }
 
       return {
         id: crypto.randomUUID(),
-        parcelNumber: props.parcel_number || props.parcelNumber || props.name || `PARCEL-${idx + 1}`,
+        parcelNumber: props.parcel_number || props.parcelNumber || props.name || '',
         ownerName: props.owner_name || props.ownerName || props.owner,
         ownerId: props.owner_id || props.ownerId || props.national_id,
         lrNumber: props.lr_number || props.lrNumber || props.title_deed,
@@ -166,6 +188,8 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
     setParsing(true)
     setError(null)
     setImportResult(null)
+    setImportNotes([])
+    setConfirmTransformation(false)
 
     try {
       const text = await file.text()
@@ -173,10 +197,19 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
 
       let parsed: ParsedParcel[] = []
       if (ext === 'geojson' || ext === 'json') {
+        const document = JSON.parse(text) as { crs?: { properties?: { name?: string } } }
+        // RFC 7946 GeoJSON without an explicit legacy crs is WGS 84 lon/lat.
+        // eslint-disable-next-line metardu/no-hardcoded-srid-default -- RFC 7946 defines GeoJSON coordinates as WGS 84 longitude/latitude.
+        setSourceCrs(document.crs?.properties?.name?.toUpperCase() || 'EPSG:4326')
         parsed = parseGeoJSON(text)
       } else {
+        // A CSV has no standard CRS declaration; require the surveyor to supply it.
+        setSourceCrs('')
         parsed = parseCSV(text)
       }
+
+      const unnamed = parsed.find((parcel) => !parcel.parcelNumber.trim())
+      if (unnamed) throw new Error('Every GeoJSON feature needs a parcel_number, parcelNumber, or name property. Parcel names are never generated.')
 
       setParcels(parsed)
     } catch (err) {
@@ -193,68 +226,29 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
     if (file) handleFile(file)
   }, [handleFile])
 
+  const validCount = parcels.filter(p => p.valid).length
+  const invalidCount = parcels.length - validCount
+
   const handleImport = useCallback(async () => {
     if (parcels.length === 0) return
+    if (!sourceCrs.trim()) {
+      setError('Enter the source EPSG code before importing.')
+      return
+    }
     setImporting(true)
     setImportProgress(0)
     setError(null)
+    setImportNotes([])
 
     try {
-      // For large imports (100+ parcels), process in chunks to avoid UI freeze
-      if (parcels.length > 100) {
-        const validParcels = parcels.filter(p => p.valid)
-        const chunkSize = 50
-        const totalChunks = Math.ceil(validParcels.length / chunkSize)
-
-        let totalSuccess = 0
-        let totalFailed = 0
-
-        for (let i = 0; i < validParcels.length; i += chunkSize) {
-          const chunk = validParcels.slice(i, i + chunkSize)
-          const currentChunk = Math.floor(i / chunkSize) + 1
-
-          setImportProgress((currentChunk / totalChunks) * 100)
-
-          try {
-            const res = await fetch(`/api/projects/${projectId}/parcels/batch`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                parcels: chunk.map(p => ({
-                  parcelNumber: p.parcelNumber,
-                  ownerName: p.ownerName,
-                  ownerId: p.ownerId,
-                  lrNumber: p.lrNumber,
-                  areaHa: p.areaHa,
-                  vertices: p.vertices,
-                })),
-              }),
-            })
-            if (res.ok) {
-              const data = (await res.json()) as { data?: { imported?: number; failed?: number } }
-              totalSuccess += data.data?.imported || chunk.length
-              totalFailed += data.data?.failed || 0
-            } else {
-              totalFailed += chunk.length
-            }
-          } catch {
-            totalFailed += chunk.length
-          }
-
-          // Yield to event loop so UI can update
-          await new Promise(resolve => setTimeout(resolve, 0))
-        }
-
-        setImportProgress(100)
-        setImportResult({ success: totalSuccess, failed: totalFailed })
-        onImport?.(parcels)
-      } else {
-        // Small import — single request
-        const res = await fetch(`/api/projects/${projectId}/parcels/batch`, {
+      const sendChunk = async (chunk: ParsedParcel[]) => {
+        const response = await fetch(`/api/projects/${projectId}/parcels/batch`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            parcels: parcels.map(p => ({
+            sourceCrs: sourceCrs.trim().toUpperCase(),
+            confirmTransformation,
+            parcels: chunk.map(p => ({
               parcelNumber: p.parcelNumber,
               ownerName: p.ownerName,
               ownerId: p.ownerId,
@@ -264,26 +258,66 @@ export function BatchParcelImport({ projectId, onImport }: BatchParcelImportProp
             })),
           }),
         })
+        const result = (await response.json()) as {
+          error?: string
+          errors?: string[]
+          data?: { imported?: number; failed?: number; errors?: string[]; warnings?: string[] }
+        }
+        if (!response.ok) throw new Error(result.error || 'Import failed')
+        return result.data
+      }
 
-        if (!res.ok) {
-          const data = (await res.json()) as { error?: string }
-          throw new Error(data.error || 'Import failed')
+      // For large imports (100+ parcels), process in chunks to avoid UI freeze
+      if (parcels.length > 100) {
+        const validParcels = parcels.filter(p => p.valid)
+        const chunkSize = 50
+        const totalChunks = Math.ceil(validParcels.length / chunkSize)
+
+        let totalSuccess = 0
+        let totalFailed = 0
+        const notes: string[] = []
+
+        for (let i = 0; i < validParcels.length; i += chunkSize) {
+          const chunk = validParcels.slice(i, i + chunkSize)
+          const currentChunk = Math.floor(i / chunkSize) + 1
+
+          setImportProgress((currentChunk / totalChunks) * 100)
+
+          try {
+            const result = await sendChunk(chunk)
+            totalSuccess += result?.imported ?? 0
+            totalFailed += result?.failed ?? chunk.length
+            notes.push(...(result?.errors ?? []), ...(result?.warnings ?? []))
+          } catch (err) {
+            totalFailed += chunk.length
+            notes.push(err instanceof Error ? err.message : 'Import failed')
+          }
+
+          // Yield to event loop so UI can update
+          await new Promise(resolve => setTimeout(resolve, 0))
         }
 
-        const data = (await res.json()) as { data?: { imported?: number; failed?: number } }
-        setImportResult({
-          success: data.data?.imported || parcels.length,
-          failed: data.data?.failed || 0,
-        })
         setImportProgress(100)
-        onImport?.(parcels)
+        setImportResult({ success: totalSuccess, failed: totalFailed })
+        setImportNotes(notes.slice(0, 8))
+        if (totalSuccess > 0) onImport?.(parcels)
+      } else {
+        // Small import — single request
+        const result = await sendChunk(parcels.filter(p => p.valid))
+        setImportResult({
+          success: result?.imported ?? 0,
+          failed: (result?.failed ?? 0) + invalidCount,
+        })
+        setImportNotes([...(result?.errors ?? []), ...(result?.warnings ?? [])].slice(0, 8))
+        setImportProgress(100)
+        if ((result?.imported ?? 0) > 0) onImport?.(parcels)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Import failed')
     } finally {
       setImporting(false)
     }
-  }, [parcels, projectId, onImport])
+  }, [parcels, projectId, onImport, sourceCrs, confirmTransformation, invalidCount])
 
   const downloadTemplate = useCallback(() => {
     const csv = `parcel_number,easting,northing,owner_name,owner_id,lr_number,area_ha
@@ -303,9 +337,6 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
     a.click()
     URL.revokeObjectURL(url)
   }, [])
-
-  const validCount = parcels.filter(p => p.valid).length
-  const invalidCount = parcels.length - validCount
 
   return (
     <div className="space-y-4">
@@ -345,6 +376,35 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
         )}
       </div>
 
+      {parcels.length > 0 && (
+        <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
+          <div>
+            <label htmlFor="parcel-source-crs" className="block text-xs font-semibold text-[var(--text-primary)]">
+              Source coordinate system
+            </label>
+            <p className="mt-1 text-xs text-gray-400">
+              Enter the EPSG code used by the file. GeoJSON defaults to EPSG:4326 longitude/latitude.
+            </p>
+          </div>
+          <input
+            id="parcel-source-crs"
+            value={sourceCrs}
+            onChange={(event) => { setSourceCrs(event.target.value); setConfirmTransformation(false) }}
+            placeholder="EPSG:21037"
+            className="w-full max-w-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm text-[var(--text-primary)]"
+          />
+          <label className="flex items-start gap-2 text-xs text-gray-400">
+            <input
+              type="checkbox"
+              checked={confirmTransformation}
+              onChange={(event) => setConfirmTransformation(event.target.checked)}
+              className="mt-0.5"
+            />
+            <span>I have checked the source datum and approve transformation if the project CRS differs. The original coordinates are retained.</span>
+          </label>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <button
           onClick={downloadTemplate}
@@ -372,12 +432,21 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
           <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
           <div>
             <p className="text-xs text-emerald-400 font-medium">
-              Import complete: {importResult.success} parcels imported
+              Import reviewed: {importResult.success} parcels imported
             </p>
             {importResult.failed > 0 && (
               <p className="text-[10px] text-amber-400">{importResult.failed} failed</p>
             )}
           </div>
+        </div>
+      )}
+
+      {importNotes.length > 0 && (
+        <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+          <p className="font-semibold">Import review</p>
+          <ul className="mt-1 list-disc pl-4 space-y-1">
+            {importNotes.map((note, index) => <li key={`${index}-${note}`}>{note}</li>)}
+          </ul>
         </div>
       )}
 
@@ -393,7 +462,7 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
             <div className="flex items-center gap-3 text-[10px]">
               <span className="flex items-center gap-1 text-emerald-400">
                 <CheckCircle2 className="w-3 h-3" />
-                {validCount} valid
+                {validCount} ready to submit
               </span>
               {invalidCount > 0 && (
                 <span className="flex items-center gap-1 text-red-400">
@@ -411,7 +480,7 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
                   <th className="px-2 py-2 text-left text-[9px] text-gray-500 uppercase">Parcel No.</th>
                   <th className="px-2 py-2 text-left text-[9px] text-gray-500 uppercase">Owner</th>
                   <th className="px-2 py-2 text-center text-[9px] text-gray-500 uppercase">Vertices</th>
-                  <th className="px-2 py-2 text-right text-[9px] text-gray-500 uppercase">Area (ha)</th>
+                  <th className="px-2 py-2 text-right text-[9px] text-gray-500 uppercase">File area (ha)</th>
                   <th className="px-2 py-2 text-center text-[9px] text-gray-500 uppercase">Status</th>
                 </tr>
               </thead>
@@ -433,7 +502,7 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
 
           <button
             onClick={handleImport}
-            disabled={importing || validCount === 0}
+            disabled={importing || validCount === 0 || !sourceCrs.trim()}
             className="w-full mt-3 flex items-center justify-center gap-2 h-10 rounded-lg bg-[var(--accent)] text-black text-sm font-semibold hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {importing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Layers className="w-4 h-4" />}
@@ -448,7 +517,7 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
           <p className="font-medium mb-1">CSV Format:</p>
           <p>Each row = one vertex. Multiple rows with the same parcel_number = one parcel&apos;s vertices.</p>
           <p className="mt-1">Columns: parcel_number, easting, northing, owner_name, owner_id, lr_number, area_ha</p>
-          <p className="mt-1 font-medium">GeoJSON: Polygon features with properties for owner data.</p>
+          <p className="mt-1 font-medium">GeoJSON: Polygon features; owner fields are retained as source metadata. Stored area is calculated from the project-coordinate geometry.</p>
         </div>
       </div>
     </div>

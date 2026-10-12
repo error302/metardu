@@ -438,7 +438,9 @@ export function computeLevelBook(input: {
       sumBS += row.bs
       hi = currentRL + row.bs
       out.hi = hi
-      out.rl = hi
+      // A backsight establishes the instrument height; it does not change the
+      // reduced level of the station being sighted.
+      out.rl = currentRL
     }
 
     if (row.is !== undefined && row.is !== null && hi !== null) {

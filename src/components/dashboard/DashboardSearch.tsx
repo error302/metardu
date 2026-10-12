@@ -511,11 +511,12 @@ export default function DashboardSearch() {
       {/* Search input */}
       <div
         className={cn(
-          'flex items-center gap-3 rounded-full border bg-[var(--bg-secondary)] px-5 py-3 transition-all duration-500 ease-[cubic-bezier(0.32,0.72,0,1)]',
+          'flex items-center gap-3 rounded-full border bg-[var(--bg-secondary)] px-5 py-3 transition-all duration-500',
           isOpen
             ? 'border-[var(--accent)] shadow-[0_0_0_3px_var(--accent-subtle)] bg-[var(--bg-card)]'
             : 'border-[var(--border-color)] hover:border-[var(--border-hover)]',
         )}
+        style={{ transitionTimingFunction: 'cubic-bezier(0.32, 0.72, 0, 1)' }}
       >
         {isLoading ? (
           <Loader2 className="h-4 w-4 shrink-0 animate-spin text-[var(--accent)]" />

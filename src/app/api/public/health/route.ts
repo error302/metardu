@@ -6,14 +6,16 @@ export const dynamic = 'force-dynamic'
 export async function GET() {
   const start = Date.now()
   const checks: Record<string, { status: 'ok' | 'error'; latencyMs?: number; error?: string }> = {}
+  const configuredReleaseId = process.env.METARDU_BUILD_SHA ?? ''
+  const releaseId = /^(?:[a-f0-9]{7,64}|working-tree-[a-f0-9]{16,64})$/i.test(configuredReleaseId) ? configuredReleaseId : 'unknown'
 
   // ── Database check ──
   try {
     const dbStart = Date.now()
     await db.query<never>('SELECT 1')
     checks.database = { status: 'ok', latencyMs: Date.now() - dbStart }
-  } catch (err) {
-    checks.database = { status: 'error', error: String(err) }
+  } catch {
+    checks.database = { status: 'error', error: 'Database unavailable' }
   }
 
   // ── Redis check (if configured) ──
@@ -24,8 +26,8 @@ export async function GET() {
       const redisStart = Date.now()
       await redis.connect()
       checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart }
-    } catch (err) {
-      checks.redis = { status: 'error', error: String(err) }
+    } catch {
+      checks.redis = { status: 'error', error: 'Cache unavailable' }
     }
   }
 
@@ -48,9 +50,16 @@ export async function GET() {
   return NextResponse.json({
     status: allOk ? 'healthy' : anyError ? 'unhealthy' : 'degraded',
     checks,
+    releaseId,
     latencyMs: Date.now() - start,
     version: process.env.npm_package_version ?? '1.0.1',
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
-  }, { status: allOk ? 200 : 503 })
+  }, {
+    status: allOk ? 200 : 503,
+    headers: {
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
+      'X-METARDU-Release': releaseId,
+    },
+  })
 }

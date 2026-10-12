@@ -32,12 +32,14 @@ type ConnectionState = 'disconnected' | 'connecting' | 'connected' | 'error'
 interface RoverPosition {
   latitude: number
   longitude: number
-  altitude: number
-  hdop: number
-  satellites: number
+  altitude: number | null
+  hdop: number | null
+  satellites: number | null
+  horizontalAccuracyM: number | null
   fixType: string
   timestamp: Date
-  quality: number
+  quality: number | null
+  source: 'receiver' | 'browser'
 }
 
 const FIX_TYPE_LABELS: Record<string, string> = {
@@ -47,6 +49,7 @@ const FIX_TYPE_LABELS: Record<string, string> = {
   pps: 'PPS',
   rtk: 'RTK Fixed',
   float: 'RTK Float',
+  device: 'Device location (approx.)',
 }
 
 const FIX_TYPE_COLORS: Record<string, string> = {
@@ -56,6 +59,7 @@ const FIX_TYPE_COLORS: Record<string, string> = {
   pps: 'text-blue-400',
   rtk: 'text-emerald-400',
   float: 'text-cyan-400',
+  device: 'text-amber-400',
 }
 
 export function GNSSRoverConnection() {
@@ -84,12 +88,16 @@ export function GNSSRoverConnection() {
           setPosition({
             latitude: pos.coords.latitude,
             longitude: pos.coords.longitude,
-            altitude: pos.coords.altitude || 0,
-            hdop: pos.coords.accuracy || 99,
-            satellites: 0,
-            fixType: pos.coords.accuracy < 3 ? 'rtk' : pos.coords.accuracy < 10 ? 'gps' : 'none',
+            altitude: pos.coords.altitude,
+            // Browser geolocation exposes neither satellite count nor HDOP.
+            // Its reported accuracy must not be relabelled as either metric.
+            hdop: null,
+            satellites: null,
+            horizontalAccuracyM: pos.coords.accuracy,
+            fixType: 'device',
             timestamp: new Date(pos.timestamp),
-            quality: pos.coords.accuracy < 3 ? 4 : 1,
+            quality: null,
+            source: 'browser',
           })
           setNmeaCount(prev => prev + 1)
           setState('connected')
@@ -128,9 +136,11 @@ export function GNSSRoverConnection() {
           altitude: nmeaPos.altitude,
           hdop: nmeaPos.hdop,
           satellites: nmeaPos.satellites,
+          horizontalAccuracyM: null,
           fixType: nmeaPos.fixType,
           timestamp: nmeaPos.timestamp,
           quality: nmeaPos.quality,
+          source: 'receiver',
         })
         setNmeaCount(prev => prev + 1)
       })
@@ -191,9 +201,11 @@ export function GNSSRoverConnection() {
                       altitude: parsed.altitude,
                       hdop: parsed.hdop,
                       satellites: parsed.satellites,
+                      horizontalAccuracyM: null,
                       fixType: parsed.fixType,
                       timestamp: parsed.timestamp,
                       quality: parsed.quality,
+                      source: 'receiver',
                     })
                   }
                 } catch {}
@@ -263,7 +275,7 @@ export function GNSSRoverConnection() {
           </div>
           <div>
             <span className="text-sm font-semibold text-[var(--text-primary)]">GNSS Rover</span>
-            <p className="text-[10px] text-gray-500">Direct hardware connection</p>
+            <p className="text-[10px] text-gray-500">Receiver status and device-location context</p>
           </div>
         </div>
         {/* Status indicator */}
@@ -347,13 +359,16 @@ export function GNSSRoverConnection() {
                 <span className={`text-sm font-semibold ${fixColor}`}>{fixLabel}</span>
               </div>
               <div className="flex items-center gap-3 text-[10px] text-gray-500">
-                <span className="flex items-center gap-1">
-                  <Activity className="w-3 h-3" />
-                  {position.satellites} sats
-                </span>
-                <span className="flex items-center gap-1">
-                  HDOP: {position.hdop.toFixed(1)}
-                </span>
+                {position.satellites !== null && (
+                  <span className="flex items-center gap-1">
+                    <Activity className="w-3 h-3" />
+                    {position.satellites} sats
+                  </span>
+                )}
+                {position.hdop !== null && <span>HDOP: {position.hdop.toFixed(1)}</span>}
+                {position.horizontalAccuracyM !== null && (
+                  <span>Device ±{position.horizontalAccuracyM.toFixed(1)} m</span>
+                )}
               </div>
             </div>
 
@@ -369,7 +384,7 @@ export function GNSSRoverConnection() {
               </div>
               <div className="p-2 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
                 <span className="text-[9px] text-gray-500 uppercase tracking-wider">Altitude</span>
-                <div className="text-xs font-mono text-[var(--text-primary)]">{position.altitude.toFixed(3)} m</div>
+                <div className="text-xs font-mono text-[var(--text-primary)]">{position.altitude?.toFixed(3) ?? '—'}{position.altitude !== null ? ' m' : ''}</div>
               </div>
               <div className="p-2 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
                 <span className="text-[9px] text-gray-500 uppercase tracking-wider">NMEA Sentences</span>
@@ -389,8 +404,8 @@ export function GNSSRoverConnection() {
         <div className="flex items-start gap-2 p-2.5 rounded-lg bg-blue-500/5 border border-blue-500/10">
           <Satellite className="w-3 h-3 text-blue-400 shrink-0 mt-0.5" />
           <p className="text-[10px] text-blue-400/70 leading-relaxed">
-            Supports CHCNAV, South, EFIX, Stonex, Trimble, Leica rovers via Bluetooth or USB-C OTG.
-            Streams NMEA-0183 ($GNGGA, $GNRMC) directly into the fieldbook.
+            External receiver fix type, satellites, and HDOP are shown only when supplied by NMEA.
+            Device location is approximate context and is never labeled RTK or treated as a receiver fix.
           </p>
         </div>
       </div>

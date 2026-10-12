@@ -33,6 +33,10 @@ import { NTRIPClientPanel } from '@/components/survey/NTRIPClientPanel'
 import { GNSSQualityReport } from '@/components/survey/GNSSQualityReport'
 import { FieldbookAuditDrawer } from '@/components/fieldbook/FieldbookAuditDrawer'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
+import { offlineStorage } from '@/lib/mobile/offlineStorage'
+import type { FieldObservation } from '@/lib/mobile/offlineStorage'
+import { syncService } from '@/lib/mobile/syncService'
+import { prepareCapturedPhotoData } from '@/lib/mobile/capturedPhotoData'
 import { CheckCircle2 } from 'lucide-react'
 import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
 import { InstrumentStreamBar, type StreamedReading, type SurveyType as StreamSurveyType } from '@/components/fieldbook/InstrumentStreamBar'
@@ -671,7 +675,7 @@ export default function DigitalFieldBookPage() {
     }
   }
 
-  async function handleSave() {
+  async function handleSave(dataOverride?: Record<string, unknown>) {
     if (!projectId) {
       setSaveStatus({ kind: 'error', message: 'Select a project to save.' })
       return
@@ -685,7 +689,7 @@ export default function DigitalFieldBookPage() {
     // computation errors before data is committed to the DB.
     // If a cross-check fails, we still save (data isn't lost) but
     // we fire a notification so the surveyor knows there's an issue.
-    if (type === 'traverse' && traverseComputed?.ok) {
+    if (!dataOverride && type === 'traverse' && traverseComputed?.ok) {
       const adjusted = traverseComputed.adjusted
       if (adjusted && adjusted.legs && adjusted.legs.length >= 3) {
         // Extract adjusted coordinates from legs for cross-checking
@@ -740,7 +744,7 @@ export default function DigitalFieldBookPage() {
       user_id: userId,
       type,
       name: name.trim() || `${type.toUpperCase()} Field Book`,
-      data: currentDataPayload(),
+      data: dataOverride ?? currentDataPayload(),
       updated_at: now,
     }
 
@@ -934,18 +938,29 @@ export default function DigitalFieldBookPage() {
   })()
 
   /** Add a row produced by the mobile universal form to the active survey state. */
-  function handleMobileAddRow(row: Record<string, string>, photos: CapturedBeaconPhoto[] = []) {
+  async function handleMobileAddRow(row: Record<string, string>, photos: CapturedBeaconPhoto[] = []) {
     // Guard: never store a completely blank station/point — prevents ghost #01 cards
     const hasStation = (row.station ?? row.pointId ?? '').trim() !== ''
     if (!hasStation) return
+    if (photos.length > 0) {
+      if (!projectId) throw new Error('Select a project before attaching field photos.')
+      const pointName = (row.station ?? row.pointId ?? '').trim()
+      const photoData = await prepareCapturedPhotoData(photos, projectId, {
+        pointId: row.pointId?.trim() || pointName,
+        pointName,
+      })
+      await offlineStorage.savePhotos(photoData)
+      if (typeof navigator !== 'undefined' && navigator.onLine) await syncService.forceSync()
+    }
     trackFieldbookSave(type, 1)
     const id = crypto.randomUUID()
-    // Build a compact photo annotation appended to remarks so the surveyor
-    // has an at-a-glance evidence trail. EXIF GPS coordinates are included
-    // when available — this is critical for cadastral legal defence.
+    const currentPayload = currentDataPayload()
+    // Store a clearly labelled reference to each field photo in the observation
+    // remarks. Device EXIF is descriptive metadata, not survey control or legal proof.
     const photoAnnotation = photos.length > 0
       ? photos.map((p, i) => {
-          const gps = p.exif ? ` @${p.exif.latitude.toFixed(5)},${p.exif.longitude.toFixed(5)}` : ''
+          const datum = p.exif?.gpsDatum ? `; device label ${p.exif.gpsDatum}` : '; datum not recorded'
+          const gps = p.exif ? ` unverified device EXIF GPS ${p.exif.latitude.toFixed(5)},${p.exif.longitude.toFixed(5)}${datum} (not survey control)` : ''
           const cap = p.caption ? ` "${p.caption}"` : ''
           return `[photo${i + 1}${gps}${cap}]`
         }).join(' ')
@@ -956,16 +971,18 @@ export default function DigitalFieldBookPage() {
       : (row.remarks ?? '')
 
     if (type === 'leveling') {
-      setLevelRows((p) => [...p, {
+      const newRow: LevelRow = {
         id,
         station: row.station ?? '',
         bs: row.bs ?? '',
         is: row.is ?? '',
         fs: row.fs ?? '',
         remarks: enrichedRemarks,
-      }])
+      }
+      setLevelRows((p) => [...p, newRow])
+      await handleSave({ ...currentPayload, rows: [...levelRows, newRow] })
     } else if (type === 'traverse') {
-      setTravRows((p) => [...p, {
+      const newRow: TravRow = {
         id,
         station: row.station ?? '',
         bearing: row.bearing ?? '',
@@ -975,9 +992,11 @@ export default function DigitalFieldBookPage() {
         vaDeg: row.vaDeg ?? '', vaMin: '', vaSec: '',
         ih: row.ih ?? '1.5', th: row.th ?? '1.5',
         remarks: enrichedRemarks,
-      }])
+      }
+      setTravRows((p) => [...p, newRow])
+      await handleSave({ ...currentPayload, rows: [...travRows, newRow] })
     } else if (type === 'control') {
-      setControlRows((p) => [...p, {
+      const newRow: ControlRow = {
         id,
         pointId: row.pointId ?? '',
         instrumentHeight: row.instrumentHeight ?? '1.5',
@@ -986,10 +1005,13 @@ export default function DigitalFieldBookPage() {
         verticalAngle: row.verticalAngle ?? '90',
         slopeDistance: row.slopeDistance ?? '',
         remarks: enrichedRemarks,
-      }])
+      }
+      setControlRows((p) => [...p, newRow])
+      const updatedSetups = controlSetups.map(setup => setup.id === activeControlSetupId
+        ? { ...setup, rows: [...setup.rows, newRow] }
+        : setup)
+      await handleSave({ ...currentPayload, setups: updatedSetups })
     }
-    // Auto-save so the surveyor doesn't lose data if app is killed
-    handleSave()
   }
 
   function handleMobileRemoveRow(id: string) {
@@ -1187,7 +1209,53 @@ export default function DigitalFieldBookPage() {
         >
         <InstrumentStreamBar
           surveyType={type as StreamSurveyType}
-          onReading={(reading: StreamedReading) => {
+          onReading={async (reading: StreamedReading) => {
+            // Preserve hardware observations in the offline-first evidence
+            // store before adding any derived values to the calculation form.
+            if (reading.source) {
+              if (!projectId) throw new Error('Select a project before saving an instrument observation.')
+              const observation: FieldObservation = {
+                projectId,
+                pointName: reading.station?.trim() || 'UNNAMED',
+                pointId: reading.station?.trim() || undefined,
+                observationType: reading.source === 'gnss_receiver' ? 'gps' : 'total_station',
+                easting: reading.easting,
+                northing: reading.northing,
+                latitude: reading.latitude,
+                longitude: reading.longitude,
+                elevation: reading.elevation,
+                accuracy: reading.accuracy,
+                accuracySource: reading.accuracySource,
+                satellites: reading.satellites,
+                solutionType: reading.solutionType,
+                fixQuality: reading.fixQuality,
+                hdop: reading.hdop,
+                instrumentHeight: reading.instrumentHeight,
+                rodHeight: reading.targetHeight,
+                horizontalAngle: reading.bearing,
+                verticalAngle: reading.verticalAngle,
+                slopeDistance: reading.distance,
+                horizontalCrs: reading.horizontalCrs,
+                verticalDatum: reading.verticalDatum,
+                instrumentName: reading.instrumentName,
+                observationSource: reading.source,
+                notes: [
+                  reading.setupStation ? `Instrument setup station: ${reading.setupStation}` : undefined,
+                  reading.rawData ? `Raw instrument record: ${reading.rawData}` : undefined,
+                ].filter(Boolean).join('\n') || undefined,
+                timestamp: Number.isFinite(Date.parse(reading.timestamp))
+                  ? Date.parse(reading.timestamp)
+                  : Date.now(),
+              }
+              await offlineStorage.saveFieldObservation(observation)
+              if (isOnline()) {
+                void syncService.syncPending().catch((error: unknown) => {
+                  logger.error('[fieldbook] Instrument observation sync failed', { error })
+                })
+              }
+              if (reading.source === 'gnss_receiver') return
+            }
+
             // Route the streamed reading into the appropriate field book rows
             if (type === 'traverse') {
               const bearingStr = reading.bearing != null ? bearingToString(reading.bearing) : ''
@@ -1276,7 +1344,7 @@ export default function DigitalFieldBookPage() {
             </select>
             <input aria-label="Field book name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('field.fieldBookNamePlaceholder')} />
             <div className="grid grid-cols-2 gap-2">
-              <button onClick={handleSave} className="btn btn-primary" disabled={saveStatus.kind === 'saving'}>
+              <button onClick={() => handleSave()} className="btn btn-primary" disabled={saveStatus.kind === 'saving'}>
                 {saveStatus.kind === 'saving' ? t('common.saving') : t('common.save')}
               </button>
               <button onClick={() => { setFieldbookId(null); setName(''); setSaveStatus({ kind: 'idle' }) }} className="btn btn-secondary">

@@ -6,23 +6,16 @@
 // the page component stays a thin orchestrator. All React state, refs and
 // event handlers live here.
 
-import { useState, useMemo, useCallback, useRef } from 'react'
+import { useState, useMemo, useCallback, useRef, useEffect } from 'react'
 import {
   KENYA_TOPO_SHEETS,
-  KENYA_SUB_SHEETS,
-  SHEETS_WITH_SUBSHEETS,
+} from '@/lib/geo/cassini/sheets'
+import {
   cassiniFeetToUTM,
   utmToCassiniFeet,
-  verifyWithCommonPoints,
-  utmToWGS84,
-  estimateSheetAccuracy,
   computeHelmert4Params,
-  convertCassiniToUTM,
-  convertUTMToCassini,
-  findSubSheet,
-  estimateSubSheetAccuracy,
-  getUtmZone,
-} from '@/lib/geo/cassini'
+} from '@/lib/geo/cassini/helmert'
+import { verifyWithCommonPoints, projectedResultToWgs84, estimateSheetAccuracy } from '@/lib/geo/cassini/verify'
 import type {
   CassiniFeetPoint,
   UTMPoint,
@@ -32,8 +25,23 @@ import type {
   CommonPoint,
   SubSheetDef,
   TransformMethod,
-} from '@/lib/geo/cassini'
+} from '@/lib/geo/cassini/types'
 import { CASSINI_BATCH_EXAMPLE, UTM_BATCH_EXAMPLE, r1, r3 } from './formatHelpers'
+
+type SubSheetEngine = typeof import('@/lib/geo/cassini/subsheets')
+let subSheetEnginePromise: Promise<SubSheetEngine> | null = null
+
+function loadSubSheetEngine(): Promise<SubSheetEngine> {
+  if (!subSheetEnginePromise) {
+    subSheetEnginePromise = import('@/lib/geo/cassini/subsheets').catch((error) => {
+      subSheetEnginePromise = null
+      throw error
+    })
+  }
+  return subSheetEnginePromise
+}
+
+function parseStrictNumber(value: string): number { return value.trim() ? Number(value) : NaN }
 
 export function useCassiniUtmState() {
   // ── Direction ──
@@ -45,6 +53,8 @@ export function useCassiniUtmState() {
   // ── Topo Sheet Selection ──
   const [selectedSheetId, setSelectedSheetId] = useState<string>(KENYA_TOPO_SHEETS[0].id)
   const [useCustomParams, setUseCustomParams] = useState(false)
+  const selectedSheetIdRef = useRef(selectedSheetId)
+  selectedSheetIdRef.current = selectedSheetId
 
   // ── Filtered sheets list ──
   const filteredSheets = useMemo(() => {
@@ -60,6 +70,13 @@ export function useCassiniUtmState() {
   // ── Sub-sheet Selection ──
   const [selectedSubSheetId, setSelectedSubSheetId] = useState<string>('__auto__')
   const [detectedSubSheet, setDetectedSubSheet] = useState<SubSheetDef | undefined>(undefined)
+  const [loadedSubSheetRows, setLoadedSubSheetRows] = useState<SubSheetDef[]>([])
+  const [subSheetDataLoadedFor, setSubSheetDataLoadedFor] = useState<string | null>(null)
+  const [subSheetDataLoading, setSubSheetDataLoading] = useState(false)
+  const [subSheetDataError, setSubSheetDataError] = useState<string | null>(null)
+  const [geographicCrs, setGeographicCrs] = useState('')
+  const [conversionPending, setConversionPending] = useState(false)
+  const [conversionError, setConversionError] = useState<string | null>(null)
 
   // ── Transform Method ──
   const [transformMethod, setTransformMethod] = useState<TransformMethod | 'auto'>('auto')
@@ -96,11 +113,46 @@ export function useCassiniUtmState() {
   const [calibrationResiduals, setCalibrationResiduals] = useState<VerificationResult[]>([])
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ── Derived: available sub-sheets for selected sheet ──
+  // ── Lazy sub-sheet data: the multi-megabyte corner dataset loads on demand ──
   const availableSubSheets = useMemo(() => {
-    if (useCustomParams) return []
-    return KENYA_SUB_SHEETS.filter(ss => ss.sheetId === selectedSheetId)
-  }, [useCustomParams, selectedSheetId])
+    if (useCustomParams || subSheetDataLoadedFor !== selectedSheetId) return []
+    return loadedSubSheetRows
+  }, [useCustomParams, subSheetDataLoadedFor, selectedSheetId, loadedSubSheetRows])
+
+  const loadCurrentSubSheetData = useCallback(async () => {
+    const requestedSheetId = selectedSheetId
+    setSubSheetDataLoading(true)
+    setSubSheetDataError(null)
+    try {
+      const engine = await loadSubSheetEngine()
+      const rows = engine.KENYA_SUB_SHEETS.filter(sheet => sheet.sheetId === requestedSheetId)
+      if (selectedSheetIdRef.current === requestedSheetId) {
+        setLoadedSubSheetRows(rows)
+        setSubSheetDataLoadedFor(requestedSheetId)
+      }
+      return { engine, rows, requestedSheetId }
+    } catch {
+      if (selectedSheetIdRef.current === requestedSheetId) {
+        setSubSheetDataError('Detailed sheet calibration data could not be loaded. No conversion was calculated.')
+      }
+      throw new Error('Detailed sheet calibration data could not be loaded.')
+    } finally {
+      if (selectedSheetIdRef.current === requestedSheetId) setSubSheetDataLoading(false)
+    }
+  }, [selectedSheetId])
+
+  useEffect(() => {
+    setSelectedSubSheetId('__auto__')
+    setDetectedSubSheet(undefined)
+    setLoadedSubSheetRows([])
+    setSubSheetDataLoadedFor(null)
+    setSubSheetDataError(null)
+    setSubSheetDataLoading(false)
+  }, [selectedSheetId])
+
+  const handleLoadSubSheetData = useCallback(() => {
+    void loadCurrentSubSheetData().catch(() => {})
+  }, [loadCurrentSubSheetData])
 
   const hasSubSheets = availableSubSheets.length > 0
 
@@ -110,6 +162,15 @@ export function useCassiniUtmState() {
     return availableSubSheets.find(ss => ss.subId === selectedSubSheetId)
   }, [selectedSubSheetId, detectedSubSheet, availableSubSheets])
 
+  // Invalidate results when their inputs change, including edits during a lazy load.
+  const singleInputKey = JSON.stringify([direction, singleE, singleN, selectedSheetId, selectedSubSheetId, useCustomParams, customP, customQ, customCx, customCy, transformMethod, geographicCrs])
+  const batchInputKey = JSON.stringify([direction, batchText, selectedSheetId, selectedSubSheetId, useCustomParams, customP, customQ, customCx, customCy, transformMethod, geographicCrs])
+  const currentSingleKey = useRef(singleInputKey), currentBatchKey = useRef(batchInputKey)
+  currentSingleKey.current = singleInputKey
+  currentBatchKey.current = batchInputKey
+  useEffect(() => { setSingleResult(null); setConversionError(null) }, [singleInputKey])
+  useEffect(() => { setBatchResults([]); setBatchErrors([]) }, [batchInputKey])
+
   // ── Derived Sheet Params (resolves to actual params used for conversion) ──
   const activeSheet: TopoSheetParams = useMemo(() => {
     if (useCustomParams) {
@@ -117,10 +178,10 @@ export function useCassiniUtmState() {
         id: 'custom',
         name: 'Custom Parameters',
         description: 'User-defined Helmert transformation parameters.',
-        P: parseFloat(customP) || 0.3048,
-        Q: parseFloat(customQ) || 0,
-        Cx: parseFloat(customCx) || 0,
-        Cy: parseFloat(customCy) || 0,
+        P: parseStrictNumber(customP),
+        Q: parseStrictNumber(customQ),
+        Cx: parseStrictNumber(customCx),
+        Cy: parseStrictNumber(customCy),
         commonPoints: [],
       }
     }
@@ -132,8 +193,7 @@ export function useCassiniUtmState() {
   // ── Accuracy Grade (enhanced for sub-sheets) ──
   const accuracyInfo = useMemo(() => {
     if (activeSubSheet) {
-      const sa = estimateSubSheetAccuracy(activeSubSheet)
-      return { rmseM: sa.rmseMM / 1000, rmseMM: sa.rmseMM, grade: sa.grade }
+      return estimateSheetAccuracy(activeSubSheet.helmertParams)
     }
     return estimateSheetAccuracy(activeSheet)
   }, [activeSheet, activeSubSheet])
@@ -159,11 +219,14 @@ export function useCassiniUtmState() {
   }, [accuracyInfo.grade])
 
   // ── WGS84 from single result (zone-aware) ──
-  const singleWGS84 = useMemo(() => {
-    if (!singleResult) return null
-    const zone = getUtmZone(activeSheet.id)
-    return utmToWGS84(singleResult.utmE, singleResult.utmN, zone)
-  }, [singleResult, activeSheet.id])
+  const geography = useMemo(() => {
+    if (!singleResult) return { result: null, error: null }
+    if (!geographicCrs.trim()) return { result: null, error: 'Declare the projected result grid before calculating geographic coordinates.' }
+    try { return { result: projectedResultToWgs84(singleResult.utmE, singleResult.utmN, geographicCrs.trim()), error: null } }
+    catch (error) { return { result: null, error: error instanceof Error ? error.message : 'Geographic conversion could not be calculated.' } }
+  }, [singleResult, geographicCrs])
+  const singleWGS84 = geography.result
+  const geographicError = geography.error
 
   // ── Calibration Handler ──
   const handleCalibrate = useCallback(() => {
@@ -229,12 +292,6 @@ export function useCassiniUtmState() {
     return verifyWithCommonPoints(activeSheet)
   }, [showVerification, activeSheet])
 
-  // ── Auto-detect sub-sheet from coordinates ──
-  const detectSubSheetFromCoords = useCallback((e: number, n: number) => {
-    if (!SHEETS_WITH_SUBSHEETS.has(selectedSheetId)) return undefined
-    return findSubSheet(selectedSheetId, e, n)
-  }, [selectedSheetId])
-
   // ── Reset results on direction change ──
   const handleDirectionChange = useCallback((dir: 'cassini-to-utm' | 'utm-to-cassini') => {
     setDirection(dir)
@@ -246,42 +303,61 @@ export function useCassiniUtmState() {
   }, [])
 
   // ── Single Convert ──
-  const handleSingleConvert = useCallback(() => {
-    const e = parseFloat(singleE)
-    const n = parseFloat(singleN)
-    if (isNaN(e) || isNaN(n)) return
-
-    // Auto-detect sub-sheet if available
-    const detected = detectSubSheetFromCoords(e, n)
-    if (detected) setDetectedSubSheet(detected)
-    const sub = selectedSubSheetId === '__auto__' ? detected : activeSubSheet
-
-    if (direction === 'cassini-to-utm') {
-      const pts: CassiniFeetPoint[] = [{ easting: e, northing: n }]
-      if (sub && transformMethod !== 'helmert4') {
-        const results = convertCassiniToUTM(pts, sub)
-        setSingleResult(results[0])
-      } else {
-        const results = cassiniFeetToUTM(pts, sub ? sub.helmertParams : activeSheet)
-        setSingleResult(results[0])
-      }
-    } else {
-      const pts: UTMPoint[] = [{ easting: e, northing: n }]
-      if (sub && transformMethod !== 'helmert4') {
-        const results = convertUTMToCassini(pts, sub)
-        setSingleResult(results[0])
-      } else {
-        const results = utmToCassiniFeet(pts, sub ? sub.helmertParams : activeSheet)
-        setSingleResult(results[0])
-      }
+  const handleSingleConvert = useCallback(async () => {
+    const e = Number(singleE), n = Number(singleN)
+    if (!singleE.trim() || !singleN.trim() || !Number.isFinite(e) || !Number.isFinite(n)) {
+      setSingleResult(null); setConversionError('Enter finite easting and northing values.'); return
     }
-  }, [singleE, singleN, direction, activeSheet, activeSubSheet, selectedSubSheetId, transformMethod, detectSubSheetFromCoords])
+    setConversionPending(true)
+    setConversionError(null)
+    try {
+      const loaded = useCustomParams ? null : await loadCurrentSubSheetData()
+      if (selectedSheetIdRef.current !== selectedSheetId || currentSingleKey.current !== singleInputKey) return
+      const selectedRows = loaded?.rows ?? []
+      const detected = loaded?.engine.SHEETS_WITH_SUBSHEETS.has(selectedSheetId)
+        ? loaded.engine.findSubSheet(selectedSheetId, e, n)
+        : undefined
+      if (detected) setDetectedSubSheet(detected)
+      const sub = useCustomParams
+        ? undefined
+        : selectedSubSheetId === '__auto__'
+          ? detected
+          : selectedRows.find(sheet => sheet.subId === selectedSubSheetId)
+
+      if (!useCustomParams && selectedSubSheetId !== '__auto__' && !sub) {
+        setConversionError('The selected sub-sheet is not available for this map sheet. Choose Auto-detect or reload the detailed sheet data.')
+        return
+      }
+
+      if (direction === 'cassini-to-utm') {
+        const pts: CassiniFeetPoint[] = [{ easting: e, northing: n }]
+        if (sub && transformMethod !== 'helmert4' && loaded) {
+          setSingleResult(loaded.engine.convertCassiniToUTM(pts, sub)[0])
+        } else {
+          setSingleResult(cassiniFeetToUTM(pts, sub ? sub.helmertParams : activeSheet)[0])
+        }
+      } else {
+        const pts: UTMPoint[] = [{ easting: e, northing: n }]
+        if (sub && transformMethod !== 'helmert4' && loaded) {
+          setSingleResult(loaded.engine.convertUTMToCassini(pts, sub)[0])
+        } else {
+          setSingleResult(utmToCassiniFeet(pts, sub ? sub.helmertParams : activeSheet)[0])
+        }
+      }
+    } catch (error) {
+      if (currentSingleKey.current !== singleInputKey) return
+      setSingleResult(null)
+      setConversionError(error instanceof RangeError ? error.message : 'Detailed sheet calibration data could not be loaded. No conversion was calculated; retry when online.')
+    } finally {
+      setConversionPending(false)
+    }
+  }, [singleE, singleN, useCustomParams, loadCurrentSubSheetData, selectedSheetId, selectedSubSheetId, direction, activeSheet, transformMethod, singleInputKey])
 
   // ── Batch Convert ──
-  const handleBatchConvert = useCallback(() => {
+  const handleBatchConvert = useCallback(async () => {
     const lines = batchText.trim().split('\n').filter(l => l.trim())
-    const validResults: ConversionResult[] = []
     const errors: string[] = []
+    const points: { id: string; e: number; n: number }[] = []
 
     for (let i = 0; i < lines.length; i++) {
       const line = lines[i].trim()
@@ -292,30 +368,54 @@ export function useCassiniUtmState() {
         continue
       }
       const id = parts[0]
-      const e = parseFloat(parts[1])
-      const n = parseFloat(parts[2])
-      if (isNaN(e) || isNaN(n)) {
+      const e = parseStrictNumber(parts[1])
+      const n = parseStrictNumber(parts[2])
+      if (!Number.isFinite(e) || !Number.isFinite(n)) {
         errors.push(`Line ${i + 1} (${id}): Invalid coordinates — skipped`)
         continue
       }
 
-      // Auto-detect sub-sheet per point
-      const detected = detectSubSheetFromCoords(e, n)
-      const sub = selectedSubSheetId === '__auto__' ? detected : activeSubSheet
-      const params = sub ? sub.helmertParams : activeSheet
-
-      if (direction === 'cassini-to-utm') {
-        const results = cassiniFeetToUTM([{ id, easting: e, northing: n }], params)
-        validResults.push(results[0])
-      } else {
-        const results = utmToCassiniFeet([{ id, easting: e, northing: n }], params)
-        validResults.push(results[0])
-      }
+      points.push({ id, e, n })
     }
 
-    setBatchResults(validResults)
-    setBatchErrors(errors)
-  }, [batchText, direction, activeSheet, activeSubSheet, selectedSubSheetId, detectSubSheetFromCoords])
+    setConversionPending(true)
+    setConversionError(null)
+    try {
+      const loaded = !useCustomParams && points.length > 0 ? await loadCurrentSubSheetData() : null
+      if (selectedSheetIdRef.current !== selectedSheetId || currentBatchKey.current !== batchInputKey) return
+      const validResults: ConversionResult[] = []
+      const selectedRows = loaded?.rows ?? []
+
+      for (const point of points) {
+        const detected = loaded?.engine.SHEETS_WITH_SUBSHEETS.has(selectedSheetId)
+          ? loaded.engine.findSubSheet(selectedSheetId, point.e, point.n)
+          : undefined
+        const sub = useCustomParams
+          ? undefined
+          : selectedSubSheetId === '__auto__'
+            ? detected
+            : selectedRows.find(sheet => sheet.subId === selectedSubSheetId)
+        if (!useCustomParams && selectedSubSheetId !== '__auto__' && !sub) throw new RangeError('The selected sub-sheet is unavailable for this map sheet; choose Auto-detect or reload its data.')
+        const params = sub ? sub.helmertParams : activeSheet
+        const input = [{ id: point.id, easting: point.e, northing: point.n }]
+        const results = sub && transformMethod !== 'helmert4' && loaded
+          ? direction === 'cassini-to-utm'
+            ? loaded.engine.convertCassiniToUTM(input, sub)
+            : loaded.engine.convertUTMToCassini(input, sub)
+          : direction === 'cassini-to-utm' ? cassiniFeetToUTM(input, params) : utmToCassiniFeet(input, params)
+        validResults.push(results[0])
+      }
+
+      setBatchResults(validResults)
+      setBatchErrors(errors)
+    } catch (error) {
+      if (currentBatchKey.current !== batchInputKey) return
+      setBatchResults([])
+      setBatchErrors([...errors, error instanceof RangeError ? error.message : 'Detailed sheet calibration data could not be loaded. No batch conversions were calculated; retry when online.'])
+    } finally {
+      setConversionPending(false)
+    }
+  }, [batchText, useCustomParams, loadCurrentSubSheetData, selectedSheetId, selectedSubSheetId, direction, activeSheet, batchInputKey, transformMethod])
 
   // ── Load Example ──
   const handleLoadExample = useCallback(() => {
@@ -430,6 +530,10 @@ export function useCassiniUtmState() {
     availableSubSheets,
     hasSubSheets,
     activeSubSheet,
+    subSheetDataLoadedFor,
+    subSheetDataLoading,
+    subSheetDataError,
+    handleLoadSubSheetData,
     // transform method
     transformMethod,
     setTransformMethod,
@@ -455,6 +559,7 @@ export function useCassiniUtmState() {
     singleResult,
     setSingleResult,
     singleWGS84,
+    geographicCrs, setGeographicCrs, geographicError,
     // batch
     batchText,
     setBatchText,
@@ -491,6 +596,8 @@ export function useCassiniUtmState() {
     accuracyBadgeClass,
     // conversion
     handleSingleConvert,
+    conversionPending,
+    conversionError,
   }
 }
 

@@ -6,29 +6,33 @@
  *  - Distance labels on each boundary edge (opposite side of bearing)
  *  - Area label at the polygon centroid
  *
- * All measurement math runs in EPSG:21037 (Kenya grid, meters).
+ * All measurement math runs in the project CRS grid plane (metres).
  * All rendered features use EPSG:3857 (Web Mercator).
  */
 
 import {
-  calculateBearing,
   formatBearingWCB,
-  calculateDistance,
   formatDistance,
-  calculateArea,
   formatArea,
+} from '@/lib/surveyMapEngine/core/format';
+import {
   calculateCentroid,
   calculateOffsetPoint,
-  type Point,
-} from '@/lib/map/measurements';
+} from '@/lib/surveyMapEngine/core/measure';
+import type { GridPoint as Point } from '@/lib/surveyMapEngine/core/types';
+import {
+  surveyArea,
+  surveyBearing,
+  surveyDistance,
+} from '@/lib/spatial/projectCrs';
 
 export interface AnnotationOptions {
   /** Closed polygon in EPSG:3857 (first point repeated at end) */
   coords3857: Array<[number, number]>;
-  /** The original adjusted stations in UTM (default EPSG:21037) */
+  /** The original adjusted stations in the project CRS */
   stations21037: Array<{ pointName: string; easting: number; northing: number }>;
-  /** T1.5 FIX (2026-07-09): UTM EPSG for the stations (default 'EPSG:21037') */
-  epsg?: string;
+  /** Project UTM EPSG for the stations (e.g. 'EPSG:21037') — required; never defaulted (plan F4) */
+  epsg: string;
 }
 
 /**
@@ -38,30 +42,28 @@ export interface AnnotationOptions {
 const OFFSET_METERS = 3;
 
 /**
+ * Grid bearing via the CRS authority. Undefined bearings remain errors.
+ */
+function edgeBearing(from: Point, to: Point, crs: string): number {
+  return surveyBearing(from.easting, from.northing, to.easting, to.northing, crs);
+}
+
+/**
  * Convert a survey bearing (clockwise from north, 0–360°)
- * to an OpenLayers text rotation (counter-clockwise from east, radians).
+ * to a canvas text rotation (clockwise from east, radians).
  * Text is clamped so it is never rendered upside-down.
  */
-function bearingToOLRotation(bearingDeg: number): number {
-  // Convert CW-from-north to CCW-from-east
-  let rotDeg = 90 - bearingDeg;
-
-  // If the text would be upside-down, flip it
-  if (bearingDeg > 90 && bearingDeg < 270) {
-    rotDeg += 180;
-  }
-
-  // Normalize to [-180, 180]
-  while (rotDeg > 180) rotDeg -= 360;
-  while (rotDeg < -180) rotDeg += 360;
-
+export function bearingToOLRotation(bearingDeg: number): number {
+  let rotDeg = ((bearingDeg % 360) + 360) % 360 - 90;
+  if (rotDeg > 90) rotDeg -= 180;
+  if (rotDeg < -90) rotDeg += 180;
   return (rotDeg * Math.PI) / 180;
 }
 
 export async function createAnnotationLayer(
   options: AnnotationOptions,
 ): Promise<import('ol/layer/Vector').default> {
-  const { stations21037, epsg = 'EPSG:21037' } = options;
+  const { stations21037, epsg } = options;
 
   const [
     { default: VectorLayer },
@@ -87,6 +89,9 @@ export async function createAnnotationLayer(
 
   const features: InstanceType<typeof Feature>[] = [];
   const n = stations21037.length;
+  // A point-only view has no ordered polygon. The legacy centroid/area helpers
+  // return zero for an empty set, which would otherwise create a false label.
+  if (n < 3) return new VectorLayer({ source: new VectorSource({ features }), zIndex: 4 });
 
   // ─── Edge labels: bearings & distances ───────────────────────────────
   for (let i = 0; i < n; i++) {
@@ -96,15 +101,21 @@ export async function createAnnotationLayer(
     const fromPt: Point = { easting: from.easting, northing: from.northing };
     const toPt: Point = { easting: to.easting, northing: to.northing };
 
-    // Measurement math in EPSG:21037
-    const bearing = calculateBearing(fromPt, toPt);
+    // Measurement math in the project CRS
+    const bearing = edgeBearing(fromPt, toPt, epsg);
     const bearingStr = formatBearingWCB(bearing);
-    const distance = calculateDistance(fromPt, toPt);
+    const distance = surveyDistance(
+      fromPt.easting,
+      fromPt.northing,
+      toPt.easting,
+      toPt.northing,
+      epsg,
+    );
     const distanceStr = formatDistance(distance);
 
     // Text rotation (never upside-down)
     const rotation = bearingToOLRotation(bearing);
-    const flipped = bearing > 90 && bearing < 270;
+    const flipped = bearing > 180;
 
     // Bearing label on the left side of travel direction,
     // distance label on the right.  When the text is flipped we swap
@@ -161,7 +172,10 @@ export async function createAnnotationLayer(
 
   // ─── Area label at centroid ─────────────────────────────────────────
   const centroid = calculateCentroid(stations21037);
-  const area = calculateArea(stations21037);
+  const area = surveyArea(
+    stations21037.map((s): [number, number] => [s.easting, s.northing]),
+    epsg,
+  );
   const areaStr = formatArea(area);
 
   const centroidCoord = transform(

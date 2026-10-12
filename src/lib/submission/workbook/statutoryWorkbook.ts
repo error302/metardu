@@ -18,6 +18,8 @@ function lastRow(ws: ExcelJS.Worksheet): ExcelJS.Row {
 type SurveyTypeKey = 'cadastral' | 'engineering' | 'topographic' | 'leveling' | 'control' | 'mining' | 'hydrographic' | 'drone' | 'gnss'
 
 export interface WorkbookInput {
+  derivedFromCoordinates?: boolean
+  coordinateReferenceSystem?: string
   project: {
     name: string
     lrNumber: string
@@ -63,12 +65,12 @@ export interface WorkbookInput {
     }>
     angularMisclosureSec: number
     angularToleranceSec: number
-    angularPassesQA: boolean
+    angularPassesQA: boolean | null
     linearMisclosureM: number
     perimeterM: number
     precisionRatio: number
     precisionMinimum: number
-    linearPassesQA: boolean
+    linearPassesQA: boolean | null
   }
   adjustedStations: Array<{
     label: string
@@ -109,6 +111,10 @@ export interface WorkbookInput {
     outputs: Record<string, number | string>
   }> | null
 }
+
+const measured = (value: number, decimals: number) => Number.isFinite(value) ? value.toFixed(decimals) : 'UNVERIFIED'
+const qaStatus = (passes: boolean | null) => passes === null ? 'UNVERIFIED' : passes ? 'PASS' : 'FAIL'
+const precision = (value: number) => value === Infinity ? '1:∞' : Number.isFinite(value) ? `1:${value.toLocaleString()}` : 'UNVERIFIED'
 
 const STYLE = {
   headerFill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF1B3A5C' } } as ExcelJS.Fill,
@@ -175,7 +181,7 @@ function buildSheet1_ProjectDetails(wb: ExcelJS.Workbook, input: WorkbookInput):
     ['County', input.project.county, 'Division', input.project.division],
     ['District', input.project.district, 'Locality', input.project.locality],
     ['Survey Type', input.project.surveyType.toUpperCase(), 'Survey Date', new Date(input.project.surveyDate).toLocaleDateString('en-GB')],
-    ['Plan Scale', `1:${input.project.scaleDenominator}`, 'Revision', `R${String(input.submission.revision).padStart(2, '0')}`],
+    ['Plan Scale', Number.isFinite(input.project.scaleDenominator) ? `1:${input.project.scaleDenominator}` : 'Not supplied', 'Revision', `R${String(input.submission.revision).padStart(2, '0')}`],
     ['', '', '', ''],
     ['Surveyor Name', input.surveyor.name, 'ISK Number', input.surveyor.iskNumber],
     ['Firm / Company', input.surveyor.firmName, 'Submission Status', input.submission.status.toUpperCase()],
@@ -221,7 +227,7 @@ function buildSheet2_FieldAbstract(wb: ExcelJS.Workbook, input: WorkbookInput): 
   applyHeaderRow(hRow, headers.length)
 
   if (input.fieldObservations.length === 0) {
-    const r = ws.addRow(['Not applicable for this survey type'])
+    const r = ws.addRow(['No source observations attached. Consult the field book.'])
     ws.mergeCells(`A${r.number}:F${r.number}`)
     r.getCell(1).font = { ...STYLE.bodyFont, italic: true }
     return
@@ -254,21 +260,23 @@ function buildSheet3_TraverseComputation(wb: ExcelJS.Workbook, input: WorkbookIn
     { width: 18 },
   ]
 
-  sheetTitle(ws, 'METARDU COMPUTATION WORKBOOK', `Sheet 3 of 9 — Traverse Computation (${input.traverse.method === 'transit' ? 'Transit' : 'Bowditch'} Method)`)
+  sheetTitle(ws, 'METARDU COMPUTATION WORKBOOK', input.derivedFromCoordinates ? 'Sheet 3 of 9 — Derived Coordinate Geometry (no new adjustment)' : `Sheet 3 of 9 — Traverse Computation (${input.traverse.method === 'transit' ? 'Transit' : 'Bowditch'} Method)`)
   ws.addRow([])
   ws.addRow(['ANGULAR MISCLOSURE CHECK'])
   lastRow(ws).getCell(1).font = STYLE.subFont
   ws.addRow([
-    'Misclosure:', `${input.traverse.angularMisclosureSec.toFixed(1)}"`,
-    'Tolerance:', `${input.traverse.angularToleranceSec.toFixed(1)}"`,
+    'Misclosure:', `${measured(input.traverse.angularMisclosureSec, 1)}"`,
+    'Tolerance:', `${measured(input.traverse.angularToleranceSec, 1)}"`,
     'Station Count:', input.traverse.stations.length,
-    'Result:', input.traverse.angularPassesQA ? 'PASS ' : 'FAIL [x]',
+    'Result:', qaStatus(input.traverse.angularPassesQA),
   ])
   const angRow = lastRow(ws)
   angRow.getCell(8).font = input.traverse.angularPassesQA ? STYLE.passFont : STYLE.failFont
   ws.addRow([])
 
-  const headers = ['Station', 'Observed Bearing', 'Distance (m)', 'Dep. Raw (m)', 'Lat. Raw (m)', 'Dep. Corr. (m)', 'Lat. Corr. (m)', 'Dep. Adj. (m)', 'Lat. Adj. (m)']
+  const headers = input.derivedFromCoordinates
+    ? ['Station', 'Derived Bearing', 'Grid Distance (m)', 'Derived ΔE (m)', 'Derived ΔN (m)', 'New Corr. E (m)', 'New Corr. N (m)', 'Coordinate ΔE (m)', 'Coordinate ΔN (m)']
+    : ['Station', 'Observed Bearing', 'Distance (m)', 'Dep. Raw (m)', 'Lat. Raw (m)', 'Dep. Corr. (m)', 'Lat. Corr. (m)', 'Dep. Adj. (m)', 'Lat. Adj. (m)']
   const hRow = ws.addRow(headers)
   applyHeaderRow(hRow, headers.length)
 
@@ -305,11 +313,11 @@ function buildSheet3_TraverseComputation(wb: ExcelJS.Workbook, input: WorkbookIn
   ws.addRow(['LINEAR MISCLOSURE CHECK'])
   lastRow(ws).getCell(1).font = STYLE.subFont
   ws.addRow([
-    'Linear Misclosure:', `${input.traverse.linearMisclosureM.toFixed(4)} m`,
+    'Linear Misclosure:', `${measured(input.traverse.linearMisclosureM, 4)} m`,
     'Perimeter:', `${formatDistanceM(input.traverse.perimeterM)} m`,
-    'Precision:', `1:${input.traverse.precisionRatio.toLocaleString()}`,
+    'Precision:', precision(input.traverse.precisionRatio),
     'Minimum:', `1:${input.traverse.precisionMinimum.toLocaleString()}`,
-    'Result:', input.traverse.linearPassesQA ? 'PASS ' : 'FAIL [x]',
+    'Result:', qaStatus(input.traverse.linearPassesQA),
   ])
   const linRow = lastRow(ws)
   linRow.getCell(10).font = input.traverse.linearPassesQA ? STYLE.passFont : STYLE.failFont
@@ -319,9 +327,9 @@ function buildSheet4_Coordinates(wb: ExcelJS.Workbook, input: WorkbookInput): vo
   const ws = wb.addWorksheet('4. Coordinates')
   ws.columns = [{ width: 14 }, { width: 22 }, { width: 22 }, { width: 18 }]
 
-  sheetTitle(ws, 'METARDU COMPUTATION WORKBOOK', 'Sheet 4 of 9 — Adjusted Coordinates (SRID 21037 — Arc 1960 / UTM Zone 37S)')
+  sheetTitle(ws, 'METARDU COMPUTATION WORKBOOK', 'Sheet 4 of 9 — Adjusted Coordinates')
   ws.addRow([])
-  ws.addRow(['Coordinate Reference System: Arc 1960 / UTM Zone 37S  |  EPSG: 21037  |  Units: Metres'])
+  ws.addRow([`Coordinate Reference System: ${input.coordinateReferenceSystem || 'UNVERIFIED — consult project settings'}`])
   ws.mergeCells(`A${lastRow(ws).number}:D${lastRow(ws).number}`)
   lastRow(ws).getCell(1).font = { italic: true, size: 9, name: 'Calibri' }
   ws.addRow([])
@@ -487,25 +495,26 @@ function buildSheet9_QASummary(wb: ExcelJS.Workbook, input: WorkbookInput): void
   applyHeaderRow(hRow, headers.length)
 
   const checks: [string, string, string, boolean | null][] = [
-    ['Angular Misclosure', `${input.traverse.angularMisclosureSec.toFixed(1)}"`, `≤ ${input.traverse.angularToleranceSec.toFixed(1)}" (60√n)`, input.traverse.angularPassesQA],
-    ['Linear Misclosure Precision', `1:${input.traverse.precisionRatio.toLocaleString()}`, `≥ 1:${input.traverse.precisionMinimum.toLocaleString()} (Kenya Survey Regs 1994)`, input.traverse.linearPassesQA],
+    ['Angular Misclosure', `${measured(input.traverse.angularMisclosureSec, 1)}"`, `≤ ${measured(input.traverse.angularToleranceSec, 1)}" (60√n)`, input.traverse.angularPassesQA],
+    ['Linear Misclosure Precision', precision(input.traverse.precisionRatio), `≥ 1:${input.traverse.precisionMinimum.toLocaleString()} (Kenya Survey Regs 1994)`, input.traverse.linearPassesQA],
     ['Levelling Closure', input.levellingClosureMM !== undefined ? `${input.levellingClosureMM.toFixed(1)} mm` : 'N/A', input.levellingToleranceMM !== undefined ? `≤ ${input.levellingToleranceMM.toFixed(1)} mm (10√K, RDM 1.1)` : 'N/A', input.levellingClosureMM !== undefined && input.levellingToleranceMM !== undefined ? Math.abs(input.levellingClosureMM) <= input.levellingToleranceMM : null],
     ['Adjusted Departure Sum (ΣDep)', `${input.traverse.stations.reduce((s, st) => s + st.departureCorrected, 0).toFixed(4)} m`, '≈ 0.0000 m', Math.abs(input.traverse.stations.reduce((s, st) => s + st.departureCorrected, 0)) < 0.001],
     ['Adjusted Latitude Sum (ΣLat)', `${input.traverse.stations.reduce((s, st) => s + st.latitudeCorrected, 0).toFixed(4)} m`, '≈ 0.0000 m', Math.abs(input.traverse.stations.reduce((s, st) => s + st.latitudeCorrected, 0)) < 0.001],
-    ['Coordinate Reference System', 'SRID 21037 — Arc 1960 / UTM Zone 37S', 'SRID 21037 required', true],
-    ['Adjustment Method', input.traverse.method === 'transit' ? 'Transit' : 'Bowditch', 'Bowditch or Transit', true],
+    ['Coordinate Reference System', input.coordinateReferenceSystem || 'UNVERIFIED', 'Verify against source data', null],
+    ['Adjustment Method', input.derivedFromCoordinates ? 'Derived geometry; no new adjustment' : input.traverse.method, 'Verify original adjustment report', null],
   ]
 
   checks.forEach((check, i) => {
     const [label, value, standard, passes] = check
-    const r = ws.addRow([label, value, standard, passes === null ? 'N/A' : passes ? 'PASS ' : 'FAIL [x]'])
+    const r = ws.addRow([label, value, standard, passes === null ? (label === 'Levelling Closure' ? 'N/A' : 'UNVERIFIED') : passes ? 'PASS ' : 'FAIL [x]'])
     applyDataRow(r, headers.length, i)
     if (passes !== null) r.getCell(4).font = passes ? STYLE.passFont : STYLE.failFont
   })
 
-  const allPass = checks.every(([,,,p]) => p === null || p === true)
+  const allPass = checks.every(([label,,,p]) => label === 'Levelling Closure' && p === null || p === true)
+  const anyFail = checks.some(([,,,p]) => p === false)
   ws.addRow([])
-  const overallRow = ws.addRow(['OVERALL QA RESULT', '', '', allPass ? 'ALL CHECKS PASS ' : 'ONE OR MORE CHECKS FAIL [x]'])
+  const overallRow = ws.addRow(['OVERALL QA RESULT', '', '', allPass ? 'ALL CHECKS PASS ' : anyFail ? 'ONE OR MORE CHECKS FAIL [x]' : 'UNVERIFIED — review required'])
   overallRow.height = 22
   overallRow.getCell(1).font = { bold: true, size: 12, name: 'Calibri' }
   overallRow.getCell(4).font = { bold: true, size: 12, name: 'Calibri', color: { argb: allPass ? 'FF006400' : 'FFCC0000' } }

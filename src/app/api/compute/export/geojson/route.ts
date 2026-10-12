@@ -13,6 +13,14 @@ interface ProjectRow {
   name: string
   utm_zone: number | null
   hemisphere: string | null
+  datum: string | null
+}
+
+interface PrsRow {
+  vertical_datum: string | null
+  vertical_reference: string | null
+  geoid_model: string | null
+  benchmark_basis: string | null
 }
 
 interface PointRow {
@@ -44,8 +52,9 @@ interface BoundaryDataRow {
 
 const directSchema = z.object({
   projectName: z.string().min(1),
-  utmZone: z.number().int().min(1).max(60).optional(),
-  hemisphere: z.enum(['N', 'S']).optional(),
+  utmZone: z.number().int().min(1).max(60),
+  hemisphere: z.enum(['N', 'S']),
+  datum: z.string().min(1),
   points: z.array(
     z.object({
       id: z.string().optional(),
@@ -73,7 +82,7 @@ export async function POST(request: NextRequest) {
   const directParsed = directSchema.safeParse(body)
   if (directParsed.success) {
     const input = directParsed.data
-    const geojson = generateGeoJSON(input.points as SurveyPoint[], input.projectName, input.utmZone, input.hemisphere)
+    const geojson = generateGeoJSON(input.points as SurveyPoint[], input.projectName, input.utmZone, input.hemisphere, input.datum)
     return NextResponse.json({
       kind: 'geojson',
       filename: `${input.projectName.replace(/\s+/g, '_')}.geojson`,
@@ -88,7 +97,7 @@ export async function POST(request: NextRequest) {
     const { projectId } = projectParsed.data
 
     const { rows: project } = await db.query<ProjectRow>(
-      'SELECT name, utm_zone, hemisphere FROM projects WHERE id = $1',
+      'SELECT name, utm_zone, hemisphere, datum FROM projects WHERE id = $1',
       [projectId]
     )
     if (!project.length) {
@@ -96,6 +105,18 @@ export async function POST(request: NextRequest) {
     }
 
     const proj = project[0]
+    // Fail closed: converting UTM to lat/lon without a declared zone would
+    // silently assume a zone and produce wrong coordinates.
+    if (!proj.utm_zone || (proj.hemisphere !== 'N' && proj.hemisphere !== 'S') || !proj.datum) {
+      return NextResponse.json(
+        {
+          error:
+            'Project CRS is not declared. Set the datum, UTM zone and hemisphere in Project Settings before exporting GeoJSON.',
+          code: 'CRS_UNDECLARED',
+        },
+        { status: 400 }
+      )
+    }
     const { rows: points } = await db.query<PointRow>(
       `SELECT point_name, easting, northing, elevation, point_type
        FROM survey_points WHERE project_id = $1 ORDER BY point_name`,
@@ -132,11 +153,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'No points found for this project' }, { status: 404 })
     }
 
+    // Declared vertical datum (if any) travels with the ISO metadata so the
+    // export states its height reference instead of implying one.
+    const { rows: prsRows } = await db.query<PrsRow>(
+      'SELECT vertical_datum, vertical_reference, geoid_model, benchmark_basis FROM project_reference_systems WHERE project_id = $1',
+      [projectId]
+    )
+    const prs = prsRows[0]
+
     const geojson = generateGeoJSON(
       surveyPoints,
       proj.name,
-      proj.utm_zone ?? undefined,
-      proj.hemisphere as 'N' | 'S' | undefined,
+      proj.utm_zone,
+      proj.hemisphere as 'N' | 'S',
+      proj.datum,
+      prs
+        ? {
+            datum: prs.vertical_datum ?? undefined,
+            reference: prs.vertical_reference ?? undefined,
+            geoidModel: prs.geoid_model ?? undefined,
+            benchmarkBasis: prs.benchmark_basis ?? undefined,
+          }
+        : undefined,
     )
 
     return NextResponse.json({
@@ -147,7 +185,16 @@ export async function POST(request: NextRequest) {
     })
   }
 
-  return NextResponse.json({ error: 'Invalid request. Provide { projectId } or { projectName, points[] }' }, { status: 400 })
+  const issues = directSchema.safeParse(body).error?.issues
+  const detail = issues?.map((i) => `${i.path.join('.')}: ${i.message}`).join('; ')
+  return NextResponse.json(
+    {
+      error: detail
+        ? `GeoJSON export payload invalid — ${detail}`
+        : 'Invalid request. Provide { projectId } or { projectName, points[], utmZone, hemisphere, datum }',
+    },
+    { status: 400 }
+  )
 }
 
 export async function GET() {
@@ -156,7 +203,8 @@ export async function GET() {
 
   return NextResponse.json({
     endpoint: '/api/compute/export/geojson',
-    description: 'GeoJSON export. Accepts { projectId } or { projectName, points[] }.',
+    description:
+      "GeoJSON export. Accepts { projectId } (project must have a declared CRS) or { projectName, points[], utmZone, hemisphere, datum }.",
     python_required: false,
   })
 }

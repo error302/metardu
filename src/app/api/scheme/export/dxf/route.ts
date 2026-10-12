@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { registerDeliverable } from '@/lib/deliverables/deliverableRegister'
+import { logger } from '@/lib/logger'
 
 interface SchemeParcelRow {
   parcel_number: string
@@ -28,7 +30,7 @@ interface ProjectNameRow {
 
 export const dynamic = 'force-dynamic'
 
-export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, _ctx) => {
+export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
   if (!projectId) {
@@ -152,10 +154,38 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   const projRow: ProjectNameRow | undefined = project.rows[0]
   const fileName = `Scheme_${projRow?.scheme_number || projRow?.name || projectId}.dxf`
 
+  // Register the issued DXF (blueprint §15): a scheme drawing is a
+  // deliverable and must carry its source data revision + content hash.
+  // Registration never blocks the download; a gap is reported, not hidden.
+  let registerWarning: string | null = null
+  try {
+    const { currentDesignRevision } = await import('@/lib/engineering/designRevisions')
+    const design = await currentDesignRevision(projectId, 'scheme_boundary')
+    const registered = await registerDeliverable({
+      projectId,
+      documentType: 'dxf',
+      content: dxfContent,
+      title: `Scheme DXF — ${projRow?.scheme_number || projRow?.name || projectId}`,
+      sourceRevision: design?.revision ?? null,
+      projectCrs: design?.crs ?? null,
+      generator: 'api/scheme/export/dxf',
+      manifest: { scheme_number: projRow?.scheme_number ?? null },
+      userId: ctx.userId,
+    })
+    logger.info('[scheme/export/dxf] registered', {
+      deliverable: registered.deliverable.id,
+      revision: registered.revision.revision,
+    })
+  } catch (error) {
+    registerWarning = error instanceof Error ? error.message : 'register failed'
+    logger.error('[scheme/export/dxf] deliverable not registered', { error })
+  }
+
   return new NextResponse(dxfContent, {
     headers: {
       'Content-Type': 'application/dxf',
       'Content-Disposition': `attachment; filename="${fileName}"`,
+      ...(registerWarning ? { 'X-Metardu-Register-Warning': registerWarning } : {}),
     },
   })
 })

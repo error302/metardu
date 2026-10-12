@@ -109,20 +109,40 @@ The digitizing toolbar (Split / Merge / Reshape / Rotate / Offset) had 8 bugs wh
 - **G-25** Clothoid transition curves — engine exists, no UI
 - **G-26** Earthworks (end-area) — engine exists, no BoQ export
 
-### Field Hardware Integration (P1-11, re-added 2026-07-24)
+### Field Hardware Integration ✅ (completed 2026-08)
 *Source: `docs/GEOMATICS_GAP_ANALYSIS.md` — these were the #1 feature requests
-from Kenyan surveyors but had no ROADMAP home. They close the field-to-finish
-loop so a surveyor can capture, compute, and submit without leaving the browser.*
+from Kenyan surveyors. They close the field-to-finish loop so a surveyor can
+capture, compute, and submit without leaving the browser.*
 
-- **G-27** Total station integration via Web Serial API / USB OTG — live observations into the field book from a connected total station (Topcon, Leica, Sokkia, Trimble). The `InstrumentConnectionPanel` component exists but only mocks the connection. Web Serial is supported in Chrome/Edge; Android via Capacitor Bluetooth plugin already in deps.
-- **G-28** GNSS RTK rover over Bluetooth Low Energy (BLE) — connect to a rover receiver (e.g. Trimble R2, Leica GS18, Emlid Reach RS3) and stream NMEA + RTCM corrections to the `GNSSConnectionPanel`. The `@capacitor-community/bluetooth-le` dep is installed; needs the NMEA parser + RTCM relay wired to the now-deployed `metardu-ntrip` proxy (P0-6).
-- **G-29** Real-time QC dashboard during field observation — show satellite count, PDOP, horizontal/vertical accuracy, fix type (float vs fixed), and correction age live in the field UI. The `RealTimeQCPanel` component exists but is a stub. Depends on G-28 for the data feed.
+- **G-27** Total station integration via Web Serial API / USB OTG ✅
+  - `InstrumentConnectionPanel.tsx` (713 lines) — real dual-mode Serial + BLE UI
+  - `InstrumentSerialConnection.ts` (609 lines) — Web Serial + Capacitor USB OTG
+  - `instrumentCommands.ts` (742 lines) — Leica GeoCOM, Topcon RC-232, Trimble SSV, Sokkia SDR33
+  - `protocolParsers.ts` (783 lines) — auto-detecting stream parser for GSI/Topcon/Trimble/Sokkia/NMEA
+  - `InstrumentStreamBar.tsx` (415 lines) — one-tap measure → fieldbook insertion
+- **G-28** GNSS RTK rover over Bluetooth Low Energy (BLE) ✅
+  - `bluetooth.ts` (258 lines) — Web Bluetooth GATT for Nordic UART, Emlid Reach, HM-10
+  - `capacitor-ble.ts` (502 lines) — Native Android BLE with auto-reconnect + jitter
+  - `gnssBleConnection.ts` (346 lines) — RTCM3 correction injection to rover via BLE
+  - `ntrip-client.ts` (605 lines) — WebSocket NTRIP v1/v2 with RTCM3 decoder
+  - `ntrip-proxy.js` (345 lines) — Dockerized WebSocket-to-TCP bridge with SSRF guards
+- **G-29** Real-time QC dashboard during field observation ✅
+  - `RealTimeQCPanel.tsx` (350 lines) — live running traverse closure, precision ratio, setup verification, and redundant observation discrepancy detector.
+  - Wired directly to `instrumentStore`: displays real-time GNSS RTK fix status (RTK Fixed, Float, DGPS, GPS), satellite count, HDOP signal quality, and live coordinates from streaming receivers and total stations.
+  - Auto-syncs fieldbook observations into the closure monitor on every measurement with statutory survey class tolerances (control, urban, rural, topographic).
 
 ### UX / UI
-- **G-41** Honest error messages — 20+ files emit generic "Failed to X". Tier 0 fixed digitizing area only.
+- **G-41** Honest error messages ✅
+  - `apiHandler.ts`: Natively catches and propagates `AppError` and specialized domain subclasses, preserving HTTP status codes, error codes, and structured `details` payload rather than swallowing into generic 500s.
+  - Added dedicated geomatics diagnostic error classes to `src/lib/api/errors.ts`: `SurveyComputationError` (tolerance vs misclosure), `SingularMatrixError` (rank defect & unconstrained nodes), `GeometricDegeneracyError` (polygon self-intersections/spikes), and `DatumMismatchError`.
+  - Replaced generic "Failed to X" errors with structured diagnostics and surveyor remedies across key adjustment and coordinate routes (`/api/survey/robust-adjustment`, `/api/survey/tls-adjustment`, `/api/geo/align-coordinate`, `/api/geo/calibrate-transformation`, and `/api/survey-plan/export/dxf`).
 - **G-42** Mobile field UI — Capacitor Android app works but iOS unsupported
-- **G-43** Offline tile download — works but no progress indicator
-- **G-44** Coordinate search — supports lat/lon/UTM/DMS but no MGRS
+- **G-43** Offline tile download with live progress indicator ✅
+  - `OfflineTileDownloader.tsx` (576 lines): includes live percentage progress bar, zoom level indicator, downloaded vs skipped/cached counts, disk size accumulation, and abort/cancel handling.
+- **G-44** Coordinate search — supports lat/lon/UTM/DMS and Military Grid Reference System (MGRS) ✅
+  - `coordinates.ts`: bidirectional `latLonToMGRS` and `mgrsToLatLon` conversion functions.
+  - `coordSearch.ts`: regex parser supporting 10-digit, 8-digit, 6-digit, 4-digit, and 2-digit MGRS strings (with or without spaces).
+  - Map search inputs (`MapCoordSearch.tsx`, `MapToolDock.tsx`) updated to support and indicate MGRS queries.
 
 ### Infrastructure
 - **G-61** Redis-backed session store (currently in-memory)
@@ -135,10 +155,17 @@ loop so a surveyor can capture, compute, and submit without leaving the browser.
 ## Tier 3 — Polish & Differentiation (P2)
 
 - **G-71** Topo-plan SVG renderer — align with LinkedIn "State of Kart" reference
-- **G-72** DXF layer standard compliance (see `docs/DXF_LAYER_STANDARD.md`)
-- **G-73** LandXML 1.2 export (currently 1.0)
-- **G-74** IFC 4.3 alignment export
-- **G-75** PDF report templates — 6 generators use hardcoded EPSG in labels (see T1.5 bonus bug)
+- **G-72** DXF layer standard compliance ✅
+  - `dxfLayers.ts` (270 lines): SoK / LISCAD canonical layer registry (`PARCEL_BDY`, `BEACONS`, `CONTROL`, `CONTOURS`, `BMARK`, `ROAD_CENT`, `TITLE_BLK`, etc.) with standard ACI colors and linetypes.
+  - Export engines across cadastral, traverse, topographic, subdivision, long-section, and network adjustment strictly initialize via `initialiseSokDXFLayers()`.
+- **G-73** LandXML 1.2 export ✅
+  - `generateLandXML.ts` (95 lines): Formatted LandXML 1.2 schema compliance (`http://www.landxml.org/schema/LandXML-1.2`) with UTM Transverse Mercator coordinate systems, CgPoints, and SurveyHeaders.
+- **G-74** IFC 4.3 alignment export ✅
+  - `ifc43Alignment.ts` (222 lines) generates buildingSMART IFC 4.3 ADD2 STEP infrastructure files with `IfcProject`, `IfcSite`, `IfcRoad`, `IfcAlignment`, `IfcAlignmentHorizontal`, and `IfcAlignmentVertical`.
+  - Wired into `/api/project/[id]/export/ifc?format=ifc43` with automatic road alignment extraction (`road_alignments`, `alignment_ips`, `alignment_vertical_ips`) and fallback to 3D survey points.
+  - Comprehensive unit test suite added in `src/lib/export/__tests__/ifc43Alignment.test.ts` (all 5 tests passing). Coordinate string interpolation typos fixed.
+- **G-75** PDF report templates coordinate system labels ✅
+  - Hardcoded EPSG strings replaced with dynamic derivation from project's `utmZone`, `datum`, and `hemisphere` across `surveyReport/index.ts`, `surveyPlan/renderer.ts`, `nlimsExporter.ts`, `formC22.ts`, `traverseComputationSheet.ts`, and `areaComputationSheet.ts`. Support for Zone 36S, 37S, and other East African UTM zones verified.
 - **G-76** Marketplace: CPD certificate auto-generation
 - **G-77** Marketplace: AI plan checker
 - **G-78** Multi-language: complete Swahili/Amharic translations (currently ~60% coverage)

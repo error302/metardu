@@ -433,8 +433,6 @@ export default function OrthophotoViewerPage() {
     setTiffFileName(file.name);
 
     try {
-      const arrayBuffer = await file.arrayBuffer();
-
       if (!olMapRef.current) {
         await initMap();
         if (!olMapRef.current) throw new Error('Map failed to initialize');
@@ -455,7 +453,9 @@ export default function OrthophotoViewerPage() {
 
       const source = new GeoTIFFModule.default({
         sources: [{
-          blob: new Blob([arrayBuffer]),
+          // The File is already a Blob. Pass it directly so large local
+          // GeoTIFFs are not copied into an ArrayBuffer and then a second Blob.
+          blob: file,
         }],
       });
 

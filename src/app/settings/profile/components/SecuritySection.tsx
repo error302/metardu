@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { signOut } from 'next-auth/react'
 
 interface SecuritySectionProps {
   email: string
@@ -11,7 +12,27 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
   const [newPassword, setNewPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
   const [status, setStatus] = useState<{ state: 'idle' | 'saving' | 'saved' | 'error'; message?: string }>({ state: 'idle' })
+  const [sessionStatus, setSessionStatus] = useState<{ state: 'idle' | 'saving' | 'error'; message?: string }>({ state: 'idle' })
   const [showPasswords, setShowPasswords] = useState(false)
+
+  const revokeOtherSessions = async () => {
+    if (!window.confirm('Sign out all METARDU devices, including this one? You will need to sign in again.')) return
+
+    setSessionStatus({ state: 'saving' })
+    try {
+      const response = await fetch('/api/auth/sessions/revoke', { method: 'POST' })
+      if (!response.ok) {
+        const error = (await response.json().catch(() => ({ error: 'Could not revoke sessions' }))) as { error?: string }
+        throw new Error(error.error || `Request failed (${response.status})`)
+      }
+      await signOut({ callbackUrl: '/login' })
+    } catch (error) {
+      setSessionStatus({
+        state: 'error',
+        message: error instanceof Error ? error.message : 'Could not revoke sessions. Please try again.',
+      })
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -189,7 +210,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
       <div className="p-5 sm:p-6 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
         <h2 className="text-lg font-semibold text-[var(--text-primary)] mb-1">Active Sessions</h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4">
-          You&apos;re currently signed in on this device.
+          METARDU does not show a device-by-device session list. You can end all active browser sessions below.
         </p>
         <div className="space-y-3">
           <div className="flex items-start gap-3 p-3 rounded-lg bg-[var(--bg-tertiary)]">
@@ -197,58 +218,68 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
               <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
             <div className="flex-1">
-              <p className="text-sm font-medium text-[var(--text-primary)]">Current device</p>
+              <p className="text-sm font-medium text-[var(--text-primary)]">This browser session</p>
               <p className="text-xs text-[var(--text-muted)]">{email}</p>
             </div>
             <span className="text-xs px-2 py-1 rounded bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 font-medium">
-              Active now
+              Signed in
             </span>
           </div>
         </div>
       </div>
 
-      {/* Danger Zone */}
+      {/* Session and account controls */}
       <div className="p-5 sm:p-6 bg-[var(--bg-secondary)] rounded-xl border border-red-200 dark:border-red-900/50">
         <h2 className="text-lg font-semibold text-red-700 dark:text-red-400 mb-1">Danger Zone</h2>
         <p className="text-sm text-[var(--text-secondary)] mb-4">
-          These actions are permanent and cannot be undone.
+          Revoking sessions signs out every browser, including this one. You will need to sign in again.
         </p>
 
         <div className="space-y-3">
-          <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border-color)] flex-wrap">
-            <div className="flex-1 min-w-[200px]">
-              <p className="text-sm font-medium text-[var(--text-primary)]">Sign out of all other devices</p>
-              <p className="text-xs text-[var(--text-muted)]">
-                Revoke all active sessions except this one.
-              </p>
+            <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border-color)] flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-sm font-medium text-[var(--text-primary)]">Sign out this device</p>
+                <p className="text-xs text-[var(--text-muted)]">
+                  End this browser&apos;s METARDU session.
+                </p>
+              </div>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-tertiary)]"
+                onClick={() => void signOut({ callbackUrl: '/login' })}
+              >
+                Sign out
+              </button>
             </div>
-            <button
-              type="button"
-              className="px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg hover:bg-[var(--bg-tertiary)]"
-              onClick={() => {
-                // Defer to NextAuth signOut flow — not yet wired in this prototype
-                alert('This will sign you out everywhere. Feature coming soon.')
-              }}
-            >
-              Sign out everywhere
-            </button>
-          </div>
+
+            <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-[var(--border-color)] flex-wrap">
+              <div className="flex-1 min-w-[200px]">
+                <p className="text-sm font-medium text-[var(--text-primary)]">Sign out other devices</p>
+                <p className="text-xs text-[var(--text-muted)]">Ends every active browser session. This device will be signed out too.</p>
+              </div>
+              <button
+                type="button"
+                disabled={sessionStatus.state === 'saving'}
+                onClick={() => void revokeOtherSessions()}
+                className="px-3 py-1.5 text-xs font-medium border border-red-300 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 disabled:opacity-60"
+              >
+                {sessionStatus.state === 'saving' ? 'Signing out…' : 'Sign out all devices'}
+              </button>
+            </div>
+            {sessionStatus.state === 'error' && <p role="alert" className="text-sm text-red-600 dark:text-red-400">{sessionStatus.message}</p>}
 
           <div className="flex items-center justify-between gap-3 p-3 rounded-lg border border-red-200 dark:border-red-900/50 flex-wrap">
             <div className="flex-1 min-w-[200px]">
-              <p className="text-sm font-medium text-red-700 dark:text-red-400">Delete account</p>
+              <p className="text-sm font-medium text-red-700 dark:text-red-400">Account deletion request</p>
               <p className="text-xs text-[var(--text-muted)]">
-                Permanently delete all projects, observations, and documents. This cannot be reversed.
+                Account deletion is handled through the support process; the in-product deletion workflow is not available.
               </p>
             </div>
             <button
               type="button"
-              className="px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700"
-              onClick={() => {
-                if (confirm('Are you sure? This will permanently delete all your data.')) {
-                  alert('Account deletion requires admin verification. Please contact support@metardu.com.')
-                }
-              }}
+              disabled
+              title="In-product account deletion is not available"
+              className="px-3 py-1.5 text-xs font-medium border border-[var(--border-color)] text-[var(--text-muted)] rounded-lg opacity-60 cursor-not-allowed"
             >
               Delete account
             </button>

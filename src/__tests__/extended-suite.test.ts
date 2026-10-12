@@ -128,7 +128,7 @@ describe('Vertical Curve', () => {
     expect(result.A).toBeCloseTo(-5, 2);
     expect(result.curveType).toBe('crest');
     expect(result.K).toBeCloseTo(40, 0); // K = L / |A| = 200 / 5
-    expect(result.pvtElevation).toBeCloseTo(106, 1); // 100 + 3% × 200m
+    expect(result.pvtElevation).toBeCloseTo(101, 1); // 100 + average(+3%, -2%) × 200m
     expect(result.pvtChainage).toBe(1200);
   });
 

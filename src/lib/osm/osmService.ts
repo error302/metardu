@@ -6,7 +6,7 @@
  *
  * Three capabilities:
  *   1. getOsmFeatures() — Pyrosm local PBF parsing (buildings, roads, POIs by bbox)
- *   2. streamExtract() — Pyosmium streaming extract (memory-efficient)
+ *   2. streamExtract() — optional local-PBF extract (not provisioned by default)
  *   3. getNearbyFeatures() / autoAbuttals() — OSMPythonTools Overpass queries
  */
 
@@ -155,8 +155,9 @@ export async function getOsmStatus(): Promise<OsmStatus | null> {
 /**
  * Stream-extract features from the PBF file to a GeoJSON file on disk.
  *
- * Memory-efficient: processes the PBF node-by-node without loading
- * the whole file into RAM.
+ * Pyosmium reads source entities incrementally, but the current worker holds
+ * selected output features in memory before writing. This optional endpoint
+ * is not provisioned by default and is not ready for broad extracts.
  *
  * @param outputPath - Where to write the output GeoJSON
  * @param bbox - Optional bounding box [minlon, minlat, maxlon, maxlat]

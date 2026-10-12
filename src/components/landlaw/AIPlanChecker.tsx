@@ -107,10 +107,10 @@ export default function AIPlanChecker() {
       <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg p-4 border border-blue-200">
         <h3 className="font-semibold text-blue-900 flex items-center gap-2">
           <FileCheck className="w-5 h-5" />
-          AI Plan Compliance Checker
+          Survey Plan Review Assistant
         </h3>
         <p className="text-sm text-blue-700 mt-1">
-          Automatically check survey plans against Kenya Survey Regulations and RDM 1.1 standards
+          Run preliminary geometry and document checks. Results are not a legal compliance certificate or registry approval; confirm current requirements with a licensed surveyor.
         </p>
       </div>
 
@@ -267,7 +267,7 @@ export default function AIPlanChecker() {
             className="w-full py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-2"
           >
             <RefreshCw className="w-4 h-4" />
-            Run Compliance Check
+            Run Preliminary Checks
           </button>
         </div>
 
@@ -276,7 +276,7 @@ export default function AIPlanChecker() {
             <div className="space-y-4">
               <div className="flex items-center justify-between p-4 bg-gray-100 rounded-lg">
                 <div>
-                  <p className="text-sm text-gray-600">Compliance Score</p>
+                  <p className="text-sm text-gray-600">Review Indicator</p>
                   <p className={`text-3xl font-bold ${getScoreColor(report.score)}`}>
                     {report.score}%
                   </p>
@@ -294,14 +294,14 @@ export default function AIPlanChecker() {
               {report.overallPass && (
                 <div className="p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
                   <CheckCircle className="w-5 h-5 text-green-600" />
-                  <span className="text-green-800 font-medium">Plan passes compliance checks</span>
+                  <span className="text-green-800 font-medium">No issues were flagged by these checks</span>
                 </div>
               )}
 
               {!report.overallPass && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
                   <XCircle className="w-5 h-5 text-red-600" />
-                  <span className="text-red-800 font-medium">Plan has compliance issues</span>
+                  <span className="text-red-800 font-medium">Potential issues found — licensed surveyor review required</span>
                 </div>
               )}
 

@@ -18,6 +18,7 @@ import {
   ArrowLeft, ArrowRight, CheckCircle2, CloudUpload, CloudOff,
 } from 'lucide-react'
 import { BeaconPhotoCapture, type CapturedBeaconPhoto } from './BeaconPhotoCapture'
+import { RapidPointKeypad } from './RapidPointKeypad'
 import { VoiceDictationButton } from '@/components/shared/VoiceDictationButton'
 import { logger } from '@/lib/logger'
 
@@ -115,7 +116,7 @@ export interface UniversalMobileObservationFormProps {
   stationName?: string
   /**
    * Called when the user saves a reading. Returns the row plus any
-   * captured beacon photos with embedded EXIF GPS data.
+   * captured original photos and device EXIF metadata.
    */
   onAdd: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void
   onClose: () => void
@@ -146,6 +147,7 @@ export function UniversalMobileObservationForm({
   const fields = FIELD_SETS[surveyType]
   const screens = WIZARD_SCREENS[surveyType]
   const meta = TYPE_META[surveyType]
+  const stationKey = useMemo(() => fields.find((f) => f.station)?.key ?? 'station', [fields])
 
   const buildInitial = useCallback((forChain: boolean): Record<string, string> => {
     const obj: Record<string, string> = {}
@@ -452,6 +454,28 @@ export function UniversalMobileObservationForm({
                 </div>
               </div>
             ))}
+
+            {/* Rapid Feature Code Keypad & Voice Logger */}
+            {currentScreenFields.some((f) => f.station || f.key === 'remarks') && (
+              <div className="pt-2">
+                <RapidPointKeypad
+                  pointName={form[stationKey] || ''}
+                  onPointNameChange={(val) => {
+                    setForm((prev) => ({ ...prev, [stationKey]: val }))
+                  }}
+                  description={form.remarks || ''}
+                  onDescriptionChange={(val) => {
+                    setForm((prev) => ({ ...prev, remarks: val }))
+                  }}
+                  onFeatureSelect={(feat) => {
+                    setForm((prev) => ({
+                      ...prev,
+                      remarks: prev.remarks ? `${prev.remarks} · ${feat.code}` : feat.defaultDesc,
+                    }))
+                  }}
+                />
+              </div>
+            )}
 
             {onPullInstrumentReading && (
               <button

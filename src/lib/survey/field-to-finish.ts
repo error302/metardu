@@ -31,6 +31,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { bowditchAdjustment, transitAdjustment, type TraverseInput, type SurveyTypeKey, evaluateTraverseClosure } from '@/lib/engine/traverse';
+import { hasCrossingBoundary } from './boundaryValidity';
 import { toRadians } from '@/lib/engine/angles';
 import { reduceEDMObservation } from './adapter';
 import { computeArea, computeClosureCheck } from '@/lib/compute/deedPlan';
@@ -49,6 +50,8 @@ export interface FieldObservation {
   bearing?: number;
   /** Slope distance in metres */
   slopeDistance: number;
+  /** Explicitly reduced grid observations must not receive EDM corrections twice. */
+  distanceType?: 'grid' | 'slope';
   /** Vertical angle (decimal degrees) */
   verticalAngle?: number;
   /** Instrument height */
@@ -192,6 +195,12 @@ export async function fieldToFinish(input: FieldToFinishInput): Promise<FieldToF
   const correctedDistances: number[] = [];
 
   for (const obs of processedObs) {
+    if (obs.distanceType === 'grid') {
+      corrections.push({from:obs.fromStation,to:obs.toStation,rawSlopeDistance:obs.slopeDistance,correctedDistance:obs.slopeDistance,horizontalDistance:obs.slopeDistance,gridDistance:obs.slopeDistance,atmosphericPPM:0,curvatureRefractionMM:0,scaleFactor:1});
+      correctedBearings.push(obs.bearing);
+      correctedDistances.push(obs.slopeDistance);
+      continue;
+    }
     const edmResult = reduceEDMObservation({
       slopeDistance: obs.slopeDistance,
       verticalAngle: obs.verticalAngle || 0,
@@ -277,7 +286,8 @@ export async function fieldToFinish(input: FieldToFinishInput): Promise<FieldToF
   });
 
   // ── Step 7: Compute area ──
-  const boundaryPoints: BoundaryPoint[] = adjustedPoints.map((p, i) => ({
+  const polygonPoints = input.mode === 'closed' ? adjustedPoints.slice(0,-1) : adjustedPoints;
+  const boundaryPoints: BoundaryPoint[] = polygonPoints.map((p, i) => ({
     id: p.name || `P${i}`,
     easting: p.easting,
     northing: p.northing,
@@ -330,6 +340,11 @@ export async function fieldToFinish(input: FieldToFinishInput): Promise<FieldToF
 
   // ── Step 8: Determine final status ──
   let status: FieldToFinishResult['status'] = 'ready';
+
+  if (input.mode !== 'open' && (!Number.isFinite(areaResult.squareMetres) || areaResult.squareMetres <= 0 || hasCrossingBoundary(polygonPoints))) {
+    status = 'failed';
+    errors.push('Invalid parcel boundary: crossing edges or zero area. Check station order and observations.');
+  }
 
   if (!closureEval.passes && input.mode !== 'open') {
     status = 'failed';

@@ -101,9 +101,11 @@ export interface ProjectData {
   client_name?: string | null
   surveyor_name?: string | null
   created_at: string
+  datum?: string | null
 }
 
 export interface PointData {
+  is_boundary?: boolean
   name: string
   easting: number
   northing: number
@@ -112,6 +114,8 @@ export interface PointData {
 }
 
 export interface TraverseData {
+  computedAt?: string
+  source?: string
   totalDistance: number
   closingErrorE: number
   closingErrorN: number
@@ -156,13 +160,14 @@ function docHeader(title: string, project: ProjectData, surveyorDetails: Record<
       <div style="font-size:11px;color:#555;margin-top:4px;">
         Project: <strong>${esc(project.name)}</strong> &nbsp;|&nbsp;
         Date: ${today} &nbsp;|&nbsp;
-        UTM: Zone ${project.utm_zone}${project.hemisphere}
+        UTM: Zone ${project.utm_zone}${project.hemisphere} &nbsp;|&nbsp; Datum: ${esc(project.datum || 'Not recorded')}
       </div>
     </div>
-  </div>`
+  </div>
+  <div class="highlight"><strong>DRAFT — NOT CERTIFIED.</strong> Prepared from saved project data. Independent surveyor review, supporting evidence and signatures are required before use.</div>`
 }
 
-function signatureBlock(surveyorName: string, licenceNo: string, role: string = 'Licensed Surveyor'): string {
+function signatureBlock(surveyorName: string, licenceNo: string, role: string = 'Prepared by — professional credentials unverified'): string {
   return `
   <div style="margin-top:40px;display:flex;gap:60px;">
     <div style="flex:1;">
@@ -199,7 +204,10 @@ function pageStyles(): string {
     .highlight { background: #fff8f0; border-left: 3px solid #D17B47; padding: 8px 12px; margin: 10px 0; font-size: 11px; }
     .pass { color: #16a34a; font-weight: 700; }
     .fail { color: #dc2626; font-weight: 700; }
-    @media print { body { padding: 10px; } }
+    thead { display: table-header-group; }
+    tr, .box { break-inside: avoid; }
+    @page { size: A4; margin: 15mm; }
+    @media print { body { padding: 0; max-width: none; } }
   </style>`
 }
 
@@ -230,11 +238,10 @@ export function generateCoverLetter(
 
   <p>The following documents are enclosed:</p>
   <ol style="font-size:12px;line-height:1.8;">
-    ${(extraFields.enclosures || 'Survey plan\nField notes\nComputation sheet').split('\n').map((e: string) => `<li>${e.trim()}</li>`).join('')}
+    ${(extraFields.enclosures || '[List the documents actually enclosed]').split('\n').map((e: string) => `<li>${esc(e.trim())}</li>`).join('')}
   </ol>
 
-  <p>The survey was carried out in accordance with the applicable national standards and regulations. 
-  All computations have been independently checked. ${esc(extraFields.closureNote || '')}</p>
+  <p>Review status: independent checking and compliance have not been confirmed by this generated draft. ${esc(extraFields.closureNote || '')}</p>
 
   <p>Should you require any clarification or additional information, please do not hesitate to contact us.</p>
 
@@ -250,6 +257,9 @@ export function generateComputationSheet(
   traverse?: TraverseData,
   area?: AreaData
 ): string {
+  if (!points.length || points.some(p => !Number.isFinite(p.easting) || !Number.isFinite(p.northing))) {
+    throw new Error('No valid saved coordinates are available. Compute the field book before generating this sheet.')
+  }
   const typeLabel = (project.survey_type || 'Survey').charAt(0).toUpperCase() + (project.survey_type || 'survey').slice(1)
 
   const coordTable = `
@@ -264,7 +274,7 @@ export function generateComputationSheet(
         <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
         <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
         <td style="font-family:monospace">${p.elevation != null ? p.elevation.toFixed(3) : '—'}</td>
-        <td>${p.is_control ? 'Control' : 'Detail'}</td>
+        <td>${p.is_control ? 'Recorded control' : p.is_boundary ? 'Boundary' : 'Detail'}</td>
       </tr>`).join('')}
     </tbody>
   </table>`
@@ -274,11 +284,13 @@ export function generateComputationSheet(
   <div class="grid3">
     <div class="box"><div class="label">Total distance</div><div class="value">${traverse.totalDistance.toFixed(4)} m</div></div>
     <div class="box"><div class="label">Linear misclosure</div><div class="value">${traverse.linearError.toFixed(6)} m</div></div>
-    <div class="box"><div class="label">Precision ratio</div><div class="value">1 : ${Math.round(1/traverse.precisionRatio).toLocaleString()}</div></div>
+    <div class="box"><div class="label">Precision ratio</div><div class="value">${traverse.linearError < 0.000000001 ? 'No measurable numerical misclosure' : `1 : ${Math.round(traverse.precisionRatio).toLocaleString('en-GB')}`}</div></div>
     <div class="box"><div class="label">Closing error E</div><div class="value">${traverse.closingErrorE >= 0 ? '+' : ''}${traverse.closingErrorE.toFixed(6)} m</div></div>
     <div class="box"><div class="label">Closing error N</div><div class="value">${traverse.closingErrorN >= 0 ? '+' : ''}${traverse.closingErrorN.toFixed(6)} m</div></div>
-    <div class="box"><div class="label">Grade</div><div class="value ${traverse.precisionGrade === 'Excellent' || traverse.precisionGrade === 'Good' ? 'pass' : ''}">${traverse.precisionGrade}</div></div>
-  </div>` : ''
+    <div class="box"><div class="label">Numerical check</div><div class="value">${esc(traverse.precisionGrade)}</div></div>
+  </div>
+  <p>Angular closure: unverified — independent angular observations are not included in this sheet.</p>
+  <p>Computation source: ${esc(traverse.source || 'Not recorded')}. Computed at: ${esc(traverse.computedAt || 'Not recorded')}.</p>` : '<p>Traverse closure: unverified — no saved traverse computation is available.</p>'
 
   const areaSection = area ? `
   <h2>Area Computation</h2>
@@ -309,7 +321,7 @@ export function generateComputationSheet(
   ${traverseSection}
   ${areaSection}
   <div class="highlight">
-    I certify that the above computations are correct and have been independently checked.
+    Review pending. Numerical closure does not establish control accuracy, boundary identity or legal acceptance. Record the independent check before signing.
   </div>
   ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '')}
   </body></html>`
@@ -321,17 +333,16 @@ export function generateAreaCertificate(
   area?: AreaData,
   extraFields?: Record<string,string>
 ): string {
+  if (!area || !Number.isFinite(area.squareMeters) || area.squareMeters <= 0) throw new Error('A valid saved area computation is required before preparing an area statement.')
   const today = new Date().toLocaleDateString('en-GB', { day:'numeric', month:'long', year:'numeric' })
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Area Certificate</title>${pageStyles()}</head><body>
-  ${docHeader('Area Certificate', project, surveyorDetails)}
+  ${docHeader('Draft Area Statement', project, surveyorDetails)}
 
   <div style="text-align:center;margin:30px 0 20px;">
-    <div style="font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">Certificate of Area</div>
+    <div style="font-size:18px;font-weight:700;text-transform:uppercase;letter-spacing:2px;">Draft Area Statement</div>
   </div>
 
-  <p>I, <strong>${esc(project.surveyor_name || surveyorDetails.name || '[Surveyor Name]')}</strong>,
-  ${surveyorDetails.licence ? `Licensed Surveyor No. <strong>${surveyorDetails.licence}</strong>,` : ''}
-  hereby certify that I have surveyed the land known as:</p>
+  <p>Prepared for review by <strong>${esc(project.surveyor_name || surveyorDetails.name || '[Reviewer not recorded]')}</strong>, for:</p>
 
   <div class="box" style="margin:16px 0;text-align:center;">
     <div style="font-size:14px;font-weight:700;">${esc(project.name)}</div>
@@ -360,12 +371,10 @@ export function generateAreaCertificate(
   <p>Perimeter: <strong>${area.perimeter.toFixed(3)} m</strong></p>` 
   : '<div class="box" style="text-align:center;padding:24px;">[Area to be computed and entered here]</div>'}
 
-  <p>This certificate is issued on <strong>${today}</strong> and is valid for purposes of 
-  property registration, valuation, and legal documentation.</p>
+  <p>This draft was generated on <strong>${today}</strong>. It does not certify a survey or establish suitability for property registration, valuation or legal documentation.</p>
 
   <div class="highlight">
-    This area was computed from survey coordinates obtained by field observation. 
-    All measurements were taken in accordance with applicable survey standards.
+    Verify the coordinate source, boundary sequence, datum, control evidence and independent area calculation before certification.
   </div>
 
   ${signatureBlock(project.surveyor_name || surveyorDetails.name || '', surveyorDetails.licence || '', 'Licensed Surveyor / Registered Surveyor')}
@@ -396,7 +405,7 @@ export function generateFieldNotes(
     <div class="box"><div class="label">Instrument</div><div class="value">${esc(extraFields.instrument || '—')}</div></div>
     <div class="box"><div class="label">Serial number</div><div class="value">${esc(extraFields.serial || '—')}</div></div>
     <div class="box"><div class="label">Team members</div><div class="value">${esc(extraFields.team || '—')}</div></div>
-    <div class="box"><div class="label">UTM zone / Datum</div><div class="value">Zone ${project.utm_zone}${project.hemisphere} / ${esc(extraFields.datum || 'Arc 1960')}</div></div>
+    <div class="box"><div class="label">UTM zone / Datum</div><div class="value">Zone ${project.utm_zone}${project.hemisphere} / ${esc(extraFields.datum || project.datum || 'Not recorded')}</div></div>
   </div>
 
   <h2>Control Points Used (${controlPts.length})</h2>
@@ -408,7 +417,7 @@ export function generateFieldNotes(
             <td><strong>${esc(p.name)}</strong></td>
             <td style="font-family:monospace">${p.easting.toFixed(4)}</td>
             <td style="font-family:monospace">${p.northing.toFixed(4)}</td>
-            <td>${esc(extraFields[`beacon_${p.name}`] || 'Existing beacon — found and used')}</td>
+            <td>${esc(extraFields[`beacon_${p.name}`] || 'Physical monument evidence not recorded')}</td>
           </tr>`).join('')
         : '<tr><td colspan="4" style="text-align:center;color:#888;">No control points recorded</td></tr>'}
     </tbody>
@@ -442,11 +451,11 @@ export function generateBeaconDescriptions(
   points: PointData[],
   extraFields: Record<string,string>
 ): string {
-  const beacons = points.filter((p: PointData) => p.is_control)
+  const beacons = points.filter((p: PointData) => p.is_control || p.is_boundary)
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Beacon Descriptions</title>${pageStyles()}</head><body>
   ${docHeader('Beacon Descriptions', project, surveyorDetails)}
 
-  <p>The following boundary beacons were found and/or placed during the survey of 
+  <p>The following recorded boundary/control coordinates require physical monument verification for
   <strong>${esc(project.name)}</strong> at <strong>${esc(project.location || '[Location]')}</strong>.</p>
 
   ${beacons.length === 0 
@@ -465,7 +474,7 @@ export function generateBeaconDescriptions(
     <div style="margin-top:8px;">
       <div class="label">Beacon type and condition</div>
       <div style="border:1px solid #ddd;min-height:24px;padding:4px 8px;margin-top:2px;font-size:11px;">
-        ${esc(extraFields[`beacon_type_${pt.name}`] || 'Concrete beacon with iron pin — [condition]')}
+        ${esc(extraFields[`beacon_type_${pt.name}`] || 'Not recorded — verify in the field')}
       </div>
     </div>
     <div style="margin-top:8px;">
@@ -542,7 +551,7 @@ export function generateMutationForm(
   area?: AreaData,
   extraFields?: Record<string,string>
 ): string {
-  const beacons = points.filter((p: PointData) => p.is_control)
+  const beacons = points.filter((p: PointData) => p.is_control || p.is_boundary)
   const ex = extraFields || {}
 
   return `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Mutation Form</title>${pageStyles()}</head><body>

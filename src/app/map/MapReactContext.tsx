@@ -11,7 +11,7 @@
 
 import React, { createContext, useContext } from 'react'
 import type { BasemapMode, DrawMode, MeasureMode } from '@/hooks/useMapTypes'
-import type { StakeoutState } from '@/lib/map/stakeout'
+import type { StakeoutState } from '@/lib/surveyMapEngine/ol/stakeout'
 import type { PaperSize, Orientation, PrintOptions } from '@/hooks/usePrint'
 
 // ─── Context Value Type ──────────────────────────────────────────────────
@@ -36,14 +36,16 @@ export interface MapContextValue {
   drawMode: DrawMode
   measureMode: MeasureMode
   editMode: boolean
-  mouseCoord: { lon: number; lat: number; e: number; n: number } | null
+  mouseCoord: { lon: number; lat: number; e: number | null; n: number | null; epsg: string | null } | null
   gpsTracking: boolean
   gpsPos: { lon: number; lat: number; accuracy: number } | null
   featureCount: number
+  projectPointsError: string | null
   importMsg: string
   panelOpen: boolean
   dragHint: boolean
   selectedFeature: import('ol/Feature').default | null
+  selectedFeatures: import('ol/Feature').default[]
   featureName: string
   measureResult: string
   layerOpacity: number
@@ -52,6 +54,7 @@ export interface MapContextValue {
   stakeoutState: StakeoutState | null
   audioMuted: boolean
   saveMsg: string
+  setSaveMsg: React.Dispatch<React.SetStateAction<string>>
   offlineDialogOpen: boolean
   showAnnotations: boolean
   projectSearch: string
@@ -83,11 +86,11 @@ export interface MapContextValue {
   }
   vertexEditingVertices: Array<{ easting: number; northing: number }>
 
-  // ── GPS in EPSG:21037 (for StakeoutPanel) ──
-  gpsPos21037: { easting: number; northing: number; accuracy: number } | null
+  // ── GPS in the declared project survey CRS (for StakeoutPanel) ──
+  gpsPosInSurveyCrs: { easting: number; northing: number; accuracy: number } | null
 
-  // ── Projection state (Tier 2) ──
-  activeProjection: string
+  // ── Explicit unlinked survey grid selection ──
+  activeSurveyCrs: string
 
   // ── Print state (Tier 1) ──
   showSheetLayout: boolean
@@ -139,10 +142,9 @@ export interface MapContextValue {
   // spawning a duplicate feature on every drag tick, and lets the user
   // rotate the same polygon multiple times without re-activating the tool.
   applyOneShotTool: () => void
-  // T0.5 FIX (2026-07-09): The active UTM EPSG code (e.g. 'EPSG:21037') used
-  // for geometry math. Derived from activeProjection. Panels can display this
-  // so users know which CRS their digitizing operations are happening in.
-  currentUtmEpsg: string
+  // The authoritative grid for survey calculations. Linked projects use their
+  // saved declaration; an unlinked map has a grid only after explicit choice.
+  currentSurveyCrs: string | null
   snappingEnabled: boolean
   setSnappingEnabled: (v: boolean) => void
   showSnappingOptions: boolean
@@ -194,7 +196,7 @@ export interface MapContextValue {
   cancelTraverseParcel: () => void
 
   // ── Projection actions (Tier 2) ──
-  switchProjection: (projection: string) => void
+  selectSurveyGrid: (crs: string) => void
 
   // ── Print actions (Tier 1) ──
   printMap: (overrides?: Partial<PrintOptions>) => Promise<void>

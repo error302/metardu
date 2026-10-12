@@ -12,14 +12,25 @@ describe('computeESA', () => {
     expect(result.esaMillions).toBeCloseTo(7.3, 1)
   })
 
+  it('rejects non-finite and out-of-range traffic assumptions', () => {
+    expect(() => computeESA({
+      aadt: Number.NaN, heavyVehiclePercentage: 20, growthRate: 0, designPeriod: 20,
+      directionalSplit: 0.5, laneFactor: 1, numberOfLanes: 2, vehicleDamageFactor: 1,
+    })).toThrow(/AADT/i)
+    expect(() => computeESA({
+      aadt: 1000, heavyVehiclePercentage: 120, growthRate: 0, designPeriod: 20,
+      directionalSplit: 0.5, laneFactor: 1, numberOfLanes: 2, vehicleDamageFactor: 1,
+    })).toThrow(/heavy-vehicle/i)
+  })
+
   it('ESA increases with growth rate', () => {
     const noGrowth = computeESA({
       aadt: 5000, heavyVehiclePercentage: 15, growthRate: 0,
-      designPeriod: 20, directionalSplit: 0.5, laneFactor: 1.0, numberOfLanes: 2,
+      designPeriod: 20, directionalSplit: 0.5, laneFactor: 1.0, numberOfLanes: 2, vehicleDamageFactor: 1.0,
     })
     const withGrowth = computeESA({
       aadt: 5000, heavyVehiclePercentage: 15, growthRate: 5,
-      designPeriod: 20, directionalSplit: 0.5, laneFactor: 1.0, numberOfLanes: 2,
+      designPeriod: 20, directionalSplit: 0.5, laneFactor: 1.0, numberOfLanes: 2, vehicleDamageFactor: 1.0,
     })
     expect(withGrowth.esa).toBeGreaterThan(noGrowth.esa)
   })
@@ -93,6 +104,13 @@ describe('designPavement', () => {
     // 3000 * 0.20 * 0.5 * 0.85 * 1.5 * 365 * 20 * growth factor ≈ several million
     expect(['T2', 'T3', 'T4']).toContain(result.trafficClass)
   })
+
+  it('rejects out-of-range CBR instead of returning a catalog structure', () => {
+    expect(() => designPavement({
+      aadt: 1000, heavyVehiclePercentage: 10, growthRate: 2, designPeriod: 20,
+      directionalSplit: 0.5, laneFactor: 1, numberOfLanes: 2, vehicleDamageFactor: 1,
+    }, { cbr: 0 })).toThrow(/CBR/i)
+  })
 })
 
 describe('computeLayerQuantities', () => {
@@ -105,6 +123,7 @@ describe('computeLayerQuantities', () => {
     expect(quantities).toHaveLength(2)
     // AC: 1000 * 7.0 * 0.050 = 350 m³
     expect(quantities[0].volumeM3).toBe(350)
+    expect(quantities[0].tonnage).toBe(840)
     // Base: 1000 * 7.0 * 0.150 = 1050 m³
     expect(quantities[1].volumeM3).toBe(1050)
   })
@@ -114,5 +133,11 @@ describe('computeLayerQuantities', () => {
     const q = computeLayerQuantities(layers, 500, 6.5)
     expect(q[0].tonnage).toBeGreaterThan(0)
     expect(q[0].density).toBe(2400)
+  })
+
+  it('does not invent geometry or densities for quantity calculations', () => {
+    const layer = [{ name: 'Custom', material: 'Unconfigured', thicknessMm: 100, description: '', color: '' }]
+    expect(() => computeLayerQuantities(layer, 100, 7)).toThrow(/density/i)
+    expect(() => computeLayerQuantities(layer, 0, 7)).toThrow(/length/i)
   })
 })

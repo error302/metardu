@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react'
 import Link from 'next/link'
@@ -30,7 +30,7 @@ export default function NewProjectPage() {
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [detecting, setDetecting] = useState(false)
-  
+
   const [polygonCoordinates, setPolygonCoordinates] = useState<number[][]>([])
   const [estimatedArea, setEstimatedArea] = useState<number | null>(null)
 
@@ -66,7 +66,7 @@ export default function NewProjectPage() {
         const { zone, hemisphere: hem, description } = getUTMZoneFromLatLng(pos.coords.latitude, pos.coords.longitude)
         setUtmZone(String(zone)); setHemisphere(hem as 'N' | 'S')
         setDetecting(false)
-        setError(`Detected: Zone ${zone}${hem} â€” ${description}`)
+        setError(`Detected: Zone ${zone}${hem} — ${description}`)
         setTimeout(() => setError(''), 5000)
       },
       () => { setDetecting(false); setError('Could not get location. Check GPS permissions.') }
@@ -131,23 +131,22 @@ export default function NewProjectPage() {
 
       const project = json.data
       if (!project) {
-        setError('Failed to create project â€” missing response data')
+        setError('Failed to create project — missing response data')
         setLoading(false)
         return
       }
       setContextCountry(selectedCountry)
-
-      // Tick the onboarding checklist â€” the project now exists.
+      // Tick the onboarding checklist — the project now exists.
       markOnboardingStepComplete('create-project')
 
-      // Land in the survey workspace, not back on the dashboard.
+      // Land in the project workspace, not back on the dashboard.
       if (projectType === 'scheme') {
         router.push(`/project/${project.id}/scheme`)
       } else {
-        router.push(`/survey/${project.id}`)
+        router.push(`/project/${project.id}`)
       }
     } catch (err: unknown) {
-      setError((err as Error).message || 'Network error â€” please try again')
+      setError((err as Error).message || 'Network error — please try again')
       setLoading(false)
     }
   }
@@ -186,7 +185,7 @@ export default function NewProjectPage() {
 
           {/* 1-Click Survey Type Presets */}
           <div className="mt-4 p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl">
-            <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">âš¡ 1-Click Survey Presets</span>
+            <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">1-Click Survey Presets</span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
@@ -205,7 +204,7 @@ export default function NewProjectPage() {
                 type="button"
                 onClick={() => {
                   setSurveyType('engineering')
-                  setProjectType('medium')
+                  setProjectType('small')
                   setName(name || 'Road Corridor Alignment')
                 }}
                 className="px-3 py-2 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 text-left transition"
@@ -290,7 +289,7 @@ export default function NewProjectPage() {
           {/* Interactive Boundary Selector */}
           <div>
             <div className={labelClass}>Project Boundary Map</div>
-            <BoundarySelectorMap 
+            <BoundarySelectorMap
               className="w-full h-64 mb-2"
               onBoundaryChange={(coords, area, center) => {
                 setPolygonCoordinates(coords)
@@ -361,7 +360,7 @@ export default function NewProjectPage() {
 
           {/* UTM Zone */}
           <div>
-            <label htmlFor="utm-zone" className={labelClass}>UTM Zone (1â€“60)</label>
+            <label htmlFor="utm-zone" className={labelClass}>UTM Zone (1–60)</label>
             <div className="grid grid-cols-2 gap-4">
               <input id="utm-zone" type="number" value={utmZone} onChange={e => setUtmZone(e.target.value)}
                 className={inputClass} min={1} max={60} required />
@@ -371,7 +370,7 @@ export default function NewProjectPage() {
                     className={`flex-1 py-3 text-sm font-medium transition-colors ${
                       hemisphere === h ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}>
-                    {h === 'N' ? <><span className="sm:hidden">N</span><span className="hidden sm:inline">N â€” Northern</span></> : <><span className="sm:hidden">S</span><span className="hidden sm:inline">S â€” Southern</span></>}
+                    {h === 'N' ? <><span className="sm:hidden">N</span><span className="hidden sm:inline">N — Northern</span></> : <><span className="sm:hidden">S</span><span className="hidden sm:inline">S — Southern</span></>}
                   </button>
                 ))}
               </div>

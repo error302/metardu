@@ -10,6 +10,8 @@ import { parseDXFFileContent } from './parseDXF'
 import { parsePDFContent } from './parsePDF'
 import { parseGLTFFile, parseOBJFile } from './parse3D'
 import { parseBOQSpreadsheet } from './parseBOQ'
+import { parseIFCFile } from './parseIFC'
+import { parseImageFile } from './parseImage'
 
 export interface RouteFileOptions {
   file: File
@@ -91,18 +93,22 @@ async function parseDXF(file: File, _base: ParsedInput): Promise<ParsedInput> {
 }
 
 async function parseDWG(file: File, base: ParsedInput): Promise<ParsedInput> {
-  return {
-    ...base,
-    errors: ['DWG files require conversion to DXF. Please export from AutoCAD as DXF or use LibreCAD.'],
+  try {
+    const { convertDWGtoDXF } = await import('@/lib/importers/parsers/dwg')
+    const dxfContent = await convertDWGtoDXF(file)
+    const result = await parseDXFFileContent(dxfContent, file.name)
+    // Update the base type to reflect it came from DWG but was parsed as DXF
+    return { ...result, type: 'DWG' }
+  } catch (err: any) {
+    return {
+      ...base,
+      errors: [`DWG conversion failed: ${err.message}`],
+    }
   }
 }
 
 async function parseIFC(file: File, base: ParsedInput): Promise<ParsedInput> {
-  return {
-    ...base,
-    errors: ['IFC parsing not yet implemented'],
-    warnings: ['Install web-ifc to enable IFC/BIM parsing'],
-  }
+  return await parseIFCFile(file, base)
 }
 
 async function parsePDF(file: File, _base: ParsedInput): Promise<ParsedInput> {
@@ -110,11 +116,7 @@ async function parsePDF(file: File, _base: ParsedInput): Promise<ParsedInput> {
 }
 
 async function parseImage(file: File, base: ParsedInput): Promise<ParsedInput> {
-  return {
-    ...base,
-    errors: ['Image parsing not yet implemented'],
-    warnings: ['Image parsing requires AI vision. Coming soon.'],
-  }
+  return await parseImageFile(file, base)
 }
 
 async function parseGLTF(file: File, _base: ParsedInput): Promise<ParsedInput> {

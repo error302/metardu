@@ -5,7 +5,7 @@
  * Positioned at bottom-center of the map for mobile field use.
  * Shows distance, bearing, accuracy, elevation diff, and proximity progress.
  * Includes audio mute toggle and cancel stakeout button.
- * Auto-hides when arrived (<1m for 3 seconds).
+ * Remains visible until cancelled; proximity is not survey acceptance.
  *
  * Touch-friendly with large text for field use.
  *
@@ -15,6 +15,9 @@
 
 import React, { memo, useState, useEffect, useRef, useMemo } from 'react'
 import { useMapContext } from '@/app/map/MapReactContext'
+import { ARRIVAL_TOLERANCE_M, NEAR_TARGET_TOLERANCE_M } from '@/lib/surveyMapEngine/ol/stakeout'
+import { stakeoutVoice } from '@/lib/surveyMapEngine/ol/stakeoutVoice'
+import { Volume2, VolumeX } from 'lucide-react'
 
 export const StakeoutPanel = memo(function StakeoutPanel() {
   const {
@@ -36,35 +39,38 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
     [stakeoutTarget]
   )
 
-  const gpsAccuracy = gpsPos?.accuracy ?? 0
-
-  const [arrivedStartTime, setArrivedStartTime] = useState<number | null>(null)
-  const [autoHidden, setAutoHidden] = useState(false)
+  const gpsAccuracy = gpsPos && Number.isFinite(gpsPos.accuracy) && gpsPos.accuracy > 0
+    ? gpsPos.accuracy : null
   const panelRef = useRef<HTMLDivElement>(null)
 
-  // Auto-hide when arrived (<1m) for 3 continuous seconds
-  useEffect(() => {
-    if (!stakeoutState) return
+  const [voiceEnabled, setVoiceEnabled] = useState(true)
 
-    if (stakeoutState.proximityColor === 'green') {
-      if (!arrivedStartTime) {
-        setArrivedStartTime(Date.now())
-      } else if (Date.now() - arrivedStartTime > 3000) {
-        setAutoHidden(true)
-      }
-    } else {
-      setArrivedStartTime(null)
-      setAutoHidden(false)
+  // Spoken voice guidance for hands-free stakeout
+  useEffect(() => {
+    if (!active || !target || !stakeoutState || !voiceEnabled || audioMuted) {
+      stakeoutVoice.stop()
+      return
     }
-  }, [stakeoutState, arrivedStartTime])
 
-  // Reset auto-hide when stakeout changes
+    stakeoutVoice.speakGuidance({
+      distance: stakeoutState.distance,
+      dE: stakeoutState.dE,
+      dN: stakeoutState.dN,
+      bearing: stakeoutState.bearing,
+      elevationDiff: stakeoutState.elevationDiff,
+      arrivalAssessment: stakeoutState.arrivalAssessment,
+      enabled: voiceEnabled && !audioMuted,
+    })
+  }, [active, target, stakeoutState, voiceEnabled, audioMuted])
+
+  // Stop voice on unmount or cancel
   useEffect(() => {
-    setAutoHidden(false)
-    setArrivedStartTime(null)
-  }, [target])
+    return () => {
+      stakeoutVoice.stop()
+    }
+  }, [])
 
-  if (!active || !target || autoHidden) return null
+  if (!active || !target) return null
 
   const proximityColorMap = {
     green: {
@@ -97,9 +103,9 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
     ? proximityColorMap[stakeoutState.proximityColor]
     : proximityColorMap.red
 
-  // Progress bar: 0-3m range mapped to 0-100%
+  // Progress bar uses the same navigation range as the stakeout engine.
   const progressPercent = stakeoutState
-    ? Math.max(0, Math.min(100, ((3 - Math.min(stakeoutState.distance, 3)) / 3) * 100))
+    ? Math.max(0, Math.min(100, ((NEAR_TARGET_TOLERANCE_M - Math.min(stakeoutState.distance, NEAR_TARGET_TOLERANCE_M)) / NEAR_TARGET_TOLERANCE_M) * 100))
     : 0
 
   const onToggleAudio = () => setAudioMuted(m => !m)
@@ -110,7 +116,7 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
       className={`
         fixed z-[1001] left-1/2 -translate-x-1/2
         ${isMobile ? 'bottom-[72px] w-[calc(100%-24px)] max-w-[360px]' : 'bottom-4 w-[380px]'}
-        ${colors.bg} backdrop-blur-xl ${colors.border} border rounded-2xl
+        bg-slate-950 ${colors.border} border rounded-2xl
         shadow-2xl ${colors.glow} overflow-hidden
         transition-all duration-300 ease-out
       `}
@@ -152,14 +158,32 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
         </div>
 
         <div className="flex items-center gap-1.5">
-          {/* Audio mute toggle */}
+          {/* Spoken voice guidance toggle */}
+          <button
+            onClick={() => setVoiceEnabled(v => !v)}
+            className={`w-11 h-11 flex items-center justify-center rounded-lg border transition-colors ${
+              voiceEnabled && !audioMuted
+                ? 'bg-amber-500/20 border-amber-500/40 text-amber-400 hover:bg-amber-500/30'
+                : 'bg-white/[0.06] border-white/[0.08] text-gray-500 hover:text-gray-300'
+            }`}
+            title={voiceEnabled ? 'Voice Guidance ON (speaking directional cues)' : 'Voice Guidance OFF'}
+            aria-label={voiceEnabled ? 'Disable Voice Guidance' : 'Enable Voice Guidance'}
+          >
+            {voiceEnabled && !audioMuted ? (
+              <Volume2 className="w-3.5 h-3.5" />
+            ) : (
+              <VolumeX className="w-3.5 h-3.5" />
+            )}
+          </button>
+
+          {/* Audio beep mute toggle */}
           <button
             onClick={onToggleAudio}
-            className="w-7 h-7 flex items-center justify-center rounded-lg
+            className="w-11 h-11 flex items-center justify-center rounded-lg
                        bg-white/[0.06] border border-white/[0.08] text-gray-400
                        hover:text-white hover:bg-white/[0.10] transition-colors"
-            title={audioMuted ? 'Unmute audio alerts' : 'Mute audio alerts'}
-            aria-label={audioMuted ? 'Unmute audio alerts' : 'Mute audio alerts'}
+            title={audioMuted ? 'Unmute proximity beeps' : 'Mute proximity beeps'}
+            aria-label={audioMuted ? 'Unmute proximity beeps' : 'Mute proximity beeps'}
           >
             {audioMuted ? (
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -176,7 +200,7 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
           {/* Cancel button */}
           <button
             onClick={deactivateStakeout}
-            className="w-7 h-7 flex items-center justify-center rounded-lg
+            className="w-11 h-11 flex items-center justify-center rounded-lg
                        bg-red-500/10 border border-red-500/20 text-red-400
                        hover:text-red-300 hover:bg-red-500/20 transition-colors"
             title="Cancel stakeout"
@@ -191,6 +215,7 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
 
       {/* Body */}
       <div className="px-4 py-3">
+        <p className="mb-3 text-xs text-slate-300">Device-location navigation only. Its reported uncertainty is not survey acceptance; verify the point with survey GNSS and the job tolerance before marking.</p>
         {/* Target info */}
         <div className="mb-3">
           <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">
@@ -251,10 +276,10 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
         <div className="mb-3 grid grid-cols-2 gap-3">
           <div>
             <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-0.5">
-              Accuracy
+              Reported device accuracy
             </div>
             <div className="text-[11px] font-mono text-gray-300">
-              {'\u00B1'}{gpsAccuracy.toFixed(1)} m
+              {gpsAccuracy === null ? 'Unknown' : `\u00B1${gpsAccuracy.toFixed(1)} m`}
             </div>
           </div>
           {stakeoutState?.elevationDiff != null && (
@@ -270,6 +295,17 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
           )}
         </div>
 
+        {stakeoutState?.arrivalAssessment === 'reported-uncertainty-overlaps-band' && (
+          <p role="status" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-200">
+            The reported position uncertainty crosses the {ARRIVAL_TOLERANCE_M.toFixed(1)} m navigation band. Use survey GNSS to verify arrival.
+          </p>
+        )}
+        {stakeoutState?.arrivalAssessment === 'reported-accuracy-unknown' && (
+          <p role="status" className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-2 text-[11px] leading-relaxed text-amber-200">
+            The device reports no usable accuracy radius. This position cannot confirm arrival; use survey GNSS to verify.
+          </p>
+        )}
+
         {/* dE / dN */}
         {stakeoutState && (
           <div className="mb-3 text-[10px] text-gray-500 font-mono">
@@ -278,12 +314,12 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
           </div>
         )}
 
-        {/* Progress bar (0–3m tolerance) */}
+        {/* Progress bar (near-target navigation range) */}
         <div className="mb-1">
           <div className="flex items-center justify-between mb-1">
             <span className="text-[10px] text-gray-500 uppercase tracking-wider">Proximity</span>
             <span className="text-[10px] text-gray-500 tabular-nums">
-              {stakeoutState ? `${stakeoutState.distance.toFixed(1)}m / 1.0m` : '---'}
+              {stakeoutState ? `${stakeoutState.distance.toFixed(1)} m · band ≤ ${ARRIVAL_TOLERANCE_M.toFixed(1)} m` : '---'}
             </span>
           </div>
           <div className={`h-2 rounded-full ${colors.barBg} overflow-hidden`}>
@@ -293,9 +329,9 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
             />
           </div>
           <div className="flex justify-between mt-0.5">
-            <span className="text-[9px] text-gray-600">3m</span>
-            <span className="text-[9px] text-gray-600">1m</span>
-            <span className="text-[9px] text-gray-600">0m</span>
+            <span className="text-[9px] text-gray-600">{NEAR_TARGET_TOLERANCE_M.toFixed(0)} m</span>
+            <span className="text-[9px] text-gray-600">{ARRIVAL_TOLERANCE_M.toFixed(1)} m</span>
+            <span className="text-[9px] text-gray-600">0 m</span>
           </div>
         </div>
       </div>

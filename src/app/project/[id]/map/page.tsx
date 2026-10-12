@@ -1,190 +1,90 @@
 'use client';
+import { useParams } from 'next/navigation'
 
 import dynamic from 'next/dynamic';
-import { useEffect, useState, useCallback, useMemo } from 'react';
-import { createClient } from '@/lib/api-client/client';
-import type { AdjustedStation } from '@/lib/engine/planGeometry';
+import { useEffect, useState, useCallback } from 'react';
+import { loadProjectMapData } from '@/lib/workspaces/projectMapData';
+import { useSelectionStore } from '@/lib/surveyMapEngine/ol/selection';
 
 const SurveyMap = dynamic(() => import('@/components/map/SurveyMap'), { ssr: false });
+type MapData = Awaited<ReturnType<typeof loadProjectMapData>>;
 
-interface MapPageProps {
-  params: { id: string };
-}
-
-interface BoundaryStationRow {
-  pointName?: string | null
-  label?: string | null
-  id?: string | null
-  station?: number | string | null
-  originalEasting?: number | null
-  originalNorthing?: number | null
-  adjustedEasting?: number | null
-  adjustedNorthing?: number | null
-  easting?: number | null
-  northing?: number | null
-}
-interface ProjectRow {
-  boundary_data?: { adjustedStations?: BoundaryStationRow[] } | null
-  name?: string | null
-  lr_number?: string | null
-  surveyor_name?: string | null
-  surveyor_license?: string | null
-  client_name?: string | null
-  county?: string | null
-}
-
-export default function MapPage({ params }: MapPageProps) {
-  const [stations, setStations] = useState<AdjustedStation[]>([]);
+export default function MapPage() {
+  const params = useParams<{ id: string }>();
+  const [data, setData] = useState<MapData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedBeacon, setSelectedBeacon] = useState<{ label: string; easting: number; northing: number } | null>(null);
-  const [editingEnabled, setEditingEnabled] = useState(false);
-  const [savingVertices, setSavingVertices] = useState(false);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
-  const [projectInfo, setProjectInfo] = useState<{
-    name: string;
-    lrNumber: string;
-    surveyorName: string;
-    surveyorLicense: string;
-    clientName: string;
-    county: string;
-  } | null>(null);
-  const dbClient = useMemo(() => createClient(), []);
 
   useEffect(() => {
-    async function load() {
-      const { data: { session } } = await dbClient.auth.getSession();
-      if (!session) { setError('Not authenticated'); return; }
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    setData(null);
+    setSelectedBeacon(null);
+    void loadProjectMapData(params.id, controller.signal).then(result => {
+      if (!controller.signal.aborted) setData(result);
+    }).catch(cause => {
+      if (!controller.signal.aborted) setError(cause instanceof Error ? cause.message : 'The project map could not be loaded.');
+    }).finally(() => {
+      if (!controller.signal.aborted) setLoading(false);
+    });
+    return () => controller.abort();
+  }, [params.id]);
 
-      const { data: project, error: projErr } = (await dbClient
-        .from('projects')
-        .select('boundary_data, id, name, lr_number, surveyor_name, surveyor_license, client_name, county')
-        .eq('id', params.id)
-        .single()) as { data: ProjectRow | null; error: { message: string; code: string; details?: string } | null };
-
-      if (projErr || !project) {
-        setError('Project not found');
-        setLoading(false);
-        return;
-      }
-
-      // Store project metadata for sheet layout
-      setProjectInfo({
-        name: project.name ?? '',
-        lrNumber: project.lr_number ?? '',
-        surveyorName: project.surveyor_name ?? '',
-        surveyorLicense: project.surveyor_license ?? '',
-        clientName: project.client_name ?? '',
-        county: project.county ?? '',
-      });
-
-      const raw = project.boundary_data?.adjustedStations ?? [];
-      if (raw.length < 3) {
-        setError('No adjusted traverse data found. Complete the traverse computation first.');
-        setLoading(false);
-        return;
-      }
-
-      const mapped: AdjustedStation[] = raw.map((s: BoundaryStationRow) => ({
-        pointName: s.pointName ?? s.label ?? s.id ?? String(s.station ?? ''),
-        originalEasting: Number(s.originalEasting ?? s.easting ?? 0),
-        originalNorthing: Number(s.originalNorthing ?? s.northing ?? 0),
-        adjustedEasting: Number(s.adjustedEasting ?? s.easting ?? 0),
-        adjustedNorthing: Number(s.adjustedNorthing ?? s.northing ?? 0),
-      }));
-
-      setStations(mapped);
-      setLoading(false);
-    }
-
-    load();
-  }, [params.id, dbClient]);
-
-  // ── Handle beacon click from the map ─────────────────────────────────────
-  const handleBeaconClick = useCallback((label: string, easting: number, northing: number) => {
-    setSelectedBeacon({ label, easting, northing });
-    // Auto-dismiss after 5 seconds
-    setTimeout(() => setSelectedBeacon(null), 5000);
+  useEffect(() => {
+    return () => useSelectionStore.getState().clearSelectionFrom('project-map');
   }, []);
 
-  // ── Handle vertex edits from the map → save back to project ──────────────
-  const handleVerticesChange = useCallback(async (updated: Array<{ easting: number; northing: number }>) => {
-    if (stations.length === 0 || updated.length === 0) return;
-
-    setSavingVertices(true);
-    setSaveMsg(null);
-
-    try {
-      // Rebuild adjustedStations with updated coordinates
-      const newStations = stations.map((s, i) => {
-        if (i < updated.length) {
-          return {
-            ...s,
-            adjustedEasting: updated[i].easting,
-            adjustedNorthing: updated[i].northing,
-          };
-        }
-        return s;
-      });
-
-      // Fetch current boundary_data to preserve other fields
-      const { data: project } = (await dbClient
-        .from('projects')
-        .select('boundary_data')
-        .eq('id', params.id)
-        .single()) as { data: { boundary_data?: { adjustedStations?: BoundaryStationRow[] } | null } | null };
-
-      const currentBoundaryData = project?.boundary_data ?? {};
-      const updatedBoundaryData = {
-        ...currentBoundaryData,
-        adjustedStations: newStations.map(s => ({
-          pointName: s.pointName,
-          originalEasting: s.originalEasting,
-          originalNorthing: s.originalNorthing,
-          adjustedEasting: s.adjustedEasting,
-          adjustedNorthing: s.adjustedNorthing,
-        })),
-      };
-
-      const { error: updateErr } = await dbClient
-        .from('projects')
-        .update({ boundary_data: updatedBoundaryData })
-        .eq('id', params.id);
-
-      if (updateErr) {
-        setSaveMsg('Failed to save vertex changes');
-      } else {
-        setStations(newStations);
-        setSaveMsg('Vertices saved');
-      }
-    } catch {
-      setSaveMsg('Error saving vertex changes');
-    } finally {
-      setSavingVertices(false);
-      setTimeout(() => setSaveMsg(null), 3000);
-    }
-  }, [stations, params.id, dbClient]);
+  const handleBeaconClick = useCallback((label: string, easting: number, northing: number) => {
+    setSelectedBeacon({ label, easting, northing });
+    useSelectionStore.getState().setSelection({ kind: 'beacon', surface: 'project-map', label, easting, northing });
+  }, []);
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-500">
-        Loading traverse data...
+      <div className="flex min-h-[32rem] items-center justify-center bg-[var(--bg-primary)] text-sm text-[var(--text-muted)]" role="status">
+        Loading project survey map…
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <div className="text-center">
-          <p className="text-sm text-red-600 font-medium">{error}</p>
-          <p className="text-xs text-gray-500 mt-1">
-            Ensure the traverse has been computed and adjusted before viewing the map.
+      <div className="flex items-center justify-center h-full min-h-[400px] bg-[var(--bg-primary)] px-4">
+        <div className="text-center max-w-md p-6 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-xl">
+          <div className="w-12 h-12 mx-auto mb-4 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center">
+            <svg className="w-6 h-6 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+            </svg>
+          </div>
+          <h3 className="text-base font-bold text-[var(--text-primary)] mb-2">Project map unavailable</h3>
+          <p className="text-xs text-[var(--text-muted)] mb-5 leading-relaxed" role="alert">
+            {error}
           </p>
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2">
+            <a
+              href={`/project/${params.id}/settings`}
+              className="w-full sm:w-auto px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-xs font-semibold rounded-lg transition-colors"
+            >
+              Open Project Settings →
+            </a>
+            <a
+              href={`/project/${params.id}`}
+              className="w-full sm:w-auto px-4 py-2 bg-[var(--bg-secondary)] hover:bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-[var(--text-secondary)] text-xs font-medium rounded-lg transition-colors"
+            >
+              Back to Project
+            </a>
+          </div>
         </div>
       </div>
     );
   }
+
+  if (!data) {
+    return <div className="p-6 text-sm text-[var(--text-muted)]">Project map metadata is unavailable. Reload the project.</div>;
+  }
+  const { stations, projectInfo, geometryKind, coordinatePrecision } = data;
 
   const sumE = stations.reduce((sum, s) => sum + s.adjustedEasting, 0);
   const sumN = stations.reduce((sum, s) => sum + s.adjustedNorthing, 0);
@@ -192,63 +92,63 @@ export default function MapPage({ params }: MapPageProps) {
   const centroidNorthing = sumN / stations.length;
 
   return (
-    <div className="h-full flex flex-col">
-      {/* ── Toolbar strip ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 px-3 py-1.5 bg-gray-50 border-b border-gray-200 text-xs">
-        <button
-          onClick={() => setEditingEnabled(v => !v)}
-          className={`px-3 py-1.5 rounded font-medium transition-colors ${
-            editingEnabled
-              ? 'bg-amber-500 text-white'
-              : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-100'
-          }`}
-          title={editingEnabled ? 'Disable vertex editing' : 'Enable vertex editing — drag vertices to adjust parcel boundary'}
-        >
-          {editingEnabled ? 'Editing On' : 'Edit Vertices'}
-        </button>
-        {editingEnabled && (
-          <span className="text-amber-600">
-            Drag vertices to adjust. Changes save automatically.
-          </span>
-        )}
-        {savingVertices && (
-          <span className="text-blue-600">Saving...</span>
-        )}
-        {saveMsg && (
-          <span className={saveMsg.includes('Failed') || saveMsg.includes('Error') ? 'text-red-600' : 'text-green-600'}>
-            {saveMsg}
-          </span>
-        )}
-        <div className="flex-1" />
-        {selectedBeacon && (
-          <div className="flex items-center gap-2 px-2 py-1 bg-blue-50 border border-blue-200 rounded">
-            <span className="font-semibold text-blue-800">{selectedBeacon.label}</span>
-            <span className="text-blue-600 font-mono">
-              E {selectedBeacon.easting.toFixed(3)} | N {selectedBeacon.northing.toFixed(3)}
+    <main className="h-[calc(100dvh-8rem)] min-h-[32rem] flex flex-col bg-[var(--bg-primary)]" aria-label="Project survey map">
+      <header className="flex flex-col gap-3 border-b border-[var(--border-color)] bg-[var(--bg-primary)] px-4 py-3 sm:px-6 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-base font-semibold text-[var(--text-primary)]">
+              {projectInfo?.name || 'Project survey map'}
+            </h1>
+            <span className="rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1 text-[11px] font-medium text-[var(--text-secondary)]">
+              {geometryKind === 'points' ? 'Survey points' : 'Saved boundary'}
             </span>
           </div>
-        )}
-      </div>
+          <p className="mt-1 text-xs text-[var(--text-muted)]">
+            EPSG:{data.epsg} · {stations.length} {stations.length === 1 ? 'coordinate' : 'coordinates'} · {coordinatePrecision} decimal places
+            {geometryKind === 'points' ? ' · no boundary inferred' : ' · ordered survey boundary'}
+          </p>
+        </div>
+
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between lg:justify-end">
+          {selectedBeacon ? (
+            <div className="min-h-11 rounded-lg border border-[color-mix(in_srgb,var(--accent)_35%,transparent)] bg-[var(--bg-secondary)] px-3 py-2" role="status" aria-live="polite">
+              <p className="text-xs font-semibold text-[var(--text-primary)]">Selected point · {selectedBeacon.label}</p>
+              <p className="font-mono text-[11px] text-[var(--text-secondary)]">
+                E {selectedBeacon.easting.toFixed(coordinatePrecision)} · N {selectedBeacon.northing.toFixed(coordinatePrecision)}
+              </p>
+            </div>
+          ) : (
+            <p className="text-xs text-[var(--text-muted)]" aria-live="polite">Select a mapped point to inspect its coordinates.</p>
+          )}
+          <a
+            href={`/project/${params.id}/observe`}
+            className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 text-sm font-medium text-[var(--text-primary)] transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+          >
+            Review Field Book
+          </a>
+        </div>
+      </header>
 
       {/* ── Survey Map ─────────────────────────────────────────────────── */}
-      <div className="flex-1">
+      <div className="flex-1 min-h-0">
         <SurveyMap
           projectId={params.id}
           adjustedStations={stations}
           centroidEasting={centroidEasting}
           centroidNorthing={centroidNorthing}
-          readOnly={!editingEnabled}
-          enableEditing={editingEnabled}
+          readOnly
+          geometryKind={geometryKind}
+          coordinatePrecision={coordinatePrecision}
           onBeaconClick={handleBeaconClick}
-          onVerticesChange={handleVerticesChange}
           lrNumber={projectInfo?.lrNumber}
           projectName={projectInfo?.name}
           surveyorName={projectInfo?.surveyorName}
           surveyorLicense={projectInfo?.surveyorLicense}
           clientName={projectInfo?.clientName}
           county={projectInfo?.county}
+          epsg={projectInfo.epsg}
         />
       </div>
-    </div>
+    </main>
   );
 }

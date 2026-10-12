@@ -25,8 +25,19 @@ import type { MapBrowserEvent } from 'ol'
 import type { DrawEvent } from 'ol/interaction/Draw'
 import type { ModifyEvent } from 'ol/interaction/Modify'
 import type { FeatureLike } from 'ol/Feature'
-import { downloadDXF, type SurveyPoint } from '@/lib/export/generateDXF'
+import { downloadDXF } from '@/lib/export/generateDXF'
+import { mapGeometryToDxfEntities, type MapDxfGeometryLike } from '@/lib/export/mapGeometryToDxf'
 import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/export/generateLandXML'
+import { describeCrs, validateCoordinateRange } from '@/lib/spatial/projectCrs'
+import { reportCrs } from '@/lib/generators/reportCrs'
+import type { ProjectReferenceSystemRecord } from '@/lib/spatial/projectReferenceSystem'
+import {
+  endpointsBearingInCrs,
+  polygonAreaInCrs,
+  polygonPerimeterInCrs,
+  polylineLengthInCrs,
+} from '@/lib/surveyMapEngine/core/measure'
+import { applyOverlayOpacity, isStandardBasemapId } from '@/lib/surveyMapEngine/ol/layers'
 import {
   createStakeoutOverlay,
   updateStakeoutDirection,
@@ -34,12 +45,12 @@ import {
   createStakeoutAudioAlert,
   stopStakeoutAudio,
   computeStakeoutState,
-  formatBearingWCB,
   type StakeoutTarget,
   type StakeoutState,
   type StakeoutPosition,
-} from '@/lib/map/stakeout'
+} from '@/lib/surveyMapEngine/ol/stakeout'
 import { logger } from '@/lib/logger'
+import { zoomToSurveyPointCluster } from '@/lib/surveyMapEngine/ol/pointLoading'
 
 interface UseMapInteractionsParams {
   mapInstance: React.MutableRefObject<Map | null>
@@ -61,8 +72,8 @@ interface UseMapInteractionsParams {
   stakeoutActive: boolean
   stakeoutTarget: { e: number; n: number } | null
   gpsPos: { lon: number; lat: number; accuracy: number } | null
-  /** GPS position already transformed to EPSG:21037 (UTM 37S). Used for precise stakeout. */
-  gpsPos21037: { easting: number; northing: number; accuracy: number } | null
+  /** GPS position already transformed to the declared project CRS. */
+  gpsPosInSurveyCrs: { easting: number; northing: number; accuracy: number } | null
   hasFeature: (feature: string) => boolean
   setDrawMode: (m: DrawMode) => void
   setEditMode: (m: boolean) => void
@@ -80,8 +91,8 @@ interface UseMapInteractionsParams {
   setSaveMsg: (s: string) => void
   /** Current project ID from URL params (null = no project linked) */
   projectId: string | null
-  /** T1.5 FIX (2026-07-09): Active UTM EPSG for geometry transforms. Derived from ProjectionSwitcher. */
-  currentUtmEpsg: string
+  /** Saved project CRS, or an explicitly selected grid on an unlinked map. */
+  currentSurveyCrs: string | null
   /** Called when a feature is drawn — used to compute live area/perimeter */
   onDrawEnd?: (areaSqM: number, perimeterM: number, featureType: string) => void
   /** Called when a feature is identified by single-click */
@@ -93,10 +104,9 @@ interface UseMapInteractionsParams {
 }
 
 export function useMapInteractions(p: UseMapInteractionsParams) {
-  // T1.5 FIX (2026-07-09): Use the project's actual UTM zone for all geometry
-  // transforms, not a hardcoded 'EPSG:21037'. Falls back to 'EPSG:21037' if
-  // the caller didn't pass currentUtmEpsg (backwards compat).
-  const epsg = p.currentUtmEpsg || 'EPSG:21037'
+  // The caller supplies the working projection explicitly. Project LandXML
+  // export resolves the authoritative declaration separately below.
+  const epsg = p.currentSurveyCrs
 
   // ── SINGLE-CLICK IDENTIFY: click any feature → show its attributes ──
   useEffect(() => {
@@ -120,6 +130,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         const feature = features[0] as Feature
         if (onIdentify) onIdentify(feature)
 
+        const isSurveyCluster = feature.get('pointType') === 'survey-cluster'
+        if (isSurveyCluster) {
+          // The cluster geometry is a display centroid only. Zoom to the
+          // represented cell to request finer groups; never use it as a
+          // measured or set-out coordinate.
+          zoomToSurveyPointCluster(map, feature.get('clusterExtent'))
+        }
+
         // Show popup with basic info
         if (p.popupRef.current) {
           const el = p.popupRef.current
@@ -138,6 +156,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
           }
           let hasContent = false
           if (name) { build('div', name, 'font-weight:600;color:#E8E4DE;font-size:13px;margin-bottom:4px'); hasContent = true }
+          if (isSurveyCluster) {
+            build('div', 'Scale summary only · centroid is not a survey coordinate', 'color:#E8E4DE;font-size:10px;margin-bottom:4px')
+            hasContent = true
+          }
           if (code) { build('div', `Code: ${code}`, 'color:#A89E92;font-size:11px;font-family:monospace'); hasContent = true }
           if (elev != null) { build('div', `Elevation: ${elev.toFixed(3)} m`, 'color:#A89E92;font-size:11px;font-family:monospace'); hasContent = true }
           if (isControl) { build('div', 'Control point', 'color:#D17B47;font-size:10px;font-family:monospace;text-transform:uppercase;letter-spacing:0.04em'); hasContent = true }
@@ -207,6 +229,12 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       return
     }
 
+    const surveyCrs = epsg
+    if (!surveyCrs) {
+      p.setSaveMsg('Set the project CRS before drawing survey geometry or calculating measurements.')
+      return
+    }
+
     const source = p.drawSourceRef.current
     if (!source) return
 
@@ -222,24 +250,28 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     })
 
     draw.on('drawend', (e: DrawEvent) => {
-      // Compute live area/perimeter for the drawn feature
+      // Compute live area/perimeter for the drawn feature — measured in the
+      // project CRS (survey plane maths), never in Web Mercator display units.
       if (p.onDrawEnd && e.feature) {
         const geom = e.feature.getGeometry()
         if (geom) {
           const type = geom.getType()
-          if (type === 'Polygon' || type === 'MultiPolygon') {
-            const area = Math.abs((geom as Polygon).getArea())
-            const coords = (type === 'Polygon' ? (geom as Polygon).getCoordinates()[0] : (geom as Polygon).getCoordinates()[0][0]) as number[][]
-            const perimeter = coords ? coords.reduce((sum: number, c: number[], i: number, arr: number[][]) => {
-              if (i === 0) return 0
-              const prev = arr[i - 1]
-              return sum + Math.sqrt((c[0] - prev[0]) ** 2 + (c[1] - prev[1]) ** 2)
-            }, 0) : 0
-            p.onDrawEnd(area, perimeter, 'Polygon')
-          } else if (type === 'LineString') {
-            p.onDrawEnd(0, (geom as LineString).getLength(), 'LineString')
-          } else if (type === 'Point') {
-            p.onDrawEnd(0, 0, 'Point')
+          try {
+            if (type === 'Polygon' || type === 'MultiPolygon') {
+              const rings = (type === 'Polygon'
+                ? (geom as Polygon).getCoordinates()
+                : (geom as Polygon).getCoordinates()[0]) as number[][][]
+              const outer = rings[0] || []
+              p.onDrawEnd(polygonAreaInCrs(outer, surveyCrs), polygonPerimeterInCrs(outer, surveyCrs), 'Polygon')
+            } else if (type === 'LineString') {
+              p.onDrawEnd(0, polylineLengthInCrs((geom as LineString).getCoordinates(), surveyCrs), 'LineString')
+            } else if (type === 'Point') {
+              p.onDrawEnd(0, 0, 'Point')
+            }
+          } catch (err) {
+            // Never turn an unavailable survey-plane measurement into a plausible zero.
+            logger.warn('[drawend] Survey measurement unavailable', { error: err })
+            p.setSaveMsg('Survey measurement unavailable. Confirm the project uses a supported projected CRS.')
           }
         }
       }
@@ -251,7 +283,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.drawInteractionRef.current = draw
     p.setDrawMode(mode)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory])
+  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg])
 
   // ── EDIT / MODIFY ──
   const toggleEdit = useCallback(async () => {
@@ -263,6 +295,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         p.modifyInteractionRef.current = null
       }
       p.setEditMode(false)
+      return
+    }
+
+    if (!epsg) {
+      p.setSaveMsg('Set the project CRS before editing survey geometry.')
       return
     }
 
@@ -355,7 +392,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.modifyInteractionRef.current = modify
     p.setEditMode(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.editMode, p.measureMode, p.pushHistory])
+  }, [p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg])
 
   // ── DELETE SELECTED ──
   const deleteSelected = useCallback(() => {
@@ -373,6 +410,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   // ── MEASURE ──
   const toggleMeasure = useCallback(async (mode: MeasureMode) => {
     if (!p.mapInstance.current) return
+    const surveyCrs = epsg
+    if (mode !== 'none' && mode !== p.measureMode && !surveyCrs) {
+      p.setSaveMsg('Set the project CRS before calculating survey distances or areas.')
+      return
+    }
     const { default: Draw } = await import('ol/interaction/Draw')
     const { default: Style } = await import('ol/style/Style')
     const { default: Fill } = await import('ol/style/Fill')
@@ -404,6 +446,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       return
     }
 
+    if (!surveyCrs) return
+
     const source = p.measureSourceRef.current
     if (!source) return
 
@@ -423,37 +467,32 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       p.setMeasureResult('')
     })
 
-    draw.on('drawend', async (evt: DrawEvent) => {
+    draw.on('drawend', (evt: DrawEvent) => {
       const geom = evt.feature.getGeometry()
       if (!geom) return
-      if (mode === 'distance') {
-        const length = (geom as LineString).getLength()
-        const coords = (geom as LineString).getCoordinates()
-        let bearingStr = ''
-        if (coords.length >= 2) {
-          try {
-            const { transform } = await import('ol/proj')
-            const first = transform(coords[0], 'EPSG:3857', epsg)
-            const last = transform(coords[coords.length - 1], 'EPSG:3857', epsg)
-            const dE = last[0] - first[0]
-            const dN = last[1] - first[1]
-            let bearing = (Math.atan2(dE, dN) * 180) / Math.PI
-            if (bearing < 0) bearing += 360
-            bearingStr = ` | Brg: ${bearing.toFixed(2)}\u00B0`
-          } catch { /* skip bearing */ }
-        }
-        if (length > 1000) {
-          p.setMeasureResult(`Distance: ${(length / 1000).toFixed(3)} km${bearingStr}`)
+      try {
+        if (mode === 'distance') {
+          // Survey plane maths in the project CRS — Web Mercator lengths are
+          // inflated by 1/cos(latitude) and must never be shown to a surveyor.
+          const coords = (geom as LineString).getCoordinates()
+          const length = polylineLengthInCrs(coords, surveyCrs)
+          const bearing = endpointsBearingInCrs(coords, surveyCrs)
+          const bearingStr = bearing != null ? ` | Brg: ${bearing.toFixed(2)}\u00B0` : ''
+          if (length > 1000) {
+            p.setMeasureResult(`Distance: ${(length / 1000).toFixed(3)} km${bearingStr}`)
+          } else {
+            p.setMeasureResult(`Distance: ${length.toFixed(2)} m${bearingStr}`)
+          }
         } else {
-          p.setMeasureResult(`Distance: ${length.toFixed(2)} m${bearingStr}`)
+          const area = polygonAreaInCrs((geom as Polygon).getCoordinates()[0], surveyCrs)
+          if (area > 1000000) {
+            p.setMeasureResult(`Area: ${(area / 1000000).toFixed(4)} km\u00B2`)
+          } else {
+            p.setMeasureResult(`Area: ${area.toFixed(2)} m\u00B2`)
+          }
         }
-      } else {
-        const area = (geom as Polygon).getArea()
-        if (area > 1000000) {
-          p.setMeasureResult(`Area: ${(area / 1000000).toFixed(4)} km\u00B2`)
-        } else {
-          p.setMeasureResult(`Area: ${area.toFixed(2)} m\u00B2`)
-        }
+      } catch (err) {
+        p.setMeasureResult(`Measurement unavailable: ${err instanceof Error ? err.message : 'set the project CRS'}`)
       }
       p.setMeasureMode('none')
     })
@@ -462,53 +501,105 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.measureInteractionRef.current = draw
     p.setMeasureMode(mode)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.drawMode, p.editMode, p.measureMode])
+  }, [p.drawMode, p.editMode, p.measureMode, epsg, p.setSaveMsg])
 
   // ── EXPORT ──
+  const { hasFeature, drawSourceRef, projectId, setSaveMsg } = p
   const exportFeatures = useCallback(async (format: 'GeoJSON' | 'KML' | 'WKT' | 'DXF' | 'LandXML') => {
-    const hasFeature = p.hasFeature
-    if (!p.drawSourceRef.current || p.drawSourceRef.current.getFeatures().length === 0) return
+    if (!drawSourceRef.current || drawSourceRef.current.getFeatures().length === 0) return
 
     if (format === 'DXF') {
       if (!hasFeature('dxf_export')) return
-      const features = p.drawSourceRef.current.getFeatures()
+      if (!projectId) {
+        setSaveMsg('Link this map to a project and declare its CRS before exporting a survey DXF.')
+        return
+      }
+
+      let declaration: ProjectReferenceSystemRecord | null = null
+      try {
+        const response = await fetch(`/api/project/${encodeURIComponent(projectId)}/reference-system`)
+        if (!response.ok) throw new Error(`Project CRS request failed (${response.status})`)
+        const data: unknown = await response.json()
+        declaration = (data as { referenceSystem?: ProjectReferenceSystemRecord | null } | null)?.referenceSystem ?? null
+      } catch (error) {
+        setSaveMsg(error instanceof Error ? error.message : 'Project CRS could not be loaded.')
+        return
+      }
+      const declared = declaration?.prs
+      const crs = reportCrs({
+        utmZone: declared?.zone,
+        hemisphere: declared?.hemisphere,
+        datum: declared?.datum,
+      })
+      if (!declared || !crs.verified || crs.epsgCode !== declared.horizontalCrs || !describeCrs(crs.epsgCode)) {
+        setSaveMsg('Declare a supported project CRS in Project Settings before exporting a survey DXF.')
+        return
+      }
+
+      const features = drawSourceRef.current.getFeatures()
       const { transform } = await import('ol/proj')
-      const points: SurveyPoint[] = []
-      for (const f of features) {
-        const geom = f.getGeometry()
-        if (!geom) continue
-        const geomType = geom.getType()
-        if (geomType === 'Point') {
-          const coord = (geom as Point).getCoordinates()
-          try {
-            const [e, n] = transform(coord, 'EPSG:3857', epsg) as [number, number]
-            points.push({ name: (f.get('name') as string | undefined) || (f.get('label') as string | undefined) || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
-          } catch { /* skip */ }
-        }
+      const coordinateWarnings = new Set<string>()
+      let mapEntities
+      try {
+        mapEntities = mapGeometryToDxfEntities(features.map((feature) => ({
+          geometry: feature.getGeometry() as MapDxfGeometryLike | null,
+          label: (feature.get('name') as string | undefined) || (feature.get('label') as string | undefined),
+          dxfLayer: feature.get('dxfLayer') as string | undefined,
+          dxfClosed: feature.get('dxfClosed') as boolean | undefined,
+          dxfEntityType: feature.get('dxfEntityType') as string | undefined,
+        })), (coordinate) => {
+          const [easting, northing] = transform(coordinate, 'EPSG:3857', crs.epsgCode) as [number, number]
+          const validation = validateCoordinateRange(easting, northing, crs.epsgCode)
+          if (!validation.valid) throw new Error(validation.errors.join('; '))
+          validation.warnings.forEach((warning) => coordinateWarnings.add(warning))
+          return [easting, northing]
+        })
+      } catch (error) {
+        setSaveMsg(error instanceof Error ? error.message : 'Map geometry could not be exported as DXF.')
+        return
       }
-      if (points.length === 0) {
-        for (const f of features) {
-          const geom = f.getGeometry()
-          if (!geom) continue
-          const geomType = geom.getType()
-          let coords: number[][] = []
-          if (geomType === 'LineString') coords = (geom as LineString).getCoordinates()
-          else if (geomType === 'Polygon') coords = (geom as Polygon).getCoordinates()[0] || []
-          for (const coord of coords) {
-            try {
-              const [e, n] = transform(coord, 'EPSG:3857', epsg)
-              points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
-            } catch { /* skip */ }
-          }
-        }
+      if (mapEntities.length === 0) {
+        setSaveMsg('No supported map geometry is available for DXF export.')
+        return
       }
-      downloadDXF({ projectName: 'metardu-map-export', points })
+      downloadDXF({ projectName: `metardu-${projectId}-map`, points: [], mapEntities })
+      const rangeNote = coordinateWarnings.size ? ` Check the project extent: ${[...coordinateWarnings].join(' ')}` : ''
+      setSaveMsg(`DXF exported in ${crs.crsName} (${crs.epsg}). DXF does not retain CRS metadata; keep the CRS with the file.${rangeNote}`)
       return
     }
 
     if (format === 'LandXML') {
       if (!hasFeature('landxml')) return
-      const features = p.drawSourceRef.current.getFeatures()
+      if (!projectId) {
+        setSaveMsg('Link a project and declare its CRS before exporting LandXML.')
+        return
+      }
+
+      // The map's working UTM code may be a central-Kenya fallback. Fetch the
+      // authoritative project declaration before transforming or labeling data.
+      let declaration: ProjectReferenceSystemRecord | null = null
+      try {
+        const response = await fetch(`/api/project/${encodeURIComponent(projectId)}/reference-system`)
+        if (!response.ok) throw new Error(`Project CRS request failed (${response.status})`)
+        const data: unknown = await response.json()
+        declaration = (data as { referenceSystem?: ProjectReferenceSystemRecord | null } | null)?.referenceSystem ?? null
+      } catch (error) {
+        setSaveMsg(error instanceof Error ? error.message : 'Project CRS could not be loaded.')
+        return
+      }
+      const declared = declaration?.prs
+      const crs = reportCrs({
+        utmZone: declared?.zone,
+        hemisphere: declared?.hemisphere,
+        datum: declared?.datum,
+      })
+      if (!declared || !crs.verified || crs.epsgCode !== declared.horizontalCrs ||
+          !describeCrs(crs.epsgCode)) {
+        setSaveMsg('Declare a supported project CRS in Project Settings before exporting LandXML.')
+        return
+      }
+
+      const features = drawSourceRef.current.getFeatures()
       const { transform } = await import('ol/proj')
       const points: LandXMLPoint[] = []
       for (const f of features) {
@@ -518,21 +609,38 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         if (geomType === 'Point') {
           const coord = (geom as Point).getCoordinates()
           try {
-            const [e, n] = transform(coord, 'EPSG:3857', epsg) as [number, number]
+            const [e, n] = transform(coord, 'EPSG:3857', crs.epsgCode) as [number, number]
             points.push({ name: (f.get('name') as string | undefined) || (f.get('label') as string | undefined) || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
           } catch { /* skip */ }
         } else if (geomType === 'LineString' || geomType === 'Polygon') {
           const coords = geomType === 'Polygon' ? ((geom as Polygon).getCoordinates()[0] || []) : (geom as LineString).getCoordinates()
           for (const coord of coords) {
             try {
-              const [e, n] = transform(coord, 'EPSG:3857', epsg)
+              const [e, n] = transform(coord, 'EPSG:3857', crs.epsgCode)
               points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
             } catch { /* skip */ }
           }
         }
       }
-      const project: LandXMLProject = { name: 'metardu-map-export', utm_zone: 37, hemisphere: 'S' }
-      downloadLandXML(project, points)
+      if (points.length === 0) {
+        setSaveMsg('No project geometry points are available for LandXML export.')
+        return
+      }
+      const project: LandXMLProject = {
+        name: 'metardu-map-export',
+        utm_zone: crs.zone,
+        hemisphere: crs.hemi,
+        datum: crs.datum,
+        vertical_datum: declared.verticalDatum,
+        vertical_reference: declared.verticalReference,
+        geoid_model: declaration?.geoidModel,
+        benchmark_basis: declaration?.benchmarkBasis,
+      }
+      try {
+        downloadLandXML(project, points)
+      } catch (error) {
+        setSaveMsg(error instanceof Error ? error.message : 'LandXML export failed.')
+      }
       return
     }
 
@@ -543,7 +651,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (format === 'GeoJSON') {
       const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
       const fmt = new GeoJSONFormat()
-      output = JSON.stringify(fmt.writeFeatures(p.drawSourceRef.current.getFeatures(), {
+      output = JSON.stringify(fmt.writeFeatures(drawSourceRef.current.getFeatures(), {
         featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326',
       }), null, 2)
       filename = 'metardu-export.geojson'
@@ -551,7 +659,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     } else if (format === 'KML') {
       const { default: KMLFormat } = await import('ol/format/KML')
       const fmt = new KMLFormat()
-      output = fmt.writeFeatures(p.drawSourceRef.current.getFeatures(), {
+      output = fmt.writeFeatures(drawSourceRef.current.getFeatures(), {
         featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326',
       })
       filename = 'metardu-export.kml'
@@ -559,7 +667,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     } else {
       const { default: WKTFormat } = await import('ol/format/WKT')
       const fmt = new WKTFormat()
-      const features = p.drawSourceRef.current.getFeatures()
+      const features = drawSourceRef.current.getFeatures()
       output = features.map((f: Feature) => fmt.writeGeometry(f.getGeometry() as import('ol/geom/Geometry').default, {
         dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857', rightHanded: true,
       })).join('\n')
@@ -574,7 +682,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     a.download = filename
     a.click()
     URL.revokeObjectURL(url)
-  }, [p.hasFeature, p.drawSourceRef, epsg])
+  }, [hasFeature, drawSourceRef, projectId, setSaveMsg])
 
   // ── CLEAR DRAWN ──
   const clearDrawn = useCallback(() => {
@@ -620,6 +728,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     const hasFeature = p.hasFeature
     if (!hasFeature('gps_stakeout')) return
     if (!p.mapInstance.current) return
+    if (!epsg) {
+      p.setSaveMsg('Declare the project CRS before starting stakeout.')
+      return
+    }
 
     // Deactivate any existing stakeout first
     await deactivateStakeout()
@@ -647,7 +759,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       // Initialize stakeoutState immediately so the panel shows live data
       // without waiting for the first GPS position update.
       // If we have a GPS position, compute initial distance/bearing.
-      // If not yet, show ARRIVED status so the panel renders correctly.
+      // Without a fix, leave measurements unknown.
       if (p.gpsPos) {
         const { transform } = await import('ol/proj')
         const [gpsE, gpsN] = transform(
@@ -667,18 +779,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         const initialState = computeStakeoutState(initialPos, targetPt)
         p.setStakeoutState(initialState)
       } else {
-        // No GPS fix yet — set ARRIVED so the panel renders in "searching" mode
-        // (proximityColor amber, label SEARCHING). First GPS fix will overwrite this.
-        p.setStakeoutState({
-          distance: 0,
-          bearing: 0,
-          bearingWCB: formatBearingWCB(0),
-          dE: 0,
-          dN: 0,
-          elevationDiff: null,
-          proximityColor: 'amber',
-          proximityLabel: 'SEARCHING',
-        })
+        p.setStakeoutState(null)
       }
 
       stakeoutCleanupDone.current = false
@@ -694,7 +795,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       logger.error('[activateStakeout] Failed:', { error: err })
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.hasFeature, p.gpsTracking, p.toggleGPS, p.gpsPos])
+  }, [p.hasFeature, p.gpsTracking, p.toggleGPS, p.gpsPos, p.setSaveMsg, epsg])
 
   // ── STAKEOUT: Deactivate and clean up ──
   const deactivateStakeout = useCallback(async () => {
@@ -743,7 +844,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   // ── STAKEOUT: Update on GPS position change ──
   const updateStakeoutOnGPS = useCallback(async () => {
-    if (!p.stakeoutActive || !p.stakeoutTarget || !p.gpsPos) return
+    if (!epsg || !p.stakeoutActive || !p.stakeoutTarget || !p.gpsPos) return
     if (!stakeoutDirectionSourceRef.current) return
 
     try {
@@ -812,6 +913,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       p.toggleGPS()
     }
     if (!p.stakeoutTarget) {
+      if (!epsg) {
+        setSaveMsg('Declare the project CRS before starting stakeout.')
+        return
+      }
       if (!p.mapInstance.current) return
       const center = p.mapInstance.current.getView().getCenter()
       if (center) {
@@ -827,11 +932,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   // ── STAKEOUT INFO (uses pre-transformed UTM position — no require()) ──
   const stakeoutInfo = useCallback(() => {
-    if (!p.stakeoutTarget || !p.gpsPos21037) return null
+    if (!epsg || !p.stakeoutTarget || !p.gpsPosInSurveyCrs) return null
 
     // Use the already-transformed UTM coordinates (set by async import in MapClient)
-    const gpsE = p.gpsPos21037.easting
-    const gpsN = p.gpsPos21037.northing
+    const gpsE = p.gpsPosInSurveyCrs.easting
+    const gpsN = p.gpsPosInSurveyCrs.northing
 
     const dE = p.stakeoutTarget.e - gpsE
     const dN = p.stakeoutTarget.n - gpsN
@@ -839,11 +944,15 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     let bearing = (Math.atan2(dE, dN) * 180) / Math.PI
     if (bearing < 0) bearing += 360
     return { distance: dist, bearing, dE, dN }
-  }, [p.stakeoutTarget, p.gpsPos21037])
+  }, [p.stakeoutTarget, p.gpsPosInSurveyCrs, epsg])
 
   // ── SAVE TO PROJECT — saves drawn features to current project (not throwaway) ──
   const saveToProject = useCallback(async () => {
     const setSaveMsg = p.setSaveMsg
+    if (!epsg) {
+      setSaveMsg('Declare or select a supported project CRS before saving survey geometry.')
+      return
+    }
     if (!p.drawSourceRef.current) return
     const features = p.drawSourceRef.current.getFeatures()
     if (features.length === 0) {
@@ -871,25 +980,30 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       })
       const featuresJson = JSON.parse(geojson) as { features?: import('ol/format/GeoJSON').GeoJSONFeature[] }
 
-      // Compute total area and perimeter for polygons
+      // Compute total area and perimeter in the project CRS (survey maths —
+      // Web Mercator areas are inflated by 1/cos²(latitude) and must not be
+      // persisted as drawnAreaSqM).
       let totalArea = 0
       let totalPerimeter = 0
       for (const f of features) {
         const geom = f.getGeometry()
         if (!geom) continue
         const type = geom.getType()
-        if (type === 'Polygon' || type === 'MultiPolygon') {
-          try {
-            const area = Math.abs((geom as Polygon).getArea())
-            totalArea += area
-            const perimeter = type === 'Polygon'
-              ? new (await import('ol/geom/LineString')).default((geom as Polygon).getCoordinates()[0]).getLength()
-              : 0
-            totalPerimeter += perimeter
-          } catch { /* skip */ }
-        } else if (type === 'LineString') {
-          totalPerimeter += (geom as LineString).getLength()
-        }
+        try {
+          if (type === 'Polygon' || type === 'MultiPolygon') {
+            const polys = (type === 'Polygon'
+              ? [(geom as Polygon).getCoordinates()]
+              : (geom as Polygon).getCoordinates()) as unknown as number[][][][]
+            for (const poly of polys) {
+              const outer = poly[0] || []
+              if (outer.length < 3) continue
+              totalArea += polygonAreaInCrs(outer, epsg)
+              totalPerimeter += polygonPerimeterInCrs(outer, epsg)
+            }
+          } else if (type === 'LineString') {
+            totalPerimeter += polylineLengthInCrs((geom as LineString).getCoordinates(), epsg)
+          }
+        } catch { /* skip feature whose CRS could not be resolved */ }
       }
 
       if (p.projectId) {
@@ -938,6 +1052,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
           return
         }
 
+        // Declare the CRS from the active map projection — never guess a zone.
+        const crsInfo = describeCrs(epsg)
+        if (!crsInfo || !crsInfo.projected || !crsInfo.zone || !crsInfo.hemisphere) {
+          setSaveMsg('Cannot create project: the active map CRS has no declared UTM zone')
+          setTimeout(() => setSaveMsg(''), 4000)
+          return
+        }
+
         const newProjectRow = (await dbClient
           .from('projects')
           .insert({
@@ -945,8 +1067,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
             name: projectName,
             survey_type: 'cadastral',
             location: 'Drawn on map',
-            utm_zone: 37,
-            hemisphere: 'S',
+            utm_zone: crsInfo.zone,
+            hemisphere: crsInfo.hemisphere,
+            datum: crsInfo.datum,
             boundary_data: {
               source: 'map-drawing',
               drawnFeatures: featuresJson,
@@ -972,37 +1095,47 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       setSaveMsg(`Error: ${err instanceof Error ? (err as Error).message : 'Save failed'}`)
       setTimeout(() => setSaveMsg(''), 4000)
     }
-  }, [p.projectId, p.setSaveMsg, p.drawSourceRef])
+  }, [p.projectId, p.setSaveMsg, p.drawSourceRef, epsg])
 
   // ── ANNOTATIONS ──
+  const annotationMapRef = p.mapInstance
+  const annotationSourceRef = p.drawSourceRef
+  const annotationLayerRef = p.annotationLayerRef
+  const annotationsAreShown = p.showAnnotations
+  const setAnnotationsShown = p.setShowAnnotations
+  const setAnnotationMessage = p.setSaveMsg
   const toggleAnnotations = useCallback(async () => {
-    const setShowAnnotations = p.setShowAnnotations
-    if (!p.mapInstance.current) return
+    if (!annotationMapRef.current) return
 
-    if (p.annotationLayerRef.current) {
+    if (annotationLayerRef.current) {
       // Remove ALL annotation layers (not just the first one)
-      const allLayers = (p.annotationLayerRef.current as import('ol/layer/Vector').default & { _allAnnotationLayers?: import('ol/layer/Vector').default[] })._allAnnotationLayers
-      if (allLayers && p.mapInstance.current) {
+      const allLayers = (annotationLayerRef.current as import('ol/layer/Vector').default & { _allAnnotationLayers?: import('ol/layer/Vector').default[] })._allAnnotationLayers
+      if (allLayers && annotationMapRef.current) {
         for (const layer of allLayers) {
-          try { p.mapInstance.current.removeLayer(layer) } catch { /* already removed */ }
+          try { annotationMapRef.current.removeLayer(layer) } catch { /* already removed */ }
         }
       } else {
-        p.mapInstance.current.removeLayer(p.annotationLayerRef.current)
+        annotationMapRef.current.removeLayer(annotationLayerRef.current)
       }
-      p.annotationLayerRef.current = null
+      annotationLayerRef.current = null
     }
 
-    if (p.showAnnotations) {
-      setShowAnnotations(false)
+    if (annotationsAreShown) {
+      setAnnotationsShown(false)
       return
     }
 
-    if (!p.drawSourceRef.current) return
-    const features = p.drawSourceRef.current.getFeatures()
-    if (features.length === 0) { setShowAnnotations(false); return }
+    if (!epsg) {
+      setAnnotationMessage('Set the project CRS before creating bearing or area annotations.')
+      return
+    }
+
+    if (!annotationSourceRef.current) return
+    const features = annotationSourceRef.current.getFeatures()
+    if (features.length === 0) { setAnnotationsShown(false); return }
 
     try {
-      const { createDrawAnnotationLayer } = await import('@/app/map/utils/drawAnnotations')
+      const { createDrawAnnotationLayer } = await import('@/lib/surveyMapEngine/ol/drawAnnotations')
       // Create annotation layers for ALL LineString and Polygon features, not just the first one
       const allAnnotationLayers: import('ol/layer/Vector').default[] = []
 
@@ -1034,28 +1167,28 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       }
 
       if (allAnnotationLayers.length === 0) {
-        setShowAnnotations(false)
+        setAnnotationsShown(false)
         return
       }
 
       // Add all annotation layers to the map
       // Store the first layer as the ref for cleanup; store all others via a closure
       for (const layer of allAnnotationLayers) {
-        p.mapInstance.current.addLayer(layer)
+        annotationMapRef.current.addLayer(layer)
       }
 
       // Use a composite cleanup: store the first layer in the ref,
       // and track all layers via a closure
-      p.annotationLayerRef.current = allAnnotationLayers[0]
+      annotationLayerRef.current = allAnnotationLayers[0]
       // Store all layers on the ref for complete cleanup
-      ;(p.annotationLayerRef.current as import('ol/layer/Vector').default & { _allAnnotationLayers?: import('ol/layer/Vector').default[] })._allAnnotationLayers = allAnnotationLayers
+      ;(annotationLayerRef.current as import('ol/layer/Vector').default & { _allAnnotationLayers?: import('ol/layer/Vector').default[] })._allAnnotationLayers = allAnnotationLayers
 
-      setShowAnnotations(true)
+      setAnnotationsShown(true)
     } catch (err) {
       logger.warn('Failed to create annotations:', { error: err })
-      setShowAnnotations(false)
+      setAnnotationsShown(false)
     }
-  }, [p.showAnnotations, p.mapInstance, p.annotationLayerRef, p.setShowAnnotations, p.drawSourceRef, epsg])
+  }, [annotationsAreShown, annotationMapRef, annotationLayerRef, annotationSourceRef, setAnnotationsShown, setAnnotationMessage, epsg])
 
   // ── NAVIGATION ──
   const fitToKenya = useCallback(async () => {
@@ -1124,10 +1257,15 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     } catch { return null }
   }, [p.mapInstance])
 
+  const coordSearchMapRef = p.mapInstance
+  const setCoordSearchMessage = p.setSaveMsg
   const handleCoordSearchLocal = useCallback(async (searchInput: string) => {
     const { handleCoordSearch } = await import('@/app/map/utils/coordSearch')
-    await handleCoordSearch(searchInput, p.mapInstance, epsg)
-  }, [epsg, p.mapInstance])
+    await handleCoordSearch(searchInput, coordSearchMapRef, epsg, (message) => {
+      setCoordSearchMessage(message)
+      setTimeout(() => setCoordSearchMessage(''), 4500)
+    })
+  }, [epsg, coordSearchMapRef, setCoordSearchMessage])
 
   const updateFeatureName = useCallback((name: string, selectedFeature: Feature | null) => {
     if (selectedFeature) {
@@ -1137,11 +1275,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   }, [])
 
   const handleOpacityChange = useCallback((val: number, setLayerOpacity: (v: number) => void) => {
-    setLayerOpacity(val)
-    if (p.drawLayerRef.current) {
-      p.drawLayerRef.current.setOpacity(val / 100)
-    }
-  }, [p.drawLayerRef])
+    const opacity = Math.max(0, Math.min(1, val))
+    setLayerOpacity(opacity)
+    const mapInstance = p.mapInstance.current
+    if (mapInstance) applyOverlayOpacity(mapInstance, opacity, isStandardBasemapId)
+  }, [p.mapInstance])
 
   return {
     toggleDraw,

@@ -17,33 +17,33 @@ interface RoadCompletionCertificatePanelProps {
 }
 
 const CERTIFICATION_FIELD_BY_KEY: Record<(typeof CERTIFICATION_ITEMS)[number]['key'], keyof RoadCompletionData> = {
-  earthworks: 'earthworksCertified',
-  pavement: 'pavementCertified',
-  drainage: 'drainageCertified',
-  signage: 'signageCertified',
-  roadFurniture: 'roadFurnitureCertified',
+  earthworks: 'earthworksReviewed',
+  pavement: 'pavementReviewed',
+  drainage: 'drainageReviewed',
+  signage: 'signageReviewed',
+  roadFurniture: 'roadFurnitureReviewed',
 }
 
 export default function RoadCompletionCertificatePanel({
-  roadClass = 'B', surveyorName = '', surveyorRegistration = '', surveyorFirm = '',
+  roadClass = '', surveyorName = '', surveyorRegistration = '', surveyorFirm = '',
 }: RoadCompletionCertificatePanelProps) {
   const [data, setData] = useState<RoadCompletionData>({
     projectName: '', roadName: '', roadClass, roadNumber: '',
-    chainageStart: 0, chainageEnd: 1000, totalLength: 1000,
+    chainageStart: Number.NaN, chainageEnd: Number.NaN, totalLength: Number.NaN,
     county: '', subCounty: '',
-    designSpeed: 80, carriagewayWidth: 7.0, shoulderWidth: 2.0, designStandard: 'KRDM2017',
-    contractorName: '', clientName: 'KeNHA', completionDate: new Date().toISOString().split('T')[0],
+    designSpeed: Number.NaN, carriagewayWidth: Number.NaN, shoulderWidth: Number.NaN, designStandard: '',
+    contractorName: '', clientName: '', completionDate: '',
     surveyorName, surveyorRegistration, surveyorFirm,
-    asBuiltPassRate: 98.5, asBuiltTotalPoints: 150, asBuiltPassPoints: 148, maxDeviation: 18.2, rmsError: 8.4,
+    asBuiltPassRate: Number.NaN, asBuiltTotalPoints: Number.NaN, asBuiltPassPoints: Number.NaN, maxDeviation: Number.NaN, rmsError: Number.NaN,
     pavementLayers: [],
-    earthworksCertified: true, pavementCertified: true, drainageCertified: false,
-    signageCertified: true, roadFurnitureCertified: false,
+    earthworksReviewed: false, pavementReviewed: false, drainageReviewed: false,
+    signageReviewed: false, roadFurnitureReviewed: false,
     defectsNoted: [], reservations: [],
   })
   const [certificate, setCertificate] = useState<ReturnType<typeof generateCertificate> | null>(null)
   const [defects, setDefects] = useState<DefectItem[]>([])
   const [showPreview, setShowPreview] = useState(false)
-  const [surveyMethod, setSurveyMethod] = useState('RTK GNSS / Total Station')
+  const [surveyMethod, setSurveyMethod] = useState('')
   const [validationErrors, setValidationErrors] = useState<string[]>([])
   const certificateRef = useRef<HTMLDivElement>(null)
 
@@ -66,28 +66,35 @@ export default function RoadCompletionCertificatePanel({
     const errors: string[] = []
     if (!data.projectName.trim()) errors.push('Project Name is required')
     if (!data.roadName.trim()) errors.push('Road Name is required')
-    if (!data.surveyorName.trim()) errors.push('Surveyor Name is required')
+    if (!data.county.trim()) errors.push('County is required')
+    if (!data.roadClass.trim()) errors.push('Road class is required')
+    if (!data.designStandard.trim()) errors.push('Project design standard is required')
+    if (!data.contractorName.trim()) errors.push('Contractor is required')
+    if (!data.clientName.trim()) errors.push('Client is required')
+    if (!data.completionDate) errors.push('Completion date is required')
+    if (!data.surveyorName.trim() || !data.surveyorRegistration.trim()) errors.push('Surveyor name and registration are required')
+    if (!surveyMethod.trim()) errors.push('Survey method/instrument is required')
+    if (![data.chainageStart, data.chainageEnd].every(Number.isFinite) || data.chainageStart < 0 || data.chainageEnd <= data.chainageStart) errors.push('Enter a valid chainage interval with end greater than start')
+    if (![data.designSpeed, data.carriagewayWidth, data.shoulderWidth].every(Number.isFinite) || data.designSpeed <= 0 || data.carriagewayWidth <= 0 || data.shoulderWidth < 0) errors.push('Enter valid positive design speed and carriageway width, and a non-negative shoulder width')
+    if (![data.asBuiltTotalPoints, data.asBuiltPassPoints, data.maxDeviation, data.rmsError].every(Number.isFinite) || !Number.isInteger(data.asBuiltTotalPoints) || !Number.isInteger(data.asBuiltPassPoints) || data.asBuiltTotalPoints <= 0 || data.asBuiltPassPoints < 0 || data.asBuiltPassPoints > data.asBuiltTotalPoints || data.maxDeviation < 0 || data.rmsError < 0) errors.push('Enter valid as-built point counts and non-negative reported deviation statistics')
+    if (defects.some(d => !Number.isFinite(d.chainage) || d.chainage < data.chainageStart || d.chainage > data.chainageEnd || !d.description.trim())) errors.push('Each defect needs a description and a chainage within the project interval')
     setValidationErrors(errors)
     return errors.length === 0
   }
 
-  // ─── FIX #6: Certificate number = Date.now() + random 4-digit suffix ──────────
-  const generateCertificateNumber = (): string => {
-    const suffix = Math.floor(1000 + Math.random() * 9000)
-    return `RCC-${Date.now()}-${suffix}`
-  }
-
   // ─── FIX #5: Survey method substitution ────────────────────────────────────────
   const substituteDeclaration = (declaration: string, method: string): string => {
-    return declaration.replace('[instrument/method]', method || 'RTK GNSS / Total Station')
+    return declaration.replace('[instrument/method]', method)
   }
 
   const handleGenerate = () => {
     if (!validate()) return
-    const cert = generateCertificate(data)
-    // Override certificate number (FIX #6)
-    cert.certificateNumber = generateCertificateNumber()
-    // Substitute survey method placeholder (FIX #5)
+    const recordData = {
+      ...data,
+      totalLength: data.chainageEnd - data.chainageStart,
+      asBuiltPassRate: (data.asBuiltPassPoints / data.asBuiltTotalPoints) * 100,
+    }
+    const cert = generateCertificate(recordData)
     cert.declaration = substituteDeclaration(cert.declaration, surveyMethod)
     setCertificate(cert)
     setShowPreview(true)
@@ -109,7 +116,7 @@ export default function RoadCompletionCertificatePanel({
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Road Completion Certificate — ${escapeXml(certificate.certificateNumber)}</title>
+  <title>Draft Road Completion Record — ${escapeXml(certificate.certificateNumber)}</title>
   <style>
     @page {
       size: A4;
@@ -129,7 +136,7 @@ export default function RoadCompletionCertificatePanel({
     .header h2 { font-size: 22px; font-weight: bold; margin-bottom: 6px; }
     .header .meta { font-size: 10px; color: #555; }
     .status { text-align: center; padding: 10px; margin: 16px 0; border-radius: 4px; font-weight: bold; }
-    .status.pass { background: #e8f5e9; color: #2e7d32; }
+    .status.pass { background: #e0f2fe; color: #075985; }
     .status.pending { background: #fff8e1; color: #f57f17; }
     .section-title {
       font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;
@@ -159,18 +166,18 @@ export default function RoadCompletionCertificatePanel({
 </head>
 <body>
   <div class="no-print" style="text-align:center;margin-bottom:16px;">
-    <button onclick="window.print()" style="padding:10px 28px;font-size:14px;cursor:pointer;border:1px solid #999;border-radius:4px;background:#1e40af;color:#fff;"> Print Certificate</button>
+    <button onclick="window.print()" style="padding:10px 28px;font-size:14px;cursor:pointer;border:1px solid #999;border-radius:4px;background:#1e40af;color:#fff;"> Print Draft Record</button>
   </div>
 
   <div class="header">
-    <h1>Republic of Kenya</h1>
+    <h1>METARDU — Project Record</h1>
     <h2>${escapeXml(certificate.title)}</h2>
-    <div class="meta">Kenya Roads Act, Cap 407 &bull; RDM 1.3 &bull; Survey Act Cap 299</div>
-    <div class="meta">Certificate No: <strong>${escapeXml(certificate.certificateNumber)}</strong> &bull; Date: ${escapeXml(certificate.issueDate)}</div>
+    <div class="meta">Draft for professional review — not statutory certification or approval</div>
+    <div class="meta">Draft Record ID: <strong>${escapeXml(certificate.certificateNumber)}</strong> &bull; Date: ${escapeXml(certificate.issueDate)}</div>
   </div>
 
-  <div class="status ${certificate.isComplete ? 'pass' : 'pending'}">
-    ${certificate.isComplete ? '&#10003; CERTIFIED &mdash; COMPLIANT' : '&#9888; PENDING &mdash; RESERVATIONS NOTED'}
+  <div class="status ${certificate.checklistComplete ? 'pass' : 'pending'}">
+    ${certificate.checklistComplete ? 'CHECKLIST MARKED COMPLETE &mdash; PROFESSIONAL SIGN-OFF REQUIRED' : '&#9888; DRAFT &mdash; CHECKLIST INCOMPLETE'}
   </div>
 
   ${certificate.sections.map(section => `
@@ -180,19 +187,19 @@ export default function RoadCompletionCertificatePanel({
     </table>
   `).join('')}
 
-  <div class="section-title">Certification Checklist</div>
+  <div class="section-title">User-Reported Review Checklist</div>
   <div class="checklist">
-    ${certificate.certificationChecklist.map(item => `
-      <div class="check-item ${item.certified ? 'certified' : 'not-certified'}">
-        ${item.certified ? '&#10003;' : '&#10007;'} ${escapeXml(item.item)}
+    ${certificate.reviewChecklist.map(item => `
+      <div class="check-item ${item.markedReviewed ? 'certified' : 'not-certified'}">
+        ${item.markedReviewed ? '&#10003;' : '&#10007;'} ${escapeXml(item.item)}
       </div>
     `).join('')}
   </div>
 
-  ${certificate.complianceNotes.length > 0 ? `
+  ${certificate.recordNotes.length > 0 ? `
     <div class="compliance-notes">
-      <h4>Compliance Notes</h4>
-      ${certificate.complianceNotes.map(note => `<p>&bull; ${escapeXml(note)}</p>`).join('')}
+      <h4>Record Notes</h4>
+      ${certificate.recordNotes.map(note => `<p>&bull; ${escapeXml(note)}</p>`).join('')}
     </div>
   ` : ''}
 
@@ -205,7 +212,7 @@ export default function RoadCompletionCertificatePanel({
       <div class="name">${escapeXml(certificate.signatureBlock.surveyorName)}</div>
       <div>${escapeXml(certificate.signatureBlock.surveyorRegistration)}</div>
       <div>${escapeXml(certificate.signatureBlock.surveyorFirm)}</div>
-      <div>License: ${escapeXml(certificate.signatureBlock.licenseNumber)}</div>
+      <div>License number (user entered): ${escapeXml(certificate.signatureBlock.licenseNumber)}</div>
       <div>Date: ${escapeXml(certificate.signatureBlock.date)}</div>
     </div>
   </div>
@@ -220,9 +227,9 @@ export default function RoadCompletionCertificatePanel({
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6">
-        <h3 className="text-lg font-semibold text-white">Road Completion Certificate</h3>
-        <p className="text-sm text-zinc-400 mt-1">Kenya Roads Act — formal certification of road construction completion</p>
+    <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-6">
+        <h3 className="text-lg font-semibold text-white">Road Completion Record — Draft</h3>
+        <p className="text-sm text-zinc-400 mt-1">Prepares a user-entered record for professional review. METARDU does not issue statutory certification or verify evidence.</p>
       </div>
 
       {/* Validation Errors */}
@@ -248,7 +255,8 @@ export default function RoadCompletionCertificatePanel({
                 { key: 'projectName' as const, label: 'Project Name', required: true },
                 { key: 'roadName' as const, label: 'Road Name', required: true },
                 { key: 'roadNumber' as const, label: 'Road Number', required: false },
-                { key: 'county' as const, label: 'County', required: false },
+                { key: 'county' as const, label: 'County', required: true },
+                { key: 'roadClass' as const, label: 'Road Class', required: true },
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-xs text-zinc-400 mb-1">
@@ -265,13 +273,13 @@ export default function RoadCompletionCertificatePanel({
               ))}
               <div>
                 <label className="block text-xs text-zinc-400 mb-1" htmlFor="chainage-start">Chainage Start</label>
-                <input id="chainage-start" aria-label="Chainagestart" type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={data.chainageStart} onChange={e => update('chainageStart', parseFloat(e.target.value) || 0)} />
+                <input id="chainage-start" aria-label="Chainage start metres" type="number" step="any" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={Number.isFinite(data.chainageStart) ? data.chainageStart : ''} onChange={e => update('chainageStart', e.target.value === '' ? Number.NaN : Number(e.target.value))} />
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1" htmlFor="chainage-end">Chainage End</label>
-                <input id="chainage-end" aria-label="Chainageend" type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={data.chainageEnd} onChange={e => update('chainageEnd', parseFloat(e.target.value) || 0)} />
+                <input id="chainage-end" aria-label="Chainage end metres" type="number" step="any" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={Number.isFinite(data.chainageEnd) ? data.chainageEnd : ''} onChange={e => update('chainageEnd', e.target.value === '' ? Number.NaN : Number(e.target.value))} />
               </div>
             </div>
           </div>
@@ -297,8 +305,48 @@ export default function RoadCompletionCertificatePanel({
               </div>
               <div>
                 <label className="block text-xs text-zinc-400 mb-1" htmlFor="design-speed-km-h">Design Speed (km/h)</label>
-                <input id="design-speed-km-h" aria-label="Designspeed" type="number" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  value={data.designSpeed} onChange={e => update('designSpeed', parseInt(e.target.value) || 0)} />
+                <input id="design-speed-km-h" aria-label="Design speed km per hour" type="number" step="any" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  value={Number.isFinite(data.designSpeed) ? data.designSpeed : ''} onChange={e => update('designSpeed', e.target.value === '' ? Number.NaN : Number(e.target.value))} />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1" htmlFor="carriageway-width">Carriageway width (m)</label>
+                <input id="carriageway-width" type="number" step="any" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white"
+                  value={Number.isFinite(data.carriagewayWidth) ? data.carriagewayWidth : ''} onChange={e => update('carriagewayWidth', e.target.value === '' ? Number.NaN : Number(e.target.value))} />
+              </div>
+              <div>
+                <label className="block text-xs text-zinc-400 mb-1" htmlFor="shoulder-width">Shoulder width (m)</label>
+                <input id="shoulder-width" type="number" step="any" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white"
+                  value={Number.isFinite(data.shoulderWidth) ? data.shoulderWidth : ''} onChange={e => update('shoulderWidth', e.target.value === '' ? Number.NaN : Number(e.target.value))} />
+              </div>
+              <div className="col-span-2">
+                <label className="block text-xs text-zinc-400 mb-1" htmlFor="design-standard">Project design standard / edition</label>
+                <input id="design-standard" type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white"
+                  value={data.designStandard} onChange={e => update('designStandard', e.target.value)} />
+              </div>
+            </div>
+          </div>
+
+          {/* As-built values are reported from source survey records; none are pre-filled. */}
+          <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-4">
+            <h4 className="font-medium text-white text-sm mb-1">Reported As-Built Summary</h4>
+            <p className="text-xs text-zinc-400 mb-3">Enter values from the checked survey report and approved tolerances. METARDU records the figures but does not assess pass/fail.</p>
+            <div className="grid grid-cols-2 gap-3">
+              {([
+                ['asBuiltTotalPoints', 'Survey points assessed'],
+                ['asBuiltPassPoints', 'Points within project tolerance'],
+                ['maxDeviation', 'Maximum deviation (mm)'],
+                ['rmsError', 'RMS error (mm)'],
+              ] as const).map(([field, label]) => (
+                <div key={field}>
+                  <label className="block text-xs text-zinc-400 mb-1" htmlFor={field}>{label}</label>
+                  <input id={field} type="number" min="0" step={field.includes('Points') ? '1' : 'any'}
+                    value={Number.isFinite(data[field]) ? data[field] : ''}
+                    onChange={e => update(field, e.target.value === '' ? Number.NaN : Number(e.target.value))}
+                    className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white" />
+                </div>
+              ))}
+              <div className="col-span-2 rounded border border-zinc-700 p-3 text-sm text-zinc-300">
+                Reported within-tolerance rate: {Number.isFinite(data.asBuiltPassPoints) && Number.isFinite(data.asBuiltTotalPoints) && data.asBuiltTotalPoints > 0 && data.asBuiltPassPoints >= 0 && data.asBuiltPassPoints <= data.asBuiltTotalPoints ? `${((data.asBuiltPassPoints / data.asBuiltTotalPoints) * 100).toFixed(1)}%` : '—'}
               </div>
             </div>
           </div>
@@ -318,7 +366,7 @@ export default function RoadCompletionCertificatePanel({
                   value={data.surveyorName} onChange={e => update('surveyorName', e.target.value)} />
               </div>
               <div>
-                <label className="block text-xs text-zinc-400 mb-1" htmlFor="isk-registration">ISK Registration</label>
+                <label className="block text-xs text-zinc-400 mb-1" htmlFor="isk-registration">Surveyor registration number</label>
                 <input id="isk-registration" type="text" className="w-full border border-zinc-600 rounded-lg px-3 py-1.5 text-sm bg-zinc-800 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                   value={data.surveyorRegistration} onChange={e => update('surveyorRegistration', e.target.value)} />
               </div>
@@ -339,7 +387,8 @@ export default function RoadCompletionCertificatePanel({
 
           {/* Certification Checklist */}
           <div className="bg-zinc-900 rounded-xl border border-zinc-700 p-4">
-            <h4 className="font-medium text-white text-sm mb-3">Certification Checklist</h4>
+            <h4 className="font-medium text-white text-sm mb-1">User-Reported Review Checklist</h4>
+            <p className="mb-3 text-xs text-amber-200/80">Selections are user assertions; they are not verified by METARDU and do not issue a certification.</p>
             <div className="space-y-2">
               {CERTIFICATION_ITEMS.map(item => (
                 <label key={item.key} className="flex items-start gap-3 cursor-pointer">
@@ -363,14 +412,14 @@ export default function RoadCompletionCertificatePanel({
                   onChange={e => { const nd = [...defects]; nd[i] = { ...d, severity: e.target.value as 'minor' | 'major' | 'critical' }; setDefects(nd) }}>
                   <option value="minor">Minor</option><option value="major">Major</option><option value="critical">Critical</option>
                 </select>
-                <input type="number" className="w-20 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Chainage" placeholder="e.g. 1+250"
-                  value={d.chainage} onChange={e => { const nd = [...defects]; nd[i] = { ...d, chainage: parseFloat(e.target.value) || 0 }; setDefects(nd) }} />
+                <input type="number" className="w-20 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Defect chainage metres" placeholder="Chainage m"
+                  value={Number.isFinite(d.chainage) ? d.chainage : ''} onChange={e => { const nd = [...defects]; nd[i] = { ...d, chainage: e.target.value === '' ? Number.NaN : Number(e.target.value) }; setDefects(nd) }} />
                 <input type="text" className="flex-1 border border-zinc-600 rounded px-2 py-1 text-xs bg-zinc-800 text-white placeholder-zinc-500 focus:outline-none focus:ring-2 focus:ring-blue-500" aria-label="Description" placeholder="e.g. Pavement crack"
                   value={d.description} onChange={e => { const nd = [...defects]; nd[i] = { ...d, description: e.target.value }; setDefects(nd) }} />
                 <button onClick={() => setDefects(defects.filter((_, j) => j !== i))} className="text-red-400 hover:text-red-300 text-xs">[x]</button>
               </div>
             ))}
-            <button onClick={() => setDefects([...defects, { chainage: 0, description: '', severity: 'minor' }])}
+            <button onClick={() => setDefects([...defects, { chainage: Number.NaN, description: '', severity: 'minor' }])}
               className="text-xs text-blue-400 hover:text-blue-300">+ Add Defect</button>
           </div>
 
@@ -397,7 +446,7 @@ export default function RoadCompletionCertificatePanel({
               <button onClick={handlePrintCertificate}
                 className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-600 text-zinc-300 rounded-lg font-medium hover:bg-zinc-700 hover:text-white transition-colors flex items-center justify-center gap-2">
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
-                Print Certificate
+                Print Draft Record
               </button>
               <div ref={certificateRef} className="bg-zinc-900 rounded-xl border-2 border-zinc-600 p-8 shadow-lg">
                 <CertificatePreview certificate={certificate} />
@@ -422,18 +471,18 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
     <div className="space-y-4 text-sm">
       {/* Header */}
       <div className="text-center border-b-2 border-zinc-500 pb-4">
-        <h2 className="text-lg font-bold text-white tracking-wider">REPUBLIC OF KENYA</h2>
+        <h2 className="text-lg font-bold text-white tracking-wider">METARDU — PROJECT RECORD</h2>
         <h3 className="text-2xl font-bold mt-1 text-white">{certificate.title}</h3>
-        <p className="text-xs text-zinc-400 mt-1">Kenya Roads Act, Cap 407 &bull; RDM 1.3 &bull; Survey Act Cap 299</p>
-        <p className="text-xs text-zinc-400 mt-1">Certificate No: <span className="font-mono font-bold text-white">{certificate.certificateNumber}</span> &bull; Date: {certificate.issueDate}</p>
+        <p className="text-xs text-zinc-400 mt-1">Draft for professional review — not statutory certification or approval</p>
+        <p className="text-xs text-zinc-400 mt-1">Draft Record ID: <span className="font-mono font-bold text-white">{certificate.certificateNumber}</span> &bull; Date: {certificate.issueDate}</p>
       </div>
 
       {/* Status Badge */}
-      <div className={`text-center py-2 rounded-lg ${certificate.isComplete ? 'bg-green-900/50 text-green-400' : 'bg-amber-900/50 text-amber-400'}`}>
+      <div className={`text-center py-2 rounded-lg ${certificate.checklistComplete ? 'bg-sky-900/50 text-sky-300' : 'bg-amber-900/50 text-amber-400'}`}>
         <span className="font-bold flex items-center justify-center gap-1.5">
-          {certificate.isComplete
-            ? 'CERTIFIED — COMPLIANT'
-            : <><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> PENDING — RESERVATIONS NOTED</>
+          {certificate.checklistComplete
+            ? 'CHECKLIST MARKED COMPLETE — PROFESSIONAL SIGN-OFF REQUIRED'
+            : <><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> DRAFT — CHECKLIST INCOMPLETE</>
           }
         </span>
       </div>
@@ -457,21 +506,21 @@ function CertificatePreview({ certificate }: { certificate: ReturnType<typeof ge
 
       {/* Certification Checklist */}
       <div>
-        <h4 className="font-bold text-xs text-zinc-400 uppercase tracking-wider border-b border-zinc-700 pb-1 mb-2">CERTIFICATION CHECKLIST</h4>
+        <h4 className="font-bold text-xs text-zinc-400 uppercase tracking-wider border-b border-zinc-700 pb-1 mb-2">USER-REPORTED REVIEW CHECKLIST</h4>
         <div className="grid grid-cols-2 gap-1">
-          {certificate.certificationChecklist.map((item, i) => (
-            <div key={`${item}-${i}`} className={`flex items-center gap-2 text-xs py-1 ${item.certified ? 'text-green-400' : 'text-red-400'}`}>
-              {item.certified ? '' : '[x]'} {item.item}
+          {certificate.reviewChecklist.map((item, i) => (
+            <div key={`${item.item}-${i}`} className={`flex items-center gap-2 text-xs py-1 ${item.markedReviewed ? 'text-sky-300' : 'text-amber-300'}`}>
+              {item.markedReviewed ? '✓' : '○'} {item.item}
             </div>
           ))}
         </div>
       </div>
 
       {/* Compliance Notes */}
-      {certificate.complianceNotes.length > 0 && (
+      {certificate.recordNotes.length > 0 && (
         <div className="bg-amber-950/50 border border-amber-800 rounded-lg p-3">
-          <h4 className="font-bold text-xs text-amber-400 mb-1">COMPLIANCE NOTES</h4>
-          {certificate.complianceNotes.map((note, i) => (
+          <h4 className="font-bold text-xs text-amber-400 mb-1">RECORD NOTES</h4>
+          {certificate.recordNotes.map((note, i) => (
             <p key={`${note}-${i}`} className="text-xs text-amber-500">&#8226; {note}</p>
           ))}
         </div>

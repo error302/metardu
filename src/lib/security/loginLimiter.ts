@@ -36,7 +36,7 @@ const REDIS_TTL_SEC = Math.ceil(LOCKOUT_WINDOW_MS / 1000) + Math.ceil(LOCKOUT_DU
 const attemptStore = new Map<string, LoginAttempt>()
 
 // Periodic cleanup of expired entries (every 10 minutes)
-setInterval(() => {
+const cleanupTimer = setInterval(() => {
   const now = Date.now()
   const keysToDelete: string[] = []
   attemptStore.forEach((record, key) => {
@@ -48,6 +48,8 @@ setInterval(() => {
   })
   keysToDelete.forEach(key => attemptStore.delete(key))
 }, 10 * 60 * 1000)
+// Cleanup must not keep standalone checks or a shutting-down server alive.
+cleanupTimer.unref?.()
 
 function getKey(email: string, ip: string): string {
   return `${email.toLowerCase()}:${ip}`

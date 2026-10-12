@@ -1,0 +1,66 @@
+/** @jest-environment jsdom */
+import { act } from 'react'
+import { createRoot } from 'react-dom/client'
+import DynamicFieldBook from '@/components/workspace/DynamicFieldBook'
+
+beforeAll(() => {
+  ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
+})
+
+describe('DynamicFieldBook Virtualization', () => {
+  it('renders standard table rows when under 50 rows', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+
+    const testRows = Array.from({ length: 5 }, (_, i) => ({
+      station: `STN${i + 1}`,
+      bearing: '045°00\'00"',
+      distance: '100.000',
+    }))
+
+    await act(async () => {
+      root.render(
+        <DynamicFieldBook
+          projectId="test-proj"
+          surveyType="cadastral"
+          initialRows={testRows}
+        />
+      )
+    })
+
+    expect(host.textContent).toContain('5 rows')
+    expect(host.textContent).not.toContain('⚡ Virtualized')
+
+    await act(async () => root.unmount())
+    host.remove()
+  })
+
+  it('activates virtualized windowing when row count exceeds 50', async () => {
+    const host = document.createElement('div')
+    document.body.appendChild(host)
+    const root = createRoot(host)
+
+    const testRows = Array.from({ length: 80 }, (_, i) => ({
+      station: `STN${i + 1}`,
+      bearing: '045°00\'00"',
+      distance: '100.000',
+    }))
+
+    await act(async () => {
+      root.render(
+        <DynamicFieldBook
+          projectId="test-proj"
+          surveyType="cadastral"
+          initialRows={testRows}
+        />
+      )
+    })
+
+    expect(host.textContent).toContain('80 rows')
+    expect(host.textContent).toContain('⚡ Virtualized')
+
+    await act(async () => root.unmount())
+    host.remove()
+  })
+})

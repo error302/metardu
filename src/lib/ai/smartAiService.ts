@@ -7,7 +7,6 @@
  * - When offline in remote trench: routes to localLlmService (WebLLM - Survey Act Cap 299)
  */
 
-import { localLlmService } from './localLlmService'
 import type { InitProgressReport } from '@mlc-ai/web-llm'
 import { logger } from '@/lib/logger'
 
@@ -46,6 +45,7 @@ export async function smartChat(options: SmartChatOptions): Promise<string> {
   }
 
   // Fallback to Offline Local LLM with Cap 299 Knowledge
+  const { localLlmService } = await import('./localLlmService')
   return await localLlmService.chat({
     messages: options.messages,
     onToken: options.onToken,
@@ -55,7 +55,6 @@ export async function smartChat(options: SmartChatOptions): Promise<string> {
 
 const smartAiService = {
   smartChat,
-  localLlmService,
 }
 
 export default smartAiService

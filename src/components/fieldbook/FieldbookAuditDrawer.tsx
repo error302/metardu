@@ -241,7 +241,7 @@ export function FieldbookAuditDrawer({ open, onClose, projectId }: FieldbookAudi
         <div className="p-3 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)]">
           <p className="text-[10px] text-[var(--text-muted)] flex items-center gap-1.5">
             <ShieldCheck className="w-3 h-3 text-emerald-400" />
-            {t('audit.integrityValid')}
+            Recorded changes · Hash links are not verified in this view
           </p>
         </div>
       </div>

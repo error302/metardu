@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useMemo } from 'react'
-import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer, Ruler } from 'lucide-react'
+import { useState, useMemo, useRef } from 'react'
+import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer, Ruler, Upload } from 'lucide-react'
 import { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
 import { generateDeedPlan } from '@/lib/compute/deedPlanApi'
 import { saveDeedPlan } from '@/lib/api-client/deedPlans'
@@ -237,6 +237,60 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
         },
       ],
     })
+  }
+
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handleCSVUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = (evt) => {
+      const text = evt.target?.result as string
+      if (!text) return
+
+      try {
+        const lines = text.split(/\r?\n/).map(l => l.trim()).filter(Boolean)
+        const imported: BoundaryPoint[] = []
+
+        for (const line of lines) {
+          // Skip header if present
+          if (/^(point|id|pt|name|easting|northing)/i.test(line)) continue
+
+          const parts = line.split(/[,\t\s]+/).filter(Boolean)
+          if (parts.length >= 3) {
+            const id = parts[0]
+            const easting = parseFloat(parts[1])
+            const northing = parseFloat(parts[2])
+            if (!isNaN(easting) && !isNaN(northing)) {
+              imported.push({
+                id,
+                easting,
+                northing,
+                markType: (parts[3] as BeaconType) || 'CONCRETE_BEACON',
+                markStatus: 'FOUND',
+                description: parts.slice(4).join(' ') || 'Imported field coordinate',
+              })
+            }
+          }
+        }
+
+        if (imported.length > 0) {
+          setInput(prev => ({
+            ...prev,
+            boundaryPoints: imported,
+          }))
+          setError(null)
+        } else {
+          setError('No valid coordinates found in file. Format expected: PointID, Easting, Northing')
+        }
+      } catch {
+        setError('Failed to parse coordinate file.')
+      }
+    }
+    reader.readAsText(file)
+    e.target.value = ''
   }
 
   const removeBoundaryPoint = (index: number) => {
@@ -582,6 +636,21 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
             <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
               <h2 className="text-xl font-semibold">Boundary Points</h2>
               <div className="flex flex-wrap gap-2">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleCSVUpload}
+                  accept=".csv,.txt,.dat"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)] rounded-lg hover:border-[var(--accent)] text-sm"
+                >
+                  <Upload className="h-4 w-4" />
+                  Import CSV / Coordinates
+                </button>
                 <button
                   type="button"
                   onClick={() => setInput(FOUR_ACRE_SAMPLE)}

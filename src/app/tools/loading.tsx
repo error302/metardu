@@ -1,22 +1,29 @@
+import { RouteLoading } from '@/components/shared/RouteLoading'
+
 export default function ToolsLoading() {
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 animate-pulse">
-      <div className="h-8 w-64 rounded bg-[var(--bg-tertiary)] mb-2" />
-      <div className="h-4 w-96 rounded bg-[var(--bg-tertiary)] mb-8" />
-      <div className="grid md:grid-cols-2 gap-6">
-        <div className="card">
-          <div className="card-header h-8 bg-[var(--bg-tertiary)]" />
-          <div className="card-body space-y-4">
-                        {Array.from({ length: 4 }, (_, i) => (
-              <div key={`${_}-${i}`} className="h-10 rounded bg-[var(--bg-tertiary)]" />
-            ))}
-          </div>
+    <RouteLoading
+      label="Loading tools"
+      height={260}
+      lines={[
+        'Calibrating instruments…',
+        'Loading computation modules…',
+        'Preparing tool bench…',
+      ]}
+      skeleton={
+        <div className="grid md:grid-cols-2 gap-6">
+          {Array.from({ length: 2 }, (_, i) => (
+            <div key={`skel-${i}`} className="card animate-pulse">
+              <div className="card-header h-8 bg-[var(--bg-tertiary)]" />
+              <div className="card-body space-y-4">
+                {Array.from({ length: 4 }, (_, j) => (
+                  <div key={`skel-${i}-${j}`} className="h-10 rounded bg-[var(--bg-tertiary)]" />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
-        <div className="card">
-          <div className="card-header h-8 bg-[var(--bg-tertiary)]" />
-          <div className="card-body h-40 bg-[var(--bg-tertiary)] rounded" />
-        </div>
-      </div>
-    </div>
+      }
+    />
   )
 }

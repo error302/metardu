@@ -16,28 +16,54 @@
  *   - Offline-first (IndexedDB + auto-sync)
  */
 
-import { useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { FieldDataCollector } from '@/components/field/FieldDataCollector'
 import { ProjectPicker } from '@/components/field/ProjectPicker'
 
 export default function FieldCollectPage() {
+  const [routeContext, setRouteContext] = useState<{ ready: boolean; projectId: string | null; roadSurvey: boolean }>({
+    ready: false,
+    projectId: null,
+    roadSurvey: false,
+  })
   const [projectId, setProjectId] = useState<string | null>(null)
   const [surveyType, setSurveyType] = useState<'cadastral' | 'engineering' | 'topographic' | 'control'>('cadastral')
+
+  useEffect(() => {
+    const searchParams = new URLSearchParams(window.location.search)
+    setRouteContext({
+      ready: true,
+      projectId: searchParams.get('projectId'),
+      roadSurvey: searchParams.get('profile') === 'road',
+    })
+  }, [])
+
+  const { ready, projectId: initialProjectId, roadSurvey } = routeContext
+
+  const handlePick = useCallback((id: string, type?: string) => {
+    setProjectId(id)
+    if (roadSurvey) {
+      setSurveyType('engineering')
+    } else if (type && ['cadastral', 'engineering', 'topographic', 'control'].includes(type)) {
+      setSurveyType(type as 'cadastral' | 'engineering' | 'topographic' | 'control')
+    }
+  }, [roadSurvey])
+
+  if (!ready) {
+    return <div className="min-h-screen bg-[var(--bg-primary)] p-6 text-sm text-[var(--text-muted)]">Preparing field session…</div>
+  }
 
   if (!projectId) {
     return (
       <ProjectPicker
-        onPick={(id, type) => {
-          setProjectId(id)
-          if (type && ['cadastral', 'engineering', 'topographic', 'control'].includes(type)) {
-            setSurveyType(type as 'cadastral' | 'engineering' | 'topographic' | 'control')
-          }
-        }}
+        onPick={handlePick}
         title="Field Data Collector"
-        subtitle="Select a project to begin collecting measurements"
+        subtitle={roadSurvey ? 'Opening the saved road field plan for point collection' : 'Select a project to begin collecting measurements'}
+        initialProjectId={initialProjectId}
+        initialSurveyType={roadSurvey ? 'engineering' : undefined}
       />
     )
   }
 
-  return <FieldDataCollector projectId={projectId} surveyType={surveyType} />
+  return <FieldDataCollector projectId={projectId} surveyType={surveyType} roadSurvey={roadSurvey} />
 }

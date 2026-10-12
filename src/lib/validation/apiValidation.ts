@@ -20,6 +20,7 @@
  */
 
 import { z } from 'zod'
+import { FIELD_RECORD_CRS_CODES } from '@/lib/field/fieldRecordCrs'
 
 // ---------------------------------------------------------------------------
 // Common schemas
@@ -92,6 +93,7 @@ export const fieldRecordSchema = z.object({
   frType: z.string().max(50).optional(),
   easting: z.number().finite(),
   northing: z.number().finite(),
+  horizontalCrs: z.enum(FIELD_RECORD_CRS_CODES),
   county: z.string().max(100).optional(),
   subCounty: z.string().max(100).optional(),
   locality: z.string().max(500).optional(),
@@ -115,6 +117,8 @@ export const equipmentSchema = z.object({
   purchaseCost: z.number().optional(),
   status: z.enum(['active', 'inactive', 'maintenance']).optional(),
   notes: z.string().max(5000).optional(),
+  intervalDays: z.number().optional(),
+  location: z.string().max(200).optional(),
 })
 
 /** Notification input */

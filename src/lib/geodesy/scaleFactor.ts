@@ -13,10 +13,12 @@
  * Ground Area = Grid Area / CSF²
  *
  * Sources:
- * - UTM grid scale factor: k = 0.9996 / cosh(asinh(tan(φ)) - atanh(e·sin(φ))·e) ... simplified
- *   For practical purposes, k ≈ 0.9996 + (x_offset / R)² / 2 where x_offset is
- *   distance from central meridian in metres.
- * - Elevation factor: Fh = R / (R + h) where R = 6,371,000m, h = ellipsoidal height
+ * - UTM grid scale factor: k = k₀ × (1 + E'²/(2ν²)(1 + η²cos²φ) + E'⁴/(24ν⁴)),
+ *   E' = distance from the central meridian, ν = prime-vertical radius of
+ *   curvature, η² = e'²cos²φ. Cross-validated against the exact numerical
+ *   point scale factor in src/lib/spatial/projectCrs.ts to < 1 ppm.
+ * - Elevation factor: Fh = √(ρν) / (√(ρν) + h), ρ = meridional and
+ *   ν = prime-vertical radii, h = ellipsoidal height.
  *
  * For Kenya UTM zones:
  *   Zone 36S: central meridian = 33°E
@@ -128,25 +130,28 @@ export function computeCombinedScaleFactor(input: ScaleFactorInput): ScaleFactor
   const lonDiffRad = ((longitude - centralMeridian) * Math.PI) / 180
   const distanceFromCM = Math.abs(lonDiffRad * nu * cosLat)
 
-  // Grid scale factor (UTM projection) — rigorous 2nd-order formula:
-  // k = k₀ × (1 + E'²/(2Rm²) × (1 + e'²cos²φ) + E'⁴/(24Rm⁴))
-  // where E' is the distance from the central meridian
+  // Grid scale factor (UTM projection) — rigorous series:
+  // k = k₀ × (1 + E'²/(2ν²) × (1 + η²cos²φ) + E'⁴/(24ν⁴))
+  // where E' is the distance from the central meridian, ν is the
+  // PRIME-VERTICAL radius (NOT the geometric mean radius √(ρν) — using √(ρν)
+  // here inflates k by ~0.7% of the E'² term, a 4.6 ppm error at 243 km from
+  // the central meridian, e.g. Nairobi in zone 37S) and η² = e'²cos²φ.
+  const nu2 = nu * nu
+  const nu4 = nu2 * nu2
   const Eprime2 = distanceFromCM * distanceFromCM
   const Eprime4 = Eprime2 * Eprime2
-  const Rm2 = Rm * Rm
-  const Rm4 = Rm2 * Rm2
 
   const gridScaleFactor = UTM_SCALE_AT_CENTRAL_MERIDIAN * (
     1 +
-    (Eprime2 / (2 * Rm2)) * (1 + ePrime2 * cosLat2) +
-    (Eprime4 / (24 * Rm4))
+    (Eprime2 / (2 * nu2)) * (1 + ePrime2 * cosLat2) +
+    (Eprime4 / (24 * nu4))
   )
 
-  // Elevation factor — use the ellipsoidal prime-vertical radius (not
-  // the mean Earth radius). At 1800m elevation (Nairobi), this gives
-  // Fh = ν / (ν + h) ≈ 0.99972 (vs 0.99972 for spherical — the
-  // difference is sub-ppm at this elevation, but it's the correct formula).
-  const elevationFactor = nu / (nu + ellipsoidalHeight)
+  // Elevation factor — Fh = √(ρ·ν) / (√(ρ·ν) + h), the geometric mean of the
+  // meridional and prime-vertical radii (standard geodetic reduction of a
+  // slope/EDM distance to the ellipsoid). Using ν alone overstates Fh by
+  // ~0.8 ppm at 1,600 m.
+  const elevationFactor = Rm / (Rm + ellipsoidalHeight)
 
   // Combined scale factor
   const combinedScaleFactor = gridScaleFactor * elevationFactor

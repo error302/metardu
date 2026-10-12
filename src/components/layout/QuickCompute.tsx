@@ -8,6 +8,8 @@ const TOOLS = [
   {
     category: 'Documents & Certificates',
     items: [
+      { label: 'Statutory Fee Quotation', href: '/tools/fee-quotation' },
+      { label: 'Legal Description Writer', href: '/tools/legal-description' },
       { label: 'Beacon Certificate', href: '/tools/beacon-certificate' },
       { label: 'Billable Documents', href: '/tools/billable-documents' },
       { label: 'GNSS Observation Log', href: '/tools/gnss-observation-log' },
@@ -21,6 +23,7 @@ const TOOLS = [
     category: 'Field Layout',
     items: [
       { label: 'Setting Out', href: '/tools/setting-out' },
+      { label: 'Stakeout Cut Sheet', href: '/tools/stakeout-report' },
       { label: 'Missing Line', href: '/tools/missing-line' },
       { label: 'Control Marks Register', href: '/tools/control-marks-register' },
       { label: 'Pile / Column Grid', href: '/tools/pile-grid' },
@@ -38,6 +41,7 @@ const TOOLS = [
   {
     category: 'Calculations',
     items: [
+      { label: '3-Way Coordinate Converter', href: '/tools/cassini-utm' },
       { label: 'Distance & Bearing', href: '/tools/distance' },
       { label: 'Bearing', href: '/tools/bearing' },
       { label: 'Area', href: '/tools/area' },
@@ -51,7 +55,10 @@ const TOOLS = [
       { label: 'Traverse Field Book', href: '/tools/traverse-field-book' },
       { label: 'Coordinates', href: '/tools/coordinates' },
       { label: 'COGO Calculator', href: '/tools/cogo' },
+      { label: 'Field COGO & Recovery', href: '/tools/cogo' },
+      { label: 'Pin Cushion Recovery Analysis', href: '/tools/pin-cushion' },
       { label: 'GNSS', href: '/tools/gnss' },
+      { label: 'Multi-CORS Networks', href: '/tools/cors-networks' },
     ]
   },
   {
@@ -65,6 +72,7 @@ const TOOLS = [
       { label: 'Superelevation', href: '/tools/superelevation' },
       { label: 'Sight Distance', href: '/tools/sight-distance' },
       { label: 'Pipe Gradient', href: '/tools/pipe-gradient' },
+      { label: 'Pipe Network / Storm Drainage', href: '/tools/pipe-network' },
     ]
   },
   {
@@ -77,6 +85,8 @@ const TOOLS = [
     category: 'Specialized Surveys',
     items: [
       { label: 'Drone / UAV', href: '/tools/drone' },
+      { label: 'Drone Flight Planner', href: '/tools/drone-flight-plan' },
+      { label: 'Site Geofence Alerts', href: '/tools/geofence' },
       { label: 'Topo Drawing Composer', href: '/tools/topo-drawing' },
       { label: 'Slope & Area Analysis', href: '/tools/slope-analysis' },
       { label: 'GNSS Baseline', href: '/tools/gnss-baseline' },
@@ -88,6 +98,7 @@ const TOOLS = [
     items: [
       { label: 'Machine Control Export', href: '/tools/machine-control' },
       { label: 'Progress Monitor', href: '/tools/progress-monitor' },
+      { label: 'Pipe Network / Drainage', href: '/tools/pipe-network' },
     ]
   },
   {
@@ -109,7 +120,7 @@ const TOOLS = [
   {
     category: 'Utilities',
     items: [
-      { label: 'Datum Converter', href: '/online' },
+      { label: 'Online Services', href: '/online' },
     ]
   },
 ]

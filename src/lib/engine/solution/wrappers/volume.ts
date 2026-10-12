@@ -65,7 +65,7 @@ export function volumeFromSectionsSolved(sections: VolumeSection[], method: Volu
         ok: Math.abs(diff) < 1e-9,
       },
       ...(method === 'prismoidal' && sections.length % 2 === 0
-        ? [{ label: 'Prismoidal pairing', value: 'Even section count: last section may be unused by triplet method.', ok: true }]
+        ? [{ label: 'Prismoidal pairing', value: `Even section count (${sections.length}): final interval computed via End Area method per standard surveying practice.`, ok: true }]
         : []),
     ],
     result: [

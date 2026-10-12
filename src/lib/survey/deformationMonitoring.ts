@@ -216,24 +216,54 @@ export interface TimeSeriesAnalysis {
  * @returns DeformationReport with per-monument vectors + alerts
  */
 export function compareEpochs(
-  baseline: EpochSet,
-  current: EpochSet,
-  tolerance: DeformationTolerance = {},
-  confidenceLevel: number = 0.95,
+  baselineOrOptions: EpochSet | {
+    baseline: EpochSet
+    current: EpochSet
+    tolerance?: DeformationTolerance
+    confidenceLevel?: number
+  },
+  currentArg?: EpochSet,
+  toleranceArg: DeformationTolerance = {},
+  confidenceLevelArg: number = 0.95,
 ): DeformationReport {
+  const isOptionsObject = typeof baselineOrOptions === 'object' && 'baseline' in baselineOrOptions && 'current' in baselineOrOptions
+  const baseline = isOptionsObject ? (baselineOrOptions as { baseline: EpochSet }).baseline : (baselineOrOptions as EpochSet)
+  const current = isOptionsObject ? (baselineOrOptions as { current: EpochSet }).current : (currentArg as EpochSet)
+  const tolerance = isOptionsObject ? (baselineOrOptions as { tolerance?: DeformationTolerance }).tolerance ?? {} : toleranceArg
+  const confidenceLevel = isOptionsObject ? (baselineOrOptions as { confidenceLevel?: number }).confidenceLevel ?? 0.95 : confidenceLevelArg
+
   const tolH = tolerance.horizontal ?? 0.005  // 5mm default
   const tolV = tolerance.vertical ?? 0.003    // 3mm default
+  if (!baseline || !current || !Number.isFinite(baseline.epoch) || !Number.isFinite(current.epoch)) {
+    throw new Error('Baseline and current epochs must be finite decimal years.')
+  }
+  if (!Number.isFinite(tolH) || tolH <= 0 || !Number.isFinite(tolV) || tolV <= 0) {
+    throw new Error('Deformation tolerances must be finite positive distances in metres.')
+  }
+  if (!Number.isFinite(confidenceLevel) || confidenceLevel <= 0 || confidenceLevel >= 1) {
+    throw new Error('Confidence level must be between 0 and 1.')
+  }
   const commonEpoch = Math.max(baseline.epoch, current.epoch)
 
   // Build lookup maps
   const baselineMap = new Map<string, MonumentObservation>()
   for (const m of baseline.monuments) {
-    baselineMap.set(m.monumentId, m)
+    const id = String(m?.monumentId ?? '').trim()
+    if (!id || ![m.latitude, m.longitude, m.height, m.epoch].every(Number.isFinite)) {
+      throw new Error(`Invalid baseline observation for monument ${m?.monumentId || '(unnamed)'}`)
+    }
+    if (baselineMap.has(id)) throw new Error(`Duplicate baseline monument ${id}`)
+    baselineMap.set(id, { ...m, monumentId: id })
   }
 
   const currentMap = new Map<string, MonumentObservation>()
   for (const m of current.monuments) {
-    currentMap.set(m.monumentId, m)
+    const id = String(m?.monumentId ?? '').trim()
+    if (!id || ![m.latitude, m.longitude, m.height, m.epoch].every(Number.isFinite)) {
+      throw new Error(`Invalid current observation for monument ${m?.monumentId || '(unnamed)'}`)
+    }
+    if (currentMap.has(id)) throw new Error(`Duplicate current monument ${id}`)
+    currentMap.set(id, { ...m, monumentId: id })
   }
 
   // Find common, missing, and new monuments
@@ -296,27 +326,62 @@ export function compareEpochs(
     let significance: DeformationVector['significance']
     let isSignificant = false
 
-    if (baseMon.sigmaE !== undefined && currMon.sigmaE !== undefined &&
-        baseMon.sigmaN !== undefined && currMon.sigmaN !== undefined) {
-      // Combined standard deviation (error propagation: σ_diff = √(σ1² + σ2²))
-      const sigmaE_combined = Math.sqrt(baseMon.sigmaE ** 2 + currMon.sigmaE ** 2)
-      const sigmaN_combined = Math.sqrt(baseMon.sigmaN ** 2 + currMon.sigmaN ** 2)
+    const hasHorizontalSigmas =
+      baseMon.sigmaE !== undefined && currMon.sigmaE !== undefined &&
+      baseMon.sigmaN !== undefined && currMon.sigmaN !== undefined
+    const hasVerticalSigmas = baseMon.sigmaH !== undefined && currMon.sigmaH !== undefined
 
-      // Test statistic: horizontal displacement / combined sigma
-      const sigmaH_combined = Math.sqrt(sigmaE_combined ** 2 + sigmaN_combined ** 2)
-      const testStatistic = sigmaH_combined > 0 ? horizontalDisplacement / sigmaH_combined : 0
+    if (hasHorizontalSigmas || hasVerticalSigmas) {
+      let isSigH = false
+      let isSigV = false
+      let testStatH = 0
+      let critValH = 0
+      let testStatV = 0
+      let critValV = 0
 
-      // Critical value: for 2D, 95% confidence → 2.45 (chi-square 2D)
-      const criticalValue = confidenceLevel === 0.99 ? 3.03 : 2.45
-      isSignificant = testStatistic > criticalValue
+      // 2D Horizontal Significance Test (Chi-square Mahalanobis distance)
+      if (hasHorizontalSigmas) {
+        const sigmaE_comb = Math.sqrt((baseMon.sigmaE as number) ** 2 + (currMon.sigmaE as number) ** 2)
+        const sigmaN_comb = Math.sqrt((baseMon.sigmaN as number) ** 2 + (currMon.sigmaN as number) ** 2)
+
+        if (sigmaE_comb > 0 && sigmaN_comb > 0) {
+          // Mahalanobis distance T_H = sqrt((dE/sE)^2 + (dN/sN)^2)
+          testStatH = Math.sqrt((deltaE / sigmaE_comb) ** 2 + (deltaN / sigmaN_comb) ** 2)
+          critValH = confidenceLevel >= 0.99 ? 3.03 : 2.45
+          isSigH = testStatH > critValH
+        }
+      }
+
+      // 1D Vertical Significance Test (Standard Normal Z-score)
+      if (hasVerticalSigmas) {
+        const sigmaH_comb = Math.sqrt((baseMon.sigmaH as number) ** 2 + (currMon.sigmaH as number) ** 2)
+        if (sigmaH_comb > 0) {
+          testStatV = Math.abs(deltaH) / sigmaH_comb
+          critValV = confidenceLevel >= 0.99 ? 2.576 : 1.96
+          isSigV = testStatV > critValV
+        }
+      }
+
+      isSignificant = isSigH || isSigV
+      const primaryTestStat = Math.max(testStatH, testStatV)
+      const primaryCritVal = isSigV && !isSigH ? critValV : critValH
+
+      let interpretation = ''
+      if (isSignificant) {
+        interpretation = `Movement is statistically significant at ${(confidenceLevel * 100).toFixed(0)}% confidence ` +
+          `(${isSigH ? `horizontal test stat ${testStatH.toFixed(2)} > ${critValH.toFixed(2)}` : ''}` +
+          `${isSigH && isSigV ? ', ' : ''}` +
+          `${isSigV ? `vertical test stat ${testStatV.toFixed(2)} > ${critValV.toFixed(2)}` : ''}). Real movement detected.`
+      } else {
+        interpretation = `Movement is NOT statistically significant at ${(confidenceLevel * 100).toFixed(0)}% confidence ` +
+          `(test stat ${primaryTestStat.toFixed(2)} ≤ ${primaryCritVal.toFixed(2)}). Measurement noise cannot be ruled out.`
+      }
 
       significance = {
-        testStatistic,
-        criticalValue,
+        testStatistic: primaryTestStat,
+        criticalValue: primaryCritVal,
         passed: !isSignificant,
-        interpretation: isSignificant
-          ? `Movement is statistically significant at ${(confidenceLevel * 100).toFixed(0)}% confidence (test stat ${testStatistic.toFixed(2)} > ${criticalValue}). This is real movement, not measurement noise.`
-          : `Movement is NOT statistically significant at ${(confidenceLevel * 100).toFixed(0)}% confidence (test stat ${testStatistic.toFixed(2)} ≤ ${criticalValue}). Likely measurement noise.`,
+        interpretation,
       }
     }
 
@@ -335,8 +400,8 @@ export function compareEpochs(
     }
     vectors.push(vector)
 
-    // Generate alert if exceeds tolerance AND is significant (or no sigma data)
-    if (exceedsTolerance && (isSignificant || !significance)) {
+    // Generate alert if exceeds tolerance
+    if (exceedsTolerance) {
       const severity = horizontalDisplacement > tolH * 3 || Math.abs(deltaH) > tolV * 3
         ? 'critical'
         : 'warning'
@@ -344,13 +409,18 @@ export function compareEpochs(
       const directionStr = formatBearing(bearing)
       const magMm = horizontalDisplacement * 1000
 
+      let message = `${id} has moved ${magMm.toFixed(1)}mm ${directionStr}` +
+        (Math.abs(deltaH) > tolV ? ` and ${(deltaH * 1000).toFixed(1)}mm ${deltaH > 0 ? 'up' : 'down'}` : '') +
+        ` (tolerance: ${tolH * 1000}mm H / ${tolV * 1000}mm V).`
+
+      if (significance) {
+        message += ` ${significance.interpretation}`
+      }
+
       alerts.push({
         monumentId: id,
         severity,
-        message: `${id} has moved ${magMm.toFixed(1)}mm ${directionStr}` +
-          (Math.abs(deltaH) > tolV ? ` and ${(deltaH * 1000).toFixed(1)}mm ${deltaH > 0 ? 'up' : 'down'}` : '') +
-          ` (tolerance: ${tolH * 1000}mm H / ${tolV * 1000}mm V).` +
-          (significance ? ` ${significance.interpretation}` : ''),
+        message,
         magnitudeMm: magMm,
         direction: directionStr,
       })

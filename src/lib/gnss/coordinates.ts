@@ -4,12 +4,13 @@
  * 
  * Delegates to DatumTransformer for proper proj4-based geodetic computation.
  * Previous implementation used hardcoded datum shifts (-160, -302) which were
- * inaccurate. Now uses EPSG:1165 Bursa-Wolf parameters via proj4.
+ * inaccurate. Now uses the EPSG:1122 registered parameters via proj4.
  * 
  * All function signatures are preserved for backward compatibility.
  */
 
 import { DatumTransformer } from './datumTransformer';
+import { formatGridPoint } from '@/lib/surveyMapEngine/core/format';
 
 const transformer = new DatumTransformer();
 
@@ -49,6 +50,8 @@ export function wgs84ToUTM(lat: number, lon: number): UTMCoordinate {
 
 /**
  * Convert WGS84 coordinate to Kenyan cadastral (Arc 1960 / UTM 37S).
+ * NOTE: This is a Kenya-specific utility hardcoding EPSG:21037.
+ * Do not use for generic project data that may fall in Zone 36S or other systems.
  * @param wgs - WGS84 coordinate with lat, lon, altitude
  */
 export function wgs84ToKenya(wgs: WGS84Coordinate): KenyanCoordinate {
@@ -63,6 +66,8 @@ export function wgs84ToKenya(wgs: WGS84Coordinate): KenyanCoordinate {
 /**
  * Convert Kenyan cadastral (Arc 1960 / UTM 37S) to WGS84.
  * Inverse of wgs84ToKenya.
+ * NOTE: This is a Kenya-specific utility hardcoding EPSG:21037.
+ * Do not use for generic project data that may fall in Zone 36S or other systems.
  * @param coord - Kenyan coordinate with easting, northing, optional height
  */
 export function kenyaToWgs84(coord: KenyanCoordinate): WGS84Coordinate {
@@ -88,8 +93,9 @@ export function utmToWgs84(easting: number, northing: number): WGS84Coordinate {
   };
 }
 
+/** Grid string — implementation lives in the engine format service (plan F6). */
 export function formatCoordinate(coord: KenyanCoordinate, decimals: number = 3): string {
-  return `E ${coord.easting.toFixed(decimals)}  N ${coord.northing.toFixed(decimals)}`;
+  return formatGridPoint(coord, decimals);
 }
 
 export function distance(coord1: KenyanCoordinate, coord2: KenyanCoordinate): number {

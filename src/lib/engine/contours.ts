@@ -6,7 +6,7 @@
  *
  * Features:
  *  - Delaunay triangulation via Delaunator (O(n log n))
- *  - Breakline enforcement via edge constraint (flip edges that cross breaklines)
+ *  - Breakline enforcement through complete constrained Delaunay triangulation
  *  - Contour line threading (ordered polylines, not loose pairs)
  *  - TIN surface interpolation at any (E, N) point
  *  - Index contour marking (every 5th contour)
@@ -15,8 +15,8 @@
  * Source: USACE EM 1110-1-1005 — Topographic Survey Standards
  */
 
-import Delaunator from 'delaunator'
-import { logger } from '@/lib/logger'
+import { buildConstrainedTIN } from '@/lib/topo/constrainedTIN'
+import { generateTINContours } from '@/lib/topo/tinContours'
 
 export interface SpotHeight {
   name: string
@@ -48,454 +48,41 @@ export interface TINSurface {
   bounds: { minE: number; maxE: number; minN: number; maxN: number }
 }
 
-// ─── Delaunay Triangulation ─────────────────────────────────────────────────
+// The established public API delegates to the shared validated survey mesh.
+const surfacePoint = (p: SpotHeight) => ({ x: p.easting, y: p.northing, z: p.elevation })
+function meshFor(points: SpotHeight[], breaklines: Breakline[] = []) {
+  return buildConstrainedTIN(points.map(surfacePoint), breaklines.map(line => ({ type: 'hard' as const, points: [surfacePoint(line.start), surfacePoint(line.end)] })))
+}
 
-/**
- * Build a Delaunay TIN from spot heights using Delaunator.
- * O(n log n) — handles thousands of points efficiently.
- */
 export function triangulate(points: SpotHeight[]): Triangle[] {
   if (points.length < 3) return []
-
-  // Delaunator expects flat coordinate array [x0,y0, x1,y1, ...]
-  const coords = new Float64Array(points.length * 2)
-  for (let i = 0; i < points.length; i++) {
-    coords[2 * i] = points[i].easting
-    coords[2 * i + 1] = points[i].northing
-  }
-
-  let delaunay: Delaunator<Float64Array>
-  try {
-    delaunay = new Delaunator(coords)
-  } catch (err) {
-    // Fallback: all points may be collinear (or contain NaN). Surface this so
-    // a silent empty TIN can't be mistaken for a real zero-area result.
-    const reason = err instanceof Error ? err.message : String(err)
-    logger.warn(
-      `[contours] Delaunay triangulation failed (${reason}) — all points may be collinear or contain invalid coordinates. No triangles produced.`,
-    )
-    return []
-  }
-
-  const triangles: Triangle[] = []
-  const triIndices = delaunay.triangles
-
-  for (let i = 0; i < triIndices.length; i += 3) {
-    const a = triIndices[i]
-    const b = triIndices[i + 1]
-    const c = triIndices[i + 2]
-
-    // Skip degenerate triangles (zero area)
-    const area = Math.abs(
-      (points[b].easting - points[a].easting) * (points[c].northing - points[a].northing) -
-      (points[c].easting - points[a].easting) * (points[b].northing - points[a].northing)
-    )
-    if (area < 1e-10) continue
-
-    triangles.push({
-      p1: points[a],
-      p2: points[b],
-      p3: points[c],
-    })
-  }
-
-  return triangles
+  return buildTINSurface(points).triangles
 }
 
-/**
- * Build a full TIN surface object with bounds metadata.
- */
-export function buildTINSurface(points: SpotHeight[], breaklines?: Breakline[]): TINSurface {
-  let triangles = triangulate(points)
-
-  // Apply breakline constraints if provided
-  if (breaklines && breaklines.length > 0) {
-    triangles = enforceBreaklines(triangles, breaklines, points)
-  }
-
-  let minE = Infinity, maxE = -Infinity
-  let minN = Infinity, maxN = -Infinity
-  for (const p of points) {
-    if (p.easting < minE) minE = p.easting
-    if (p.easting > maxE) maxE = p.easting
-    if (p.northing < minN) minN = p.northing
-    if (p.northing > maxN) maxN = p.northing
-  }
-
-  return {
-    triangles,
-    points,
-    bounds: { minE, maxE, minN, maxN },
-  }
+export function buildTINSurface(points: SpotHeight[], breaklines: Breakline[] = []): TINSurface {
+  if (points.length < 3) return { points: [...points], triangles: [], bounds: {
+    minE: Math.min(...points.map(p => p.easting)), maxE: Math.max(...points.map(p => p.easting)),
+    minN: Math.min(...points.map(p => p.northing)), maxN: Math.max(...points.map(p => p.northing)),
+  } }
+  const mesh = meshFor(points, breaklines)
+  const names = new Map([...points, ...breaklines.flatMap(line => [line.start, line.end])].map(p => [`${p.easting}:${p.northing}`, p.name]))
+  const vertices: SpotHeight[] = mesh.points.map((p, index) => ({ name: names.get(`${p.x}:${p.y}`) ?? `INTERPOLATED_BL_${index}`, easting: p.x, northing: p.y, elevation: p.z }))
+  return { points: vertices, triangles: mesh.triangles.map(t => ({ p1: vertices[t.a], p2: vertices[t.b], p3: vertices[t.c] })),
+    bounds: { minE: mesh.minX, maxE: mesh.maxX, minN: mesh.minY, maxN: mesh.maxY } }
 }
 
-// ─── Breakline Enforcement ──────────────────────────────────────────────────
-
-/**
- * Enforce breaklines by removing triangles whose edges cross breaklines
- * and rebuilding with breakline vertices inserted.
- *
- * Simple approach: for each breakline, check if any triangle edge crosses it.
- * If so, split the crossing edge at the intersection and re-triangulate the
- * affected region. This is a simplified constrained Delaunay approach.
- */
-function enforceBreaklines(
-  triangles: Triangle[],
-  breaklines: Breakline[],
-  points: SpotHeight[]
-): Triangle[] {
-  // For each breakline, check triangle edges
-  // If a triangle edge crosses a breakline, flip it if the resulting
-  // triangulation would not violate the breakline constraint
-  let result = [...triangles]
-
-  for (const bl of breaklines) {
-    const newTriangles: Triangle[] = []
-
-    for (const tri of result) {
-      const edges: [SpotHeight, SpotHeight][] = [
-        [tri.p1, tri.p2],
-        [tri.p2, tri.p3],
-        [tri.p3, tri.p1],
-      ]
-
-      let crosses = false
-      for (const [a, b] of edges) {
-        if (edgesCross(a, b, bl.start, bl.end)) {
-          crosses = true
-          break
-        }
-      }
-
-      if (!crosses) {
-        newTriangles.push(tri)
-      } else {
-        // Split triangle along breakline intersection
-        const split = splitTriangleByBreakline(tri, bl, points)
-        newTriangles.push(...split)
-      }
-    }
-
-    result = newTriangles
-  }
-
-  return result
-}
-
-/** Check if two line segments cross (proper intersection, not touching). */
-function edgesCross(
-  a1: SpotHeight, a2: SpotHeight,
-  b1: SpotHeight, b2: SpotHeight
-): boolean {
-  const d1 = cross2D(b1, b2, a1)
-  const d2 = cross2D(b1, b2, a2)
-  const d3 = cross2D(a1, a2, b1)
-  const d4 = cross2D(a1, a2, b2)
-
-  if (((d1 > 0 && d2 < 0) || (d1 < 0 && d2 > 0)) &&
-      ((d3 > 0 && d4 < 0) || (d3 < 0 && d4 > 0))) {
-    return true
-  }
-
-  return false
-}
-
-function cross2D(o: SpotHeight, a: SpotHeight, b: SpotHeight): number {
-  return (a.easting - o.easting) * (b.northing - o.northing) -
-         (a.northing - o.northing) * (b.easting - o.easting)
-}
-
-/**
- * Split a triangle that is crossed by a breakline.
- * Finds the intersection point and creates sub-triangles.
- */
-function splitTriangleByBreakline(
-  tri: Triangle,
-  bl: Breakline,
-  points: SpotHeight[]
-): Triangle[] {
-  const edges: [SpotHeight, SpotHeight, SpotHeight][] = [
-    [tri.p1, tri.p2, tri.p3],
-    [tri.p2, tri.p3, tri.p1],
-    [tri.p3, tri.p1, tri.p2],
-  ]
-
-  for (const [a, b, c] of edges) {
-    if (edgesCross(a, b, bl.start, bl.end)) {
-      const inter = lineLineIntersection(a, b, bl.start, bl.end)
-      if (!inter) continue
-
-      // Interpolate elevation at intersection point
-      const t = Math.sqrt(
-        (inter.easting - a.easting) ** 2 + (inter.northing - a.northing) ** 2
-      ) / Math.sqrt(
-        (b.easting - a.easting) ** 2 + (b.northing - a.northing) ** 2
-      )
-      const elev = a.elevation + t * (b.elevation - a.elevation)
-
-      const interPt: SpotHeight = {
-        name: `BL_${points.length}`,
-        easting: inter.easting,
-        northing: inter.northing,
-        elevation: elev,
-      }
-
-      // Create two sub-triangles
-      return [
-        { p1: a, p2: interPt, p3: c },
-        { p1: interPt, p2: b, p3: c },
-      ]
-    }
-  }
-
-  // No crossing found (edge case) — return original
-  return [tri]
-}
-
-function lineLineIntersection(
-  a1: SpotHeight, a2: SpotHeight,
-  b1: SpotHeight, b2: SpotHeight
-): { easting: number; northing: number } | null {
-  const dx1 = a2.easting - a1.easting
-  const dy1 = a2.northing - a1.northing
-  const dx2 = b2.easting - b1.easting
-  const dy2 = b2.northing - b1.northing
-
-  const denom = dx1 * dy2 - dy1 * dx2
-  if (Math.abs(denom) < 1e-12) return null
-
-  const t = ((b1.easting - a1.easting) * dy2 - (b1.northing - a1.northing) * dx2) / denom
-
-  return {
-    easting: a1.easting + t * dx1,
-    northing: a1.northing + t * dy1,
-  }
-}
-
-// ─── Contour Generation (Marching Triangles) ────────────────────────────────
-
-function interpolateEdge(
-  p1: SpotHeight,
-  p2: SpotHeight,
-  contourElev: number
-): { easting: number; northing: number } | null {
-  const minElev = Math.min(p1.elevation, p2.elevation)
-  const maxElev = Math.max(p1.elevation, p2.elevation)
-
-  if (contourElev <= minElev || contourElev >= maxElev) return null
-
-  const t = (contourElev - p1.elevation) / (p2.elevation - p1.elevation)
-
-  return {
-    easting: p1.easting + t * (p2.easting - p1.easting),
-    northing: p1.northing + t * (p2.northing - p1.northing)
-  }
-}
-
-/**
- * Generate contour lines from spot heights using Delaunay TIN.
- *
- * Algorithm: Marching Triangles
- * 1. Build Delaunay triangulation
- * 2. For each contour elevation, walk through all triangles
- * 3. Find edge crossings and collect contour segments
- * 4. Thread segments into ordered polylines
- *
- * @param points - Array of spot heights
- * @param interval - Contour interval in metres
- * @param indexInterval - Index contour interval (default: 5× interval)
- * @param breaklines - Optional breaklines to constrain the TIN
- */
-export function generateContours(
-  points: SpotHeight[],
-  interval: number,
-  indexInterval?: number,
-  breaklines?: Breakline[]
-): ContourLine[] {
+/** Piecewise-linear isolines; indexInterval is an absolute height interval. */
+export function generateContours(points: SpotHeight[], interval: number, indexInterval = interval * 5, breaklines: Breakline[] = []): ContourLine[] {
+  if (!Number.isFinite(indexInterval) || indexInterval <= 0) throw new RangeError('Index interval must be finite and positive.')
+  if (!Number.isFinite(interval) || interval <= 0) throw new RangeError('Contour interval must be finite and positive.')
   if (points.length < 3) return []
-
-  const effectiveIndexInterval = indexInterval ?? interval * 5
-
-  // Build TIN
-  let triangles: Triangle[]
-  if (breaklines && breaklines.length > 0) {
-    const surface = buildTINSurface(points, breaklines)
-    triangles = surface.triangles
-  } else {
-    triangles = triangulate(points)
-  }
-
-  if (triangles.length === 0) return []
-
-  const elevations = points.map(p => p.elevation)
-  const minElev = Math.min(...elevations)
-  const maxElev = Math.max(...elevations)
-
-  const firstContour = Math.ceil(minElev / interval) * interval
-  const contourElevations: number[] = []
-  for (let e = firstContour; e <= maxElev; e += interval) {
-    contourElevations.push(Math.round(e * 1e6) / 1e6) // avoid floating point drift
-  }
-
-  const contourLines: ContourLine[] = []
-
-  for (const contourElev of contourElevations) {
-    // Collect contour segments from all triangles
-    const segments: Array<[
-      { easting: number; northing: number },
-      { easting: number; northing: number }
-    ]> = []
-
-    for (const tri of triangles) {
-      const edges: [SpotHeight, SpotHeight][] = [
-        [tri.p1, tri.p2],
-        [tri.p2, tri.p3],
-        [tri.p3, tri.p1]
-      ]
-
-      const crossings: Array<{ easting: number; northing: number }> = []
-
-      for (const [a, b] of edges) {
-        const crossing = interpolateEdge(a, b, contourElev)
-        if (crossing) crossings.push(crossing)
-      }
-
-      if (crossings.length === 2) {
-        segments.push([crossings[0], crossings[1]])
-      }
-    }
-
-    if (segments.length > 0) {
-      // Thread segments into ordered polylines
-      const polylines = threadSegments(segments)
-
-      for (const polyline of polylines) {
-        if (polyline.length >= 2) {
-          const isIndex = Math.abs(contourElev % effectiveIndexInterval) < interval * 0.01
-
-          contourLines.push({
-            elevation: contourElev,
-            points: polyline,
-            isIndex,
-          })
-        }
-      }
-    }
-  }
-
-  return contourLines
+  const mesh = meshFor(points, breaklines)
+  return generateTINContours(mesh, { interval }).flatMap(line => {
+    const ratio = line.elevation / indexInterval
+    return line.coordinates.map(path => ({ elevation: line.elevation, isIndex: Math.abs(ratio - Math.round(ratio)) < 1e-9,
+      points: path.map(([easting, northing]) => ({ easting, northing })) }))
+  })
 }
-
-/**
- * Thread unordered line segments into ordered polylines.
- *
- * Uses a spatial hash to efficiently find matching endpoints.
- * Produces continuous polylines by connecting segments whose
- * endpoints are within a small tolerance.
- */
-function threadSegments(
-  segments: Array<[
-    { easting: number; northing: number },
-    { easting: number; northing: number }
-  ]>
-): Array<Array<{ easting: number; northing: number }>> {
-  if (segments.length === 0) return []
-
-  const TOLERANCE = 1e-6
-  const used = new Array(segments.length).fill(false)
-  const polylines: Array<Array<{ easting: number; northing: number }>> = []
-
-  function ptKey(p: { easting: number; northing: number }): string {
-    return `${Math.round(p.easting / TOLERANCE)},${Math.round(p.northing / TOLERANCE)}`
-  }
-
-  function ptsMatch(
-    a: { easting: number; northing: number },
-    b: { easting: number; northing: number }
-  ): boolean {
-    return Math.abs(a.easting - b.easting) < TOLERANCE * 100 &&
-           Math.abs(a.northing - b.northing) < TOLERANCE * 100
-  }
-
-  // Build spatial index: endpoint key → segment indices
-  const endpointMap = new Map<string, number[]>()
-  for (let i = 0; i < segments.length; i++) {
-    const k0 = ptKey(segments[i][0])
-    const k1 = ptKey(segments[i][1])
-    const k0List = endpointMap.get(k0)
-    if (k0List) k0List.push(i)
-    else endpointMap.set(k0, [i])
-    const k1List = endpointMap.get(k1)
-    if (k1List) k1List.push(i)
-    else endpointMap.set(k1, [i])
-  }
-
-  for (let startIdx = 0; startIdx < segments.length; startIdx++) {
-    if (used[startIdx]) continue
-
-    used[startIdx] = true
-    const polyline = [segments[startIdx][0], segments[startIdx][1]]
-
-    // Extend forward from end
-    let extended = true
-    while (extended) {
-      extended = false
-      const endPt = polyline[polyline.length - 1]
-      const key = ptKey(endPt)
-      const candidates = endpointMap.get(key) || []
-
-      for (const ci of candidates) {
-        if (used[ci]) continue
-        const seg = segments[ci]
-
-        if (ptsMatch(seg[0], endPt)) {
-          polyline.push(seg[1])
-          used[ci] = true
-          extended = true
-          break
-        }
-        if (ptsMatch(seg[1], endPt)) {
-          polyline.push(seg[0])
-          used[ci] = true
-          extended = true
-          break
-        }
-      }
-    }
-
-    // Extend backward from start
-    extended = true
-    while (extended) {
-      extended = false
-      const startPt = polyline[0]
-      const key = ptKey(startPt)
-      const candidates = endpointMap.get(key) || []
-
-      for (const ci of candidates) {
-        if (used[ci]) continue
-        const seg = segments[ci]
-
-        if (ptsMatch(seg[0], startPt)) {
-          polyline.unshift(seg[1])
-          used[ci] = true
-          extended = true
-          break
-        }
-        if (ptsMatch(seg[1], startPt)) {
-          polyline.unshift(seg[0])
-          used[ci] = true
-          extended = true
-          break
-        }
-      }
-    }
-
-    polylines.push(polyline)
-  }
-
-  return polylines
-}
-
 // ─── TIN Surface Interpolation ──────────────────────────────────────────────
 
 /**
@@ -649,4 +236,141 @@ export function generateDemoData(): SpotHeight[] {
     }
   }
   return points
+}
+
+export interface ContourLabel {
+  /** Position of the label center */
+  easting: number
+  northing: number
+  /** Elevation text to display */
+  text: string
+  /** Rotation angle in degrees (clockwise from east, for SVG/Canvas transform) */
+  rotation: number
+  /** Whether this is an index contour label (bolder text) */
+  isIndex: boolean
+}
+
+export interface LabelOptions {
+  /** Distance between labels along the contour line (metres). Default: 100 */
+  labelSpacing?: number
+  /** Minimum contour length to receive labels (metres). Default: 50 */
+  minContourLength?: number
+  /** Label text height in map units. Default: 2.0 */
+  textHeight?: number
+  /** Whether to label only index contours. Default: false */
+  indexOnly?: boolean
+}
+
+/**
+ * Places elevation labels along contour polylines at regular intervals.
+ *
+ * @param contours - Array of generated contour lines
+ * @param options - Configuration options for label placement
+ * @returns Array of contour labels to render
+ */
+export function labelContours(
+  contours: ContourLine[],
+  options?: LabelOptions
+): ContourLabel[] {
+  const labelSpacing = options?.labelSpacing ?? 100
+  const minContourLength = options?.minContourLength ?? 50
+  const textHeight = options?.textHeight ?? 2.0
+  const indexOnly = options?.indexOnly ?? false
+
+  const labels: ContourLabel[] = []
+
+  for (const contour of contours) {
+    if (indexOnly && !contour.isIndex) continue
+
+    const points = contour.points
+    if (points.length < 2) continue
+
+    let totalLength = 0
+    const segmentLengths: number[] = []
+    for (let i = 0; i < points.length - 1; i++) {
+      const dx = points[i + 1].easting - points[i].easting
+      const dy = points[i + 1].northing - points[i].northing
+      const len = Math.hypot(dx, dy)
+      totalLength += len
+      segmentLengths.push(len)
+    }
+
+    if (totalLength < minContourLength) continue
+
+    // Start 20% in from start, end 20% before end
+    const margin = 0.2 * totalLength
+    let currentDist = margin
+
+    // Ensure we place at least one label if the contour is long enough but labelSpacing is larger than the placiable segment
+    const placeableLength = totalLength - 2 * margin
+    let numLabels = Math.floor(placeableLength / labelSpacing)
+    if (numLabels === 0 && placeableLength > 0) {
+      // If it's long enough to have labels, but spacing is too big, just place one in the middle
+      currentDist = totalLength / 2
+      numLabels = 1
+    }
+
+    const text = Number(contour.elevation.toFixed(3)).toString() // Trim floating point errors
+    const textWidth = text.length * (textHeight * 0.6)
+    const labelRadius = Math.max(textWidth, textHeight) / 2
+
+    // Avoid infinite loop if labelSpacing is somehow <= 0
+    if (labelSpacing <= 0) break
+
+    // Use a while loop but cap iterations to prevent infinite loop just in case
+    let iterations = 0
+    while (currentDist <= totalLength - margin && iterations < 10000) {
+      iterations++
+      let distAcc = 0
+      for (let i = 0; i < points.length - 1; i++) {
+        const segLen = segmentLengths[i]
+        if (currentDist >= distAcc && currentDist <= distAcc + segLen) {
+          const t = segLen === 0 ? 0 : (currentDist - distAcc) / segLen
+          const x = points[i].easting + t * (points[i + 1].easting - points[i].easting)
+          const y = points[i].northing + t * (points[i + 1].northing - points[i].northing)
+
+          const dx = points[i + 1].easting - points[i].easting
+          const dy = points[i + 1].northing - points[i].northing
+          let angle = Math.atan2(dy, dx) * (180 / Math.PI)
+
+          // Flip text if upside down for standard readability
+          if (angle > 90 && angle <= 270) {
+            angle -= 180
+          } else if (angle < -90 && angle >= -270) {
+            angle += 180
+          }
+
+          // Check collision with existing labels
+          let collision = false
+          for (const existing of labels) {
+            const existingWidth = existing.text.length * (textHeight * 0.6)
+            const existingRadius = Math.max(existingWidth, textHeight) / 2
+            const dist = Math.hypot(x - existing.easting, y - existing.northing)
+
+            // Adding a small buffer to avoid clutter
+            if (dist < labelRadius + existingRadius + textHeight * 0.5) {
+              collision = true
+              break
+            }
+          }
+
+          if (!collision) {
+            labels.push({
+              easting: x,
+              northing: y,
+              text,
+              rotation: angle,
+              isIndex: contour.isIndex
+            })
+          }
+          break
+        }
+        distAcc += segLen
+      }
+
+      currentDist += labelSpacing
+    }
+  }
+
+  return labels
 }

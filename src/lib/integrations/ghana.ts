@@ -28,26 +28,21 @@ export interface GhanaParcel {
 export interface GhanaSearchResult {
   query: string
   results: GhanaParcel[]
-  searchTime: number
+  available: boolean
+  message: string
+  searchTime: number | null
 }
 
 const ghanaRegistryData: GhanaParcel[] = []
 
 export function searchGhanaRegistry(query: string): GhanaSearchResult {
-  const q = query.toLowerCase()
-  const results = ghanaRegistryData.filter((p) => 
-    p.parcelId.toLowerCase().includes(q) ||
-    p.blockNumber.toLowerCase().includes(q) ||
-    p.plotNumber.toLowerCase().includes(q) ||
-    p.schemeName.toLowerCase().includes(q) ||
-    p.ownerName.toLowerCase().includes(q) ||
-    p.district.toLowerCase().includes(q)
-  )
-  
+  void ghanaRegistryData
   return {
     query,
-    results,
-    searchTime: Math.floor(Math.random() * 500) + 100,
+    results: [],
+    available: false,
+    message: 'Live Ghanaian registry access is not configured. No parcel search was performed.',
+    searchTime: null,
   }
 }
 

@@ -1,13 +1,6 @@
-export default function SurveyDocumentsPage() {
-  return (
-    <div>
-      <h1 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '4px' }}>Documents</h1>
-      <p style={{ color: 'var(--text-secondary)', fontSize: '14px', marginBottom: '24px' }}>
-        Generate survey documents from computed data
-      </p>
-      <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: '40px' }}>
-        Run traverse computation first, then generate documents from the results.
-      </div>
-    </div>
-  );
+import { redirect } from 'next/navigation'
+
+export default async function SurveyDocumentsPage({ params: paramsPromise }: { params: Promise<{ id: string }> }) {
+  const params = await paramsPromise;
+  redirect(`/project/${params.id}/documents`)
 }

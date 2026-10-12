@@ -5,6 +5,7 @@
 
 const DB_NAME = 'MetarduFieldDB'
 const DB_VERSION = 1
+export const SYNC_RECOVERY_LEASE_MS = 15 * 60 * 1000
 
 // Store names
 const STORES = {
@@ -190,26 +191,64 @@ class OfflineStorage {
 
   // Field observation specific methods
   async saveFieldObservation(observation: FieldObservation): Promise<string> {
-    const record = {
+    return this.saveFieldObservationWithPhotos(observation, [])
+  }
+
+  /** Persist one observation and its captured photos in one IndexedDB transaction. */
+  async saveFieldObservationWithPhotos(observation: FieldObservation, photos: PhotoData[]): Promise<string> {
+    if (!this.db) await this.init()
+
+    const now = Date.now()
+    const id = observation.id || this.generateId()
+    const record: FieldObservation & { id: string; timestamp: number; synced: boolean } = {
       ...observation,
-      timestamp: Date.now(),
+      id,
+      timestamp: observation.timestamp ?? now,
       synced: false,
     }
-    const id = await this.add(STORES.FIELD_OBSERVATIONS, record)
+    const photoRecords = photos.map(photo => ({
+      ...photo,
+      id: photo.id || this.generateId(),
+      observationClientId: photo.observationClientId ?? id,
+      timestamp: photo.timestamp ?? now,
+      synced: false,
+    }))
 
-    // Add to sync queue
-    await this.addToSyncQueue({
-      type: 'field_observation',
-      recordId: id,
-      action: 'create',
-      data: record,
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction(
+        [STORES.FIELD_OBSERVATIONS, STORES.PHOTOS, STORES.SYNC_QUEUE],
+        'readwrite'
+      )
+      const observationStore = transaction.objectStore(STORES.FIELD_OBSERVATIONS)
+      const photoStore = transaction.objectStore(STORES.PHOTOS)
+      const queueStore = transaction.objectStore(STORES.SYNC_QUEUE)
+
+      observationStore.add(record)
+      queueStore.add({
+        id: this.generateId(), type: 'field_observation', recordId: id,
+        action: 'create', data: record, timestamp: now, status: 'pending', retryCount: 0,
+      } satisfies SyncQueueItem)
+
+      for (const photo of photoRecords) {
+        photoStore.add(photo)
+        queueStore.add({
+          id: this.generateId(), type: 'photo', recordId: photo.id,
+          action: 'create', data: photo, timestamp: now, status: 'pending', retryCount: 0,
+        } satisfies SyncQueueItem)
+      }
+
+      transaction.oncomplete = () => resolve(id)
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not save the field observation and photos.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Field observation save was cancelled.'))
     })
-
-    return id
   }
 
   async getFieldObservations(projectId: string): Promise<FieldObservation[]> {
     return this.getAll(STORES.FIELD_OBSERVATIONS, 'project_id', projectId)
+  }
+
+  async getProjectPhotos(projectId: string): Promise<PhotoData[]> {
+    return this.getAll(STORES.PHOTOS, 'project_id', projectId)
   }
 
   async getUnsyncedObservations(): Promise<FieldObservation[]> {
@@ -218,21 +257,40 @@ class OfflineStorage {
 
   // Photo storage
   async savePhoto(photoData: PhotoData): Promise<string> {
-    const record = {
-      ...photoData,
-      timestamp: Date.now(),
-      synced: false,
-    }
-    const id = await this.add(STORES.PHOTOS, record)
-
-    await this.addToSyncQueue({
-      type: 'photo',
-      recordId: id,
-      action: 'create',
-      data: record,
-    })
-
+    const [id] = await this.savePhotos([photoData])
     return id
+  }
+
+  /** Persist a photo batch and all sync queue entries atomically. */
+  async savePhotos(photoData: PhotoData[]): Promise<string[]> {
+    if (!this.db) await this.init()
+    if (photoData.length === 0) return []
+
+    const now = Date.now()
+    const records = photoData.map(photo => ({
+      ...photo,
+      id: photo.id || this.generateId(),
+      timestamp: photo.timestamp ?? now,
+      synced: false,
+    }))
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.PHOTOS, STORES.SYNC_QUEUE], 'readwrite')
+      const photoStore = transaction.objectStore(STORES.PHOTOS)
+      const queueStore = transaction.objectStore(STORES.SYNC_QUEUE)
+
+      for (const photo of records) {
+        photoStore.add(photo)
+        queueStore.add({
+          id: this.generateId(), type: 'photo', recordId: photo.id,
+          action: 'create', data: photo, timestamp: now, status: 'pending', retryCount: 0,
+        } satisfies SyncQueueItem)
+      }
+
+      transaction.oncomplete = () => resolve(records.map(photo => photo.id))
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not save captured photos.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Photo save was cancelled.'))
+    })
   }
 
   // Sync queue management
@@ -250,8 +308,51 @@ class OfflineStorage {
     return this.getAll(STORES.SYNC_QUEUE, 'status', 'pending')
   }
 
-  async updateSyncStatus(id: string, status: SyncStatus, error?: string): Promise<void> {
-    await this.update(STORES.SYNC_QUEUE, id, { status, error, lastAttempt: Date.now() })
+  /** Requeue items whose previous sync process ended without completing. */
+  async recoverStaleSyncItems(now = Date.now(), leaseMs = SYNC_RECOVERY_LEASE_MS): Promise<number> {
+    if (!this.db) await this.init()
+
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readwrite')
+      const statusIndex = transaction.objectStore(STORES.SYNC_QUEUE).index('status')
+      const request = statusIndex.openCursor('syncing')
+      let recovered = 0
+
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) return
+
+        const item = cursor.value as SyncQueueItem
+        if (isSyncQueueItemRecoveryExpired(item, now, leaseMs)) {
+          cursor.update({ ...item, status: 'pending', lastAttempt: now, error: undefined })
+          recovered += 1
+        }
+        cursor.continue()
+      }
+
+      request.onerror = () => reject(request.error ?? new Error('Could not inspect interrupted sync items.'))
+      transaction.oncomplete = () => resolve(recovered)
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not recover interrupted sync items.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Sync recovery was cancelled.'))
+    })
+  }
+
+  async updateSyncStatus(id: string, status: SyncStatus, error?: string, retryCount?: number): Promise<void> {
+    await this.update(STORES.SYNC_QUEUE, id, {
+      status,
+      error,
+      lastAttempt: Date.now(),
+      ...(retryCount === undefined ? {} : { retryCount }),
+    })
+  }
+
+  async retryFailedSyncItems(): Promise<void> {
+    const failed = await this.getAll<SyncQueueItem>(STORES.SYNC_QUEUE, 'status', 'failed')
+    await Promise.all(failed.filter(item => item.id).map(item => this.update(STORES.SYNC_QUEUE, item.id!, {
+      status: 'pending',
+      retryCount: 0,
+      error: undefined,
+    })))
   }
 
   async removeFromSyncQueue(id: string): Promise<void> {
@@ -267,7 +368,7 @@ class OfflineStorage {
     return {
       observations: observations.length,
       photos: photos.length,
-      pendingSync: (queue as SyncQueueItem[]).filter((i) => i.status === 'pending').length,
+      pendingSync: (queue as SyncQueueItem[]).filter((i) => i.status === 'pending' || i.status === 'syncing').length,
       failedSync: (queue as SyncQueueItem[]).filter((i) => i.status === 'failed').length,
       storageUsed: this.estimateStorageSize(observations, photos as Array<{ data?: string }>),
     }
@@ -313,14 +414,16 @@ export interface FieldObservation {
   pointName: string
   pointId?: string
   observationType: 'gps' | 'total_station' | 'level' | 'manual'
-  northing: number
-  easting: number
+  northing?: number
+  easting?: number
   elevation?: number
   latitude?: number
   longitude?: number
   accuracy?: number
+  accuracySource?: 'receiver' | 'browser' | 'unknown'
   satellites?: number
   solutionType?: 'fixed' | 'float' | 'dgps' | 'single'
+  fixQuality?: number
   hdop?: number
   vdop?: number
   pdop?: number
@@ -336,6 +439,10 @@ export interface FieldObservation {
   humidity?: number
   weather?: string
   notes?: string
+  horizontalCrs?: string
+  verticalDatum?: string
+  instrumentName?: string
+  observationSource?: 'gnss_receiver' | 'browser_geolocation' | 'total_station'
   timestamp?: number
   synced?: boolean
 }
@@ -346,9 +453,17 @@ export interface PhotoData {
   pointId?: string
   pointName?: string
   data: string // base64
+  /** Original media type and name are retained so upload does not rewrite evidence. */
+  contentType?: string
+  fileName?: string
   thumbnail?: string // base64
   caption?: string
   orientation?: 'portrait' | 'landscape'
+  /** Only populated when EXIF contains an explicit capture time. */
+  capturedAt?: string
+  /** Raw device metadata; never treated as survey control or transformed coordinates. */
+  metadata?: Record<string, unknown>
+  observationClientId?: string
   timestamp?: number
   synced?: boolean
 }
@@ -367,6 +482,16 @@ export interface SyncQueueItem {
 }
 
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed'
+
+export function isSyncQueueItemRecoveryExpired(
+  item: SyncQueueItem,
+  now = Date.now(),
+  leaseMs = SYNC_RECOVERY_LEASE_MS,
+): boolean {
+  if (item.status !== 'syncing') return false
+  if (typeof item.lastAttempt !== 'number' || !Number.isFinite(item.lastAttempt)) return true
+  return now - item.lastAttempt >= Math.max(0, leaseMs)
+}
 
 export interface StorageStats {
   observations: number

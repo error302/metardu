@@ -1,3 +1,4 @@
+import { reportCrs } from './reportCrs';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { addPageFooter } from './pdfTitleBlock';
@@ -8,6 +9,7 @@ import { shoelaceArea as computePolygonArea } from '@/lib/engine/area';
 // ---------------------------------------------------------------------------
 
 export interface FormC22Input {
+  derivedFromCoordinates?: boolean;
   projectName: string;
   lrNumber: string;
   parcelNumber: string;
@@ -41,6 +43,9 @@ export interface FormC22Input {
   precisionRatio: number;
   areaM2: number;
   areaHa: number;
+  utmZone?: number;
+  datum?: string;
+  hemisphere?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -49,12 +54,12 @@ export interface FormC22Input {
 
 /** Convert decimal degrees to DMS string e.g. 45°30'15.2" */
 function decimalToDMS(deg: number): string {
-  const absolute = Math.abs(deg);
-  const d = Math.floor(absolute);
-  const minFloat = (absolute - d) * 60;
-  const m = Math.floor(minFloat);
-  const s = (minFloat - m) * 60;
-  return `${d}°${String(m).padStart(2, '0')}'${s.toFixed(1)}"`;
+  if (!Number.isFinite(deg)) return 'UNVERIFIED';
+  const ticks = Math.round(Math.abs(deg) * 36000);
+  const d = Math.floor(ticks / 36000);
+  const m = Math.floor((ticks % 36000) / 600);
+  const sec = (ticks % 600) / 10;
+  return `${d}°${String(m).padStart(2, '0')}'${sec.toFixed(1)}"`;
 }
 
 /** Convert decimal degrees to WCB (Whole Circle Bearing) quadrant string e.g. N 45°30'15.2" E */
@@ -76,7 +81,8 @@ function decimalToWCB(deg: number): string {
 
 /** Format a precision ratio like "1:12500" */
 function formatPrecisionRatio(ratio: number): string {
-  if (ratio <= 0 || !isFinite(ratio)) return '—';
+  if (ratio === Infinity) return '1:Infinity';
+  if (ratio < 0 || !Number.isFinite(ratio)) return 'UNVERIFIED';
   return `1:${Math.round(ratio).toLocaleString()}`;
 }
 
@@ -115,9 +121,10 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
   // =========================================================================
   drawPageHeader(doc, input, today);
   drawProjectInfoBlock(doc, input, today);
+  const projectInfoBottom = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
   drawSurveyorInfoBlock(doc, input);
-
-  let y = 56;
+  const surveyorInfoBottom = (doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY;
+  let y = Math.max(projectInfoBottom, surveyorInfoBottom) + 8;
 
   // --- Table 1: Observed Bearings and Distances ---
   y = drawObservedBearingsTable(doc, input, y);
@@ -129,7 +136,6 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
 
   // Check if we need a new page for Table 3 & 4
   if (y > PAGE_H - 100) {
-    addPageFooter(doc, currentPage, totalPages, input.projectName);
     doc.addPage();
     currentPage++;
     y = MARGIN;
@@ -145,7 +151,6 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
 
   // Check if we need a new page for certificate
   if (y > PAGE_H - 70) {
-    addPageFooter(doc, currentPage, totalPages, input.projectName);
     doc.addPage();
     currentPage++;
     y = MARGIN;
@@ -155,7 +160,7 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
   drawSurveyorCertificate(doc, input, y, today);
 
   // --- Professional Disclaimer ---
-  drawDisclaimer(doc);
+  drawDisclaimer(doc, input);
 
   // Finalize page footers on all pages
   const actualTotal = doc.getNumberOfPages();
@@ -184,7 +189,7 @@ function estimateTotalPages(stationCount: number): number {
 // Draw the Republic of Kenya / DoLS header
 // ---------------------------------------------------------------------------
 
-function drawPageHeader(doc: jsPDF, _input: FormC22Input, _today: string): void {
+function drawPageHeader(doc: jsPDF, input: FormC22Input, _today: string): void {
   const cx = PAGE_W / 2;
 
   doc.setDrawColor(0, 0, 0);
@@ -210,11 +215,13 @@ function drawPageHeader(doc: jsPDF, _input: FormC22Input, _today: string): void 
   doc.setTextColor(0, 0, 0);
   doc.text('FORM NO. C22 — COMPUTATION SHEET', cx, MARGIN + 26, { align: 'center' });
 
+  const { zone, datum, hemi, epsg } = reportCrs(input);
+
   doc.setFontSize(7);
   doc.setFont('helvetica', 'italic');
   doc.setTextColor(80, 80, 80);
   doc.text(
-    'Survey Act Cap 299 — Survey Regulations 1994 — Arc 1960 / UTM Zone 37S (EPSG:21037)',
+    `Survey Act Cap 299 — Survey Regulations 1994 — ${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg})`,
     cx,
     MARGIN + 33,
     { align: 'center' }
@@ -276,12 +283,14 @@ function drawSurveyorInfoBlock(doc: jsPDF, input: FormC22Input): void {
   doc.setTextColor(0, 0, 0);
   doc.text('SURVEYOR INFORMATION', x, y);
 
+  const { zone, datum, hemi, epsg } = reportCrs(input);
+
   const fields: [string, string][] = [
     ['Surveyor Name', input.surveyorName || '—'],
     ['ISK Number', input.iskNumber || '—'],
     ['Firm', input.firmName || '—'],
-    ['Datum', 'Arc 1960 / UTM Zone 37S'],
-    ['EPSG', '21037'],
+    ['Datum', `${datum} / UTM Zone ${zone}${hemi}`],
+    ['EPSG', epsg],
   ];
 
   autoTable(doc, {
@@ -310,7 +319,7 @@ function drawObservedBearingsTable(doc: jsPDF, input: FormC22Input, startY: numb
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('TABLE 1: OBSERVED BEARINGS AND DISTANCES', x, startY);
+  doc.text(input.derivedFromCoordinates ? 'TABLE 1: DERIVED GRID BEARINGS AND DISTANCES' : 'TABLE 1: OBSERVED BEARINGS AND DISTANCES', x, startY);
   startY += 2;
 
   const stations = input.stations;
@@ -342,7 +351,7 @@ function drawObservedBearingsTable(doc: jsPDF, input: FormC22Input, startY: numb
       [
         'Stn From',
         'Stn To',
-        'Observed Bearing',
+        input.derivedFromCoordinates ? 'Derived Bearing' : 'Observed Bearing',
         'Obs Dist (m)',
         'Reduced Bearing (WCB)',
         'Reduced Dist (m)',
@@ -361,7 +370,7 @@ function drawObservedBearingsTable(doc: jsPDF, input: FormC22Input, startY: numb
       5: { cellWidth: 28, halign: 'right' },
     },
     margin: { left: x, right: MARGIN },
-    tableWidth: CONTENT_W,
+    tableWidth: 188,
     theme: 'grid',
   });
 
@@ -378,7 +387,7 @@ function drawTraverseAdjustmentTable(doc: jsPDF, input: FormC22Input, startY: nu
   doc.setFontSize(8);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('TABLE 2: TRAVERSE ADJUSTMENT', x, startY);
+  doc.text(input.derivedFromCoordinates ? 'TABLE 2: DERIVED COORDINATE COMPUTATIONS' : 'TABLE 2: TRAVERSE ADJUSTMENT', x, startY);
   startY += 2;
 
   const stations = input.stations;
@@ -437,7 +446,7 @@ function drawTraverseAdjustmentTable(doc: jsPDF, input: FormC22Input, startY: nu
       6: { cellWidth: 32, halign: 'right' },
     },
     margin: { left: x, right: MARGIN },
-    tableWidth: CONTENT_W,
+    tableWidth: 206,
     theme: 'grid',
   });
 
@@ -508,7 +517,7 @@ function drawAreaComputationTable(doc: jsPDF, input: FormC22Input, startY: numbe
       4: { cellWidth: 48, halign: 'right' },
     },
     margin: { left: x, right: MARGIN },
-    tableWidth: CONTENT_W,
+    tableWidth: 198,
     theme: 'grid',
   });
 
@@ -547,14 +556,15 @@ function drawClosureSummaryTable(doc: jsPDF, input: FormC22Input, startY: number
   const overallPass = angularPass && linearPass;
 
   const precisionStr = formatPrecisionRatio(input.precisionRatio);
-  const statusStr = overallPass ? 'PASS' : 'FAIL';
+  const verified = Number.isFinite(input.angularMisclosureSec) && Number.isFinite(input.angularToleranceSec) && !Number.isNaN(input.precisionRatio);
+  const statusStr = !verified ? 'UNVERIFIED' : overallPass ? 'PASS' : 'FAIL';
   const statusColor: [number, number, number] = overallPass ? [0, 120, 60] : [180, 0, 0];
 
   const body: (string | number)[][] = [
-    ['Angular Misclosure', `${input.angularMisclosureSec.toFixed(1)}″`],
-    ['Angular Tolerance', `${input.angularToleranceSec.toFixed(1)}″`],
-    ['Angular Status', angularPass ? 'PASS' : 'FAIL'],
-    ['Linear Misclosure', `${input.linearMisclosureM.toFixed(4)} m`],
+    ['Angular Misclosure', Number.isFinite(input.angularMisclosureSec) ? `${input.angularMisclosureSec.toFixed(1)} seconds` : 'UNVERIFIED'],
+    ['Angular Tolerance', Number.isFinite(input.angularToleranceSec) ? `${input.angularToleranceSec.toFixed(1)} seconds` : 'UNVERIFIED'],
+    ['Angular Status', !Number.isFinite(input.angularMisclosureSec) || !Number.isFinite(input.angularToleranceSec) ? 'UNVERIFIED' : angularPass ? 'PASS' : 'FAIL'],
+    ['Linear Misclosure', Number.isFinite(input.linearMisclosureM) ? `${input.linearMisclosureM.toFixed(4)} m` : 'UNVERIFIED'],
     ['Perimeter', `${input.perimeterM.toFixed(3)} m`],
     ['Precision Ratio', precisionStr],
     ['Minimum Standard (Cap 299)', '1:5,000'],
@@ -634,6 +644,8 @@ function drawSurveyorCertificate(
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(30, 30, 30);
 
+  const { zone, datum, hemi, epsg } = reportCrs(input);
+
   const lines = [
     `I, ${input.surveyorName || '___________________________'}, Licensed Surveyor No. ${input.iskNumber || '___________'},`,
     `of ${input.firmName || '___________________________'}, hereby certify that the computations set out`,
@@ -641,7 +653,7 @@ function drawSurveyorCertificate(
     `in accordance with the Survey Act Cap 299 and the Survey Regulations 1994,`,
     `Regulation 3(2), and that to the best of my knowledge and belief the same are correct.`,
     '',
-    `Datum: Arc 1960 / UTM Zone 37S (EPSG:21037)`,
+    `Datum: ${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg})`,
     `Date: ${today}`,
   ];
 
@@ -671,12 +683,14 @@ function drawSurveyorCertificate(
 // Professional Disclaimer
 // ---------------------------------------------------------------------------
 
-function drawDisclaimer(doc: jsPDF): void {
+function drawDisclaimer(doc: jsPDF, input?: FormC22Input): void {
   const y = PAGE_H - MARGIN - 16;
 
   doc.setDrawColor(180, 180, 180);
   doc.setLineWidth(0.2);
   doc.line(MARGIN, y, PAGE_W - MARGIN, y);
+
+  const { zone, datum, hemi, epsg } = reportCrs(input);
 
   doc.setFontSize(5.5);
   doc.setFont('helvetica', 'italic');
@@ -691,7 +705,7 @@ function drawDisclaimer(doc: jsPDF): void {
   doc.setFontSize(5);
   doc.setTextColor(160, 160, 160);
   doc.text(
-    'Survey Act Cap 299 · Survey Regulations 1994 · Arc 1960 / UTM Zone 37S (EPSG:21037) · Form No. C22',
+    `Survey Act Cap 299 · Survey Regulations 1994 · ${datum} / UTM Zone ${zone}${hemi} (EPSG:${epsg}) · Form No. C22`,
     PAGE_W / 2,
     y + 7,
     { align: 'center' }

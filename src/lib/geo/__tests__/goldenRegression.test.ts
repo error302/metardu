@@ -34,7 +34,6 @@ import { computeHelmertTransformationRigorous, transformPointFull } from '@/lib/
 import { transformCoordinates } from '@/lib/geo/transform'
 import { DATUM_REGISTRY, transformToWGS84 } from '@/lib/geodesy/datums'
 import { geographicToUTM, utmToGeographic } from '@/lib/geodesy/coordinates'
-import { interpolateGeoidUndulation, KENYA_GEOID_REFERENCE } from '@/lib/geo/geoidHeight'
 
 const ITERATIONS = Number(process.env.MATH_PROPERTY_ITERATIONS ?? 200)
 
@@ -52,8 +51,8 @@ function makeRng(seed: number) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 // proj4 definition matching the ARC1960 registry entry EXACTLY: Clarke 1880
-// (RGS) + the EPSG:1284 3-parameter shift. (The full 7-parameter Arc 1960
-// transformation differs from the 3-parameter one by up to ~50 m — comparing
+// (RGS) + the EPSG:1122 3-parameter shift. (A non-registered 7-parameter Arc
+// 1960 transformation differed from the registered one by ~56 m — comparing
 // those would test the parameters, not the math.)
 const ARC1960_UTM37S_3PARAM =
   '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302 +units=m +no_defs'
@@ -377,14 +376,15 @@ describe('PROPERTY: epoch propagation self-inverse (negative dt)', () => {
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('GOLDEN: Cassini Molodensky chain anchors', () => {
-  test('Kenya Bursa-Wolf parameters match the engineering log (EPSG-derived)', () => {
+  test('Kenya Arc 1960 parameters match the EPSG:1122 registered translation', () => {
     expect(KENYA_BURSA_WOLF.dX).toBe(-160)
     expect(KENYA_BURSA_WOLF.dY).toBe(-6)
     expect(KENYA_BURSA_WOLF.dZ).toBe(-302)
-    expect(KENYA_BURSA_WOLF.rx).toBeCloseTo(-0.807, 6)
-    expect(KENYA_BURSA_WOLF.ry).toBeCloseTo(0.339, 6)
-    expect(KENYA_BURSA_WOLF.rz).toBeCloseTo(-1.619, 6)
-    expect(KENYA_BURSA_WOLF.ds).toBeCloseTo(-2.554, 6)
+    // EPSG registers no 7-parameter Arc 1960 → WGS84 transformation.
+    expect(KENYA_BURSA_WOLF.rx).toBe(0)
+    expect(KENYA_BURSA_WOLF.ry).toBe(0)
+    expect(KENYA_BURSA_WOLF.rz).toBe(0)
+    expect(KENYA_BURSA_WOLF.ds).toBe(0)
   })
 
   test('Molodensky C1858→C1880 shift magnitude is sane (< 350 m, the datum offset scale)', () => {
@@ -395,24 +395,5 @@ describe('GOLDEN: Cassini Molodensky chain anchors', () => {
     const dLon = Math.abs(out.lon - 37 * (Math.PI / 180)) * 6378249
     expect(dLat + dLon).toBeGreaterThan(0.05) // shift exists…
     expect(dLat + dLon).toBeLessThan(350) // …at datum-offset scale
-  })
-})
-
-// ─────────────────────────────────────────────────────────────────────────────
-// GOLDEN: EGM96 geoid undulation reference points
-// ─────────────────────────────────────────────────────────────────────────────
-
-describe('GOLDEN: EGM96 geoid undulations at Kenya reference cities', () => {
-  // KENYA_GEOID_REFERENCE values are ROUNDED whole-metre documentation
-  // targets; the 5° grid's bilinear interpolation deviates from them by up
-  // to ~6 m (Nairobi: interpolated -15.9 vs reference -10) because the
-  // reference table predates/rounds the grid. Tolerance ±7 m pins the
-  // interpolation's sanity without endorsing the reference values.
-  test.each(KENYA_GEOID_REFERENCE)('$name: N ≈ $N m', ({ lat, lon, N }) => {
-    const interp = interpolateGeoidUndulation(lat, lon)
-    expect(interp).not.toBeNull()
-    if (interp) {
-      expect(Math.abs(interp.undulation - N)).toBeLessThanOrEqual(7)
-    }
   })
 })

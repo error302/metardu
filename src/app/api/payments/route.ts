@@ -4,7 +4,8 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getPublicAppUrl } from '@/lib/site'
 import { getStripeService } from '@/lib/payments/stripe'
-import { getPayPalService, getPayPalPlanId } from '@/lib/payments/paypal'
+import { getPayPalService, getPayPalPlanId, resolvePayPalCurrency } from '@/lib/payments/paypal'
+import { validatePayPalBillingPlan } from '@/lib/payments/paypalPlanValidation'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
@@ -56,6 +57,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     const plan = getPlan(planId)
     if (!plan) {
       return { ok: false as const, response: NextResponse.json({ error: 'Unknown plan' }, { status: 400 }) }
+    }
+    if (plan.contactSales) {
+      return { ok: false as const, response: NextResponse.json({ error: 'This plan requires a sales agreement and is not available through self-serve checkout.' }, { status: 400 }) }
     }
     const c = currency as CurrencyCode
     const amount = plan.prices[c]
@@ -127,8 +131,45 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     if (!priced.ok) return priced.response
 
     if (priced.amount <= 0) {
+      if (planId !== 'free') {
+        return NextResponse.json({ error: 'This plan is not available for self-serve checkout.' }, { status: 400 })
+      }
       await activateSubscription({ planId, payment_method: 'free', currency: priced.currency, amount: 0, status: 'completed' })
       return NextResponse.json({ kind: 'activated', planId })
+    }
+
+    let paypalService: ReturnType<typeof getPayPalService> = null
+    let paypalPlanId: string | null = null
+    let paypalCurrency: CurrencyCode = priced.currency
+    let paypalAmount = 0
+    if (provider === 'paypal') {
+      paypalService = getPayPalService()
+      if (!paypalService) return NextResponse.json({ error: 'PayPal is not configured.' }, { status: 503 })
+      paypalCurrency = resolvePayPalCurrency(priced.currency)
+      paypalPlanId = getPayPalPlanId(planId, paypalCurrency)
+      if (!paypalPlanId) {
+        return NextResponse.json({ error: 'PayPal recurring billing is not configured for this plan.' }, { status: 503 })
+      }
+
+      paypalAmount = priced.plan.prices[paypalCurrency]
+      if (!Number.isFinite(paypalAmount) || paypalAmount <= 0) {
+        return NextResponse.json({ error: `PayPal pricing is unavailable for ${paypalCurrency}.` }, { status: 400 })
+      }
+
+      try {
+        const billingPlan = await paypalService.getBillingPlan(paypalPlanId)
+        const validation = validatePayPalBillingPlan(billingPlan, { amount: paypalAmount, currency: paypalCurrency })
+        if (!validation.valid) {
+          return NextResponse.json({
+            error: 'PayPal is temporarily unavailable for this plan because its saved billing plan does not match METARDU pricing. Choose another payment method or contact support.',
+            code: 'PAYPAL_PLAN_MISMATCH',
+          }, { status: 409 })
+        }
+      } catch {
+        // No payment row or PayPal subscription is created unless the current
+        // live billing plan has been read and matched to the catalog.
+        return NextResponse.json({ error: 'METARDU could not verify the PayPal billing plan. Please try another method or try again later.' }, { status: 503 })
+      }
     }
 
     const { rows } = await db.query<Pick<PaymentHistoryRow, 'id'>>(
@@ -167,22 +208,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     }
 
     if (provider === 'paypal') {
-      const paypal = getPayPalService()
-      if (!paypal) return NextResponse.json({ error: 'PayPal not configured' }, { status: 500 })
-
-      // Recurring billing — PayPal auto-charges each billing cycle.
-      // PayPal only supports ~25 currencies (USD, EUR, GBP, etc.) — NOT KES, UGX, TZS, NGN, GHS, INR, IDR, BRL.
-      const PAYPAL_UNSUPPORTED = new Set(['KES', 'UGX', 'TZS', 'NGN', 'GHS', 'INR', 'IDR', 'BRL'])
-      const paypalCurrency: CurrencyCode = PAYPAL_UNSUPPORTED.has(priced.currency) ? 'USD' : priced.currency
-      const paypalAmount = priced.plan.prices[paypalCurrency]
-      if (paypalAmount === undefined || paypalAmount <= 0) {
-        return NextResponse.json({ error: `PayPal pricing not available for ${paypalCurrency}` }, { status: 400 })
-      }
-
-      const payPalPlanId = getPayPalPlanId(planId)
-      if (!payPalPlanId) {
-        return NextResponse.json({ error: 'Recurring PayPal plan not configured. Contact support.' }, { status: 500 })
-      }
+      if (!paypalService || !paypalPlanId) return NextResponse.json({ error: 'PayPal is not configured.' }, { status: 503 })
 
       // Update the payment_history record to reflect the PayPal currency/amount
       if (paypalCurrency !== priced.currency) {
@@ -193,8 +219,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
       }
 
       // Create the recurring subscription and redirect the user to PayPal approval.
-      const sub = await paypal.createSubscription(
-        payPalPlanId,
+      const sub = await paypalService.createSubscription(
+        paypalPlanId,
         { email: start.data.email || '' },
         {
           returnUrl: `${appUrl}/subscription/success?provider=paypal&paymentId=${paymentId}&planId=${planId}`,
@@ -452,6 +478,8 @@ export const GET = apiHandler({ auth: false, rateLimit: { max: 30, windowMs: 600
   const isReal = (key: string | undefined) => !!key && !key.includes('mockup') && !key.includes('Mock')
   const stripe = isReal(process.env.STRIPE_SECRET_KEY)
   const paypal = isReal(process.env.PAYPAL_CLIENT_ID)
+    && isReal(process.env.PAYPAL_CLIENT_SECRET)
+    && (['pro', 'team', 'firm'] as const).every((planId) => Boolean(getPayPalPlanId(planId)))
   const mpesa = isReal(process.env.MPESA_CONSUMER_KEY)
   // AUDIT FIX (HIGH, 2026-07-02): Airtel Money service exists but has no
   // route handler in the unified payments API. Don't advertise it until wired.
@@ -459,7 +487,7 @@ export const GET = apiHandler({ auth: false, rateLimit: { max: 30, windowMs: 600
 
   return NextResponse.json({
     providers: { stripe, paypal, mpesa },
-    currencies: ['USD', 'KES', 'UGX', 'TZS', 'EUR', 'GBP'],
+    currencies: ['USD', 'KES', 'UGX', 'TZS', 'EUR', 'GBP', 'AUD'],
     paymentMethods: [
       ...(stripe || paypal ? [{ id: 'card', name: 'Credit/Debit Card', providers: [stripe && 'stripe', paypal && 'paypal'].filter(Boolean) }] : []),
       ...(mpesa ? [{ id: 'mpesa', name: 'M-Pesa', providers: ['mpesa'] }] : []),

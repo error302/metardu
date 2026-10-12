@@ -1,3 +1,5 @@
+import { generatePRJ } from './shapefile'
+
 export interface BeaconData {
   id: string
   name: string
@@ -28,20 +30,18 @@ export interface ParcelData {
   area_ha?: number
 }
 
-function getUTMPrj(zone: number, hemisphere: 'N' | 'S'): string {
-  const hemi = hemisphere === 'N' ? 'Northern' : 'Southern'
-  return `PROJCS["WGS 84 / UTM zone ${zone}${hemi}",GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]],PROJECTION["Transverse_Mercator"],PARAMETER["latitude_of_origin",0],PARAMETER["central_meridian",${-183 + zone * 6}],PARAMETER["scale_factor",0.9996],PARAMETER["false_easting",500000],PARAMETER["false_northing",${hemisphere === 'S' ? 10000000 : 0}],UNIT["metre",1]]`
-}
-
 export async function generateShapefileZip(
   beacons: BeaconData[],
   boundaries: BoundaryLine[],
   parcels: ParcelData[],
   submissionNumber: string,
   utmZone: number,
-  hemisphere: 'N' | 'S'
+  hemisphere: 'N' | 'S',
+  datum: string
 ): Promise<Blob> {
-  const prjContent = getUTMPrj(utmZone, hemisphere)
+  // projection.prj is the CRS declaration for the whole package; generatePRJ
+  // throws when the datum is undeclared instead of mislabelling it WGS 84.
+  const prjContent = generatePRJ({ zone: utmZone, hemisphere, datum, ellipsoid: '' })
 
   const parts: Array<{ name: string; blob: Blob }> = []
 

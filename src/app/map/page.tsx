@@ -1,15 +1,10 @@
+'use client'
 import dynamic from 'next/dynamic'
+import { LoadingState } from '@/components/shared/LoadingState'
 
 const MapClient = dynamic(() => import('./MapClient'), {
   ssr: false,
-  loading: () => (
-    <div className="h-[calc(100vh-4rem)] bg-[var(--bg-primary)] flex items-center justify-center">
-      <div className="text-center">
-        <div className="w-10 h-10 border-2 border-[#D17B47] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-sm text-[var(--text-muted)]">Loading map...</p>
-      </div>
-    </div>
-  ),
+  loading: () => <LoadingState message="Loading survey map" />,
 })
 
 export default function GlobalMapPage() {

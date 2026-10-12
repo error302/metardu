@@ -2,7 +2,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { smartChat } from '@/lib/ai/smartAiService'
-import { localLlmService } from '@/lib/ai/localLlmService'
 import type { InitProgressReport } from '@mlc-ai/web-llm'
 import { Send, Bot, User, Wifi, WifiOff, Loader2, Sparkles, AlertTriangle } from 'lucide-react'
 import { logger } from '@/lib/logger'
@@ -54,9 +53,17 @@ Ask me anything about Kenyan cadastral surveying, or try one of the suggestions 
   }, [messages])
 
   const warmUpModel = useCallback(async () => {
+    // When online, Cloud AI (NVIDIA NIM server endpoint) handles requests with zero browser RAM allocation
+    if (isOnline) {
+      setModelStatus('ready')
+      return
+    }
+    // When offline, initialize on-device WebLLM
     if (modelStatus === 'ready' || modelStatus === 'loading') return
     setModelStatus('loading')
     try {
+      // Keep the multi-megabyte WebGPU engine out of online assistant visits.
+      const { localLlmService } = await import('@/lib/ai/localLlmService')
       await localLlmService.initialize(undefined, (report: InitProgressReport) => {
         setLoadProgress(Math.round(report.progress * 100))
       })
@@ -64,7 +71,7 @@ Ask me anything about Kenyan cadastral surveying, or try one of the suggestions 
     } catch {
       setModelStatus('error')
     }
-  }, [modelStatus])
+  }, [modelStatus, isOnline])
 
   useEffect(() => {
     warmUpModel()
@@ -149,10 +156,15 @@ Ask me anything about Kenyan cadastral surveying, or try one of the suggestions 
                 'bg-gray-500'
               }`} />
               <span className="text-[10px] text-[var(--text-muted)]">
-                {modelStatus === 'ready' ? 'WebGPU LLM ready' :
-                 modelStatus === 'loading' ? `Loading model (${loadProgress}%)...` :
-                 modelStatus === 'error' ? 'WebGPU unavailable' :
-                 'Initializing...'}
+                {isOnline
+                  ? 'Cloud AI (NVIDIA NIM) ready'
+                  : modelStatus === 'ready'
+                  ? 'WebGPU LLM ready (offline)'
+                  : modelStatus === 'loading'
+                  ? `Loading offline model (${loadProgress}%)...`
+                  : modelStatus === 'error'
+                  ? 'Offline AI unavailable'
+                  : 'Initializing...'}
               </span>
               {isOnline ? (
                 <Wifi className="w-3 h-3 text-green-500 ml-1" />

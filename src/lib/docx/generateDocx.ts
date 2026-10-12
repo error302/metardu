@@ -137,7 +137,7 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
 
   // Add each section
   for (const section of sections) {
-    if (section.sectionNumber <= 2) continue
+    if (section.section === 'TITLE_PAGE' || section.section === 'TABLE_OF_CONTENTS') continue
 
     // Section heading
     docSections.push(

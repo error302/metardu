@@ -11,7 +11,7 @@ export interface DigitalSignature {
   signatureData: string
   method: 'DRAWN' | 'TYPED' | 'CERTIFICATE'
   ipAddress?: string
-  valid: boolean
+  verificationStatus: 'recorded'
   revokedAt?: string
   revokedReason?: string
   verificationToken: string
@@ -26,13 +26,13 @@ export interface SignDocumentRequest {
 }
 
 export interface VerifySignatureResponse {
-  valid: boolean
+  recordFound: boolean
   surveyorName?: string
   iskNumber?: string
   firmName?: string
   signedAt?: string
   documentType?: DigitalSignature['documentType']
-  status: 'VALID' | 'REVOKED' | 'NOT_FOUND'
+  status: 'RECORD_FOUND' | 'REVOKED' | 'NOT_FOUND'
   revokedAt?: string
   revokedReason?: string
 }

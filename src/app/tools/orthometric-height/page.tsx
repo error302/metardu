@@ -5,10 +5,8 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import {
   convertEllipsoidalToOrthometric,
   batchConvertHeights,
-  KENYA_GEOID_REFERENCE,
   type HeightConversionResult,
 } from '@/lib/geo/geoidHeight'
-import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface BatchRow {
   id: string
@@ -20,30 +18,42 @@ interface BatchRow {
 
 let batchId = 0
 
+function formatMetres(value: number | null): string {
+  return value !== null && Number.isFinite(value) ? `${value.toFixed(3)} m` : '—'
+}
+
+function csvCell(value: string | number | null): string {
+  const raw = value === null ? '' : String(value)
+  const safe = /^[=+\-@\t\r]/.test(raw) ? `'${raw}` : raw
+  return `"${safe.replace(/"/g, '""')}"`
+}
+
+function parseNumber(value: string): number {
+  const trimmed = value.trim()
+  if (!trimmed) return Number.NaN
+  const parsed = Number(trimmed)
+  return Number.isFinite(parsed) ? parsed : Number.NaN
+}
+
 export default function OrthometricHeightPage() {
-  const { t: _t } = useLanguage()
   const [mode, setMode] = useState<'single' | 'batch'>('single')
 
   // Single mode
-  const [latitude, setLatitude] = useState('-1.2864')
-  const [longitude, setLongitude] = useState('36.8172')
-  const [ellHeight, setEllHeight] = useState('1798.500')
+  const [latitude, setLatitude] = useState('')
+  const [longitude, setLongitude] = useState('')
+  const [ellHeight, setEllHeight] = useState('')
   const [result, setResult] = useState<HeightConversionResult | null>(null)
 
   // Batch mode
   const [batchRows, setBatchRows] = useState<BatchRow[]>([
-    { id: `b${++batchId}`, name: 'CP1', lat: '-1.2864', lon: '36.8172', h: '1798.500' },
-    { id: `b${++batchId}`, name: 'CP2', lat: '-1.2900', lon: '36.8200', h: '1799.200' },
-    { id: `b${++batchId}`, name: 'CP3', lat: '-1.2850', lon: '36.8150', h: '1800.800' },
+    { id: `b${++batchId}`, name: '', lat: '', lon: '', h: '' },
   ])
   const [batchResults, setBatchResults] = useState<ReturnType<typeof batchConvertHeights> | null>(null)
 
   const computeSingle = useCallback(() => {
-    const lat = parseFloat(latitude)
-    const lon = parseFloat(longitude)
-    const h = parseFloat(ellHeight)
-    if (isNaN(lat) || isNaN(lon) || isNaN(h)) return
-
+    const lat = parseNumber(latitude)
+    const lon = parseNumber(longitude)
+    const h = parseNumber(ellHeight)
     setResult(convertEllipsoidalToOrthometric({
       latitude: lat,
       longitude: lon,
@@ -53,15 +63,18 @@ export default function OrthometricHeightPage() {
 
   const computeBatch = useCallback(() => {
     const points = batchRows
-      .filter(r => r.lat && r.lon && r.h)
+      .filter(r => r.name.trim() || r.lat.trim() || r.lon.trim() || r.h.trim())
       .map(r => ({
         id: r.name || r.id,
-        latitude: parseFloat(r.lat),
-        longitude: parseFloat(r.lon),
-        ellipsoidalHeight: parseFloat(r.h),
+        latitude: parseNumber(r.lat),
+        longitude: parseNumber(r.lon),
+        ellipsoidalHeight: parseNumber(r.h),
       }))
 
-    if (points.length === 0) return
+    if (points.length === 0) {
+      setBatchResults(null)
+      return
+    }
     setBatchResults(batchConvertHeights(points))
   }, [batchRows])
 
@@ -72,8 +85,18 @@ export default function OrthometricHeightPage() {
 
   const downloadCSV = () => {
     if (!batchResults) return
-    const csv = 'Point,Latitude,Longitude,Ellipsoidal H (m),Geoid N (m),Orthometric H (m)\n' +
-      batchResults.map(r => `${r.id},${r.input.latitude},${r.input.longitude},${r.input.ellipsoidalHeight.toFixed(3)},${r.result.geoidUndulation.toFixed(3)},${r.result.orthometricHeight.toFixed(3)}`).join('\n')
+    const headers = ['Point', 'Latitude (deg)', 'Longitude (deg)', 'Ellipsoidal h (m)', 'Geoid N (m)', 'Indicative H (m)', 'Status', 'Model / limitation']
+    const rows = batchResults.map(({ id, input, result }) => [
+      id,
+      Number.isFinite(input.latitude) ? input.latitude : null,
+      Number.isFinite(input.longitude) ? input.longitude : null,
+      Number.isFinite(input.ellipsoidalHeight) ? input.ellipsoidalHeight.toFixed(3) : null,
+      result.geoidUndulation?.toFixed(3) ?? null,
+      result.orthometricHeight?.toFixed(3) ?? null,
+      result.status,
+      result.reason,
+    ])
+    const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')
     const blob = new Blob([csv], { type: 'text/csv' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -87,10 +110,17 @@ export default function OrthometricHeightPage() {
     <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-6 md:py-10">
       <PageHeader
         title="Orthometric height"
-        subtitle="Convert GNSS ellipsoidal heights to orthometric heights (above sea level) using EGM96 geoid undulation. Essential for engineering — water flows by gravity, not ellipsoid."
-        reference="EGM96 geoid model | H = h - N | NOAA NGA"
+        subtitle="Inspect an indicative ellipsoidal-to-geoid height correction. This coarse regional screening grid is not validated for engineering work."
+        reference="Regional 5° screening grid | H = h - N | accuracy not established"
         badge="Geodesy"
       />
+
+      <div role="note" className="mb-6 rounded-md border border-[color-mix(in_srgb,var(--warning)_40%,transparent)] bg-[color-mix(in_srgb,var(--warning)_7%,transparent)] p-4">
+        <p className="font-mono text-[10px] uppercase tracking-[0.06em] text-[var(--warning)]">Engineering limitation</p>
+        <p className="mt-1 text-xs leading-relaxed text-[var(--text-secondary)]">
+          The embedded regional grid is rounded at 5° spacing; its source provenance, accuracy, and tie to any national or project vertical datum have not been verified. Do not use these indicative values for drainage design, construction set-out, certification, or acceptance. Use approved project vertical control and a verified local geoid model.
+        </p>
+      </div>
 
       {/* Mode toggle */}
       <div className="flex gap-2 mb-6">
@@ -118,44 +148,29 @@ export default function OrthometricHeightPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase" htmlFor="latitude">Latitude (°)</label>
-                    <input id="latitude" className="input font-mono text-sm" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="-1.2864" />
+                    <input id="latitude" type="number" inputMode="decimal" step="any" min="-90" max="90" className="input font-mono text-sm" value={latitude} onChange={e => setLatitude(e.target.value)} placeholder="-1.2864" />
                   </div>
                   <div>
                     <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase" htmlFor="longitude">Longitude (°)</label>
-                    <input id="longitude" className="input font-mono text-sm" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="36.8172" />
+                    <input id="longitude" type="number" inputMode="decimal" step="any" min="-180" max="180" className="input font-mono text-sm" value={longitude} onChange={e => setLongitude(e.target.value)} placeholder="36.8172" />
                   </div>
                 </div>
                 <div>
                   <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase" htmlFor="ellipsoidal-height-h-m">Ellipsoidal height h (m)</label>
-                  <input id="ellipsoidal-height-h-m" className="input font-mono text-sm" value={ellHeight} onChange={e => setEllHeight(e.target.value)} placeholder="1798.500" />
+                  <input id="ellipsoidal-height-h-m" type="number" inputMode="decimal" step="any" className="input font-mono text-sm" value={ellHeight} onChange={e => setEllHeight(e.target.value)} placeholder="1798.500" />
                   <p className="font-mono text-[10px] text-[var(--text-muted)] mt-1">From GNSS / RTK rover output</p>
                 </div>
-                <button onClick={computeSingle} className="btn btn-primary w-full">Convert to orthometric</button>
+                <button onClick={computeSingle} className="btn btn-primary w-full">Calculate indicative estimate</button>
               </div>
             </div>
 
-            {/* Kenya reference */}
+            {/* Model coverage */}
             <div className="card">
-              <div className="card-header"><span className="label">Kenya geoid reference</span></div>
-              <div className="card-body">
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-[var(--text-muted)] border-b border-[var(--border-color)]">
-                      <th className="text-left py-1.5">Location</th>
-                      <th className="text-right py-1.5">N (m)</th>
-                      <th className="text-left py-1.5 pl-4">Note</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {KENYA_GEOID_REFERENCE.map(ref => (
-                      <tr key={ref.name} className="border-b border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
-                        <td className="py-1.5 font-mono text-[var(--accent)]">{ref.name}</td>
-                        <td className="py-1.5 text-right font-mono text-[var(--text-primary)]">{ref.N}</td>
-                        <td className="py-1.5 pl-4 font-mono text-[var(--text-muted)] text-[10px]">{ref.note}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+              <div className="card-header"><span className="label">Screening grid coverage</span></div>
+              <div className="card-body space-y-2 text-xs text-[var(--text-secondary)]">
+                <p>Latitude: 15° N to 15° S</p>
+                <p>Longitude: 25° E to 55° E</p>
+                <p className="text-[var(--text-muted)]">Points outside this region return no height correction. The boundary is not extended by clamping.</p>
               </div>
             </div>
           </div>
@@ -165,7 +180,15 @@ export default function OrthometricHeightPage() {
             {!result ? (
               <div className="card">
                 <div className="card-body text-center py-16">
-                  <p className="text-sm text-[var(--text-muted)]">Enter GNSS position and convert.</p>
+                  <p className="text-sm text-[var(--text-muted)]">Enter GNSS coordinates and ellipsoidal height to inspect an indicative estimate.</p>
+                </div>
+              </div>
+            ) : result.status === 'unavailable' ? (
+              <div role="alert" className="card border-[color-mix(in_srgb,var(--error)_40%,transparent)]">
+                <div className="card-header"><span className="label text-[var(--error)]">Height correction unavailable</span></div>
+                <div className="card-body space-y-2 text-sm text-[var(--text-secondary)]">
+                  <p>{result.reason}</p>
+                  <p className="font-mono text-[10px] text-[var(--text-muted)]">No value was extrapolated or substituted.</p>
                 </div>
               </div>
             ) : (
@@ -176,20 +199,20 @@ export default function OrthometricHeightPage() {
                     <div className="grid grid-cols-2 gap-4">
                       <div>
                         <div className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase mb-1">Ellipsoidal h</div>
-                        <div className="font-display text-xl text-[var(--text-primary)] tracking-[-0.02em]">{result.ellipsoidalHeight.toFixed(3)} m</div>
+                        <div className="font-display text-xl text-[var(--text-primary)] tracking-[-0.02em]">{formatMetres(result.ellipsoidalHeight).replace(' m', '')} m</div>
                         <div className="font-mono text-[10px] text-[var(--text-muted)]">GNSS raw output</div>
                       </div>
                       <div>
-                        <div className="font-mono text-[10px] text-[var(--accent)] tracking-[0.06em] uppercase mb-1">Geoid N</div>
-                        <div className="font-display text-xl text-[var(--text-primary)] tracking-[-0.02em]">{result.geoidUndulation.toFixed(3)} m</div>
+                        <div className="font-mono text-[10px] text-[var(--warning)] tracking-[0.06em] uppercase mb-1">Indicative geoid N</div>
+                        <div className="font-display text-xl text-[var(--text-primary)] tracking-[-0.02em]">{formatMetres(result.geoidUndulation)}</div>
                         <div className="font-mono text-[10px] text-[var(--text-muted)]">{result.geoidUndulation < 0 ? 'Geoid below ellipsoid' : 'Geoid above ellipsoid'}</div>
                       </div>
                     </div>
 
                     <div className="pt-4 border-t border-[var(--border-color)]">
-                      <div className="font-mono text-[10px] text-[var(--success)] tracking-[0.06em] uppercase mb-1">Orthometric H = h - N</div>
-                      <div className="font-display text-3xl text-[var(--success)] tracking-[-0.02em]">{result.orthometricHeight.toFixed(3)} m</div>
-                      <div className="font-mono text-[10px] text-[var(--text-muted)] mt-1">Above mean sea level (geoid)</div>
+                      <div className="font-mono text-[10px] text-[var(--warning)] tracking-[0.06em] uppercase mb-1">Indicative H = h - N</div>
+                      <div className="font-display text-3xl text-[var(--warning)] tracking-[-0.02em]">{formatMetres(result.orthometricHeight)}</div>
+                      <div className="font-mono text-[10px] text-[var(--text-muted)] mt-1">Not tied to the project vertical datum</div>
                     </div>
 
                     <div className="pt-3 border-t border-[var(--border-color)] space-y-1">
@@ -199,16 +222,14 @@ export default function OrthometricHeightPage() {
                       </div>
                       <div className="flex justify-between">
                         <span className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.04em] uppercase">Accuracy</span>
-                        <span className="font-mono text-[10px] text-[var(--text-secondary)]">±{result.accuracy} m</span>
+                        <span className="font-mono text-[10px] text-[var(--warning)]">Not established</span>
                       </div>
                     </div>
 
                     <div className="p-3 border border-[color-mix(in_srgb,var(--warning)_30%,transparent)] bg-[color-mix(in_srgb,var(--warning)_5%,transparent)] rounded-md">
                       <p className="text-xs text-[var(--text-secondary)] leading-relaxed">
-                        <span className="font-mono text-[var(--warning)] text-[10px] tracking-[0.06em] uppercase">Engineering note:</span>{' '}
-                        Use orthometric H for drainage, road gradients, and runway construction.
-                        Ellipsoidal h from GNSS does not represent true sea-level height.
-                        At this location, the correction is {result.heightDifference.toFixed(1)} m — significant for any gravity-based design.
+                        <span className="font-mono text-[var(--warning)] text-[10px] tracking-[0.06em] uppercase">Indicative only:</span>{' '}
+                        {result.reason} Establish project elevations from verified benchmarks and the specified vertical datum before design or set-out.
                       </p>
                     </div>
                   </div>
@@ -233,10 +254,10 @@ export default function OrthometricHeightPage() {
                   </div>
                   {batchRows.map(r => (
                     <div key={r.id} className="grid grid-cols-[80px_1fr_1fr_1fr_28px] gap-2 items-center">
-                      <input className="input font-mono text-xs px-2 py-1" value={r.name} onChange={e => updateBatchRow(r.id, 'name', e.target.value)} aria-label="Point name" placeholder="CP1" />
-                      <input className="input font-mono text-xs px-2 py-1" value={r.lat} onChange={e => updateBatchRow(r.id, 'lat', e.target.value)} aria-label="Latitude (deg)" placeholder="-1.2864" />
-                      <input className="input font-mono text-xs px-2 py-1" value={r.lon} onChange={e => updateBatchRow(r.id, 'lon', e.target.value)} aria-label="Longitude (deg)" placeholder="36.8172" />
-                      <input className="input font-mono text-xs px-2 py-1" value={r.h} onChange={e => updateBatchRow(r.id, 'h', e.target.value)} aria-label="Ellipsoidal height (m)" placeholder="1798.500" />
+                      <input className="input font-mono text-xs px-2 py-1" value={r.name} onChange={e => updateBatchRow(r.id, 'name', e.target.value)} aria-label="Name" placeholder="Point name" />
+                      <input type="number" inputMode="decimal" step="any" min="-90" max="90" className="input font-mono text-xs px-2 py-1" value={r.lat} onChange={e => updateBatchRow(r.id, 'lat', e.target.value)} aria-label="Latitude (deg)" placeholder="-1.2864" />
+                      <input type="number" inputMode="decimal" step="any" min="-180" max="180" className="input font-mono text-xs px-2 py-1" value={r.lon} onChange={e => updateBatchRow(r.id, 'lon', e.target.value)} aria-label="Longitude (deg)" placeholder="36.8172" />
+                      <input type="number" inputMode="decimal" step="any" className="input font-mono text-xs px-2 py-1" value={r.h} onChange={e => updateBatchRow(r.id, 'h', e.target.value)} aria-label="Ellipsoidal height (m)" placeholder="1798.500" />
                       <button onClick={() => removeBatchRow(r.id)} className="text-[var(--text-muted)] hover:text-[var(--error)] text-sm">×</button>
                     </div>
                   ))}
@@ -244,7 +265,7 @@ export default function OrthometricHeightPage() {
               </div>
               <div className="flex gap-3 mt-3">
                 <button onClick={addBatchRow} className="font-mono text-[11px] text-[var(--accent)] hover:opacity-80">+ Add point</button>
-                <button onClick={computeBatch} className="btn btn-primary text-xs ml-auto">Convert all</button>
+                <button onClick={computeBatch} className="btn btn-primary text-xs ml-auto">Calculate estimates</button>
               </div>
             </div>
           </div>
@@ -263,7 +284,8 @@ export default function OrthometricHeightPage() {
                         <th className="text-left py-2">Point</th>
                         <th className="text-right py-2">Ellipsoidal h (m)</th>
                         <th className="text-right py-2">Geoid N (m)</th>
-                        <th className="text-right py-2">Orthometric H (m)</th>
+                        <th className="text-right py-2">Indicative H (m)</th>
+                        <th className="text-left py-2 pl-3">Status</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -271,8 +293,9 @@ export default function OrthometricHeightPage() {
                         <tr key={r.id} className="border-b border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]">
                           <td className="py-1.5 font-mono text-[var(--accent)]">{r.id}</td>
                           <td className="py-1.5 text-right font-mono text-[var(--text-primary)]">{r.input.ellipsoidalHeight.toFixed(3)}</td>
-                          <td className="py-1.5 text-right font-mono text-[var(--text-muted)]">{r.result.geoidUndulation.toFixed(3)}</td>
-                          <td className="py-1.5 text-right font-mono text-[var(--success)] font-medium">{r.result.orthometricHeight.toFixed(3)}</td>
+                          <td className="py-1.5 text-right font-mono text-[var(--text-muted)]">{formatMetres(r.result.geoidUndulation)}</td>
+                          <td className="py-1.5 text-right font-mono text-[var(--warning)] font-medium">{formatMetres(r.result.orthometricHeight)}</td>
+                          <td className="py-1.5 pl-3 font-mono text-[10px] text-[var(--text-secondary)]">{r.result.status === 'indicative' ? 'Indicative · not for engineering' : r.result.reason}</td>
                         </tr>
                       ))}
                     </tbody>

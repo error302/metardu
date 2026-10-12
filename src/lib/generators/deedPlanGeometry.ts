@@ -18,6 +18,7 @@ export interface AdjustedStation {
   station: string;
   easting: number;
   northing: number;
+  elevation?: number;
   beaconNo?: string;
   monument?: string;
   markStatus?: string;
@@ -69,6 +70,7 @@ export interface PreAdjustedCoordinate {
   station: string;
   easting: number;
   northing: number;
+  elevation?: number;
   beaconNo?: string;
   monument?: string;
   markStatus?: string;
@@ -93,15 +95,58 @@ export interface ComputeDeedPlanGeometryOptions {
 }
 
 function parseBearing(raw: string | number): number {
-  if (typeof raw === 'number') return raw;
-  const dmsMatch = String(raw).match(/(\d+)[°\-\s](\d+)['\-\s](\d+\.?\d*)/);
+  const dmsMatch = String(raw).trim().match(/^(\d+)[°\-\s]\s*(\d+)['\-\s]\s*(\d+(?:\.\d+)?)["″]?$/);
   if (dmsMatch) {
     const [, d, m, s] = dmsMatch.map(Number);
-    return d + m / 60 + s / 3600;
+    const value = d + m / 60 + s / 3600;
+    return m < 60 && s < 60 && value <= 360 ? value % 360 : NaN;
   }
-  return parseFloat(String(raw)) || 0;
+  const value = Number(String(raw).trim() || NaN);
+  return Number.isFinite(value) && value >= 0 && value <= 360 ? value % 360 : NaN;
 }
 
+interface ProjectGeometryMetadata {
+  utm_zone: number | null;
+  hemisphere: string | null;
+  datum: string | null;
+}
+
+function supportedProjection(project?: ProjectGeometryMetadata): DeedPlanGeometry['projection'] {
+  // The scale-factor adapter uses WGS84 constants and supports these two
+  // southern UTM zones only. Arc 1960 and northern zones need another model.
+  if (project?.datum?.replace(/\s/g, '').toUpperCase() !== 'WGS84' || project.hemisphere !== 'S') return undefined;
+  return project.utm_zone === 36 ? 'UTM36S' : project.utm_zone === 37 ? 'UTM37S' : undefined;
+}
+
+function validateCoordinates(coords: PreAdjustedCoordinate[]): void {
+  if (coords.length < 3 || coords.some(c => !c.station || !Number.isFinite(c.easting)
+    || !Number.isFinite(c.northing) || c.elevation !== undefined && !Number.isFinite(c.elevation))) {
+    throw new Error('At least three stations with finite coordinates are required for export.');
+  }
+  if (new Set(coords.map(c => c.station)).size !== coords.length) {
+    throw new Error('Boundary coordinate station names must be unique.');
+  }
+}
+
+function scaleFactors(
+  stations: AdjustedStation[], projection: DeedPlanGeometry['projection']
+): DeedPlanGeometry['lineScaleFactors'] {
+  if (!projection) return undefined;
+  try {
+    return stations.map((st, i) => {
+      const next = stations[(i + 1) % stations.length];
+      const result = computeLineScaleFactor(st.easting, st.northing, next.easting, next.northing, projection);
+      if (![result.lineScaleFactor, result.ppmCorrection, result.gridDistance, result.ellipsoidalDistance].every(Number.isFinite)
+        || result.lineScaleFactor <= 0) throw new Error('Invalid scale factor');
+      return { from: st.station, to: next.station, scaleFactor: result.lineScaleFactor,
+        ppmFromUnity: result.ppmCorrection, gridDistance: result.gridDistance,
+        ellipsoidalDistance: result.ellipsoidalDistance };
+    });
+  } catch {
+    // Missing/failed correction evidence must never become a unity correction.
+    return undefined;
+  }
+}
 
 export async function computeDeedPlanGeometry(
   projectId: string,
@@ -113,8 +158,10 @@ export async function computeDeedPlanGeometry(
   // use them directly. This guarantees 100% consistency between all output
   // documents — the deed plan, computation sheet, Form C22, and DXF all
   // derive from the same adjusted coordinates.
-  if (options?.preAdjustedCoordinates && options.preAdjustedCoordinates.length >= 3) {
-    return buildFromPreAdjusted(options.preAdjustedCoordinates, options.preAdjustedClosure);
+  if (options?.preAdjustedCoordinates) {
+    validateCoordinates(options.preAdjustedCoordinates);
+    const project = await db.query<ProjectGeometryMetadata>('SELECT utm_zone, hemisphere, datum FROM projects WHERE id = $1', [projectId]);
+    return buildFromPreAdjusted(options.preAdjustedCoordinates, options.preAdjustedClosure, supportedProjection(project.rows[0]));
   }
 
   // ── Path B: Try to load pre-adjusted coordinates from the DB ──
@@ -122,7 +169,8 @@ export async function computeDeedPlanGeometry(
   // traverse_coordinates table, use those instead of recomputing.
   const savedCoords = await loadPreAdjustedFromDB(projectId);
   if (savedCoords) {
-    return buildFromPreAdjusted(savedCoords.stations, savedCoords.closure);
+    const project = await db.query<ProjectGeometryMetadata>('SELECT utm_zone, hemisphere, datum FROM projects WHERE id = $1', [projectId]);
+    return buildFromPreAdjusted(savedCoords.stations, savedCoords.closure, supportedProjection(project.rows[0]));
   }
 
   // ── Path C: Compute from raw field book entries (fallback) ──
@@ -136,12 +184,15 @@ export async function computeDeedPlanGeometry(
  */
 function buildFromPreAdjusted(
   coords: PreAdjustedCoordinate[],
-  closure?: PreAdjustedClosure
+  closure?: PreAdjustedClosure,
+  projection?: DeedPlanGeometry['projection']
 ): DeedPlanGeometry {
+  validateCoordinates(coords);
   const adjusted: AdjustedStation[] = coords.map(c => ({
     station: c.station,
     easting: c.easting,
     northing: c.northing,
+    elevation: c.elevation,
     beaconNo: c.beaconNo,
     monument: c.monument,
     markStatus: c.markStatus,
@@ -153,7 +204,6 @@ function buildFromPreAdjusted(
 
   // Bearing schedule recomputed from adjusted positions — ensures consistency
   // Now includes grid scale factors from the survey engine (Simpson's rule)
-  const projection: 'UTM36S' | 'UTM37S' = 'UTM37S'; // Default for Kenya
   const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
     const next = adjusted[(i + 1) % adjusted.length];
     const dE = next.easting - st.easting;
@@ -170,42 +220,19 @@ function buildFromPreAdjusted(
   });
 
   // Compute line scale factors using the survey engine's Simpson's rule
-  const lineScaleFactors = adjusted.map((st, i) => {
-    const next = adjusted[(i + 1) % adjusted.length];
-    try {
-      const sfResult = computeLineScaleFactor(
-        st.easting, st.northing,
-        next.easting, next.northing,
-        projection
-      );
-      return {
-        from: st.station,
-        to: next.station,
-        scaleFactor: sfResult.lineScaleFactor,
-        ppmFromUnity: sfResult.ppmCorrection,
-        gridDistance: sfResult.gridDistance,
-        ellipsoidalDistance: sfResult.ellipsoidalDistance,
-      };
-    } catch {
-      return {
-        from: st.station,
-        to: next.station,
-        scaleFactor: 1.0,
-        ppmFromUnity: 0,
-        gridDistance: 0,
-        ellipsoidalDistance: 0,
-      };
-    }
-  });
+  const lineScaleFactors = scaleFactors(adjusted, projection);
 
   const eastings = adjusted.map((s) => s.easting);
   const northings = adjusted.map((s) => s.northing);
 
-  const misclosureMm = closure?.misclosureMm ?? 0;
-  const ratio = closure?.precisionRatio ?? Infinity;
-  const precisionRatio = ratio === Infinity ? '1:∞' : `1:${Math.round(ratio).toLocaleString()}`;
+  const hasClosure = !!closure && Number.isFinite(closure.misclosureMm) && closure.misclosureMm >= 0
+    && (Number.isFinite(closure.precisionRatio) && closure.precisionRatio >= 0
+      || closure.precisionRatio === Infinity && closure.misclosureMm === 0);
+  const misclosureMm = hasClosure ? closure!.misclosureMm : NaN;
+  const ratio = hasClosure ? closure!.precisionRatio : NaN;
+  const precisionRatio = !hasClosure ? 'Unverified' : ratio === Infinity ? '1:∞' : `1:${Math.round(ratio).toLocaleString()}`;
   const closureStatus: 'PASS' | 'FAIL' | 'UNVERIFIED' =
-    ratio >= 5000 ? 'PASS' : ratio > 0 && ratio < Infinity ? 'FAIL' : 'UNVERIFIED';
+    !hasClosure ? 'UNVERIFIED' : ratio >= 5000 ? 'PASS' : 'FAIL';
 
   return {
     stations: adjusted,
@@ -237,11 +264,26 @@ function buildFromPreAdjusted(
  */
 export async function loadPreAdjustedFromDB(
   projectId: string
-): Promise<{ stations: PreAdjustedCoordinate[]; closure: PreAdjustedClosure } | null> {
+): Promise<{ stations: PreAdjustedCoordinate[]; closure?: PreAdjustedClosure } | null> {
   try {
+    const current = await db.query<{ boundary_data: Record<string, any> | null }>(
+      'SELECT boundary_data FROM projects WHERE id = $1', [projectId]);
+    const boundary=current.rows[0]?.boundary_data;
+    if(boundary?.computation?.source==='field-observations' && Array.isArray(boundary.adjustedStations)) {
+      const beacons=await db.query<{station:string;raw_data:Record<string,any>}>(
+        'SELECT station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',[projectId]);
+      const stations=boundary.adjustedStations.map((point:any)=>{
+        const raw=beacons.rows.find(row=>row.station===point.pointName)?.raw_data;
+        return {station:point.pointName,easting:Number(point.adjustedEasting),northing:Number(point.adjustedNorthing),beaconNo:raw?.beacon_no || '',monument:raw?.monument_type || '',markStatus:raw?.mark_status || ''};
+      });
+      validateCoordinates(stations);
+      const ratioText=String(boundary.precision_ratio ?? '').replace(/,/g,'').replace(/^1\s*:\s*/,'').trim();
+      const ratio=ratioText==='∞' ? Infinity : Number(ratioText);
+      return {stations,closure:{misclosureMm:Number(boundary.linear_misclosure)*1000,precisionRatio:ratio}};
+    }
     // Find the most recent traverse for this project via parcels
-    const traverseRes = await db.query<{ id: string; linear_misclosure: number | null; precision_ratio: number | null }>(
-      `SELECT pt.id, pt.linear_misclosure, pt.precision_ratio
+    const traverseRes = await db.query<{ id: string }>(
+      `SELECT pt.id
        FROM parcel_traverses pt
        JOIN parcels p ON p.id = pt.parcel_id
        JOIN blocks b ON b.id = p.block_id
@@ -256,17 +298,42 @@ export async function loadPreAdjustedFromDB(
     const traverseId = traverse.id;
 
     const coordsRes = await db.query(
-      'SELECT station, easting, northing, rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station',
+      `SELECT station_name AS station, easting, northing, elevation AS rl
+       FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY created_at, id`,
       [traverseId]
     );
 
     if (coordsRes.rows.length < 3) return null;
 
+    const observations = await db.query<{ station_from: string; station_to: string }>(
+      'SELECT station_from, station_to FROM traverse_observations WHERE traverse_id = $1 ORDER BY created_at, id',
+      [traverseId]
+    );
+    const links = new Map<string, string>();
+    for (const observation of observations.rows) {
+      if (links.has(observation.station_from) && links.get(observation.station_from) !== observation.station_to) {
+        throw new Error('Traverse has ambiguous boundary connections. Review observations before exporting.');
+      }
+      links.set(observation.station_from, observation.station_to);
+    }
+    const ordered: typeof coordsRes.rows = [];
+    let station = observations.rows[0]?.station_from;
+    const visited = new Set<string>();
+    while (station && !visited.has(station)) {
+      visited.add(station);
+      const coordinate = coordsRes.rows.find((row: Record<string, unknown>) => row.station === station);
+      if (!coordinate) break;
+      ordered.push(coordinate);
+      station = links.get(station)!;
+    }
+    if (ordered.length !== coordsRes.rows.length || station !== observations.rows[0]?.station_from) {
+      throw new Error('A complete ordered boundary is required for coordinate export. Review traverse observations.');
+    }
+
     // Also try to get beacon info from field book entries for richer metadata
     const beaconLookup = new Map<string, { beaconNo: string; monument: string; markStatus: string }>();
-    try {
-      const fbRes = await db.query<{ station: string; raw_data: Record<string, unknown> | null }>(
-        'SELECT station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    const fbRes = await db.query<{ station: string; raw_data: Record<string, unknown> | null }>(
+      'SELECT station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',
         [projectId]
       );
       for (const row of fbRes.rows) {
@@ -275,36 +342,29 @@ export async function loadPreAdjustedFromDB(
           beaconLookup.set(String(row.station), {
             beaconNo: String(raw.beacon_no ?? ''),
             monument: String(raw.monument_type ?? ''),
-            markStatus: String(raw.mark_status ?? raw.monument_status ?? 'FOUND'),
+            markStatus: String(raw.mark_status ?? raw.monument_status ?? ''),
           });
         }
       }
-    } catch {
-      // Field book table may not exist — proceed with defaults
-    }
 
-    const stations: PreAdjustedCoordinate[] = coordsRes.rows.map((c: Record<string, unknown>) => {
+    const stations: PreAdjustedCoordinate[] = ordered.map((c: Record<string, unknown>) => {
       const stn = String(c.station);
       const beacon = beaconLookup.get(stn);
       return {
         station: stn,
-        easting: parseFloat(String(c.easting)),
-        northing: parseFloat(String(c.northing)),
+        easting: c.easting == null || String(c.easting).trim() === '' ? NaN : Number(c.easting),
+        northing: c.northing == null || String(c.northing).trim() === '' ? NaN : Number(c.northing),
+        elevation: c.rl == null ? undefined : Number(c.rl),
         beaconNo: beacon?.beaconNo || stn,
-        monument: beacon?.monument || 'psc found',
-        markStatus: beacon?.markStatus || 'FOUND',
+        monument: beacon?.monument || '',
+        markStatus: beacon?.markStatus || '',
       };
     });
 
-    const closure: PreAdjustedClosure = {
-      misclosureMm: parseFloat(String(traverse.linear_misclosure ?? 0)) * 1000,
-      precisionRatio: parseFloat(String(traverse.precision_ratio ?? 0)) || Infinity,
-    };
-
-    return { stations, closure };
-  } catch {
-    // Table may not exist in all deployments — fall back gracefully
-    return null;
+    validateCoordinates(stations);
+    return { stations };
+  } catch (error) {
+    throw error;
   }
 }
 
@@ -315,7 +375,7 @@ export async function loadPreAdjustedFromDB(
  */
 async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry> {
   const entriesRes = await db.query<{ row_index: number; station: string; raw_data: Record<string, unknown> }>(
-    'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 ORDER BY row_index ASC',
+    'SELECT row_index, station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',
     [projectId]
   );
   const entries = entriesRes.rows;
@@ -324,8 +384,8 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
     throw new Error('Deed Plan requires at least 3 traverse stations. Add observations in the Field Book panel.');
   }
 
-  const projectRes = await db.query<{ boundary_data: Record<string, unknown> | null; utm_zone: number | null; hemisphere: string | null }>(
-    'SELECT boundary_data, utm_zone, hemisphere FROM projects WHERE id = $1',
+  const projectRes = await db.query<ProjectGeometryMetadata & { boundary_data: Record<string, unknown> | null }>(
+    'SELECT boundary_data, utm_zone, hemisphere, datum FROM projects WHERE id = $1',
     [projectId]
   );
   const project = projectRes.rows[0];
@@ -333,22 +393,25 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
   const legs: TraverseStation[] = entries
     .map((e: { row_index: number; station: string; raw_data: Record<string, unknown> }) => ({
       station: String(e.station ?? e.raw_data?.station ?? ''),
-      bearing: parseBearing(String(e.raw_data?.bearing ?? e.raw_data?.bs ?? 0)),
-      distance: parseFloat(String(e.raw_data?.distance ?? e.raw_data?.hd ?? '0')) || 0,
+      bearing: parseBearing(String(e.raw_data?.bearing ?? '')),
+      distance: Number(e.raw_data?.distance ?? e.raw_data?.hd ?? NaN),
       beaconNo: String(e.raw_data?.beacon_no ?? ''),
       monument: String(e.raw_data?.monument_type ?? ''),
-      markStatus: String(e.raw_data?.mark_status ?? e.raw_data?.monument_status ?? 'FOUND'),
+      markStatus: String(e.raw_data?.mark_status ?? e.raw_data?.monument_status ?? ''),
     }))
-    .filter((l) => l.distance > 0);
+    ;
 
-  if (legs.length < 3) {
+  if (legs.length < 3 || legs.some(l => !l.station || !Number.isFinite(l.bearing) || !Number.isFinite(l.distance) || l.distance <= 0)) {
     throw new Error('Insufficient traverse data. Ensure bearing and distance are entered for each leg.');
   }
 
   // Use boundary seed as starting coordinate
   const seed = project?.boundary_data as { startE?: number; startN?: number } | null;
-  const startE = seed?.startE ?? 0;
-  const startN = seed?.startN ?? 0;
+  if (!Number.isFinite(seed?.startE) || !Number.isFinite(seed?.startN)) {
+    throw new Error('Starting easting and northing are required before generating survey documents.');
+  }
+  const startE = seed!.startE!;
+  const startN = seed!.startN!;
 
   // Build the traverse input for the engine's Bowditch adjustment
   // This ensures the deed plan uses the SAME adjusted coordinates as the
@@ -367,12 +430,13 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
   // Extract adjusted coordinates from the engine result
   const adjusted: AdjustedStation[] = traverseResult.legs.map((leg, i) => ({
     station: legs[i].station,
-    easting: leg.adjEasting,
-    northing: leg.adjNorthing,
+    easting: i === 0 ? startE : traverseResult.legs[i - 1].adjEasting,
+    northing: i === 0 ? startN : traverseResult.legs[i - 1].adjNorthing,
     beaconNo: legs[i].beaconNo,
     monument: legs[i].monument,
     markStatus: legs[i].markStatus,
   }));
+  validateCoordinates(adjusted);
 
   // Compute area from adjusted coordinates (Shoelace formula)
   const pts = adjusted.map((s) => ({ easting: s.easting, northing: s.northing }));
@@ -391,7 +455,7 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
   // Bearing schedule from adjusted coordinates — bearings are recomputed from
   // the adjusted positions to ensure consistency with the coordinate schedule
   // Now includes grid scale factors from the survey engine (Simpson's rule)
-  const projection: 'UTM36S' | 'UTM37S' = 'UTM37S'; // Default for Kenya
+  const projection = supportedProjection(project);
   const bearingSchedule: BearingLeg[] = adjusted.map((st, i) => {
     const next = adjusted[(i + 1) % adjusted.length];
     const dE = next.easting - st.easting;
@@ -408,33 +472,7 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
   });
 
   // Compute line scale factors using the survey engine's Simpson's rule
-  const lineScaleFactors = adjusted.map((st, i) => {
-    const next = adjusted[(i + 1) % adjusted.length];
-    try {
-      const sfResult = computeLineScaleFactor(
-        st.easting, st.northing,
-        next.easting, next.northing,
-        projection
-      );
-      return {
-        from: st.station,
-        to: next.station,
-        scaleFactor: sfResult.lineScaleFactor,
-        ppmFromUnity: sfResult.ppmCorrection,
-        gridDistance: sfResult.gridDistance,
-        ellipsoidalDistance: sfResult.ellipsoidalDistance,
-      };
-    } catch {
-      return {
-        from: st.station,
-        to: next.station,
-        scaleFactor: 1.0,
-        ppmFromUnity: 0,
-        gridDistance: 0,
-        ellipsoidalDistance: 0,
-      };
-    }
-  });
+  const lineScaleFactors = scaleFactors(adjusted, projection);
 
   const eastings = adjusted.map((s) => s.easting);
   const northings = adjusted.map((s) => s.northing);

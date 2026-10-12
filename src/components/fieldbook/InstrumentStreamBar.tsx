@@ -39,32 +39,47 @@ import {
   AlertCircle, Zap, Circle,
 } from 'lucide-react'
 import { useHaptics } from './MobileFieldUX'
+import type { GNSSBleConnection, GNSSPosition } from '@/lib/instruments/gnssBleConnection'
+import type { TotalStationConnection } from '@/lib/instruments/totalStationSerial'
 
 export type CollectionMode = 'total-station' | 'gnss' | 'manual'
 export type SurveyType = 'traverse' | 'leveling' | 'control' | 'topographic'
 
 export interface StreamedReading {
+  /** Target point identifier supplied by the instrument, when present. */
   station?: string
+  /** Instrument setup station is separate from the measured target point. */
+  setupStation?: string
   bearing?: number      // decimal degrees
   distance?: number     // metres (slope or horizontal)
   verticalAngle?: number // decimal degrees (zenith)
   easting?: number
   northing?: number
+  latitude?: number
+  longitude?: number
+  horizontalCrs?: string
+  verticalDatum?: string
   elevation?: number
   instrumentHeight?: number
   targetHeight?: number
   temperature?: number
   pressure?: number
   fixQuality?: number   // GNSS: 0=none, 1=GPS, 2=DGPS, 4=RTK fixed, 5=RTK float
+  solutionType?: 'fixed' | 'float' | 'dgps' | 'single'
   satellites?: number
+  hdop?: number
   accuracy?: number     // metres
+  accuracySource?: 'receiver' | 'browser' | 'unknown'
+  source?: 'gnss_receiver' | 'browser_geolocation' | 'total_station'
+  instrumentName?: string
+  rawData?: string
   timestamp: string
 }
 
 interface InstrumentStreamBarProps {
   surveyType: SurveyType
   /** Called when a reading is collected (from instrument or GPS) */
-  onReading: (reading: StreamedReading) => void
+  onReading: (reading: StreamedReading) => void | Promise<void>
   /** Station name for the current setup */
   stationName?: string
   /** Instrument height (for total station) */
@@ -89,8 +104,18 @@ export function InstrumentStreamBar({
   const [autoCollect, setAutoCollect] = useState(false)
   const [autoCollectInterval, setAutoCollectInterval] = useState(5) // seconds
   const [readingCount, setReadingCount] = useState(0)
+  const [receiverPosition, setReceiverPosition] = useState<GNSSPosition | null>(null)
   const haptics = useHaptics()
   const autoCollectRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const totalStationRef = useRef<TotalStationConnection | null>(null)
+  const gnssConnectionRef = useRef<GNSSBleConnection | null>(null)
+  const receiverPositionRef = useRef<{ position: GNSSPosition; receivedAt: number } | null>(null)
+  const receiverNameRef = useRef<string | undefined>(undefined)
+  const measureCompletionRef = useRef<{
+    resolve: () => void
+    reject: (error: Error) => void
+    timeout: ReturnType<typeof setTimeout>
+  } | null>(null)
 
   // Auto-detect available instruments
   useEffect(() => {
@@ -121,64 +146,133 @@ export function InstrumentStreamBar({
         const conn = new TotalStationConnection(preset, (obs) => {
           if (obs.parsed) {
             const reading: StreamedReading = {
-              station: stationName,
+              station: obs.parsed.pointId || '',
+              setupStation: stationName,
               bearing: obs.parsed.horizontalAngle,
               distance: obs.parsed.slopeDistance,
               verticalAngle: obs.parsed.verticalAngle,
+              easting: obs.parsed.easting,
+              northing: obs.parsed.northing,
+              elevation: obs.parsed.elevation,
               instrumentHeight: obs.parsed.instrumentHeight || instrumentHeight,
               targetHeight: obs.parsed.targetHeight || targetHeight,
+              source: 'total_station',
+              instrumentName: preset.model || preset.brand,
+              rawData: obs.raw,
               timestamp: obs.timestamp,
             }
-            setLastReading(reading)
-            onReading(reading)
-            setReadingCount(c => c + 1)
-            haptics('success')
+            void Promise.resolve(onReading(reading)).then(() => {
+              setLastReading(reading)
+              setReadingCount((count) => count + 1)
+              haptics('success')
+              measureCompletionRef.current?.resolve()
+            }).catch((error: unknown) => {
+              const failure = error instanceof Error ? error : new Error(String(error))
+              setError(failure.message)
+              measureCompletionRef.current?.reject(failure)
+            })
           }
         })
 
+        totalStationRef.current = conn
         await conn.connect()
         setConnected(true)
         haptics('success')
       } else if (mode === 'gnss') {
-        // Use the existing GNSSBleConnection
         const { GNSSBleConnection } = await import('@/lib/instruments/gnssBleConnection')
 
         const conn = new GNSSBleConnection(
-          () => {
-            // Live position updates (not saved as readings yet)
-            // The surveyor taps "Collect" to save
+          (position) => {
+            receiverPositionRef.current = { position, receivedAt: Date.now() }
+            setReceiverPosition(position)
           },
           (state) => {
             setConnected(state.connected)
+            receiverNameRef.current = state.deviceName
+            if (!state.connected) {
+              receiverPositionRef.current = null
+              setReceiverPosition(null)
+            }
           }
         )
 
+        gnssConnectionRef.current = conn
         await conn.connect()
         setConnected(true)
         haptics('success')
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Connection failed')
+      await Promise.allSettled([
+        totalStationRef.current?.disconnect(),
+        gnssConnectionRef.current?.disconnect(),
+      ].filter((operation): operation is Promise<void> => operation !== undefined))
+      totalStationRef.current = null
+      gnssConnectionRef.current = null
+      setConnected(false)
       haptics('heavy')
     } finally {
       setConnecting(false)
     }
   }, [mode, stationName, instrumentHeight, targetHeight, onReading, haptics])
 
+  const handleDisconnect = useCallback(async () => {
+    const pending = measureCompletionRef.current
+    if (pending) {
+      clearTimeout(pending.timeout)
+      measureCompletionRef.current = null
+      pending.reject(new Error('Measurement cancelled because the instrument disconnected.'))
+    }
+    const connections = [totalStationRef.current, gnssConnectionRef.current]
+    totalStationRef.current = null
+    gnssConnectionRef.current = null
+    await Promise.allSettled(connections.map((connection) => connection?.disconnect()).filter(
+      (operation): operation is Promise<void> => operation !== undefined
+    ))
+    receiverPositionRef.current = null
+    receiverNameRef.current = undefined
+    setReceiverPosition(null)
+    setConnected(false)
+    setMeasuring(false)
+  }, [])
+
+  useEffect(() => () => {
+    const pending = measureCompletionRef.current
+    if (pending) clearTimeout(pending.timeout)
+    void totalStationRef.current?.disconnect()
+    void gnssConnectionRef.current?.disconnect()
+  }, [])
+
   // Measure (total station)
   const handleMeasure = useCallback(async () => {
-    if (!connected || mode !== 'total-station') return
+    if (!connected || mode !== 'total-station' || !totalStationRef.current) return
 
     setMeasuring(true)
     haptics('medium')
 
     try {
-      // The TotalStationConnection handles the measure command
-      // and calls the onObservation callback which creates the reading
-      // This is handled in handleConnect's callback
-      // We just need to trigger the measurement
-      // In a real implementation, we'd store the connection ref
-      // For now, the connection callback handles it
+      const conn = totalStationRef.current
+      const observationReceived = new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          measureCompletionRef.current = null
+          reject(new Error('No valid measurement was received from the total station within 12 seconds.'))
+        }, 12000)
+        measureCompletionRef.current = {
+          resolve: () => {
+            clearTimeout(timeout)
+            measureCompletionRef.current = null
+            resolve()
+          },
+          reject: (error) => {
+            clearTimeout(timeout)
+            measureCompletionRef.current = null
+            reject(error)
+          },
+          timeout,
+        }
+      })
+      await conn.measure()
+      await observationReceived
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Measurement failed')
       haptics('heavy')
@@ -194,33 +288,42 @@ export function InstrumentStreamBar({
     haptics('medium')
 
     try {
-      // Get current position from the GNSS connection
-      // In a full implementation, this would read from the connection's last position
-      // For now, use the Geolocation API as fallback
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (pos) => {
-            const reading: StreamedReading = {
-              station: `${stationName}_${readingCount + 1}`,
-              easting: pos.coords.longitude, // WGS84 — would be transformed to UTM
-              northing: pos.coords.latitude,
-              elevation: pos.coords.altitude || 0,
-              accuracy: pos.coords.accuracy,
-              fixQuality: pos.coords.accuracy < 1 ? 4 : 1, // RTK if < 1m
-              timestamp: new Date().toISOString(),
-            }
-            setLastReading(reading)
-            onReading(reading)
-            setReadingCount(c => c + 1)
-            haptics('success')
-          },
-          (err) => {
-            setError(err.message)
-            haptics('heavy')
-          },
-          { enableHighAccuracy: true, timeout: 10000 }
-        )
+      const latest = receiverPositionRef.current
+      if (!latest) throw new Error('Waiting for a position from the connected GNSS receiver. No point was recorded.')
+      if (Date.now() - latest.receivedAt > 10000) {
+        throw new Error('The GNSS receiver position is stale. Wait for a fresh receiver update before collecting.')
       }
+      if (!Number.isInteger(latest.position.fixQuality) || latest.position.fixQuality <= 0) {
+        throw new Error('The receiver reports no valid GNSS fix. No point was recorded.')
+      }
+
+      const position = latest.position
+      const solutionTypeByFixQuality: Record<number, StreamedReading['solutionType']> = {
+        1: 'single',
+        2: 'dgps',
+        4: 'fixed',
+        5: 'float',
+      }
+      const reading: StreamedReading = {
+        station: `${stationName}_${readingCount + 1}`,
+        latitude: position.latitude,
+        longitude: position.longitude,
+        horizontalCrs: 'EPSG:4326',
+        elevation: Number.isFinite(position.elevation) ? position.elevation : undefined,
+        accuracy: position.accuracy ?? undefined,
+        accuracySource: position.accuracy == null ? undefined : 'receiver',
+        fixQuality: position.fixQuality,
+        solutionType: solutionTypeByFixQuality[position.fixQuality],
+        satellites: position.satellites,
+        hdop: position.hdop,
+        source: 'gnss_receiver',
+        instrumentName: receiverNameRef.current,
+        timestamp: position.timestamp,
+      }
+      await onReading(reading)
+      setLastReading(reading)
+      setReadingCount((count) => count + 1)
+      haptics('success')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'GPS collection failed')
       haptics('heavy')
@@ -271,7 +374,12 @@ export function InstrumentStreamBar({
           return (
             <button
               key={m}
-              onClick={() => { setMode(m); setConnected(false); setError(null); haptics('light') }}
+              onClick={() => {
+                if (m !== mode) void handleDisconnect()
+                setMode(m)
+                setError(null)
+                haptics('light')
+              }}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 active
                   ? 'bg-[var(--accent)] text-black'
@@ -292,7 +400,16 @@ export function InstrumentStreamBar({
           {connected ? (
             <div className="flex items-center gap-1.5 text-xs text-emerald-400">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="font-medium">Connected</span>
+              <span className="font-medium">
+                {mode === 'gnss' && receiverPosition ? `Connected · ${receiverPosition.fixLabel}` : 'Connected'}
+              </span>
+              <button
+                type="button"
+                onClick={() => void handleDisconnect()}
+                className="ml-1 rounded px-1.5 py-1 text-[10px] text-red-300 hover:bg-red-500/10"
+              >
+                Disconnect
+              </button>
             </div>
           ) : (
             <button
@@ -381,6 +498,12 @@ export function InstrumentStreamBar({
             )}
             {lastReading.easting != null && (
               <span className="font-mono">E:{lastReading.easting.toFixed(3)}</span>
+            )}
+            {lastReading.latitude != null && lastReading.longitude != null && (
+              <span className="font-mono">{lastReading.latitude.toFixed(7)}, {lastReading.longitude.toFixed(7)} · {lastReading.horizontalCrs}</span>
+            )}
+            {lastReading.fixQuality != null && (
+              <span className="font-medium">{lastReading.fixQuality === 4 ? 'RTK fixed' : lastReading.fixQuality === 5 ? 'RTK float' : lastReading.fixQuality === 2 ? 'DGPS' : lastReading.fixQuality === 1 ? 'Single' : `Fix ${lastReading.fixQuality}`}</span>
             )}
             {lastReading.elevation != null && (
               <span className="font-mono">Z:{lastReading.elevation.toFixed(3)}</span>

@@ -8,6 +8,10 @@
 # duplicate headers which confuse some CDNs and browsers.
 
 {$DOMAIN:metardu.space} {
+	# Next.js emits content-hashed files here; Cloudflare and browsers can
+	# safely keep each build's assets until their URLs change.
+	header /_next/static/* Cache-Control "public, max-age=31536000, immutable"
+
 	# Reverse proxy to Next.js app
 	reverse_proxy web:3000
 

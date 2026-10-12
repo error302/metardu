@@ -88,6 +88,26 @@ class EntityWriter {
 
 // ─── Deterministic pseudo-GUID (no crypto needed) ────────────────────────
 
+/**
+ * Geodetic datum name for the IFC CRS block. Prefer the DECLARED project
+ * datum; otherwise derive it from the meaning of the EPSG code. Codes that
+ * belong to neither known family are surfaced honestly — an IFC
+ * IFCGEODETICDATUM that disagrees with its own IFCPROJECTEDCRS EPSG code
+ * is a mislabel (Arc 1960 coordinates silently sold as WGS 84).
+ */
+function ifcDatumName(opts: { epsgCode?: number; datum?: string }): string {
+  const declared = opts.datum?.trim();
+  if (declared) return declared;
+  const epsg = opts.epsgCode;
+  if (!epsg) return 'UNSPECIFIED';
+  if (epsg === 21036 || epsg === 21037) return 'Arc 1960';
+  if (
+    epsg === 3857 || epsg === 4326 ||
+    (epsg >= 32601 && epsg <= 32660) || (epsg >= 32701 && epsg <= 32760)
+  ) return 'WGS 84';
+  return `UNSPECIFIED (EPSG:${epsg})`;
+}
+
 let guidCounter = 0;
 function newGuid(): string {
   guidCounter++;
@@ -274,7 +294,7 @@ function buildData(opts: IFCExportOptions): string {
   const crsId = w.alloc();
   if (opts.epsgCode) {
     const geodDatumId = w.alloc();
-    w.put(geodDatumId, "IFCGEODETICDATUM($,'WGS 84')");
+    w.put(geodDatumId, `IFCGEODETICDATUM($,'${ifcDatumName(opts)}')`);
     const mapProjId = w.alloc();
     w.put(mapProjId, "IFCMAPPROJECTION($,'Transverse Mercator')");
     const mapZoneId = w.alloc();

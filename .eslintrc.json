@@ -3,8 +3,14 @@
     "next/core-web-vitals",
     "next/typescript"
   ],
+  "plugins": [
+    "metardu"
+  ],
   "parserOptions": {
-    "project": "./tsconfig.json"
+    "project": [
+      "./tsconfig.json",
+      "./tsconfig.tests.json"
+    ]
   },
   "rules": {
     "react/no-unescaped-entities": "off",
@@ -51,6 +57,9 @@
     "no-undef": "off",
     "no-unreachable": "warn",
     "no-useless-escape": "warn",
+    "metardu/no-placeholder-as-aria-label": "error",
+    "metardu/no-hardcoded-srid-default": "warn",
+    "metardu/no-web-mercator-measure": "warn",
     "no-restricted-syntax": [
       "error",
       {
@@ -106,10 +115,36 @@
     },
     {
       "files": [
-        "src/lib/map/__tests__/nativeProjectionView.test.ts"
+        "src/lib/map/__tests__/nativeProjectionView.test.ts",
+        "src/lib/surveyMapEngine/__tests__/pointLoading.test.ts",
+        "src/app/api/project/*/points/__tests__/route.test.ts"
       ],
       "rules": {
         "no-restricted-syntax": "off"
+      }
+    },
+    {
+      "files": [
+        "src/lib/spatial/**/*.ts"
+      ],
+      "rules": {
+        "no-restricted-syntax": [
+          "error",
+          {
+            "selector": "TSInterfaceDeclaration[id.name='SurveyPoint']",
+            "message": "Do not declare a local 'SurveyPoint' interface. Import it from '@/types/surveyPoint' instead. If you need a different shape, use Point2D / Point3D / SurveyPointWithCode / SurveyPoint3D, or name your interface differently (e.g. 'SurveyPointRow')."
+          }
+        ]
+      }
+    },
+    {
+      "files": [
+        "src/lib/surveyMapEngine/**/*.ts",
+        "src/lib/surveyMapEngine/**/*.tsx"
+      ],
+      "rules": {
+        "metardu/no-hardcoded-srid-default": "error",
+        "metardu/no-web-mercator-measure": "error"
       }
     }
   ]

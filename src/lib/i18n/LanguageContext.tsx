@@ -1,6 +1,7 @@
 'use client';
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react'
 import { createTranslator, defaultLanguage, isLanguage } from './shared'
+import { ensureLanguage } from './messages'
 import type { Language } from './messages'
 
 interface LanguageContextType {
@@ -38,18 +39,26 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 
     const initial = (saved ?? detected ?? defaultLanguage) as Language
 
-    setLanguageState(initial)
-    setIsRTL(initial === 'ar')
+    // Non-English locales are code-split: fetch the translations first, then
+    // commit. Until then createTranslator falls back to English, so the UI
+    // renders correct English text instead of raw keys.
+    ensureLanguage(initial).finally(() => {
+      setLanguageState(initial)
+      setIsRTL(initial === 'ar')
+      setHydrated(true)
+    })
     document.documentElement.dir = initial === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.lang = initial
     localStorage.setItem('metardu_language', initial)
     setLanguageCookie(initial)
-    setHydrated(true)
   }, [])
 
   const setLanguage = (lang: Language) => {
-    setLanguageState(lang)
-    setIsRTL(lang === 'ar')
+    // Load the locale chunk before committing so the picker never shows keys
+    ensureLanguage(lang).finally(() => {
+      setLanguageState(lang)
+      setIsRTL(lang === 'ar')
+    })
     localStorage.setItem('metardu_language', lang)
     document.documentElement.dir = lang === 'ar' ? 'rtl' : 'ltr'
     document.documentElement.lang = lang

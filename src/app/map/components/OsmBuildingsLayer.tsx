@@ -1,15 +1,16 @@
 'use client';
 
 /**
- * OSM Buildings Overlay — fetches building footprints from the local PBF
- * via the Python worker and renders them as an OpenLayers vector layer.
+ * OSM Context Overlay — fetches nearby building footprints and roads through
+ * the authenticated METARDU API and Python/Overpass worker, then renders the
+ * returned GeoJSON as an OpenLayers vector layer.
  *
  * Usage:
  *   <OsmBuildingsLayer map={map} visible={true} />
  *
- * Requires:
- *   - Python worker running with Pyrosm installed
- *   - Kenya PBF file at data/kenya-latest.osm.pbf
+ * Requires the Python worker's Overpass dependencies and external Overpass
+ * availability. The map request is built from its active projection and the
+ * visible viewport, then bounded by the API's 2 km radius limit.
  *
  * The layer fetches context on map move/end (debounced) and displays
  * them as semi-transparent cyan/orange polygons/lines — matching METARDU's brand.
@@ -18,6 +19,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Loader2, Building2 } from 'lucide-react'
 import { logger } from '@/lib/logger'
+import { buildOsmContextRequest } from '@/lib/map/osmContextRequest'
 
 interface OsmBuildingsLayerProps {
   map: import('ol/Map').default | null  // OpenLayers Map
@@ -29,8 +31,10 @@ export function OsmBuildingsLayer({ map, visible }: OsmBuildingsLayerProps) {
   const sourceRef = useRef<import('ol/source/Vector').default | null>(null)
   const formatRef = useRef<import('ol/format/GeoJSON').default | null>(null)
   const [loading, setLoading] = useState(false)
+  const [layerReady, setLayerReady] = useState(false)
   const [featureCount, setFeatureCount] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [coverageLimited, setCoverageLimited] = useState(false)
 
   // Initialize the OpenLayers vector layer once
   useEffect(() => {
@@ -66,6 +70,7 @@ export function OsmBuildingsLayer({ map, visible }: OsmBuildingsLayerProps) {
         map.addLayer(layer)
         sourceRef.current = source
         layerRef.current = layer
+        setLayerReady(true)
         // Store GeoJSON format for later use
         formatRef.current = new GeoJSON()
       } catch (err) {
@@ -81,6 +86,8 @@ export function OsmBuildingsLayer({ map, visible }: OsmBuildingsLayerProps) {
         map.removeLayer(layerRef.current)
         layerRef.current = null
         sourceRef.current = null
+        formatRef.current = null
+        setLayerReady(false)
       }
     }
   }, [map])
@@ -94,94 +101,77 @@ export function OsmBuildingsLayer({ map, visible }: OsmBuildingsLayerProps) {
 
   // Fetch buildings on map move (debounced)
   useEffect(() => {
-    if (!map || !visible || !sourceRef.current) return
+    if (!map || !visible || !layerReady || !sourceRef.current) return
 
     const source = sourceRef.current
     let timeoutId: ReturnType<typeof setTimeout> | undefined
     let cancelled = false
+    let activeRequest: AbortController | null = null
 
     const fetchBuildings = async () => {
       if (cancelled) return
+      const controller = new AbortController()
+      activeRequest = controller
       setLoading(true)
       setError(null)
+      setCoverageLimited(false)
 
       try {
         const view = map.getView()
-        const extent = view.calculateExtent(map.getSize())
+        const params = await buildOsmContextRequest(view, map.getSize())
+        if (cancelled || controller.signal.aborted) return
 
-        // Transform extent from map projection to WGS84
-        const proj4 = (window as unknown as { proj4?: (from: string, to: string, coords: number[]) => number[] }).proj4
-        const fromProj = view.getProjection().getCode()
-        let minLon: number, minLat: number, maxLon: number, maxLat: number
-
-        if (fromProj === 'EPSG:4326') {
-          ;[minLon, minLat, maxLon, maxLat] = extent
-        } else if (fromProj === 'EPSG:3857' && proj4) {
-          // Web Mercator → WGS84
-          const [minX, minY, maxX, maxY] = extent
-          const min = proj4('EPSG:3857', 'EPSG:4326', [minX, minY])
-          const max = proj4('EPSG:3857', 'EPSG:4326', [maxX, maxY])
-          minLon = min[0]; minLat = min[1]
-          maxLon = max[0]; maxLat = max[1]
-        } else {
-          // UTM → WGS84 via proj4 (registered globally)
-          if (proj4) {
-            const [minX, minY, maxX, maxY] = extent
-            const min = proj4(fromProj, 'EPSG:4326', [minX, minY])
-            const max = proj4(fromProj, 'EPSG:4326', [maxX, maxY])
-            minLon = min[0]; minLat = min[1]
-            maxLon = max[0]; maxLat = max[1]
-          } else {
-            return  // no proj4 available
-          }
-        }
-
-        const params = {
-          lat: (minLat + maxLat) / 2,
-          lon: (minLon + maxLon) / 2,
-          radius: 500, // strict 500m radius to save performance
-        }
-
-        const res = await fetch(`/api/osm/context-geojson`, {
+        const res = await fetch('/api/osm/context-geojson', {
           method: 'POST',
+          signal: controller.signal,
           headers: {
             'Content-Type': 'application/json',
           },
           body: JSON.stringify(params),
         })
         if (!res.ok) {
-          if (res.status === 503) {
-            setError('Python worker offline')
-          }
-          return
+          const payload = (await res.json().catch(() => null)) as { error?: unknown } | null
+          const message = typeof payload?.error === 'string' ? payload.error : null
+          if (res.status === 503) throw new Error(message || 'Map context service is unavailable.')
+          if (res.status === 429) throw new Error('Map context is temporarily rate-limited. Try again shortly.')
+          throw new Error(message || `Map context request failed (${res.status}).`)
         }
 
-        const data = (await res.json()) as { features?: unknown[] }
-        if (cancelled) return
+        const data = (await res.json()) as { features?: unknown }
+        if (cancelled || controller.signal.aborted) return
 
-        if (data && data.features) {
-          const format = formatRef.current
-          if (!format) return
-          // Clear and reload
-          source.clear()
-          const features = format.readFeatures(data, {
-            featureProjection: view.getProjection(),
-            dataProjection: 'EPSG:4326',
-          })
-          source.addFeatures(features)
-          setFeatureCount(features.length)
+        if (!Array.isArray(data?.features)) {
+          throw new Error('Map context service returned invalid GeoJSON.')
         }
+
+        const format = formatRef.current
+        if (!format) return
+        const features = format.readFeatures(data, {
+          featureProjection: view.getProjection(),
+          dataProjection: 'EPSG:4326',
+        })
+        if (cancelled || controller.signal.aborted) return
+        source.clear()
+        source.addFeatures(features)
+        setFeatureCount(features.length)
+        setCoverageLimited(params.coverageLimited)
       } catch (err) {
-        if (!cancelled) {
+        if (!cancelled && !controller.signal.aborted) {
           setError(err instanceof Error ? err.message : 'Fetch failed')
         }
       } finally {
-        if (!cancelled) setLoading(false)
+        if (activeRequest === controller) {
+          activeRequest = null
+          if (!cancelled) setLoading(false)
+        }
       }
     }
 
     const onMoveEnd = () => {
       clearTimeout(timeoutId)
+      activeRequest?.abort()
+      activeRequest = null
+      setLoading(false)
       timeoutId = setTimeout(fetchBuildings, 500)  // debounce 500ms
     }
 
@@ -191,14 +181,15 @@ export function OsmBuildingsLayer({ map, visible }: OsmBuildingsLayerProps) {
     return () => {
       cancelled = true
       clearTimeout(timeoutId)
+      activeRequest?.abort()
       map.un('moveend', onMoveEnd)
     }
-  }, [map, visible])
+  }, [map, visible, layerReady])
 
   if (!visible) return null
 
   return (
-    <div className="absolute top-3 right-3 z-30 bg-[#050505]/90 backdrop-blur-xl border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-2 text-xs flex items-center gap-2 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
+    <div role="status" aria-live="polite" className="absolute top-3 right-3 z-30 bg-[#050505]/90 backdrop-blur-xl border border-[rgba(255,255,255,0.1)] rounded-xl px-3 py-2 text-xs flex items-center gap-2 shadow-[0_4px_24px_rgba(0,0,0,0.5)]">
       <Building2 className="w-3.5 h-3.5 text-cyan-400" />
       {loading ? (
         <>
@@ -209,7 +200,7 @@ export function OsmBuildingsLayer({ map, visible }: OsmBuildingsLayerProps) {
         <span className="text-[var(--error)]">{error}</span>
       ) : (
         <span className="text-[var(--text-secondary)] font-medium">
-          {featureCount} context features
+          {featureCount} context features{coverageLimited ? ' · zoom in for full coverage' : ''}
         </span>
       )}
     </div>

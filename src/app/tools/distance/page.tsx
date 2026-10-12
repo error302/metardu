@@ -15,19 +15,28 @@ export default function DistanceCalculator() {
   const [slope, setSlope] = useState({ dist: '', angle: '' });
   const [steps, setSteps] = useState<SolutionStep[] | null>(null);
   const [solutionTitle, setSolutionTitle] = useState<string | undefined>(undefined);
+  const [error, setError] = useState('');
 
   const calculate = () => {
+    setError('');
+    setSteps(null);
+    const number = (value: string) => value.trim() === '' ? NaN : Number(value);
+    try {
     if (mode === 'coords') {
-      const n1 = parseFloat(p1.n), e1 = parseFloat(p1.e);
-      const n2 = parseFloat(p2.n), e2 = parseFloat(p2.e);
-      if (isNaN(n1) || isNaN(e1) || isNaN(n2) || isNaN(e2)) return;
+      const n1 = number(p1.n), e1 = number(p1.e);
+      const n2 = number(p2.n), e2 = number(p2.e);
       const s = distanceBearingSolvedFromCoords({ e1, n1, e2, n2 })
       setSteps(s.steps); setSolutionTitle(s.solution.title)
     } else {
-      const sd = parseFloat(slope.dist), va = parseFloat(slope.angle);
-      if (isNaN(sd) || isNaN(va)) return;
+      const sd = number(slope.dist), va = number(slope.angle);
+      if (!Number.isFinite(sd) || !Number.isFinite(va) || sd < 0 || Math.abs(va) > 90) {
+        throw new Error('Enter a non-negative slope distance and an elevation angle between -90 and 90 degrees.');
+      }
       const s = slopeReductionSolved({ slopeDistance: sd, verticalAngleDeg: va })
       setSteps(s.steps); setSolutionTitle(s.solution.title)
+    }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unable to calculate. Check the observations.');
     }
   };
 
@@ -93,6 +102,7 @@ export default function DistanceCalculator() {
           )}
 
           <button onClick={calculate} className="btn btn-primary w-full">{t('toolUI.calculate')}</button>
+          {error && <p role="alert" className="text-sm text-[var(--text-primary)]">{error}</p>}
         </div>
 
         {steps ? <SolutionStepsRenderer title={solutionTitle} steps={steps} /> : null}

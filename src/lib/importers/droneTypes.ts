@@ -13,6 +13,8 @@ export interface ParsedSurveyData {
     format: string;
     crs?: string;
     totalPoints: number;
+    processedPoints?: number;
+    truncated?: boolean;
     droneSpecific?: {
       flightDate?: string;
       gcpCount?: number;
@@ -22,6 +24,9 @@ export interface ParsedSurveyData {
       pointDataFormat?: number;
       gcpSet?: { id: string; x: number; y: number; z: number }[];
       recordLength?: number;
+      crsName?: string | null;
+      horizontalUnit?: string | null;
+      metricProjected?: boolean;
     };
   };
 }

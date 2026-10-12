@@ -43,7 +43,7 @@ export default function AdminLayout({
       </aside>
 
       {/* Main content */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 bg-[var(--bg-primary)]">
         {/* Mobile header */}
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
           <button
@@ -57,6 +57,12 @@ export default function AdminLayout({
         </div>
 
         {/* Page content */}
+        <div className="border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_55%,transparent)] px-4 py-2.5 md:px-6 lg:px-8">
+          <div className="mx-auto flex max-w-7xl items-center justify-between text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
+            <span>METARDU operations</span>
+            <span className="text-[var(--accent)]">Private admin workspace</span>
+          </div>
+        </div>
         <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
           {children}
         </div>
