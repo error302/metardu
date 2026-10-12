@@ -46,7 +46,7 @@ export const passwordResetEmail = {
       subject: passwordResetEmail.subject,
       html: renderEmailLayout(bodyHtml, {
         preheader: 'Reset your METARDU password — link expires in 1 hour.',
-        showUnsubscribe: false,
+        showNotificationSettings: false,
       }),
       text: passwordResetText({ name: args.name, resetUrl, expiresAt: args.expiresAt }),
     }

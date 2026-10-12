@@ -8,6 +8,7 @@ import { setCurrentTillClaimCode, setRlsContext } from '@/lib/db'
 import { getPlan, getTotalPrice } from '@/lib/subscription/catalog'
 import { resolveSeatSelection } from '@/lib/subscription/seatSelection'
 import { sendEmail } from '@/lib/email'
+import { sendTemplatedEmail } from '@/lib/email-templates'
 import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
 import { logger } from '@/lib/logger'
 import { getMpesaTillNumber } from '@/lib/payments/mpesaConfig'
@@ -311,15 +312,15 @@ export const POST = apiHandler(
     // 6. Acknowledge submission to the account email (plain confirmation, no receipt)
     if (user?.email) {
       try {
-        await sendEmail({
+        await sendTemplatedEmail('paymentReviewReceived', {
           to: user.email,
-          subject: `METARDU — M-Pesa payment received for review (${mpesaCode})`,
-          html: `<p>Hi ${user.name || 'Surveyor'},</p>
-<p>We received your M-Pesa payment claim for the <b>${planDisplayName} plan</b>${seatSelection.totalSeats > 1 ? ` with ${seatSelection.totalSeats} seats` : ''} (KES ${amount}, code <b>${mpesaCode}</b>, Till ${TILL_NUMBER}).</p>
-<p>Our team verifies every Till payment against the merchant M-Pesa statement. Your plan activates automatically once the payment is confirmed — usually within a few hours.</p>
-<p>If your payment is not confirmed within 24 hours, please reply to this email with a screenshot of the M-Pesa confirmation SMS.</p>
-<p>— METARDU</p>`,
-          text: `Hi ${user.name || 'Surveyor'}, we received your M-Pesa payment claim for the ${planDisplayName} plan${seatSelection.totalSeats > 1 ? ` with ${seatSelection.totalSeats} seats` : ''} (KES ${amount}, code ${mpesaCode}, Till ${TILL_NUMBER}). It is pending manual verification against the merchant statement; your plan activates once confirmed. — METARDU`,
+          name: user.name || 'Surveyor',
+          planName: planDisplayName,
+          amount,
+          seatCount: seatSelection.totalSeats,
+          transactionId: mpesaCode,
+          tillNumber: TILL_NUMBER,
+          submittedAt,
         })
       } catch (emailErr) {
         logger.warn('[mpesa-till] Failed to send submission acknowledgment:', { error: emailErr })

@@ -49,13 +49,13 @@ export const paymentReceiptEmail = {
       )}
       ${RichParagraph(`A copy of this receipt is saved in your account under ${Accent('Billing history')}.`)}
       ${PrimaryButton(`${APP_URL}/settings/profile`, 'View billing history')}
-      ${Paragraph('If you have any questions about this charge, reply to this email with the transaction ID above and we will get back to you within one business day.', { small: true, muted: true })}
+      ${Paragraph('If you have questions about this charge, contact the METARDU Help Centre and include the transaction ID above.', { small: true, muted: true })}
     `
     return {
       subject: paymentReceiptEmail.subject,
       html: renderEmailLayout(bodyHtml, {
         preheader: `Receipt for your ${args.planName} subscription — ${formatCurrency(args.amount, args.currency)}.`,
-        showUnsubscribe: false,
+        showNotificationSettings: false,
       }),
       text: paymentReceiptText({
         name: args.name,

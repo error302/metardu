@@ -18,7 +18,7 @@ export function escapeHtml(value: unknown): string {
 
 /** A primary CTA button (orange). */
 export function PrimaryButton(href: string, label: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:24px 0;">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0;">
     <tr>
       <td style="border-radius:6px;background-color:#D17B47;">
         <a href="${escapeHtml(href)}" style="display:inline-block;padding:14px 32px;color:#0a0a0f;text-decoration:none;font-weight:700;font-size:15px;letter-spacing:0.01em;">${escapeHtml(label)}</a>
@@ -29,7 +29,7 @@ export function PrimaryButton(href: string, label: string): string {
 
 /** A secondary CTA button (outline). */
 export function SecondaryButton(href: string, label: string): string {
-  return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:16px 0;">
+  return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:16px 0;">
     <tr>
       <td style="border-radius:6px;border:1px solid #2a2a35;">
         <a href="${escapeHtml(href)}" style="display:inline-block;padding:12px 28px;color:#e5e5e5;text-decoration:none;font-weight:600;font-size:14px;">${escapeHtml(label)}</a>
@@ -40,19 +40,19 @@ export function SecondaryButton(href: string, label: string): string {
 
 /** Section heading (h2). */
 export function Heading(text: string): string {
-  return `<h2 style="margin:0 0 16px;color:#ffffff;font-size:22px;font-weight:700;letter-spacing:-0.01em;">${escapeHtml(text)}</h2>`
+  return `<h1 style="margin:0 0 18px;color:#ffffff;font-size:24px;font-weight:700;line-height:1.25;letter-spacing:-0.01em;">${escapeHtml(text)}</h1>`
 }
 
 /** Paragraph. */
 export function Paragraph(text: string, opts: { muted?: boolean; small?: boolean } = {}): string {
-  const color = opts.muted ? '#8a8a96' : '#cccccc'
+  const color = opts.muted ? '#a1a1aa' : '#cccccc'
   const fontSize = opts.small ? '13px' : '15px'
   return `<p style="margin:0 0 16px;color:${color};font-size:${fontSize};line-height:1.65;">${escapeHtml(text)}</p>`
 }
 
 /** Paragraph that allows inline HTML (for bold tags, links). */
 export function RichParagraph(html: string, opts: { muted?: boolean; small?: boolean } = {}): string {
-  const color = opts.muted ? '#8a8a96' : '#cccccc'
+  const color = opts.muted ? '#a1a1aa' : '#cccccc'
   const fontSize = opts.small ? '13px' : '15px'
   return `<p style="margin:0 0 16px;color:${color};font-size:${fontSize};line-height:1.65;">${html}</p>`
 }
@@ -87,14 +87,14 @@ export function Divider(): string {
 export function CalloutBox(title: string, bodyHtml: string, opts: { tone?: 'info' | 'warning' | 'danger' } = {}): string {
   const tone = opts.tone ?? 'info'
   const colors = {
-    info: { bg: 'rgba(209, 123, 71, 0.06)', border: 'rgba(209, 123, 71, 0.3)', title: '#D17B47' },
-    warning: { bg: 'rgba(250, 204, 21, 0.06)', border: 'rgba(250, 204, 21, 0.3)', title: '#facc15' },
-    danger: { bg: 'rgba(248, 113, 113, 0.06)', border: 'rgba(248, 113, 113, 0.3)', title: '#f87171' },
+    info: { bg: '#1d1916', border: '#75492f', title: '#F0A06B' },
+    warning: { bg: '#272311', border: '#76611b', title: '#ffe08a' },
+    danger: { bg: '#281718', border: '#853c40', title: '#ffb4b8' },
   }[tone]
   return `<table role="presentation" cellpadding="0" cellspacing="0" width="100%" style="margin:20px 0;background-color:${colors.bg};border:1px solid ${colors.border};border-radius:8px;">
     <tr><td style="padding:16px 20px;">
       <p style="margin:0 0 6px;color:${colors.title};font-size:13px;font-weight:600;letter-spacing:0.02em;text-transform:uppercase;">${escapeHtml(title)}</p>
-      <p style="margin:0;color:#cccccc;font-size:14px;line-height:1.55;">${bodyHtml}</p>
+      <div style="color:#e5e5e5;font-size:14px;line-height:1.55;">${bodyHtml}</div>
     </td></tr>
   </table>`
 }
@@ -102,7 +102,7 @@ export function CalloutBox(title: string, bodyHtml: string, opts: { tone?: 'info
 /** Statistic row (label + value). */
 export function StatRow(label: string, value: string): string {
   return `<tr>
-    <td style="padding:8px 0;color:#8a8a96;font-size:13px;">${escapeHtml(label)}</td>
+    <td style="padding:8px 0;color:#a1a1aa;font-size:13px;">${escapeHtml(label)}</td>
     <td style="padding:8px 0;text-align:right;color:#ffffff;font-size:15px;font-weight:600;font-family:ui-monospace,SFMono-Regular,monospace;">${escapeHtml(value)}</td>
   </tr>`
 }

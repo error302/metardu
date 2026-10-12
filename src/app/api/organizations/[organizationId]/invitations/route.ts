@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { db, setCurrentOrgId } from '@/lib/db'
-import { sendEmail } from '@/lib/email'
+import { sendTemplatedEmail } from '@/lib/email-templates'
 import { canManageOrganizationMembers, createOrganizationInvitationToken, hasSeatCapacity, type InvitableOrganizationRole } from '@/lib/organizations/security'
 import { canAccess } from '@/lib/subscription/featureGates'
 import type { PlanId } from '@/lib/subscription/catalog'
@@ -156,10 +156,11 @@ export const POST = apiHandler(
 
     const inviteUrl = `${invitationBaseUrl()}/organization/invitations/accept#token=${encodeURIComponent(token)}`
     const roleLabel = (ctx.body as { role: InvitableOrganizationRole }).role.replace('_', ' ')
-    const delivery = await sendEmail({
+    const delivery = await sendTemplatedEmail('organizationInvite', {
       to: body.email,
-      subject: `Invitation to join ${created.organizationName} on METARDU`,
-      text: `You have been invited to join ${created.organizationName} on METARDU as a ${roleLabel}. Sign in using this email address and accept within 7 days:\n\n${inviteUrl}\n\nIf you were not expecting this invitation, you can ignore this message.`,
+      organizationName: created.organizationName,
+      role: roleLabel,
+      inviteUrl,
     })
 
     return NextResponse.json(

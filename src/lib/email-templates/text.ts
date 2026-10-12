@@ -6,7 +6,9 @@
  * The plain text is auto-derived from the same data the HTML uses.
  */
 
-import { formatCurrency, formatDate } from './utils'
+import { formatCurrency, formatDate, formatDateTime } from './utils'
+
+const HELP_URL = `${(process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.space').replace(/\/+$/, '')}/help`
 
 export interface WelcomeTextArgs {
   name: string
@@ -28,7 +30,7 @@ With Pro you can:
 Get started:
   ${process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.space'}/dashboard
 
-Questions? Reply to this email or write to support@metardu.com.
+Questions? Visit the METARDU Help Centre: ${HELP_URL}
 
 — METARDU
 `
@@ -47,7 +49,7 @@ After the trial you'll move to the Free plan (1 project, 50 survey points, basic
 Keep your Pro features (${planPriceNote}):
   ${process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.space'}/pricing
 
-Questions? Reply to this email or write to support@metardu.com.
+Questions? Visit the METARDU Help Centre: ${HELP_URL}
 
 — METARDU
 `
@@ -140,7 +142,7 @@ Your subscription is paused but your data is safe. Update your payment method an
 
 ${args.retryUrl}
 
-If this was a one-off issue, just try again. If your card is expired or you want to switch to M-Pesa, reply to this email and we'll help.
+If this was a one-off issue, try again. For help with payment options, visit the METARDU Help Centre: ${HELP_URL}
 
 — METARDU
 `
@@ -186,7 +188,7 @@ ${args.sharerName} shared the project "${args.projectName}" with you as ${args.r
 Open the project:
 ${args.projectUrl}
 
-You'll be able to view and contribute based on your role. Reply to this email if you have any questions.
+You'll be able to view and contribute based on your role. For help, visit the METARDU Help Centre: ${HELP_URL}
 
 — METARDU
 `
@@ -216,6 +218,53 @@ Here's your METARDU activity for ${formatDate(args.weekStart)} — ${formatDate(
 
 Open your dashboard:
 ${args.dashboardUrl}
+
+— METARDU
+`
+}
+
+export interface OrganizationInviteTextArgs {
+  to: string
+  organizationName: string
+  role: string
+  inviteUrl: string
+}
+export function organizationInviteText(args: OrganizationInviteTextArgs): string {
+  return `You have been invited to join ${args.organizationName} on METARDU as a ${args.role}.
+
+Sign in using ${args.to} and accept the invitation within 7 days:
+${args.inviteUrl}
+
+If you were not expecting this invitation, you can ignore this email.
+
+— METARDU
+`
+}
+
+export interface PaymentReviewReceivedTextArgs {
+  to: string
+  name: string
+  planName: string
+  amount: number
+  seatCount: number
+  transactionId: string
+  tillNumber: string
+  submittedAt: string
+}
+export function paymentReviewReceivedText(args: PaymentReviewReceivedTextArgs): string {
+  return `Hi${args.name ? ` ${args.name}` : ''},
+
+We received your M-Pesa payment claim for the ${args.planName} plan.
+
+Seats: ${args.seatCount}
+Amount: ${formatCurrency(args.amount, 'KES')}
+M-Pesa code: ${args.transactionId}
+Till number: ${args.tillNumber}
+Submitted: ${formatDateTime(args.submittedAt)}
+
+Our team checks the payment against the merchant statement. Your plan activates after the payment is confirmed, usually within a few hours. Please do not submit the same payment again.
+
+If the payment is not confirmed within 24 hours, contact the METARDU Help Centre and include the M-Pesa confirmation details: ${HELP_URL}
 
 — METARDU
 `

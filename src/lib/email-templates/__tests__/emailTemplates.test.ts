@@ -21,6 +21,8 @@ import {
   projectSharedEmail,
   securityAlertEmail,
   emailVerificationEmail,
+  organizationInviteEmail,
+  paymentReviewReceivedEmail,
   trialEndingEmail,
   trialExpiringEmail,
   weeklyDigestEmail,
@@ -117,6 +119,24 @@ const RENDERERS: Record<EmailTemplateName, () => RenderedEmail> = {
       name: PAYLOAD,
       verifyUrl: 'https://metardu.space/email/verify?token=test-token',
     }),
+  organizationInvite: () =>
+    organizationInviteEmail.render({
+      to: TO,
+      organizationName: PAYLOAD,
+      role: PAYLOAD,
+      inviteUrl: 'https://metardu.space/organization/invitations/accept#token=test-token',
+    }),
+  paymentReviewReceived: () =>
+    paymentReviewReceivedEmail.render({
+      to: TO,
+      name: PAYLOAD,
+      planName: PAYLOAD,
+      amount: 500,
+      seatCount: 2,
+      transactionId: PAYLOAD,
+      tillNumber: PAYLOAD,
+      submittedAt: BAD_DATE,
+    }),
 }
 
 const TEMPLATE_NAMES = Object.keys(RENDERERS) as EmailTemplateName[]
@@ -188,6 +208,20 @@ describe('email template registry', () => {
       expect(validateHtml(html)).toEqual([])
     })
 
+    it(`${name} has the branded, accessible email shell`, () => {
+      const { html } = RENDERERS[name]()
+      expect(html).toContain('<html lang="en" dir="ltr">')
+      expect(html).toContain('alt="" role="presentation"')
+      expect(html).toMatch(/src="https?:\/\/[^"]+\/metardu-email-mark\.png"/)
+      expect(html).not.toContain('data:image/png;base64')
+      expect(html.match(/<h1\b/g)).toHaveLength(1)
+      if (name === 'weeklyDigest') {
+        expect(html).toContain('Manage notifications')
+      } else {
+        expect(html).not.toContain('Manage notifications')
+      }
+    })
+
     it(`${name} escapes user-supplied HTML`, () => {
       const { html } = RENDERERS[name]()
       // The raw payload must never survive into the HTML output (note: `=` is
@@ -204,6 +238,7 @@ describe('email template registry', () => {
       expect(doc.querySelectorAll('script').length).toBe(0)
       expect(doc.querySelectorAll('[onerror]').length).toBe(0)
       expect(doc.querySelectorAll('img[src="x"]').length).toBe(0)
+      expect(doc.querySelectorAll('p table').length).toBe(0)
     })
   }
 })

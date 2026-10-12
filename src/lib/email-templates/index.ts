@@ -21,6 +21,8 @@ import { securityAlertEmail, SecurityAlertEmail } from './securityAlert'
 import { projectSharedEmail, ProjectSharedEmail } from './projectShared'
 import { weeklyDigestEmail, WeeklyDigestEmail } from './weeklyDigest'
 import { emailVerificationEmail, EmailVerification } from './emailVerification'
+import { organizationInviteEmail, OrganizationInviteEmail } from './organizationInvite'
+import { paymentReviewReceivedEmail, PaymentReviewReceivedEmail } from './paymentReviewReceived'
 
 // Re-export every template and its Args type for ergonomic imports
 export {
@@ -34,6 +36,8 @@ export {
   projectSharedEmail,
   weeklyDigestEmail,
   emailVerificationEmail,
+  organizationInviteEmail,
+  paymentReviewReceivedEmail,
 }
 
 export type {
@@ -47,6 +51,8 @@ export type {
   ProjectSharedEmail,
   WeeklyDigestEmail,
   EmailVerification,
+  OrganizationInviteEmail,
+  PaymentReviewReceivedEmail,
 }
 
 export type EmailTemplateName =
@@ -60,6 +66,8 @@ export type EmailTemplateName =
   | 'projectShared'
   | 'weeklyDigest'
   | 'emailVerification'
+  | 'organizationInvite'
+  | 'paymentReviewReceived'
 
 interface TemplateSpec<TArgs> {
   subject: string | ((args: TArgs) => string)
@@ -78,6 +86,8 @@ interface TemplateMap {
   projectShared: TemplateSpec<ProjectSharedEmail>
   weeklyDigest: TemplateSpec<WeeklyDigestEmail>
   emailVerification: TemplateSpec<EmailVerification>
+  organizationInvite: TemplateSpec<OrganizationInviteEmail>
+  paymentReviewReceived: TemplateSpec<PaymentReviewReceivedEmail>
 }
 
 export const EMAIL_TEMPLATES: TemplateMap = {
@@ -91,6 +101,8 @@ export const EMAIL_TEMPLATES: TemplateMap = {
   projectShared: projectSharedEmail,
   weeklyDigest: weeklyDigestEmail,
   emailVerification: emailVerificationEmail,
+  organizationInvite: organizationInviteEmail,
+  paymentReviewReceived: paymentReviewReceivedEmail,
 }
 
 /**

@@ -39,7 +39,7 @@ export const welcomeEmail = {
         `${Link(`${APP_URL}/map`, 'Open the map')} — Cassini sheet lookup, parcel search, offline tiles`,
       ])}
       ${PrimaryButton(`${APP_URL}/dashboard`, 'Open your dashboard')}
-      ${Paragraph('If you get stuck, the in-app help center has step-by-step guides. Reply to this email if you need a hand.', { small: true, muted: true })}
+      ${Paragraph('If you get stuck, visit the METARDU Help Centre for step-by-step guides.', { small: true, muted: true })}
     `
     return {
       subject: welcomeEmail.subject,

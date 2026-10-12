@@ -70,8 +70,10 @@ export const weeklyDigestEmail = {
     return {
       subject: weeklyDigestEmail.subject(args),
       html: renderEmailLayout(bodyHtml, {
+        title: weeklyDigestEmail.subject(args),
         preheader: `${args.projectsActive} project${args.projectsActive === 1 ? '' : 's'} · ${args.pointsCollected.toLocaleString()} points · ${args.documentsGenerated} document${args.documentsGenerated === 1 ? '' : 's'} this week.`,
-        unsubscribeUrls: `${APP_URL}/settings/profile?tab=notifications`,
+        notificationSettingsUrl: `${APP_URL}/settings/profile?tab=notifications`,
+        showNotificationSettings: true,
       }),
       text: weeklyDigestText({
         name: args.name,

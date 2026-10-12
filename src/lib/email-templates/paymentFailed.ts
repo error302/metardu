@@ -53,7 +53,7 @@ export const paymentFailedEmail = {
       ${Paragraph('Other options:', { small: true, muted: true })}
       <ul style="margin:0 0 16px;padding-left:22px;color:#cccccc;font-size:14px;line-height:1.6;">
         <li style="margin-bottom:6px;">Switch to ${Link(`${APP_URL}/pricing`, 'M-Pesa')} (no card required)</li>
-        <li style="margin-bottom:6px;">${Link(`mailto:support@metardu.com?subject=Payment%20issue%20—%20${encodeURIComponent(args.planName)}`, 'Email us')} — we can extend your trial by a few days while you sort it out</li>
+        <li style="margin-bottom:6px;">${Link(`${APP_URL}/help`, 'Contact the METARDU Help Centre')} if you need help with payment options</li>
         <li style="margin-bottom:6px;">${Link(`${APP_URL}/pricing`, 'Downgrade to Free')} — keep your data, lose Pro features</li>
       </ul>
     `
@@ -61,7 +61,7 @@ export const paymentFailedEmail = {
       subject: paymentFailedEmail.subject,
       html: renderEmailLayout(bodyHtml, {
         preheader: `Payment for ${args.planName} failed — your data is safe. Update your payment method to continue.`,
-        showUnsubscribe: false,
+        showNotificationSettings: false,
       }),
       text: paymentFailedText({
         name: args.name,

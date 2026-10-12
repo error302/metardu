@@ -71,7 +71,7 @@ export const securityAlertEmail = {
       subject: securityAlertEmail.subject,
       html: renderEmailLayout(bodyHtml, {
         preheader: `${args.eventName} — ${formatDateTime(args.timestamp)}. If this was not you, please review your account.`,
-        showUnsubscribe: false,
+        showNotificationSettings: false,
       }),
       text: securityAlertText({
         name: args.name,
