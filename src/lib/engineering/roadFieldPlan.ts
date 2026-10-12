@@ -38,8 +38,8 @@ export function validateRoadFieldPlan(plan: RoadFieldPlanDraft): string | null {
   if (plan.endChainageM === null || !Number.isFinite(plan.endChainageM) || plan.endChainageM < plan.startChainageM) {
     return 'End chainage must be equal to or greater than the start chainage.'
   }
-  if (plan.stationIntervalM === null || !Number.isFinite(plan.stationIntervalM) || plan.stationIntervalM <= 0) {
-    return 'Enter a station interval greater than zero.'
+  if (plan.stationIntervalM === null || !Number.isFinite(plan.stationIntervalM) || plan.stationIntervalM < 0.001) {
+    return 'Enter a station interval of at least 0.001 m; road chainage is recorded to the nearest millimetre.'
   }
   if (!plan.projectCrs.trim()) {
     return 'Enter the approved project CRS before opening field collection.'
@@ -72,15 +72,71 @@ export function buildRoadFieldStations(plan: RoadFieldPlan): number[] {
   const stations: number[] = []
   const span = plan.endChainageM - plan.startChainageM
   const count = Math.floor(span / plan.stationIntervalM)
-  for (let index = 0; index <= count; index += 1) {
-    const chainage = plan.startChainageM + index * plan.stationIntervalM
-    stations.push(Number(chainage.toFixed(3)))
+  const appendStation = (chainage: number) => {
+    const rounded = Number(chainage.toFixed(3))
+    if (stations.length === 0 || Math.abs(stations[stations.length - 1] - rounded) > 1e-8) stations.push(rounded)
   }
-  if (stations.length === 0) stations.push(Number(plan.startChainageM.toFixed(3)))
+  for (let index = 0; index <= count; index += 1) {
+    appendStation(plan.startChainageM + index * plan.stationIntervalM)
+  }
+  if (stations.length === 0) appendStation(plan.startChainageM)
   if (Math.abs(stations[stations.length - 1] - plan.endChainageM) > 1e-8) {
-    stations.push(Number(plan.endChainageM.toFixed(3)))
+    appendStation(plan.endChainageM)
   }
   return stations
+}
+
+export interface RoadCaptureRecord {
+  notes?: string | null
+}
+
+export interface RoadStationCaptureStatus {
+  chainageM: number
+  pointCount: number
+  capturedFeatureCodes: RoadFieldFeatureCode[]
+}
+
+/**
+ * Summarize only points whose saved road metadata matches a planned station
+ * and a feature code selected for this job. This is a capture indicator, not
+ * a completeness or survey-quality assessment.
+ */
+export function summarizeRoadStationCaptures(
+  stations: readonly number[],
+  featureCodes: readonly RoadFieldFeatureCode[],
+  observations: readonly RoadCaptureRecord[],
+): RoadStationCaptureStatus[] {
+  const stationIndexByMillimetre = new Map<number, number>()
+  stations.forEach((chainage, index) => {
+    stationIndexByMillimetre.set(Math.round(chainage * 1000), index)
+  })
+
+  const pointCounts = stations.map(() => 0)
+  const capturedCodes = stations.map(() => new Set<RoadFieldFeatureCode>())
+  const allowedCodes = new Set(featureCodes)
+
+  for (const observation of observations) {
+    if (typeof observation.notes !== 'string') continue
+    const codeMatch = /(?:^|;\s*)ROAD_CODE=([^;]*)/.exec(observation.notes)
+    const chainageMatch = /(?:^|;\s*)CHAINAGE_M=([^;]*)/.exec(observation.notes)
+    const code = codeMatch?.[1]?.trim() as RoadFieldFeatureCode | undefined
+    const chainageText = chainageMatch?.[1]?.trim()
+    if (!code || !allowedCodes.has(code) || !chainageText) continue
+    const chainage = Number(chainageText)
+    if (!Number.isFinite(chainage)) continue
+
+    const stationIndex = stationIndexByMillimetre.get(Math.round(chainage * 1000))
+    if (stationIndex === undefined || Math.abs(stations[stationIndex] - chainage) > 0.0005) continue
+
+    pointCounts[stationIndex] += 1
+    capturedCodes[stationIndex].add(code)
+  }
+
+  return stations.map((chainageM, index) => ({
+    chainageM,
+    pointCount: pointCounts[index],
+    capturedFeatureCodes: featureCodes.filter(code => capturedCodes[index].has(code)),
+  }))
 }
 
 export function formatRoadChainage(chainageM: number): string {

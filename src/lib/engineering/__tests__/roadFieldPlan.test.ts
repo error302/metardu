@@ -2,6 +2,7 @@ import {
   buildRoadFieldStations,
   formatRoadChainage,
   parseRoadFieldPlan,
+  summarizeRoadStationCaptures,
   validateRoadFieldPlan,
   type RoadFieldPlanDraft,
 } from '../roadFieldPlan'
@@ -32,6 +33,18 @@ describe('road field plan', () => {
   it('does not invent stations when the plan range or interval is invalid', () => {
     expect(validateRoadFieldPlan({ ...validPlan, endChainageM: 10, startChainageM: 20 })).toContain('End chainage')
     expect(validateRoadFieldPlan({ ...validPlan, stationIntervalM: 0 })).toContain('interval')
+    expect(validateRoadFieldPlan({ ...validPlan, stationIntervalM: 0.0005 })).toContain('nearest millimetre')
+  })
+
+  it('avoids duplicate stations when rounded endpoints coincide', () => {
+    const plan = {
+      ...validRoadPlan,
+      startChainageM: 0.0001,
+      endChainageM: 0.001,
+      stationIntervalM: 0.001,
+    }
+
+    expect(buildRoadFieldStations(plan)).toEqual([0, 0.001])
   })
 
   it('requires the approved project CRS and control source before field collection', () => {
@@ -47,6 +60,29 @@ describe('road field plan', () => {
   it('formats chainage as kilometre plus metre notation', () => {
     expect(formatRoadChainage(1234.5)).toBe('1+234.500')
     expect(formatRoadChainage(7)).toBe('0+007.000')
+  })
+
+  it('summarizes captured road points only for planned stations and selected codes', () => {
+    const status = summarizeRoadStationCaptures(
+      [0, 20, 40],
+      ['CL', 'LE', 'RE'],
+      [
+        { notes: 'ROAD_CODE=CL; CHAINAGE_M=0; METARDU_POINT_ID=RD1' },
+        { notes: 'ROAD_CODE=LE; CHAINAGE_M=0.0004; METARDU_POINT_ID=RD2' },
+        { notes: 'ROAD_CODE=CL; CHAINAGE_M=20; METARDU_POINT_ID=RD3' },
+        { notes: 'ROAD_CODE=CULV_IN; CHAINAGE_M=40; METARDU_POINT_ID=RD4' },
+        { notes: 'ROAD_CODE=RE; CHAINAGE_M=40.0006; METARDU_POINT_ID=RD5' },
+        { notes: 'ROAD_CODE=RE; CHAINAGE_M=not-a-number; METARDU_POINT_ID=RD6' },
+        { notes: 'ROAD_CODE=RE; CHAINAGE_M=; METARDU_POINT_ID=RD8' },
+        { notes: 'OTHER_CODE=CL; CHAINAGE_M=40; METARDU_POINT_ID=RD7' },
+      ],
+    )
+
+    expect(status).toEqual([
+      { chainageM: 0, pointCount: 2, capturedFeatureCodes: ['CL', 'LE'] },
+      { chainageM: 20, pointCount: 1, capturedFeatureCodes: ['CL'] },
+      { chainageM: 40, pointCount: 0, capturedFeatureCodes: [] },
+    ])
   })
 
   it('only accepts saved plans with supported codes and finite values', () => {

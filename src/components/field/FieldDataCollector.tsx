@@ -34,7 +34,7 @@ import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
 import type { FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
 import type { RoadFieldPlan } from '@/types/engineering'
-import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan } from '@/lib/engineering/roadFieldPlan'
+import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
 import { createClient } from '@/lib/api-client/client'
 
@@ -67,7 +67,21 @@ export function FieldDataCollector({
   const [isLoadingMeasurements, setIsLoadingMeasurements] = useState(true)
   const [measurementsLoadFailed, setMeasurementsLoadFailed] = useState(false)
   const roadStations = useMemo(() => roadFieldPlan ? buildRoadFieldStations(roadFieldPlan) : [], [roadFieldPlan])
+  const roadCaptureStatus = useMemo(
+    () => roadFieldPlan ? summarizeRoadStationCaptures(roadStations, roadFieldPlan.featureCodes, sessionState.measurements) : [],
+    [roadFieldPlan, roadStations, sessionState.measurements],
+  )
+  const capturedRoadStationCount = roadCaptureStatus.filter(station => station.pointCount > 0).length
   const activeRoadStation = roadStations[activeRoadStationIndex] ?? null
+  const activeRoadStationStatus = roadCaptureStatus[activeRoadStationIndex]
+  const nextUncapturedRoadStationIndex = useMemo(() => {
+    if (roadCaptureStatus.length < 2) return null
+    for (let offset = 1; offset < roadCaptureStatus.length; offset += 1) {
+      const index = (activeRoadStationIndex + offset) % roadCaptureStatus.length
+      if (roadCaptureStatus[index].pointCount === 0) return index
+    }
+    return null
+  }, [activeRoadStationIndex, roadCaptureStatus])
   const pointIdPrefix = roadSurvey ? 'RD' : surveyType === 'cadastral' ? 'BP' : 'P'
   const nextPointNumber = useMemo(
     () => nextFieldPointNumber(pointIdPrefix, sessionState.measurements.map(measurement => measurement.pointId)),
@@ -226,25 +240,64 @@ export function FieldDataCollector({
           {roadPlanLoading ? (
             <p className="text-sm text-[var(--text-muted)]">Loading the saved road field plan…</p>
           ) : roadFieldPlan ? (
-            <div className="flex flex-wrap items-center gap-3">
-              <label htmlFor="road-chainage-station" className="text-sm font-semibold text-[var(--text-primary)]">Chainage station</label>
-              <select
-                id="road-chainage-station"
-                value={activeRoadStationIndex}
-                onChange={event => setActiveRoadStationIndex(Number(event.target.value))}
-                className="min-w-48 rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-mono text-[var(--text-primary)]"
-              >
-                {roadStations.map((chainage, index) => (
-                  <option key={`${chainage}-${index}`} value={index}>
-                    CH {formatRoadChainage(chainage)} · {index + 1}/{roadStations.length}
-                  </option>
-                ))}
-              </select>
-              <span className="text-xs text-[var(--text-muted)]">
-                {roadFieldPlan.leftExtentM == null && roadFieldPlan.rightExtentM == null
-                  ? 'No cross-section extents entered'
-                  : `Survey extents: L ${roadFieldPlan.leftExtentM ?? '—'} m · R ${roadFieldPlan.rightExtentM ?? '—'} m`}
-              </span>
+            <div className="space-y-3">
+              <div className="flex flex-wrap items-center gap-3">
+                <label htmlFor="road-chainage-station" className="text-sm font-semibold text-[var(--text-primary)]">Chainage station</label>
+                <select
+                  id="road-chainage-station"
+                  value={activeRoadStationIndex}
+                  onChange={event => setActiveRoadStationIndex(Number(event.target.value))}
+                  className="min-h-11 min-w-48 rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm font-mono text-[var(--text-primary)]"
+                >
+                  {roadStations.map((chainage, index) => (
+                    <option key={`${chainage}-${index}`} value={index}>
+                      CH {formatRoadChainage(chainage)} · {index + 1}/{roadStations.length}
+                    </option>
+                  ))}
+                </select>
+                <span role="status" aria-live="polite" className="text-xs text-[var(--text-muted)]">
+                  {capturedRoadStationCount} of {roadStations.length} planned stations have recorded points
+                </span>
+                <span className="text-xs text-[var(--text-muted)]">
+                  {roadFieldPlan.leftExtentM == null && roadFieldPlan.rightExtentM == null
+                    ? 'No cross-section extents entered'
+                    : `Survey extents: L ${roadFieldPlan.leftExtentM ?? '—'} m · R ${roadFieldPlan.rightExtentM ?? '—'} m`}
+                </span>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveRoadStationIndex(index => Math.max(0, index - 1))}
+                  disabled={activeRoadStationIndex <= 0}
+                  className="min-h-11 rounded-md border border-[var(--border-color)] px-3 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Previous station
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActiveRoadStationIndex(index => Math.min(roadStations.length - 1, index + 1))}
+                  disabled={activeRoadStationIndex >= roadStations.length - 1}
+                  className="min-h-11 rounded-md border border-[var(--border-color)] px-3 text-sm font-medium text-[var(--text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next station
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { if (nextUncapturedRoadStationIndex !== null) setActiveRoadStationIndex(nextUncapturedRoadStationIndex) }}
+                  disabled={nextUncapturedRoadStationIndex === null}
+                  className="min-h-11 rounded-md border border-[var(--accent)]/50 px-3 text-sm font-semibold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Next station with no recorded points
+                </button>
+                {activeRoadStation !== null && activeRoadStationStatus && (
+                  <p className="text-xs text-[var(--text-muted)]" aria-live="polite">
+                    CH {formatRoadChainage(activeRoadStation)}: {activeRoadStationStatus.pointCount} point{activeRoadStationStatus.pointCount === 1 ? '' : 's'} recorded
+                    {activeRoadStationStatus.capturedFeatureCodes.length > 0
+                      ? ` · ${activeRoadStationStatus.capturedFeatureCodes.join(', ')}`
+                      : ''}
+                  </p>
+                )}
+              </div>
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 text-sm text-amber-500">
