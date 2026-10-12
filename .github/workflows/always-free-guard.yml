@@ -46,7 +46,6 @@ jobs:
             echo "Approx total block GB: $TOTAL_GB (Always Free limit 200)"
 
       - name: OCI — Cost + Budget check (requires OCI_* secrets)
-        if: ${{ secrets.OCI_PRIVATE_KEY != '' }}
         env:
           OCI_TENANCY: ${{ secrets.OCI_TENANCY }}
           OCI_USER: ${{ secrets.OCI_USER }}
@@ -54,6 +53,10 @@ jobs:
           OCI_REGION: ${{ secrets.OCI_REGION }}
           OCI_PRIVATE_KEY: ${{ secrets.OCI_PRIVATE_KEY }}
         run: |
+          if [ -z "$OCI_PRIVATE_KEY" ]; then
+            echo "::notice::OCI_PRIVATE_KEY not set — VM shape check ran, but cost/budget check skipped. Set the 5 OCI_* secrets to enable it (see previous chat)."
+            exit 0
+          fi
           set -e
           mkdir -p ~/.oci
           printf "%s" "$OCI_PRIVATE_KEY" > ~/.oci/oci_api_key.pem
@@ -72,11 +75,6 @@ jobs:
           echo ""
           echo "== Cost Aug 27-31 (where your 0.17 came from) =="
           oci cost-analysis usage --compartment-id "$OCI_TENANCY" --time-usage-started "2026-08-27T00:00:00Z" --time-usage-ended "2026-08-31T23:59:59Z" --granularity DAILY --query 'data.items[0:5].{service:service, cost:computedAmount}' 2>&1 | head -30 || echo "Cost query needs 'cost-analysis' policy for your user — check IAM"
-
-      - name: OCI — missing secrets hint
-        if: ${{ secrets.OCI_PRIVATE_KEY == '' }}
-        run: |
-          echo "::notice::OCI_PRIVATE_KEY not set — VM shape check ran, but cost/budget check skipped. Set the 5 OCI_* secrets to enable it (see previous chat)."
 
       - name: Summary
         if: always()
