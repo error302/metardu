@@ -29,7 +29,10 @@ export async function GET() {
   try {
     const session = await getServerSession(authOptions)
     if (!session?.user?.id) {
-      return NextResponse.json({ plan: 'free', status: 'active' }, { status: 401 })
+      return NextResponse.json(
+        { error: 'Authentication required', code: 'UNAUTHORIZED' },
+        { status: 401, headers: { 'Cache-Control': 'no-store' } },
+      )
     }
 
     const userId = session.user.id
@@ -64,7 +67,10 @@ export async function GET() {
     })
   } catch (error) {
     logger.error('[/api/subscription] Error:', { error: error })
-    return NextResponse.json({ plan: 'free', status: 'active' }, { status: 500 })
+    return NextResponse.json(
+      { error: 'Subscription status is temporarily unavailable', code: 'SUBSCRIPTION_UNAVAILABLE' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+    )
   }
 }
 

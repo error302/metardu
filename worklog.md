@@ -835,3 +835,37 @@ Stage Summary:
 - The Python worker computes real satellite positions from broadcast ephemerides and SP3; nothing is fabricated anywhere in the chain.
 - CPD page is fully functional: records, approval states, manual submissions, year navigation, server-computed summary.
 - Honest scope statements everywhere: PPP/RTK not implemented (never claimed); survey-grade baselines route to RTKLIB; GLONASS/BeiDou skipped with warnings.
+
+---
+Task ID: subscription-api-fail-closed
+Agent: Codex (2026-10-12)
+Task: Stop unauthenticated and failed subscription lookups from returning a valid-looking free entitlement
+
+Work Log:
+- Updated GET /api/subscription so unauthenticated requests return HTTP 401 with code UNAUTHORIZED and no plan/status fields.
+- Updated lookup exceptions to return HTTP 503 with code SUBSCRIPTION_UNAVAILABLE and no plan/status fields. Both error responses carry Cache-Control: no-store.
+- Kept the authenticated no-subscription result as the legitimate free/active account state.
+- Added route regression coverage for signed-out, authenticated free, and subscription-service failure paths.
+
+Verification:
+~~~text
+$ npm test -- --runInBand src/app/api/subscription/route.test.ts
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+~~~
+
+~~~text
+$ npm run typecheck
+src/lib/pdf/generatePdf.ts(41,7): error TS2322: Type '"networkidle0"' is not assignable to type '"load" | "domcontentloaded" | ("load" | "domcontentloaded")[] | undefined'.
+~~~
+
+~~~text
+$ git diff --check
+exit 0; no whitespace diagnostics
+~~~
+
+Stage Summary:
+- Authentication and subscription-service failures no longer serialize as a free/active account.
+- The full Web app typecheck remains red on the unrelated existing Puppeteer waitUntil type in src/lib/pdf/generatePdf.ts:41. The new route test passes.
+- Desktop-specific browser authorization, versioned entitlement exchange, protected credential storage, revocation, and offline policy are not implemented by this route fix.
