@@ -139,7 +139,7 @@ export function renderEmailLayout(
                 ${showNotificationSettings ? '&nbsp;&middot;&nbsp;' : ''}
                 ${unsubscribeLink}
                 ${unsubscribeLink ? '&nbsp;&middot;&nbsp;' : ''}
-                <a href="${escapeHtml(BRANDING.appUrl)}/privacy" style="color:#F0A06B;text-decoration:underline;">Privacy</a>
+                <a href="${escapeHtml(BRANDING.appUrl)}/docs/privacy" style="color:#F0A06B;text-decoration:underline;">Privacy</a>
                 &nbsp;&middot;&nbsp;
                 <a href="${escapeHtml(BRANDING.appUrl)}/help" style="color:#F0A06B;text-decoration:underline;">Help Centre</a>
               </p>

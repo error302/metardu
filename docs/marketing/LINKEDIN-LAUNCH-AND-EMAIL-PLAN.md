@@ -6,7 +6,14 @@ Status: prepared campaign draft; no ad spend, customer export, or marketing batc
 
 The supplied Campaign Manager screenshot shows a personalized offer of **$250 in LinkedIn ad spend for $250 in ad credit** and says the advertiser must be a Page admin. It shows the ad account currency as USD. Before spending, open **Billing → Credits and promotions** in that same account and record its qualify-by date, eligible spend, credit expiry, and status. LinkedIn says a qualifying Spend X, Get Y credit is normally applied within five business days after the spend requirement is met; the offer dates are account-specific. Credits do not stop a campaign automatically when exhausted, and LinkedIn's promotion terms say charges can exceed a set budget by up to 20%. Treat $250 of spend as potentially up to $300 billed exposure until the exact account terms and billing controls are reviewed.
 
-Do not launch until the METARDU LinkedIn Page admin is attached to the same eligible account, the exact dates are recorded, and the campaign owner accepts the possible overrun. The account currently appears as `METAARDU` in the screenshot; verify the Page and account identity before adding a payment method or launching.
+### Current account check (2026-10-13)
+
+- LinkedIn exposes one ad account named `METAARDU`. It is marked active, but its serving status is **Billing Hold**. The signed-in Company Page Admin view is also named `METAARDU`, so the account and Page match each other; both spellings differ from the product's public `METARDU` name by an extra “A”. Confirm that this is intentional before advertising.
+- Campaign Manager currently has an open new-campaign setup for **Brand awareness**. Its displayed setup uses Kenya, audience expansion on, LinkedIn Audience Network on, and a **$200 daily budget with no end date**. The estimate is 7.9 million-plus members and $3,000–$6,000 over 30 days. Do not launch this setup; it is far above the offer's qualifying spend.
+- The billing hold means ads will not run until the account's billing admin resolves it. LinkedIn says billing holds commonly result from a billing issue or missing payment method; for a declined charge, the billing admin should retry with an updated payment method and contact the financial institution if declines continue. No payment details were changed.
+- The offer's exact qualify-by date, expiry date, and progress remain unverified. LinkedIn says to check **Billing → Credits and promotions** in Campaign Manager. Do not spend until those dates and the possible $300 exposure are accepted.
+
+Do not launch until the identity spelling is confirmed, the billing hold is cleared by the account owner, the exact offer dates are recorded, and the campaign owner accepts the possible overrun.
 
 ## First campaign draft
 
@@ -37,6 +44,12 @@ The connected Resend workspace currently has a single `General` segment, which i
 The new email is intentionally useful and low pressure: it says Free access remains available, links to current plans, and gives a clear way to stop product and plan email. The scheduler checks consent again immediately before each send, so a recently upgraded or unsubscribed account is skipped. Each account receives at most one plan reminder per 30 days. Weekly project digests remain a separate preference. Trial reminders remain service lifecycle messages and are not used as permission to send other promotions.
 
 The sending route and monthly workflow stay disabled unless both the app setting `METARDU_MARKETING_EMAILS_ENABLED=true` and GitHub repository variable of the same name are explicitly enabled. The production container must also have Resend configured. Review the final audience count and copy before enabling those controls. A LinkedIn lead’s request for a demo is not consent to recurring promotional email; collect that separately.
+
+### Current email checks (2026-10-13)
+
+- Resend reports `metardu.space` as verified with sending enabled. One branded delivery test from `noreply@metardu.space` to the owner inbox was confirmed **delivered**; it used an inline copy of the tracked METARDU email mark. No customer list or marketing broadcast was sent.
+- The live `/pricing`, `/docs/privacy`, `/demo`, and `/help` routes return HTTP 200. `/privacy` returns 404; the automated email footer now links to `/docs/privacy`, with a test asserting that route.
+- The tracked `/metardu-email-mark.png` asset currently returns 404 on production. The running app also lacks the Resend API key, sender address, and marketing enable flag; migration `105_marketing_email_deliveries.sql` has not been applied. Therefore the new in-app reminders and hosted-logo path are not live yet, and the email workflow remains disabled.
 
 ## Measurement and privacy
 
