@@ -146,7 +146,8 @@ export async function cacheRoadFieldPlan(projectId: string, plan: RoadFieldPlan)
 
 export async function getCachedRoadFieldPlan(projectId: string): Promise<OfflineRoadFieldPlan | null> {
   const db = await getDB()
-  return (await db.get('roadFieldPlans', projectId)) ?? null
+  const cached = (await db.get('roadFieldPlans', projectId)) as OfflineRoadFieldPlan | undefined
+  return cached ?? null
 }
 
 export async function deleteCachedRoadFieldPlan(projectId: string): Promise<void> {
