@@ -49,9 +49,11 @@ export interface SendEmailOptions {
   from?: string
   /** Optional message headers (e.g. for List-Unsubscribe). */
   headers?: Record<string, string>
+  /** Provider-side duplicate-send protection for retryable mail. */
+  idempotencyKey?: string
 }
 
-export async function sendEmail({ to, subject, text, html, replyTo, from, headers }: SendEmailOptions) {
+export async function sendEmail({ to, subject, text, html, replyTo, from, headers, idempotencyKey }: SendEmailOptions) {
   if (!resendApiKey && (!smtpUser || !smtpPassword)) {
     logger.warn(`[email] Email service not configured. Would have sent "${subject}" to ${to}`)
     return { success: false, error: 'Email service not configured' }
@@ -64,6 +66,7 @@ export async function sendEmail({ to, subject, text, html, replyTo, from, header
         headers: {
           Authorization: `Bearer ${resendApiKey}`,
           'Content-Type': 'application/json',
+          ...(idempotencyKey ? { 'Idempotency-Key': idempotencyKey } : {}),
         },
         body: JSON.stringify({
           from: from || defaultFrom,
@@ -78,7 +81,8 @@ export async function sendEmail({ to, subject, text, html, replyTo, from, header
       if (!response.ok) {
         throw new Error(`Resend returned HTTP ${response.status}`)
       }
-      return { success: true, info: await response.json().catch(() => ({})) }
+      const info: unknown = await response.json().catch(() => ({}))
+      return { success: true, info }
     }
 
     const info = await transporter.sendMail({

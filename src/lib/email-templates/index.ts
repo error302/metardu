@@ -23,6 +23,7 @@ import { weeklyDigestEmail, WeeklyDigestEmail } from './weeklyDigest'
 import { emailVerificationEmail, EmailVerification } from './emailVerification'
 import { organizationInviteEmail, OrganizationInviteEmail } from './organizationInvite'
 import { paymentReviewReceivedEmail, PaymentReviewReceivedEmail } from './paymentReviewReceived'
+import { planReminderEmail, PlanReminderEmail } from './planReminder'
 
 // Re-export every template and its Args type for ergonomic imports
 export {
@@ -38,6 +39,7 @@ export {
   emailVerificationEmail,
   organizationInviteEmail,
   paymentReviewReceivedEmail,
+  planReminderEmail,
 }
 
 export type {
@@ -53,6 +55,7 @@ export type {
   EmailVerification,
   OrganizationInviteEmail,
   PaymentReviewReceivedEmail,
+  PlanReminderEmail,
 }
 
 export type EmailTemplateName =
@@ -68,10 +71,11 @@ export type EmailTemplateName =
   | 'emailVerification'
   | 'organizationInvite'
   | 'paymentReviewReceived'
+  | 'planReminder'
 
 interface TemplateSpec<TArgs> {
   subject: string | ((args: TArgs) => string)
-  render: (args: TArgs) => { subject: string; html: string; text: string }
+  render: (args: TArgs) => { subject: string; html: string; text: string; headers?: Record<string, string> }
 }
 
 // Each template is registered with its concrete args type.
@@ -88,6 +92,7 @@ interface TemplateMap {
   emailVerification: TemplateSpec<EmailVerification>
   organizationInvite: TemplateSpec<OrganizationInviteEmail>
   paymentReviewReceived: TemplateSpec<PaymentReviewReceivedEmail>
+  planReminder: TemplateSpec<PlanReminderEmail>
 }
 
 export const EMAIL_TEMPLATES: TemplateMap = {
@@ -103,6 +108,7 @@ export const EMAIL_TEMPLATES: TemplateMap = {
   emailVerification: emailVerificationEmail,
   organizationInvite: organizationInviteEmail,
   paymentReviewReceived: paymentReviewReceivedEmail,
+  planReminder: planReminderEmail,
 }
 
 /**
@@ -114,6 +120,7 @@ export const EMAIL_TEMPLATES: TemplateMap = {
 export async function sendTemplatedEmail<TName extends EmailTemplateName>(
   name: TName,
   args: TemplateMap[TName]['render'] extends (a: infer A) => unknown ? A & { to: string } : never,
+  options: { idempotencyKey?: string } = {},
 ): Promise<{ success: boolean; error?: string }> {
   const template = EMAIL_TEMPLATES[name] as TemplateSpec<{ to: string }>
   if (!template) {
@@ -130,6 +137,8 @@ export async function sendTemplatedEmail<TName extends EmailTemplateName>(
     subject,
     html: rendered.html,
     text: rendered.text,
+    headers: rendered.headers,
+    idempotencyKey: options.idempotencyKey,
   })
 
   if (!result.success) {

@@ -6,7 +6,7 @@ import type { NotificationPreferences } from './SettingsTabs'
 interface NotificationsSectionProps {
   preferences: NotificationPreferences | null
   lastUpdated: string | null
-  onPatch: (prefs: NotificationPreferences) => Promise<void>
+  onPatch: (prefs: NotificationPreferences, marketingConsent?: boolean) => Promise<void>
 }
 
 type Channel = 'email' | 'sms' | 'push' | 'in_app'
@@ -65,7 +65,7 @@ const EVENTS: EventDef[] = [
   {
     key: 'marketing',
     label: 'Product news & offers',
-    description: 'New features, training events, and occasional promotions. Off by default.',
+    description: 'Optional product news, training, and plan offers. Off by default; every marketing email includes a direct unsubscribe link.',
     channels: ['email'],
   },
 ]
@@ -128,6 +128,7 @@ export default function NotificationsSection({
   }, [preferences])
 
   const [dirty, setDirty] = useState(false)
+  const [marketingConsentTouched, setMarketingConsentTouched] = useState(false)
   const [localPrefs, setLocalPrefs] = useState<NotificationPreferences>(current)
 
   // Sync when server-pushed preferences change
@@ -143,18 +144,21 @@ export default function NotificationsSection({
         [channel]: { ...prev[channel], [eventKey]: value },
       }))
       setDirty(true)
+      if (channel === 'email' && eventKey === 'marketing') setMarketingConsentTouched(true)
     },
     [],
   )
 
   const handleSave = useCallback(() => {
-    onPatch(localPrefs)
+    onPatch(localPrefs, marketingConsentTouched ? !!localPrefs.email?.marketing : undefined)
     setDirty(false)
-  }, [localPrefs, onPatch])
+    setMarketingConsentTouched(false)
+  }, [localPrefs, marketingConsentTouched, onPatch])
 
   const handleReset = useCallback(() => {
     setLocalPrefs(DEFAULT_PREFERENCES)
     setDirty(true)
+    setMarketingConsentTouched(true)
   }, [])
 
   const channels: Channel[] = ['email', 'sms', 'push', 'in_app']

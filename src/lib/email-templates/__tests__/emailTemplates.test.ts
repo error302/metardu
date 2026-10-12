@@ -23,6 +23,7 @@ import {
   emailVerificationEmail,
   organizationInviteEmail,
   paymentReviewReceivedEmail,
+  planReminderEmail,
   trialEndingEmail,
   trialExpiringEmail,
   weeklyDigestEmail,
@@ -44,6 +45,7 @@ interface RenderedEmail {
   subject: string
   html: string
   text: string
+  headers?: Record<string, string>
 }
 
 /**
@@ -137,6 +139,11 @@ const RENDERERS: Record<EmailTemplateName, () => RenderedEmail> = {
       tillNumber: PAYLOAD,
       submittedAt: BAD_DATE,
     }),
+  planReminder: () => planReminderEmail.render({
+    to: TO,
+    name: PAYLOAD,
+    unsubscribeUrl: 'https://metardu.space/api/email/marketing-unsubscribe?token=signed-token',
+  }),
 }
 
 const TEMPLATE_NAMES = Object.keys(RENDERERS) as EmailTemplateName[]

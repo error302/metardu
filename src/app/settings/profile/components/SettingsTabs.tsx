@@ -18,6 +18,7 @@ export interface ProfileData {
   bio?: string
   avatar_url?: string
   notification_preferences?: NotificationPreferences
+  marketingConsent?: boolean
   notification_preferences_updated_at?: string
   license_number?: string
   verified_isk?: boolean
@@ -195,7 +196,10 @@ export default function SettingsTabs({ initialProfile, sessionEmail }: SettingsT
         <NotificationsSection
           preferences={profile?.notification_preferences ?? null}
           lastUpdated={profile?.notification_preferences_updated_at ?? null}
-          onPatch={(prefs) => handlePatch({ notification_preferences: prefs })}
+          onPatch={(prefs, marketingConsent) => handlePatch({
+            notification_preferences: prefs,
+            ...(marketingConsent !== undefined ? { marketingConsent } : {}),
+          })}
         />
       </div>
 

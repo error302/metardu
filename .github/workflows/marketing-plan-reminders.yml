@@ -1,0 +1,34 @@
+name: Monthly opted-in plan reminder
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+
+concurrency:
+  group: metardu-marketing-plan-reminder
+  cancel-in-progress: false
+
+jobs:
+  send-reminders:
+    if: ${{ vars.METARDU_MARKETING_EMAILS_ENABLED == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      APP_URL: ${{ vars.PROD_APP_URL || 'https://metardu.space' }}
+    steps:
+      - name: Trigger consent-filtered plan reminders
+        env:
+          API_ADMIN_KEY: ${{ secrets.API_ADMIN_KEY }}
+        run: |
+          HTTP_CODE=$(curl -sS -o /tmp/marketing-plan-reminders.json -w "%{http_code}" --max-time 180 \
+            -X POST \
+            -H "Authorization: Bearer ${API_ADMIN_KEY}" \
+            -H "Content-Type: application/json" \
+            "${APP_URL}/api/cron/marketing-plan-reminders" || echo "000")
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/marketing-plan-reminders.json 2>/dev/null || true
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "Plan reminder scheduler failed (HTTP ${HTTP_CODE})" >&2
+            exit 1
+          fi

@@ -76,6 +76,7 @@ const UpdateProfileSettingsSchema = z.object({
   bio: z.string().max(2000).trim().optional(),
   avatar_url: z.string().max(500).trim().optional(),
   notification_preferences: NotificationPreferencesSchema,
+  marketingConsent: z.boolean().optional(),
 }).strict()
 
 async function requireSession() {
@@ -139,6 +140,14 @@ export async function PATCH(request: NextRequest) {
 
   const updates = parsed.data
 
+  if (
+    updates.marketingConsent !== undefined &&
+    updates.notification_preferences?.email?.marketing !== undefined &&
+    updates.notification_preferences.email.marketing !== updates.marketingConsent
+  ) {
+    return NextResponse.json({ error: 'Marketing preference and consent must match' }, { status: 422 })
+  }
+
   // Build SET clauses for profiles table
   const profileFields: string[] = []
   const profileValues: unknown[] = []
@@ -161,10 +170,19 @@ export async function PATCH(request: NextRequest) {
     }
   }
 
-  // Merge notification preferences using JSONB deep merge
-  if (updates.notification_preferences) {
+  // Keep the visible setting and the consent ledger in sync only when the user
+  // explicitly changes the product-news switch. Other preference saves do not
+  // grant or revoke marketing consent.
+  const preferencesToSave = updates.notification_preferences || (updates.marketingConsent !== undefined ? {} : undefined)
+  if (preferencesToSave) {
+    if (updates.marketingConsent !== undefined) {
+      preferencesToSave.email = {
+        ...(preferencesToSave.email || {}),
+        marketing: updates.marketingConsent,
+      }
+    }
     profileFields.push(`notification_preferences = COALESCE(notification_preferences, '{}'::jsonb) || $${paramIdx++}::jsonb`)
-    profileValues.push(JSON.stringify(updates.notification_preferences))
+    profileValues.push(JSON.stringify(preferencesToSave))
     profileFields.push(`notification_preferences_updated_at = NOW()`)
   }
 
@@ -174,10 +192,29 @@ export async function PATCH(request: NextRequest) {
 
   profileValues.push(userId)
 
-  await db.query<never>(
-    `UPDATE profiles SET ${profileFields.join(', ')} WHERE id = $${paramIdx}`,
-    profileValues,
-  )
+  await db.transaction(async (client) => {
+    await client.query<never>(
+      `UPDATE profiles SET ${profileFields.join(', ')} WHERE id = $${paramIdx}`,
+      profileValues,
+    )
+    if (updates.marketingConsent === true) {
+      await client.query<never>(
+        `INSERT INTO user_consents (user_id, consent_type, granted, granted_at, revoked_at, version)
+         VALUES ($1, 'marketing', true, NOW(), NULL, 'mkt-v1')
+         ON CONFLICT (user_id, consent_type)
+         DO UPDATE SET granted = true, granted_at = NOW(), revoked_at = NULL, version = 'mkt-v1'`,
+        [userId],
+      )
+    } else if (updates.marketingConsent === false) {
+      await client.query<never>(
+        `INSERT INTO user_consents (user_id, consent_type, granted, revoked_at, version)
+         VALUES ($1, 'marketing', false, NOW(), 'mkt-v1')
+         ON CONFLICT (user_id, consent_type)
+         DO UPDATE SET granted = false, revoked_at = NOW(), version = 'mkt-v1'`,
+        [userId],
+      )
+    }
+  })
 
   // Also sync firm_name, isk_number, phone, license_number to surveyor_profiles
   const surveyorFields: string[] = []

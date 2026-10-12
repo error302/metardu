@@ -57,6 +57,8 @@ export interface LayoutOptions {
   notificationSettingsUrl?: string
   /** Show notification settings for optional digest or marketing emails. */
   showNotificationSettings?: boolean
+  /** Direct signed opt-out link for a marketing email. */
+  unsubscribeUrl?: string
 }
 
 /**
@@ -78,6 +80,9 @@ export function renderEmailLayout(
 
   const notificationSettingsLink = showNotificationSettings
     ? `<a href="${escapeHtml(notificationSettingsUrl)}" style="color:#F0A06B;text-decoration:underline;">Manage notifications</a>`
+    : ''
+  const unsubscribeLink = opts.unsubscribeUrl
+    ? `<a href="${escapeHtml(opts.unsubscribeUrl)}" style="color:#F0A06B;text-decoration:underline;">Unsubscribe from product and plan emails</a>`
     : ''
   const supportMessage = BRANDING.supportEmail
     ? `If you need help, email <a href="mailto:${escapeHtml(BRANDING.supportEmail)}" style="color:#F0A06B;text-decoration:underline;">${escapeHtml(BRANDING.supportEmail)}</a>.`
@@ -132,6 +137,8 @@ export function renderEmailLayout(
               <p style="margin:0 0 4px;color:#a1a1aa;font-size:12px;line-height:1.6;">
                 ${notificationSettingsLink}
                 ${showNotificationSettings ? '&nbsp;&middot;&nbsp;' : ''}
+                ${unsubscribeLink}
+                ${unsubscribeLink ? '&nbsp;&middot;&nbsp;' : ''}
                 <a href="${escapeHtml(BRANDING.appUrl)}/privacy" style="color:#F0A06B;text-decoration:underline;">Privacy</a>
                 &nbsp;&middot;&nbsp;
                 <a href="${escapeHtml(BRANDING.appUrl)}/help" style="color:#F0A06B;text-decoration:underline;">Help Centre</a>
