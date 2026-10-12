@@ -8,12 +8,32 @@ The supplied Campaign Manager screenshot shows a personalized offer of **$250 in
 
 ### Current account check (2026-10-13)
 
-- LinkedIn exposes one ad account named `METAARDU`. It is marked active, but its serving status is **Billing Hold**. The signed-in Company Page Admin view is also named `METAARDU`, so the account and Page match each other; both spellings differ from the product's public `METARDU` name by an extra “A”. Confirm that this is intentional before advertising.
+- LinkedIn exposes one ad account named `METAARDU`. It is marked active, but its serving status is **Billing Hold**. The signed-in Company Page Admin view is also named `METAARDU`; the owner confirmed on 2026-10-13 that this spelling is intentional for advertising.
 - Campaign Manager currently has an open new-campaign setup for **Brand awareness**. Its displayed setup uses Kenya, audience expansion on, LinkedIn Audience Network on, and a **$200 daily budget with no end date**. The estimate is 7.9 million-plus members and $3,000–$6,000 over 30 days. Do not launch this setup; it is far above the offer's qualifying spend.
 - The billing hold means ads will not run until the account's billing admin resolves it. LinkedIn says billing holds commonly result from a billing issue or missing payment method; for a declined charge, the billing admin should retry with an updated payment method and contact the financial institution if declines continue. No payment details were changed.
 - The offer's exact qualify-by date, expiry date, and progress remain unverified. LinkedIn says to check **Billing → Credits and promotions** in Campaign Manager. Do not spend until those dates and the possible $300 exposure are accepted.
 
-Do not launch until the identity spelling is confirmed, the billing hold is cleared by the account owner, the exact offer dates are recorded, and the campaign owner accepts the possible overrun.
+### Founder budget decision (2026-10-13)
+
+- The owner says the required upfront spend is currently unaffordable. No paid campaign is authorized, and the open $200/day campaign remains an unlaunched draft. Treat the credit offer as deferred until the owner can comfortably cover the full eligible spend and any permitted overrun; the potential credit is not a reason to borrow or commit funds needed for operations.
+- Continue with zero-spend promotion: publish a short, permission-cleared product walkthrough organically from the confirmed METAARDU Page and founder profile, then invite survey teams to request a pilot. The proposed story is brief → prepared road stations → real point capture → reviewed cross-sections and editable CAD. Use synthetic or explicitly approved project data, and describe only steps demonstrated end to end.
+
+Do not launch paid advertising until the billing hold is cleared by the account owner, the exact offer dates and eligible-spend terms are recorded, and the owner confirms that the full potential charge is affordable.
+
+### Zero-spend launch week
+
+Use the LinkedIn offer as inspiration for a clear, measurable invitation, not as a reason to spend money that is needed elsewhere. The low-cost METARDU version is a human-led workflow review and a limited pilot conversation. Do not promise a free subscription or imply production readiness that has not been demonstrated.
+
+| Day | Post or activity | Evidence and call to action |
+|---|---|---|
+| Monday | Review replies and leave useful comments on relevant surveying, geomatics, civil-engineering, and road-project posts. Prepare one short screen recording with synthetic data. | No unsolicited bulk messages or tagging. Record the real questions surveyors raise. |
+| Tuesday | Founder build-in-public post: explain the goal of arriving on site with road stations and codes prepared, while the surveyor remains responsible for observations and checks. | Ask road-survey teams where time is lost between planning, field capture, and office handoff. Avoid unsupported time-saving claims. |
+| Wednesday | A 30–45 second walkthrough from a planned road station to a saved point, using only a synthetic project. | Label it as a product walkthrough, show the current source experience accurately, and invite a surveyor to request a workflow review through the METAARDU Page. |
+| Thursday | A short poll about the most painful part of a road survey: station preparation, point capture, field checks, or CAD handoff. | Use responses to prioritize discovery; do not treat poll votes as product validation or marketing consent. |
+| Friday | Share what the feedback changed and invite interested survey teams to a human-reviewed pilot discussion. | State the pilot scope and any limits plainly. Ask separately before adding anyone to product-news email. |
+| Weekend | Reply to participants, summarize objections, and choose one workflow question to test next week. | Track qualified survey conversations and pilot requests, not likes alone. |
+
+For any post linking to the site, first confirm the linked route is publicly healthy. While the public site is returning a Cloudflare 502, use the Page conversation for a human follow-up and do not direct prospects into a broken signup or checkout. Measure post reach, relevant replies, qualified workflow conversations, pilot requests, and later activated accounts. Use `utm_medium=organic_social` only after a working public destination is confirmed.
 
 ## First campaign draft
 
