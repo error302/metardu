@@ -5,6 +5,7 @@ import { z } from 'zod'
 import db, { setCurrentRlsServiceRole, setCurrentUserId, setRlsContext } from '@/lib/db'
 import { getMpesaService } from '@/lib/payments/mpesa'
 import { getPlan } from '@/lib/subscription/catalog'
+import { seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
 import { sendEmail } from '@/lib/email'
 import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
 import { logger } from '@/lib/logger'
@@ -16,6 +17,7 @@ interface PaymentIntentRow {
   amount: number
   currency: string
   status: string
+  metadata?: unknown
 }
 
 interface SubscriptionRow {
@@ -121,23 +123,52 @@ export async function POST(request: NextRequest) {
   const paymentIdParam = request.nextUrl.searchParams.get('paymentId') || ''
 
   let paymentRow: PaymentIntentRow | null = null
+  let paymentSource: 'payment_intent' | 'payment_history' | null = null
 
   const byCheckout = await db.query<PaymentIntentRow>(
-    `SELECT id, user_id, plan_id, amount, currency, status
+    `SELECT id, user_id, plan_id, amount, currency, status, metadata
      FROM payment_intents
      WHERE checkout_request_id = $1 AND payment_method = 'mpesa'`,
     [checkoutRequestId]
   )
   paymentRow = byCheckout.rows[0] ?? null
+  if (paymentRow) paymentSource = 'payment_intent'
 
   if (!paymentRow && paymentIdParam && z.string().uuid().safeParse(paymentIdParam).success) {
     const result = await db.query<PaymentIntentRow>(
-      `SELECT id, user_id, plan_id, amount, currency, status
+      `SELECT id, user_id, plan_id, amount, currency, status, metadata
        FROM payment_intents
        WHERE id = $1 AND payment_method = 'mpesa'`,
       [paymentIdParam]
     )
     paymentRow = result.rows[0] ?? null
+    if (paymentRow) paymentSource = 'payment_intent'
+  }
+
+  // The current checkout writes its authoritative quote to payment_history;
+  // keep accepting payment_intents for the legacy STK initiation endpoint.
+  if (!paymentRow) {
+    const byHistoryCheckout = await db.query<PaymentIntentRow>(
+      `SELECT id, user_id, plan_id, amount, currency, status, metadata
+       FROM payment_history
+       WHERE transaction_id = $1 AND payment_method = 'mpesa'
+       LIMIT 1`,
+      [checkoutRequestId]
+    )
+    paymentRow = byHistoryCheckout.rows[0] ?? null
+    if (paymentRow) paymentSource = 'payment_history'
+  }
+
+  if (!paymentRow && paymentIdParam && z.string().uuid().safeParse(paymentIdParam).success) {
+    const result = await db.query<PaymentIntentRow>(
+      `SELECT id, user_id, plan_id, amount, currency, status, metadata
+       FROM payment_history
+       WHERE id = $1 AND payment_method = 'mpesa'
+       LIMIT 1`,
+      [paymentIdParam]
+    )
+    paymentRow = result.rows[0] ?? null
+    if (paymentRow) paymentSource = 'payment_history'
   }
 
   if (!paymentRow) {
@@ -160,12 +191,22 @@ export async function POST(request: NextRequest) {
 
   // 5. Handle failure result code
   if (typeof resultCode === 'number' && resultCode !== 0) {
-    await db.query<never>(
-      `UPDATE payment_intents
-       SET status = 'failed', provider_id = $1, updated_at = NOW()
-       WHERE id = $2`,
-      [checkoutRequestId, paymentRow.id]
-    )
+    if (paymentSource === 'payment_history') {
+      await db.query<never>(
+        `UPDATE payment_history
+         SET status = 'failed', provider = 'safaricom', provider_id = $1,
+             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $3 AND status <> 'completed'`,
+        [checkoutRequestId, JSON.stringify({ callbackResultCode: resultCode }), paymentRow.id]
+      )
+    } else {
+      await db.query<never>(
+        `UPDATE payment_intents
+         SET status = 'failed', provider_id = $1, updated_at = NOW()
+         WHERE id = $2`,
+        [checkoutRequestId, paymentRow.id]
+      )
+    }
     return NextResponse.json({ ok: true })
   }
 
@@ -180,6 +221,8 @@ export async function POST(request: NextRequest) {
   //    skipped whenever paidAmount was falsy, which allowed forged
   //    "success" callbacks carrying no metadata at all.
   const plan = getPlan(planId)
+  const totalSeats = seatCountFromPaymentMetadata(planId, paymentRow.metadata)
+  const extraSeats = plan?.isPerSeat ? Math.max(0, totalSeats - plan.includedSeats) : 0
   // The server-created intent records the price actually quoted at checkout.
   // A later catalog change must not reject an already initiated payment.
   const expectedAmount = Number(paymentRow.amount)
@@ -193,21 +236,28 @@ export async function POST(request: NextRequest) {
     logger.warn(
       `[mpesa] Amount verification failed: paid ${paidAmount} KES, expected ${expectedAmount} KES for plan ${planId} (intent ${paymentRow.id})`
     )
-    await db.query<never>(
-      `UPDATE payment_intents
-       SET status = 'failed', provider_id = $1,
-           metadata = metadata || $2::jsonb, updated_at = NOW()
-       WHERE id = $3`,
-      [
-        checkoutRequestId,
-        JSON.stringify({
-          fraudFlag: paidAmount <= 0 ? 'missing_callback_metadata' : 'amount_mismatch',
-          paidAmount,
-          expectedAmount,
-        }),
-        paymentRow.id,
-      ]
-    )
+    const failureMetadata = JSON.stringify({
+      fraudFlag: paidAmount <= 0 ? 'missing_callback_metadata' : 'amount_mismatch',
+      paidAmount,
+      expectedAmount,
+    })
+    if (paymentSource === 'payment_history') {
+      await db.query<never>(
+        `UPDATE payment_history
+         SET status = 'failed', provider = 'safaricom', provider_id = $1,
+             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $3 AND status <> 'completed'`,
+        [checkoutRequestId, failureMetadata, paymentRow.id]
+      )
+    } else {
+      await db.query<never>(
+        `UPDATE payment_intents
+         SET status = 'failed', provider_id = $1,
+             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $3`,
+        [checkoutRequestId, failureMetadata, paymentRow.id]
+      )
+    }
     return NextResponse.json({ ok: true, error: 'Amount verification failed' })
   }
 
@@ -222,12 +272,21 @@ export async function POST(request: NextRequest) {
 
     // Conditional completion: rowCount 0 means another callback instance
     // already completed (or concurrently completes) this intent.
-    const completeRes = await client.query(
-      `UPDATE payment_intents
-       SET status = 'completed', provider_id = $1, updated_at = NOW()
-       WHERE id = $2 AND status <> 'completed'`,
-      [checkoutRequestId, paymentRow.id]
-    )
+    const completeRes = paymentSource === 'payment_history'
+      ? await client.query(
+        `UPDATE payment_history
+         SET status = 'completed', provider = 'safaricom', provider_id = $1,
+             transaction_id = $2,
+             metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb, updated_at = NOW()
+         WHERE id = $4 AND status IN ('pending', 'processing')`,
+        [checkoutRequestId, receiptNumber, JSON.stringify({ callbackResultCode: resultCode, totalSeats, extraSeats }), paymentRow.id]
+      )
+      : await client.query(
+        `UPDATE payment_intents
+         SET status = 'completed', provider_id = $1, updated_at = NOW()
+         WHERE id = $2 AND status <> 'completed'`,
+        [checkoutRequestId, paymentRow.id]
+      )
     if ((completeRes.rowCount ?? 0) === 0) {
       await client.query('ROLLBACK')
       return NextResponse.json({ ok: true })
@@ -235,21 +294,23 @@ export async function POST(request: NextRequest) {
 
     // Audit trail row (unique partial index from migration 055 backs the
     // ON CONFLICT target; DO NOTHING keeps Safaricom retries idempotent).
-    await client.query(
-      `INSERT INTO payment_history
-         (user_id, amount, currency, payment_method, provider, provider_id,
-          status, transaction_id, metadata)
-       VALUES ($1, $2, $3, 'mpesa', 'safaricom', $4, 'completed', $5, $6)
-       ON CONFLICT (provider_id) DO NOTHING`,
-      [
-        paymentRow.user_id,
-        paidAmount,
-        paymentRow.currency,
-        checkoutRequestId,
-        receiptNumber,
-        JSON.stringify({ planId, paymentIntentId: paymentRow.id }),
-      ]
-    )
+    if (paymentSource === 'payment_intent') {
+      await client.query(
+        `INSERT INTO payment_history
+           (user_id, amount, currency, payment_method, provider, provider_id,
+            status, transaction_id, metadata)
+         VALUES ($1, $2, $3, 'mpesa', 'safaricom', $4, 'completed', $5, $6)
+         ON CONFLICT (provider_id) DO NOTHING`,
+        [
+          paymentRow.user_id,
+          paidAmount,
+          paymentRow.currency,
+          checkoutRequestId,
+          receiptNumber,
+          JSON.stringify({ planId, paymentIntentId: paymentRow.id, totalSeats, extraSeats }),
+        ]
+      )
+    }
 
     const existingSub = await client.query<SubscriptionRow>(
       'SELECT id FROM user_subscriptions WHERE user_id = $1',
@@ -263,17 +324,18 @@ export async function POST(request: NextRequest) {
       await client.query(
         `UPDATE user_subscriptions
          SET plan_id = $1, status = 'active', payment_method = 'mpesa',
-             currency = 'KES', current_period_start = $2, current_period_end = $3
+             currency = 'KES', current_period_start = $2, current_period_end = $3,
+             seat_count = $5
          WHERE id = $4`,
-        [planId, periodStart, periodEnd, existingSub.rows[0].id]
+        [planId, periodStart, periodEnd, existingSub.rows[0].id, extraSeats]
       )
     } else {
       await client.query(
         `INSERT INTO user_subscriptions
            (user_id, plan_id, status, payment_method, currency,
-            current_period_start, current_period_end)
-         VALUES ($1, $2, 'active', 'mpesa', 'KES', $3, $4)`,
-        [paymentRow.user_id, planId, periodStart, periodEnd]
+            current_period_start, current_period_end, seat_count)
+         VALUES ($1, $2, 'active', 'mpesa', 'KES', $3, $4, $5)`,
+        [paymentRow.user_id, planId, periodStart, periodEnd, extraSeats]
       )
     }
 

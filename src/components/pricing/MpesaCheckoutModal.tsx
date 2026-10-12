@@ -12,6 +12,7 @@ export interface MpesaCheckoutModalProps {
   planId: 'pro' | 'team' | 'firm' | 'enterprise'
   planName: string
   amountKes: number
+  seatCount?: number
   userEmail?: string
   userName?: string
 }
@@ -22,6 +23,7 @@ export function MpesaCheckoutModal({
   planId,
   planName,
   amountKes,
+  seatCount = 1,
   userEmail = '',
   userName = '',
 }: MpesaCheckoutModalProps) {
@@ -76,6 +78,7 @@ export function MpesaCheckoutModal({
           phoneNumber: phoneNumber.trim(),
           userEmail: email.trim(),
           userName: userName.trim(),
+          seatCount,
         }),
       })
 
@@ -143,6 +146,7 @@ export function MpesaCheckoutModal({
                   <span>Amount:</span>
                   <span className="text-emerald-400 font-bold">KSh {amountKes.toLocaleString()}</span>
                 </div>
+                {seatCount > 1 && <div className="flex justify-between"><span>Seats:</span><span className="text-white">{seatCount}</span></div>}
                 <div className="flex justify-between">
                   <span>Status:</span>
                   <span className="text-amber-300 font-bold">Pending verification</span>
@@ -150,8 +154,8 @@ export function MpesaCheckoutModal({
               </div>
 
               <p className="text-xs text-[var(--text-muted)]">
-                A confirmation email has been sent to your registered address. We verify every Till
-                payment against the merchant M-Pesa statement to keep the platform fraud-free.
+                We will email your account address after review. Every Till payment is checked
+                against the merchant M-Pesa statement before access is granted.
               </p>
 
               <button
@@ -196,6 +200,7 @@ export function MpesaCheckoutModal({
                   <span className="text-[var(--text-muted)]">Plan: <strong className="text-white">{planName}</strong></span>
                   <span className="text-emerald-400 font-bold font-mono text-sm">KSh {amountKes.toLocaleString()}</span>
                 </div>
+                {seatCount > 1 && <div className="text-xs text-[var(--text-muted)]">Seats: <strong className="text-white">{seatCount}</strong></div>}
               </div>
 
               {/* Instructions */}

@@ -6,10 +6,8 @@
 #     allowlists. Regenerate via scripts/merge-gitleaks.py when upgrading.
 #     (A custom config with no [[rules]] silently scans with ZERO rules —
 #     the exact failure mode caught while setting this up.)
-#   - .gitleaks-baseline.json = the 4 findings present in git history BEFORE
-#     this gate existed (2 false positives + 1 REAL rotated-pending password
-#     in notes/Admin Users.md at an old commit + 1 fp dup). All values are
-#     redacted in the baseline. Only NEW leaks fail the build.
+#   - .gitleaks-baseline.json = documented, redacted legacy findings. Only
+#     new findings in the pushed branch/PR range fail the build.
 #   - gitleaks is pinned to v8.24.3 to match the embedded default ruleset.
 #
 # ⚠ ROTATION DEBT: the baseline includes one real POSTGRES_PASSWORD committed
@@ -47,5 +45,29 @@ jobs:
           tar xzf gitleaks.tgz gitleaks
           ./gitleaks version
 
-      - name: Scan git history for new secrets
-        run: ./gitleaks git --config .gitleaks.toml --baseline-path .gitleaks-baseline.json --redact
+      - name: Scan commits introduced by this push or PR
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          EVENT_BEFORE: ${{ github.event.before }}
+          EVENT_SHA: ${{ github.sha }}
+          EVENT_REF_NAME: ${{ github.ref_name }}
+          EVENT_BASE_REF: ${{ github.base_ref }}
+        run: |
+          if [[ "$EVENT_NAME" == "pull_request" ]]; then
+            base_ref="origin/$EVENT_BASE_REF"
+          elif [[ ! "$EVENT_BEFORE" =~ ^0{40}$ ]]; then
+            base_ref="$EVENT_BEFORE"
+          elif [[ "$EVENT_REF_NAME" != "main" ]]; then
+            base_ref="origin/main"
+          else
+            base_ref="$(git rev-parse "$EVENT_SHA^")"
+          fi
+
+          if ! git merge-base --is-ancestor "$base_ref" "$EVENT_SHA"; then
+            echo "::error::Cannot establish the pushed branch range for Gitleaks."
+            exit 1
+          fi
+
+          ./gitleaks git --config .gitleaks.toml \
+            --baseline-path .gitleaks-baseline.json \
+            --log-opts="$base_ref..$EVENT_SHA" --redact

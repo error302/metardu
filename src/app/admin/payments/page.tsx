@@ -36,6 +36,7 @@ interface TillClaim {
   currency: string
   mpesaCode: string
   planId: string
+  seatCount?: number
   phoneNumber: string
   tillNumber: string
   submittedAt: string
@@ -573,7 +574,7 @@ export default function AdminPaymentsPage() {
                         Pending Review
                       </span>
                       <span className="px-2 py-0.5 text-[10px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 rounded-full uppercase">
-                        {claim.planId} Plan
+                        {claim.planId} Plan{claim.seatCount ? ` · ${claim.seatCount} seats` : ''}
                       </span>
                     </div>
 

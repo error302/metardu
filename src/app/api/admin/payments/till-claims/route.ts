@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server'
 import { sendEmail } from '@/lib/email'
 import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
 import { getPlan } from '@/lib/subscription/catalog'
+import { resolveSeatSelection, seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
 import { logger } from '@/lib/logger'
 import { getMpesaTillNumber } from '@/lib/payments/mpesaConfig'
 
@@ -18,7 +19,7 @@ interface ClaimRow {
   amount: string | null
   currency: string | null
   transaction_id: string | null
-  metadata: { planId?: string; tillNumber?: string; phoneNumber?: string } | null
+  metadata: { planId?: string; tillNumber?: string; phoneNumber?: string; seatCount?: number } | null
   created_at: Date | string
 }
 
@@ -72,6 +73,7 @@ export const GET = apiHandler(
       currency: row.currency || 'KES',
       mpesaCode: row.transaction_id,
       planId: row.metadata?.planId || 'pro',
+      seatCount: seatCountFromPaymentMetadata(row.metadata?.planId || 'pro', row.metadata),
       phoneNumber: row.metadata?.phoneNumber || 'N/A',
       tillNumber: row.metadata?.tillNumber || getMpesaTillNumber(),
       submittedAt: row.created_at,
@@ -116,6 +118,10 @@ export const POST = apiHandler(
 
     const planId = (claim.metadata?.planId || 'pro') as string
     const plan = getPlan(planId)
+    const seatSelection = resolveSeatSelection(planId, claim.metadata?.seatCount)
+    if (!plan || !seatSelection.ok) {
+      return NextResponse.json({ error: 'This payment claim contains an invalid plan or seat count and needs manual correction.' }, { status: 409 })
+    }
     const planDisplayName = plan?.name || (planId.toUpperCase() + ' Plan')
 
     if (action === 'reject') {
@@ -155,17 +161,17 @@ export const POST = apiHandler(
         `UPDATE user_subscriptions
             SET plan_id = $1, status = 'active', payment_method = 'mpesa_till',
                 currency = 'KES', current_period_start = $2, current_period_end = $3,
-                updated_at = NOW()
+                seat_count = $5, updated_at = NOW()
           WHERE id = $4`,
-        [planId, periodStart.toISOString(), periodEnd.toISOString(), existingSub.rows[0].id],
+        [planId, periodStart.toISOString(), periodEnd.toISOString(), existingSub.rows[0].id, seatSelection.extraSeats],
       )
     } else {
       await db.query<never>(
         `INSERT INTO user_subscriptions
            (user_id, plan_id, status, payment_method, currency,
-            current_period_start, current_period_end)
-         VALUES ($1, $2, 'active', 'mpesa_till', 'KES', $3, $4)`,
-        [claim.user_id, planId, periodStart.toISOString(), periodEnd.toISOString()],
+            current_period_start, current_period_end, seat_count)
+         VALUES ($1, $2, 'active', 'mpesa_till', 'KES', $3, $4, $5)`,
+        [claim.user_id, planId, periodStart.toISOString(), periodEnd.toISOString(), seatSelection.extraSeats],
       )
     }
 

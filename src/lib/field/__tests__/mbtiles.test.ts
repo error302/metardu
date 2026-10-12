@@ -21,7 +21,8 @@ describe('uploadMBTiles', () => {
 
   it('requests server storage and unwraps the API data envelope for the map viewer', async () => {
     const session = {
-      key: 'e9d3d732-9925-4dc8-9343-58a871cf3296',
+      // Synthetic fixture only; never use a live provider key in tests.
+      key: 'test-only-invalid-api-key',
       name: 'Nairobi field map',
       storage: 'server' as const,
       format: 'png' as const,

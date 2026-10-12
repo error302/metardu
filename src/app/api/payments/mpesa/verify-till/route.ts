@@ -5,7 +5,8 @@ import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
 import db from '@/lib/db'
 import { setCurrentTillClaimCode, setRlsContext } from '@/lib/db'
-import { getPlan, getPlanPrice } from '@/lib/subscription/catalog'
+import { getPlan, getTotalPrice } from '@/lib/subscription/catalog'
+import { resolveSeatSelection } from '@/lib/subscription/seatSelection'
 import { sendEmail } from '@/lib/email'
 import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
 import { logger } from '@/lib/logger'
@@ -15,6 +16,7 @@ const TILL_NUMBER = getMpesaTillNumber()
 
 const VerifyTillSchema = z.object({
   planId: z.enum(['pro', 'team', 'firm', 'enterprise']).default('pro'),
+  seatCount: z.number().int().optional(),
   mpesaCode: z
     .string()
     .min(8)
@@ -53,9 +55,11 @@ interface UserRow {
 export const POST = apiHandler(
   { auth: true, rateLimit: { max: 20, windowMs: 60000 }, schema: VerifyTillSchema },
   async (_req, ctx) => {
-    const { planId, mpesaCode, phoneNumber } = ctx.body as z.infer<
+    const { planId, seatCount: requestedSeatCount, mpesaCode, phoneNumber } = ctx.body as z.infer<
       typeof VerifyTillSchema
     >
+    const seatSelection = resolveSeatSelection(planId, requestedSeatCount)
+    if (!seatSelection.ok) return NextResponse.json({ error: seatSelection.error }, { status: 400 })
 
     // 1. Validate Safaricom M-Pesa Transaction Code format (typically 10 alphanumeric characters)
     const codeRegex = /^[A-Z0-9]{8,12}$/
@@ -84,7 +88,7 @@ export const POST = apiHandler(
     // 4. Resolve plan pricing
     const plan = getPlan(planId)
     const planDisplayName = plan?.name || (planId.toUpperCase() + ' Plan')
-    const amount = getPlanPrice(planId, 'KES')
+    const amount = getTotalPrice(planId, 'KES', seatSelection.totalSeats)
     const submittedAt = new Date().toISOString()
 
     // 2A. INSTANT ACTIVATION: If SMS was already received on Till, activate
@@ -121,6 +125,8 @@ export const POST = apiHandler(
               smsAmount,
               expectedAmount: amount,
               planId,
+              seatCount: seatSelection.totalSeats,
+              extraSeats: seatSelection.extraSeats,
             }),
             unclaimed.id,
           ]
@@ -179,6 +185,8 @@ export const POST = apiHandler(
               claimedByUserId: ctx.userId,
               claimedAt: submittedAt,
               phoneNumber: phoneNumber || 'N/A',
+              seatCount: seatSelection.totalSeats,
+              extraSeats: seatSelection.extraSeats,
             }),
             unclaimed.id,
           ]
@@ -196,13 +204,14 @@ export const POST = apiHandler(
         await client.query<never>(
           `INSERT INTO user_subscriptions
                (user_id, plan_id, status, payment_method, currency,
-                current_period_start, current_period_end)
-           VALUES ($1, $2, 'active', 'mpesa_till', 'KES', $3, $4)
+                current_period_start, current_period_end, seat_count)
+           VALUES ($1, $2, 'active', 'mpesa_till', 'KES', $3, $4, $5)
            ON CONFLICT (user_id)
            DO UPDATE SET plan_id = $2, status = 'active',
                          current_period_start = $3, current_period_end = $4,
+                         seat_count = $5,
                          payment_method = 'mpesa_till', updated_at = NOW()`,
-          [ctx.userId, planId, periodStart.toISOString(), periodEnd.toISOString()]
+          [ctx.userId, planId, periodStart.toISOString(), periodEnd.toISOString(), seatSelection.extraSeats]
         )
 
         await client.query<never>('COMMIT')
@@ -290,6 +299,8 @@ export const POST = apiHandler(
         JSON.stringify({
           tillNumber: TILL_NUMBER,
           planId,
+          seatCount: seatSelection.totalSeats,
+          extraSeats: seatSelection.extraSeats,
           mpesaCode,
           phoneNumber: phoneNumber || 'N/A',
           submittedAt,
@@ -304,11 +315,11 @@ export const POST = apiHandler(
           to: user.email,
           subject: `METARDU — M-Pesa payment received for review (${mpesaCode})`,
           html: `<p>Hi ${user.name || 'Surveyor'},</p>
-<p>We received your M-Pesa payment claim for the <b>${planDisplayName} plan</b> (KES ${amount}, code <b>${mpesaCode}</b>, Till ${TILL_NUMBER}).</p>
+<p>We received your M-Pesa payment claim for the <b>${planDisplayName} plan</b>${seatSelection.totalSeats > 1 ? ` with ${seatSelection.totalSeats} seats` : ''} (KES ${amount}, code <b>${mpesaCode}</b>, Till ${TILL_NUMBER}).</p>
 <p>Our team verifies every Till payment against the merchant M-Pesa statement. Your plan activates automatically once the payment is confirmed — usually within a few hours.</p>
 <p>If your payment is not confirmed within 24 hours, please reply to this email with a screenshot of the M-Pesa confirmation SMS.</p>
 <p>— METARDU</p>`,
-          text: `Hi ${user.name || 'Surveyor'}, we received your M-Pesa payment claim for the ${planDisplayName} plan (KES ${amount}, code ${mpesaCode}, Till ${TILL_NUMBER}). It is pending manual verification against the merchant statement; your plan activates once confirmed. — METARDU`,
+          text: `Hi ${user.name || 'Surveyor'}, we received your M-Pesa payment claim for the ${planDisplayName} plan${seatSelection.totalSeats > 1 ? ` with ${seatSelection.totalSeats} seats` : ''} (KES ${amount}, code ${mpesaCode}, Till ${TILL_NUMBER}). It is pending manual verification against the merchant statement; your plan activates once confirmed. — METARDU`,
         })
       } catch (emailErr) {
         logger.warn('[mpesa-till] Failed to send submission acknowledgment:', { error: emailErr })

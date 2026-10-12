@@ -1,7 +1,8 @@
 'use client';
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { ModernPricingPage, PricingCardProps } from '@/components/ui/animated-glassy-pricing'
-import { PLAN_CATALOG, getPlanPrice, getTotalPrice, getPerSeatPrice, type CurrencyCode } from '@/lib/subscription/catalog'
+import { PLAN_CATALOG, SUPPORTED_CURRENCIES, getPlanPrice, getTotalPrice, getPerSeatPrice, type CurrencyCode, type PlanId } from '@/lib/subscription/catalog'
+import { MAX_SELF_SERVE_SEATS } from '@/lib/subscription/seatSelection'
 import { MpesaCheckoutModal } from '@/components/pricing/MpesaCheckoutModal'
 import { getMpesaTillNumber } from '@/lib/payments/mpesaConfig'
 import { Smartphone, CreditCard } from 'lucide-react'
@@ -24,6 +25,7 @@ const formatPrice = (price: number, currency: CurrencyCode) => {
 
 export default function PricingPage() {
   const [currency, setCurrency] = useState<CurrencyCode>('KES')
+  const currencyPickedByUser = useRef(false)
 
   useEffect(() => { document.title = 'Pricing — METARDU' }, [])
 
@@ -33,13 +35,16 @@ export default function PricingPage() {
         const cached = localStorage.getItem('metardu:currency')
         if (cached) {
           const { code, ts } = JSON.parse(cached) as { code: CurrencyCode; ts: number }
-          if (Date.now() - ts < 86400000) { setCurrency(code); return }
+          if (Date.now() - ts < 86400000 && SUPPORTED_CURRENCIES.includes(code)) {
+            if (!currencyPickedByUser.current) setCurrency(code)
+            return
+          }
         }
       } catch { /* ignore */ }
       try {
         const res = await fetch('https://ipapi.co/json/')
         const data = (await res.json()) as { country_code?: string }
-        if (data.country_code && currencyMap[data.country_code]) {
+        if (!currencyPickedByUser.current && data.country_code && currencyMap[data.country_code] && SUPPORTED_CURRENCIES.includes(currencyMap[data.country_code])) {
           const code = currencyMap[data.country_code]
           setCurrency(code)
           try { localStorage.setItem('metardu:currency', JSON.stringify({ code, ts: Date.now() })) } catch { /* ignore */ }
@@ -51,7 +56,7 @@ export default function PricingPage() {
     detectCurrency()
   }, [])
 
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('pro')
+  const [selectedPlanId, setSelectedPlanId] = useState<PlanId>('pro')
   const [seatCount, setSeatCount] = useState<number>(3) // default for Team plan
 
   const [mpesaModalOpen, setMpesaModalOpen] = useState(false)
@@ -61,13 +66,13 @@ export default function PricingPage() {
   const visiblePlans = PLAN_CATALOG
 
   const selectedPlan = PLAN_CATALOG.find(p => p.id === selectedPlanId) || PLAN_CATALOG[1]
-  const totalAmountKes = getTotalPrice(selectedPlan.id as any, 'KES', seatCount)
+  const totalAmountKes = getTotalPrice(selectedPlan.id, 'KES', seatCount)
 
   // When switching plans, reset seat count to the plan's included seats
   const handlePlanChange = (newPlanId: string) => {
-    setSelectedPlanId(newPlanId)
     const plan = PLAN_CATALOG.find(p => p.id === newPlanId)
     if (plan) {
+      setSelectedPlanId(plan.id)
       setSeatCount(Math.max(plan.includedSeats, 1))
     }
   }
@@ -101,6 +106,9 @@ export default function PricingPage() {
               : 'Custom deployment for government and large organizations',
       price: priceLabel,
       features: plan.features,
+      checkoutHref: plan.id === 'free' || isEnterprise
+        ? undefined
+        : `/checkout?plan=${encodeURIComponent(plan.id)}&currency=${currency}&seats=${plan.includedSeats}`,
       buttonText: isEnterprise
         ? 'Contact Sales'
         : plan.id === 'free'
@@ -126,12 +134,29 @@ export default function PricingPage() {
         <div className="w-full max-w-4xl mx-auto mt-16 mb-12 p-8 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-3 border border-emerald-500/20">
-              ⚡ Instant Activation
+              🔒 Verified Payments
             </div>
             <h3 className="text-2xl font-bold text-[var(--text-primary)]">Choose Your Payment Method</h3>
             <p className="text-[var(--text-secondary)] text-sm mt-1">
-              Pay securely via Lipa na M-Pesa Till (Kenya) or PayPal / Card (Global).
+              Pay by M-Pesa in Kenya or use PayPal and card checkout internationally.
             </p>
+
+            <label className="mt-5 inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-left">
+              <span className="text-xs font-medium text-[var(--text-secondary)]">Display currency</span>
+              <select
+                aria-label="Pricing currency"
+                value={currency}
+                onChange={(event) => {
+                  const nextCurrency = event.target.value as CurrencyCode
+                  currencyPickedByUser.current = true
+                  setCurrency(nextCurrency)
+                  try { localStorage.setItem('metardu:currency', JSON.stringify({ code: nextCurrency, ts: Date.now() })) } catch { /* ignore */ }
+                }}
+                className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-sm text-[var(--text-primary)] outline-none focus:ring-2 focus:ring-[var(--accent)]"
+              >
+                {SUPPORTED_CURRENCIES.map((code) => <option key={code} value={code}>{code}</option>)}
+              </select>
+            </label>
 
             {/* Payment Method Switcher Tabs */}
             <div className="flex justify-center gap-3 mt-6">
@@ -206,8 +231,9 @@ export default function PricingPage() {
                   <span className="text-xl font-bold text-white w-8 text-center">{seatCount}</span>
                   <button
                     type="button"
-                    onClick={() => setSeatCount(seatCount + 1)}
-                    className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 text-white font-bold text-lg flex items-center justify-center hover:bg-white/10 transition-colors"
+                    onClick={() => setSeatCount(Math.min(MAX_SELF_SERVE_SEATS, seatCount + 1))}
+                    disabled={seatCount >= MAX_SELF_SERVE_SEATS}
+                    className="w-8 h-8 rounded-lg bg-black/40 border border-white/10 text-white font-bold text-lg flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-30"
                   >
                     +
                   </button>
@@ -225,14 +251,20 @@ export default function PricingPage() {
 
           {/* Tab 1: M-Pesa Buy Goods Till */}
           {activeTab === 'mpesa' && (
-            <div className="max-w-md mx-auto text-center space-y-4">
+            selectedPlan.id === 'free' || selectedPlan.contactSales ? (
+              <p className="max-w-md mx-auto rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 text-sm text-[var(--text-secondary)]">
+                {selectedPlan.id === 'free'
+                  ? 'The Free plan does not require payment. Choose a paid plan to continue to checkout.'
+                  : 'This plan requires a sales agreement. Contact METARDU to discuss pricing.'}
+              </p>
+            ) : <div className="max-w-md mx-auto text-center space-y-4">
               <div className="p-5 rounded-xl bg-emerald-500/5 border border-emerald-500/20 text-left space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-xs font-semibold text-emerald-400">TILL NUMBER:</span>
                   <span className="text-xs font-bold text-[var(--accent)]">{getMpesaTillNumber()}</span>
                 </div>
                 <p className="text-xs text-[var(--text-secondary)]">
-                  Pay directly from your Safaricom M-Pesa line using Buy Goods Till <strong className="text-emerald-400 font-mono">{getMpesaTillNumber()}</strong> and get instant access + email receipt.
+                  Pay using Buy Goods Till <strong className="text-emerald-400 font-mono">{getMpesaTillNumber()}</strong>. Till receipts are checked against the merchant statement; access starts after confirmation.
                 </p>
               </div>
 
@@ -242,7 +274,7 @@ export default function PricingPage() {
                 className="w-full py-3.5 bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-sm rounded-xl transition-all shadow-lg flex items-center justify-center gap-2"
               >
                 <Smartphone className="w-4 h-4" />
-                <span>Pay KSh {totalAmountKes.toLocaleString()} via M-Pesa Till →</span>
+                <span>Submit KSh {totalAmountKes.toLocaleString()} M-Pesa payment →</span>
               </button>
             </div>
           )}
@@ -252,11 +284,14 @@ export default function PricingPage() {
             <div className="max-w-md mx-auto text-center space-y-4">
               <div className="rounded-xl border border-[color-mix(in_srgb,var(--accent)_22%,transparent)] bg-[color-mix(in_srgb,var(--accent)_6%,transparent)] p-5 text-left">
                 <p className="text-sm font-semibold text-[var(--text-primary)]">PayPal checkout</p>
-                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Continue to the secure METARDU checkout to approve PayPal or an international card. Your plan and currency stay attached to the order.</p>
+                <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Continue to secure checkout. Your selected plan, currency, and seat count carry through to the order.</p>
+                {selectedPlan.isPerSeat && seatCount > selectedPlan.includedSeats && (
+                  <p className="mt-2 text-xs leading-5 text-amber-300">PayPal supports included seats on its configured recurring plan. Choose card, or select Kenya/KES in checkout to use M-Pesa for extra seats.</p>
+                )}
               </div>
               <button
                 type="button"
-                onClick={() => { window.location.href = `/checkout?plan=${encodeURIComponent(selectedPlanId)}&method=paypal` }}
+                onClick={() => { window.location.href = `/checkout?plan=${encodeURIComponent(selectedPlanId)}&currency=${currency}&seats=${seatCount}&method=paypal` }}
                 className="w-full min-h-12 rounded-xl bg-[#f2c14e] px-4 py-3 font-semibold text-[#16130b] shadow-[0_10px_24px_rgba(242,193,78,0.18)] transition hover:bg-[#ffd56d]"
               >
                 Continue with PayPal →
@@ -268,13 +303,16 @@ export default function PricingPage() {
       </ModernPricingPage>
 
       {/* M-Pesa Checkout Modal */}
-      <MpesaCheckoutModal
-        isOpen={mpesaModalOpen}
-        onClose={() => setMpesaModalOpen(false)}
-        planId={selectedPlanId as any}
-        planName={selectedPlan.name}
-        amountKes={totalAmountKes}
-      />
+      {selectedPlan.id !== 'free' && !selectedPlan.contactSales && (
+        <MpesaCheckoutModal
+          isOpen={mpesaModalOpen}
+          onClose={() => setMpesaModalOpen(false)}
+          planId={selectedPlan.id}
+          planName={selectedPlan.name}
+          amountKes={totalAmountKes}
+          seatCount={seatCount}
+        />
+      )}
     </>
   )
 }

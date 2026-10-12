@@ -56,10 +56,30 @@ export function getCurrencyForCountry(country: string): CurrencyCode {
   return currencies[country] || 'USD'
 }
 
+export function getCountryForCurrency(currency: CurrencyCode): string {
+  const countries: Record<CurrencyCode, string> = {
+    KES: 'Kenya',
+    UGX: 'Uganda',
+    TZS: 'Tanzania',
+    NGN: 'Nigeria',
+    GHS: 'Ghana',
+    ZAR: 'South Africa',
+    INR: 'India',
+    IDR: 'Indonesia',
+    BRL: 'Brazil',
+    AUD: 'Australia',
+    GBP: 'UK',
+    EUR: 'Germany',
+    USD: 'US',
+  }
+  return countries[currency]
+}
+
 export async function startSubscriptionPayment(input: {
   planId: PlanId
   currency: CurrencyCode
   method: PaymentMethod['type']
+  seatCount: number
   email: string
   phoneNumber?: string
   country?: string
@@ -75,6 +95,7 @@ export async function startSubscriptionPayment(input: {
       action: 'start-subscription',
       planId: input.planId,
       currency: input.currency,
+      seatCount: input.seatCount,
       email: input.email,
       phoneNumber: input.phoneNumber,
       country: input.country,

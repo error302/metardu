@@ -10,7 +10,8 @@ import { getMpesaService } from '@/lib/payments/mpesa'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
-import { getPlan } from '@/lib/subscription/catalog'
+import { getPlan, getTotalPrice, SUPPORTED_CURRENCIES } from '@/lib/subscription/catalog'
+import { resolveSeatSelection, seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
 
 // ─── Row types ────────────────────────────────────────────────────────────
 interface SubscriptionRow {
@@ -24,6 +25,7 @@ interface PaymentHistoryRow {
   amount: number | null
   transaction_id: string | null
   status: string | null
+  metadata?: unknown
 }
 
 // PayPal capture response — library types don't expose purchase_units
@@ -53,7 +55,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
   const params = body
   const userId = ctx.userId
 
-  const getPlanPricing = (planId: string, currency: string) => {
+  const getPlanPricing = (planId: string, currency: string, seatCount: number) => {
     const plan = getPlan(planId)
     if (!plan) {
       return { ok: false as const, response: NextResponse.json({ error: 'Unknown plan' }, { status: 400 }) }
@@ -61,9 +63,12 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     if (plan.contactSales) {
       return { ok: false as const, response: NextResponse.json({ error: 'This plan requires a sales agreement and is not available through self-serve checkout.' }, { status: 400 }) }
     }
+    if (!SUPPORTED_CURRENCIES.includes(currency as CurrencyCode)) {
+      return { ok: false as const, response: NextResponse.json({ error: 'Unsupported currency' }, { status: 400 }) }
+    }
     const c = currency as CurrencyCode
-    const amount = plan.prices[c]
-    if (amount === undefined) {
+    const amount = getTotalPrice(plan.id, c, seatCount)
+    if (!Number.isFinite(amount)) {
       return { ok: false as const, response: NextResponse.json({ error: 'Unsupported currency' }, { status: 400 }) }
     }
     return { ok: true as const, plan, currency: c, amount }
@@ -77,6 +82,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     transaction_id?: string
     status: 'completed' | 'failed'
     paymentId?: string
+    seatCount?: number
   }) => {
     if (input.status === 'completed') {
       const { rows: existing } = await db.query<SubscriptionRow>(
@@ -85,21 +91,26 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
       )
       const now = new Date().toISOString()
       const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      const plan = getPlan(input.planId)
+      const totalSeats = plan && Number.isSafeInteger(input.seatCount) && (input.seatCount as number) >= plan.includedSeats
+        ? input.seatCount as number
+        : plan?.includedSeats ?? 1
+      const purchasedExtraSeats = plan?.isPerSeat ? Math.max(0, totalSeats - plan.includedSeats) : 0
 
       if (existing.length > 0) {
         await db.query<never>(
           `UPDATE user_subscriptions
            SET plan_id = $1, status = 'active', payment_method = $2, currency = $3,
-               current_period_start = $4, current_period_end = $5
+               current_period_start = $4, current_period_end = $5, seat_count = $7
            WHERE id = $6`,
-          [input.planId, input.payment_method, input.currency, now, periodEnd, existing[0].id]
+          [input.planId, input.payment_method, input.currency, now, periodEnd, existing[0].id, purchasedExtraSeats]
         )
       } else {
         await db.query<never>(
           `INSERT INTO user_subscriptions
-           (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
-           VALUES ($1, $2, 'active', $3, $4, $5, $6)`,
-          [userId, input.planId, input.payment_method, input.currency, now, periodEnd]
+           (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end, seat_count)
+           VALUES ($1, $2, 'active', $3, $4, $5, $6, $7)`,
+          [userId, input.planId, input.payment_method, input.currency, now, periodEnd, purchasedExtraSeats]
         )
       }
     }
@@ -120,6 +131,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
       email: z.string().email().optional(),
       phoneNumber: z.string().optional(),
       country: z.string().optional(),
+      seatCount: z.number().int().optional(),
     })
     const start = startSchema.safeParse(params)
     if (!start.success) {
@@ -127,7 +139,10 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     }
 
     const { planId, currency } = start.data
-    const priced = getPlanPricing(planId, currency)
+    const seatSelection = resolveSeatSelection(planId, start.data.seatCount)
+    if (!seatSelection.ok) return NextResponse.json({ error: seatSelection.error }, { status: 400 })
+    const seatCount = seatSelection.totalSeats
+    const priced = getPlanPricing(planId, currency, seatCount)
     if (!priced.ok) return priced.response
 
     if (priced.amount <= 0) {
@@ -139,10 +154,19 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     }
 
     let paypalService: ReturnType<typeof getPayPalService> = null
+    let stripeService: ReturnType<typeof getStripeService> = null
+    let mpesaService: ReturnType<typeof getMpesaService> = null
+    let mpesaPhoneNumber: string | null = null
     let paypalPlanId: string | null = null
     let paypalCurrency: CurrencyCode = priced.currency
     let paypalAmount = 0
     if (provider === 'paypal') {
+      if (seatSelection.extraSeats > 0) {
+        return NextResponse.json({
+          error: 'PayPal recurring plans currently support the included seats only. Choose card or M-Pesa to pay for additional seats.',
+          code: 'PAYPAL_EXTRA_SEATS_UNAVAILABLE',
+        }, { status: 409 })
+      }
       paypalService = getPayPalService()
       if (!paypalService) return NextResponse.json({ error: 'PayPal is not configured.' }, { status: 503 })
       paypalCurrency = resolvePayPalCurrency(priced.currency)
@@ -151,7 +175,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
         return NextResponse.json({ error: 'PayPal recurring billing is not configured for this plan.' }, { status: 503 })
       }
 
-      paypalAmount = priced.plan.prices[paypalCurrency]
+      paypalAmount = getTotalPrice(planId, paypalCurrency, seatCount)
       if (!Number.isFinite(paypalAmount) || paypalAmount <= 0) {
         return NextResponse.json({ error: `PayPal pricing is unavailable for ${paypalCurrency}.` }, { status: 400 })
       }
@@ -172,10 +196,23 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
       }
     }
 
+    if (provider === 'stripe') {
+      stripeService = getStripeService()
+      if (!stripeService) return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 })
+    }
+
+    if (provider === 'mpesa') {
+      mpesaService = getMpesaService()
+      if (!mpesaService) return NextResponse.json({ error: 'M-Pesa is not configured.' }, { status: 503 })
+      if (priced.currency !== 'KES') return NextResponse.json({ error: 'M-Pesa payments must be in KES.' }, { status: 400 })
+      mpesaPhoneNumber = start.data.phoneNumber?.trim() || null
+      if (!mpesaPhoneNumber) return NextResponse.json({ error: 'Phone number required for M-Pesa.' }, { status: 400 })
+    }
+
     const { rows } = await db.query<Pick<PaymentHistoryRow, 'id'>>(
-      `INSERT INTO payment_history (user_id, amount, currency, status, payment_method, plan_id)
-       VALUES ($1, $2, $3, 'pending', $4, $5) RETURNING id`,
-      [userId, priced.amount, priced.currency, provider, planId]
+      `INSERT INTO payment_history (user_id, amount, currency, status, payment_method, plan_id, metadata)
+       VALUES ($1, $2, $3, 'pending', $4, $5, $6) RETURNING id`,
+      [userId, priced.amount, priced.currency, provider, planId, JSON.stringify({ seatCount, extraSeats: seatSelection.extraSeats })]
     )
     if (!rows[0]?.id) throw new Error('No ID returned from payment_history insert')
     const paymentId = rows[0].id as string
@@ -183,7 +220,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     const appUrl = getPublicAppUrl()
 
     if (provider === 'stripe') {
-      const stripe = getStripeService()
+      const stripe = stripeService
       if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
 
       const stripeSession = await stripe.createCheckoutSession({
@@ -193,7 +230,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
         name: `METARDU ${priced.plan.name}`,
         successUrl: `${appUrl}/subscription/success?provider=stripe&paymentId=${paymentId}&planId=${planId}&session_id={CHECKOUT_SESSION_ID}`,
         cancelUrl: `${appUrl}/subscription/cancel?provider=stripe&paymentId=${paymentId}&planId=${planId}`,
-        metadata: { payment_id: paymentId, user_id: userId, plan_id: planId, currency: priced.currency },
+        metadata: { payment_id: paymentId, user_id: userId, plan_id: planId, currency: priced.currency, seat_count: String(seatCount) },
       })
 
       if (!stripeSession?.id || !stripeSession?.url) {
@@ -240,14 +277,12 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     }
 
     if (provider === 'mpesa') {
-      const mpesa = getMpesaService()
-      if (!mpesa) return NextResponse.json({ error: 'M-Pesa not configured' }, { status: 500 })
-      if (priced.currency !== 'KES') return NextResponse.json({ error: 'M-Pesa payments must be in KES.' }, { status: 400 })
-      if (!start.data.phoneNumber) return NextResponse.json({ error: 'Phone number required for M-Pesa.' }, { status: 400 })
+      const mpesa = mpesaService
+      if (!mpesa || !mpesaPhoneNumber) return NextResponse.json({ error: 'M-Pesa configuration or phone number is unavailable.' }, { status: 500 })
 
       const callbackUrl = `${appUrl}/api/payments/mpesa/callback?paymentId=${paymentId}&planId=${planId}`
       const result = await mpesa.initiateSTKPush({
-        phoneNumber: start.data.phoneNumber,
+        phoneNumber: mpesaPhoneNumber,
         amount: priced.amount,
         reference: paymentId,
         description: `METARDU ${priced.plan.name} subscription`,
@@ -284,7 +319,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
           const { rows: payRows } = await db.query<PaymentHistoryRow>(
-            'SELECT id, plan_id, currency, amount, transaction_id, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+            'SELECT id, plan_id, currency, amount, transaction_id, status, metadata FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
             [s.data.paymentId, userId]
           )
           const pay = payRows[0] ?? null
@@ -308,7 +343,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
             return NextResponse.json({ status: 'failed' })
           }
 
-          await activateSubscription({ planId: s.data.planId, payment_method: 'stripe', currency: stripeSession.currency as CurrencyCode, amount: Number(stripeSession.amountTotal ?? 0), transaction_id: stripeSession.id, status: 'completed', paymentId: s.data.paymentId })
+          await activateSubscription({ planId: s.data.planId, payment_method: 'stripe', currency: stripeSession.currency as CurrencyCode, amount: Number(stripeSession.amountTotal ?? 0), transaction_id: stripeSession.id, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
           return NextResponse.json({ status: 'completed' })
         }
         default:
@@ -330,7 +365,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
           const { rows: payRows } = await db.query<PaymentHistoryRow>(
-            'SELECT id, plan_id, currency, amount, transaction_id, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+            'SELECT id, plan_id, currency, amount, transaction_id, status, metadata FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
             [s.data.paymentId, userId]
           )
           const pay = payRows[0] ?? null
@@ -383,7 +418,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
             return NextResponse.json({ status: 'failed' })
           }
 
-          await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: currencyCode, amount: Number(amountStr), transaction_id: s.data.orderId, status: 'completed', paymentId: s.data.paymentId })
+          await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: currencyCode, amount: Number(amountStr), transaction_id: s.data.orderId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
           return NextResponse.json({ status: 'completed' })
         }
         case 'subscription-status': {
@@ -394,7 +429,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
           const { rows: payRows } = await db.query<PaymentHistoryRow>(
-            'SELECT id, plan_id, currency, amount, transaction_id, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+            'SELECT id, plan_id, currency, amount, transaction_id, status, metadata FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
             [s.data.paymentId, userId]
           )
           const pay = payRows[0] ?? null
@@ -408,7 +443,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
             try {
               const sub = await paypal.getSubscriptionStatus(subscriptionId)
               if (sub.status?.toLowerCase() === 'active') {
-                await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: 'USD', amount: Number(pay.amount), transaction_id: subscriptionId, status: 'completed', paymentId: s.data.paymentId })
+                await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: (pay.currency as CurrencyCode) || 'USD', amount: Number(pay.amount), transaction_id: subscriptionId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
                 return NextResponse.json({ status: 'completed' })
               }
               if (['approval_pending', 'approved'].includes(sub.status?.toLowerCase() ?? '')) {
@@ -443,8 +478,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           }).safeParse(params)
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
-          const { rows: payRows } = await db.query<Pick<PaymentHistoryRow, 'id' | 'plan_id' | 'currency' | 'amount' | 'status'>>(
-            'SELECT id, plan_id, currency, amount, status FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
+          const { rows: payRows } = await db.query<Pick<PaymentHistoryRow, 'id' | 'plan_id' | 'currency' | 'amount' | 'status' | 'metadata'>>(
+            'SELECT id, plan_id, currency, amount, status, metadata FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
             [s.data.paymentId, userId]
           )
           const pay = payRows[0] ?? null
@@ -454,7 +489,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
 
           const result = await mpesa.checkTransactionStatus(s.data.checkoutRequestId)
           if (result.status === 'completed') {
-            await activateSubscription({ planId: (pay.plan_id as PlanId) || 'pro', payment_method: 'mpesa', currency: (pay.currency as CurrencyCode) || 'KES', amount: Number(pay.amount) || 0, transaction_id: s.data.checkoutRequestId, status: 'completed', paymentId: s.data.paymentId })
+            await activateSubscription({ planId: (pay.plan_id as PlanId) || 'pro', payment_method: 'mpesa', currency: (pay.currency as CurrencyCode) || 'KES', amount: Number(pay.amount) || 0, transaction_id: s.data.checkoutRequestId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata((pay.plan_id as PlanId) || 'pro', pay.metadata) })
           }
 
           return NextResponse.json({ status: result.status === 'completed' ? 'completed' : 'pending' })
@@ -487,7 +522,7 @@ export const GET = apiHandler({ auth: false, rateLimit: { max: 30, windowMs: 600
 
   return NextResponse.json({
     providers: { stripe, paypal, mpesa },
-    currencies: ['USD', 'KES', 'UGX', 'TZS', 'EUR', 'GBP', 'AUD'],
+    currencies: SUPPORTED_CURRENCIES,
     paymentMethods: [
       ...(stripe || paypal ? [{ id: 'card', name: 'Credit/Debit Card', providers: [stripe && 'stripe', paypal && 'paypal'].filter(Boolean) }] : []),
       ...(mpesa ? [{ id: 'mpesa', name: 'M-Pesa', providers: ['mpesa'] }] : []),

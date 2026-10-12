@@ -82,7 +82,7 @@ function callbackRequest(payload: unknown, ip = SAFARICOM_IP): NextRequest {
 
 /** Real parseCallback implementation from the lib (pure function). */
 const { MpesaService } = jest.requireActual('@/lib/payments/mpesa') as typeof import('@/lib/payments/mpesa')
-const realService = new (MpesaService as any)({} as never)
+const realService = new MpesaService({} as never)
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -96,7 +96,14 @@ beforeEach(() => {
  * mockResolvedValueOnce sequencing shifts by one and breaks assertions).
  */
 function txClient(opts: { claimRowCount?: number } = {}) {
-  const q = jest.fn().mockImplementation((sql: string) => {
+  type MockQueryResult = {
+    rows: unknown[]
+    command: string
+    rowCount: number
+    oid: number
+    fields: Array<never>
+  }
+  const q = jest.fn<Promise<MockQueryResult>, [sql: string, params?: unknown[]]>().mockImplementation((sql) => {
     if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
       return Promise.resolve(mr([]))
     }
@@ -105,6 +112,7 @@ function txClient(opts: { claimRowCount?: number } = {}) {
     if (
       typeof sql === 'string' &&
       (sql.includes("AND status <> 'completed'") ||
+        sql.includes("AND status IN ('pending', 'processing')") ||
         sql.includes("AND status = 'unclaimed_payment'") ||
         sql.includes("AND status = 'pending_review'"))
     ) {
@@ -194,6 +202,41 @@ describe('POST /api/payments/mpesa/callback — success path credits exactly onc
       ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO user_subscriptions')
     )
     expect(subCall).toBeDefined()
+  })
+
+  test('completes the current payment_history checkout and grants its purchased extra seats', async () => {
+    const teamSuccessPayload = JSON.parse(JSON.stringify(successPayload)) as typeof successPayload
+    teamSuccessPayload.Body.stkCallback.CallbackMetadata.Item[0].Value = 6000
+    mockDbQuery
+      .mockResolvedValueOnce(mr([])) // no legacy payment_intent for this checkout
+      .mockResolvedValueOnce(mr([
+        {
+          id: 'history-1',
+          user_id: USER_ID,
+          plan_id: 'team',
+          amount: 6000,
+          currency: 'KES',
+          status: 'pending',
+          metadata: { seatCount: 4, extraSeats: 1 },
+        },
+      ])) // current unified checkout row
+      .mockResolvedValue(mr([])) // receipt email lookup
+
+    const clientQuery = txClient({ claimRowCount: 1 })
+    const res = await POST(callbackRequest(teamSuccessPayload))
+
+    expect(res.status).toBe(200)
+    const completion = clientQuery.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('UPDATE payment_history') && sql.includes("status IN ('pending', 'processing')")
+    )
+    expect(completion?.[1]).toContain('NLJ7RT61SV')
+    expect(JSON.parse(String(completion?.[1]?.[2]))).toMatchObject({ totalSeats: 4, extraSeats: 1 })
+    expect(clientQuery.mock.calls.some(([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO payment_history'))).toBe(false)
+
+    const subscriptionInsert = clientQuery.mock.calls.find(
+      ([sql]) => typeof sql === 'string' && sql.includes('INSERT INTO user_subscriptions') && sql.includes('seat_count')
+    )
+    expect(subscriptionInsert?.[1]).toContain(1)
   })
 })
 

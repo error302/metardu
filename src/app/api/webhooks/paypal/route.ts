@@ -21,6 +21,8 @@ import { db, setCurrentRlsServiceRole, setCurrentUserId, setRlsContext } from '@
 import { createVerify, createPublicKey } from 'crypto'
 import { crc32 } from 'zlib'
 import { logger } from '@/lib/logger'
+import { getPlan } from '@/lib/subscription/catalog'
+import { seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
 
 interface PayPalWebhookEvent {
   event_type: string
@@ -48,6 +50,8 @@ interface PaymentHistoryRow {
   user_id: string
   plan_id: string
   status?: string
+  currency?: string | null
+  metadata?: unknown
 }
 
 interface UserSubscriptionRow {
@@ -448,11 +452,14 @@ export async function POST(request: NextRequest) {
       if (subscriptionId) {
         await establishPaymentOwnerContext(subscriptionId)
         const { rows: payRows } = await db.query<PaymentHistoryRow>(
-          'SELECT id, user_id, plan_id FROM payment_history WHERE transaction_id = $1 LIMIT 1',
+          'SELECT id, user_id, plan_id, currency, metadata FROM payment_history WHERE transaction_id = $1 LIMIT 1',
           [subscriptionId]
         )
         if (payRows.length > 0) {
           const pay = payRows[0]
+          const plan = getPlan(pay.plan_id)
+          const seatCount = seatCountFromPaymentMetadata(pay.plan_id, pay.metadata)
+          const extraSeats = plan?.isPerSeat ? Math.max(0, seatCount - plan.includedSeats) : 0
           await db.query<never>(
             `UPDATE payment_history SET status = 'completed' WHERE id = $1`,
             [pay.id]
@@ -467,16 +474,17 @@ export async function POST(request: NextRequest) {
             await db.query<never>(
               `UPDATE user_subscriptions
                SET plan_id = $1, status = 'active', payment_method = 'paypal',
-                   current_period_start = $2, current_period_end = $3
-               WHERE id = $4`,
-              [pay.plan_id, now, periodEnd, existing[0].id]
+                   currency = $4, current_period_start = $2, current_period_end = $3,
+                   seat_count = $5
+               WHERE id = $6`,
+              [pay.plan_id, now, periodEnd, pay.currency || 'USD', extraSeats, existing[0].id]
             )
           } else {
             await db.query<never>(
               `INSERT INTO user_subscriptions
-               (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
-               VALUES ($1, $2, 'active', 'paypal', 'USD', $3, $4)`,
-              [pay.user_id, pay.plan_id, now, periodEnd]
+               (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end, seat_count)
+               VALUES ($1, $2, 'active', 'paypal', $3, $4, $5, $6)`,
+              [pay.user_id, pay.plan_id, pay.currency || 'USD', now, periodEnd, extraSeats]
             )
           }
         } else {

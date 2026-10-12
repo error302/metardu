@@ -26,18 +26,19 @@ export interface PricingCardProps {
   price: string;
   features: string[];
   buttonText: string;
+  checkoutHref?: string;
   isPopular?: boolean;
   buttonVariant?: 'primary' | 'secondary';
 }
 
 export const PricingCard = ({
-  planId, planName, description, price, features, buttonText, isPopular = false, buttonVariant = 'primary'
+  planId, planName, description, price, features, buttonText, checkoutHref, isPopular = false, buttonVariant = 'primary'
 }: PricingCardProps) => {
   const buttonHref = planId === 'free'
     ? '/register'
     : planId === 'enterprise'
       ? 'mailto:enterprise@metardu.com?subject=METARDU%20Enterprise%20Plan'
-      : `/checkout?plan=${planId}`;
+      : checkoutHref || `/checkout?plan=${encodeURIComponent(planId)}`;
   const planEyebrow = planId === 'free'
     ? 'Start here'
     : planId === 'pro'
