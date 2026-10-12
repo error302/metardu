@@ -33,7 +33,7 @@ Use the LinkedIn offer as inspiration for a clear, measurable invitation, not as
 | Friday | Share what the feedback changed and invite interested survey teams to a human-reviewed pilot discussion. | State the pilot scope and any limits plainly. Ask separately before adding anyone to product-news email. |
 | Weekend | Reply to participants, summarize objections, and choose one workflow question to test next week. | Track qualified survey conversations and pilot requests, not likes alone. |
 
-For any post linking to the site, first confirm the linked route is publicly healthy. While the public site is returning a Cloudflare 502, use the Page conversation for a human follow-up and do not direct prospects into a broken signup or checkout. Measure post reach, relevant replies, qualified workflow conversations, pilot requests, and later activated accounts. Use `utm_medium=organic_social` only after a working public destination is confirmed.
+For any post linking to the site, first confirm the linked route is publicly healthy. The public homepage, pricing, privacy, and tools routes returned HTTP 200 on 2026-10-13; if a route becomes unavailable, use the Page conversation for a human follow-up until it is healthy again. Measure post reach, relevant replies, qualified workflow conversations, pilot requests, and later activated accounts. Use `utm_medium=organic_social` only after a working public destination is confirmed.
 
 ## First campaign draft
 
