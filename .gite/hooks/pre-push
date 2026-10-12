@@ -10,7 +10,7 @@
 #   SKIP_PRE_PUSH_TESTS=1 git push # keep lint+types+secrets, skip tests
 #
 # Design notes:
-# - Runs only on the commits actually being pushed (origin/main..HEAD),
+# - Runs only on the commits actually being pushed (the remote ref from Git),
 #   so it stays fast on feature branches.
 # - Time-boxes itself (default 300s) — a hook that hangs is a hook that
 #   gets deleted out of spite.
@@ -31,14 +31,42 @@ if [[ "${CI:-}" == "true" ]]; then
   exit 0  # CI runs its own full gates; never nest hooks inside them
 fi
 
-# Remote ref to diff against: the default branch tracking ref if it exists,
-# otherwise HEAD~ so a single-commit branch still checks something.
-BASE_REF="origin/main"
-if ! git rev-parse --verify --quiet "$BASE_REF" >/dev/null 2>&1; then
-  BASE_REF="HEAD~1"
+ZERO_SHA="0000000000000000000000000000000000000000"
+PUSH_BASES=()
+PUSH_TARGETS=()
+CHANGED_FILES=""
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  [[ -n "${local_sha:-}" && "$local_sha" != "$ZERO_SHA" ]] || continue
+  if [[ "${remote_sha:-$ZERO_SHA}" != "$ZERO_SHA" ]]; then
+    base_ref="$remote_sha"
+  else
+    base_ref="origin/main"
+    if ! git rev-parse --verify --quiet "$base_ref" >/dev/null 2>&1; then
+      base_ref="${local_sha}~1"
+    fi
+  fi
+
+  PUSH_BASES+=("$base_ref")
+  PUSH_TARGETS+=("$local_sha")
+  changed=$(git diff --name-only --diff-filter=ACMRT "$base_ref"..."$local_sha" -- '*.ts' '*.tsx' 2>/dev/null || true)
+  if [[ -n "$changed" ]]; then
+    CHANGED_FILES="${CHANGED_FILES:+$CHANGED_FILES$'\n'}$changed"
+  fi
+done
+
+# Support direct local invocation without Git's pre-push ref input.
+if [[ "${#PUSH_TARGETS[@]}" -eq 0 ]]; then
+  BASE_REF="origin/main"
+  if ! git rev-parse --verify --quiet "$BASE_REF" >/dev/null 2>&1; then
+    BASE_REF="HEAD~1"
+  fi
+  PUSH_BASES+=("$BASE_REF")
+  PUSH_TARGETS+=("HEAD")
+  CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "$BASE_REF"...HEAD -- '*.ts' '*.tsx' 2>/dev/null || true)
 fi
 
-CHANGED_FILES=$(git diff --name-only --diff-filter=ACMRT "$BASE_REF"...HEAD -- '*.ts' '*.tsx' 2>/dev/null || true)
+BASE_REF="${PUSH_BASES[0]}"
 if [[ -z "$CHANGED_FILES" ]]; then
   echo "pre-push: no TS/TSX changes in push range ($BASE_REF..HEAD) — done."
   exit 0
@@ -81,15 +109,17 @@ fi
 # --- 3. Secrets ---------------------------------------------------------------
 if command -v gitleaks >/dev/null 2>&1; then
   echo "pre-push: gitleaks on pushed commits ..."
-  # Exit codes: 0 clean, 1 leaks found, anything else = tool error.
-  timeout "$TIMEBOX" gitleaks git --config .gitleaks.toml \
-    --log-opts="$BASE_REF..HEAD" --redact -v >/dev/null 2>&1
-  status=$?
-  if [[ "$status" == "1" ]]; then
-    fail "gitleaks found a secret in $BASE_REF..HEAD (C-01 shipped twice — rotate, then re-push)"
-  elif [[ "$status" != "0" ]]; then
-    echo "pre-push: gitleaks exited $status (tool error) — not blocking on this."
-  fi
+  for i in "${!PUSH_BASES[@]}"; do
+    # Exit codes: 0 clean, 1 leaks found, anything else = tool error.
+    timeout "$TIMEBOX" gitleaks git --config .gitleaks.toml \
+      --log-opts="${PUSH_BASES[$i]}..${PUSH_TARGETS[$i]}" --redact -v >/dev/null 2>&1
+    status=$?
+    if [[ "$status" == "1" ]]; then
+      fail "gitleaks found a secret in ${PUSH_BASES[$i]}..${PUSH_TARGETS[$i]} (C-01 shipped twice — rotate, then re-push)"
+    elif [[ "$status" != "0" ]]; then
+      echo "pre-push: gitleaks exited $status (tool error) — not blocking on this."
+    fi
+  done
 else
   echo "pre-push: gitleaks not installed — skipping local secret scan."
   echo "          install: brew install gitleaks  (or: go install github.com/gitleaks/gitleaks/v8@latest)"
