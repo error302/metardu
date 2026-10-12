@@ -74,7 +74,7 @@ fi
 
 # --- 2. Lint (changed files only — fast enough to always run) ----------------
 echo "pre-push: eslint on changed files ..."
-if ! timeout "$TIMEBOX" npx eslint $CHANGED_FILES; then
+if ! timeout "$TIMEBOX" node scripts/lint-changed-files.mjs <<< "$CHANGED_FILES"; then
   fail "eslint failed on changed files"
 fi
 
