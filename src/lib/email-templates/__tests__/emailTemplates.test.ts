@@ -220,7 +220,7 @@ describe('email template registry', () => {
       expect(html).toContain('<html lang="en" dir="ltr">')
       expect(html).toContain('alt="" role="presentation"')
       expect(html).toMatch(/src="https?:\/\/[^"]+\/metardu-email-mark\.png"/)
-      expect(html).toMatch(/href="https?:\/\/[^\"]+\/docs\/privacy"/)
+      expect(html).toContain('href="https://metardu.space/docs/privacy"')
       expect(html).not.toContain('data:image/png;base64')
       expect(html.match(/<h1\b/g)).toHaveLength(1)
       if (name === 'weeklyDigest') {
