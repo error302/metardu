@@ -47,6 +47,23 @@ fi
 fail() { REASON="$1"; }
 trap 'if [[ -n "$REASON" ]]; then echo "pre-push: BLOCKED — $REASON" >&2; echo "(fix and re-push, or SKIP_PRE_PUSH=1 in a genuine emergency)" >&2; exit 1; fi' EXIT
 
+run_jest_batches() {
+  local -a batch=()
+  local file
+  while IFS= read -r file; do
+    [[ -n "$file" ]] || continue
+    batch+=("$file")
+    if (( ${#batch[@]} >= 75 )); then
+      timeout "$TIMEBOX" npx jest --findRelatedTests --passWithNoTests "${batch[@]}" || return 1
+      batch=()
+    fi
+  done <<< "$CHANGED_FILES"
+
+  if (( ${#batch[@]} > 0 )); then
+    timeout "$TIMEBOX" npx jest --findRelatedTests --passWithNoTests "${batch[@]}"
+  fi
+}
+
 # --- 1. Types ----------------------------------------------------------------
 if [[ -f tsconfig.json ]]; then
   echo "pre-push: tsc --noEmit ..."
@@ -93,7 +110,8 @@ if [[ "${SKIP_PRE_PUSH_TESTS:-}" != "1" ]]; then
     fi
   elif grep -q '"jest"' package.json 2>/dev/null; then
     echo "pre-push: jest changed-files tests ..."
-    if ! timeout "$TIMEBOX" npx jest --findRelatedTests --passWithNoTests $CHANGED_FILES; then
+    # Keep each invocation below Windows' process argument limit on broad changes.
+    if ! run_jest_batches; then
       fail "jest failed"
     fi
   else
