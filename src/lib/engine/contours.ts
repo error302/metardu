@@ -327,9 +327,12 @@ export function generateContours(
 
   if (triangles.length === 0) return []
 
-  const elevations = points.map(p => p.elevation)
-  const minElev = Math.min(...elevations)
-  const maxElev = Math.max(...elevations)
+  let minElev = Infinity
+  let maxElev = -Infinity
+  for (const p of points) {
+    if (p.elevation < minElev) minElev = p.elevation
+    if (p.elevation > maxElev) maxElev = p.elevation
+  }
 
   const firstContour = Math.ceil(minElev / interval) * interval
   const contourElevations: number[] = []

@@ -76,12 +76,16 @@ export function runIDWSync(
     throw new Error('IDW requires at least one survey point.')
   }
 
-  const xs = samples.map(p => p.x)
-  const ys = samples.map(p => p.y)
-  const rawMinX = Math.min(...xs)
-  const rawMaxX = Math.max(...xs)
-  const rawMinY = Math.min(...ys)
-  const rawMaxY = Math.max(...ys)
+  let rawMinX = Infinity
+  let rawMaxX = -Infinity
+  let rawMinY = Infinity
+  let rawMaxY = -Infinity
+  for (const p of samples) {
+    if (p.x < rawMinX) rawMinX = p.x
+    if (p.x > rawMaxX) rawMaxX = p.x
+    if (p.y < rawMinY) rawMinY = p.y
+    if (p.y > rawMaxY) rawMaxY = p.y
+  }
 
   const padX = (rawMaxX - rawMinX) * 0.05 || 1
   const padY = (rawMaxY - rawMinY) * 0.05 || 1
