@@ -114,6 +114,9 @@ export function RoadFieldPlanStep({
         <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-400">
           Set the chainage range, cross-section extents and codes the crew will use. METARDU will turn this into a station list so the field session can focus on capturing and coding points.
         </p>
+        <p className="mt-2 max-w-3xl text-xs leading-5 text-zinc-500">
+          On the capture device, open point collection while online before leaving coverage. This saves the current plan for offline reopening; the collector shows the saved time and asks you to confirm an offline copy before capture.
+        </p>
         <p className="mt-2 text-xs text-zinc-500">Project: {projectName}{roadName ? ` · Road: ${roadName}` : ''}</p>
       </header>
 

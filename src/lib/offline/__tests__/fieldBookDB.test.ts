@@ -15,7 +15,7 @@ jest.mock('idb', () => ({
   }),
 }))
 
-import { generateId, isOnline } from '../fieldBookDB'
+import { generateId, isOnline, upgradeFieldBookStores } from '../fieldBookDB'
 
 describe('fieldBookDB', () => {
   it('generateId produces unique strings', () => {
@@ -28,5 +28,45 @@ describe('fieldBookDB', () => {
 
   it('isOnline returns boolean', () => {
     expect(typeof isOnline()).toBe('boolean')
+  })
+
+  it('adds the road plan store without recreating existing field-book stores', () => {
+    const existing = new Set(['observations', 'projects', 'photos'])
+    const createObjectStore = jest.fn((name: string, _options?: { keyPath?: string }) => {
+      existing.add(name)
+      return { createIndex: jest.fn() }
+    })
+    const db = {
+      objectStoreNames: { contains: (name: string) => existing.has(name) },
+      createObjectStore,
+    } as unknown as Parameters<typeof upgradeFieldBookStores>[0]
+
+    upgradeFieldBookStores(db)
+
+    expect(createObjectStore).toHaveBeenCalledTimes(1)
+    expect(createObjectStore.mock.calls).toEqual([[ 'roadFieldPlans', { keyPath: 'projectId' } ]])
+  })
+
+  it('creates the complete field-book schema for a fresh database', () => {
+    const existing = new Set<string>()
+    const createIndex = jest.fn()
+    const createObjectStore = jest.fn((name: string, _options?: { keyPath?: string }) => {
+      existing.add(name)
+      return { createIndex }
+    })
+    const db = {
+      objectStoreNames: { contains: (name: string) => existing.has(name) },
+      createObjectStore,
+    } as unknown as Parameters<typeof upgradeFieldBookStores>[0]
+
+    upgradeFieldBookStores(db)
+
+    expect(createObjectStore.mock.calls.map(([name]) => name)).toEqual([
+      'observations',
+      'projects',
+      'photos',
+      'roadFieldPlans',
+    ])
+    expect(createIndex).toHaveBeenCalledTimes(4)
   })
 })

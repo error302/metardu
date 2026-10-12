@@ -38,6 +38,11 @@ import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, summari
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
 import { createClient } from '@/lib/api-client/client'
 
+function isOfflinePlanFetchFailure(error: unknown): boolean {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) return true
+  return error instanceof TypeError && /fetch|network|load failed/i.test(error.message)
+}
+
 interface FieldDataCollectorProps {
   projectId: string
   surveyType?: SurveyType
@@ -61,6 +66,9 @@ export function FieldDataCollector({
   const [roadFieldPlan, setRoadFieldPlan] = useState<RoadFieldPlan | null>(null)
   const [roadPlanLoading, setRoadPlanLoading] = useState(roadSurvey)
   const [roadPlanLoadError, setRoadPlanLoadError] = useState(false)
+  const [roadPlanSource, setRoadPlanSource] = useState<'server_cached' | 'server_uncached' | 'offline_cache' | null>(null)
+  const [roadPlanCachedAt, setRoadPlanCachedAt] = useState<string | null>(null)
+  const [offlinePlanAcknowledged, setOfflinePlanAcknowledged] = useState(false)
   const [activeRoadStationIndex, setActiveRoadStationIndex] = useState(0)
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number; z: number } | null>(null)
   const [isSunlightMode, setIsSunlightMode] = useState(false)
@@ -94,6 +102,45 @@ export function FieldDataCollector({
     const loadRoadPlan = async () => {
       setRoadPlanLoading(true)
       setRoadPlanLoadError(false)
+      setRoadFieldPlan(null)
+      setRoadPlanSource(null)
+      setRoadPlanCachedAt(null)
+      setOfflinePlanAcknowledged(false)
+
+      const loadOfflineCopy = async () => {
+        const { getCachedRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
+        const cached = await getCachedRoadFieldPlan(projectId)
+        const cachedPlan = parseRoadFieldPlan(cached?.plan)
+        if (!cached || !cachedPlan || !Number.isFinite(Date.parse(cached.cachedAt))) {
+          if (current) {
+            setRoadFieldPlan(null)
+            setRoadPlanLoadError(true)
+          }
+          return
+        }
+        if (current) {
+          setRoadFieldPlan(cachedPlan)
+          setRoadPlanSource('offline_cache')
+          setRoadPlanCachedAt(cached.cachedAt)
+          setActiveRoadStationIndex(0)
+          setRoadPlanLoadError(false)
+        }
+      }
+
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        try {
+          await loadOfflineCopy()
+        } catch {
+          if (current) {
+            setRoadFieldPlan(null)
+            setRoadPlanLoadError(true)
+          }
+        } finally {
+          if (current) setRoadPlanLoading(false)
+        }
+        return
+      }
+
       try {
         const result = await createClient()
           .from('projects')
@@ -105,13 +152,51 @@ export function FieldDataCollector({
         const planValue = typeof engineeringData === 'object' && engineeringData !== null
           ? (engineeringData as { roadFieldPlan?: unknown }).roadFieldPlan
           : undefined
+        const plan = parseRoadFieldPlan(planValue)
+        if (!plan) {
+          const { deleteCachedRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
+          await deleteCachedRoadFieldPlan(projectId).catch(() => undefined)
+          if (current) {
+            setRoadFieldPlan(null)
+            setRoadPlanSource(null)
+            setRoadPlanCachedAt(null)
+            setRoadPlanLoadError(false)
+          }
+          return
+        }
+
+        let cachedAt: string | null = null
+        let source: 'server_cached' | 'server_uncached' = 'server_uncached'
+        try {
+          const { cacheRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
+          const cached = await cacheRoadFieldPlan(projectId, plan)
+          cachedAt = cached.cachedAt
+          source = 'server_cached'
+        } catch {
+          // Keep the online plan usable, but tell the operator this device is not prepared for offline reopening.
+        }
         if (current) {
-          setRoadFieldPlan(parseRoadFieldPlan(planValue))
+          setRoadFieldPlan(plan)
+          setRoadPlanSource(source)
+          setRoadPlanCachedAt(cachedAt)
           setActiveRoadStationIndex(0)
         }
-      } catch {
+      } catch (error) {
+        if (isOfflinePlanFetchFailure(error)) {
+          try {
+            await loadOfflineCopy()
+          } catch {
+            if (current) {
+              setRoadFieldPlan(null)
+              setRoadPlanLoadError(true)
+            }
+          }
+          return
+        }
         if (current) {
           setRoadFieldPlan(null)
+          setRoadPlanSource(null)
+          setRoadPlanCachedAt(null)
           setRoadPlanLoadError(true)
         }
       } finally {
@@ -241,6 +326,35 @@ export function FieldDataCollector({
             <p className="text-sm text-[var(--text-muted)]">Loading the saved road field plan…</p>
           ) : roadFieldPlan ? (
             <div className="space-y-3">
+              {roadPlanSource === 'offline_cache' && (
+                <div role="alert" className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-100">
+                  <p>
+                    Offline copy saved <time dateTime={roadPlanCachedAt ?? undefined}>{roadPlanCachedAt ? new Date(roadPlanCachedAt).toLocaleString() : 'at an unknown time'}</time>.
+                    It may not include later project edits. Check it against the issued field brief before collecting.
+                  </p>
+                  <label className="mt-2 flex min-h-11 items-center gap-2 font-medium">
+                    <input
+                      type="checkbox"
+                      checked={offlinePlanAcknowledged}
+                      onChange={event => setOfflinePlanAcknowledged(event.target.checked)}
+                      className="h-4 w-4 accent-amber-400"
+                    />
+                    I checked this copy against the field brief for this session.
+                  </label>
+                </div>
+              )}
+              {roadPlanSource === 'server_uncached' && (
+                <p role="alert" className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-amber-100">
+                  The project plan loaded, but this device could not save an offline copy. Reopen the plan while online before leaving for the field.
+                </p>
+              )}
+              {roadPlanSource === 'server_cached' && (
+                <p role="status" className="text-xs text-[var(--text-muted)]">The current project plan is saved on this device for offline reopening.</p>
+              )}
+              <div role="group" aria-label="Road survey coordinate reference and control" className="grid gap-1 rounded-lg border border-[var(--border-color)] px-3 py-2 text-xs text-[var(--text-secondary)] sm:grid-cols-2">
+                <p className="break-words"><span className="font-semibold">Project CRS:</span> {roadFieldPlan.projectCrs}</p>
+                <p className="break-words"><span className="font-semibold">Control / benchmark:</span> {roadFieldPlan.controlReference}</p>
+              </div>
               <div className="flex flex-wrap items-center gap-3">
                 <label htmlFor="road-chainage-station" className="text-sm font-semibold text-[var(--text-primary)]">Chainage station</label>
                 <select
@@ -301,7 +415,7 @@ export function FieldDataCollector({
             </div>
           ) : (
             <div className="flex flex-wrap items-center gap-2 text-sm text-amber-500">
-              <span>{roadPlanLoadError ? 'Could not load the road field plan.' : 'No valid road field plan is saved for this project.'}</span>
+              <span>{roadPlanLoadError ? 'Could not load a current road plan or a valid offline copy. Connect to the project or reopen this plan online before collecting.' : 'No valid road field plan is saved for this project.'}</span>
               <a href={`/project/${projectId}/engineering?step=field_plan`} className="font-semibold underline underline-offset-2">Open road field plan</a>
             </div>
           )}
@@ -329,7 +443,7 @@ export function FieldDataCollector({
             )}
             <FieldMeasureButton
               onCapture={(pointId) => handleCapture(pointId, activeFeatureCode || undefined)}
-              disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || activeRoadStation === null || !activeFeatureCode))}
+              disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || activeRoadStation === null || !activeFeatureCode || (roadPlanSource === 'offline_cache' && !offlinePlanAcknowledged)))}
               stationSetup={!!sessionState.setup}
               pointIdPrefix={pointIdPrefix}
               nextPointNumber={nextPointNumber}

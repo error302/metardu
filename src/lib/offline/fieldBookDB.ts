@@ -17,9 +17,10 @@
 
 import { logger } from '@/lib/logger'
 import { openDB, type IDBPDatabase } from 'idb'
+import type { RoadFieldPlan } from '@/types/engineering'
 
 const DB_NAME = 'metardu-fieldbook'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -65,12 +66,19 @@ export interface OfflineProject {
   lastModifiedAt: string
 }
 
+export interface OfflineRoadFieldPlan {
+  projectId: string
+  plan: RoadFieldPlan
+  cachedAt: string
+}
+
 // ─── Database Schema ───────────────────────────────────────────────────────
 
 interface FieldBookDB {
   observations: OfflineObservation[]
   projects: OfflineProject[]
   photos: { id: string; blob: Blob }
+  roadFieldPlans: OfflineRoadFieldPlan[]
 }
 
 let dbPromise: Promise<IDBPDatabase<FieldBookDB>> | null = null
@@ -79,19 +87,34 @@ function getDB(): Promise<IDBPDatabase<FieldBookDB>> {
   if (!dbPromise) {
     dbPromise = openDB<FieldBookDB>(DB_NAME, DB_VERSION, {
       upgrade(db) {
-        const obsStore = db.createObjectStore('observations', { keyPath: 'id' })
-        obsStore.createIndex('byProject', 'projectId')
-        obsStore.createIndex('bySync', 'syncedAt')
-        obsStore.createIndex('byProjectType', ['projectId', 'surveyType'])
-
-        const projStore = db.createObjectStore('projects', { keyPath: 'id' })
-        projStore.createIndex('byModified', 'lastModifiedAt')
-
-        db.createObjectStore('photos', { keyPath: 'id' })
+        upgradeFieldBookStores(db)
       },
     })
   }
   return dbPromise
+}
+
+/** Add missing stores only, so upgrading a version 1 field book preserves its records. */
+export function upgradeFieldBookStores(db: IDBPDatabase<FieldBookDB>): void {
+  if (!db.objectStoreNames.contains('observations')) {
+    const obsStore = db.createObjectStore('observations', { keyPath: 'id' })
+    obsStore.createIndex('byProject', 'projectId')
+    obsStore.createIndex('bySync', 'syncedAt')
+    obsStore.createIndex('byProjectType', ['projectId', 'surveyType'])
+  }
+
+  if (!db.objectStoreNames.contains('projects')) {
+    const projStore = db.createObjectStore('projects', { keyPath: 'id' })
+    projStore.createIndex('byModified', 'lastModifiedAt')
+  }
+
+  if (!db.objectStoreNames.contains('photos')) {
+    db.createObjectStore('photos', { keyPath: 'id' })
+  }
+
+  if (!db.objectStoreNames.contains('roadFieldPlans')) {
+    db.createObjectStore('roadFieldPlans', { keyPath: 'projectId' })
+  }
 }
 
 // ─── Observation CRUD ──────────────────────────────────────────────────────
@@ -112,6 +135,23 @@ export async function getObservations(projectId: string, surveyType?: Observatio
 export async function deleteObservation(id: string): Promise<void> {
   const db = await getDB()
   await db.delete('observations', id)
+}
+
+export async function cacheRoadFieldPlan(projectId: string, plan: RoadFieldPlan): Promise<OfflineRoadFieldPlan> {
+  const db = await getDB()
+  const cached: OfflineRoadFieldPlan = { projectId, plan, cachedAt: new Date().toISOString() }
+  await db.put('roadFieldPlans', cached)
+  return cached
+}
+
+export async function getCachedRoadFieldPlan(projectId: string): Promise<OfflineRoadFieldPlan | null> {
+  const db = await getDB()
+  return (await db.get('roadFieldPlans', projectId)) ?? null
+}
+
+export async function deleteCachedRoadFieldPlan(projectId: string): Promise<void> {
+  const db = await getDB()
+  await db.delete('roadFieldPlans', projectId)
 }
 
 export async function getUnsyncedObservations(): Promise<OfflineObservation[]> {
