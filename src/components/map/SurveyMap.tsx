@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { registerProjectProjection, arrayTo3857, toProjectCrs, SRID_3857 } from '@/lib/map/projection';
 import { nearestKenCORSStations, type KenCORSStation } from '@/lib/map/kencors';
 import type { AdjustedStation, PlanGeometry } from '@/lib/engine/planGeometry';
@@ -27,7 +28,7 @@ function SurveyMapPrintControls() {
     <>
       <button
         onClick={printApi.toggleSheetLayout}
-        className={`px-3 py-1.5 rounded text-xs font-medium border transition-colors ${
+        className={`min-h-9 rounded-md border px-3 text-xs font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B3A5C] focus-visible:ring-offset-2 ${
           printApi.sheetLayoutOpen
             ? 'bg-[#1B3A5C] text-white border-[#1B3A5C]'
             : 'bg-white text-[#1B3A5C] border-[#1B3A5C] hover:bg-[#1B3A5C]/5'
@@ -38,7 +39,7 @@ function SurveyMapPrintControls() {
       </button>
       <button
         onClick={() => void printApi.print()}
-        className="px-3 py-1.5 bg-white text-[#1B3A5C] border border-[#1B3A5C] rounded text-xs font-medium hover:bg-[#1B3A5C]/5 transition-colors"
+        className="min-h-9 rounded-md border border-[#1B3A5C] bg-white px-3 text-xs font-semibold text-[#1B3A5C] transition-colors hover:bg-[#1B3A5C]/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B3A5C] focus-visible:ring-offset-2"
         title="Export current map view to PDF (A3 landscape)"
       >
         ⎙ Print / PDF
@@ -377,24 +378,54 @@ export default function SurveyMap({
   return (
     <SurveyMapEngineProvider printApi={printApi}>
     <div id={mapContainerId} className="metardu-survey-map flex flex-col h-full text-slate-800" role="application" aria-label={geometryKind === 'points' ? 'Survey field point map' : 'Survey boundary map'}>
-      <div className="flex flex-wrap items-center gap-2 px-3 py-2 bg-white border-b border-gray-200 text-sm">
-        <button
-          onClick={fitToParcel}
-          className="px-3 py-1.5 bg-[#1B3A5C] text-white rounded text-xs font-medium hover:bg-[#142d49]"
-        >
-          {geometryKind === 'points' ? 'Fit to Points' : 'Fit to Parcel'}
-        </button>
-        <SurveyMapPrintControls />
-        <div className="flex-1" />
-        <div className="flex flex-wrap items-center gap-3 text-xs text-gray-600">
-          <span className="font-medium">Reviewed GNSS references:</span>
-          {!mapReady ? <span>Reference locations load after the survey map.</span> : referenceLoading ? <span role="status">Loading optional reference locations…</span> : referenceError ? <span role="status">{referenceError}</span> : nearestStations.length === 0 && <span>No same-grid reference locations within 100 km.</span>}
-          {nearestStations.map(st => (
-            <span key={st.id} className="text-blue-700" title={`${st.sourceReference}; catalogue review does not indicate live station availability`}>
-              {st.name} ({st.distanceKm.toFixed(1)} km grid)
-            </span>
-          ))}
+      <div className="grid gap-2 border-b border-gray-200 bg-white px-3 py-2 text-sm sm:grid-cols-[auto_auto_minmax(0,1fr)] sm:items-center">
+        <div role="group" aria-label="Map view controls" className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">View</span>
+          <button
+            type="button"
+            onClick={fitToParcel}
+            className="min-h-9 rounded-md bg-[#1B3A5C] px-3 text-xs font-semibold text-white transition-colors hover:bg-[#142d49] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B3A5C] focus-visible:ring-offset-2"
+          >
+            {geometryKind === 'points' ? 'Fit to points' : 'Fit to parcel'}
+          </button>
         </div>
+
+        <div role="group" aria-label="Map output controls" className="flex flex-wrap items-center gap-2">
+          <span className="mr-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-gray-500">Output</span>
+          <SurveyMapPrintControls />
+        </div>
+
+        <details className="relative min-w-0 sm:justify-self-end">
+          <summary className="flex min-h-9 cursor-pointer list-none items-center justify-between gap-3 rounded-md border border-gray-200 px-3 text-xs text-gray-700 transition-colors hover:border-gray-300 hover:bg-gray-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1B3A5C] [&::-webkit-details-marker]:hidden sm:justify-start">
+            <span className="font-medium">GNSS reference catalogue</span>
+            <span className="text-gray-500" aria-live="polite">
+              {!mapReady ? 'Waiting for map' : referenceLoading ? 'Checking…' : referenceError ? 'Unavailable' : nearestStations.length ? `${nearestStations.length} nearby` : 'No nearby stations'}
+            </span>
+            <ChevronDown className="h-3.5 w-3.5 shrink-0 text-gray-500" aria-hidden="true" />
+          </summary>
+          <div className="mt-2 rounded-md border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600 sm:absolute sm:right-0 sm:z-20 sm:w-[min(28rem,calc(100vw-2rem))] sm:shadow-lg">
+            <p className="leading-5">
+              These catalogue locations share the project grid and fall within 100 km. Catalogue proximity does not confirm live station availability.
+            </p>
+            {!mapReady ? (
+              <p className="mt-2">Reference locations load after the survey map.</p>
+            ) : referenceLoading ? (
+              <p className="mt-2" role="status">Loading optional reference locations…</p>
+            ) : referenceError ? (
+              <p className="mt-2" role="status">{referenceError}</p>
+            ) : nearestStations.length === 0 ? (
+              <p className="mt-2">No same-grid reference locations were found within 100 km.</p>
+            ) : (
+              <div className="mt-2 flex flex-wrap gap-2">
+                {nearestStations.map(st => (
+                  <span key={st.id} className="rounded border border-gray-200 bg-white px-2 py-1 text-blue-800" title={st.sourceReference}>
+                    {st.name} · {st.distanceKm.toFixed(1)} km grid
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+        </details>
       </div>
 
       <div className="relative flex-1">

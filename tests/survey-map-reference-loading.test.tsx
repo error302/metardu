@@ -1,5 +1,5 @@
 /** @jest-environment jsdom */
-import { act,render,screen,waitFor } from '@testing-library/react'
+import { act,fireEvent,render,screen,waitFor } from '@testing-library/react'
 import SurveyMap from '@/components/map/SurveyMap'
 type ReferenceRequestArgs=[number,number,number,string,AbortSignal]
 const mockConstruct=jest.fn(),mockSetLayer=jest.fn(),mockLookup=jest.fn<Promise<unknown[]>,ReferenceRequestArgs>()
@@ -35,15 +35,19 @@ test('primary survey map renders while optional catalogue lookup is unresolved',
  render(<SurveyMap {...props}/>)
  await waitFor(()=>expect(mockConstruct).toHaveBeenCalledTimes(1))
  expect(screen.queryByText('Loading map...')).not.toBeInTheDocument()
+ expect(screen.getByText('Checking…')).toBeVisible()
+ fireEvent.click(screen.getByText('GNSS reference catalogue'))
  expect(screen.getByText('Loading optional reference locations…')).toBeVisible()
  await act(async()=>{resolve?.([])})
- await screen.findByText('No same-grid reference locations within 100 km.')
+ expect(await screen.findByText('No same-grid reference locations were found within 100 km.')).toBeVisible()
  expect(mockSetLayer).toHaveBeenCalledTimes(1)
 })
 test('offline lookup is visible and cannot prevent the primary survey map',async()=>{
  mockLookup.mockRejectedValue(new Error('Synthetic reference connection unavailable'))
  render(<SurveyMap {...props}/>)
- await screen.findByText('Synthetic reference connection unavailable')
+ expect(await screen.findByText('Unavailable')).toBeVisible()
+ fireEvent.click(screen.getByText('GNSS reference catalogue'))
+ expect(await screen.findByText('Synthetic reference connection unavailable')).toBeVisible()
  expect(mockConstruct).toHaveBeenCalledTimes(1)
  expect(screen.queryByText('Loading map...')).not.toBeInTheDocument()
 })
@@ -68,7 +72,7 @@ test('field points do not acquire a parcel, area, perimeter or boundary annotati
  expect(mockParcel).toHaveBeenCalledWith([])
  expect(mockAnnotations).toHaveBeenCalledWith(expect.objectContaining({coords3857:[],stations21037:[]}))
  expect(mockPlan).not.toHaveBeenCalled()
- expect(screen.getByRole('button',{name:'Fit to Points'})).toBeVisible()
+ expect(screen.getByRole('button',{name:'Fit to points'})).toBeVisible()
 })
 test('a saved geometry change refreshes layers even if its centroid is unchanged',async()=>{
  mockLookup.mockResolvedValue([])
