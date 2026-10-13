@@ -751,16 +751,19 @@ describe('Statutory Validation Gate', () => {
   // ─── formatGateResult ────────────────────────────────────────────────
 
   describe('formatGateResult', () => {
-    it('includes PASS/BLOCKED status in output', () => {
+    it('reports the configured-check outcome without implying official approval', () => {
       const passingResult = runStatutoryGate(makeBaseInput())
       const passingText = formatGateResult(passingResult)
-      expect(passingText).toContain('PASS')
+      expect(passingText).toContain('No configured check flagged an issue')
+      expect(passingText).toContain('not official approval')
+      expect(passingText).not.toMatch(/\bPASS\b/)
 
       const failingResult = runStatutoryGate(
         makeBaseInput({ surveyor: { name: '', licenseNumber: '' } })
       )
       const failingText = formatGateResult(failingResult)
-      expect(failingText).toContain('BLOCKED')
+      expect(failingText).toContain('METARDU checks require review')
+      expect(failingText).toContain('[BLOCK]')
     })
 
     it('includes rule version and profile in output', () => {
@@ -779,10 +782,11 @@ describe('Statutory Validation Gate', () => {
       expect(text).toContain('sok_standard.surveyor_license_required')
     })
 
-    it('states "All checks passed" when there are no violations', () => {
+    it('explains that no configured check flagged an issue when there are no violations', () => {
       const result = runStatutoryGate(makeBaseInput())
       const text = formatGateResult(result)
-      expect(text).toContain('All checks passed')
+      expect(text).toContain('No configured check flagged an issue; this is not official approval.')
+      expect(text).not.toContain('All checks passed')
     })
   })
 })
