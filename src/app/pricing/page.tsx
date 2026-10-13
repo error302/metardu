@@ -30,30 +30,28 @@ export default function PricingPage() {
   useEffect(() => { document.title = 'Pricing — METARDU' }, [])
 
   useEffect(() => {
-    async function detectCurrency() {
-      try {
-        const cached = localStorage.getItem('metardu:currency')
-        if (cached) {
-          const { code, ts } = JSON.parse(cached) as { code: CurrencyCode; ts: number }
-          if (Date.now() - ts < 86400000 && SUPPORTED_CURRENCIES.includes(code)) {
-            if (!currencyPickedByUser.current) setCurrency(code)
-            return
-          }
+    try {
+      const cached = localStorage.getItem('metardu:currency')
+      if (cached) {
+        const { code, ts } = JSON.parse(cached) as { code: CurrencyCode; ts: number }
+        if (Date.now() - ts < 86400000 && SUPPORTED_CURRENCIES.includes(code)) {
+          if (!currencyPickedByUser.current) setCurrency(code)
+          return
         }
-      } catch { /* ignore */ }
-      try {
-        const res = await fetch('https://ipapi.co/json/')
-        const data = (await res.json()) as { country_code?: string }
-        if (!currencyPickedByUser.current && data.country_code && currencyMap[data.country_code] && SUPPORTED_CURRENCIES.includes(currencyMap[data.country_code])) {
-          const code = currencyMap[data.country_code]
-          setCurrency(code)
-          try { localStorage.setItem('metardu:currency', JSON.stringify({ code, ts: Date.now() })) } catch { /* ignore */ }
-        }
-      } catch {
-        // Use default KES
       }
+    } catch { /* ignore */ }
+
+    // Infer only from the browser's existing locale. Do not send a visitor's
+    // IP address to a separate geolocation service just to format prices.
+    const localeRegion = navigator.language
+      .split(/[-_]/)
+      .filter((part) => /^[a-z]{2}$/i.test(part))
+      .pop()
+      ?.toUpperCase()
+    const localeCurrency = localeRegion ? currencyMap[localeRegion] : undefined
+    if (localeCurrency && SUPPORTED_CURRENCIES.includes(localeCurrency) && !currencyPickedByUser.current) {
+      setCurrency(localeCurrency)
     }
-    detectCurrency()
   }, [])
 
   const [selectedPlanId, setSelectedPlanId] = useState<PlanId>('pro')
