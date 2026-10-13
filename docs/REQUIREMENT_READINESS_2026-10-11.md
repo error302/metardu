@@ -50,3 +50,12 @@ Historical source/browser artifacts remain separate from fresh production/field
 proof. Do not restart completed migration/recovery work or overwrite the localhost
 CAD training drawing. Continue into demonstrated source gaps while external gates
 are pending; do not treat this checklist as platform completion.
+
+PayPal renewal follow-up (13 October): The route already contained a
+`PAYMENT.SALE.COMPLETED` renewal handler, but its event allowlist discarded that
+event before dispatch. The allowlist now admits the event, and a signed
+route-level regression test verifies that the associated user's billing period
+is extended. This is source evidence only; the change is not promoted, and the
+production webhook subscription and a real recurring payment remain unverified.
+The separate `BILLING.SUBSCRIPTION.PAYMENT.FAILED` event is still not handled;
+PayPal billing-lifecycle coverage is incomplete.
