@@ -1,5 +1,35 @@
 # METARDU continuation — 10 October 2026
 
+## Current contour/volume and runtime checkpoint — 14 October 2026
+
+Read `CONTOUR_AND_VOLUME_INTEGRITY_2026-10-14.md` before further work. The contour
+tool was silently reducing measured datasets of 20+ points; supplied observations
+are now preserved. Stale/partial exports, import errors and centimetre labels are
+corrected. Shared volumes now use the correct Simpson span and separate signed
+cut/fill transitions; mass haul uses actual volume increments and chainages.
+70 focused source tests, two recovered-migration byte tests, strict app/test
+types and scoped lint are verified. Browser/CDP checks remain incomplete.
+
+The existing app was found in Created state after the migration service rejected
+052's altered bytes. Source 052 was restored from the verified recovered artifact
+without changing its recorded checksum. All 109 applied source versions match;
+105 marketing deliveries remains pending. The same app container/image44106f7a
+was restarted after its own 109 artifacts matched with no pending versions.
+Its startup schema check and final read-only Docker verifier passed. The existing
+backup service's outdated DATABASE_URL-only script was replaced with the tested
+current PG-compatible script; its image remains old, so retain this fact before
+any later backup-container recreation. Fresh db/uploads_20261013_213336 archives
+passed gzip/header verification; no restore was repeated, no archive was removed.
+
+No new container, image, builder, migration, customer clone, email or source
+promotion occurred. Contour/volume source fixes still need a reviewed promotion.
+Do not rerun the failed migration service: its 052 artifact is still wrong, and
+105 needs release review. Source preview wrapper/cache was reused on127:3021;
+process15948/child17860/session77473 reached Ready but route/browser observations
+timed out. Inspect the live handle before restarting. CAD training storage is
+preserved. Next substantial engineering gaps include project road outputs and
+mixed-triangle TIN volume separation; the broader platform goal remains active.
+
 ## Current notice and worker release — 11 October 2026, 17:51 UTC
 
 Current production is healthy image **44106f7a461e...**, release **working-tree-03dc5697ba72209d**. The notice/worker/mobile release passed 87 focused source tests, both type checks, scoped lint and 46 actual production normal-account HTTP checks. The packaged contour worker completed in Chrome. The new in-platform ChatGPT notice was published at 2026-10-11T17:56:45.516Z; its period ends 2026-11-10T17:56:45.516Z (10 November, 20:56:45.516 EAT). Customer linking remains disabled; public HTTPS and actual human consent remain separate gates. The notice record is verified in the fresh upload backup. All 109 hashes, restricted role, supporting service identities and mounts are preserved. Read [NOTICE_WORKER_VERIFICATION_2026-10-11.md](NOTICE_WORKER_VERIFICATION_2026-10-11.md) for the current evidence and rollback identities.
