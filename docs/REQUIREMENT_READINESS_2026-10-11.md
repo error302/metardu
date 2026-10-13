@@ -88,6 +88,14 @@ Follow-up verification (13 October 2026): bearing/distance-only traverse results
 
 The repository Docker verifier again failed before inventory with the Docker pipe permission error; no container lifecycle operation or promotion was performed.
 
+Admin billing follow-up (13 October 2026): Staff plan overrides now draw
+valid plan IDs from the canonical subscription catalogue, so all current tiers
+including Team and Firm are available. Email and duration inputs are validated;
+the subscription upsert and audit event are written in one transaction, and a
+missing account causes no write. Focused route/schema tests pass 15/15, scoped
+ESLint passes, and app/test TypeScript checks pass. These are
+source-level checks only; no production override was made or promoted.
+
 ## Current email, pricing and map recheck — 2026-10-13
 
 - A fresh read-only Resend account check reports `metardu.space` as verified with sending enabled. The existing one-time design-check email is provider-reported as delivered; its HTML references `cid:metardu-email-mark`, and Resend lists the attached `metardu-email-mark.png` (PNG). This verifies provider-side delivery and attachment metadata, not inbox rendering or app-generated production mail. No new email was sent during this check.

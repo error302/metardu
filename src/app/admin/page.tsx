@@ -12,6 +12,7 @@ import {
   Megaphone, Check, X,
 } from 'lucide-react'
 import { z } from 'zod'
+import { getPlan, PLAN_CATALOG, type PlanId } from '@/lib/subscription/catalog'
 import { apiGet, apiPost, apiPatch, ApiError } from '@/lib/api/client'
 import dynamic from 'next/dynamic'
 import { RevenueLineChart, SubscriptionDonutChart } from '@/components/admin/charts/AdminCharts'
@@ -207,7 +208,7 @@ export default function AdminDashboardPage() {
 
   // Subscription override state
   const [overrideEmail, setOverrideEmail] = useState('')
-  const [overridePlan, setOverridePlan] = useState('pro')
+  const [overridePlan, setOverridePlan] = useState<PlanId>('pro')
   const [overrideDays, setOverrideDays] = useState('30')
   const [overrideSending, setOverrideSending] = useState(false)
   const [overrideResult, setOverrideResult] = useState<{ ok: boolean; msg: string } | null>(null)
@@ -221,6 +222,10 @@ export default function AdminDashboardPage() {
     .reduce((total, [, count]) => total + count, 0)
   const otherCurrencyRevenue = (data?.revenue.byCurrency ?? [])
     .filter(({ currency, total }) => currency !== 'KES' && total !== 0)
+  const requestedOverrideDays = overrideDays.trim() === '' ? 30 : Number(overrideDays)
+  const overrideDurationIsValid = Number.isInteger(requestedOverrideDays)
+    && requestedOverrideDays >= 1
+    && requestedOverrideDays <= 3650
 
   const fetchDashboard = useCallback(async () => {
     try {
@@ -293,7 +298,7 @@ export default function AdminDashboardPage() {
         {
           email: overrideEmail,
           plan: overridePlan,
-          days: parseInt(overrideDays, 10) || 30,
+          ...(overrideDays.trim() ? { days: requestedOverrideDays } : {}),
         },
       )
       setOverrideResult({ ok: true, msg: `Plan updated to ${overridePlan} for ${overrideDays} days` })
@@ -803,14 +808,20 @@ export default function AdminDashboardPage() {
                 <select
                   className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
                   value={overridePlan}
-                  onChange={e => setOverridePlan(e.target.value)}
+                  onChange={e => {
+                    const selectedPlan = getPlan(e.target.value)
+                    if (selectedPlan) setOverridePlan(selectedPlan.id)
+                  }}
                 >
-                  <option value="free">Free</option>
-                  <option value="pro">Pro</option>
-                  <option value="enterprise">Enterprise</option>
+                  {PLAN_CATALOG.map(plan => (
+                    <option key={plan.id} value={plan.id}>{plan.name}</option>
+                  ))}
                 </select>
                 <input
                   type="number"
+                  min={1}
+                  max={3650}
+                  step={1}
                   aria-label="Override duration (days)" placeholder="Days"
                   className="w-24 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
                   value={overrideDays}
@@ -819,7 +830,7 @@ export default function AdminDashboardPage() {
                 <button
                   onClick={handleOverride}
                   className="btn btn-primary flex items-center gap-2"
-                  disabled={!overrideEmail || overrideSending}
+                  disabled={!overrideEmail || !overrideDurationIsValid || overrideSending}
                 >
                   {overrideSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Apply
