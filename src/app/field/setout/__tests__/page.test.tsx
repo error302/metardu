@@ -102,6 +102,7 @@ async function waitForText(expected: string) {
 test('caches the project definitions and selected targets when the set-out screen is prepared online', async () => {
   await renderPage()
 
+  expect(container.textContent).toContain('Set-out targets saved on this device')
   const cache = jest.requireMock('@/lib/field/setoutQueue') as {
     cacheSetoutDefinitionList: jest.Mock
     cacheSetoutDefinitionPlan: jest.Mock

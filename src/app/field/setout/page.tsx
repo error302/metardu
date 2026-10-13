@@ -496,6 +496,12 @@ export default function FieldSetOutPage() {
         </p>
       )}
 
+      {!usingOfflinePlan && points.length > 0 && offlinePlanCachedAt && (
+        <p role="status" className="mx-3 mt-3 rounded-lg border border-emerald-700/70 bg-emerald-950/25 p-3 text-xs text-emerald-100">
+          Set-out targets saved on this device at {new Date(offlinePlanCachedAt).toLocaleString()}. Keep this field screen opened online before leaving coverage.
+        </p>
+      )}
+
       {usingOfflinePlan && points.length > 0 && (
         <section role="alert" className="mx-3 mt-3 rounded-lg border border-amber-600 bg-amber-950/40 p-3 text-sm text-amber-50">
           <p className="font-semibold">Working from a saved set-out plan while offline</p>
