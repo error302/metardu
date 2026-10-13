@@ -29,11 +29,12 @@ import { FieldConnectionBar } from './FieldConnectionBar'
 import { FieldMeasureButton } from './FieldMeasureButton'
 import { FieldObservationList } from './FieldObservationList'
 import { FieldStationSetup } from './FieldStationSetup'
+import { RoadFieldCodeSelector } from './RoadFieldCodeSelector'
 import { useFieldSessionState, useFieldSession } from '@/hooks/useFieldSessionState'
 import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
 import type { FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
-import type { RoadFieldPlan } from '@/types/engineering'
+import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
 import { createClient } from '@/lib/api-client/client'
@@ -433,6 +434,17 @@ export function FieldDataCollector({
       <div className="flex-1 overflow-y-auto">
         {activePanel === 'measure' && (
           <div className="flex flex-col items-center py-8 px-4 w-full">
+            {roadSurvey && roadFieldPlan && (
+              <div className="mb-5 w-full flex justify-center">
+                <RoadFieldCodeSelector
+                  codes={roadFieldPlan.featureCodes}
+                  value={activeFeatureCode as RoadFieldFeatureCode}
+                  capturedCodes={activeRoadStationStatus?.capturedFeatureCodes ?? []}
+                  sunlightMode={isSunlightMode}
+                  onChange={setActiveFeatureCode}
+                />
+              </div>
+            )}
             {/* Measure Button */}
             {isLoadingMeasurements && <p role="status" className="mb-4 text-sm text-[var(--text-muted)]">Loading saved points before capture…</p>}
             {measurementsLoadFailed && (
@@ -449,8 +461,8 @@ export function FieldDataCollector({
               nextPointNumber={nextPointNumber}
             />
 
-            {/* Smart Feature Coding */}
-            <div className="mt-8 w-full max-w-md">
+            {/* Smart Feature Coding for non-road survey profiles */}
+            {!roadSurvey && <div className="mt-8 w-full max-w-md">
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-semibold text-[var(--text-secondary)]">{roadSurvey ? 'Road point code' : 'Feature Code'}</span>
                 <button 
@@ -478,7 +490,7 @@ export function FieldDataCollector({
                   </button>
                 ))}
               </div>
-            </div>
+            </div>}
 
             {/* Instrument Connection CTA */}
             {!showInstrumentPanel && (
