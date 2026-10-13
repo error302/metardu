@@ -1,8 +1,8 @@
-name: Monthly opted-in plan reminder
+name: Opted-in plan reminders and preview
 
 on:
   schedule:
-    - cron: '0 8 * * 1'
+    - cron: "0 8 * * 1"
   workflow_dispatch:
 
 concurrency:
@@ -10,8 +10,31 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  preview-audience:
+    if: ${{ github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      APP_URL: ${{ vars.PROD_APP_URL || 'https://metardu.space' }}
+    steps:
+      - name: Count the eligible audience without sending
+        env:
+          API_ADMIN_KEY: ${{ secrets.API_ADMIN_KEY }}
+        run: |
+          HTTP_CODE=$(curl -sS -o /tmp/marketing-plan-reminders-preview.json -w "%{http_code}" --max-time 60 \
+            -X POST \
+            -H "Authorization: Bearer ${API_ADMIN_KEY}" \
+            -H "Content-Type: application/json" \
+            "${APP_URL}/api/cron/marketing-plan-reminders?dryRun=true" || echo "000")
+          echo "HTTP ${HTTP_CODE}"
+          cat /tmp/marketing-plan-reminders-preview.json 2>/dev/null || true
+          if [ "${HTTP_CODE}" != "200" ]; then
+            echo "Plan reminder audience preview failed (HTTP ${HTTP_CODE})" >&2
+            exit 1
+          fi
+
   send-reminders:
-    if: ${{ vars.METARDU_MARKETING_EMAILS_ENABLED == 'true' }}
+    if: ${{ github.event_name == 'schedule' && vars.METARDU_MARKETING_EMAILS_ENABLED == 'true' }}
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:

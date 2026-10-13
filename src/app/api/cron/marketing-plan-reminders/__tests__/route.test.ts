@@ -53,6 +53,54 @@ describe('POST /api/cron/marketing-plan-reminders', () => {
     expect(mockSend).not.toHaveBeenCalled()
   })
 
+  it('previews only a consent-filtered audience count without sending or requiring send configuration', async () => {
+    process.env.METARDU_MARKETING_EMAILS_ENABLED = 'false'
+    delete process.env.RESEND_API_KEY
+    delete process.env.AUTH_SECRET
+    mockDbQuery.mockResolvedValueOnce(mr([{ eligible_count: 137 }]))
+
+    const response = await POST(makeRequest('/api/cron/marketing-plan-reminders?dryRun=true', {
+      method: 'POST',
+      headers: { authorization: 'Bearer test-admin-key' },
+    }))
+    const body = await response.json() as {
+      success: boolean
+      dryRun: boolean
+      eligibleCount: number
+      nextBatchCount: number
+      batchLimit: number
+      sent: number
+    }
+    const previewQueryCalls = mockDbQuery.mock.calls as unknown as Array<[string, unknown[]?]>
+    const sql = previewQueryCalls[0]?.[0] ?? ''
+
+    expect(response.status).toBe(200)
+    expect(body).toMatchObject({
+      success: true,
+      dryRun: true,
+      eligibleCount: 137,
+      nextBatchCount: 100,
+      batchLimit: 100,
+      sent: 0,
+    })
+    expect(Object.keys(body).sort()).toEqual([
+      'batchLimit',
+      'campaignKey',
+      'dryRun',
+      'eligibleCount',
+      'nextBatchCount',
+      'sent',
+      'success',
+    ])
+    expect(sql).toContain("c.consent_type = 'marketing' AND c.granted = true")
+    expect(sql).toContain("p.notification_preferences->'email'->>'marketing' = 'true'")
+    expect(sql).toContain('u.email_verified = true')
+    expect(sql).toContain('d.attempt_count < 3')
+    expect(sql).toContain("d.claimed_at < NOW() - interval '10 minutes'")
+    expect(mockTransaction).not.toHaveBeenCalled()
+    expect(mockSend).not.toHaveBeenCalled()
+  })
+
   it('sends only the consent-filtered candidate and records a successful monthly touch', async () => {
     const candidate = { user_id: USER_ID, email: 'person@example.com', full_name: 'Ada Surveyor' }
     const client = { query: jest.fn() }

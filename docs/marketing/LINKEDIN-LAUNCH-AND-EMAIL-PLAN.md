@@ -120,7 +120,7 @@ The connected Resend workspace currently has a single `General` segment, which i
 
 The new email is intentionally useful and low pressure: it says Free access remains available, links to current plans, and gives a clear way to stop product and plan email. The scheduler checks consent again immediately before each send, so a recently upgraded or unsubscribed account is skipped. Each account receives at most one plan reminder per 30 days. Weekly project digests remain a separate preference. Trial reminders remain service lifecycle messages and are not used as permission to send other promotions.
 
-The sending route and monthly workflow stay disabled unless both the app setting `METARDU_MARKETING_EMAILS_ENABLED=true` and GitHub repository variable of the same name are explicitly enabled. The production container must also have Resend configured. Review the final audience count and copy before enabling those controls. A LinkedIn lead’s request for a demo is not consent to recurring promotional email; collect that separately.
+The sending route and scheduled workflow stay disabled unless both the app setting `METARDU_MARKETING_EMAILS_ENABLED=true` and GitHub repository variable of the same name are explicitly enabled. The production container must also have Resend configured. The workflow checks weekly and the app limits each recipient to one reminder per 30 days. Manual workflow dispatch runs an authenticated, PII-free audience-count preview only; it cannot send or claim deliveries. Review that count and the copy before enabling the send controls. A LinkedIn lead’s request for a demo is not consent to recurring promotional email; collect that separately.
 
 ### Current email checks (2026-10-13)
 

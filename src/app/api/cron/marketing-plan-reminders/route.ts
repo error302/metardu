@@ -8,46 +8,7 @@ export const dynamic = 'force-dynamic'
 const MAX_BATCH = 100
 const MAX_ATTEMPTS = 3
 
-interface Candidate {
-  user_id: string
-  email: string
-  full_name: string | null
-}
-
-function monthCampaignKey(now = new Date()): string {
-  return `plan-nudge-${now.toISOString().slice(0, 7)}`
-}
-
-export async function POST(request: NextRequest) {
-  const serviceKey = process.env.API_ADMIN_KEY
-  if (!serviceKey || request.headers.get('authorization') !== `Bearer ${serviceKey}`) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-  }
-  if (process.env.METARDU_MARKETING_EMAILS_ENABLED !== 'true') {
-    return NextResponse.json({ error: 'Marketing email sending is disabled' }, { status: 403 })
-  }
-  if (!process.env.RESEND_API_KEY) {
-    return NextResponse.json({ error: 'Resend is not configured for marketing email' }, { status: 503 })
-  }
-  const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
-  if (!authSecret || authSecret.length < 32) {
-    return NextResponse.json({ error: 'Marketing unsubscribe signing is not configured' }, { status: 503 })
-  }
-
-  setCurrentRlsServiceRole('billing_reconciliation')
-  const campaignKey = monthCampaignKey()
-  const candidates = await db.transaction(async (client) => {
-    // A provider timeout can leave delivery state uncertain. Recover only
-    // within Resend's idempotency window; older attempts need operator review.
-    await client.query<never>(
-      `UPDATE marketing_email_deliveries
-       SET status = 'needs_review'
-       WHERE status IN ('processing', 'failed')
-         AND claimed_at < NOW() - interval '23 hours'`,
-    )
-
-    const { rows } = await client.query<Candidate>(
-      `SELECT u.id::text AS user_id, u.email, u.full_name
+const ELIGIBLE_CANDIDATE_FROM_WHERE = `
        FROM users u
        JOIN profiles p ON p.id = u.id
        JOIN user_consents c ON c.user_id = u.id
@@ -80,6 +41,78 @@ export async function POST(request: NextRequest) {
            WHERE d.user_id = u.id AND d.status = 'sent'
              AND d.sent_at > NOW() - interval '30 days'
          )
+         AND NOT EXISTS (
+           SELECT 1 FROM marketing_email_deliveries d
+           WHERE d.user_id = u.id AND d.campaign_key = $1
+             AND NOT (
+               d.status IN ('failed', 'processing')
+               AND d.attempt_count < ${MAX_ATTEMPTS}
+               AND d.claimed_at >= NOW() - interval '23 hours'
+               AND (d.status = 'failed'
+                 OR d.claimed_at < NOW() - interval '10 minutes')
+             )
+         )`
+
+interface Candidate {
+  user_id: string
+  email: string
+  full_name: string | null
+}
+
+function monthCampaignKey(now = new Date()): string {
+  return `plan-nudge-${now.toISOString().slice(0, 7)}`
+}
+
+export async function POST(request: NextRequest) {
+  const serviceKey = process.env.API_ADMIN_KEY
+  if (!serviceKey || request.headers.get('authorization') !== `Bearer ${serviceKey}`) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  const campaignKey = monthCampaignKey()
+  if (request.nextUrl.searchParams.get('dryRun') === 'true') {
+    setCurrentRlsServiceRole('billing_reconciliation')
+    const { rows } = await db.query<{ eligible_count: number | string }>(
+      `SELECT COUNT(*)::int AS eligible_count ${ELIGIBLE_CANDIDATE_FROM_WHERE}`,
+      [campaignKey],
+    )
+    const eligibleCount = Number(rows[0]?.eligible_count ?? 0)
+    return NextResponse.json({
+      success: true,
+      dryRun: true,
+      campaignKey,
+      eligibleCount,
+      nextBatchCount: Math.min(eligibleCount, MAX_BATCH),
+      batchLimit: MAX_BATCH,
+      sent: 0,
+    })
+  }
+
+  if (process.env.METARDU_MARKETING_EMAILS_ENABLED !== 'true') {
+    return NextResponse.json({ error: 'Marketing email sending is disabled' }, { status: 403 })
+  }
+  if (!process.env.RESEND_API_KEY) {
+    return NextResponse.json({ error: 'Resend is not configured for marketing email' }, { status: 503 })
+  }
+  const authSecret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
+  if (!authSecret || authSecret.length < 32) {
+    return NextResponse.json({ error: 'Marketing unsubscribe signing is not configured' }, { status: 503 })
+  }
+
+  setCurrentRlsServiceRole('billing_reconciliation')
+  const candidates = await db.transaction(async (client) => {
+    // A provider timeout can leave delivery state uncertain. Recover only
+    // within Resend's idempotency window; older attempts need operator review.
+    await client.query<never>(
+      `UPDATE marketing_email_deliveries
+       SET status = 'needs_review'
+       WHERE status IN ('processing', 'failed')
+         AND claimed_at < NOW() - interval '23 hours'`,
+    )
+
+    const { rows } = await client.query<Candidate>(
+      `SELECT u.id::text AS user_id, u.email, u.full_name
+       ${ELIGIBLE_CANDIDATE_FROM_WHERE}
        ORDER BY u.created_at ASC, u.id ASC
        LIMIT $2
        FOR UPDATE OF u SKIP LOCKED`,
