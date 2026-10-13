@@ -30,17 +30,17 @@ export type InstrumentKind = 'total-station' | 'gnss-receiver' | 'unknown'
 export interface StreamedPoint {
   id: string
   pointName: string
-  latitude: number
-  longitude: number
-  northing: number
-  easting: number
+  latitude?: number
+  longitude?: number
+  northing?: number
+  easting?: number
   elevation: number | null
   timestamp: Date
   source: 'nmea' | 'gsi' | 'manual'
   quality?: number
   satellites?: number
   hdop?: number
-  raw?: string
+  raw?: unknown
 }
 
 export interface InstrumentDevice {

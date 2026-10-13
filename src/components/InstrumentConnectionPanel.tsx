@@ -42,7 +42,6 @@ import {
   Bluetooth,
   BluetoothOff,
   Usb,
-  Mic,
   Tag,
 } from 'lucide-react'
 import { Capacitor } from '@capacitor/core'
@@ -53,22 +52,33 @@ import { RapidPointKeypad } from '@/components/fieldbook/RapidPointKeypad'
 import type { NMEAPosition } from '@/lib/gnss/nmea-parser'
 import { logger } from '@/lib/logger'
 import { QuickFieldLSA, type FieldObservation, type FieldControlPoint } from '@/components/fieldbook/QuickFieldLSA'
+import type { FieldInstrumentReading } from '@/lib/field/fieldSession'
 
 type TransportMode = 'serial' | 'ble'
 
 interface InstrumentConnectionPanelProps {
   /** Called when user clicks "Import Points" to add streamed points to the project */
-  onImportPoints?: (points: StreamedPoint[]) => void
+  onImportPoints?: (points: FieldInstrumentReading[]) => void
   /** Called when a new point is received in real-time */
   onPointReceived?: (point: StreamedPoint) => void
+  /** Restrict explicit import to the currently displayed reading (useful for a single road feature capture). */
+  importMode?: 'all' | 'latest'
   /** Default transport mode (auto-detected if not specified) */
   defaultTransport?: TransportMode
   className?: string
 }
 
+function hasProjectedCoordinates<T extends { easting?: number; northing?: number }>(
+  point: T,
+): point is T & { easting: number; northing: number } {
+  return typeof point.easting === 'number' && Number.isFinite(point.easting)
+    && typeof point.northing === 'number' && Number.isFinite(point.northing)
+}
+
 export function InstrumentConnectionPanel({
   onImportPoints,
   defaultTransport,
+  importMode = 'all',
   className = '',
 }: InstrumentConnectionPanelProps) {
   const {
@@ -124,6 +134,7 @@ export function InstrumentConnectionPanel({
     for (let i = 0; i < activePoints.length - 1; i++) {
       const p1 = activePoints[i]
       const p2 = activePoints[i + 1]
+      if (!hasProjectedCoordinates(p1) || !hasProjectedCoordinates(p2)) continue
       
       const dE = p2.easting - p1.easting
       const dN = p2.northing - p1.northing
@@ -144,21 +155,23 @@ export function InstrumentConnectionPanel({
 
   const qcControlPoints = useMemo(() => {
     if (activePoints.length === 0) return []
+    const first = activePoints[0]
+    const last = activePoints[activePoints.length - 1]
+    if (!hasProjectedCoordinates(first) || !hasProjectedCoordinates(last)) return []
     const ctrls: FieldControlPoint[] = []
     
     // Assume first point is a known control point
     ctrls.push({
       name: activePoints[0].pointName,
-      easting: activePoints[0].easting,
-      northing: activePoints[0].northing
+      easting: first.easting,
+      northing: first.northing
     })
 
     // If the last point has the same name as the first point, it's a closed loop, 
     // so we don't need to add it as a separate control point. 
     // Otherwise, we add it just in case they're doing a link traverse.
     if (activePoints.length > 1) {
-      const last = activePoints[activePoints.length - 1]
-      if (last.pointName !== activePoints[0].pointName) {
+      if (last.pointName !== first.pointName) {
         ctrls.push({
           name: last.pointName,
           easting: last.easting,
@@ -216,9 +229,8 @@ export function InstrumentConnectionPanel({
   }
 
   const handleImport = () => {
-    if (points.length > 0 && onImportPoints) {
-      onImportPoints(points)
-    }
+    const selected = importMode === 'latest' ? activePoints.slice(-1) : activePoints
+    if (selected.length > 0 && onImportPoints) onImportPoints(selected)
   }
 
   // Status color mapping
@@ -279,13 +291,12 @@ export function InstrumentConnectionPanel({
     try {
       // Set up position + connection callbacks before connecting
       bleService.onPosition((pos: NMEAPosition) => {
+        if (pos.quality <= 0 || !Number.isFinite(pos.latitude) || !Number.isFinite(pos.longitude)) return
         instrumentStore.addPoint({
           id: `ble-${Date.now()}`,
           pointName: `PT${instrumentStore.points.length + 1}`,
           latitude: pos.latitude,
           longitude: pos.longitude,
-          northing: 0,
-          easting: 0,
           elevation: pos.altitude,
           timestamp: pos.timestamp,
           source: pos.quality >= 4 ? 'nmea' : 'nmea',
@@ -515,7 +526,9 @@ export function InstrumentConnectionPanel({
                   <span className="text-xs font-medium text-green-300">Latest Reading</span>
                 </div>
                 <div className="text-[9px] font-mono text-gray-300">
-                  Lat: {instrumentStore.latestPoint.latitude.toFixed(7)} Lon: {instrumentStore.latestPoint.longitude.toFixed(7)}
+                  {instrumentStore.latestPoint.source === 'nmea'
+                    ? `Lat: ${instrumentStore.latestPoint.latitude?.toFixed(7) ?? '—'} Lon: ${instrumentStore.latestPoint.longitude?.toFixed(7) ?? '—'}`
+                    : `E: ${instrumentStore.latestPoint.easting?.toFixed(3) ?? '—'} N: ${instrumentStore.latestPoint.northing?.toFixed(3) ?? '—'}`}
                 </div>
               </div>
             )}
@@ -529,11 +542,11 @@ export function InstrumentConnectionPanel({
               </button>
               <button
                 onClick={handleImport}
-                disabled={instrumentStore.points.length === 0}
+                disabled={activePoints.length === 0}
                 className="flex-1 flex items-center justify-center gap-1 bg-green-900/30 hover:bg-green-900/50 border border-green-700/30 disabled:opacity-40 text-green-300 text-xs rounded-md px-3 py-2 transition-colors"
               >
                 <Download className="w-3 h-3" />
-                Import ({instrumentStore.points.length})
+                {importMode === 'latest' ? 'Import latest reading' : `Import (${activePoints.length})`}
               </button>
             </div>
           </>
@@ -664,7 +677,7 @@ export function InstrumentConnectionPanel({
                 </div>
                 {lastPoint.source === 'nmea' ? (
                   <div className="text-[9px] font-mono text-gray-300 space-y-0.5">
-                    <div>Lat: {lastPoint.latitude.toFixed(8)}&deg; Lng: {lastPoint.longitude.toFixed(8)}&deg;</div>
+                    <div>Lat: {lastPoint.latitude?.toFixed(8) ?? '—'}&deg; Lng: {lastPoint.longitude?.toFixed(8) ?? '—'}&deg;</div>
                     <div>Elev: {lastPoint.elevation !== null ? `${lastPoint.elevation.toFixed(3)}m` : 'N/A'}</div>
                     <div className="text-gray-400">
                       Quality: {lastPoint.quality} / Satellites: {lastPoint.satellites} / HDOP: {lastPoint.hdop?.toFixed(1)}
@@ -672,7 +685,7 @@ export function InstrumentConnectionPanel({
                   </div>
                 ) : (
                   <div className="text-[9px] font-mono text-gray-300 space-y-0.5">
-                    <div>N: {lastPoint.northing.toFixed(4)} E: {lastPoint.easting.toFixed(4)}</div>
+                    <div>N: {lastPoint.northing?.toFixed(4) ?? '—'} E: {lastPoint.easting?.toFixed(4) ?? '—'}</div>
                     {lastPoint.elevation !== null && <div>Elev: {lastPoint.elevation.toFixed(4)}m</div>}
                   </div>
                 )}
@@ -776,11 +789,11 @@ export function InstrumentConnectionPanel({
               </button>
               <button
                 onClick={handleImport}
-                disabled={points.length === 0}
+                disabled={activePoints.length === 0}
                 className="flex-1 flex items-center justify-center gap-1 bg-green-900/30 hover:bg-green-900/50 border border-green-700/30 disabled:opacity-40 text-green-300 text-xs rounded-md px-3 py-2 transition-colors"
               >
                 <Download className="w-3 h-3" />
-                Import ({points.length})
+                {importMode === 'latest' ? 'Import latest reading' : `Import (${activePoints.length})`}
               </button>
               <button
                 onClick={clearPoints}

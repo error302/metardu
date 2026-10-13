@@ -33,6 +33,27 @@ export interface StationSetup {
   elevation?: number
 }
 
+/** A single parsed instrument reading, supplied directly for explicit imports or read from the shared instrument store. */
+export interface FieldInstrumentReading {
+  id: string
+  pointName: string
+  source: 'nmea' | 'gsi' | 'manual'
+  timestamp: Date
+  latitude?: number
+  longitude?: number
+  easting?: number
+  northing?: number
+  elevation?: number | null
+  quality?: number
+  satellites?: number
+  hdop?: number
+}
+
+function readInstrumentReadingId(notes?: string): string | null {
+  const match = /(?:^|;\s*)INSTRUMENT_READING_ID=([^;]*)/.exec(notes ?? '')
+  return match?.[1]?.trim() || null
+}
+
 export interface FieldMeasurement {
   id: string
   timestamp: number
@@ -128,6 +149,9 @@ class FieldSession {
     targetHeight?: number
     notes?: string
     projectCrs?: string
+    /** Exact declared CRS for total-station output; required when projectCrs is supplied for non-GNSS readings. */
+    coordinateCrs?: string
+    reading?: FieldInstrumentReading
   }): Promise<FieldMeasurement | null> {
     if (!this.state.setup) {
       return null
@@ -139,25 +163,30 @@ class FieldSession {
     }
 
     const instrumentStore = useInstrumentStore.getState()
-    const latestPoint = instrumentStore.latestPoint
+    const latestPoint = params.reading ?? instrumentStore.latestPoint
 
     if (!latestPoint) {
+      return null
+    }
+    const instrumentReadingId = latestPoint.id.replace(/[;\r\n]/g, ' ').slice(0, 100)
+    if (this.state.measurements.some(measurement => readInstrumentReadingId(measurement.notes) === instrumentReadingId)) {
+      logger.warn('[field-session] Instrument reading was already captured.', { readingId: instrumentReadingId })
       return null
     }
 
     let easting: number | undefined
     let northing: number | undefined
     if (latestPoint.source === 'nmea') {
-      if (!Number.isFinite(latestPoint.latitude)
-        || !Number.isFinite(latestPoint.longitude)
-        || latestPoint.latitude < -90
-        || latestPoint.latitude > 90
-        || latestPoint.longitude < -180
-        || latestPoint.longitude > 180) return null
+      const latitude = latestPoint.latitude
+      const longitude = latestPoint.longitude
+      if (typeof latitude !== 'number' || !Number.isFinite(latitude)
+        || typeof longitude !== 'number' || !Number.isFinite(longitude)
+        || latitude < -90 || latitude > 90
+        || longitude < -180 || longitude > 180) return null
       if (params.projectCrs) {
         try {
           assertProjectedCrs(params.projectCrs)
-          const projected = transformPoint(latestPoint.longitude, latestPoint.latitude, WGS84_CRS, params.projectCrs)
+          const projected = transformPoint(longitude, latitude, WGS84_CRS, params.projectCrs)
           if (!projected.every(Number.isFinite)) return null
           easting = projected[0]
           northing = projected[1]
@@ -166,7 +195,17 @@ class FieldSession {
           return null
         }
       }
-    } else if (Number.isFinite(latestPoint.easting) && Number.isFinite(latestPoint.northing)) {
+    } else {
+      if (!Number.isFinite(latestPoint.easting) || !Number.isFinite(latestPoint.northing)) return null
+      if (params.projectCrs) {
+        try {
+          const projectCode = assertProjectedCrs(params.projectCrs).code
+          const coordinateCode = params.coordinateCrs ? assertProjectedCrs(params.coordinateCrs).code : null
+          if (coordinateCode !== projectCode) return null
+        } catch {
+          return null
+        }
+      }
       easting = latestPoint.easting
       northing = latestPoint.northing
     }
@@ -179,18 +218,25 @@ class FieldSession {
         : 'gnss_rover'
 
     // Build the measurement from the StreamedPoint
+    const readingTimestamp = latestPoint.timestamp instanceof Date && Number.isFinite(latestPoint.timestamp.getTime())
+      ? latestPoint.timestamp.getTime()
+      : Date.now()
+    const noteText = params.notes?.trim()
+    const savedNotes = readInstrumentReadingId(noteText) === instrumentReadingId
+      ? noteText
+      : [noteText, `INSTRUMENT_READING_ID=${instrumentReadingId}`].filter(Boolean).join('; ')
     const measurement: FieldMeasurement = {
       id: `obs-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
-      timestamp: Date.now(),
+      timestamp: readingTimestamp,
       pointId: params.pointId,
       stationFrom: this.state.setup.stationName,
       stationTo: params.stationTo,
       // GNSS fields (from StreamedPoint)
-      latitude: latestPoint.latitude,
-      longitude: latestPoint.longitude,
+      latitude: latestPoint.source === 'nmea' ? latestPoint.latitude : undefined,
+      longitude: latestPoint.source === 'nmea' ? latestPoint.longitude : undefined,
       elevation: latestPoint.elevation ?? undefined,
       fixQuality: latestPoint.quality != null
-        ? (latestPoint.quality >= 4 ? 'fixed' : latestPoint.quality >= 2 ? 'float' : 'single')
+        ? (latestPoint.quality === 4 ? 'fixed' : latestPoint.quality === 5 ? 'float' : latestPoint.quality === 2 ? 'dgps' : 'single')
         : undefined,
       satellites: latestPoint.satellites,
       hdop: latestPoint.hdop,
@@ -200,7 +246,7 @@ class FieldSession {
       // Metadata
       instrumentType,
       mode: this.state.surveyType === 'leveling' ? 'leveling' : 'traverse',
-      notes: params.notes,
+      notes: savedNotes,
       synced: false,
     }
 
@@ -313,7 +359,7 @@ class FieldSession {
         elevation: obs.elevation ?? undefined,
         easting: obs.easting,
         northing: obs.northing,
-        instrumentType: obs.latitude ? 'gnss_rover' : 'total_station',
+        instrumentType: obs.latitude != null || obs.longitude != null ? 'gnss_rover' : 'total_station',
         mode: (obs.surveyType as MeasurementMode) || 'traverse',
         notes: obs.notes,
         synced: obs.syncedAt != null,

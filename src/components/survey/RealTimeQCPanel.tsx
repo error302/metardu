@@ -24,7 +24,7 @@ import {
 } from '@/lib/survey/realTimeQC'
 import {
   AlertTriangle, CheckCircle2, XCircle, Gauge,
-  ShieldCheck, Satellite, Activity, Wifi,
+  ShieldCheck, Activity,
 } from 'lucide-react'
 import { useInstrumentStore } from '@/stores/instrumentStore'
 
@@ -221,7 +221,8 @@ export function RealTimeQCPanel({
           </div>
         </div>
 
-        {latestPoint && (
+        {latestPoint && typeof latestPoint.easting === 'number' && Number.isFinite(latestPoint.easting)
+          && typeof latestPoint.northing === 'number' && Number.isFinite(latestPoint.northing) && (
           <div className="mt-3 pt-3 border-t border-[var(--border-color)] flex items-center justify-between text-xs text-[var(--text-muted)] font-mono">
             <span>E: {latestPoint.easting.toFixed(2)}</span>
             <span>N: {latestPoint.northing.toFixed(2)}</span>

@@ -33,7 +33,7 @@ import { RoadFieldCodeSelector } from './RoadFieldCodeSelector'
 import { useFieldSessionState, useFieldSession } from '@/hooks/useFieldSessionState'
 import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
-import type { FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
+import type { FieldInstrumentReading, FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, resolveRoadFieldPlanCrsCode, roadFieldPlanCrsIsBoundToProject, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
@@ -72,7 +72,9 @@ export function FieldDataCollector({
   const [roadPlanCachedAt, setRoadPlanCachedAt] = useState<string | null>(null)
   const [roadPlanCrsError, setRoadPlanCrsError] = useState<string | null>(null)
   const [roadProjectCrsCode, setRoadProjectCrsCode] = useState<string | null>(null)
+  const [roadInstrumentCrsConfirmed, setRoadInstrumentCrsConfirmed] = useState(false)
   const [offlinePlanAcknowledged, setOfflinePlanAcknowledged] = useState(false)
+  const [instrumentImportStatus, setInstrumentImportStatus] = useState<string | null>(null)
   const [activeRoadStationIndex, setActiveRoadStationIndex] = useState(0)
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number; z: number } | null>(null)
   const [isSunlightMode, setIsSunlightMode] = useState(false)
@@ -111,7 +113,9 @@ export function FieldDataCollector({
       setRoadPlanCachedAt(null)
       setRoadPlanCrsError(null)
       setRoadProjectCrsCode(null)
+      setRoadInstrumentCrsConfirmed(false)
       setOfflinePlanAcknowledged(false)
+      setInstrumentImportStatus(null)
 
       const loadOfflineCopy = async () => {
         const { getCachedRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
@@ -290,9 +294,89 @@ export function FieldDataCollector({
       pointId,
       notes,
       projectCrs: roadSurvey ? roadProjectCrsCode ?? undefined : undefined,
+      coordinateCrs: roadSurvey && roadInstrumentCrsConfirmed ? roadProjectCrsCode ?? undefined : undefined,
     })
     return measurement !== null
-  }, [session, sessionState.measurements, roadSurvey, activeRoadStation, roadProjectCrsCode])
+  }, [session, sessionState.measurements, roadSurvey, activeRoadStation, roadProjectCrsCode, roadInstrumentCrsConfirmed])
+
+  const handleImportPoints = useCallback(async (points: FieldInstrumentReading[]) => {
+    if (isLoadingMeasurements || measurementsLoadFailed || !sessionState.setup) {
+      setInstrumentImportStatus('Finish station setup and load saved points before importing instrument readings.')
+      return
+    }
+    if (roadSurvey && (!roadFieldPlan || !roadProjectCrsCode || activeRoadStation === null || !activeFeatureCode)) {
+      setInstrumentImportStatus('The road plan, project CRS, chainage and feature code must be ready before importing a point.')
+      return
+    }
+
+    const existingMeasurements = session.getSnapshot().measurements
+    const savedReadingIds = new Set(existingMeasurements.flatMap(measurement => {
+      const match = /(?:^|;\s*)INSTRUMENT_READING_ID=([^;]*)/.exec(measurement.notes ?? '')
+      return match?.[1]?.trim() ? [match[1].trim()] : []
+    }))
+    const usedPointIds = existingMeasurements.map(measurement => measurement.pointId)
+    let saved = 0
+    let skipped = 0
+
+    for (const point of points) {
+      if (!point.id || savedReadingIds.has(point.id)) {
+        skipped += 1
+        continue
+      }
+      if (roadSurvey && point.source !== 'nmea' && !roadInstrumentCrsConfirmed) {
+        skipped += 1
+        continue
+      }
+
+      const pointId = `${pointIdPrefix}${nextFieldPointNumber(pointIdPrefix, usedPointIds)}`
+      const safeReadingId = point.id.replace(/[;\r\n]/g, ' ').slice(0, 100)
+      const safePointName = point.pointName.replace(/[;\r\n]/g, ' ').slice(0, 100)
+      const roadNotes = roadSurvey
+        ? `ROAD_CODE=${activeFeatureCode}; CHAINAGE_M=${activeRoadStation}`
+        : ''
+      const notes = appendFieldPointId(
+        [roadNotes, `INSTRUMENT_READING_ID=${safeReadingId}`, `INSTRUMENT_POINT_NAME=${safePointName}`, `INSTRUMENT_SOURCE=${point.source}`]
+          .filter(Boolean)
+          .join('; '),
+        pointId,
+      )
+      const reading: FieldInstrumentReading = point
+      const measurement = await session.captureMeasurement({
+        pointId,
+        reading,
+        notes,
+        projectCrs: roadSurvey ? roadProjectCrsCode ?? undefined : undefined,
+        coordinateCrs: roadSurvey && point.source !== 'nmea' && roadInstrumentCrsConfirmed
+          ? roadProjectCrsCode ?? undefined
+          : undefined,
+      })
+      if (measurement) {
+        saved += 1
+        savedReadingIds.add(point.id)
+        usedPointIds.push(pointId)
+      } else {
+        skipped += 1
+      }
+    }
+
+    setInstrumentImportStatus(
+      saved > 0
+        ? `Saved ${saved} instrument point${saved === 1 ? '' : 's'}${skipped ? `; ${skipped} skipped` : ''}.`
+        : `No instrument points saved${skipped ? `; ${skipped} skipped` : ''}. Check the point coordinates, CRS confirmation and station setup, then retry.`,
+    )
+  }, [
+    isLoadingMeasurements,
+    measurementsLoadFailed,
+    sessionState.setup,
+    session,
+    roadSurvey,
+    roadFieldPlan,
+    roadProjectCrsCode,
+    activeRoadStation,
+    activeFeatureCode,
+    roadInstrumentCrsConfirmed,
+    pointIdPrefix,
+  ])
 
   const handleSetupComplete = useCallback((setup: typeof sessionState.setup) => {
     if (setup) {
@@ -408,6 +492,17 @@ export function FieldDataCollector({
                 <p className="break-words"><span className="font-semibold">Project CRS:</span> {roadFieldPlan.projectCrs}</p>
                 <p className="break-words"><span className="font-semibold">Control / benchmark:</span> {roadFieldPlan.controlReference}</p>
               </div>
+              {roadProjectCrsCode && (
+                <label className="flex min-h-11 items-center gap-2 rounded-lg border border-[var(--border-color)] px-3 py-2 text-xs text-[var(--text-secondary)]">
+                  <input
+                    type="checkbox"
+                    checked={roadInstrumentCrsConfirmed}
+                    onChange={event => setRoadInstrumentCrsConfirmed(event.target.checked)}
+                    className="h-4 w-4 accent-[var(--accent)]"
+                  />
+                  Total-station coordinates are set in {roadProjectCrsCode}. GNSS readings are transformed from WGS 84.
+                </label>
+              )}
               <div className="flex flex-wrap items-center gap-3">
                 <label htmlFor="road-chainage-station" className="text-sm font-semibold text-[var(--text-primary)]">Chainage station</label>
                 <select
@@ -505,6 +600,7 @@ export function FieldDataCollector({
                 <button type="button" onClick={() => void loadMeasurements()} className="ml-2 font-semibold underline underline-offset-2">Retry</button>
               </div>
             )}
+            {instrumentImportStatus && <p role="status" aria-live="polite" className="mb-3 max-w-md text-center text-sm text-[var(--text-secondary)]">{instrumentImportStatus}</p>}
             <FieldMeasureButton
               onCapture={(pointId) => handleCapture(pointId, activeFeatureCode || undefined)}
               disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || !roadProjectCrsCode || activeRoadStation === null || !activeFeatureCode || (roadPlanSource === 'offline_cache' && !offlinePlanAcknowledged)))}
@@ -629,7 +725,8 @@ export function FieldDataCollector({
             </div>
             <div className="p-4">
               <InstrumentConnectionPanel
-                onImportPoints={() => {}}
+                importMode={roadSurvey ? 'latest' : 'all'}
+                onImportPoints={handleImportPoints}
               />
             </div>
           </div>

@@ -26,31 +26,11 @@ import {
   type SerialConnectionConfig,
   type ParsedInstrumentData,
   type InstrumentInfo,
-  type NMEAPosition,
 } from '@/lib/serial'
-import type {
-  GSIMeasurement,
-  TopconMeasurement,
-  TrimbleMeasurement,
-  SokkiaMeasurement,
-} from '@/lib/serial/protocolParsers'
+import { createStreamedPoint, type StreamedPoint as InstrumentStreamedPoint } from '@/lib/serial/streamedPoint'
+export type { StreamedPoint } from '@/lib/serial/streamedPoint'
 import { logger } from '@/lib/logger'
-
-export interface StreamedPoint {
-  id: string
-  pointName: string
-  latitude: number
-  longitude: number
-  northing: number
-  easting: number
-  elevation: number | null
-  timestamp: Date
-  source: 'nmea' | 'gsi'
-  quality?: number     // Fix quality (NMEA)
-  satellites?: number  // Number of satellites (NMEA)
-  hdop?: number        // Horizontal dilution of precision
-  raw: NMEAPosition | GSIMeasurement | TopconMeasurement | TrimbleMeasurement | SokkiaMeasurement
-}
+import { useInstrumentStore } from '@/stores/instrumentStore'
 
 export interface UseInstrumentConnectionReturn {
   /** Connect to an instrument (triggers port selection dialog) */
@@ -68,9 +48,9 @@ export interface UseInstrumentConnectionReturn {
   /** Instrument info (detected manufacturer, protocol) */
   instrumentInfo: InstrumentInfo | null
   /** All points received during this session */
-  points: StreamedPoint[]
+  points: InstrumentStreamedPoint[]
   /** Most recently received point */
-  lastPoint: StreamedPoint | null
+  lastPoint: InstrumentStreamedPoint | null
   /** Total bytes received */
   bytesReceived: number
   /** Total messages parsed */
@@ -85,14 +65,12 @@ export interface UseInstrumentConnectionReturn {
   error: string | null
 }
 
-let pointCounter = 0
-
 export function useInstrumentConnection(): UseInstrumentConnectionReturn {
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const [isStreaming, setIsStreaming] = useState(false)
   const [instrumentInfo, setInstrumentInfo] = useState<InstrumentInfo | null>(null)
-  const [points, setPoints] = useState<StreamedPoint[]>([])
-  const [lastPoint, setLastPoint] = useState<StreamedPoint | null>(null)
+  const [points, setPoints] = useState<InstrumentStreamedPoint[]>([])
+  const [lastPoint, setLastPoint] = useState<InstrumentStreamedPoint | null>(null)
   const [bytesReceived] = useState(0)
   const [messagesParsed, setMessagesParsed] = useState(0)
   const [errorCount] = useState(0)
@@ -118,106 +96,24 @@ export function useInstrumentConnection(): UseInstrumentConnectionReturn {
     connection.onStatus((newStatus) => {
       setStatus(newStatus)
       setIsStreaming(newStatus === 'streaming')
+      useInstrumentStore.getState().setStatus(newStatus)
     })
 
     connection.onError((err) => {
       setError(err.message)
+      useInstrumentStore.getState().setError(err.message)
     })
 
     connection.onData((data: ParsedInstrumentData) => {
       setMessagesParsed(prev => prev + 1)
 
-      let point: StreamedPoint | null = null
-
-      if (data.type === 'nmea') {
-        const nmea = data.data as NMEAPosition
-        if (nmea.latitude && nmea.longitude) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `GNSS-${pointCounter}`,
-            latitude: nmea.latitude,
-            longitude: nmea.longitude,
-            northing: 0,
-            easting: 0,
-            elevation: nmea.altitude || null,
-            timestamp: nmea.timestamp || new Date(),
-            source: 'nmea',
-            quality: nmea.fixQuality,
-            satellites: nmea.satellites,
-            hdop: nmea.hdop,
-            raw: nmea,
-          }
-        }
-      } else if (data.type === 'gsi') {
-        const gsi = data.data
-        if (gsi.easting !== undefined && gsi.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: gsi.stationId || `TS-${gsi.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: gsi.northing,
-            easting: gsi.easting,
-            elevation: gsi.height || null,
-            timestamp: new Date(),
-            source: 'gsi',
-            raw: gsi,
-          }
-        }
-      } else if (data.type === 'topcon') {
-        const topcon = data.data
-        if (topcon.easting !== undefined && topcon.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `TS-${topcon.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: topcon.northing,
-            easting: topcon.easting,
-            elevation: topcon.elevation || null,
-            timestamp: new Date(),
-            source: 'gsi', // Treat all total stations similarly in UI for now
-            raw: topcon,
-          }
-        }
-      } else if (data.type === 'trimble') {
-        const trimble = data.data
-        if (trimble.easting !== undefined && trimble.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `TS-${trimble.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: trimble.northing,
-            easting: trimble.easting,
-            elevation: trimble.elevation || null,
-            timestamp: new Date(),
-            source: 'gsi',
-            raw: trimble,
-          }
-        }
-      } else if (data.type === 'sokkia') {
-        const sokkia = data.data
-        if (sokkia.easting !== undefined && sokkia.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `TS-${sokkia.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: sokkia.northing,
-            easting: sokkia.easting,
-            elevation: sokkia.elevation || null,
-            timestamp: new Date(),
-            source: 'gsi',
-            raw: sokkia,
-          }
-        }
-      }
+      const point = createStreamedPoint(data)
 
       if (point) {
         setLastPoint(point)
         const latest = point
         setPoints(prev => [...prev, latest])
+        useInstrumentStore.getState().addPoint(point)
         // Expose the latest reading globally so other components (e.g.
         // the mobile fieldbook's "Pull from instrument" button) can
         // read it without re-instantiating the connection.
@@ -252,104 +148,22 @@ export function useInstrumentConnection(): UseInstrumentConnectionReturn {
     connection.onStatus((newStatus) => {
       setStatus(newStatus)
       setIsStreaming(newStatus === 'streaming')
+      useInstrumentStore.getState().setStatus(newStatus)
     })
 
     connection.onError((err) => {
       setError(err.message)
+      useInstrumentStore.getState().setError(err.message)
     })
 
     connection.onData((data: ParsedInstrumentData) => {
       setMessagesParsed(prev => prev + 1)
-      // Same parsing logic as connect()
-      let point: StreamedPoint | null = null
-      if (data.type === 'nmea') {
-        const nmea = data.data as NMEAPosition
-        if (nmea.latitude && nmea.longitude) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `GNSS-${pointCounter}`,
-            latitude: nmea.latitude,
-            longitude: nmea.longitude,
-            northing: 0,
-            easting: 0,
-            elevation: nmea.altitude || null,
-            timestamp: nmea.timestamp || new Date(),
-            source: 'nmea',
-            quality: nmea.fixQuality,
-            satellites: nmea.satellites,
-            hdop: nmea.hdop,
-            raw: nmea,
-          }
-        }
-      } else if (data.type === 'gsi') {
-        const gsi = data.data
-        if (gsi.easting !== undefined && gsi.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: gsi.stationId || `TS-${gsi.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: gsi.northing,
-            easting: gsi.easting,
-            elevation: gsi.height || null,
-            timestamp: new Date(),
-            source: 'gsi',
-            raw: gsi,
-          }
-        }
-      } else if (data.type === 'topcon') {
-        const topcon = data.data
-        if (topcon.easting !== undefined && topcon.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `TS-${topcon.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: topcon.northing,
-            easting: topcon.easting,
-            elevation: topcon.elevation || null,
-            timestamp: new Date(),
-            source: 'gsi', // Treat all total stations similarly in UI for now
-            raw: topcon,
-          }
-        }
-      } else if (data.type === 'trimble') {
-        const trimble = data.data
-        if (trimble.easting !== undefined && trimble.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `TS-${trimble.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: trimble.northing,
-            easting: trimble.easting,
-            elevation: trimble.elevation || null,
-            timestamp: new Date(),
-            source: 'gsi',
-            raw: trimble,
-          }
-        }
-      } else if (data.type === 'sokkia') {
-        const sokkia = data.data
-        if (sokkia.easting !== undefined && sokkia.northing !== undefined) {
-          point = {
-            id: `stream-${Date.now()}-${pointCounter++}`,
-            pointName: `TS-${sokkia.pointNumber || pointCounter}`,
-            latitude: 0,
-            longitude: 0,
-            northing: sokkia.northing,
-            easting: sokkia.easting,
-            elevation: sokkia.elevation || null,
-            timestamp: new Date(),
-            source: 'gsi',
-            raw: sokkia,
-          }
-        }
-      }
+      const point = createStreamedPoint(data)
       if (point) {
         setLastPoint(point)
         const latest = point
         setPoints(prev => [...prev, latest])
+        useInstrumentStore.getState().addPoint(point)
         if (typeof window !== 'undefined') {
           ;(window as unknown as { __metarduLastInstrumentReading?: unknown }).__metarduLastInstrumentReading = {
             easting: point.easting,
@@ -378,11 +192,13 @@ export function useInstrumentConnection(): UseInstrumentConnectionReturn {
       await connectionRef.current.disconnect()
       connectionRef.current = null
     }
+    useInstrumentStore.getState().setDisconnected()
   }, [])
 
   const clearPoints = useCallback(() => {
     setPoints([])
     setLastPoint(null)
+    useInstrumentStore.getState().clearPoints()
     if (typeof window !== 'undefined') {
       try {
         delete (window as unknown as { __metarduLastInstrumentReading?: unknown }).__metarduLastInstrumentReading
