@@ -3,6 +3,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { EngineeringData, RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import {
+  buildRoadFieldStations,
+  formatRoadChainage,
   ROAD_FIELD_CODE_OPTIONS,
   type RoadFieldPlanDraft,
   validateRoadFieldPlan,
@@ -66,6 +68,25 @@ export function RoadFieldPlanStep({
   }), [startChainage, endChainage, stationInterval, leftExtent, rightExtent, projectCrs, controlReference, featureCodes])
 
   const validationError = validateRoadFieldPlan(draft)
+  const stationPreview = useMemo(() => {
+    const { startChainageM, endChainageM, stationIntervalM } = draft
+    if (validationError || startChainageM === null || endChainageM === null || stationIntervalM === null) return null
+    return buildRoadFieldStations({
+      ...draft,
+      startChainageM,
+      endChainageM,
+      stationIntervalM,
+    })
+  }, [draft, validationError])
+  const previewStations = stationPreview && stationPreview.length > 5
+    ? [...stationPreview.slice(0, 4), stationPreview[stationPreview.length - 1]]
+    : stationPreview ?? []
+  const finalIntervalM = stationPreview && stationPreview.length > 1
+    ? stationPreview[stationPreview.length - 1] - stationPreview[stationPreview.length - 2]
+    : null
+  const hasShortFinalInterval = finalIntervalM !== null
+    && draft.stationIntervalM !== null
+    && finalIntervalM + 0.0005 < draft.stationIntervalM
   const canStart = saved && !validationError
 
   const markEdited = (update: () => void) => {
@@ -150,6 +171,43 @@ export function RoadFieldPlanStep({
           <input className={inputClass} value={controlReference} onChange={event => markEdited(() => setControlReference(event.target.value))} placeholder="Enter the control IDs and authoritative source" required aria-required="true" />
         </label>
       </section>
+
+      {stationPreview && stationPreview.length > 0 && (
+        <section aria-labelledby="road-station-preview-heading" className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h4 id="road-station-preview-heading" className="text-sm font-semibold text-white">Station preflight</h4>
+              <p className="mt-1 text-xs text-zinc-500">Check the generated chainages before saving the crew’s field plan.</p>
+            </div>
+            <span className="rounded-md border border-amber-400/30 bg-amber-400/10 px-2.5 py-1 text-xs font-semibold text-amber-200">
+              {stationPreview.length.toLocaleString()} planned {stationPreview.length === 1 ? 'station' : 'stations'}
+            </span>
+          </div>
+          <ol className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-3" aria-label="Sample of generated road stations">
+            {previewStations.map((chainage, index) => {
+              const isFinalStation = index === previewStations.length - 1
+                && stationPreview.length > 5
+              const stationNumber = isFinalStation ? stationPreview.length : index + 1
+              return (
+                <li key={`${stationNumber}-${chainage}`} className="flex items-center justify-between gap-3 rounded-lg border border-zinc-800 bg-zinc-950/50 px-3 py-2">
+                  <span className="text-xs text-zinc-500">{isFinalStation ? 'Final station' : `Station ${stationNumber}`}</span>
+                  <code className="font-mono text-sm font-semibold text-zinc-100">{formatRoadChainage(chainage)}</code>
+                </li>
+              )
+            })}
+          </ol>
+          {stationPreview.length > previewStations.length && (
+            <p className="mt-2 text-xs text-zinc-500">
+              {stationPreview.length - previewStations.length} intermediate stations are part of the generated list.
+            </p>
+          )}
+          <p role="status" className="mt-3 text-xs leading-5 text-sky-100/80">
+            {hasShortFinalInterval && finalIntervalM !== null && draft.stationIntervalM !== null
+              ? `The exact end chainage is included. The final step is ${finalIntervalM.toFixed(3)} m, shorter than the requested ${draft.stationIntervalM.toFixed(3)} m interval.`
+              : 'The exact end chainage is included in the generated station list.'}
+          </p>
+        </section>
+      )}
 
       <section>
         <div className="mb-3">
