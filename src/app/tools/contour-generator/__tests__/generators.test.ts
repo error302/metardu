@@ -29,6 +29,10 @@ const metadata = {
 }
 
 describe('professional contour exports', () => {
+  it('retains centimetre elevations on index labels, including short vertex lists', () => {
+    const precise = [{ ...contours[0], elevation: 110.05 }]
+    expect(generateSVGExport(precise, bounds, points, { ...metadata, contourInterval: 0.01 })).toContain('110.05 m</text>')
+  })
   it('refuses non-finite contour coordinates instead of exporting a fabricated zero', () => {
     const invalid = [{ ...contours[0], points: [{ easting: Number.NaN, northing: 9900000 }, contours[0].points[1]] }]
     expect(() => generateDXF(invalid, bounds, metadata)).toThrow(/finite/i)

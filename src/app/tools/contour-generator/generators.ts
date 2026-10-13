@@ -1,6 +1,7 @@
 import type { ContourLine, SpotHeight } from '@/lib/engine/contours'
 import type { Bounds } from './types'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { formatContourHeight } from './helpers'
 
 export interface ContourExportMetadata {
   title: string
@@ -210,7 +211,7 @@ export async function generateContourPDF(
       const labelPoint = contour.points[Math.floor(contour.points.length / 2)]
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(6.5)
-      pdf.text(`${contour.elevation.toFixed(1)} m`, map.toX(labelPoint.easting) + 1, map.toY(labelPoint.northing) - 1)
+      pdf.text(`${formatContourHeight(contour.elevation)} m`, map.toX(labelPoint.easting) + 1, map.toY(labelPoint.northing) - 1)
     }
   }
 
@@ -369,9 +370,9 @@ export function generateSVGExport(
     const coordinates = contour.points.map(point => `${plot.toX(point.easting).toFixed(2)},${plot.toY(point.northing).toFixed(2)}`).join(' ')
     const color = contour.isIndex ? '#70411e' : '#97704a'
     svg.push(`<polyline points="${coordinates}" fill="none" stroke="${color}" stroke-width="${contour.isIndex ? 2.2 : 0.9}" stroke-linejoin="round" stroke-linecap="round"/>`)
-    if (contour.isIndex && contour.points.length > 8) {
+    if (contour.isIndex) {
       const point = contour.points[Math.floor(contour.points.length / 2)]
-      svg.push(`<text x="${plot.toX(point.easting)}" y="${plot.toY(point.northing) - 4}" fill="#603518" stroke="#fff" stroke-width="3" paint-order="stroke" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700">${contour.elevation.toFixed(1)} m</text>`)
+      svg.push(`<text x="${plot.toX(point.easting)}" y="${plot.toY(point.northing) - 4}" fill="#603518" stroke="#fff" stroke-width="3" paint-order="stroke" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700">${formatContourHeight(contour.elevation)} m</text>`)
     }
   }
 
@@ -411,8 +412,8 @@ export function generateSVGExport(
     svg.push(`<text x="${panelX + 16}" y="${y + 15}" font-family="Arial,sans-serif" font-size="10" fill="#192531">${words}</text>`)
     y += 50
   }
-  svg.push('<text x="1125" y="153" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#192531">GRID N</text>')
-  svg.push('<line x1="1125" y1="161" x2="1125" y2="188" stroke="#192531" stroke-width="2"/><path d="M1125 157l-6 11h12z" fill="#192531"/>')
+  svg.push('<text x="1080" y="619" text-anchor="middle" font-family="Arial,sans-serif" font-size="12" font-weight="700" fill="#192531">GRID N</text>')
+  svg.push('<line x1="1080" y1="627" x2="1080" y2="654" stroke="#192531" stroke-width="2"/><path d="M1080 623l-6 11h12z" fill="#192531"/>')
   svg.push(`<text x="40" y="775" font-family="Arial,sans-serif" font-size="10" fill="#4b5b69">Generated ${escapeXml(new Date().toLocaleDateString('en-GB'))}. Coordinates in metres. Verify CRS, datum, accuracy, source observations, and design requirements before issue.</text>`)
   svg.push('<text x="40" y="795" font-family="Arial,sans-serif" font-size="9" fill="#4b5b69">METARDU working plan - not a cadastral submission or certification</text>')
   svg.push('</svg>')

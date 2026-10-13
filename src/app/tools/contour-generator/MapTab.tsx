@@ -3,6 +3,7 @@
 import type { ContourLine, SpotHeight } from '@/lib/engine/contours';
 import type { Bounds } from './types';
 import { MARGIN, SVG_HEIGHT, SVG_WIDTH } from './constants';
+import { formatContourHeight } from './helpers';
 
 export interface SvgElements {
   usableW: number;
@@ -81,9 +82,9 @@ export function MapTab({ contours, bounds, points, contourInterval, svgElements,
             return (
               <g key={`contour-${index}`}>
                 <polyline points={coordinates} fill="none" stroke={contour.isIndex ? '#70411e' : '#97704a'} strokeWidth={contour.isIndex ? 2 : 0.85} strokeLinejoin="round" strokeLinecap="round" />
-                {contour.isIndex && contour.points.length > 8 && (
+                {contour.isIndex && (
                   <text x={svgElements.toSvgX(labelPoint.easting)} y={svgElements.toSvgY(labelPoint.northing) - 4} textAnchor="middle" fill="#603518" stroke="#fff" strokeWidth="3" paintOrder="stroke" fontSize="9" fontWeight="700">
-                    {contour.elevation.toFixed(1)} {units}
+                    {formatContourHeight(contour.elevation)} {units}
                   </text>
                 )}
               </g>
@@ -115,7 +116,7 @@ export function MapTab({ contours, bounds, points, contourInterval, svgElements,
         <div className="mt-3 flex items-center justify-center gap-5 flex-wrap text-xs text-slate-700">
           <span className="inline-flex items-center gap-2"><span className="inline-block w-6 border-t border-[#97704a]" /> Intermediate contour</span>
           <span className="inline-flex items-center gap-2"><span className="inline-block w-6 border-t-2 border-[#70411e]" /> Index contour</span>
-          <span>Interval {contourInterval.toFixed(2)} {units} · Elevations {svgElements.minElev.toFixed(2)}–{svgElements.maxElev.toFixed(2)} {units}</span>
+          <span>Interval {formatContourHeight(contourInterval)} {units} · Elevations {formatContourHeight(svgElements.minElev)}–{formatContourHeight(svgElements.maxElev)} {units}</span>
         </div>
       </div>
       <p className="text-xs text-amber-300">Draft interpolation only. Confirm source CRS, height datum, survey accuracy, and project specification before issue or construction use.</p>

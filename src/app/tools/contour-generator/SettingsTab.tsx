@@ -6,7 +6,7 @@
 
 import type { ContourLine, TINSurface } from '@/lib/engine/contours';
 import type { Bounds, VolumeResult } from './types';
-import { fmt } from './helpers';
+import { fmt, formatContourHeight } from './helpers';
 
 interface SettingsTabProps {
   contourInterval: number;
@@ -33,6 +33,7 @@ interface SettingsTabProps {
   usingWorker?: boolean;
   executionMode?: 'worker' | 'main-thread' | null;
   breaklineCount?: number;
+  generationComplete?: boolean;
 }
 
 export function SettingsTab({
@@ -60,6 +61,7 @@ export function SettingsTab({
   usingWorker = false,
   executionMode = null,
   breaklineCount = 0,
+  generationComplete = false,
 }: SettingsTabProps) {
   const heightUnits = heightsInMetres ? 'm' : 'source units';
   return (
@@ -71,6 +73,7 @@ export function SettingsTab({
         <p className="text-xs text-[var(--text-secondary)] mb-3">
           Enter a registered projected metre CRS and the source height reference before exporting. Source coordinates and heights are used as entered; no unit conversion is applied.
         </p>
+        <p className="text-xs text-[var(--text-secondary)] mb-3">All supplied points and measured breaklines define the surface. Import ground observations or a reviewed ground-only dataset; this tool does not automatically remove vegetation, buildings or high ground.</p>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-3">
           <div>
             <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-map-title">Map title</label>
@@ -106,7 +109,7 @@ export function SettingsTab({
               step="0.1"
               min="0.01"
               value={contourInterval}
-              onChange={e => setContourInterval(parseFloat(e.target.value) || 1.0)}
+              onChange={e => setContourInterval(e.target.value === '' ? 0 : Number(e.target.value))}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
             />
             <p className="text-xs text-zinc-500 mt-1">Vertical spacing between contours</p>
@@ -120,11 +123,11 @@ export function SettingsTab({
               step="1"
               min="1"
               value={indexMultiplier}
-              onChange={e => setIndexMultiplier(parseInt(e.target.value) || 5)}
+              onChange={e => setIndexMultiplier(e.target.value === '' ? 0 : Number(e.target.value))}
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
             />
             <p className="text-xs text-zinc-500 mt-1">
-              Every Nth contour is an index (thick) line (interval &times; {indexMultiplier} = {(contourInterval * indexMultiplier).toFixed(1)} {heightUnits})
+              Every Nth contour is an index (thick) line (interval &times; {indexMultiplier} = {formatContourHeight(contourInterval * indexMultiplier)} {heightUnits})
             </p>
           </div>
           <div className="flex flex-col">
@@ -192,15 +195,16 @@ export function SettingsTab({
       </div>
 
       {generateError && (
-        <div className="p-4 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
+        <div role="alert" className="p-4 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
           {generateError}
         </div>
       )}
 
       {/* Results summary */}
-      {contours.length > 0 && (
+      {generationComplete && (
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
           <h2 className="text-sm font-semibold text-white mb-4">Generation Results</h2>
+          {contours.length === 0 && <p role="status" className="text-sm text-[var(--text-secondary)] mb-4">The surface was built, but it has no contour lines at this interval. A flat surface or an interval larger than the height range can produce this result. Review the elevation range and interval.</p>}
           {executionMode && <p className="text-xs text-[var(--text-secondary)] mb-4" role="status">{executionMode === 'worker' ? 'Calculated in the background worker.' : 'Calculated in this browser tab using the fallback engine. Large datasets may pause the page.'}</p>}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="p-4 bg-[var(--bg-tertiary)] rounded">
@@ -243,7 +247,7 @@ export function SettingsTab({
                           : 'bg-[var(--bg-tertiary)] text-zinc-400'
                       }`}
                     >
-                      {elev.toFixed(1)}{isIndex ? ' (idx)' : ''}
+                      {formatContourHeight(elev)}{isIndex ? ' (idx)' : ''}
                     </span>
                   );
                 });

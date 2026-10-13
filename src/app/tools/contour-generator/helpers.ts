@@ -21,6 +21,11 @@ export function fmt(n: number, d: number = 3): string {
   return n.toFixed(d);
 }
 
+/** Retain distinct contour levels instead of rounding centimetre intervals to decimetres. */
+export function formatContourHeight(value: number): string {
+  return Number(value.toPrecision(15)).toString();
+}
+
 export function detectDelimiter(text: string): string {
   const firstLines = text.split('\n').slice(0, 5);
   let commaCount = 0;

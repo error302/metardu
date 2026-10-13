@@ -59,6 +59,19 @@ interface ProjectPointRow {
   elevation: number | null
 }
 
+interface SurveyGenerationInputs {
+  points: SpotHeight[]
+  breaklines: Breakline[]
+  contourInterval: number
+  indexMultiplier: number
+}
+interface SurveyGeneration extends SurveyGenerationInputs {
+  contours: ContourLine[]
+  surface: TINSurface
+  volume: VolumeResult
+}
+const NO_CONTOURS: ContourLine[] = [];
+
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ContourGeneratorPage() {
@@ -92,9 +105,27 @@ export default function ContourGeneratorPage() {
   const [breaklines, setBreaklines] = useState<Breakline[]>([]);
 
   // Results
-  const [contours, setContours] = useState<ContourLine[]>([]);
-  const [tinSurface, setTinSurface] = useState<TINSurface | null>(null);
-  const [volumeResult, setVolumeResult] = useState<VolumeResult | null>(null);
+  const [generation, setGeneration] = useState<SurveyGeneration | null>(null);
+  const requestVersion = useRef(0);
+  const currentInputs = useRef<SurveyGenerationInputs>({ points, breaklines, contourInterval, indexMultiplier });
+  currentInputs.current = { points, breaklines, contourInterval, indexMultiplier };
+  const currentGeneration = generation && generation.points === points && generation.breaklines === breaklines &&
+    generation.contourInterval === contourInterval && generation.indexMultiplier === indexMultiplier ? generation : null;
+  const contours = currentGeneration?.contours ?? NO_CONTOURS;
+  const tinSurface = currentGeneration?.surface ?? null;
+  const volumeResult = currentGeneration?.volume ?? null;
+
+  useEffect(() => {
+    requestVersion.current += 1;
+    setGeneration(null);
+    setGenerateError('');
+    setExportError('');
+    setIsGenerating(false);
+    setExecutionMode(null);
+    setUsingWorker(false);
+    setActiveTab(tab => tab === 'map' || tab === 'export' ? 'settings' : tab);
+  }, [points, breaklines, contourInterval, indexMultiplier]);
+  useEffect(() => () => { requestVersion.current += 1 }, []);
 
   // ─── Project integration: auto-load points from project survey data ──────
   const searchParams = useSearchParams();
@@ -139,7 +170,8 @@ export default function ContourGeneratorPage() {
   const bounds = useMemo<Bounds | null>(() => {
     if (points.length === 0) return null;
     let minE = Infinity, maxE = -Infinity, minN = Infinity, maxN = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const p of points) {
+    // Include measured breakline endpoints that extend the observation hull.
+    for (const p of [...points, ...breaklines.flatMap(line => [line.start, line.end])]) {
       if (p.easting < minE) minE = p.easting;
       if (p.easting > maxE) maxE = p.easting;
       if (p.northing < minN) minN = p.northing;
@@ -148,7 +180,7 @@ export default function ContourGeneratorPage() {
       if (p.elevation > maxZ) maxZ = p.elevation;
     }
     return { minE, maxE, minN, maxN, minZ, maxZ };
-  }, [points]);
+  }, [points, breaklines]);
 
   const exportMetadata = useMemo<ContourExportMetadata>(() => ({
     title: mapTitle,
@@ -164,9 +196,8 @@ export default function ContourGeneratorPage() {
   const processText = useCallback((text: string) => {
     setIsParsing(true);
     setParseErrors([]);
-    setContours([]);
-    setTinSurface(null);
-    setVolumeResult(null);
+    setGeneration(null);
+    setBreaklines([]);
 
     try {
       const result = parseXYZText(text);
@@ -183,6 +214,7 @@ export default function ContourGeneratorPage() {
         hasHeader: result.hasHeader,
       });
     } catch (err) {
+      setPoints([]);
       setParseErrors([{ row: 0, message: `Parse error: ${err instanceof Error ? err.message : 'Unknown error'}` }]);
     } finally {
       setIsParsing(false);
@@ -193,9 +225,8 @@ export default function ContourGeneratorPage() {
     setFileName(file.name);
     setIsParsing(true);
     setParseErrors([]);
-    setContours([]);
-    setTinSurface(null);
-    setVolumeResult(null);
+    setGeneration(null);
+    setBreaklines([]);
 
     try {
       const text = await file.text();
@@ -228,9 +259,8 @@ export default function ContourGeneratorPage() {
   const handleLoadDemo = useCallback(() => {
     const demoPoints = generateDemoData();
     setPoints(demoPoints);
-    setContours([]);
-    setTinSurface(null);
-    setVolumeResult(null);
+    setGeneration(null);
+    setBreaklines([]);
     setParseErrors([]);
     setFileName('demo_synthetic_terrain.csv');
     setImportStats({ delimiter: 'comma', hasHeader: true });
@@ -247,12 +277,17 @@ export default function ContourGeneratorPage() {
   // ─── Generate contours ───────────────────────────────────────────────────
 
   const handleGenerate = useCallback(async () => {
+    setGeneration(null);
+    if (parseErrors.length) {
+      setGenerateError('Correct all import errors and parse the complete source again before generating a survey surface.');
+      return;
+    }
     if (points.length < 3) {
       setGenerateError('At least 3 points are required to generate contours.');
       return;
     }
-    if (contourInterval <= 0) {
-      setGenerateError('Contour interval must be positive.');
+    if (!Number.isFinite(contourInterval) || contourInterval <= 0 || !Number.isInteger(indexMultiplier) || indexMultiplier < 1 || !Number.isFinite(contourInterval * indexMultiplier)) {
+      setGenerateError('Enter a finite positive contour interval and a positive whole-number index multiplier.');
       return;
     }
 
@@ -261,70 +296,53 @@ export default function ContourGeneratorPage() {
     setGenerateProgress(0);
     setExecutionMode(null);
     setUsingWorker(isWorkerAvailable());
+    const version = ++requestVersion.current;
+    const inputs = { points, breaklines, contourInterval, indexMultiplier };
+    const isCurrent = () => version === requestVersion.current && currentInputs.current.points === points &&
+      currentInputs.current.breaklines === breaklines && currentInputs.current.contourInterval === contourInterval &&
+      currentInputs.current.indexMultiplier === indexMultiplier;
+    const onProgress = (progress: number) => { if (isCurrent()) setGenerateProgress(progress) };
+    const onExecutionMode = (mode: 'worker' | 'main-thread') => {
+      if (isCurrent()) setExecutionMode(previous => previous === 'main-thread' ? previous : mode);
+    };
 
     try {
       const indexInterval = contourInterval * indexMultiplier;
 
-      // Use Web Worker with auto-fallback to sync engine.
-      // For large datasets (≥ 5000 pts) this keeps the UI responsive;
-      // for small datasets the worker overhead is negligible thanks to
-      // the 30 s timeout + sync fallback in tinWorkerClient.
-      //
-      // AUDIT FIX (2026-07-05): DTM filtering — classify ground vs non-ground
-      // before contour generation. Vegetation and buildings distort contours
-      // if not filtered. Uses CSF algorithm (only if enough points).
-      let groundPoints = points;
-      try {
-        if (points.length >= 20) {
-          const { classifyPointCloud, extractGroundPoints } = await import('@/lib/topo/pointCloudClassification');
-          const classified = classifyPointCloud(points.map(p => ({
-            x: p.easting, y: p.northing, z: p.elevation,
-          })));
-          const ground = extractGroundPoints(classified);
-          if (ground.length >= 3) {
-            groundPoints = ground.map((p, i) => ({
-              name: `G${i}`,
-              easting: p.x, northing: p.y, elevation: p.z,
-            }));
-          }
-        }
-      } catch {
-        // DTM filtering failed — use all points
-      }
-
-      // AUDIT FIX (2026-07-03): Pass breaklines to both the contour
-      // generator and the TIN builder so triangles don't cross terrain
-      // discontinuities.
-      const result = await generateContoursAsync(groundPoints, contourInterval, {
+      // Use the surveyor's supplied observations without automatic classification
+      // or silent removal of measured slopes, hilltops and boundary controls.
+      const result = await generateContoursAsync(points, contourInterval, {
         indexInterval,
         breaklines: breaklines.length > 0 ? breaklines : undefined,
-        onProgress: p => setGenerateProgress(p),
-        onExecutionMode: mode => setExecutionMode(previous => previous === 'main-thread' ? previous : mode),
+        onProgress,
+        onExecutionMode,
       });
-      setContours(result);
+      if (!isCurrent()) return;
 
       const surface = await buildTINSurfaceAsync(
-        groundPoints,
+        points,
         breaklines.length > 0 ? breaklines : undefined,
         {
-          onProgress: p => setGenerateProgress(p),
-          onExecutionMode: mode => setExecutionMode(previous => previous === 'main-thread' ? previous : mode),
+          onProgress,
+          onExecutionMode,
         },
       );
-      setTinSurface(surface);
+      if (!isCurrent()) return;
 
       // Compute volume relative to minimum elevation
-      const minElev = Math.min(...groundPoints.map(p => p.elevation));
+      const minElev = Math.min(...surface.points.map(p => p.elevation));
       const vol = computeVolumeFromTIN(surface, minElev);
-      setVolumeResult(vol);
+      setGeneration({ ...inputs, contours: result, surface, volume: vol });
     } catch (err) {
-      setGenerateError(err instanceof Error ? err.message : 'Contour generation failed.');
+      if (isCurrent()) setGenerateError(err instanceof Error ? err.message : 'Contour generation failed.');
     } finally {
-      setIsGenerating(false);
-      setGenerateProgress(1);
-      setUsingWorker(false);
+      if (isCurrent()) {
+        setIsGenerating(false);
+        setGenerateProgress(1);
+        setUsingWorker(false);
+      }
     }
-  }, [points, contourInterval, indexMultiplier, breaklines]);
+  }, [points, contourInterval, indexMultiplier, breaklines, parseErrors]);
 
   // ─── Export handlers ─────────────────────────────────────────────────────
 
@@ -510,6 +528,7 @@ export default function ContourGeneratorPage() {
           usingWorker={usingWorker}
           executionMode={executionMode}
           breaklineCount={breaklines.length}
+          generationComplete={currentGeneration != null}
         />
       )}
 
