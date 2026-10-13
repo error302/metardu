@@ -4,7 +4,6 @@ import React, { useMemo } from 'react'
 import {
   computeCamberProfile,
   computeDetailedFormationLine,
-  computeCutFillArea,
   parseSlopeRatio,
   determineSectionType,
   interpolateGroundAtCentre,
@@ -12,6 +11,7 @@ import {
   type ProfilePoint,
   type RoadTemplate,
 } from '@/lib/engineering/crossSectionGeometry'
+import { integrateProfileAreas, validateProfile } from '@/lib/engineering/profileGeometry'
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────────
 
@@ -135,7 +135,7 @@ function DimensionLine({
 
 // ─── MAIN COMPONENT ────────────────────────────────────────────────────────────
 
-export function CrossSectionRenderer({
+function CrossSectionDrawingBody({
   chainage,
   groundPoints,
   template,
@@ -145,18 +145,13 @@ export function CrossSectionRenderer({
   width = 800,
   height = 400,
   showLabels = true,
-}: CrossSectionProps) {
+}: CrossSectionProps & { formationLevel: number }) {
   const sectionType = useMemo(
-    () => determineSectionType(groundPoints, propFormationLevel ?? 0),
+    () => determineSectionType(groundPoints, propFormationLevel),
     [groundPoints, propFormationLevel]
   )
 
-  const computedFormationLevel = useMemo(() => {
-    if (propFormationLevel !== undefined) return propFormationLevel
-    // Default: ground level at centre
-    const gl = interpolateGroundAtCentre(groundPoints)
-    return gl !== null ? gl + 0.5 : 100
-  }, [propFormationLevel, groundPoints])
+  const computedFormationLevel = propFormationLevel
 
   const isCut = sectionType === 'cut' || sectionType === 'mixed'
   const isFill = sectionType === 'fill' || sectionType === 'mixed'
@@ -184,11 +179,8 @@ export function CrossSectionRenderer({
     if (propCutArea !== undefined && propFillArea !== undefined) {
       return { cutArea: propCutArea, fillArea: propFillArea }
     }
-    const netArea = computeCutFillArea(groundPoints, formationLine)
-    if (netArea >= 0) {
-      return { cutArea: netArea, fillArea: 0 }
-    }
-    return { cutArea: 0, fillArea: -netArea }
+    const result = integrateProfileAreas(groundPoints, formationLine)
+    return { cutArea: result.cutArea, fillArea: result.fillArea }
   }, [propCutArea, propFillArea, groundPoints, formationLine])
 
   // Compute subgrade line
@@ -249,7 +241,7 @@ export function CrossSectionRenderer({
       height - ((level - finalVbY) / finalVbH) * height
 
     return {
-      viewBox: `${finalVbX} ${finalVbY} ${finalVbW} ${finalVbH}`,
+      viewBox: `0 0 ${width} ${height}`,
       toSvgX: scaleX,
       toSvgY: scaleY,
     }
@@ -819,4 +811,19 @@ export function CrossSectionRenderer({
   )
 }
 
+/** Keep incomplete inputs outside the drawing's hooks and mathematical path. */
+export function CrossSectionRenderer(props: CrossSectionProps) {
+  if (props.formationLevel == null || !Number.isFinite(props.formationLevel)) return <p role="status">Enter a finite approved formation RL; it is not inferred from ground observations.</p>
+  try {
+    validateProfile(props.groundPoints)
+    const formation = computeDetailedFormationLine(props.template, props.formationLevel, props.groundPoints,
+      determineSectionType(props.groundPoints, props.formationLevel) !== 'fill')
+    const areas = integrateProfileAreas(props.groundPoints, formation)
+    for (const [supplied, actual] of [[props.cutArea, areas.cutArea], [props.fillArea, areas.fillArea]]) {
+      if (supplied !== undefined && (!Number.isFinite(supplied) || supplied < 0 || Math.abs(supplied - (actual as number)) > 1e-6)) throw new RangeError('Supplied areas do not match the current measured profile and formation; recompute the schedule.')
+    }
+    if (!Number.isFinite(props.chainage) || ![props.width ?? 800, props.height ?? 400].every(v => Number.isFinite(v) && v > 0)) throw new RangeError('Drawing chainage and dimensions must be finite, with positive width and height.')
+  } catch (error) { return <p role="status">{error instanceof Error ? error.message : 'Review the ground observations and formation.'}</p> }
+  return <CrossSectionDrawingBody {...props} formationLevel={props.formationLevel} />
+}
 export default CrossSectionRenderer

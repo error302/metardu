@@ -80,7 +80,7 @@ export function getEngineeringSteps(data: EngineeringData | null): EngineeringSt
       id: 'export',
       label: 'Export Package',
       description: 'PDF reports, long section, peg book',
-      status: 'locked',
+      status: rd?.ips?.length || rd?.stations?.length ? 'in_progress' : 'locked',
       gated: true
     })
 

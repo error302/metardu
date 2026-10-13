@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, Fragment, useId } from 'react'
-import { computeCrossSection, computeEarthwork, parseEarthworkCSV, type CrossSectionInput, type CrossSectionComputed, type RoadTemplate, type EarthworkResult } from '@/lib/computations/earthworksEngine'
+import { computeCrossSection, computeEarthwork, parseEarthworkCSV, parseEarthworkNumber, type CrossSectionInput, type CrossSectionComputed, type RoadTemplate, type EarthworkResult } from '@/lib/computations/earthworksEngine'
 import CrossSectionDrawing from './CrossSectionDrawing'
 import EarthworkQuantitiesTable from './EarthworkQuantitiesTable'
 import MassHaulDiagram from './MassHaulDiagram'
@@ -40,7 +40,7 @@ export default function EarthworksCalculator() {
   const uid = useId()
   const [sections, setSections] = useState<SectionRow[]>([EMPTY_ROW()])
   const [template, setTemplate] = useState<RoadTemplate>(DEFAULT_TEMPLATE)
-  const [shrinkage, setShrinkage] = useState('0.85')
+  const [shrinkage, setShrinkage] = useState('')
   const [computedSections, setComputedSections] = useState<CrossSectionComputed[]>([])
   const [earthworkResult, setEarthworkResult] = useState<EarthworkResult | null>(null)
   const [activeSection, setActiveSection] = useState(0)
@@ -51,33 +51,32 @@ export default function EarthworksCalculator() {
     date: new Date().toISOString().split('T')[0], instrument: '', weather: '', observer: '', submissionNo: '',
   })
   const [roadName, setRoadName] = useState('')
+  const [references, setReferences] = useState({ horizontalCrs: '', verticalDatum: '', designRevision: '' })
 
-  function chainageToNum(row: SectionRow): number {
-    return (parseFloat(row.chainageKm) || 0) * 1000 + (parseFloat(row.chainageM) || 0)
+  function invalidate() {
+    setComputedSections([]); setEarthworkResult(null); setActiveSection(0)
   }
-
   function toInput(row: SectionRow): CrossSectionInput {
-    return {
-      chainage: chainageToNum(row),
-      centrelineRL: parseFloat(row.clRL) || 0,
-      formationRL: parseFloat(row.formRL) || 0,
-      leftShots: row.leftShots
-        .filter((s) => s.off && s.rl)
-        .map((s) => ({ offset: -(parseFloat(s.off) || 0), rl: parseFloat(s.rl) || 0 }))
-        .sort((a, b) => a.offset - b.offset),
-      rightShots: row.rightShots
-        .filter((s) => s.off && s.rl)
-        .map((s) => ({ offset: parseFloat(s.off) || 0, rl: parseFloat(s.rl) || 0 }))
-        .sort((a, b) => a.offset - b.offset),
-    }
+    const value = (text: string, label: string) => parseEarthworkNumber(text, label)
+    const km = value(row.chainageKm, 'Chainage kilometres'), metres = value(row.chainageM, 'Chainage metres')
+    if (!Number.isInteger(km) || km < 0 || metres < 0 || metres >= 1000) throw new RangeError('Use whole non-negative kilometres and metres below 1000.')
+    const shots = (list: SectionRow['leftShots'], direction: number) => list.filter(s => s.off.trim() || s.rl.trim()).map(s => {
+      const offset = value(s.off, 'Shot offset')
+      if (offset <= 0) throw new RangeError('Enter a positive offset distance for the named side.')
+      return { offset: direction * offset, rl: value(s.rl, 'Shot ground RL') }
+    })
+    return { chainage: km * 1000 + metres, centrelineRL: value(row.clRL, 'Centre ground RL'), formationRL: value(row.formRL, 'Approved formation RL'),
+      leftShots: shots(row.leftShots, -1), rightShots: shots(row.rightShots, 1) }
   }
-
   function compute() {
-    const inputs = sections.map(toInput).sort((a, b) => a.chainage - b.chainage)
-    const computed = inputs.map((s) => computeCrossSection(s, template))
-    const ew = computeEarthwork(computed, parseFloat(shrinkage) || 0.85)
-    setComputedSections(computed)
-    setEarthworkResult(ew)
+    invalidate(); setCsvError('')
+    try {
+      if (!sections.length) throw new RangeError('Add at least one measured section.')
+      const inputs = sections.map(toInput).sort((a, b) => a.chainage - b.chainage)
+      const computed = inputs.map(s => computeCrossSection(s, template))
+      const ew = computeEarthwork(computed, shrinkage.trim() ? parseEarthworkNumber(shrinkage, 'Material factor') : undefined)
+      setComputedSections(computed); setEarthworkResult(ew)
+    } catch (error) { setCsvError(error instanceof Error ? error.message : 'Review the measured sections.') }
   }
 
   function handlePrintBoQ() {
@@ -87,6 +86,7 @@ export default function EarthworksCalculator() {
       result: earthworkResult,
       template,
       roadName,
+      ...references,
       startChainage: '',
       endChainage: '',
       meta: { ...printMeta, title: 'Earthworks Bill of Quantities' },
@@ -95,18 +95,22 @@ export default function EarthworksCalculator() {
   }
 
   function addRow() {
+    invalidate()
     setSections(prev => [...prev, EMPTY_ROW()])
   }
 
   function removeRow(id: string) {
+    invalidate()
     setSections(prev => prev.filter((r) => r.id !== id))
   }
 
   function updateRow(id: string, field: keyof SectionRow, value: unknown) {
+    invalidate()
     setSections(prev => prev.map((r) => r.id === id ? { ...r, [field]: value } : r))
   }
 
   function updateShot(id: string, side: 'left' | 'right', idx: number, field: 'off' | 'rl', value: string) {
+    invalidate()
     setSections(prev => prev.map((r) => {
       if (r.id !== id) return r
       const shots = [...r[(side + 'Shots') as 'leftShots' | 'rightShots']]
@@ -138,12 +142,12 @@ export default function EarthworksCalculator() {
               rightShots: s.rightShots.map((sh) => ({ off: sh.offset.toFixed(3), rl: sh.rl.toFixed(3) })),
             }
           })
-        setSections(rows)
-      } catch {
-        setCsvError('Failed to parse CSV. Check format.')
+        invalidate(); setSections(rows)
+      } catch (error) {
+        setCsvError(error instanceof Error ? error.message : 'Failed to parse CSV. Check format.')
       }
     }
-    reader.readAsText(file)
+    reader.onerror = () => setCsvError('The selected CSV could not be read.'); reader.readAsText(file)
   }
 
   function fmtCh(ch: number) {
@@ -157,10 +161,12 @@ export default function EarthworksCalculator() {
       {/* Template Settings */}
       <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg p-4">
         <h3 className="text-sm font-semibold mb-3">Road Template Settings</h3>
+        <p className="text-xs text-[var(--text-muted)] mb-3">Starting values are examples. Enter the approved design, including shoulder crossfall. Formation RL is the excavation/embankment target, not the finished surface. Blank material factor means unadjusted geometric volumes.</p>
         <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
           {[
             { label: 'Carriageway Width (m)', key: 'carriagewayWidth' as keyof RoadTemplate },
             { label: 'Shoulder Width (m)', key: 'shoulderWidth' as keyof RoadTemplate },
+            { label: 'Shoulder Crossfall (%)', key: 'shoulderCrossfall' as keyof RoadTemplate },
             { label: 'Camber (%)', key: 'camber' as keyof RoadTemplate },
             { label: 'Cut Slope H:V', key: 'cutSlopeH' as keyof RoadTemplate },
             { label: 'Fill Slope H:V', key: 'fillSlopeH' as keyof RoadTemplate },
@@ -170,15 +176,15 @@ export default function EarthworksCalculator() {
               <input id={`${uid}-tpl-${key}`}
                 type="number"
                 step="0.01"
-                value={template[key] as number}
-                onChange={e => setTemplate(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                value={Number.isFinite(template[key]) ? template[key] : ''}
+                onChange={e => { invalidate(); setTemplate(prev => ({ ...prev, [key]: e.target.value.trim() ? Number(e.target.value) : NaN })) }}
                 className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm"
               />
             </div>
           ))}
           <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="shrinkage-factor">Shrinkage Factor</label>
-            <input id="shrinkage-factor" type="number" step="0.01" value={shrinkage} onChange={e => setShrinkage(e.target.value)}
+            <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="shrinkage-factor">Material Conversion Factor (optional)</label>
+            <input id="shrinkage-factor" type="number" step="0.01" value={shrinkage} onChange={e => { invalidate(); setShrinkage(e.target.value) }}
               className="w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
           </div>
         </div>
@@ -206,7 +212,7 @@ export default function EarthworksCalculator() {
             )}
           </div>
         </div>
-        {csvError && <p className="text-xs text-red-400 mb-2">{csvError}</p>}
+        {csvError && <p role="alert" className="text-xs text-red-400 mb-2">{csvError}</p>}
         <p className="text-xs text-[var(--text-muted)] mb-2">
           Format: Chainage (km), Chainage (m), CL RL, Form RL, then L4_off, L4_rl, L3_off, L3_rl, L2_off, L2_rl, L1_off, L1_rl, R1_off, R1_rl, R2_off, R2_rl, R3_off, R3_rl, R4_off, R4_rl
         </p>
@@ -267,10 +273,10 @@ export default function EarthworksCalculator() {
           <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
             {[
               ['Total Sections', String(computedSections.length)],
-              ['Total Cut (Prismoidal)', `${earthworkResult?.totalCutPrismoidal.toFixed(2) || 0} m³`],
-              ['Total Fill (Prismoidal)', `${earthworkResult?.totalFillPrismoidal.toFixed(2) || 0} m³`],
-              ['Adjusted Cut (× Shrinkage)', `${earthworkResult?.adjustedCut.toFixed(2) || 0} m³`],
-              ['Net Balance', `${((earthworkResult?.adjustedCut || 0) - (earthworkResult?.totalFillPrismoidal || 0)).toFixed(2)} m³`],
+              ['Total Cut (End Area)', `${earthworkResult?.totalCutEndArea.toFixed(2) || 0} m³`],
+              ['Total Fill (End Area)', `${earthworkResult?.totalFillEndArea.toFixed(2) || 0} m³`],
+              ['Adjusted Cut (× Shrinkage)', earthworkResult?.adjustedCut == null ? 'Factor not supplied' : `${earthworkResult.adjustedCut.toFixed(2)} m³`],
+              ['Net Balance', `${((earthworkResult?.adjustedCut ?? earthworkResult?.totalCutEndArea ?? 0) - (earthworkResult?.totalFillEndArea ?? 0)).toFixed(2)} m³`],
             ].map(([label, value]) => (
               <div key={label} className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-3">
                 <p className="text-xs text-[var(--text-muted)]">{label}</p>
@@ -292,6 +298,9 @@ export default function EarthworksCalculator() {
                 className="px-5 py-2 bg-amber-600 text-black rounded-lg font-medium hover:bg-amber-700 text-sm whitespace-nowrap mt-5">
                  Print Earthworks BoQ
               </button>
+            </div>
+            <div className="grid gap-3 sm:grid-cols-3">
+              {([{ key: 'horizontalCrs', label: 'Declared horizontal CRS' }, { key: 'verticalDatum', label: 'Height datum / benchmark reference' }, { key: 'designRevision', label: 'Approved design revision reference' }] as const).map(({ key, label }) => <label key={key} className="text-xs text-[var(--text-muted)]">{label}<input value={references[key]} onChange={event => setReferences(previous => ({ ...previous, [key]: event.target.value }))} className="mt-1 min-h-11 w-full rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-[var(--text-primary)]" /></label>)}
             </div>
             <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
           </div>

@@ -12,6 +12,8 @@ import { logger } from '@/lib/logger'
 export interface PrintMeta {
   /** Document title e.g. "Level Book — Rise & Fall" */
   title: string
+  /** Draft workflow output without a prewritten certification assertion. */
+  reviewOnly?: boolean
   projectName?: string
   clientName?: string
   surveyorName?: string
@@ -289,7 +291,7 @@ ${bodyHtml}
 <!-- ╔══════════════════════════════════════════════╗ -->
 <!-- ║         SURVEYOR'S CERTIFICATE               ║ -->
 <!-- ╚══════════════════════════════════════════════╝ -->
-<div class="certificate-block">
+${meta.reviewOnly ? '<div class="certificate-block"><strong>DRAFT — NOT CERTIFIED</strong><p>Reviewed by: ____________________ Date: __________</p></div>' : `<div class="certificate-block">
   <div class="certificate-title">Surveyor's Certificate &mdash; Survey Regulations 1994, Regulation 3(2)</div>
   <div class="certificate-text">
     I certify that this survey computation was carried out under my direct supervision in accordance with
@@ -325,7 +327,7 @@ ${bodyHtml}
       <div class="sig-label">Date Checked</div>
     </div>
   </div>
-</div>
+</div>`}
 
 <!-- ╔══════════════════════════════════════════════╗ -->
 <!-- ║          COMPUTATION TOOL DISCLAIMER         ║ -->

@@ -7,7 +7,6 @@
  * References:
  *   - N.N. Basak, Surveying and Levelling, Ch. 8 — Earthwork computation
  *   - Ghilani & Wolf, Elementary Surveying, 16th Ed., §26.3
- *   - Kenya RDM 1.1 2025, §8 — Road cross-section design
  *
  * Conventions:
  *   - Offsets are measured from centreline: negative = left, positive = right.
@@ -18,6 +17,7 @@
  */
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────────
+import { integrateProfileAreas, interpolateProfile, validateProfile } from './profileGeometry'
 
 export interface ProfilePoint {
   offset: number
@@ -31,6 +31,33 @@ export interface RoadTemplate {
   fillSlope: string    // "1:1.5" format
   camber: number       // percentage, e.g. 2.5
   subgradeDepth: number
+  shoulderCrossfall?: number // operator-entered percentage; never a hidden standard
+}
+
+function validateFormationTemplate(template: RoadTemplate, level: number) {
+  if (![template.carriagewayWidth, template.shoulderWidth, template.camber, template.subgradeDepth, level].every(Number.isFinite) ||
+    template.carriagewayWidth <= 0 || template.shoulderWidth < 0 || template.camber < 0 || template.subgradeDepth < 0) throw new RangeError('Supply finite approved formation dimensions, non-negative crossfall and depth.')
+  parseSlopeRatio(template.cutSlope); parseSlopeRatio(template.fillSlope)
+}
+function uniqueFormation(points: ProfilePoint[]): ProfilePoint[] {
+  return points.sort((a, b) => a.offset - b.offset).filter((p, i, list) => {
+    if (i === 0 || p.offset !== list[i - 1].offset) return true
+    if (p.level !== list[i - 1].level) throw new RangeError('Conflicting formation levels at a duplicate offset.')
+    return false
+  })
+}
+
+function shoulderFall(template: RoadTemplate): number {
+  if (template.shoulderWidth === 0) return 0
+  if (template.shoulderCrossfall == null || !Number.isFinite(template.shoulderCrossfall) || template.shoulderCrossfall < 0) throw new RangeError('Enter a finite non-negative approved shoulder crossfall.')
+  return template.shoulderCrossfall / 100
+}
+
+function sideSlope(template: RoadTemplate, ground: ProfilePoint[], offset: number, level: number) {
+  const observed = interpolateProfile(validateProfile(ground), offset)
+  if (observed === null) throw new RangeError('Extend measured ground to cover both shoulders.')
+  const isCut = observed >= level
+  return { isCut, ratio: parseSlopeRatio(isCut ? template.cutSlope : template.fillSlope) }
 }
 
 // ─── SLOPE PARSING ─────────────────────────────────────────────────────────────
@@ -58,7 +85,9 @@ export function parseSlopeRatio(slope: string): number {
     )
   }
 
-  return parseFloat(match[1])
+  const ratio = Number(match[1])
+  if (!Number.isFinite(ratio) || ratio <= 0) throw new RangeError('Slope ratio must be finite and positive.')
+  return ratio
 }
 
 // ─── CAMBER PROFILE ────────────────────────────────────────────────────────────
@@ -66,14 +95,14 @@ export function parseSlopeRatio(slope: string): number {
 /**
  * Compute parabolic camber profile across the carriageway.
  *
- * Camber equation: y = c * x² where c = camber / (CW/2)²
+ * Camber equation: y = c * x² where c = (camber / 100) / (CW/2).
  *
  * The camber creates a parabolic curve with the highest point at centreline
  * (formationLevel) sloping down symmetrically to both edges.
  *
  * Example: With 7m carriageway and 2.5% camber:
  *   - Half-width = 3.5m
- *   - c = 2.5 / 100 / 3.5² = 0.0002041
+ *   - c = 0.025 / 3.5; the specified average edge crossfall is 2.5%.
  *   - Edge level = formationLevel - 0.025 * 3.5 = formationLevel - 0.0875m
  *
  * @param carriagewayWidth - Total carriageway width in metres
@@ -86,15 +115,17 @@ export function computeCamberProfile(
   camber: number,
   formationLevel: number
 ): ProfilePoint[] {
+  if (![carriagewayWidth, camber, formationLevel].every(Number.isFinite) || carriagewayWidth < 0 || camber < 0) throw new RangeError('Camber inputs must be finite and non-negative.')
+  if (Math.ceil(carriagewayWidth / 0.5) > 10000) throw new RangeError('The camber profile exceeds the drawing point limit.')
   const halfWidth = carriagewayWidth / 2
 
   if (halfWidth <= 0) {
     return [{ offset: 0, level: formationLevel }]
   }
 
-  // Camber coefficient: c = (camber / 100) / (halfWidth)²
+  // Average edge crossfall: edge drop = (camber / 100) * halfWidth.
   // This ensures the edge drop equals camber * halfWidth / 100
-  const c = (camber / 100) / (halfWidth * halfWidth)
+  const c = (camber / 100) / halfWidth
 
   // Generate points at 0.5m intervals along the carriageway
   const numPoints = Math.max(Math.ceil(carriagewayWidth / 0.5), 2)
@@ -109,7 +140,7 @@ export function computeCamberProfile(
     })
   }
 
-  return points
+  return uniqueFormation(points)
 }
 
 // ─── SLOPE INTERCEPT ───────────────────────────────────────────────────────────
@@ -130,105 +161,32 @@ export function computeCamberProfile(
  * @returns Intersection point {offset, level} or null if no intersection found
  */
 export function computeSlopeIntercept(
-  shoulderOffset: number,
-  shoulderLevel: number,
-  slopeRatio: number,
-  isCut: boolean,
-  groundPoints: ProfilePoint[]
+  shoulderOffset: number, shoulderLevel: number, slopeRatio: number,
+  isCut: boolean, groundPoints: ProfilePoint[]
 ): ProfilePoint | null {
+  if (![shoulderOffset, shoulderLevel, slopeRatio].every(Number.isFinite) || slopeRatio <= 0) throw new RangeError('Slope parameters must be finite with a positive ratio.')
   if (groundPoints.length < 2) return null
-
-  // Sort ground points by offset
-  const sorted = [...groundPoints].sort((a, b) => a.offset - b.offset)
-
-  // Determine slope direction
-  // For cut: slope goes UP and OUTWARD from shoulder
-  // For fill: slope goes DOWN and OUTWARD from shoulder
+  const sorted = validateProfile(groundPoints)
   const direction = shoulderOffset >= 0 ? 1 : -1
-
-  // Maximum offset to check — extend slope to the extent of ground data
-  const maxAbsOffset = Math.max(
-    ...sorted.map(p => Math.abs(p.offset))
-  )
-  const maxSlopeOffset = maxAbsOffset + 10 // extra margin
-
-
-  // Check intersection with each ground segment
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const gp1 = sorted[i]
-    const gp2 = sorted[i + 1]
-
-    // Skip segments that don't overlap with our slope direction
-    if (direction > 0) {
-      // Right side: slope extends to positive offsets
-      if (gp1.offset > shoulderOffset && gp2.offset < shoulderOffset) continue
-      if (gp2.offset < shoulderOffset) continue
-    } else {
-      // Left side: slope extends to negative offsets
-      if (gp1.offset > shoulderOffset && gp2.offset < shoulderOffset) continue
-      if (gp1.offset > shoulderOffset) continue
-    }
-
-    // Compute slope line parameters
-    // Slope line: level = shoulderLevel + (isCut ? +1 : -1) * (|offset - shoulderOffset| / slopeRatio)
-    const slopeEndOffset = shoulderOffset + direction * maxSlopeOffset
-    const slopeEndLevel = shoulderLevel +
-      (isCut ? 1 : -1) * (Math.abs(slopeEndOffset - shoulderOffset) / slopeRatio)
-
-    // Line 1: slope line from (shoulderOffset, shoulderLevel) to (slopeEndOffset, slopeEndLevel)
-    // Line 2: ground segment from (gp1.offset, gp1.level) to (gp2.offset, gp2.level)
-
-    const x1 = shoulderOffset
-    const y1 = shoulderLevel
-    const x2 = slopeEndOffset
-    const y2 = slopeEndLevel
-    const x3 = gp1.offset
-    const y3 = gp1.level
-    const x4 = gp2.offset
-    const y4 = gp2.level
-
-    const denom = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4)
-    if (Math.abs(denom) < 1e-12) continue // parallel lines
-
-    const t = ((x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4)) / denom
-    const u = -((x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3)) / denom
-
-    // Intersection is valid if both t and u are in [0, 1]
-    if (t >= 0 && t <= 1 && u >= 0 && u <= 1) {
-      const intersectX = x1 + t * (x2 - x1)
-      const intersectY = y1 + t * (y2 - y1)
-
-      // Verify the intersection is in the correct direction from the shoulder
-      const offsetFromShoulder = intersectX - shoulderOffset
-      if ((direction > 0 && offsetFromShoulder <= 0) || (direction < 0 && offsetFromShoulder >= 0)) {
-        continue
-      }
-
-      return { offset: intersectX, level: intersectY }
-    }
+  const shoulderGround = interpolateProfile(sorted, shoulderOffset)
+  if (shoulderGround === null) return null
+  if (shoulderGround === shoulderLevel) return { offset: shoulderOffset, level: shoulderLevel }
+  const slopeAt = (offset: number) => shoulderLevel + (isCut ? 1 : -1) * direction * (offset - shoulderOffset) / slopeRatio
+  const pairs = sorted.slice(1).map((p, i) => [sorted[i], p])
+  if (direction < 0) pairs.reverse()
+  for (const [p, q] of pairs) {
+    const a = direction > 0 ? Math.max(p.offset, shoulderOffset) : p.offset
+    const b = direction < 0 ? Math.min(q.offset, shoulderOffset) : q.offset
+    if (b <= a) continue
+    const ga = interpolateProfile(sorted, a), gb = interpolateProfile(sorted, b)
+    if (ga === null || gb === null) continue
+    const d1 = ga - slopeAt(a), d2 = gb - slopeAt(b)
+    if (d1 * d2 > 0) continue
+    const x = d1 === d2 ? (direction > 0 ? a : b) : a + (b - a) * d1 / (d1 - d2)
+    const level = interpolateProfile(sorted, x)
+    if (level !== null) return { offset: x, level }
   }
-
-  // If no intersection found, return the furthest point the slope would reach
-  // within the ground extent (for rendering purposes)
-  const furthestGround = direction > 0
-    ? sorted[sorted.length - 1]
-    : sorted[0]
-
-  const furthestDist = Math.abs(furthestGround.offset - shoulderOffset)
-  const furthestLevel = shoulderLevel + (isCut ? 1 : -1) * (furthestDist / slopeRatio)
-
-  // Only return if the slope would actually cross the ground at this point
-  if (isCut && furthestLevel < furthestGround.level) {
-    return null
-  }
-  if (!isCut && furthestLevel > furthestGround.level) {
-    return null
-  }
-
-  return {
-    offset: furthestGround.offset,
-    level: furthestLevel,
-  }
+  return null
 }
 
 // ─── FORMATION LINE ────────────────────────────────────────────────────────────
@@ -243,25 +201,24 @@ export function computeSlopeIntercept(
  *   4. Right shoulder
  *   5. Right slope intercept
  *
- * Shoulders have a slight outward cross-fall of 3-5% (hardcoded at 4% per RDM 1.1).
+ * Shoulder crossfall is supplied explicitly. Each side uses its own measured cut/fill condition.
  *
  * @param template - Road template parameters
  * @param formationLevel - RL at centreline
  * @param groundPoints - Natural ground profile
- * @param isCut - Overall section mode (determines which slope ratio to use)
+ * @param _isCut - Legacy caller hint; side conditions are determined from measured ground
  * @returns Array of {offset, level} points defining the formation template
  */
 export function computeFormationLine(
   template: RoadTemplate,
   formationLevel: number,
   groundPoints: ProfilePoint[],
-  isCut: boolean
+  _isCut: boolean
 ): ProfilePoint[] {
+  validateFormationTemplate(template, formationLevel)
   const {
     carriagewayWidth,
     shoulderWidth,
-    cutSlope,
-    fillSlope,
     camber,
   } = template
 
@@ -269,11 +226,7 @@ export function computeFormationLine(
   const points: ProfilePoint[] = []
 
   // Determine slope ratio based on section mode
-  const slopeStr = isCut ? cutSlope : fillSlope
-  const slopeRatio = parseSlopeRatio(slopeStr)
-
-  // Shoulder cross-fall (outward slope) — 4% per Kenya RDM 1.1
-  const shoulderCrossfall = 0.04
+  const shoulderCrossfall = shoulderFall(template)
 
   // --- Left side ---
 
@@ -283,13 +236,14 @@ export function computeFormationLine(
   // Left shoulder outer edge
   const leftShoulderOffset = -(halfCW + shoulderWidth)
   const leftShoulderLevel = leftEdgeLevel - shoulderCrossfall * shoulderWidth
+  const leftSlope = sideSlope(template, groundPoints, leftShoulderOffset, leftShoulderLevel)
 
   // Left slope intercept
   const leftIntercept = computeSlopeIntercept(
     leftShoulderOffset,
     leftShoulderLevel,
-    slopeRatio,
-    isCut,
+    leftSlope.ratio,
+    leftSlope.isCut,
     groundPoints
   )
 
@@ -301,15 +255,18 @@ export function computeFormationLine(
   // Right shoulder outer edge
   const rightShoulderOffset = halfCW + shoulderWidth
   const rightShoulderLevel = rightEdgeLevel - shoulderCrossfall * shoulderWidth
+  const rightSlope = sideSlope(template, groundPoints, rightShoulderOffset, rightShoulderLevel)
 
   // Right slope intercept
   const rightIntercept = computeSlopeIntercept(
     rightShoulderOffset,
     rightShoulderLevel,
-    slopeRatio,
-    isCut,
+    rightSlope.ratio,
+    rightSlope.isCut,
     groundPoints
   )
+
+  if (!leftIntercept || !rightIntercept) throw new RangeError('Extend measured ground to capture both slope daylight points; extrapolation is not used.')
 
   // --- Build points array (left to right) ---
 
@@ -337,7 +294,7 @@ export function computeFormationLine(
     points.push(rightIntercept)
   }
 
-  return points
+  return uniqueFormation(points)
 }
 
 /**
@@ -350,22 +307,19 @@ export function computeDetailedFormationLine(
   template: RoadTemplate,
   formationLevel: number,
   groundPoints: ProfilePoint[],
-  isCut: boolean
+  _isCut: boolean
 ): ProfilePoint[] {
+  validateFormationTemplate(template, formationLevel)
   const {
     carriagewayWidth,
     shoulderWidth,
-    cutSlope,
-    fillSlope,
     camber,
   } = template
 
   const halfCW = carriagewayWidth / 2
   const points: ProfilePoint[] = []
 
-  const slopeStr = isCut ? cutSlope : fillSlope
-  const slopeRatio = parseSlopeRatio(slopeStr)
-  const shoulderCrossfall = 0.04
+  const shoulderCrossfall = shoulderFall(template)
 
   // Left carriageway edge level
   const leftEdgeLevel = formationLevel - (camber / 100) * halfCW
@@ -378,22 +332,26 @@ export function computeDetailedFormationLine(
   // Right shoulder
   const rightShoulderOffset = halfCW + shoulderWidth
   const rightShoulderLevel = rightEdgeLevel - shoulderCrossfall * shoulderWidth
+  const leftSlope = sideSlope(template, groundPoints, leftShoulderOffset, leftShoulderLevel)
+  const rightSlope = sideSlope(template, groundPoints, rightShoulderOffset, rightShoulderLevel)
 
   // Slope intercepts
   const leftIntercept = computeSlopeIntercept(
     leftShoulderOffset,
     leftShoulderLevel,
-    slopeRatio,
-    isCut,
+    leftSlope.ratio,
+    leftSlope.isCut,
     groundPoints
   )
   const rightIntercept = computeSlopeIntercept(
     rightShoulderOffset,
     rightShoulderLevel,
-    slopeRatio,
-    isCut,
+    rightSlope.ratio,
+    rightSlope.isCut,
     groundPoints
   )
+
+  if (!leftIntercept || !rightIntercept) throw new RangeError('Extend measured ground to capture both slope daylight points; extrapolation is not used.')
 
   // Left slope
   if (leftIntercept) {
@@ -425,7 +383,7 @@ export function computeDetailedFormationLine(
   }
 
   // Sort by offset to ensure correct rendering order
-  return points.sort((a, b) => a.offset - b.offset)
+  return uniqueFormation(points)
 }
 
 // ─── CUT/FILL AREA (SHOELACE METHOD) ───────────────────────────────────────────
@@ -451,101 +409,9 @@ export function computeDetailedFormationLine(
  * @param formationPoints - Formation line points (sorted by offset)
  * @returns Signed area: positive = cut, negative = fill (m²)
  */
-export function computeCutFillArea(
-  groundPoints: ProfilePoint[],
-  formationPoints: ProfilePoint[]
-): number {
-  if (groundPoints.length < 2 || formationPoints.length < 2) {
-    return 0
-  }
-
-  // Sort both profiles by offset
-  const sortedGround = [...groundPoints].sort((a, b) => a.offset - b.offset)
-  const sortedFormation = [...formationPoints].sort((a, b) => a.offset - b.offset)
-
-  // Build a closed polygon by combining both profiles
-  // Trace ground from left to right, then formation from right to left
-  const polygon: ProfilePoint[] = []
-
-  // Use the wider extent of both profiles
-
-
-
-  // Helper: interpolate level at a given offset from a profile
-  function interpolateLevel(profile: ProfilePoint[], offset: number): number {
-    if (offset <= profile[0].offset) return profile[0].level
-    if (offset >= profile[profile.length - 1].offset) {
-      return profile[profile.length - 1].level
-    }
-
-    for (let i = 0; i < profile.length - 1; i++) {
-      if (
-        profile[i].offset <= offset &&
-        profile[i + 1].offset >= offset
-      ) {
-        const segLen = profile[i + 1].offset - profile[i].offset
-        if (segLen < 1e-12) return profile[i].level
-        const t = (offset - profile[i].offset) / segLen
-        return profile[i].level + t * (profile[i + 1].level - profile[i].level)
-      }
-    }
-    return profile[profile.length - 1].level
-  }
-
-  // Build combined polygon with offset-aligned points
-
-
-  // Collect all unique offset values from both profiles
-  const offsets = new Set<number>()
-  for (const p of sortedGround) offsets.add(p.offset)
-  for (const p of sortedFormation) offsets.add(p.offset)
-
-  const sortedOffsets = Array.from(offsets).sort((a, b) => a - b)
-
-  // Build closed polygon:
-  // Ground left→right, then Formation right→left
-  for (const offset of sortedOffsets) {
-    polygon.push({
-      offset,
-      level: interpolateLevel(sortedGround, offset),
-    })
-  }
-  for (let i = sortedOffsets.length - 1; i >= 0; i--) {
-    polygon.push({
-      offset: sortedOffsets[i],
-      level: interpolateLevel(sortedFormation, sortedOffsets[i]),
-    })
-  }
-
-  // Shoelace formula
-  let area = 0
-  const n = polygon.length
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n
-    area += polygon[i].offset * polygon[j].level
-    area -= polygon[j].offset * polygon[i].level
-  }
-
-  area = area / 2
-
-  // Positive area = clockwise = ground above formation = cut
-  // We need to verify the sign convention by checking the first point relationship
-  // If ground is above formation at centre → cut (positive)
-  const centreGround = interpolateLevel(sortedGround, 0)
-  const centreFormation = interpolateLevel(sortedFormation, 0)
-
-  // If ground > formation at centre → cut, which should be positive
-  // Shoelace convention: if vertices are ordered clockwise, result is positive
-  // Our ground→formation polygon should give positive for cut
-  // If the sign is wrong, negate it
-  if (centreGround > centreFormation && area < 0) {
-    return -area
-  }
-  if (centreGround < centreFormation && area > 0) {
-    return -area
-  }
-
-  return area
+export function computeCutFillArea(groundPoints: ProfilePoint[], formationPoints: ProfilePoint[]): number {
+  if (groundPoints.length < 2 || formationPoints.length < 2) return 0
+  return integrateProfileAreas(groundPoints, formationPoints).netArea
 }
 
 // ─── UTILITY FUNCTIONS ─────────────────────────────────────────────────────────

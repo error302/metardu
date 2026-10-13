@@ -104,12 +104,16 @@ export interface CrossSectionTemplate {
   fillSlope: string
   camber: number
   subgradeDepth: number
+  /** Operator-entered shoulder crossfall percent; absence means unassessed. */
+  shoulderCrossfall?: number
 }
 
 export interface StationData {
   chainage: number
   groundLevel: number
   designLevel?: number
+  /** Measured offset/RL ground observations; offsets negative left, positive right. */
+  groundProfile?: Array<{ offset: number; level: number }>
   cutArea?: number
   fillArea?: number
   sortOrder?: number

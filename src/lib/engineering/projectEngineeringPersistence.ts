@@ -1,5 +1,10 @@
 import type { BrowserClient } from '@/lib/api-client/client'
-import type { EngineeringData } from '@/types/engineering'
+import type { EngineeringData, RoadDesignData } from '@/types/engineering'
+
+/** The project JSON is the complete saved draft; legacy relational rows omit design/profile fields. */
+export function hydrateSavedEngineeringRoad(current: EngineeringData, relationalRoad: RoadDesignData): EngineeringData {
+  return { ...current, road: current.road ?? relationalRoad }
+}
 
 /** Persist engineering data and surface the API client's result-shaped errors. */
 export async function saveProjectEngineeringData(
@@ -10,7 +15,7 @@ export async function saveProjectEngineeringData(
   const { data, error } = await client
     .from('projects')
     .update({ engineering_data: engineeringData })
-    .eq('id', projectId)
+    .eq('id', projectId) as { data: unknown; error: { message: string } | null }
 
   if (error) {
     throw new Error(`Engineering data was not saved: ${error.message}`)

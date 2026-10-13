@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { CrossSectionTemplate, RoadDesignData } from '@/types/engineering'
+import { validateRoadTemplate } from '@/lib/engineering/roadProjectOutputs'
 
 /**
  * Step 4 — Cross Section Template (carriageway, shoulders, slopes).
@@ -23,17 +24,21 @@ export function Step4CrossSection({
     camber: 3,
     subgradeDepth: 0.5
   })
+  const [error, setError] = useState('')
 
   const handleSave = () => {
-    onSave(template)
+    try { validateRoadTemplate(template); setError(''); onSave(template) }
+    catch (failure) { setError(failure instanceof Error ? failure.message : 'Review the template inputs.') }
   }
 
   return (
     <div className="space-y-6">
       <div>
         <h3 className="text-lg font-semibold text-white mb-1">Cross Section Template</h3>
-        <p className="text-zinc-400 text-sm">Define standard cross section parameters.</p>
+        <p className="text-zinc-400 text-sm">Enter the approved crowned road template. Review the starting values; they are examples, not a design-standard assessment. Slopes retain the existing H:V convention.</p>
       </div>
+
+      {error && <p role="alert" className="text-sm text-red-300">{error}</p>}
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <div>
@@ -41,8 +46,8 @@ export function Step4CrossSection({
           <input id="carriagewayWidth"
             type="number"
             step="0.1"
-            value={template.carriagewayWidth}
-            onChange={e => setTemplate({ ...template, carriagewayWidth: Number(e.target.value) })}
+            value={Number.isFinite(template.carriagewayWidth) ? template.carriagewayWidth : ''}
+            onChange={e => setTemplate({ ...template, carriagewayWidth: e.target.value.trim() ? Number(e.target.value) : NaN })}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
           />
         </div>
@@ -51,8 +56,8 @@ export function Step4CrossSection({
           <input id="shoulderWidth"
             type="number"
             step="0.1"
-            value={template.shoulderWidth}
-            onChange={e => setTemplate({ ...template, shoulderWidth: Number(e.target.value) })}
+            value={Number.isFinite(template.shoulderWidth) ? template.shoulderWidth : ''}
+            onChange={e => setTemplate({ ...template, shoulderWidth: e.target.value.trim() ? Number(e.target.value) : NaN })}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
           />
         </div>
@@ -61,10 +66,16 @@ export function Step4CrossSection({
           <input id="camber"
             type="number"
             step="0.5"
-            value={template.camber}
-            onChange={e => setTemplate({ ...template, camber: Number(e.target.value) })}
+            value={Number.isFinite(template.camber) ? template.camber : ''}
+            onChange={e => setTemplate({ ...template, camber: e.target.value.trim() ? Number(e.target.value) : NaN })}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
           />
+        </div>
+        <div>
+          <label htmlFor="shoulderCrossfall" className="block text-sm text-zinc-400 mb-1">Approved shoulder crossfall (%)</label>
+          <input id="shoulderCrossfall" type="number" step="any" min="0" value={template.shoulderCrossfall ?? ''}
+            onChange={event => setTemplate({ ...template, shoulderCrossfall: event.target.value === '' ? undefined : Number(event.target.value) })}
+            className="min-h-11 w-full rounded-lg border border-zinc-700 bg-zinc-800 px-3 py-2 text-white" />
         </div>
         <div>
           <label htmlFor="cutSlope" className="block text-sm text-zinc-400 mb-1">Cut Slope (H:V)</label>
@@ -93,8 +104,8 @@ export function Step4CrossSection({
           <input id="subgradeDepth"
             type="number"
             step="0.1"
-            value={template.subgradeDepth}
-            onChange={e => setTemplate({ ...template, subgradeDepth: Number(e.target.value) })}
+            value={Number.isFinite(template.subgradeDepth) ? template.subgradeDepth : ''}
+            onChange={e => setTemplate({ ...template, subgradeDepth: e.target.value.trim() ? Number(e.target.value) : NaN })}
             className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
           />
         </div>

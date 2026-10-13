@@ -22,6 +22,9 @@ import { DrainageStep2Pipes } from './DrainageStep2Pipes'
 import { DrainageStep3Outputs } from './DrainageStep3Outputs'
 import { calculateProjectDrainageRuns, generateProjectDrainageSetout } from '@/lib/engineering/projectDrainageEngine'
 import { parseRoadFieldPlan } from '@/lib/engineering/roadFieldPlan'
+import { buildRoadSchedules } from '@/lib/engineering/roadProjectOutputs'
+import { engineeringScheduleCsv } from '@/lib/engineering/engineeringScheduleCsv'
+import { RoadProfilePanel } from '@/components/engineering/RoadProfilePanel'
 
 /* ── Lazy-loaded engineering panels (only one step visible at a time) ─── */
 const LongSectionRenderer = dynamic(() => import('@/components/engineering/LongSectionRenderer'), {
@@ -55,14 +58,8 @@ const MachineControlExportPanel = dynamic(() => import('@/components/engineering
   ssr: false, loading: () => <EngineeringPanelSkeleton />
 })
 
-function csvCell(value: unknown): string {
-  let text = value === null || value === undefined ? '' : String(value)
-  if (/^[\s]*[=+\-@]/.test(text)) text = `'${text}`
-  return `"${text.replaceAll('"', '""')}"`
-}
-
 function downloadCsv(filename: string, headers: string[], rows: unknown[][]) {
-  const csv = [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n')
+  const csv = engineeringScheduleCsv(headers, rows)
   const blob = new Blob([`\uFEFF${csv}`], { type: 'text/csv;charset=utf-8' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')
@@ -145,17 +142,17 @@ function DrainageCsvExports({ data, projectName }: { data: DrainageData | null; 
   )
 }
 
-function RoadCsvExports({ data, projectName }: { data: RoadDesignData | null; projectName: string }) {
+function RoadCsvExports({ data, projectName, crsCode, verticalDatum }: { data: RoadDesignData | null; projectName: string; crsCode: string; verticalDatum: string | null }) {
   const [pdfError, setPdfError] = useState<string | null>(null)
-  const horizontalRows = data?.ips ?? []
+  const computed = buildRoadSchedules(data, crsCode)
   const verticalRows = data?.vips ?? []
-  const earthworksRows = data?.earthworksTable ?? []
   const stations = data?.stations ?? []
   const exports = [
-    { name: 'Horizontal alignment CSV', filename: 'metardu-horizontal-alignment.csv', rows: horizontalRows.map(ip => [ip.name, ip.easting, ip.northing, ip.radius, ip.deflectionAngle, ip.tangentLength, ip.arcLength, ip.chainageTC, ip.chainageMC, ip.chainageCT]), headers: ['IP', 'Easting', 'Northing', 'Radius_m', 'Deflection_deg', 'Tangent_m', 'Arc_m', 'Chainage_TC', 'Chainage_MC', 'Chainage_CT'] },
+    computed.horizontal,
     { name: 'Vertical alignment CSV', filename: 'metardu-vertical-alignment.csv', rows: verticalRows.map(ip => [ip.chainage, ip.reducedLevel, ip.gradientIn, ip.gradientOut, ip.kValue, ip.curveLength]), headers: ['Chainage_m', 'RL_m', 'Gradient_in', 'Gradient_out', 'K_value', 'Curve_length_m'] },
-    { name: 'Earthworks CSV', filename: 'metardu-earthworks.csv', rows: earthworksRows.map(row => [row.chainage, row.cutArea, row.fillArea, row.cutVolume, row.fillVolume, row.cumulativeCut, row.cumulativeFill, row.method]), headers: ['Chainage_m', 'Cut_area_m2', 'Fill_area_m2', 'Cut_volume_m3', 'Fill_volume_m3', 'Cumulative_cut_m3', 'Cumulative_fill_m3', 'Method'] },
-    { name: 'Station peg book CSV', filename: 'metardu-station-peg-book.csv', rows: stations.map(row => [row.chainage, row.groundLevel, row.designLevel, row.cutArea, row.fillArea]), headers: ['Chainage_m', 'Ground_RL_m', 'Design_RL_m', 'Cut_area_m2', 'Fill_area_m2'] },
+    computed.earthworks,
+    computed.profiles,
+    { name: 'Station level schedule CSV', filename: 'metardu-station-levels.csv', rows: stations.map(row => [row.chainage, row.groundLevel, row.designLevel]), headers: ['Chainage_m', 'Ground_RL_m', 'Design_surface_RL_m'] },
   ]
   const exportPdf = async () => {
     setPdfError(null)
@@ -163,10 +160,13 @@ function RoadCsvExports({ data, projectName }: { data: RoadDesignData | null; pr
       await downloadSchedulePdf('metardu-road-engineering-schedules.pdf', {
         title: 'Road engineering schedules',
         projectName,
-        coordinateReference: data?.coordinateSystem,
+        coordinateReference: crsCode,
         sections: exports.map(item => ({ title: item.name.replace(/ CSV$/, ''), headers: item.headers, rows: item.rows })),
         notes: [
-          'This report reproduces saved project values for review; it does not certify the alignment, design standard, quantities, or construction suitability.',
+          ...computed.issues,
+          `Vertical datum / height reference: ${verticalDatum || 'NOT DECLARED'}.`,
+          'Horizontal curves and earthworks are freshly computed from saved observations and supplied design inputs. Vertical rows reproduce saved inputs; they are not an independently evaluated vertical alignment.',
+          'Design surface RL is the finished centreline level. Formation RL subtracts the entered subgrade depth. Average end-area uses actual station spacing and separate measured cut/fill areas; material factors and curvature corrections are unassessed.',
           'Check coordinate reference, vertical datum, chainage, field control, design criteria, and current revisions before setting out or issuing for construction.',
         ],
       })
@@ -177,7 +177,8 @@ function RoadCsvExports({ data, projectName }: { data: RoadDesignData | null; pr
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-400">Export the saved project calculations as editable CSV schedules or a print-ready PDF review report. The PDF is a schedule report, not a scaled engineering drawing.</p>
+      <p className="text-sm text-zinc-400">Export current circular alignment and measured section quantities, source profiles and saved vertical inputs. These are draft review schedules; verify CRS, height reference, control and design revision before field issue.</p>
+      {computed.issues.map(issue => <p role="status" key={issue} className="text-sm text-amber-300">{issue}</p>)}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button type="button" disabled={exports.every(item => item.rows.length === 0)} onClick={() => void exportPdf()} className="rounded-lg border border-amber-600 px-4 py-3 text-left text-sm text-amber-200 hover:bg-amber-950/50 disabled:cursor-not-allowed disabled:opacity-40">Download road schedules PDF</button>
         {exports.map(item => <button key={item.filename} type="button" disabled={item.rows.length === 0} onClick={() => downloadCsv(item.filename, item.headers, item.rows)} className="rounded-lg border border-zinc-700 px-4 py-3 text-left text-sm text-zinc-200 hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-40">↓ {item.name}</button>)}
@@ -311,7 +312,7 @@ export function renderStepContent(
             <h3 className="mb-1 text-lg font-semibold text-white">Road calculation schedules</h3>
             <p className="text-sm text-zinc-400">Export the saved project calculations for review or transfer to field tools.</p>
           </div>
-          <RoadCsvExports data={roadData} projectName={project.name} />
+          <RoadCsvExports data={roadData} projectName={project.name} crsCode={projectReferenceSystem?.code ?? ''} verticalDatum={projectReferenceSystem?.verticalDatum ?? null} />
         </div>
       )
     case 'long_section': {
@@ -359,21 +360,7 @@ export function renderStepContent(
       )
     }
     case 'cross_section_view': {
-      const stations = roadData?.stations || []
-      return (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-1">Cross Sections</h3>
-            <p className="text-zinc-400 text-sm">Surveyed transverse profiles and design formation at each chainage.</p>
-          </div>
-          <div className="rounded-lg border border-zinc-700 bg-zinc-900 p-5">
-            {stations.length === 0
-              ? <p className="text-sm text-zinc-300">No road stations are saved yet. Add actual centreline observations in the Stations step, then enter surveyed offsets and RLs in Cross Sections Compute.</p>
-              : <p className="text-sm text-zinc-300">Centreline levels are available, but they do not define surveyed transverse ground points. Enter measured offset/RL profiles and the approved formation RL in Cross Sections Compute to calculate section areas and volumes.</p>}
-            <a href={`/project/${project.id}/engineering?tab=cross_sections`} className="mt-4 inline-flex rounded bg-amber-500 px-4 py-2 text-sm font-semibold text-black hover:bg-amber-400">Open surveyed cross-section calculator</a>
-          </div>
-        </div>
-      )
+      return <RoadProfilePanel data={roadData} />
     }
     case 'pavement_design': {
       const stations = roadData?.stations || []

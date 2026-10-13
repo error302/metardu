@@ -5,7 +5,7 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/api-client/client'
 import { z } from 'zod'
 import { apiGet, apiPost } from '@/lib/api/client'
-import { saveProjectEngineeringData } from '@/lib/engineering/projectEngineeringPersistence'
+import { saveProjectEngineeringData, hydrateSavedEngineeringRoad } from '@/lib/engineering/projectEngineeringPersistence'
 import { resolveStageReference, type StageReference } from '@/lib/workspaces/stageReference'
 import type {
   EngineeringData,
@@ -230,14 +230,11 @@ export default function EngineeringWorkspacePage() {
 
       // Merge into the existing engineering_data, preserving mode/drainage
       setProject(prev => {
-        if (!prev) return prev
+        if (!prev || prev.id !== projectId) return prev
         const current: EngineeringData = prev.engineering_data || { mode: 'road', standard: 'KRDM2017' }
         return {
           ...prev,
-          engineering_data: {
-            ...current,
-            road: roadFromDb,
-          },
+          engineering_data: hydrateSavedEngineeringRoad(current, roadFromDb),
         }
       })
     } catch {
@@ -377,6 +374,7 @@ export default function EngineeringWorkspacePage() {
             fillSlope: road.crossSectionTemplate.fillSlope,
             camber: road.crossSectionTemplate.camber,
             subgradeDepth: road.crossSectionTemplate.subgradeDepth,
+            shoulderCrossfall: road.crossSectionTemplate.shoulderCrossfall,
           }
         : {}
 
@@ -489,7 +487,7 @@ export default function EngineeringWorkspacePage() {
         if (backendOk) {
           showToast('Saved successfully')
         } else {
-          showToast('Saved locally, but backend sync failed.', 'error')
+          showToast('Saved to the project. The legacy alignment mirror did not sync.', 'error')
         }
       } else {
         showToast('Saved successfully')
@@ -516,7 +514,7 @@ export default function EngineeringWorkspacePage() {
         if (backendOk) {
           showToast('All engineering data saved to backend')
         } else {
-          showToast('Backend sync failed. Local data is preserved.', 'error')
+          showToast('Saved to the project. The legacy alignment mirror did not sync.', 'error')
         }
       } else {
         showToast('All data saved')

@@ -1,198 +1,68 @@
 'use client'
-
 import { useRef, useState } from 'react'
+import Papa from 'papaparse'
 import type { RoadDesignData, StationData } from '@/types/engineering'
+import { parseRoadStationsCSV } from '@/lib/engineering/roadProjectOutputs'
+import { validateProfile } from '@/lib/engineering/profileGeometry'
 
-/**
- * Step 5 — Stations & Levels (ground levels at chainage intervals).
- *
- * Extracted verbatim from src/app/project/[id]/engineering/page.tsx.
- * Supports manual entry and CSV import (chainage, ground_level columns).
- */
-export function Step5Stations({
-  data,
-  onSave
-}: {
-  data: RoadDesignData | null
-  onSave: (stations: StationData[]) => void
-}) {
-  const [stations, setStations] = useState<StationData[]>(data?.stations || [])
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
-  const csvInputRef = useRef<HTMLInputElement>(null)
+interface DraftStation { id: string; chainage: string; groundLevel: string; designLevel: string; profile: string; original?: StationData }
+const draft = (station?: StationData): DraftStation => ({ id: crypto.randomUUID(), chainage: station ? String(station.chainage) : '',
+  groundLevel: station ? String(station.groundLevel) : '', designLevel: station?.designLevel != null ? String(station.designLevel) : '',
+  profile: station?.groundProfile?.map(p => `${p.offset},${p.level}`).join('\n') ?? '', original: station })
+const decimal = (text: string) => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(text.trim()) && Number.isFinite(Number(text))
 
-  const addStation = () => {
-    const lastCh = stations.length > 0 ? stations[stations.length - 1].chainage : 0
-    setStations([...stations, { chainage: lastCh + 20, groundLevel: 0 }])
+export function Step5Stations({ data, onSave }: { data: RoadDesignData | null; onSave: (stations: StationData[]) => void | Promise<boolean> }) {
+  const [rows, setRows] = useState(() => (data?.stations ?? []).map(draft))
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const update = (id: string, field: keyof Omit<DraftStation, 'id' | 'original'>, value: string) => {
+    setRows(old => old.map(row => row.id === id ? { ...row, [field]: value } : row)); setError('')
   }
-
-  const updateStation = (index: number, field: keyof StationData, value: StationData[keyof StationData]) => {
-    const updated = [...stations]
-    updated[index] = { ...updated[index], [field]: value }
-    setStations(updated)
+  const save = async () => {
+    setError('')
+    try {
+      const stations = rows.map((row, i): StationData => {
+        if (!decimal(row.chainage) || !decimal(row.groundLevel) || row.designLevel.trim() && !decimal(row.designLevel)) throw new RangeError(`Station ${i + 1}: complete finite chainage and ground RL are required; supply a finite design RL or leave it unknown.`)
+        let groundProfile: StationData['groundProfile']
+        if (row.profile.trim()) {
+          const parsed = Papa.parse<string[]>(row.profile.trim(), { skipEmptyLines: 'greedy' })
+          if (parsed.errors.length || parsed.data.some(pair => pair.length !== 2 || !pair.every(decimal))) throw new RangeError(`Station ${i + 1}: enter complete offset,ground_RL pairs, one per line.`)
+          groundProfile = validateProfile(parsed.data.map(([offset, level]) => ({ offset: Number(offset), level: Number(level) })))
+        }
+        return { ...row.original, chainage: Number(row.chainage), groundLevel: Number(row.groundLevel),
+          designLevel: row.designLevel.trim() ? Number(row.designLevel) : undefined, groundProfile }
+      }).sort((a, b) => a.chainage - b.chainage)
+      if (new Set(stations.map(s => s.chainage)).size !== stations.length) throw new RangeError('Station chainages must be unique.')
+      setSaving(true)
+      if (await onSave(stations) === false) throw new Error('Stations could not be saved. Your entered observations are preserved; retry after reviewing the connection.')
+    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Stations could not be saved.') }
+    finally { setSaving(false) }
   }
-
-  const removeStation = (index: number) => {
-    setStations(stations.filter((_, i) => i !== index))
-  }
-
-  const handleSave = () => {
-    onSave(stations)
-  }
-
-  const handleCSVImport = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0]
+  const importFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
     if (!file) return
-
     const reader = new FileReader()
-    reader.onload = (evt) => {
-      try {
-        const text = evt.target?.result as string
-        const lines = text.trim().split(/\r?\n/).filter(l => l.trim())
-        if (lines.length < 2) {
-          setToast({ message: 'CSV must have a header row and at least one data row', type: 'error' })
-          return
-        }
-
-        // Parse header — normalize to lowercase, strip spaces
-        const headerRaw = lines[0].split(',').map(h => h.trim().toLowerCase().replace(/[\s_-]/g, ''))
-        const chIdx = headerRaw.findIndex(h => h === 'chainage' || h === 'station' || h === 'chainage(m)')
-        const glIdx = headerRaw.findIndex(h => h === 'groundlevel' || h === 'ground_level' || h === 'groundlevel(m)' || h === 'elevation' || h === 'level')
-
-        if (chIdx === -1 || glIdx === -1) {
-          setToast({ message: 'CSV must contain "chainage" and "ground_level" (or "groundLevel") columns', type: 'error' })
-          return
-        }
-
-        const parsed: StationData[] = []
-        let skipped = 0
-
-        for (let i = 1; i < lines.length; i++) {
-          const cols = lines[i].split(',').map(c => c.trim())
-          const chainage = parseFloat(cols[chIdx])
-          const groundLevel = parseFloat(cols[glIdx])
-
-          if (isNaN(chainage) || isNaN(groundLevel)) {
-            skipped++
-            continue
-          }
-          parsed.push({ chainage, groundLevel })
-        }
-
-        if (parsed.length === 0) {
-          setToast({ message: 'No valid rows found — ensure chainage and ground_level are numeric', type: 'error' })
-          return
-        }
-
-        // Sort by chainage ascending
-        parsed.sort((a, b) => a.chainage - b.chainage)
-        setStations(parsed)
-        setToast({ message: `Imported ${parsed.length} station${parsed.length > 1 ? 's' : ''}${skipped > 0 ? ` (${skipped} skipped)` : ''}`, type: 'success' })
-        setTimeout(() => setToast(null), 4000)
-      } catch {
-        setToast({ message: 'Failed to parse CSV file', type: 'error' })
-        setTimeout(() => setToast(null), 4000)
-      }
+    reader.onload = () => {
+      try { setRows(parseRoadStationsCSV(String(reader.result)).map(draft)); setError('') }
+      catch (failure) { setError(failure instanceof Error ? failure.message : 'The CSV could not be read.') }
     }
-    reader.readAsText(file)
-
-    // Reset the input so re-importing the same file works
-    e.target.value = ''
+    reader.onerror = () => setError('The CSV file could not be read; current stations are preserved.')
+    reader.readAsText(file); event.target.value = ''
   }
-
-  return (
-    <div className="space-y-6">
-      <div>
-        <h3 className="text-lg font-semibold text-white mb-1">Stations & Levels</h3>
-        <p className="text-zinc-400 text-sm">Enter ground levels at chainage intervals (default 20m).</p>
-      </div>
-
-      {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg text-sm font-medium shadow-lg transition-all ${
-          toast.type === 'success' ? 'bg-green-900/90 text-green-300 border border-green-700' : 'bg-red-900/90 text-red-300 border border-red-700'
-        }`}>
-          {toast.type === 'success' ? ' ' : '[x] '}{toast.message}
-        </div>
-      )}
-
-      {stations.length === 0 ? (
-        <div className="text-center py-8 text-zinc-500">
-          <p>No stations defined. Add stations to proceed.</p>
-        </div>
-      ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-zinc-800 text-zinc-400">
-                <th className="px-3 py-2 text-left">#</th>
-                <th className="px-3 py-2 text-right">Chainage (m)</th>
-                <th className="px-3 py-2 text-right">Ground Level (m)</th>
-                <th className="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody>
-              {stations.map((s, idx) => (
-                <tr key={`${s}-${idx}`} className="border-t border-zinc-800">
-                  <td className="px-3 py-2 text-zinc-500">{idx + 1}</td>
-                  <td className="px-3 py-2">
-                    <input aria-label="Chainage"
-                      type="number"
-                      value={s.chainage}
-                      onChange={e => updateStation(idx, 'chainage', Number(e.target.value))}
-                      className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <input aria-label="Groundlevel"
-                      type="number"
-                      step="0.001"
-                      value={s.groundLevel}
-                      onChange={e => updateStation(idx, 'groundLevel', Number(e.target.value))}
-                      className="w-24 bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-white text-right"
-                    />
-                  </td>
-                  <td className="px-3 py-2">
-                    <button onClick={() => removeStation(idx)} className="text-red-400 hover:text-red-300">[x]</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      <div className="flex gap-3 items-center">
-        <button
-          onClick={addStation}
-          className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800"
-        >
-          + Add Station
-        </button>
-        <input
-          ref={csvInputRef}
-          type="file"
-          accept=".csv,text/csv"
-          onChange={handleCSVImport}
-          className="hidden"
-        />
-        <button
-          onClick={() => csvInputRef.current?.click()}
-          className="px-4 py-2 border border-zinc-700 text-zinc-300 rounded-lg hover:bg-zinc-800 flex items-center gap-2"
-        >
-          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-          </svg>
-          Import CSV
-        </button>
-      </div>
-
-      {stations.length >= 2 && (
-        <button
-          onClick={handleSave}
-          className="px-6 py-2.5 bg-amber-500 text-black font-semibold rounded-lg hover:bg-amber-400"
-        >
-          Save Stations
-        </button>
-      )}
-    </div>
-  )
+  return <div className="space-y-5">
+    <div><h3 className="text-lg font-semibold text-white">Stations & Levels</h3><p className="text-sm text-zinc-400">Enter surveyed centreline RL, design surface RL and measured ground offsets. Blank levels remain unknown; zero is a valid measurement.</p></div>
+    {error && <p role="alert" className="rounded border border-red-700 p-3 text-sm text-red-300">{error}</p>}
+    {rows.map((row, i) => <section key={row.id} className="rounded border border-zinc-700 p-4">
+      <div className="mb-3 flex justify-between"><h4>Station {i + 1}</h4><button type="button" className="min-h-11 px-3 text-red-300" onClick={() => setRows(old => old.filter(item => item.id !== row.id))}>Remove station {i + 1}</button></div>
+      <div className="grid gap-3 sm:grid-cols-3">{([{ field: 'chainage', label: 'Chainage' }, { field: 'groundLevel', label: 'Ground RL' }, { field: 'designLevel', label: 'Design surface RL' }] as const).map(({ field, label }) => <label key={field} className="text-sm text-zinc-400">{label} (m)<input aria-label={`${label} ${i + 1}`} type="number" step="any" value={row[field]} onChange={event => update(row.id, field, event.target.value)} className="mt-1 min-h-11 w-full rounded border border-zinc-700 bg-zinc-900 p-2 text-white" /></label>)}</div>
+      <label className="mt-3 block text-sm text-zinc-400">Measured ground profile — offset, ground RL (m)<textarea aria-label={`Measured ground profile ${i + 1}`} rows={4} value={row.profile} onChange={event => update(row.id, 'profile', event.target.value)} className="mt-1 w-full rounded border border-zinc-700 bg-zinc-900 p-2 font-mono text-white" /></label>
+      <p className="text-xs text-zinc-400">One pair per line. Negative offsets are left and positive offsets right. Survey far enough to capture both slope daylight points; the profile must agree with the centreline RL.</p>
+    </section>)}
+    <div className="flex flex-wrap gap-3"><button type="button" className="min-h-11 rounded border border-zinc-700 px-4" onClick={() => setRows(old => [...old, draft()])}>+ Add Station</button>
+      <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importFile} />
+      <button type="button" className="min-h-11 rounded border border-zinc-700 px-4" onClick={() => inputRef.current?.click()}>Import CSV</button>
+      {rows.length >= 2 && <button type="button" disabled={saving} className="min-h-11 rounded bg-amber-500 px-5 font-semibold text-black" onClick={() => void save()}>{saving ? 'Saving…' : 'Save Stations'}</button>}
+    </div><p className="text-xs text-zinc-400">CSV headers: chainage,ground_level,design_level. Add offset for a measured profile CSV with multiple observations at each chainage. Design surface RL is the finished centreline level; the saved template depth defines formation beneath it.</p>
+  </div>
 }

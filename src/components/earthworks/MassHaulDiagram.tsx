@@ -89,7 +89,7 @@ export default function MassHaulDiagram({ result }: Props) {
       <div className="px-3 py-2 bg-[var(--bg-tertiary)] border-b border-[var(--border-color)]">
         <h3 className="text-sm font-semibold">Mass Haul Diagram</h3>
         <p className="text-xs text-[var(--text-muted)]">
-          Adjusted cut (&times; {shrinkageFactor} shrinkage) &minus; fill | Source: Ghilani &amp; Wolf Ch.26, Section 26.6
+          {shrinkageFactor == null ? 'Geometric cut minus fill; material factor not supplied' : `Cut × supplied factor ${shrinkageFactor} minus fill`} · Average end-area method
         </p>
       </div>
 

@@ -87,9 +87,8 @@ describe('computeCamberProfile', () => {
 
     const profile = computeCamberProfile(CW, camber, FL)
 
-    // Camber coefficient: c = (camber/100) / halfWidth²
-    const c = (camber / 100) / (halfWidth * halfWidth)
-    // Edge drop at x = ±3.5: c × 3.5² = camber/100 = 0.025
+    // Average edge crossfall: drop = 0.025 * 3.5 = 0.0875m.
+    const c = (camber / 100) / halfWidth
     const expectedEdgeLevel = FL - c * halfWidth * halfWidth
 
     const leftEdge = profile.find((p) => Math.abs(p.offset - (-halfWidth)) < 0.01)
@@ -216,6 +215,7 @@ describe('computeFormationLine', () => {
   const template: RoadTemplate = {
     carriagewayWidth: 7,
     shoulderWidth: 2,
+    shoulderCrossfall: 4,
     cutSlope: '1:2',
     fillSlope: '1:1.5',
     camber: 2.5,
