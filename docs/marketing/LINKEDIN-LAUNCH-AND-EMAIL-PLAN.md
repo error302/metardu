@@ -35,6 +35,40 @@ Use the LinkedIn offer as inspiration for a clear, measurable invitation, not as
 
 For any post linking to the site, first confirm the linked route is publicly healthy. The public homepage, pricing, privacy, and tools routes returned HTTP 200 on 2026-10-13; if a route becomes unavailable, use the Page conversation for a human follow-up until it is healthy again. Measure post reach, relevant replies, qualified workflow conversations, pilot requests, and later activated accounts. Use `utm_medium=organic_social` only after a working public destination is confirmed.
 
+### Organic post drafts for the METAARDU Page
+
+The credit offer is useful as a lesson in campaign design: one clear outcome, a simple next step, and a qualification the audience can understand. METARDU can use that structure without asking the founder to front an unaffordable ad budget. These are drafts for owner review; publish only after the shown workflow and destination have been checked against the live product.
+
+**Post 1 — the field-preparation problem**
+
+> A road-survey crew should arrive knowing the planned chainages, station interval, offsets, feature codes, coordinate reference, and control or benchmark source.
+>
+> METARDU is bringing that preparation into the same project workflow as field point collection. The surveyor still checks the control, instrument setup, design, and observations; software should make the instructions easier to carry into the field, not claim those checks for them.
+>
+> If you work on road surveys, which part of the handoff most often needs clarification before the first point is collected?
+
+Use a short text post or a simple four-card graphic: **brief → prepared stations → field observations → office handoff**. Keep the last card honest about the checks that remain with the surveyor. Reply to substantive comments with a question about the person's workflow; do not send unsolicited bulk messages.
+
+**Post 2 — a product walkthrough**
+
+> Here is the road-survey workflow we are building in METARDU: prepare the station range and interval, define left/right extents and feature codes, record the approved CRS and control reference, then open the plan in the field collector and record observations.
+>
+> This walkthrough uses a synthetic project. It shows preparation and point capture; it does not certify the receiver, control, alignment, or survey result.
+>
+> What would your crew need to see before trying this on a real job?
+
+Record 30–45 seconds from the current product, using synthetic data only. Show a real sequence of screens and stop at point capture; do not imply automatic control verification or a completed deliverable unless that exact end-to-end route has been demonstrated.
+
+**Post 3 — a low-friction invitation**
+
+> We are looking for road-survey professionals to review METARDU's field-preparation workflow. Bring a typical or synthetic job brief; we will walk through the station plan and point-collection steps, then use your feedback to identify what needs work before a field pilot.
+>
+> Interested? Send “road workflow” to the METAARDU Page or request a walkthrough at https://metardu.space/demo.
+
+Confirm that the owner can schedule the conversation and that the demo route works before publishing. Do not promise a free subscription, production-grade field result, or a pilot slot that has not been approved. A demo request is for a human reply only; collect separate opt-in before adding anyone to product-news email.
+
+Rotate these across two weeks rather than publishing all three back-to-back. On each posting day, spend time responding to relevant surveying and civil-engineering discussions with useful, specific comments. Track qualified road-survey conversations, walkthrough requests, and workflow objections; reach and reactions alone do not establish demand.
+
 ## First campaign draft
 
 Use one **Lead generation** campaign with a LinkedIn Lead Gen Form. The form keeps the first visit inside LinkedIn and avoids adding an Insight Tag to account, payment, or project pages. LinkedIn requires a privacy-policy URL for the form and recommends keeping forms to three or four fields.
@@ -81,6 +115,7 @@ Kenya’s Data Protection (General) Regulations describe direct-marketing opt-ou
 
 - [LinkedIn Spend X, Get Y promotion](https://www.linkedin.com/help/billing/answer/a425371): account-specific qualification and expiry dates, with credits generally applied within five business days after qualifying spend.
 - [LinkedIn advertising coupon terms](https://www.linkedin.com/legal/ad-coupon-terms): advertiser responsibility for charges; campaign budget and end-date controls; possible budget overrun.
+- [LinkedIn coupon and advertising-credit FAQ](https://www.linkedin.com/help/lms/answer/a426067): spend requirements vary by offer, credits are account-bound, and campaigns can continue charging the payment method after credits are exhausted.
 - [LinkedIn Lead Gen Forms](https://www.linkedin.com/help/lms/answer/a427102/create-lead-gen-forms?lang=en): privacy-policy URL requirement and form setup.
 - [LinkedIn Lead Gen Form best practices](https://www.linkedin.com/help/lms/answer/a421181/): recommends three to four fields.
 - [LinkedIn conversion tracking guidance](https://www.linkedin.com/help/lms/answer/a425606/set-up-online-conversion-tracking?lang=en): Insight Tag restrictions for pages that collect or contain sensitive data.
