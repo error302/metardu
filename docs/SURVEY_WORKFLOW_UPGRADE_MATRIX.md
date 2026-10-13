@@ -133,7 +133,7 @@ No localhost CAD storage was read or changed. Source tests and draft HTML conten
 checks do not prove live deployment, native downstream imports, physical print
 scale, receiver accuracy or full field acceptance for any of the five job families.
 
-All changes are to be committed/pushed on the existing
+Source changes are committed/pushed on the existing
 `codex/metardu-workflow-readiness-2026-10-12` branch, with normal hooks intact.
 Local Gitleaks is unavailable; the established hook may skip that scan. This is
 not secret-scan/remote-CI proof, and no scanner baseline or suppression is added.
@@ -165,3 +165,14 @@ unchanged. The first GitHub push passed the normal hook's strict type check,
 changed-file lint and **176 related tests across 22 suites**. It skipped local
 Gitleaks because the tool is unavailable. No scan baseline/suppression or hook
 bypass was used. All source commits remain unpromoted.
+
+Git verification: road/terrain checkpoint `04b270a8` and sectional source
+checkpoint `9e653571` were both pushed successfully. After the second push,
+the working tree was clean and local HEAD matched the remote-tracking branch
+at `9e6535719d9f2f902d59fb0cee5afa3a1ab5d87e`. The sectional pre-push hook also
+passed strict app typing, changed-file lint and its six related tests.
+GitHub's separate Gitleaks workflow reported **success** for both source
+checkpoints: [road/terrain scan](https://github.com/error302/metardu/actions/runs/38479899616)
+and [sectional scan](https://github.com/error302/metardu/actions/runs/38480739662).
+This is remote secret-scan evidence for those exact commits, not a complete CI,
+deployment, database, downstream-file or field-acceptance result.
