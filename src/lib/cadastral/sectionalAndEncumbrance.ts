@@ -1,21 +1,16 @@
 /**
  * @module sectionalProperties
  *
- * Sectional properties management per Sectional Properties Act 2020 (Kenya).
+ * Draft sectional area schedules from operator-supplied measurements.
  *
  * Manages sectional plans for apartment buildings, commercial buildings,
  * and mixed-use developments. Each unit (apartment, office, parking bay,
- * common area) has its own sectional title.
+ * common area) is recorded as supplied; this module does not determine title.
  *
  * Features:
  *   - Define building floors and units
  *   - Compute unit areas + share of common property
- *   - Generate sectional plan per SoK standards
- *   - Compute participation quotas (unit's share of total)
- *
- * References:
- *   - Sectional Properties Act 2020 (Kenya)
- *   - Survey of Kenya: Sectional Plans Manual
+ *   - Compute area-based shares for review, without determining legal quotas
  */
 
 export interface SectionalUnit {
@@ -54,9 +49,9 @@ export interface SectionalPlan {
   totalArea: number
   /** Total unit area (excludes common areas) */
   totalUnitArea: number
-  /** Total common area */
+  /** Measured floor area minus supplied private-unit areas; legal classification unverified. */
   totalCommonArea: number
-  /** Participation quota per unit (percentage of total) */
+  /** Area-based share per private unit; not an approved ownership quota. */
   participationQuotas: Array<{ unitId: string; unitNumber: string; quota: number }>
 }
 
@@ -69,21 +64,34 @@ export function createSectionalPlan(
   lrNumber: string,
   floors: SectionalFloor[],
 ): SectionalPlan {
+  if (!buildingName.trim() || !lrNumber.trim() || !floors.length) throw new RangeError('Supply the building identity, source parcel reference and measured floor data.')
+  if (floors.length > 1000 || floors.reduce((sum, f) => sum + f.units.length, 0) > 20000) throw new RangeError('Use at most 1,000 floors and 20,000 measured units per schedule.')
+  const floorIds = new Set<number>(), unitIds = new Set<string>(), unitNumbers = new Set<string>()
+  const types = new Set(['residential', 'commercial', 'parking', 'storage', 'common'])
   let totalArea = 0
   let totalUnitArea = 0
   let totalCommonArea = 0
 
   for (const floor of floors) {
+    if (!Number.isInteger(floor.floor) || floorIds.has(floor.floor) || !Number.isFinite(floor.totalArea) || floor.totalArea <= 0 || !floor.units.length) throw new RangeError('Each distinct integer floor needs a positive measured total area and measured units.')
+    floorIds.add(floor.floor)
     totalArea += floor.totalArea
-    let floorUnitArea = 0
+    let floorUnitArea = 0, allUnitArea = 0
     for (const unit of floor.units) {
+      const id = unit.id.trim(), number = unit.unitNumber.trim().toUpperCase()
+      if (!id || !number || unitIds.has(id) || unitNumbers.has(number)) throw new RangeError('Unit IDs and numbers must be nonempty and unique across the building.')
+      unitIds.add(id); unitNumbers.add(number)
+      if (unit.floor !== floor.floor || !types.has(unit.type) || !Number.isFinite(unit.area) || unit.area <= 0) throw new RangeError('Each unit needs the matching floor, declared type and positive finite measured area.')
+      allUnitArea += unit.area
       if (unit.type !== 'common') {
         floorUnitArea += unit.area
         totalUnitArea += unit.area
       }
     }
+    if (!Number.isFinite(allUnitArea) || allUnitArea > floor.totalArea) throw new RangeError('Supplied unit/common-space areas exceed the measured floor total; review observations and the area basis.')
     totalCommonArea += floor.totalArea - floorUnitArea
   }
+  if (![totalArea, totalUnitArea, totalCommonArea].every(Number.isFinite) || totalUnitArea <= 0) throw new RangeError('A finite area schedule requires at least one measured private unit.')
 
   // Participation quota = unit area / total unit area × 100
   const participationQuotas = floors
@@ -105,6 +113,14 @@ export function createSectionalPlan(
     totalCommonArea,
     participationQuotas,
   }
+}
+
+/** Group supplied units against explicit measured totals; no assumed common-space allowance. */
+export function createSectionalPlanFromUnits(buildingName: string, lrNumber: string, units: SectionalUnit[], floorTotals: Array<{ floor: number; totalArea: number }>): SectionalPlan {
+  if (units.some(unit => !floorTotals.some(total => total.floor === unit.floor))) throw new RangeError('Supply a measured total for every entered floor.')
+  return createSectionalPlan(buildingName, lrNumber, floorTotals.map(total => ({ ...total,
+    name: total.floor === 0 ? 'Ground floor' : total.floor < 0 ? `Basement ${-total.floor}` : `Floor ${total.floor}`,
+    units: units.filter(unit => unit.floor === total.floor) })).sort((a, b) => a.floor - b.floor))
 }
 
 // ─── Encumbrance Registration ───────────────────────────────────────────────

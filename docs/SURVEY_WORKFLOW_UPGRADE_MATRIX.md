@@ -20,7 +20,7 @@ create legal authority or construction approval.
 
 | Job family | Existing tools/workspaces to upgrade | Complete workflow target | Acceptance evidence still needed |
 | --- | --- | --- | --- |
-| Cadastral | `/cadastral-workflow`, traverse/COGO, CAD, topology check, subdivision, mutation plan, deed plan | Source boundary records and control → observations/adjustment → boundary reconstruction and neighbour/topology checks → subdivision/areas → reviewable plans and coordinate schedules with evidence/revisions | Independent known-boundary fixtures; closure/adjustment/area and topology checks; parser round trips; traceable legal/source boundaries and jurisdiction-specific issue review. A title search or certification must not be simulated. |
+| Cadastral | `/cadastral-workflow`, traverse/COGO, CAD, topology check, subdivision, mutation plan, deed plan, sectional area schedule | Source boundary records and control → observations/adjustment → boundary reconstruction and neighbour/topology checks → subdivision/areas → reviewable plans and coordinate schedules with evidence/revisions | Independent known-boundary fixtures; closure/adjustment/area and topology checks; parser round trips; traceable legal/source boundaries and jurisdiction-specific issue review. The sectional page is now a measured area schedule, not a registrable floor/parcel drawing. A title search or certification must not be simulated. |
 | Engineering | Project engineering workspace, network adjustment, level book/two-peg test, drainage, deformation, as-built, reserve and pile/grid panels | Establish/verify control → measured work geometry → approved target/design → set-out → independent checks → as-built/deformation → accountable reports | Route-specific calculation/input/persistence checks, adopted tolerances, actual receiver/instrument tests, and repeat field observations. Hydraulic/pavement screening is not full design approval. |
 | Road | Road field plan/collector, horizontal/vertical alignment, station entry, cross sections, earthworks/mass haul, drainage, long section, export | Ordered alignment and chainage → surveyed centreline and offset profiles → approved pavement/formation/slopes → sections/daylights/quantities → set-out/level/profile schedules → as-built comparison | Current batch improves circular geometry and measured sections, including standalone calculator consolidation. Transition/compound/reverse alignments, vertical design evaluation, full corridor coordinate set-out, measured-middle-section prismoidal scheduling, curvature/material evidence and field checks remain open. |
 | Construction | Setting-out, setting-out sheet/stakeout report, pile grid, drainage, as-built deviation, terrain quantities | Import approved design revision → bind control/CRS/height reference → generate traceable points/offsets/levels → field checks and tolerance assessment → re-observe → as-built/handover | Design/observation identity and version checks; zero/negative-coordinate fixtures; device-format round trips; actual grid/back-sight/level/receiver checks; adopted tolerances, not a universal pass threshold. |
@@ -137,3 +137,31 @@ All changes are to be committed/pushed on the existing
 `codex/metardu-workflow-readiness-2026-10-12` branch, with normal hooks intact.
 Local Gitleaks is unavailable; the established hook may skip that scan. This is
 not secret-scan/remote-CI proof, and no scanner baseline or suppression is added.
+
+### Sectional cadastral follow-up
+
+The existing Sectional Properties page started with fictional records and added
+20 m² of common area to every floor. It now starts empty, requires explicit
+measured floor totals, checks unit/floor/type identity and positive finite areas,
+rejects duplicated units and impossible floor totals, and preserves a legitimate
+zero non-unit residual. Input changes invalidate results and CSV availability.
+Stable record IDs replace floor-local `unit-0` identity collisions. The shared
+engine performs all area/share calculations; the page does not invent geometry.
+
+The complete draft CSV retains floor/unit identities, supplied type, measured
+unit/floor areas, source reference, measurement basis and area-based shares.
+The output is labelled an area schedule. Residual floor area is not automatically
+asserted to be legal common property, and area shares are not approved ownership
+quotas. Actual floor/unit boundary geometry, project persistence, statutory plan
+forms, independent measurements and jurisdiction-specific approval remain open.
+The encumbrance module still needs a separate review of gross corridor estimates,
+overlaps/parcel clipping and registry-status wording; its estimates must not be
+treated as measured parcel coverage or proof of current title restrictions.
+
+Both page regressions and three engine validation groups failed before repair.
+The follow-up passes **6 tests in two additional suites**; strict app/test types
+and changed source lint also pass. The earlier 411-test road/terrain run is
+unchanged. The first GitHub push passed the normal hook's strict type check,
+changed-file lint and **176 related tests across 22 suites**. It skipped local
+Gitleaks because the tool is unavailable. No scan baseline/suppression or hook
+bypass was used. All source commits remain unpromoted.
