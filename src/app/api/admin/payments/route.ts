@@ -1,6 +1,7 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { PLATFORM_ADMIN_API_ROLES } from '@/lib/auth/rbac'
+import { normalizePaymentCurrency, type PaymentCurrencyTotal } from '@/lib/admin/paymentCurrency'
 
 export const dynamic = 'force-dynamic'
 
@@ -22,8 +23,19 @@ interface CountRow {
   count: number
 }
 
-interface TotalRow {
-  total: number
+interface CurrencyTotalRow {
+  currency: string | null
+  total: number | string
+}
+
+function mapCurrencyTotals(rows: CurrencyTotalRow[]): PaymentCurrencyTotal[] {
+  return rows.map((row) => {
+    const total = Number(row.total)
+    return {
+      currency: normalizePaymentCurrency(row.currency),
+      total: Number.isFinite(total) ? total : 0,
+    }
+  })
 }
 
 /**
@@ -73,29 +85,29 @@ export const GET = apiHandler(
     const totalPages = Math.ceil(total / limit)
 
     // ── Summary stats ──
-    const [totalRevenueRes, thisMonthRes, pendingRes] = await Promise.all([
-      db.query<TotalRow>(
-        `SELECT COALESCE(SUM(amount), 0)::float AS total
-         FROM payment_history
-         WHERE status = 'completed'`,
-      ),
-      db.query<TotalRow>(
-        `SELECT COALESCE(SUM(amount), 0)::float AS total
+    const [totalRevenueRes, thisMonthRes] = await Promise.all([
+      db.query<CurrencyTotalRow>(
+        `SELECT COALESCE(NULLIF(UPPER(currency), ''), 'KES') AS currency,
+                COALESCE(SUM(amount), 0)::float AS total
          FROM payment_history
          WHERE status = 'completed'
-           AND created_at >= date_trunc('month', CURRENT_DATE)`,
+         GROUP BY COALESCE(NULLIF(UPPER(currency), ''), 'KES')
+         ORDER BY currency`,
       ),
-      db.query<TotalRow>(
-        `SELECT COALESCE(SUM(amount), 0)::float AS total
+      db.query<CurrencyTotalRow>(
+        `SELECT COALESCE(NULLIF(UPPER(currency), ''), 'KES') AS currency,
+                COALESCE(SUM(amount), 0)::float AS total
          FROM payment_history
-         WHERE status = 'pending'`,
+         WHERE status = 'completed'
+           AND created_at >= date_trunc('month', CURRENT_DATE)
+         GROUP BY COALESCE(NULLIF(UPPER(currency), ''), 'KES')
+         ORDER BY currency`,
       ),
     ])
 
     const summary = {
-      totalRevenue: totalRevenueRes.rows[0]?.total ?? 0,
-      thisMonth: thisMonthRes.rows[0]?.total ?? 0,
-      pendingPayouts: pendingRes.rows[0]?.total ?? 0,
+      totalRevenueByCurrency: mapCurrencyTotals(totalRevenueRes.rows),
+      thisMonthByCurrency: mapCurrencyTotals(thisMonthRes.rows),
     }
 
     return apiSuccess({

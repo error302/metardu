@@ -9,6 +9,7 @@ import {
   CheckCircle, XCircle, RefreshCw, ShieldCheck, Check, Copy
 } from 'lucide-react'
 import { MobilePaymentCard } from '@/components/admin/MobileCards'
+import { formatPaymentAmount, type PaymentCurrencyTotal } from '@/lib/admin/paymentCurrency'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -54,9 +55,8 @@ interface PaymentsResponse {
   payments: PaymentRecord[]
   pagination: Pagination
   summary: {
-    totalRevenue: number
-    thisMonth: number
-    pendingPayouts: number
+    totalRevenueByCurrency: PaymentCurrencyTotal[]
+    thisMonthByCurrency: PaymentCurrencyTotal[]
   }
 }
 
@@ -74,13 +74,18 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
+function CurrencyBreakdown({ totals }: { totals: readonly PaymentCurrencyTotal[] }) {
+  if (totals.length === 0) {
+    return <span className="text-base">No completed transactions</span>
+  }
+
+  return (
+    <div className="flex flex-wrap gap-x-3 gap-y-1 text-base leading-6">
+      {totals.map(({ currency, total }) => (
+        <span key={currency} className="whitespace-nowrap">{formatPaymentAmount(total, currency)}</span>
+      ))}
+    </div>
+  )
 }
 
 function statusBadgeClass(status: string): string {
@@ -113,7 +118,7 @@ function StatCard({
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
-  value: string | number
+  value: React.ReactNode
   subValue?: string
   color?: string
 }) {
@@ -128,7 +133,7 @@ function StatCard({
         </div>
       </div>
       <div>
-        <p className="text-2xl font-bold text-[var(--text-primary)]">{value}</p>
+        <div className="text-2xl font-bold text-[var(--text-primary)]">{value}</div>
         {subValue && (
           <p className="text-xs text-[var(--text-muted)] mt-0.5">{subValue}</p>
         )}
@@ -161,7 +166,10 @@ export default function AdminPaymentsPage() {
     totalPages: 0,
     hasMore: false,
   })
-  const [summary, setSummary] = useState({ totalRevenue: 0, thisMonth: 0, pendingPayouts: 0 })
+  const [summary, setSummary] = useState<PaymentsResponse['summary']>({
+    totalRevenueByCurrency: [],
+    thisMonthByCurrency: [],
+  })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -361,14 +369,15 @@ export default function AdminPaymentsPage() {
         <StatCard
           icon={DollarSign}
           label="Total Revenue"
-          value={formatCurrency(summary.totalRevenue)}
+          value={<CurrencyBreakdown totals={summary.totalRevenueByCurrency} />}
+          subValue="Grouped by original transaction currency; no conversion applied"
           color="#4ade80"
         />
         <StatCard
           icon={CreditCard}
           label="This Month"
-          value={formatCurrency(summary.thisMonth)}
-          subValue="Completed transactions"
+          value={<CurrencyBreakdown totals={summary.thisMonthByCurrency} />}
+          subValue="Completed transactions · grouped by currency"
           color="#60a5fa"
         />
         <StatCard
@@ -457,7 +466,7 @@ export default function AdminPaymentsPage() {
                           </div>
                         </td>
                         <td className="table-cell font-mono font-medium">
-                          {formatCurrency(payment.amount)}
+                          {formatPaymentAmount(payment.amount, payment.currency)}
                         </td>
                         <td className="table-cell">
                           <span className="capitalize">{payment.planId || 'N/A'}</span>
@@ -593,7 +602,7 @@ export default function AdminPaymentsPage() {
                     <div className="text-right mr-2">
                       <div className="text-xs text-[var(--text-muted)]">Claimed Amount</div>
                       <div className="text-lg font-bold text-emerald-400 font-mono">
-                        KSh {claim.amount.toLocaleString()}
+                        {formatPaymentAmount(claim.amount, claim.currency)}
                       </div>
                     </div>
 

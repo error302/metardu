@@ -4,6 +4,7 @@ import {
   ShieldCheck, Ban, CheckCircle2, Mail,
   Calendar, Crown, Rocket, Building2, User as UserIcon,
 } from 'lucide-react'
+import { formatPaymentAmount } from '@/lib/admin/paymentCurrency'
 
 // ---------------------------------------------------------------------------
 // Types
@@ -201,22 +202,13 @@ function statusBadgeClass(status: string): string {
   }
 }
 
-function formatCurrency(amount: number): string {
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency: 'KES',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(amount)
-}
-
 export function MobilePaymentCard({ payment }: { payment: PaymentRecord }) {
   return (
     <div className="card p-4 space-y-2.5">
       {/* Amount + Status */}
       <div className="flex items-center justify-between">
         <p className="text-lg font-bold text-[var(--text-primary)]">
-          {formatCurrency(payment.amount)}
+          {formatPaymentAmount(payment.amount, payment.currency)}
         </p>
         <span
           className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium border ${statusBadgeClass(payment.status)}`}
