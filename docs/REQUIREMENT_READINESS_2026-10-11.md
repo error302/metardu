@@ -98,6 +98,14 @@ source-level checks only; no production override was made or promoted.
 
 ## Current email, pricing and map recheck — 2026-10-13
 
+Road field collection follow-up (13 October 2026): The road code selector now
+offers an operator-controlled shortcut to the next selected code without a
+saved point at the active chainage. It keeps repeated-code capture available
+and explicitly avoids treating selected codes as a station-completion or
+quality check. Focused selector and road-plan suites pass 14/14; app/test
+TypeScript checks and scoped ESLint pass. Browser, production and field review
+remain open.
+
 - A fresh read-only Resend account check reports `metardu.space` as verified with sending enabled. The existing one-time design-check email is provider-reported as delivered; its HTML references `cid:metardu-email-mark`, and Resend lists the attached `metardu-email-mark.png` (PNG). This verifies provider-side delivery and attachment metadata, not inbox rendering or app-generated production mail. No new email was sent during this check.
 - Fresh HTTPS HEAD requests returned HTTP 200 for `/`, `/pricing`, `/api/payments`, and `/api/public/chatgpt-notice`. The payment capability response reports PayPal enabled and automated M-Pesa/Stripe disabled; the distinct manual Till-claim flow still requires merchant-statement review. The version-bound ChatGPT notice remains `waiting`, is not eligible until `2026-11-10T17:56:45.516Z`, and reports `linkingConfigured=false`; new customer linking stays disabled.
 - Production CUA loaded the global survey map after its dynamic import and showed the map search, survey grid, left tool rail, zoom/print controls, offline tiles and coordinate status bar at a desktop viewport. This is unauthenticated global-map evidence, not an authenticated project-map or field-use check.

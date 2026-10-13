@@ -18,12 +18,35 @@ export function RoadFieldCodeSelector({
   sunlightMode = false,
   onChange,
 }: RoadFieldCodeSelectorProps) {
+  const nextUncapturedCode = (() => {
+    if (!capturedCodes.includes(value as RoadFieldFeatureCode)) return null
+    const currentIndex = codes.indexOf(value as RoadFieldFeatureCode)
+    for (let offset = 1; offset < codes.length; offset += 1) {
+      const candidate = codes[(currentIndex + offset) % codes.length]
+      if (!capturedCodes.includes(candidate)) return candidate
+    }
+    return null
+  })()
+
   return (
     <fieldset className="w-full max-w-2xl">
       <legend className="text-sm font-semibold text-[var(--text-secondary)]">Code for the next road point</legend>
       <p className="mt-1 text-xs text-[var(--text-muted)]">
-        Saved-code badges refer to the selected chainage only; they do not assess whether the field work is complete.
+        Saved-code badges refer to this chainage only. Repeat a code whenever the field brief calls for more points.
       </p>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => { if (nextUncapturedCode) onChange(nextUncapturedCode) }}
+          disabled={!nextUncapturedCode}
+          className="min-h-11 rounded-md border border-[var(--accent)]/50 px-3 text-sm font-semibold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {nextUncapturedCode ? `Next uncaptured code: ${nextUncapturedCode}` : 'No next uncaptured code'}
+        </button>
+        <span className="text-xs text-[var(--text-muted)]">
+          {nextUncapturedCode ? 'Suggested order only; it does not mark this station complete.' : 'Choose or repeat a code from the list as the field brief requires.'}
+        </span>
+      </div>
       <div role="group" aria-label="Road point feature codes" className="mt-3 flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
         {codes.map((code) => {
           const option = ROAD_FIELD_CODE_OPTIONS.find((item) => item.code === code)
