@@ -25,22 +25,28 @@ export async function POST(_req: NextRequest) {
     [session.user.id],
   )
   const account = accountResult.rows[0]
+  let verificationEmailSent: boolean | null = null
   if (account && !account.email_verified) {
     try {
       const token = createEmailVerificationToken(String(session.user.id), account.email)
       const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.space'
       const verifyUrl = new URL('/email/verify', appUrl)
       verifyUrl.searchParams.set('token', token)
-      void sendTemplatedEmail('emailVerification', {
+      const result = await sendTemplatedEmail('emailVerification', {
         to: account.email,
         name: account.full_name || session.user.name || '',
         verifyUrl: verifyUrl.toString(),
-      }).then((result) => {
-        if (!result.success) logger.warn('[register-complete] Verification email not sent:', { error: result.error })
-      }).catch((error) => {
+      }).catch((error: unknown) => {
         logger.warn('[register-complete] Verification email failed:', { error })
+        return {
+          success: false,
+          error: error instanceof Error ? error.message : 'Verification email failed',
+        }
       })
+      verificationEmailSent = result.success
+      if (!result.success) logger.warn('[register-complete] Verification email not sent:', { error: result.error })
     } catch (error) {
+      verificationEmailSent = false
       logger.warn('[register-complete] Could not create email verification link:', { error })
     }
   }
@@ -51,7 +57,7 @@ export async function POST(_req: NextRequest) {
   )
 
   if (existingSub.rows.length > 0) {
-    return NextResponse.json({ ok: true })
+    return NextResponse.json({ ok: true, verificationEmailSent })
   }
 
   const now = new Date()
@@ -85,5 +91,5 @@ export async function POST(_req: NextRequest) {
     })
   }
 
-  return NextResponse.json({ ok: true })
+  return NextResponse.json({ ok: true, verificationEmailSent })
 }

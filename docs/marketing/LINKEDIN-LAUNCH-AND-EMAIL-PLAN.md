@@ -20,6 +20,29 @@ The supplied Campaign Manager screenshot shows a personalized offer of **$250 in
 
 Do not launch paid advertising until the billing hold is cleared by the account owner, the exact offer dates and eligible-spend terms are recorded, and the owner confirms that the full potential charge is affordable.
 
+### What METARDU can borrow from the offer
+
+The screenshot is an account-setup offer, not an example of the ad creative itself. Its useful marketing pattern is one visible outcome, a clear qualification, and one next step. METARDU can use that pattern without copying the $250 spend requirement or promising a subsidy:
+
+- **Outcome:** arrive at a road job with the station plan and point codes prepared, so fieldwork can focus on collecting and checking observations.
+- **Proof:** show a real METARDU sequence with synthetic data: station range and interval, left/right extents, feature codes, control/CRS notes, then a planned station and point capture.
+- **Qualification:** invite survey teams to review one typical or synthetic job brief; do not promise a production-ready pilot, free subscription, or that instrument/control checks disappear.
+- **Next step:** ask interested surveyors to message the METAARDU Page for a workflow walkthrough. A demo request authorizes a reply about that request only, not recurring marketing email.
+
+Use that as the headline and structure for one organic post or short video. Keep the $200/day draft and paid Lead Gen Form unpublished. The current public site recovered after a brief Cloudflare outage, but confirm the destination stays healthy before adding a website link to the creative.
+
+**Ready-to-review organic post draft**
+
+> **Arrive at the road job ready to collect points.**
+>
+> Before the field day, prepare the station range and interval, left/right extents, feature codes, and the approved CRS and control references. METARDU carries that plan into point collection so the surveyor can select the planned station and code while recording observations.
+>
+> The surveyor still verifies control, instrument setup, and every observation. We are looking for road-survey teams to review this workflow using a typical or synthetic job brief.
+>
+> Message the METAARDU Page with **“road workflow”** if you would like a walkthrough.
+
+Pair the post with a 30–45 second recording of that exact source-supported flow. Keep project names, coordinates, client material, and field photos out of the creative unless the owner has permission to publish them. Reply to walkthrough requests personally; request separate opt-in before sending product news or plan offers.
+
 ### Zero-spend launch week
 
 Use the LinkedIn offer as inspiration for a clear, measurable invitation, not as a reason to spend money that is needed elsewhere. The low-cost METARDU version is a human-led workflow review and a limited pilot conversation. Do not promise a free subscription or imply production readiness that has not been demonstrated.
@@ -33,7 +56,7 @@ Use the LinkedIn offer as inspiration for a clear, measurable invitation, not as
 | Friday | Share what the feedback changed and invite interested survey teams to a human-reviewed pilot discussion. | State the pilot scope and any limits plainly. Ask separately before adding anyone to product-news email. |
 | Weekend | Reply to participants, summarize objections, and choose one workflow question to test next week. | Track qualified survey conversations and pilot requests, not likes alone. |
 
-For any post linking to the site, first confirm the linked route is publicly healthy. The public homepage, pricing, privacy, and tools routes returned HTTP 200 on 2026-10-13; if a route becomes unavailable, use the Page conversation for a human follow-up until it is healthy again. Measure post reach, relevant replies, qualified workflow conversations, pilot requests, and later activated accounts. Use `utm_medium=organic_social` only after a working public destination is confirmed.
+For any post linking to the site, first confirm the linked route is publicly healthy on repeated checks. On 2026-10-13 around 03:46 EAT, the homepage and key routes returned HTTP 530/Cloudflare 1033 and the tunnel dashboard showed no replicas; minutes later it showed one Healthy replica and GET requests to the homepage, pricing, privacy, demo, help, and tools returned HTTP 200. Treat that as an intermittent recovery and verify again before publication. Until then, use the Page conversation for a human follow-up. Measure post reach, relevant replies, qualified workflow conversations, pilot requests, and later activated accounts. Use `utm_medium=organic_social` only after a stable public destination is confirmed.
 
 ### Organic post drafts for the METAARDU Page
 
@@ -102,8 +125,8 @@ The sending route and monthly workflow stay disabled unless both the app setting
 ### Current email checks (2026-10-13)
 
 - Resend reports `metardu.space` as verified with sending enabled. One branded delivery test from `noreply@metardu.space` to the owner inbox was confirmed **delivered**; it used an inline copy of the tracked METARDU email mark. No customer list or marketing broadcast was sent.
-- The live `/pricing`, `/docs/privacy`, `/demo`, and `/help` routes return HTTP 200. `/privacy` returns 404; the automated email footer now links to `/docs/privacy`, with a test asserting that route.
-- The tracked `/metardu-email-mark.png` asset currently returns 404 on production. The running app also lacks the Resend API key, sender address, and marketing enable flag; migration `105_marketing_email_deliveries.sql` has not been applied. Therefore the new in-app reminders and hosted-logo path are not live yet, and the email workflow remains disabled.
+- `/pricing`, `/docs/privacy`, `/demo`, and `/help` returned HTTP 200 during the recovered tunnel check. `/privacy` returns 404; the automated email footer now links to `/docs/privacy`, with a test asserting that route. Since the tunnel had just recovered from 530/1033, repeat availability checks before publishing a website destination.
+- `/metardu-email-mark.png` still returns 404 from production, although the 112×112 PNG exists in the source checkout. The app-side Resend key previously returned 401, and migration `105_marketing_email_deliveries.sql` was not applied in the last verified runtime check. Production email configuration and the new reminder workflow therefore remain unverified/disabled; do not enable or send it until the production environment, migration, audience count, and consent filter are rechecked.
 
 ## Measurement and privacy
 
