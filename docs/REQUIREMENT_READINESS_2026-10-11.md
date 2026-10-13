@@ -136,4 +136,7 @@ desktop primary navigation, coordinate search, offline-tile control, CRS status,
 map controls and eight tool-rail actions. This is unauthenticated global-map
 evidence, not a visual review of a desktop viewport, project-map validation, or
 field acceptance. No production setting, customer record, email, or container
-was changed.
+was changed. Current-source pricing, safe-redirect, PayPal webhook/legacy route,
+marketing-reminder, notice-gate, email-template and PayPal-plan suites pass
+96/96 across nine suites. They do not prove a live PayPal approval round trip,
+customer reminder delivery, or the unpromoted fixes in production.
