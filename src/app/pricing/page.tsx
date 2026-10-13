@@ -165,6 +165,7 @@ export default function PricingPage() {
             <div className="flex justify-center gap-3 mt-6">
               <button
                 type="button"
+                aria-pressed={activeTab === 'mpesa'}
                 onClick={() => setActiveTab('mpesa')}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
                   activeTab === 'mpesa'
@@ -178,6 +179,7 @@ export default function PricingPage() {
 
               <button
                 type="button"
+                aria-pressed={activeTab === 'paypal'}
                 onClick={() => setActiveTab('paypal')}
                 className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-medium text-sm transition-all ${
                   activeTab === 'paypal'
