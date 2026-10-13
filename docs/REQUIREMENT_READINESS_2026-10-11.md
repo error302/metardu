@@ -121,3 +121,19 @@ remain open.
 Docker Desktop 4.82.0 shows the engine running and the MCP Toolkit open. The Toolkit cannot load profiles: its `docker mcp profile list --format=json` call reports `Docker Desktop is not running`, and the Clients page remains empty. Docker MCP CLI 0.43.1 is installed; `docker mcp client connect codex` returned the same error in normal and elevated runs. `docker mcp feature list` could not access `%USERPROFILE%\.docker\mcp\.mcp-toolkit-migration.lock`. The Docker CLI also receives permission denied on both configured Windows engine pipes, so the repository's read-only `npm run docker:verify` cannot inspect inventory, health, backups, migration state, or rollback readiness. No Codex MCP client/profile/server configuration or container was added or changed. Restore Docker Desktop Toolkit/engine access for the Windows session running this checkout, then connect Codex and rerun the read-only verifier before any promotion. Keep the one-application-container rule; no MCP server container was started.
 
 Current-session recheck (13 October): `npm run docker:verify` again failed before inventory with the Docker pipe access error. `docker mcp client ls` says Docker Desktop is not running, and `docker mcp profile ls` cannot open the Toolkit migration lock because access is denied. Windows app/window discovery returned no Docker Desktop window, and read-only process/service checks returned no Docker Desktop process or service in this execution context. This differs from the earlier desktop view showing the UI and running indicators; it confirms that this checkout's command session cannot currently reach that engine or Toolkit. No profile/client was configured and no container was touched.
+
+Live transaction, map and email recheck (13 October 2026): Resend lists
+`metardu.space` as verified with sending enabled in `us-east-1`; receiving,
+open tracking and click tracking are disabled. No email was sent. A fresh
+signed-out browser visit to a PayPal checkout URL returned
+`/login?next=%2Fcheckout`, dropping the requested plan, currency, seat count and
+payment method. The production pricing page still displays “INSTANT ACTIVATION”
+and says a Till payment gives instant access, while the current source requires
+merchant-statement confirmation. Source checkout and pricing corrections have
+not been promoted; no credentials were entered and no payment was attempted.
+The public `/map` page finished loading and its accessibility tree showed the
+desktop primary navigation, coordinate search, offline-tile control, CRS status,
+map controls and eight tool-rail actions. This is unauthenticated global-map
+evidence, not a visual review of a desktop viewport, project-map validation, or
+field acceptance. No production setting, customer record, email, or container
+was changed.
