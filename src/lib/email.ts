@@ -1,4 +1,6 @@
 import nodemailer from 'nodemailer'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import { logger } from '@/lib/logger'
 
 // Accept both names used by the checked-in deployment examples. Keeping the
@@ -53,6 +55,16 @@ export interface SendEmailOptions {
   idempotencyKey?: string
 }
 
+function getInlineBrandMark(html?: string): Buffer | null {
+  if (!html?.includes('cid:metardu-email-mark')) return null
+  try {
+    return readFileSync(resolve(process.cwd(), 'public', 'metardu-email-mark.png'))
+  } catch (error) {
+    logger.warn('[email] Branded email mark is unavailable; sending the text wordmark only.', { error })
+    return null
+  }
+}
+
 export async function sendEmail({ to, subject, text, html, replyTo, from, headers, idempotencyKey }: SendEmailOptions) {
   if (!resendApiKey && (!smtpUser || !smtpPassword)) {
     logger.warn(`[email] Email service not configured. Would have sent "${subject}" to ${to}`)
@@ -60,6 +72,7 @@ export async function sendEmail({ to, subject, text, html, replyTo, from, header
   }
 
   try {
+    const inlineBrandMark = getInlineBrandMark(html)
     if (resendApiKey) {
       const response = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -76,6 +89,14 @@ export async function sendEmail({ to, subject, text, html, replyTo, from, header
           text,
           html,
           headers,
+          ...(inlineBrandMark ? {
+            attachments: [{
+              filename: 'metardu-email-mark.png',
+              content: inlineBrandMark.toString('base64'),
+              content_type: 'image/png',
+              content_id: 'metardu-email-mark',
+            }],
+          } : {}),
         }),
       })
       if (!response.ok) {
@@ -93,6 +114,12 @@ export async function sendEmail({ to, subject, text, html, replyTo, from, header
       text,
       html,
       headers,
+      attachments: inlineBrandMark ? [{
+        filename: 'metardu-email-mark.png',
+        content: inlineBrandMark,
+        contentType: 'image/png',
+        cid: 'metardu-email-mark',
+      }] : undefined,
     })
     return { success: true, info }
   } catch (error) {

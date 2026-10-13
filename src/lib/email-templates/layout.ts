@@ -33,20 +33,10 @@ const BRANDING: EmailBranding = {
 }
 
 /**
- * A small, static PNG works in more email clients than SVG/WebP and avoids
- * embedding a large data URI that some clients strip from messages.
+ * A small PNG is embedded as a CID attachment so messages do not depend on a
+ * public asset URL or inline data URI support.
  */
-const LOGO_SRC: string = (() => {
-  try {
-    const appUrl = new URL(BRANDING.appUrl)
-    if (appUrl.protocol !== 'https:' && !['localhost', '127.0.0.1'].includes(appUrl.hostname)) {
-      return 'https://metardu.space/metardu-email-mark.png'
-    }
-    return new URL('/metardu-email-mark.png', appUrl).toString()
-  } catch {
-    return 'https://metardu.space/metardu-email-mark.png'
-  }
-})()
+const LOGO_SRC = 'cid:metardu-email-mark'
 
 export interface LayoutOptions {
   /** Email-specific title shown when the message is opened in a browser. */
