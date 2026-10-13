@@ -143,34 +143,39 @@ function barycentricInterpolation(
  * @param referencePlane - Elevation of the reference plane (m)
  * @returns { cut, fill, net } volumes in cubic metres
  */
-export function computeVolumeFromTIN(
-  surface: TINSurface,
-  referencePlane: number
-): { cut: number; fill: number; net: number } {
-  let cut = 0
-  let fill = 0
-
-  for (const tri of surface.triangles) {
-    // Average elevation of triangle
-    const avgElev = (tri.p1.elevation + tri.p2.elevation + tri.p3.elevation) / 3
-
-    // Triangle area (horizontal projection)
-    const area = Math.abs(
-      (tri.p2.easting - tri.p1.easting) * (tri.p3.northing - tri.p1.northing) -
-      (tri.p3.easting - tri.p1.easting) * (tri.p2.northing - tri.p1.northing)
-    ) / 2
-
-    // Prismoidal volume for this triangle
-    const diff = avgElev - referencePlane
-    const vol = area * Math.abs(diff)
-
-    if (diff > 0) {
-      cut += vol
-    } else {
-      fill += vol
+export function computeVolumeFromTIN(surface: TINSurface, referencePlane: number): { cut: number; fill: number; net: number } {
+  if (!Number.isFinite(referencePlane)) throw new RangeError('Reference-plane RL must be finite.')
+  let cut = 0, fill = 0
+  type Vertex = { e: number; n: number; h: number }
+  for (const triangle of surface.triangles) {
+    const vertices: Vertex[] = [triangle.p1, triangle.p2, triangle.p3].map(p => {
+      if (![p.easting, p.northing, p.elevation].every(Number.isFinite)) throw new RangeError('TIN volume vertices require finite coordinates and heights.')
+      return { e: p.easting, n: p.northing, h: p.elevation - referencePlane }
+    })
+    const integrate = (above: boolean) => {
+      const clipped: Vertex[] = []
+      let previous = vertices[vertices.length - 1]
+      for (const current of vertices) {
+        const inPrevious = above ? previous.h >= 0 : previous.h <= 0
+        const inCurrent = above ? current.h >= 0 : current.h <= 0
+        if (inPrevious !== inCurrent) {
+          const t = previous.h / (previous.h - current.h)
+          clipped.push({ e: previous.e + t * (current.e - previous.e), n: previous.n + t * (current.n - previous.n), h: 0 })
+        }
+        if (inCurrent) clipped.push(current)
+        previous = current
+      }
+      let volume = 0
+      for (let i = 1; i < clipped.length - 1; i++) {
+        const p = clipped[0], q = clipped[i], r = clipped[i + 1]
+        const area = Math.abs((q.e - p.e) * (r.n - p.n) - (r.e - p.e) * (q.n - p.n)) / 2
+        volume += area * Math.abs((p.h + q.h + r.h) / 3)
+      }
+      return volume
     }
+    cut += integrate(true); fill += integrate(false)
+    if (![cut, fill].every(Number.isFinite)) throw new RangeError('TIN quantities exceed the finite calculation range.')
   }
-
   return { cut, fill, net: cut - fill }
 }
 
@@ -183,25 +188,34 @@ export function computeVolumeBetweenSurfaces(
   surface1: TINSurface,
   surface2: TINSurface,
   gridSpacing: number = 1.0
-): { cut: number; fill: number; net: number } {
+): { cut: number; fill: number; net: number; method: 'midpoint-grid'; sampledArea: number; gridSpacing: number } {
+  if (!Number.isFinite(gridSpacing) || gridSpacing <= 0) throw new RangeError('Grid spacing must be finite and positive.')
+  for (const surface of [surface1, surface2]) {
+    if (!surface.triangles.length || !Object.values(surface.bounds).every(Number.isFinite)) throw new RangeError('Surface volumes require finite bounds and observed TIN triangles.')
+  }
   const minE = Math.max(surface1.bounds.minE, surface2.bounds.minE)
   const maxE = Math.min(surface1.bounds.maxE, surface2.bounds.maxE)
   const minN = Math.max(surface1.bounds.minN, surface2.bounds.minN)
   const maxN = Math.min(surface1.bounds.maxN, surface2.bounds.maxN)
 
-  if (minE >= maxE || minN >= maxN) return { cut: 0, fill: 0, net: 0 }
+  if (minE >= maxE || minN >= maxN) return { cut: 0, fill: 0, net: 0, method: 'midpoint-grid', sampledArea: 0, gridSpacing }
 
   let cut = 0
   let fill = 0
-  const cellArea = gridSpacing * gridSpacing
-
-  for (let e = minE; e <= maxE; e += gridSpacing) {
-    for (let n = minN; n <= maxN; n += gridSpacing) {
-      const z1 = interpolateElevation(surface1, e, n)
-      const z2 = interpolateElevation(surface2, e, n)
+  const columns = Math.ceil((maxE - minE) / gridSpacing), rows = Math.ceil((maxN - minN) / gridSpacing)
+  if (!Number.isSafeInteger(columns * rows) || columns * rows > 1000000 || columns * rows * (surface1.triangles.length + surface2.triangles.length) > 5000000) throw new RangeError('Surface-grid work exceeds the supported limit; increase spacing or split the area.')
+  let sampledArea = 0
+  for (let col = 0; col < columns; col++) {
+    const left = minE + col * gridSpacing, width = Math.min(gridSpacing, maxE - left)
+    for (let row = 0; row < rows; row++) {
+      const bottom = minN + row * gridSpacing, height = Math.min(gridSpacing, maxN - bottom)
+      const cellArea = width * height
+      const z1 = interpolateElevation(surface1, left + width / 2, bottom + height / 2)
+      const z2 = interpolateElevation(surface2, left + width / 2, bottom + height / 2)
 
       if (z1 === null || z2 === null) continue
 
+      sampledArea += cellArea
       const diff = z1 - z2
       if (diff > 0) {
         cut += diff * cellArea
@@ -211,7 +225,8 @@ export function computeVolumeBetweenSurfaces(
     }
   }
 
-  return { cut, fill, net: cut - fill }
+  if (![cut, fill].every(Number.isFinite)) throw new RangeError('Surface quantities exceed the finite calculation range.')
+  return { cut, fill, net: cut - fill, method: 'midpoint-grid', sampledArea, gridSpacing }
 }
 
 /**
