@@ -13,6 +13,7 @@
 import { z } from 'zod';
 import type { createClient } from '@/lib/api-client/client';
 import { logger } from '@/lib/logger'
+import { endAreaVolume, prismoidalVolumeFromMidSection } from '@/lib/engine/engineering'
 
 let dbClient: ReturnType<typeof createClient> | null = null;
 
@@ -106,8 +107,8 @@ export type SuperelevationInput = z.infer<typeof SuperelevationSchema>;
 // Cross Section Volume Input
 // Reference: RDM 1.1 Volume 3, Chapter 2 - Earthworks
 export const CrossSectionVolumeSchema = z.object({
-  areas: z.array(z.number()).min(2, 'Need at least 2 cross-sections'),
-  stationInterval: z.number().positive().max(100, 'Max interval 100m').default(20),
+  areas: z.array(z.number().finite()).min(2, 'Need at least 2 cross-sections').max(10000),
+  stationInterval: z.number().finite().positive().max(100, 'Max interval 100m').default(20),
   method: z.enum(['prismoidal', 'end-area']).default('prismoidal'),
 });
 
@@ -115,8 +116,15 @@ export type CrossSectionVolumeInput = z.infer<typeof CrossSectionVolumeSchema>;
 
 // Mass Haul Diagram Input
 export const MassHaulSchema = z.object({
-  cumulativeVolumes: z.array(z.number()).min(2),
-  stationInterval: z.number().positive().default(20),
+  // Historical field name: these are incremental net volumes, accumulated once.
+  cumulativeVolumes: z.array(z.number().finite()).min(2).max(10000),
+  stationInterval: z.number().finite().positive().default(20),
+  stations: z.array(z.number().finite()).min(2).max(10000).optional(),
+}).superRefine((input, ctx) => {
+  if (input.stations && (input.stations.length !== input.cumulativeVolumes.length ||
+    input.stations.some((station, i, stations) => i > 0 && station <= stations[i - 1]))) {
+    ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['stations'], message: 'Supply one strictly increasing chainage per volume.' });
+  }
 });
 
 export type MassHaulInput = z.infer<typeof MassHaulSchema>;
@@ -383,10 +391,8 @@ export function superelevationCalc(input: SuperelevationInput): SuperelevationRe
  * Cross-Section Volume Calculation
  * 
  * Computes earthwork volumes using:
- * - Prismoidal method (more accurate, RDM 1.1 preferred)
- * - End-area method (simpler, acceptable for preliminary estimates)
- * 
- * Reference: RDM 1.1 Volume 3, Chapter 2
+ * - Prismoidal method with supplied middle sections
+ * - Average end-area method; linear signed-area split at cut/fill transitions
  * 
  * @param input - Cross-section areas and station interval
  * @returns Volume table with cut/fill per station
@@ -398,6 +404,7 @@ export interface CrossSectionVolumeResult {
   netVolume: number;
   isBalanced: boolean;
   volumeTable: VolumeRow[];
+  calculationNotes: string[];
 }
 
 export interface VolumeRow {
@@ -408,31 +415,58 @@ export interface VolumeRow {
   fillVolume: number;
   cumulativeCut: number;
   cumulativeFill: number;
+  /** A Simpson group is reported at its end row; its middle row has no independent volume. */
+  methodApplied: 'origin' | 'midsection' | 'prismoidal' | 'end-area' | 'end-area-zero-crossing';
+  spanM: number;
 }
 
 export function crossSectionVolume(input: CrossSectionVolumeInput): CrossSectionVolumeResult {
   const parsed = CrossSectionVolumeSchema.parse(input);
   const { areas, stationInterval, method } = parsed;
 
-  // Precompute per-station incremental volumes
-  const stationVolumes: number[] = new Array<number>(areas.length).fill(0);
+  const segments = areas.map(() => ({
+    cut: 0, fill: 0, spanM: 0, methodApplied: 'origin' as VolumeRow['methodApplied'],
+  }));
+  let usedCrossing = false;
+  let usedEndArea = false;
 
-  if (method === 'prismoidal' && areas.length >= 3) {
-    // Simpson's 1/3 rule for groups of 3 stations (2 intervals each)
-    // V = (2d/3) × (A[i] + 4·A[i+1] + A[i+2])
-    let i = 0;
-    while (i + 2 < areas.length) {
-      stationVolumes[i + 2] = (2 * stationInterval / 3) * (areas[i] + 4 * areas[i + 1] + areas[i + 2]);
-      i += 2;
+  const integratePair = (end: number) => {
+    const a = areas[end - 1];
+    const b = areas[end];
+    let cut = 0;
+    let fill = 0;
+    const crosses = (a > 0 && b < 0) || (a < 0 && b > 0);
+    if (crosses) {
+      // Signed-area input cannot describe mixed cut/fill at one section.
+      // Assume linear area variation between these wholly cut/fill sections.
+      const firstLength = stationInterval * (Math.abs(a) / (Math.abs(a) + Math.abs(b)));
+      const firstVolume = Math.abs(a) * firstLength / 2;
+      const secondVolume = Math.abs(b) * (stationInterval - firstLength) / 2;
+      cut = a > 0 ? firstVolume : secondVolume;
+      fill = a < 0 ? firstVolume : secondVolume;
+      usedCrossing = true;
+    } else {
+      const volume = endAreaVolume(a, b, stationInterval);
+      cut = Math.max(0, volume);
+      fill = Math.max(0, -volume);
     }
-    // Remaining pair: fall back to end-area
-    if (i + 1 < areas.length) {
-      stationVolumes[i + 1] = (stationInterval / 2) * (areas[i] + areas[i + 1]);
-    }
-  } else {
-    // End-area method (or prismoidal with < 3 stations)
-    for (let i = 1; i < areas.length; i++) {
-      stationVolumes[i] = (stationInterval / 2) * (areas[i - 1] + areas[i]);
+    segments[end] = { cut, fill, spanM: stationInterval, methodApplied: crosses ? 'end-area-zero-crossing' : 'end-area' };
+    usedEndArea = true;
+  };
+
+  let start = 0;
+  while (start < areas.length - 1) {
+    const group = areas.slice(start, start + 3);
+    const sameSign = group.every(area => area >= 0) || group.every(area => area <= 0);
+    if (method === 'prismoidal' && group.length === 3 && sameSign) {
+      // L spans TWO equally spaced intervals: L/6 = d/3.
+      const volume = prismoidalVolumeFromMidSection(group[0], group[1], group[2], 2 * stationInterval);
+      segments[start + 1] = { cut: 0, fill: 0, spanM: 0, methodApplied: 'midsection' };
+      segments[start + 2] = { cut: Math.max(0, volume), fill: Math.max(0, -volume), spanM: 2 * stationInterval, methodApplied: 'prismoidal' };
+      start += 2;
+    } else {
+      integratePair(start + 1);
+      start += 1;
     }
   }
 
@@ -446,12 +480,13 @@ export function crossSectionVolume(input: CrossSectionVolumeInput): CrossSection
     const cutArea = currentArea > 0 ? currentArea : 0;
     const fillArea = currentArea < 0 ? Math.abs(currentArea) : 0;
 
-    const vol = stationVolumes[i];
-    const cutVolume = vol > 0 ? vol : 0;
-    const fillVolume = vol < 0 ? Math.abs(vol) : 0;
+    const { cut: cutVolume, fill: fillVolume, methodApplied, spanM } = segments[i];
 
     cumulativeCut += cutVolume;
     cumulativeFill += fillVolume;
+    if (![cutVolume, fillVolume, cumulativeCut, cumulativeFill].every(Number.isFinite)) {
+      throw new z.ZodError([{ code: z.ZodIssueCode.custom, path: ['areas'], message: 'Areas and interval produce a non-finite volume. Check their magnitude and units.' }]);
+    }
 
     volumeTable.push({
       station,
@@ -460,7 +495,9 @@ export function crossSectionVolume(input: CrossSectionVolumeInput): CrossSection
       cutVolume: parseFloat(cutVolume.toFixed(2)),
       fillVolume: parseFloat(fillVolume.toFixed(2)),
       cumulativeCut: parseFloat(cumulativeCut.toFixed(2)),
-      cumulativeFill: parseFloat(cumulativeFill.toFixed(2))
+      cumulativeFill: parseFloat(cumulativeFill.toFixed(2)),
+      methodApplied,
+      spanM,
     });
   }
 
@@ -473,8 +510,15 @@ export function crossSectionVolume(input: CrossSectionVolumeInput): CrossSection
     totalCut: parseFloat(totalCut.toFixed(2)),
     totalFill: parseFloat(totalFill.toFixed(2)),
     netVolume: parseFloat(netVolume.toFixed(2)),
-    isBalanced: Math.abs(netVolume) < totalCut * 0.05,
-    volumeTable
+    isBalanced: Math.abs(netVolume) <= Number.EPSILON * Math.max(1, totalCut, totalFill) * 8,
+    volumeTable,
+    calculationNotes: [
+      'Signed areas represent wholly cut or wholly fill sections; a net area is insufficient for mixed cross-sections.',
+      'Geometric quantities only. Shrink/swell, material classification, alignment curvature and construction approval are not assessed.',
+      ...(method === 'prismoidal' ? ['Prismoidal groups use three equally spaced supplied sections, spanning two intervals. Group quantities are reported at the end section; the middle section is not an independent volume.'] : []),
+      ...(method === 'prismoidal' && usedEndArea ? ['Intervals without a same-sign three-section group use average end-area.'] : []),
+      ...(usedCrossing ? ['Cut/fill transitions use a linearly interpolated zero-area section and separate triangular volumes; survey additional sections to confirm the transition.'] : []),
+    ],
   };
 }
 
@@ -511,12 +555,14 @@ export interface MassHaulPoint {
 export function massHaulDiagram(input: MassHaulInput): MassHaulResult {
   const parsed = MassHaulSchema.parse(input);
   const { cumulativeVolumes, stationInterval } = parsed;
+  const stations = parsed.stations ?? cumulativeVolumes.map((_, i) => i * stationInterval);
 
   const cumulative: number[] = [];
   let running = 0;
 
   for (const vol of cumulativeVolumes) {
     running += vol;
+    if (!Number.isFinite(running)) throw new RangeError('Mass-haul accumulation must remain finite.');
     cumulative.push(running);
   }
 
@@ -528,7 +574,8 @@ export function massHaulDiagram(input: MassHaulInput): MassHaulResult {
   for (let i = 1; i < cumulative.length; i++) {
     if ((cumulative[i - 1] < 0 && cumulative[i] >= 0) || 
         (cumulative[i - 1] > 0 && cumulative[i] <= 0)) {
-      balancePoint = i * stationInterval;
+      const fraction = Math.abs(cumulative[i - 1]) / (Math.abs(cumulative[i - 1]) + Math.abs(cumulative[i]));
+      balancePoint = stations[i - 1] + fraction * (stations[i] - stations[i - 1]);
       break;
     }
   }
@@ -536,15 +583,19 @@ export function massHaulDiagram(input: MassHaulInput): MassHaulResult {
   // Calculate haul distance (area under cumulative curve)
   let haulDistance = 0;
   for (let i = 1; i < cumulative.length; i++) {
-    const avgVol = (cumulative[i] + cumulative[i - 1]) / 2;
-    haulDistance += Math.abs(avgVol) * stationInterval;
+    const a = cumulative[i - 1], b = cumulative[i];
+    const span = stations[i] - stations[i - 1];
+    if (a * b < 0) {
+      const fraction = Math.abs(a) / (Math.abs(a) + Math.abs(b));
+      haulDistance += span * (Math.abs(a) * fraction + Math.abs(b) * (1 - fraction)) / 2;
+    } else haulDistance += (Math.abs(a) + Math.abs(b)) * span / 2;
   }
 
   // Simplified overhaul calculation
   const overhaulDistance = Math.abs(maxDeficit) * stationInterval * 0.5;
 
   const diagram: MassHaulPoint[] = cumulativeVolumes.map((vol, i) => ({
-    station: i * stationInterval,
+    station: stations[i],
     volume: vol,
     cumulative: cumulative[i],
     zone: vol > 0 ? 'cut' : vol < 0 ? 'fill' : 'balance'

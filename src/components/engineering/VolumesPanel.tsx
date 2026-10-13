@@ -2,14 +2,8 @@
 
 import { useState, useMemo } from 'react';
 import { z } from 'zod';
-import { crossSectionVolume, massHaulDiagram, logEngineeringCompute } from '@/lib/engineering/compute';
+import { CrossSectionVolumeSchema, crossSectionVolume, massHaulDiagram, logEngineeringCompute, type CrossSectionVolumeResult } from '@/lib/engineering/compute';
 import { initialiseSokDXFLayers, DXF_LAYERS } from '@/lib/drawing/dxfLayers';
-
-const VolumeInputSchema = z.object({
-  areas: z.array(z.number()).min(2),
-  stationInterval: z.number().positive().max(100).default(20),
-  method: z.enum(['prismoidal', 'end-area']).default('prismoidal'),
-});
 
 interface MassHaulPoint {
   station: number;
@@ -20,7 +14,7 @@ interface MassHaulPoint {
 
 function MassHaulDiagramSVG({ diagram, balancePoint }: { diagram: MassHaulPoint[]; balancePoint: number | null }) {
   const padding = { top: 30, right: 40, bottom: 50, left: 70 };
-  const chartW = Math.max(diagram.length * 60, 600);
+  const chartW = Math.min(2000, Math.max(diagram.length * 60, 600));
   const chartH = 320;
   const totalW = chartW + padding.left + padding.right;
   const totalH = chartH + padding.top + padding.bottom;
@@ -223,41 +217,48 @@ interface VolumesPanelProps {
 }
 
 export function VolumesPanel({ projectId, projectData: _projectData, surveyorProfile: _surveyorProfile }: VolumesPanelProps) {
-  const [areas, setAreas] = useState<number[]>([5, 8, 12, 15, 10, 5, 3, -2, -5, -3]);
-  const [stationInterval, setStationInterval] = useState(20);
+  const [areaText, setAreaText] = useState('');
+  const [intervalText, setIntervalText] = useState('20');
   const [method, setMethod] = useState<'prismoidal' | 'end-area'>('prismoidal');
   const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<CrossSectionVolumeResult | null>(null);
+  const stationInterval = Number(intervalText);
+  const areas = result?.volumeTable.map(row => row.cutArea - row.fillArea) ?? [];
 
-  const result = useMemo(() => {
+  const calculate = () => {
+    setResult(null);
     try {
-      const input = VolumeInputSchema.parse({ areas, stationInterval, method });
+      const tokens = areaText.trim().split(/[,\t]|\r?\n|\r/);
+      const parsedAreas = tokens.map((token, index) => {
+        const value = token.trim();
+        if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(value) || !Number.isFinite(Number(value))) {
+          throw new Error(`Section ${index + 1}: enter a finite decimal area in m². Blank sections and units in cells are not accepted.`);
+        }
+        return Number(value);
+      });
+      const input = CrossSectionVolumeSchema.parse({ areas: parsedAreas, stationInterval, method });
       setError(null);
       const res = crossSectionVolume(input);
-      logEngineeringCompute('cross_section_volume', input, res, { projectId });
-      return res;
+      setResult(res);
+      void logEngineeringCompute('cross_section_volume', input, res, { projectId });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        setError(e.errors[0]?.message);
+        setError(e.errors[0]?.message ?? 'Check the section areas and station interval.');
+      } else {
+        setError(e instanceof Error ? e.message : 'Volume calculation failed.');
       }
-      return null;
     }
-  }, [areas, stationInterval, method, projectId]);
+  };
 
   const massHaul = useMemo(() => {
     if (!result) return null;
-    const cumulative = areas.map((a, i) => {
-      let sum = 0;
-      for (let j = 0; j <= i; j++) sum += areas[j];
-      return sum;
+    const rows = result.volumeTable.filter(row => row.methodApplied !== 'midsection');
+    return massHaulDiagram({
+      cumulativeVolumes: rows.map(row => row.cutVolume - row.fillVolume),
+      stationInterval,
+      stations: rows.map(row => row.station),
     });
-    return massHaulDiagram({ cumulativeVolumes: cumulative, stationInterval });
-  }, [areas, stationInterval, result]);
-
-  const updateArea = (index: number, value: number) => {
-    const newAreas = [...areas];
-    newAreas[index] = value;
-    setAreas(newAreas);
-  };
+  }, [stationInterval, result]);
 
   const exportDXF = async () => {
     if (!result) return;
@@ -275,7 +276,7 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
     let prevY = baseY;
     
     areas.forEach((area, i) => {
-      const x = 50 + i * 20 * scale;
+      const x = 50 + result.volumeTable[i].station * scale;
       const y = baseY - area * scale;
       drawing.drawLine(prevX, prevY, x, y);
       prevX = x;
@@ -302,7 +303,7 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
         <div>
           <h3 className="text-lg font-semibold text-[var(--text-primary)]">Cross-Section Volumes & Mass Haul</h3>
           <p className="text-sm text-[var(--text-muted)]">
-            Per RDM 1.1 Volume 3, Chapter 2 — Earthworks
+            Geometric volumes from supplied, equally spaced cross-section areas.
           </p>
         </div>
         {result && (
@@ -319,7 +320,7 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
       </div>
 
       {error && (
-        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
+        <div role="alert" className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg text-red-400 text-sm">
           {error}
         </div>
       )}
@@ -329,10 +330,11 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
           <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="station-interval-m">Station Interval (m)</label>
           <input id="station-interval-m" aria-label="Station Interval (m)"
             type="number"
-            min={5}
+            min={0.001}
             max={100}
-            value={stationInterval}
-            onChange={(e) => setStationInterval(Number(e.target.value) || 20)}
+            step="any"
+            value={intervalText}
+            onChange={(e) => { setIntervalText(e.target.value); setResult(null); setError(null); }}
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-sm font-mono"
           />
         </div>
@@ -340,33 +342,26 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
           <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="method">Method</label>
           <select
              id="method" value={method}
-            onChange={(e) => setMethod(e.target.value as 'prismoidal' | 'end-area')}
+            onChange={(e) => { setMethod(e.target.value as 'prismoidal' | 'end-area'); setResult(null); setError(null); }}
             className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-3 py-2 text-sm"
           >
-            <option value="prismoidal">Prismoidal (RDM 1.1 preferred)</option>
-            <option value="end-area">End-Area (simple)</option>
+            <option value="prismoidal">Prismoidal — three-section groups</option>
+            <option value="end-area">Average end-area — adjacent sections</option>
           </select>
         </div>
       </div>
 
       <div className="overflow-x-auto border border-[var(--border-color)] rounded-lg">
         <div className="bg-[var(--bg-secondary)] px-4 py-2 border-b border-[var(--border-color)]">
-          <h4 className="font-semibold text-sm">Cross-Section Areas (positive = cut, negative = fill)</h4>
+          <label htmlFor="volume-section-areas" className="font-semibold text-sm">Cross-section areas (m²)</label>
         </div>
         <div className="p-4">
-          <div className="flex flex-wrap gap-2">
-            {areas.map((area, i) => (
-              <div key={`${area}-${i}`} className="flex items-center gap-1">
-                <span className="text-xs text-[var(--text-muted)] w-8">{i * stationInterval}</span>
-                <input aria-label="Area"
-                  type="number"
-                  value={area}
-                  onChange={(e) => updateArea(i, Number(e.target.value) || 0)}
-                  className={`w-16 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded px-2 py-1 text-sm font-mono text-right ${area > 0 ? 'text-red-400' : 'text-green-400'}`}
-                />
-              </div>
-            ))}
-          </div>
+          <p id="volume-area-help" className="mb-3 text-xs text-[var(--text-muted)]">Paste one area per line or a comma-separated list in station order. Positive = cut; negative = fill; zero is valid. Stations start at relative chainage 0. Mixed cut/fill in one section needs separate area schedules.</p>
+          <textarea id="volume-section-areas" aria-describedby="volume-area-help" rows={5} value={areaText}
+            onChange={event => { setAreaText(event.target.value); setResult(null); setError(null); }}
+            className="w-full rounded border border-[var(--border-color)] bg-[var(--bg-primary)] p-3 font-mono text-sm"
+          />
+          <button type="button" onClick={calculate} className="mt-3 min-h-11 rounded bg-[var(--accent)] px-4 py-2 font-semibold text-black">Calculate volumes</button>
         </div>
       </div>
 
@@ -375,7 +370,7 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="bg-[var(--bg-secondary)] rounded-lg p-3">
               <p className="text-xs text-[var(--text-muted)]">Total Cut</p>
-              <p className="font-mono font-semibold text-red-400">{result.totalCut.toFixed(2)} m³</p>
+              <p aria-label="Total cut volume" className="font-mono font-semibold text-red-400">{result.totalCut.toFixed(2)} m³</p>
             </div>
             <div className="bg-[var(--bg-secondary)] rounded-lg p-3">
               <p className="text-xs text-[var(--text-muted)]">Total Fill</p>
@@ -388,7 +383,7 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
               </p>
             </div>
             <div className="bg-[var(--bg-secondary)] rounded-lg p-3">
-              <p className="text-xs text-[var(--text-muted)]">Balanced?</p>
+              <p className="text-xs text-[var(--text-muted)]">Numerical net zero?</p>
               <p className={`font-mono font-semibold ${result.isBalanced ? 'text-green-400' : 'text-yellow-400'}`}>
                 {result.isBalanced ? 'Yes' : 'No'}
               </p>
@@ -404,22 +399,24 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
                 <thead>
                   <tr className="border-b border-[var(--border-color)] text-[var(--text-muted)] text-xs">
                     <th className="text-left py-2 px-4">Station</th>
-                    <th className="text-right py-2 px-4">Cut Area</th>
-                    <th className="text-right py-2 px-4">Fill Area</th>
-                    <th className="text-right py-2 px-4">Cut Vol</th>
-                    <th className="text-right py-2 px-4">Fill Vol</th>
-                    <th className="text-right py-2 px-4">Cum. Cut</th>
-                    <th className="text-right py-2 px-4">Cum. Fill</th>
+                    <th className="text-left py-2 px-4">Method / span (m)</th>
+                    <th className="text-right py-2 px-4">Cut Area (m²)</th>
+                    <th className="text-right py-2 px-4">Fill Area (m²)</th>
+                    <th className="text-right py-2 px-4">Cut Vol (m³)</th>
+                    <th className="text-right py-2 px-4">Fill Vol (m³)</th>
+                    <th className="text-right py-2 px-4">Cum. Cut (m³)</th>
+                    <th className="text-right py-2 px-4">Cum. Fill (m³)</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {result.volumeTable.slice(0, 15).map((row) => (
+                  {result.volumeTable.map((row) => (
                     <tr key={row.station} className="border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
-                      <td className="py-1.5 px-4">{row.station.toFixed(0)}</td>
+                      <td className="py-1.5 px-4">{row.station.toFixed(3)}</td>
+                      <td className="py-1.5 px-4">{row.methodApplied === 'midsection' ? 'Midsection — group reported at next end' : `${row.methodApplied} / ${row.spanM.toFixed(3)}`}</td>
                       <td className="py-1.5 px-4 text-right text-red-400">{row.cutArea.toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right text-green-400">{row.fillArea.toFixed(2)}</td>
-                      <td className="py-1.5 px-4 text-right">{row.cutVolume.toFixed(2)}</td>
-                      <td className="py-1.5 px-4 text-right">{row.fillVolume.toFixed(2)}</td>
+                      <td className="py-1.5 px-4 text-right">{row.methodApplied === 'midsection' ? '—' : row.cutVolume.toFixed(2)}</td>
+                      <td className="py-1.5 px-4 text-right">{row.methodApplied === 'midsection' ? '—' : row.fillVolume.toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right text-red-400">{row.cumulativeCut.toFixed(2)}</td>
                       <td className="py-1.5 px-4 text-right text-green-400">{row.cumulativeFill.toFixed(2)}</td>
                     </tr>
@@ -436,7 +433,9 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
       )}
 
       <div className="text-xs text-[var(--text-muted)]">
-        <p><strong>Reference:</strong> RDM 1.1 Volume 3 — Prismoidal: V = (d/6)(A₁ + 4Am + A₂)</p>
+        <p>Average end-area: V = L(A₁ + A₂)/2. Prismoidal: V = L(A₁ + 4Am + A₂)/6; L spans two intervals. The mass-haul line joins group ends because an independent middle-section volume is not available for a prismoidal group.</p>
+        {result?.calculationNotes.map(note => <p key={note} className="mt-2">{note}</p>)}
+        <p className="mt-2">Numerical net zero is not a construction balance assessment. Project material factors and approved survey/design evidence are still required.</p>
       </div>
     </div>
   );

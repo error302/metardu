@@ -1,3 +1,5 @@
+import { crossSectionVolume as computeCrossSectionVolume } from './compute'
+
 export interface CrossSection {
   station: number
   offsetLeft: number
@@ -44,43 +46,13 @@ export interface SuperelevationCalcResult extends SuperelevationResult {
 }
 
 export function calculateVolumes(input: VolumeInput): VolumeResult {
-  const { areas, stationInterval, method } = input
-
-  if (areas.length < 2) {
-    throw new Error('At least 2 cross-sections required')
-  }
-
-  const volumes: number[] = []
-  let totalCut = 0
-  let totalFill = 0
-
-  for (let i = 1; i < areas.length; i++) {
-    const a1 = areas[i - 1]
-    const a2 = areas[i]
-    let segmentVolume: number
-
-    if (method === 'prismoidal' && i > 1) {
-      const a3 = areas[i - 2]
-      segmentVolume = ((a1 + 4 * a2 + a3) / 6) * stationInterval
-    } else {
-      segmentVolume = ((a1 + a2) / 2) * stationInterval
-    }
-
-    if (segmentVolume > 0) {
-      totalCut += segmentVolume
-    } else {
-      totalFill += Math.abs(segmentVolume)
-    }
-
-    volumes.push(segmentVolume)
-  }
-
+  const result = computeCrossSectionVolume(input)
   return {
-    totalCutVolume: totalCut,
-    totalFillVolume: totalFill,
-    netVolume: totalCut - totalFill,
-    volumesByStation: volumes,
-    method
+    totalCutVolume: result.totalCut,
+    totalFillVolume: result.totalFill,
+    netVolume: result.netVolume,
+    volumesByStation: result.volumeTable.slice(1).map(row => row.cutVolume - row.fillVolume),
+    method: result.method,
   }
 }
 
