@@ -154,9 +154,9 @@ The output is labelled an area schedule. Residual floor area is not automaticall
 asserted to be legal common property, and area shares are not approved ownership
 quotas. Actual floor/unit boundary geometry, project persistence, statutory plan
 forms, independent measurements and jurisdiction-specific approval remain open.
-The encumbrance module still needs a separate review of gross corridor estimates,
-overlaps/parcel clipping and registry-status wording; its estimates must not be
-treated as measured parcel coverage or proof of current title restrictions.
+That checkpoint flagged the encumbrance module's gross corridor estimates,
+overlaps/parcel clipping and registry-status wording. The follow-up below repairs
+those source findings. Actual source/registry verification remains separate.
 
 Both page regressions and three engine validation groups failed before repair.
 The follow-up passes **6 tests in two additional suites**; strict app/test types
@@ -176,3 +176,72 @@ checkpoints: [road/terrain scan](https://github.com/error302/metardu/actions/run
 and [sectional scan](https://github.com/error302/metardu/actions/runs/38480739662).
 This is remote secret-scan evidence for those exact commits, not a complete CI,
 deployment, database, downstream-file or field-acceptance result.
+
+### Encumbrance geometry and incremental station follow-up
+
+The existing encumbrance route now starts empty and reviews supplied records,
+not registration. It no longer invents a Kenya Power record, a 10,000 m² parcel,
+or today's registration date. Optional source dates/references remain unknown
+when omitted. Missing observations are not converted to zero, and malformed
+rows, duplicate IDs, invalid widths, partial geometry and unsupported CRS fail
+closed. The source catalogue describes the actual record/geometry review and
+sectional area schedule rather than claiming registration/statutory compliance.
+
+The engine accepts a measured parcel outer ring and optional holes in a declared
+projected metre CRS. Authoritative source polygons are supported. For centreline
+records, the operator explicitly selects a constant full-width corridor model
+with butt ends and bevel joins; it is not asserted to be a legal wayleave rule.
+The existing polygon Boolean library unions segment/record footprints and clips
+them to the parcel, preserving concave/disjoint regions and subtracting holes.
+Canonical planar shoelace area is evaluated after translating to a local origin
+for numerical stability; exported coordinates are restored without rounding.
+No geodesic Turf buffer/area calculation is applied to projected coordinates.
+
+Analytical regressions reproduced the old 4,000 m² result where parcel clipping
+and overlap union require 1,000 m², and the old 4,000 m² crossing-corridor result
+where the correct union is 1,900 m². Tests cover an explicit 78 m² bevel-corner
+model, parcel holes, a concave parcel split into separate coverage regions,
+measured outside footprints with legitimate zero coverage, and unlocated records.
+Unmapped records stay in the denominator/table; a partial assessment exposes its
+assessed union but leaves complete coverage and percentage null. An empty list
+never establishes an unrestricted title. Registry status remains `not-verified`.
+
+The page draws a grid-north-up, equal-axis preview of supplied parcel/clipped coverage.
+Every input change clears the computed snapshot and export actions, and late
+module loads cannot publish outdated input results. Lightweight record parsing
+and missing-information review have no runtime geospatial dependency; geometry
+and DXF generation load on use. The sectional page imports its separate lightweight
+area engine. No package was installed. Input/record/vertex limits bound the work.
+
+CSV schedules retain every record, source references/dates, raw/inside areas,
+assessment issues, declared CRS/model/method and explicit DXF layer mappings.
+Geometry CSVs retain all source parcel/record observations plus derived clipped
+rings, polygon/ring/vertex indices, holes and CRS. Draft DXF contains metre units,
+original projected coordinates, source and clipped layers, holes, union geometry
+and an unverified-registry/draft reference. It explicitly labels the geometry as
+2D, with no surveyed elevation or vertical datum. Fresh engine recomputation rejects
+stale exports. Independent writer/importer checks through METARDU's existing DXF
+parser preserve closed polylines, metre units and exact synthetic coordinate
+origin/extents. This is native-format parser proof, not a downstream CAD-app,
+browser-download, physical print or field-verification result.
+
+Station entry now saves a single observed station before a second section is
+collected. An explicitly emptied station list can also be saved after the operator
+removes its last record. Zero ground/chainage values stay valid and unknown design
+levels stay unknown; volume computation still requires two complete sections.
+
+Final source checks pass **141 tests across 12 suites**, both strict app/test
+TypeScript projects, changed/new source lint and whitespace checks. The required
+read-only Docker verifier passed against one healthy existing production app and
+required services, with backup completion at `2026-10-13T21:33:38Z`. No service was
+built, started, stopped, migrated or promoted. Owned source-preview processes
+15948/17860 and loopback port 3021 were confirmed and reused. Fresh CUA navigation
+to `/tools/encumbrance` again returned `net::ERR_BLOCKED_BY_CLIENT`; visual browser
+QA remains open and the CAD training origin/storage was untouched.
+
+These changes remain source-only. Project-scoped persistent encumbrance records,
+source-boundary/control provenance, approved legal width/geometry, current official
+records, independent observations and issued-plan acceptance remain open. The
+broader cadastral boundary-to-document, road spiral/vertical/corridor set-out,
+construction control/as-built, contour print/field, notice/OAuth/ChatGPT, payment
+and recovery gates are not closed by this milestone. Keep the full objective active.
