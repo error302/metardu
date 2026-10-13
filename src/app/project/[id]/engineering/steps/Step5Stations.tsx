@@ -62,7 +62,7 @@ export function Step5Stations({ data, onSave }: { data: RoadDesignData | null; o
     <div className="flex flex-wrap gap-3"><button type="button" className="min-h-11 rounded border border-zinc-700 px-4" onClick={() => setRows(old => [...old, draft()])}>+ Add Station</button>
       <input ref={inputRef} type="file" accept=".csv,text/csv" className="hidden" onChange={importFile} />
       <button type="button" className="min-h-11 rounded border border-zinc-700 px-4" onClick={() => inputRef.current?.click()}>Import CSV</button>
-      {rows.length >= 2 && <button type="button" disabled={saving} className="min-h-11 rounded bg-amber-500 px-5 font-semibold text-black" onClick={() => void save()}>{saving ? 'Saving…' : 'Save Stations'}</button>}
+      {(rows.length > 0 || !!data?.stations.length) && <button type="button" disabled={saving} className="min-h-11 rounded bg-amber-500 px-5 font-semibold text-black" onClick={() => void save()}>{saving ? 'Saving…' : 'Save Stations'}</button>}
     </div><p className="text-xs text-zinc-400">CSV headers: chainage,ground_level,design_level. Add offset for a measured profile CSV with multiple observations at each chainage. Design surface RL is the finished centreline level; the saved template depth defines formation beneath it.</p>
   </div>
 }
