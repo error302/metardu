@@ -1,4 +1,4 @@
-import { hasRole, isAdmin, ROLES, DEFAULT_ROLE, PROJECT_WRITE_ROLES, SCHEME_ADMIN_ROLES } from '../rbac'
+import { hasRole, isAdmin, ROLES, DEFAULT_ROLE, PROJECT_WRITE_ROLES, SCHEME_ADMIN_ROLES, PLATFORM_ADMIN_API_ROLES } from '../rbac'
 
 // Mock the db module to prevent pg from loading (which requires TextEncoder)
 jest.mock('@/lib/db', () => ({
@@ -23,6 +23,11 @@ jest.mock('@/lib/auth', () => ({
 }))
 
 describe('RBAC Module', () => {
+  it('keeps platform-wide admin APIs out of the organization-admin role', () => {
+    expect(PLATFORM_ADMIN_API_ROLES).toEqual(['super_admin', 'admin'])
+    expect(PLATFORM_ADMIN_API_ROLES).not.toContain('org_admin')
+  })
+
   describe('hasRole', () => {
     it('should return true when user role is in allowed list', () => {
       expect(hasRole('org_admin', [ROLES.ORG_ADMIN])).toBe(true)

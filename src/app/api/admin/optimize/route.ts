@@ -7,6 +7,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
+import { PLATFORM_ADMIN_API_ROLES } from '@/lib/auth/rbac'
 import {
   getRecommendedIndexes,
   applyRecommendedIndexes,
@@ -98,7 +99,7 @@ async function runFullOptimization(): Promise<NextResponse> {
 }
 
 // GET endpoint for status — admin-only to avoid information disclosure
-export const GET = apiHandler({ auth: true, roles: ['super_admin', 'org_admin'], rateLimit: { max: 60, windowMs: 60000 } }, async () => {
+export const GET = apiHandler({ auth: true, roles: PLATFORM_ADMIN_API_ROLES, rateLimit: { max: 60, windowMs: 60000 } }, async () => {
   return NextResponse.json({
     status: 'available',
     endpoints: [

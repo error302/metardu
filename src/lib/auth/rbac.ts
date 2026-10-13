@@ -30,6 +30,9 @@ export const ROLES = {
   VIEWER: 'viewer' as Role,
 } as const
 
+/** Platform-wide operations may see or change all users, payments, and service state. */
+export const PLATFORM_ADMIN_API_ROLES = ['super_admin', 'admin']
+
 /**
  * Role hierarchy — index 0 is the highest privilege.
  * Used by assignRole() to enforce that a caller can only assign

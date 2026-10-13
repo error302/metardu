@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { PLATFORM_ADMIN_API_ROLES } from '@/lib/auth/rbac'
 import { z } from 'zod'
 
 interface UserRow {
@@ -46,7 +47,7 @@ const patchUserProfileSchema = z.object({
 })
 
 export const PATCH = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin', 'org_admin'], optimisticLock: true, schema: patchUserProfileSchema, rateLimit: { max: 60, windowMs: 60000 } },
+  { auth: true, roles: PLATFORM_ADMIN_API_ROLES, optimisticLock: true, schema: patchUserProfileSchema, rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
     const { userId } = ctx.params
     const body = ctx.body as z.infer<typeof patchUserProfileSchema>

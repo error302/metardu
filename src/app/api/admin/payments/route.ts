@@ -1,5 +1,6 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db, setCurrentRlsServiceRole } from '@/lib/db'
+import { PLATFORM_ADMIN_API_ROLES } from '@/lib/auth/rbac'
 
 export const dynamic = 'force-dynamic'
 
@@ -32,7 +33,7 @@ interface TotalRow {
  * Requires auth + admin role.
  */
 export const GET = apiHandler(
-  { auth: true, roles: ['super_admin', 'admin', 'org_admin'] , rateLimit: { max: 60, windowMs: 60000 } },
+  { auth: true, roles: PLATFORM_ADMIN_API_ROLES, rateLimit: { max: 60, windowMs: 60000 } },
   async (req, _ctx) => {
     setCurrentRlsServiceRole('platform_admin')
     const { searchParams } = new URL(req.url)
