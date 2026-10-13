@@ -1,4 +1,6 @@
-import { buildSetoutObservationPayload, type QueuedSetoutShot } from '../setoutQueue'
+import { buildSetoutObservationPayload, ensureSetoutPlanStore, type QueuedSetoutShot } from '../setoutQueue'
+
+const PROJECT_TEST_CRS = 'EPSG:21037'
 
 const shot: QueuedSetoutShot = {
   id: 'a8e31f2e-8f22-4cb8-a662-f5d5b18c2f30',
@@ -39,7 +41,25 @@ test('retries the exact device shot with a stable id and its captured design rev
 })
 
 test('sends the device capture time and captured CRS as structured evidence', () => {
-  expect(buildSetoutObservationPayload({ ...shot, capturedCrs: 'EPSG:21037' })).toMatchObject({
-    capturedAt: shot.capturedAt, capturedCrs: 'EPSG:21037',
+  expect(buildSetoutObservationPayload({ ...shot, capturedCrs: PROJECT_TEST_CRS })).toMatchObject({
+    capturedAt: shot.capturedAt, capturedCrs: PROJECT_TEST_CRS,
   })
+})
+
+test('adds the offline target cache store without recreating the existing shot store', () => {
+  const stores = new Set(['setout_shots'])
+  const createObjectStore = jest.fn((name: string) => {
+    stores.add(name)
+    return {} as IDBObjectStore
+  })
+  const db = {
+    objectStoreNames: { contains: (name: string) => stores.has(name) },
+    createObjectStore,
+  } as unknown as IDBDatabase
+
+  ensureSetoutPlanStore(db)
+
+  expect(Array.from(stores).sort()).toEqual(['setout_project_plans', 'setout_shots'])
+  expect(createObjectStore).toHaveBeenCalledTimes(1)
+  expect(createObjectStore).toHaveBeenCalledWith('setout_project_plans', { keyPath: 'projectId' })
 })

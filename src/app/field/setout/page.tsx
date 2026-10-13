@@ -17,43 +17,24 @@ import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Check, ChevronRight, Radio, Ruler, TriangleAlert } from 'lucide-react'
 import {
+  cacheSetoutDefinitionList,
+  cacheSetoutDefinitionPlan,
   deliverShot,
   flushQueuedShots,
+  getCachedSetoutProjectPlan,
   listQueuedShots,
   saveShotLocally,
+  type FieldSetoutDefinition,
+  type FieldSetoutPoint,
+  type FieldSetoutRegisterEntry,
   type QueuedSetoutShot,
 } from '@/lib/field/setoutQueue'
 import { DEFAULT_SETOUT_TOLERANCE, evaluateSetoutShot } from '@/lib/engineering/verticality'
 import { resolveSetoutToleranceProfile } from '@/lib/engineering/setoutToleranceProfile'
 
-interface SetoutPoint {
-  label: string
-  easting: number
-  northing: number
-  design_rl: number | null
-  point_type: string
-  revision: number
-  metadata: Record<string, unknown>
-}
-
-interface Definition {
-  id: string
-  name: string
-  structure_type: string
-  crs: string | null
-  tolerance_profile_id?: string | null
-  metadata: Record<string, unknown>
-}
-
-interface RegisterEntry {
-  definition_id: string
-  label: string
-  result: string
-  horizontal_error: number | null
-  vertical_error: number | null
-  reported_accuracy_m: number | null
-  staked_at: string
-}
+type SetoutPoint = FieldSetoutPoint
+type Definition = FieldSetoutDefinition
+type RegisterEntry = FieldSetoutRegisterEntry
 
 interface ObservationDraft {
   targetKey: string
@@ -112,6 +93,10 @@ export default function FieldSetOutPage() {
   const [rejectedShots, setRejectedShots] = useState(0)
   const [rejectedShotRecords, setRejectedShotRecords] = useState<QueuedSetoutShot[]>([])
   const [queueState, setQueueState] = useState<'checking' | 'ready' | 'unavailable'>('checking')
+  const [usingOfflinePlan, setUsingOfflinePlan] = useState(false)
+  const [offlinePlanConfirmed, setOfflinePlanConfirmed] = useState(false)
+  const [offlinePlanCachedAt, setOfflinePlanCachedAt] = useState<string | null>(null)
+  const [planCacheWarning, setPlanCacheWarning] = useState<string | null>(null)
   const [exportError, setExportError] = useState<string | null>(null)
   const syncInFlight = useRef(false)
 
@@ -136,31 +121,74 @@ export default function FieldSetOutPage() {
     void refreshPending()
   }, [refreshPending])
 
+  const loadCachedDefinitions = useCallback(async () => {
+    if (!projectId) return false
+    try {
+      const cached = await getCachedSetoutProjectPlan(projectId)
+      const snapshot = cached?.definitionList
+      if (!snapshot) {
+        setMessage('No saved set-out schedule is available on this device. Open this project’s set-out screen online before leaving coverage.')
+        return false
+      }
+      const defs = snapshot.definitions
+      setDefinitions(defs)
+      setRegister(Object.fromEntries(snapshot.register.map((entry) => [registerKey(entry.definition_id, entry.label), entry])))
+      setDefinitionId((current) => {
+        const requested = defs.find((definition) => definition.id === requestedDefinitionId)
+        if (requested) return requested.id
+        if (current && defs.some((definition) => definition.id === current)) return current
+        return defs[0]?.id ?? ''
+      })
+      setMessage(null)
+      return true
+    } catch {
+      setMessage('METARDU could not read the saved set-out schedule from this device.')
+      return false
+    }
+  }, [projectId, requestedDefinitionId])
+
   const loadRegister = useCallback(async () => {
     if (!projectId) return
     try {
+      if (typeof navigator !== 'undefined' && !navigator.onLine) {
+        await loadCachedDefinitions()
+        return
+      }
       const res = await fetch(`/api/project/${projectId}/setout`)
-      if (!res.ok) return
+      if (!res.ok) {
+        if (res.status === 408 || res.status >= 500) {
+          await loadCachedDefinitions()
+        } else {
+          setMessage(`Could not load this project’s set-out definitions (HTTP ${res.status}).`)
+        }
+        return
+      }
       const json = (await res.json()) as {
         data?: { definitions?: Definition[]; register?: RegisterEntry[] }
       }
       const defs = json.data?.definitions ?? []
+      const entries = json.data?.register ?? []
       setDefinitions(defs)
-      setRegister(
-        Object.fromEntries(
-          (json.data?.register ?? []).map((entry) => [registerKey(entry.definition_id, entry.label), entry])
-        )
-      )
-      const requested = defs.find((definition) => definition.id === requestedDefinitionId)
-      const current = defs.find((definition) => definition.id === definitionId)
-      if (requested) setDefinitionId(requested.id)
-      else if (!current && defs[0]) setDefinitionId(defs[0].id)
+      setRegister(Object.fromEntries(entries.map((entry) => [registerKey(entry.definition_id, entry.label), entry])))
+      setDefinitionId((current) => {
+        const requested = defs.find((definition) => definition.id === requestedDefinitionId)
+        if (requested) return requested.id
+        if (current && defs.some((definition) => definition.id === current)) return current
+        return defs[0]?.id ?? ''
+      })
+      setMessage(null)
+      try {
+        await cacheSetoutDefinitionList(projectId, defs, entries)
+        setPlanCacheWarning(null)
+      } catch {
+        setPlanCacheWarning('The set-out list loaded, but this device could not save it for offline use. Keep the project online before leaving coverage.')
+      }
     } catch {
-      // Offline: keep whatever is already on screen.
+      await loadCachedDefinitions()
     } finally {
       setLoading(false)
     }
-  }, [projectId, definitionId, requestedDefinitionId])
+  }, [projectId, requestedDefinitionId, loadCachedDefinitions])
 
   useEffect(() => {
     void loadRegister()
@@ -171,28 +199,85 @@ export default function FieldSetOutPage() {
       setPoints([])
       return
     }
+    const loadCachedPlan = async () => {
+      try {
+        const cached = await getCachedSetoutProjectPlan(projectId)
+        const snapshot = cached?.definitionPlans[definitionId]
+        if (!snapshot) {
+          setPoints([])
+          setOfflinePlanCachedAt(null)
+          setUsingOfflinePlan(false)
+          setMessage('No saved targets are available for this set-out definition. Open it online before leaving coverage.')
+          return
+        }
+        setPoints(snapshot.points)
+        setRegister(Object.fromEntries(snapshot.register.map((entry) => [registerKey(entry.definition_id, entry.label), entry])))
+        setOfflinePlanCachedAt(snapshot.cachedAt)
+        setUsingOfflinePlan(true)
+        setOfflinePlanConfirmed(false)
+        setMessage(null)
+      } catch {
+        setPoints([])
+        setOfflinePlanCachedAt(null)
+        setUsingOfflinePlan(false)
+        setMessage('METARDU could not read the saved targets from this device. Do not clear browser data; reconnect and reload the field plan.')
+      }
+    }
+
+    if (typeof navigator !== 'undefined' && !navigator.onLine) {
+      await loadCachedPlan()
+      return
+    }
     try {
       const res = await fetch(`/api/project/${projectId}/setout?definitionId=${encodeURIComponent(definitionId)}`)
-      if (!res.ok) return
+      if (!res.ok) {
+        if (res.status === 408 || res.status >= 500) await loadCachedPlan()
+        else setMessage(`Could not refresh this set-out definition (HTTP ${res.status}).`)
+        return
+      }
       const json = (await res.json()) as {
         data?: { points?: SetoutPoint[]; register?: RegisterEntry[] }
       }
-      setPoints(json.data?.points ?? [])
-      setRegister(
-        Object.fromEntries(
-          (json.data?.register ?? []).map((entry) => [registerKey(entry.definition_id, entry.label), entry])
-        )
-      )
+      const nextPoints = json.data?.points ?? []
+      const entries = json.data?.register ?? []
+      setPoints(nextPoints)
+      setRegister(Object.fromEntries(entries.map((entry) => [registerKey(entry.definition_id, entry.label), entry])))
+      setUsingOfflinePlan(false)
+      setOfflinePlanConfirmed(false)
+      setMessage(null)
+      try {
+        const cachedAt = new Date().toISOString()
+        await cacheSetoutDefinitionPlan(projectId, definitionId, nextPoints, entries, cachedAt)
+        setOfflinePlanCachedAt(cachedAt)
+        setPlanCacheWarning(null)
+      } catch {
+        setOfflinePlanCachedAt(null)
+        setPlanCacheWarning('Targets loaded, but this device could not save them for offline use. Keep the project online before leaving coverage.')
+      }
     } catch {
-      // Keep the current list when the device is offline.
+      await loadCachedPlan()
     }
   }, [projectId, definitionId])
 
   useEffect(() => {
     if (!projectId || !definitionId) return
     setIndex(0)
+    setPoints([])
+    setUsingOfflinePlan(false)
+    setOfflinePlanConfirmed(false)
+    setOfflinePlanCachedAt(null)
     void loadDefinition()
   }, [projectId, definitionId, loadDefinition])
+
+  useEffect(() => {
+    const onOffline = () => {
+      if (points.length === 0) return
+      setUsingOfflinePlan(true)
+      setOfflinePlanConfirmed(false)
+    }
+    window.addEventListener('offline', onOffline)
+    return () => window.removeEventListener('offline', onOffline)
+  }, [points.length])
 
 
   // Reconcile device-first shots on entry and whenever the device regains
@@ -306,7 +391,8 @@ export default function FieldSetOutPage() {
   }, [target, observed.e, observed.n, observed.z, accuracy, toleranceProfileMismatch, horizontalToleranceM, verticalToleranceM])
 
   const recordShot = useCallback(async () => {
-    if (!projectId || !definitionId || !target || !verdict || verdict.result === 'INFO') return
+    if (!projectId || !definitionId || !target || !verdict || verdict.result === 'INFO'
+      || (usingOfflinePlan && !offlinePlanConfirmed)) return
     const e = parseNumericField(observed.e)
     const n = parseNumericField(observed.n)
     const rl = parseNumericField(observed.z)
@@ -361,7 +447,7 @@ export default function FieldSetOutPage() {
     } finally {
       setSaving(false)
     }
-  }, [projectId, definitionId, currentDefinition?.crs, target, verdict, observed, accuracy, index, points, register, loadRegister, loadDefinition, refreshPending])
+  }, [projectId, definitionId, currentDefinition?.crs, target, verdict, observed, accuracy, index, points, register, loadRegister, loadDefinition, refreshPending, usingOfflinePlan, offlinePlanConfirmed])
 
   if (!projectId) {
     return (
@@ -403,6 +489,34 @@ export default function FieldSetOutPage() {
           <span className="text-[10px] font-mono text-red-300" role="status">Local queue unavailable</span>
         )}
       </header>
+
+      {planCacheWarning && (
+        <p role="status" className="mx-3 mt-3 rounded-lg border border-amber-700/70 bg-amber-950/30 p-3 text-xs text-amber-100">
+          {planCacheWarning}
+        </p>
+      )}
+
+      {usingOfflinePlan && points.length > 0 && (
+        <section role="alert" className="mx-3 mt-3 rounded-lg border border-amber-600 bg-amber-950/40 p-3 text-sm text-amber-50">
+          <p className="font-semibold">Working from a saved set-out plan while offline</p>
+          <p className="mt-1 text-xs text-amber-100/80">
+            {offlinePlanCachedAt
+              ? `This device saved the targets ${new Date(offlinePlanCachedAt).toLocaleString()}. A newer approved design may exist.`
+              : 'These targets are only still open in this screen; this device could not save an offline copy.'}
+            {' '}Recorded shots stay on this device until they sync. The server will reject a target whose design revision has changed.
+          </p>
+          <label className="mt-3 flex min-h-11 items-center gap-2 text-xs font-medium">
+            <input
+              type="checkbox"
+              checked={offlinePlanConfirmed}
+              onChange={(event) => setOfflinePlanConfirmed(event.target.checked)}
+              aria-label="Confirm saved set-out plan against issued field brief"
+              className="h-4 w-4 accent-amber-400"
+            />
+            I checked these targets against the current issued field brief before recording shots.
+          </label>
+        </section>
+      )}
 
       {definitionId && points.length > 0 && Number.isInteger(points[0].revision) && points[0].revision > 0 && (
         <div className="mx-3 mt-3 text-xs text-[var(--text-muted)]">
@@ -743,7 +857,7 @@ export default function FieldSetOutPage() {
         </button>
         <button
           onClick={() => void recordShot()}
-          disabled={saving || !verdict || verdict.result === 'INFO'}
+          disabled={saving || !verdict || verdict.result === 'INFO' || (usingOfflinePlan && !offlinePlanConfirmed)}
           className="flex-1 py-4 rounded-lg bg-emerald-600 text-white text-sm font-bold flex items-center justify-center gap-2 disabled:opacity-40"
         >
           <Check className="w-4 h-4" />

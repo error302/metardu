@@ -15,8 +15,11 @@ jest.mock('next/link', () => ({
 }))
 
 jest.mock('@/lib/field/setoutQueue', () => ({
+  cacheSetoutDefinitionList: jest.fn().mockResolvedValue(undefined),
+  cacheSetoutDefinitionPlan: jest.fn().mockResolvedValue(undefined),
   deliverShot: jest.fn(),
   flushQueuedShots: jest.fn().mockResolvedValue({ delivered: 0, queued: 0 }),
+  getCachedSetoutProjectPlan: jest.fn().mockResolvedValue(null),
   listQueuedShots: jest.fn().mockResolvedValue([]),
   saveShotLocally: jest.fn(),
 }))
@@ -43,12 +46,22 @@ const points = [
 ]
 
 const originalFetch = global.fetch
+const originalOnlineDescriptor = Object.getOwnPropertyDescriptor(navigator, 'onLine')
 let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
   const queue = jest.requireMock('@/lib/field/setoutQueue') as { listQueuedShots: jest.Mock }
   queue.listQueuedShots.mockReset().mockResolvedValue([])
+  const planCache = jest.requireMock('@/lib/field/setoutQueue') as {
+    getCachedSetoutProjectPlan: jest.Mock
+    cacheSetoutDefinitionList: jest.Mock
+    cacheSetoutDefinitionPlan: jest.Mock
+  }
+  planCache.getCachedSetoutProjectPlan.mockReset().mockResolvedValue(null)
+  planCache.cacheSetoutDefinitionList.mockReset().mockResolvedValue(undefined)
+  planCache.cacheSetoutDefinitionPlan.mockReset().mockResolvedValue(undefined)
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: true })
   global.fetch = jest.fn(async (input: RequestInfo | URL) => {
     const url = String(input)
     const data = url.includes('definitionId=')
@@ -62,6 +75,8 @@ afterEach(async () => {
   if (root) await act(async () => root.unmount())
   container?.remove()
   global.fetch = originalFetch
+  if (originalOnlineDescriptor) Object.defineProperty(navigator, 'onLine', originalOnlineDescriptor)
+  else Reflect.deleteProperty(navigator, 'onLine')
   jest.clearAllMocks()
 })
 
@@ -83,6 +98,52 @@ async function waitForText(expected: string) {
   }
   throw new Error(`Timed out waiting for text: ${expected}`)
 }
+
+test('caches the project definitions and selected targets when the set-out screen is prepared online', async () => {
+  await renderPage()
+
+  const cache = jest.requireMock('@/lib/field/setoutQueue') as {
+    cacheSetoutDefinitionList: jest.Mock
+    cacheSetoutDefinitionPlan: jest.Mock
+  }
+  expect(cache.cacheSetoutDefinitionList).toHaveBeenCalledWith('project-1', definitions, [])
+  expect(cache.cacheSetoutDefinitionPlan).toHaveBeenCalledWith(
+    'project-1', 'definition-1', points, [], expect.any(String)
+  )
+})
+
+test('loads a saved target plan offline and requires confirmation against the issued brief before recording', async () => {
+  Object.defineProperty(navigator, 'onLine', { configurable: true, value: false })
+  const cache = jest.requireMock('@/lib/field/setoutQueue') as { getCachedSetoutProjectPlan: jest.Mock }
+  cache.getCachedSetoutProjectPlan.mockResolvedValue({
+    schemaVersion: 1,
+    projectId: 'project-1',
+    definitionList: { definitions, register: [], cachedAt: '2026-10-12T15:00:00.000Z' },
+    definitionPlans: {
+      'definition-1': { points, register: [], cachedAt: '2026-10-12T15:05:00.000Z' },
+    },
+  })
+  global.fetch = jest.fn().mockRejectedValue(new TypeError('offline'))
+
+  await renderPage()
+
+  expect(global.fetch).not.toHaveBeenCalled()
+  expect(container.textContent).toContain('Working from a saved set-out plan while offline')
+  expect(container.textContent).toContain('A newer approved design may exist')
+
+  await enter('Observed easting', '500000')
+  await enter('Observed northing', '9800000')
+  await enter('Observed reduced level', '100')
+  await enter('Fix accuracy', '0.006')
+  expect(recordButton().disabled).toBe(true)
+
+  const confirm = container.querySelector<HTMLInputElement>(
+    'input[aria-label="Confirm saved set-out plan against issued field brief"]'
+  )
+  expect(confirm).not.toBeNull()
+  await act(async () => confirm?.click())
+  expect(recordButton().disabled).toBe(false)
+})
 
 function inputFor(label: string): HTMLInputElement {
   const input = container.querySelector(`[aria-label="${label}"]`)

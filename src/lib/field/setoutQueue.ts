@@ -12,8 +12,64 @@
  */
 
 const SHOT_STORE = 'setout_shots'
+const PLAN_STORE = 'setout_project_plans'
 const DB_NAME = 'METARDUFieldBook'
-const DB_VERSION = 2
+const DB_VERSION = 3
+
+/** Add the project-plan store without replacing or rewriting queued field shots. */
+export function ensureSetoutPlanStore(db: IDBDatabase): void {
+  if (!db.objectStoreNames.contains(PLAN_STORE)) {
+    db.createObjectStore(PLAN_STORE, { keyPath: 'projectId' })
+  }
+}
+
+export interface FieldSetoutDefinition {
+  id: string
+  name: string
+  structure_type: string
+  crs: string | null
+  tolerance_profile_id?: string | null
+  metadata: Record<string, unknown> | null
+}
+
+export interface FieldSetoutPoint {
+  label: string
+  easting: number
+  northing: number
+  design_rl: number | null
+  point_type: string
+  revision: number
+  metadata: Record<string, unknown> | null
+}
+
+export interface FieldSetoutRegisterEntry {
+  definition_id: string
+  label: string
+  result: string
+  horizontal_error: number | null
+  vertical_error: number | null
+  reported_accuracy_m: number | null
+  staked_at: string
+}
+
+export interface CachedSetoutDefinitionList {
+  definitions: FieldSetoutDefinition[]
+  register: FieldSetoutRegisterEntry[]
+  cachedAt: string
+}
+
+export interface CachedSetoutDefinitionPlan {
+  points: FieldSetoutPoint[]
+  register: FieldSetoutRegisterEntry[]
+  cachedAt: string
+}
+
+export interface CachedSetoutProjectPlan {
+  schemaVersion: 1
+  projectId: string
+  definitionList: CachedSetoutDefinitionList | null
+  definitionPlans: Record<string, CachedSetoutDefinitionPlan>
+}
 
 export interface QueuedSetoutShot {
   id: string
@@ -42,11 +98,17 @@ export interface QueuedSetoutShot {
 
 function openDb(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
+    let blocked = false
     const request = indexedDB.open(DB_NAME, DB_VERSION);
     request.onupgradeneeded = () => {
       const db = request.result;
+      const transaction = request.transaction
+      if (!transaction) {
+        reject(new Error('Set-out field-book upgrade transaction is unavailable'))
+        return
+      }
       const store = db.objectStoreNames.contains(SHOT_STORE)
-        ? request.transaction?.objectStore(SHOT_STORE)
+        ? transaction.objectStore(SHOT_STORE)
         : db.createObjectStore(SHOT_STORE, { keyPath: 'id' });
       if (store && !store.indexNames.contains('by-project-status')) {
         store.createIndex('by-project-status', ['projectId', 'syncStatus']);
@@ -64,10 +126,90 @@ function openDb(): Promise<IDBDatabase> {
           cursor.continue();
         };
       }
+      ensureSetoutPlanStore(db)
     };
-    request.onsuccess = () => resolve(request.result);
+    request.onsuccess = () => {
+      if (blocked) {
+        request.result.close()
+        return
+      }
+      request.result.onversionchange = () => request.result.close()
+      resolve(request.result)
+    };
     request.onerror = () => reject(request.error);
+    request.onblocked = () => {
+      blocked = true
+      reject(new Error('Close another METARDU field-book tab to update offline set-out storage'))
+    }
   });
+}
+
+function emptyProjectPlan(projectId: string): CachedSetoutProjectPlan {
+  return { schemaVersion: 1, projectId, definitionList: null, definitionPlans: {} }
+}
+
+function writeProjectPlan(
+  projectId: string,
+  update: (current: CachedSetoutProjectPlan) => CachedSetoutProjectPlan
+): Promise<void> {
+  return openDb().then((db) => new Promise<void>((resolve, reject) => {
+    const tx = db.transaction(PLAN_STORE, 'readwrite')
+    const store = tx.objectStore(PLAN_STORE)
+    const request = store.get(projectId)
+    request.onsuccess = () => {
+      const cached = request.result as CachedSetoutProjectPlan | undefined
+      store.put(update(cached?.schemaVersion === 1 && cached.projectId === projectId
+        ? cached
+        : emptyProjectPlan(projectId)))
+    }
+    request.onerror = () => tx.abort()
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error ?? request.error)
+    tx.onabort = () => reject(tx.error ?? request.error ?? new Error('Could not update the offline set-out plan'))
+  }))
+}
+
+export async function cacheSetoutDefinitionList(
+  projectId: string,
+  definitions: FieldSetoutDefinition[],
+  register: FieldSetoutRegisterEntry[],
+  cachedAt = new Date().toISOString()
+): Promise<void> {
+  await writeProjectPlan(projectId, (current) => ({
+    ...current,
+    definitionList: { definitions, register, cachedAt },
+  }))
+}
+
+export async function cacheSetoutDefinitionPlan(
+  projectId: string,
+  definitionId: string,
+  points: FieldSetoutPoint[],
+  register: FieldSetoutRegisterEntry[],
+  cachedAt = new Date().toISOString()
+): Promise<void> {
+  await writeProjectPlan(projectId, (current) => ({
+    ...current,
+    definitionPlans: {
+      ...current.definitionPlans,
+      [definitionId]: { points, register, cachedAt },
+    },
+  }))
+}
+
+export async function getCachedSetoutProjectPlan(
+  projectId: string
+): Promise<CachedSetoutProjectPlan | null> {
+  if (!isBrowser()) return null
+  const db = await openDb()
+  return new Promise((resolve, reject) => {
+    const request = db.transaction(PLAN_STORE, 'readonly').objectStore(PLAN_STORE).get(projectId)
+    request.onsuccess = () => {
+      const cached = request.result as CachedSetoutProjectPlan | undefined
+      resolve(cached?.schemaVersion === 1 && cached.projectId === projectId ? cached : null)
+    }
+    request.onerror = () => reject(request.error)
+  })
 }
 
 function isBrowser(): boolean {
