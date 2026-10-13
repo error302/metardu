@@ -5,13 +5,16 @@ HTTP and production evidence. A shipped build does not prove every interaction,
 provider or field claim. On 12 October, production was image 44106f7a461e... and
 release working-tree-03dc5697ba72209d; the notice/worker/mobile fixes were promoted,
 with 46 actual production normal-account HTTP checks. On 13 October, the public
-site briefly returned Cloudflare 530/1033 while the tunnel showed no replicas. A
-later check showed one Healthy replica and HTTP 200 for the homepage, pricing,
-privacy, demo, help, and tools routes. The repeated result recovered, but the
-intermittent tunnel state warrants another check before a public campaign link is
-published. `npm run docker:verify` could not read Docker's process inventory due
-to a Docker pipe permission error; this does not establish whether Docker is
-stopped. No containers were created or changed during this check.
+site briefly returned Cloudflare 530/1033 while the tunnel showed no replicas.
+Starting the existing named tunnel through its existing token file with HTTP/2
+registered four edge connections. Cloudflare then showed two Healthy replicas on
+the same host, and repeat HTTP checks returned 200 for the homepage, pricing,
+privacy, demo, help, tools, and public notice routes. Cloudflare's connector
+precheck passes HTTP/2 to region 1 but reports region 2 unreachable, so tunnel
+resilience still depends on outbound network access. `npm run docker:verify`
+could not read Docker's process inventory due to a Docker pipe permission error;
+this does not establish whether Docker is stopped. No app containers were created
+or changed during this check.
 
 | Request | Current evidence | Remaining proof / next work |
 | --- | --- | --- |
