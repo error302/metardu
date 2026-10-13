@@ -1,7 +1,7 @@
 'use client'
 import { useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { createSectionalPlanFromUnits, type SectionalUnit, type SectionalPlan } from '@/lib/cadastral/sectionalAndEncumbrance'
+import { createSectionalPlanFromUnits, type SectionalUnit, type SectionalPlan } from '@/lib/cadastral/sectionalAreas'
 import { engineeringScheduleCsv } from '@/lib/engineering/engineeringScheduleCsv'
 
 interface DraftUnit { id: string; unitNumber: string; floor: string; type: SectionalUnit['type'] | ''; area: string }
