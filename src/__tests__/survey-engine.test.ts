@@ -647,6 +647,28 @@ describe('Traverse Engine', () => {
     expect(result.adjustmentMethod).toBe('bowditch');
     expect(result.stations.length).toBe(4);
   });
+
+  it('does not invent an angular closure result from bearings and distances alone', () => {
+    const stations = [
+      { name: 'A', easting: 0, northing: 0, isFixed: true },
+      { name: 'B', isFixed: false },
+      { name: 'C', isFixed: false },
+      { name: 'D', easting: 0, northing: 0, isFixed: true },
+    ];
+    const legs = [
+      { fromStation: 'A', toStation: 'B', bearing: 0, distance: 100 },
+      { fromStation: 'B', toStation: 'C', bearing: 90, distance: 100 },
+      { fromStation: 'C', toStation: 'D', bearing: 180, distance: 100 },
+      { fromStation: 'D', toStation: 'A', bearing: 270, distance: 100 },
+    ];
+
+    const result = bowditchAdjustment(stations, legs, 3);
+
+    expect(result.misclosure.angular).toBeNull();
+    expect(result.warnings).toContain(
+      'Angular closure not assessed: provide independent angle observations or a closing azimuth check.'
+    );
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════

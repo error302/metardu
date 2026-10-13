@@ -36,7 +36,7 @@ export interface TraverseResult {
     easting: number;       // meters
     northing: number;      // meters
     linear: number;        // meters (total linear misclosure)
-    angular: number;       // seconds (angular misclosure)
+    angular: number | null; // seconds (null when independent angle observations are unavailable)
     ratio: string;         // e.g., "1:25000"
     ratioValue: number;    // numeric ratio denominator
   };
@@ -114,9 +114,9 @@ export function bowditchAdjustment(
   // Compute misclosure
   const misclosure = computeMisclosure(preliminary, stations, legs);
   
-  // Check angular misclosure
-  const angularClosure = computeAngularClosure(legs, fixedStations);
-  misclosure.angular = angularClosure;
+  // This leg model contains bearings and distances, not independent angle observations
+  // or a closing azimuth check. Do not report an invented zero angular misclosure.
+  warnings.push('Angular closure not assessed: provide independent angle observations or a closing azimuth check.');
   
   // Compute total traverse distance
   const totalDistance = legs.reduce((sum, leg) => sum + leg.distance, 0);
@@ -271,35 +271,10 @@ function computeMisclosure(
     easting: dE,
     northing: dN,
     linear,
-    angular: 0, // Computed separately
+    angular: null,
     ratio: '',
     ratioValue: 0,
   };
-}
-
-/**
- * Compute angular misclosure of a closed traverse.
- * 
- * For a closed traverse with n sides:
- *   Sum of interior angles = (n - 2) × 180°
- *   Angular misclosure = Observed sum - Theoretical sum
- */
-function computeAngularClosure(
-  _legs: TraverseLeg[],
-  _fixedStations: TraverseStation[]
-): number {
-  // Simple check: sum of bearings should be consistent
-  // For a full loop traverse, the sum of bearing differences
-  // should equal n × 180° (for interior angles)
-  // This is a simplified version — full angular closure requires
-  // observed angles at each station
-  
-  // For now, use the bearing-based check
-  // The total angular closure is checked by verifying
-  // that the computed azimuth from the last leg back to
-  // the start matches the known azimuth
-  
-  return 0; // Placeholder — will be computed from observed angles in full implementation
 }
 
 /**

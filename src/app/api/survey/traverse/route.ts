@@ -49,21 +49,83 @@ export async function POST(request: NextRequest) {
 
     const { observations, stations, method, order, config } = parsed.data
 
-    // Step 1: Process all observations through the correction pipeline
     const pipelineConfig = { ...KENYA_DEFAULT_CONFIG, ...config } as PipelineConfig
+
+    const invalidObservations = observations.flatMap((observation, index) => {
+      const issues: string[] = []
+      if (typeof observation.rawSlopeDistance !== 'number' || !Number.isFinite(observation.rawSlopeDistance) || observation.rawSlopeDistance <= 0) {
+        issues.push(`observation ${index + 1}: measured slope distance is required`)
+      }
+      if (typeof observation.trueBearing !== 'number' || !Number.isFinite(observation.trueBearing) || observation.trueBearing < 0 || observation.trueBearing > 360) {
+        issues.push(`observation ${index + 1}: true bearing is required; horizontal angle alone does not establish an absolute bearing`)
+      }
+      if (pipelineConfig.applyConvergence && (
+        typeof observation.latitude !== 'number' || !Number.isFinite(observation.latitude) ||
+        typeof observation.longitude !== 'number' || !Number.isFinite(observation.longitude)
+      )) {
+        issues.push(`observation ${index + 1}: latitude and longitude are required to apply grid convergence`)
+      }
+      return issues
+    })
+
+    if (invalidObservations.length > 0) {
+      return NextResponse.json(
+        { error: 'Traverse observations are incomplete', details: invalidObservations },
+        { status: 422 }
+      )
+    }
+
+    const stationIssues: string[] = []
+    const stationNames = new Set(stations.map(station => station.name))
+    if (stationNames.size !== stations.length) stationIssues.push('station names must be unique')
+    for (const [index, observation] of observations.entries()) {
+      if (!stationNames.has(observation.fromStation) || !stationNames.has(observation.toStation)) {
+        stationIssues.push(`observation ${index + 1}: both endpoint stations must be included in stations`)
+      }
+    }
+    const fixedControls = stations.filter(station => station.isFixed &&
+      Number.isFinite(station.easting) && Number.isFinite(station.northing))
+    if (method === 'bowditch' && fixedControls.length < 2) {
+      stationIssues.push('Bowditch adjustment requires two fixed control stations with coordinates')
+    }
+    if (method === 'least_squares') {
+      if (stations.some(station => !Number.isFinite(station.easting) || !Number.isFinite(station.northing))) {
+        stationIssues.push('least-squares adjustment requires approximate easting and northing for every station')
+      }
+      if (fixedControls.length < 1) stationIssues.push('least-squares adjustment requires at least one fixed control station')
+      const freeStationCount = stations.filter(station => !station.isFixed).length
+      if (freeStationCount === 0) stationIssues.push('least-squares adjustment requires at least one free station')
+      if (observations.length <= freeStationCount) {
+        stationIssues.push('least-squares adjustment requires at least one redundant observation to estimate uncertainty')
+      }
+    }
+    if (stationIssues.length > 0) {
+      return NextResponse.json(
+        { error: 'Traverse station inputs are incomplete', details: stationIssues },
+        { status: 422 }
+      )
+    }
+
+    // Step 1: Process all validated observations through the correction pipeline
     const processedObservations = observations.map(obs =>
       processObservation(obs as RawObservation, pipelineConfig)
     )
 
     // Step 2: Build traverse legs from processed observations
-    const legs: TraverseLeg[] = processedObservations.map(obs => ({
-      fromStation: obs.fromStation,
-      toStation: obs.toStation,
-      bearing: obs.gridBearing ?? obs.trueBearing ?? 0,
-      distance: obs.gridDistance,
-      stdDevDistance: 0.005 + obs.gridDistance * 0.00002, // 5mm + 20ppm
-      stdDevBearing: 5, // 5 arc-seconds
-    }))
+    const legs: TraverseLeg[] = processedObservations.map(obs => {
+      const bearing = obs.gridBearing ?? obs.trueBearing
+      if (typeof bearing !== 'number' || !Number.isFinite(bearing)) {
+        throw new Error(`No usable grid bearing was produced for ${obs.fromStation} → ${obs.toStation}`)
+      }
+      return {
+        fromStation: obs.fromStation,
+        toStation: obs.toStation,
+        bearing,
+        distance: obs.gridDistance,
+        stdDevDistance: 0.005 + obs.gridDistance * 0.00002, // 5mm + 20ppm
+        stdDevBearing: 5, // 5 arc-seconds
+      }
+    })
 
     // Step 3: Perform traverse adjustment
     let result;
@@ -72,20 +134,34 @@ export async function POST(request: NextRequest) {
       result = bowditchAdjustment(stations as TraverseStation[], legs, order)
     } else {
       // Build least squares inputs from processed observations
-      const lsStations: LSStation[] = stations.map(s => ({
-        name: s.name,
-        easting: s.easting ?? 0,
-        northing: s.northing ?? 0,
-        isFixed: s.isFixed ?? false,
-      }))
+      const lsStations: LSStation[] = stations.map(s => {
+        if (typeof s.easting !== 'number' || typeof s.northing !== 'number') {
+          throw new Error(`Least-squares station ${s.name} is missing approximate coordinates`)
+        }
+        return {
+          name: s.name,
+          easting: s.easting,
+          northing: s.northing,
+          isFixed: s.isFixed ?? false,
+        }
+      })
 
-      const lsObservations: LSObservation[] = processedObservations.map(obs => ({
-        type: 'distance' as const,
-        fromStation: obs.fromStation,
-        toStation: obs.toStation,
-        value: obs.gridDistance,
-        stdDev: 0.005 + obs.gridDistance * 0.00002, // 5mm + 20ppm
-      }))
+      const lsObservations: LSObservation[] = legs.flatMap(leg => [
+        {
+          type: 'distance' as const,
+          fromStation: leg.fromStation,
+          toStation: leg.toStation,
+          value: leg.distance,
+          stdDev: 0.005 + leg.distance * 0.00002, // 5mm + 20ppm
+        },
+        {
+          type: 'azimuth' as const,
+          fromStation: leg.fromStation,
+          toStation: leg.toStation,
+          value: leg.bearing,
+          stdDev: 5 / 3600, // 5 arc-seconds expressed in decimal degrees
+        },
+      ])
 
       result = leastSquaresAdjustment(lsStations, lsObservations)
     }

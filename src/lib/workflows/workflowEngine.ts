@@ -61,6 +61,7 @@ export interface ValidationResult {
 export interface ValidationCheck {
   name: string
   passed: boolean
+  assessed?: boolean
   message: string
   value?: number
 }
@@ -164,7 +165,7 @@ export function runTraverseWorkflow(data: TraverseWorkflowData): WorkflowResult 
     const result = bowditchAdjustment(traverseInput)
 
     const angularMisclosure = calculateAngularMisclosure(data.legs)
-    const linearPrecision = result.precisionRatio > 0 ? 1 / result.precisionRatio : 0
+    const linearPrecision = result.precisionRatio
 
     const precisionGrade = getPrecisionGrade(linearPrecision)
 
@@ -180,6 +181,14 @@ export function runTraverseWorkflow(data: TraverseWorkflowData): WorkflowResult 
           : 'Angular check passed',
         value: angularMisclosure
       })
+    } else {
+      checks.push({
+        name: 'Angular Closure',
+        passed: false,
+        assessed: false,
+        message: 'Not assessed: observed angles or a known closing azimuth are required.'
+      })
+      warnings.push('Angular closure remains unassessed because this workflow received bearings and distances only.')
     }
 
     checks.push({
@@ -202,7 +211,7 @@ export function runTraverseWorkflow(data: TraverseWorkflowData): WorkflowResult 
     }
 
     validation = {
-      passed: checks.every(c => c.passed),
+      passed: checks.every(c => c.passed && c.assessed !== false),
       checks,
       precision: linearPrecision,
       precisionGrade,
@@ -427,25 +436,11 @@ export function runCoordinatesWorkflow(observations: SurveyObservation[]): Workf
   }
 }
 
-function calculateAngularMisclosure(legs: TraverseWorkflowData['legs']): number | null {
-  if (legs.length < 3) return null
-
-  let sumAngle = 0
-  for (let i = 0; i < legs.length; i++) {
-    const currentBearing = legs[i].bearing
-    const nextBearing = legs[(i + 1) % legs.length].bearing
-    
-    let angle = nextBearing - currentBearing
-    if (angle < 0) angle += 360
-    if (angle > 180) angle = 360 - angle
-    
-    sumAngle += angle
-  }
-
-  const interiorSum = (legs.length - 2) * 180
-  const misclosure = sumAngle - interiorSum
-
-  return misclosure * 3600
+function calculateAngularMisclosure(_legs: TraverseWorkflowData['legs']): number | null {
+  // The current workflow input has only bearings and distances; successive
+  // bearings cannot recover independent observed interior angles or a closing
+  // azimuth. Report this as unavailable instead of deriving a false check.
+  return null
 }
 
 function getPrecisionGrade(precision: number): string {

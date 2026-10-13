@@ -30,7 +30,7 @@ export interface LSObservation {
   atStation?: string;
   /** Observed value (meters for distance, decimal degrees for angle/azimuth) */
   value: number;
-  /** A priori standard deviation (meters or seconds of arc) */
+  /** A priori standard deviation (meters for distance, decimal degrees for angle/azimuth) */
   stdDev: number;
 }
 
@@ -241,8 +241,8 @@ export function leastSquaresAdjustment(
     throw new Error('No free stations to adjust');
   }
   
-  if (n < u / 2) {
-    throw new Error(`Insufficient observations (${n}) for ${u} unknowns`);
+  if (n <= u) {
+    throw new Error(`Insufficient redundant observations (${n}) for ${u} unknowns; at least one degree of freedom is required to estimate uncertainty`);
   }
   
   // Build station index

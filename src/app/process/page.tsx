@@ -516,11 +516,11 @@ export default function ProcessPage() {
 
           {processed && workflowResult && (
             <>
-              <div className={`card border-2 ${toleranceResult?.passed ? 'border-green-700' : 'border-red-700'}`}>
+              <div className={`card border-2 ${toleranceResult?.assessmentComplete === false ? 'border-amber-700' : toleranceResult?.passed ? 'border-green-700' : 'border-red-700'}`}>
                 <div className="card-header flex items-center gap-3">
-                  <span className="text-2xl">{toleranceResult?.passed ? '' : '[x]'}</span>
+                  <span className="text-2xl">{toleranceResult?.assessmentComplete === false ? <AlertTriangle className="w-5 h-5 text-amber-400" /> : toleranceResult?.passed ? '' : '[x]'}</span>
                   <span className="font-semibold">
-                    Tolerance Check: {toleranceResult?.passed ? 'PASS' : 'FAIL'}
+                    Tolerance Check: {toleranceResult?.assessmentComplete === false ? 'INCOMPLETE' : toleranceResult?.passed ? 'PASS' : 'FAIL'}
                   </span>
                   <span className="text-sm text-[var(--text-muted)] ml-auto">
                     {toleranceResult?.precisionGrade}

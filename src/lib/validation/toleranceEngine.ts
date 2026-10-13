@@ -20,6 +20,8 @@ export interface ToleranceConfig {
 
 export interface ToleranceCheckResult {
   passed: boolean
+  /** False when required survey evidence was not supplied for all requested checks. */
+  assessmentComplete: boolean
   profile: ToleranceProfile
   checks: ToleranceCheck[]
   precisionGrade: string
@@ -176,7 +178,12 @@ export function checkTolerance(
   }
 
   const allPassed = checks.every(c => c.passed)
+  const assessmentComplete = !input.traverse || input.traverse.angularMisclosure !== null
   const precisionGrade = getPrecisionGrade(checks)
+
+  if (!assessmentComplete) {
+    recommendations.push('Angular closure was not assessed; provide observed angles or a known closing azimuth before treating the traverse as accepted.')
+  }
 
   if (!allPassed) {
     const failedChecks = checks.filter((c) => !c.passed)
@@ -200,7 +207,8 @@ export function checkTolerance(
   }
 
   return {
-    passed: allPassed,
+    passed: assessmentComplete && allPassed,
+    assessmentComplete,
     profile,
     checks,
     precisionGrade,
@@ -225,7 +233,7 @@ function getPrecisionGrade(checks: ToleranceCheck[]): string {
 }
 
 export function formatToleranceCheck(result: ToleranceCheckResult): string {
-  const status = result.passed ? ' PASS' : '[x] FAIL'
+  const status = !result.assessmentComplete ? 'INCOMPLETE' : result.passed ? 'PASS' : 'FAIL'
   const lines = [
     `Tolerance Check: ${status}`,
     `Profile: ${TOLERANCE_CONFIGS[result.profile].name}`,

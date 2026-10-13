@@ -31,14 +31,14 @@ export interface FieldControlPoint {
 }
 
 export interface FieldLSAResult {
-  angularMisclosure: number
+  angularMisclosure: number | null
   angularTolerance: number
-  angularPass: boolean
+  angularPass: boolean | null
   linearMisclosure: number
   precisionRatio: number
   precisionPass: boolean
   surveyClass: string
-  overallPass: boolean
+  overallPass: boolean | null
   outliers: Array<{ from: string; to: string; residual: number }>
   adjustedPoints: Array<{ name: string; easting: number; northing: number }>
   estimatedAccuracy?: number
@@ -99,10 +99,12 @@ export function QuickFieldLSA({
       closingPoint
     })
     
-    const angularMisclosure = 0 // Approximate for now as input is bearings not internal angles
+    // Bearings and distances cannot independently verify the observed angle closure.
+    // Keep the angular check explicitly unassessed instead of inventing a zero.
+    const angularMisclosure = null
     const nStations = observations.length + 1
     const angularTol = angularClosureTolerance(nStations)
-    const angularPass = Math.abs(angularMisclosure) <= angularTol
+    const angularPass = null
     
     const evalResult = evaluateTraverseClosure(
       traverseResult.linearError,
@@ -110,7 +112,7 @@ export function QuickFieldLSA({
       surveyClass
     )
     
-    const overallPass = evalResult.passes && angularPass
+    const overallPass = angularPass === null ? null : evalResult.passes && angularPass
     
     const outliers: Array<{ from: string; to: string; residual: number }> = []
     traverseResult.legs.forEach(leg => {
@@ -192,15 +194,17 @@ export function QuickFieldLSA({
       </button>
 
       {result && (
-        <div className={`p-3 rounded-lg border ${result.overallPass ? 'bg-green-900/20 border-green-700/50' : 'bg-red-900/20 border-red-700/50'}`}>
+        <div className={`p-3 rounded-lg border ${result.overallPass === true ? 'bg-green-900/20 border-green-700/50' : result.overallPass === false ? 'bg-red-900/20 border-red-700/50' : 'bg-amber-900/20 border-amber-700/50'}`}>
           <div className="flex items-center gap-2 mb-2">
-            {result.overallPass ? (
+            {result.overallPass === true ? (
               <CheckCircle className="w-5 h-5 text-green-400" />
-            ) : (
+            ) : result.overallPass === false ? (
               <XCircle className="w-5 h-5 text-red-400" />
+            ) : (
+              <AlertTriangle className="w-5 h-5 text-amber-400" />
             )}
-            <span className={`font-bold ${result.overallPass ? 'text-green-400' : 'text-red-400'}`}>
-              {result.overallPass ? 'PASS' : 'FAIL'}
+            <span className={`font-bold ${result.overallPass === true ? 'text-green-400' : result.overallPass === false ? 'text-red-400' : 'text-amber-300'}`}>
+              {result.overallPass === true ? 'PASS' : result.overallPass === false ? 'FAIL' : result.precisionPass ? 'ANGULAR CHECK REQUIRED' : 'LINEAR CHECK FAIL · ANGULAR UNASSESSED'}
             </span>
             <span className="text-xs text-gray-400 ml-auto uppercase tracking-wider">{result.surveyClass}</span>
           </div>
@@ -224,11 +228,15 @@ export function QuickFieldLSA({
             )}
           </div>
 
-          {!result.overallPass && result.outliers.length === 0 && (
+          {!result.precisionPass && result.outliers.length === 0 && (
             <div className="text-xs text-red-300 bg-red-900/20 p-2 rounded mb-3">
-              Observations require re-measurement to meet {result.surveyClass} standards.
+              The linear precision check does not meet the selected {result.surveyClass} limit; recheck observations.
             </div>
           )}
+
+          <div role="status" className="text-xs text-amber-200 bg-amber-900/20 border border-amber-700/40 p-2 rounded mb-3">
+            Angular closure was not assessed. This quick check has bearings and distances only; it needs independent angle observations or an azimuth check before the traverse can pass.
+          </div>
 
           {result.outliers.length > 0 && (
             <div className="mb-3">
@@ -242,7 +250,7 @@ export function QuickFieldLSA({
                   </li>
                 ))}
               </ul>
-              {!result.overallPass && (
+              {!result.precisionPass && (
                  <div className="text-xs text-red-300 mt-2">
                    Please re-measure the flagged observations.
                  </div>
@@ -262,7 +270,7 @@ export function QuickFieldLSA({
             <div className="mt-2 space-y-2 border-t border-white/10 pt-2 text-xs">
               <div>
                 <div className="text-gray-400">Angular Misclosure</div>
-                <div className="font-mono">{result.angularMisclosure.toFixed(1)}" (Tol: {result.angularTolerance.toFixed(1)}")</div>
+                <div className="font-mono">{result.angularMisclosure === null ? 'Not assessed' : `${result.angularMisclosure.toFixed(1)}"`} (reference limit: {result.angularTolerance.toFixed(1)}")</div>
               </div>
               <div>
                 <div className="text-gray-400">Adjusted Coordinates</div>
