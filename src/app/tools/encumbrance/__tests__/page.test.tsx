@@ -3,6 +3,8 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import EncumbrancePage from '../page'
 jest.mock('@/components/shared/PageHeader', () => ({ PageHeader: ({ title }: { title: string }) => <h1>{title}</h1> }))
 const fixtureCrs = 'EPSG:32737'
+// Cold dynamic imports can exceed Testing Library's 1s default under parallel CI.
+const geometryLoadWait = { timeout: 5000 }
 
 it('starts without fictional records, parcel areas or registration dates', async () => {
   render(<EncumbrancePage />)
@@ -26,7 +28,7 @@ it('computes clipped coverage, preserves unknown dates and invalidates stale exp
   render(<EncumbrancePage />); fill()
   expect(screen.getByLabelText('Record 1 source registration date')).toHaveValue('')
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
-  await waitFor(() => expect(screen.getByLabelText('Complete supplied-record coverage')).toHaveTextContent('1000.000'))
+  await waitFor(() => expect(screen.getByLabelText('Complete supplied-record coverage')).toHaveTextContent('1000.000'), geometryLoadWait)
   expect(screen.getByRole('img', { name: /Parcel and assessed encumbrance coverage/ })).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Download coverage DXF' })).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Record 1 full corridor width (m)'), { target: { value: '' } })
@@ -45,8 +47,8 @@ it('does not publish an outdated calculation after the inputs change during modu
   render(<EncumbrancePage />); fill()
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
   fireEvent.change(screen.getByLabelText('Record 1 full corridor width (m)'), { target: { value: '20' } })
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Assess supplied records' })).toBeEnabled())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Assess supplied records' })).toBeEnabled(), geometryLoadWait)
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
-  await waitFor(() => expect(screen.getByLabelText('Complete supplied-record coverage')).toHaveTextContent('2000.000'))
+  await waitFor(() => expect(screen.getByLabelText('Complete supplied-record coverage')).toHaveTextContent('2000.000'), geometryLoadWait)
 })

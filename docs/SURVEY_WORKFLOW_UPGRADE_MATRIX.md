@@ -245,3 +245,12 @@ records, independent observations and issued-plan acceptance remain open. The
 broader cadastral boundary-to-document, road spiral/vertical/corridor set-out,
 construction control/as-built, contour print/field, notice/OAuth/ChatGPT, payment
 and recovery gates are not closed by this milestone. Keep the full objective active.
+
+The first push attempt was correctly blocked by the normal pre-push hook: its
+parallel Jest run reached the UI test's one-second default wait while the first
+geometry import was still pending. The UI showed `Preparing…`, not an incorrect
+quantity. The calculation assertions now wait up to five seconds for the actual
+result and still require the exact expected areas; no mathematical assertion or
+hook is bypassed. The sequential 141-test run had already passed. Parallel hook
+verification must pass before the source push is considered complete.
+The same parallel related-test command then passed **32 tests across six suites**.
