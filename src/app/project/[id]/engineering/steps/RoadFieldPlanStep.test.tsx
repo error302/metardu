@@ -2,6 +2,42 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { RoadFieldPlanStep } from './RoadFieldPlanStep'
 
 describe('RoadFieldPlanStep station preflight', () => {
+  it('offers saved station limits and a validated declared project CRS as operator-applied suggestions', () => {
+    render(
+      <RoadFieldPlanStep
+        projectId="project-1"
+        projectName="North access road"
+        roadDesign={{
+          roadName: 'North access road',
+          startChainage: 0,
+          datum: 'Arc 1960',
+          coordinateSystem: 'UTM Zone 37S',
+          designSpeed: 50,
+          roadClass: 'C',
+          ips: [],
+          vips: [],
+          crossSectionTemplate: { carriagewayWidth: 6, shoulderWidth: 1, cutSlope: '1:1', fillSlope: '1:1.5', camber: 3, subgradeDepth: 0.5 },
+          stations: [
+            { chainage: 100, groundLevel: 0 },
+            { chainage: 140, groundLevel: 0 },
+            { chainage: 180, groundLevel: 0 },
+          ],
+        }}
+        projectCrsSuggestion="Arc 1960 / UTM zone 37S (EPSG:21037)"
+        data={null}
+        onSave={jest.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use saved station limits' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Use declared project CRS' }))
+
+    expect(screen.getByLabelText('Start chainage (m)')).toHaveValue(100)
+    expect(screen.getByLabelText('End chainage (m)')).toHaveValue(180)
+    expect(screen.getByLabelText('Approved project CRS')).toHaveValue('Arc 1960 / UTM zone 37S (EPSG:21037)')
+    expect(screen.getByLabelText('Station interval (m)')).toHaveValue(null)
+  })
+
   it('previews planned stations and calls out a shorter exact endpoint interval', () => {
     render(
       <RoadFieldPlanStep

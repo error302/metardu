@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import type { EngineeringData, RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
+import type { EngineeringData, RoadDesignData, RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import {
   buildRoadFieldStations,
   formatRoadChainage,
@@ -22,12 +22,16 @@ export function RoadFieldPlanStep({
   projectId,
   projectName,
   roadName,
+  roadDesign,
+  projectCrsSuggestion,
   data,
   onSave,
 }: {
   projectId: string
   projectName: string
   roadName?: string
+  roadDesign?: RoadDesignData | null
+  projectCrsSuggestion?: string | null
   data: RoadFieldPlan | null
   onSave: (data: Partial<EngineeringData>) => void | Promise<boolean>
 }) {
@@ -42,6 +46,21 @@ export function RoadFieldPlanStep({
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(!!data)
   const [saveError, setSaveError] = useState<string | null>(null)
+
+  const savedStationLimits = useMemo(() => {
+    const chainages = (roadDesign?.stations ?? [])
+      .map(station => station.chainage)
+      .filter(chainage => Number.isFinite(chainage) && chainage >= 0)
+    if (chainages.length < 2) return null
+    const { start, end } = chainages.reduce(
+      (limits, chainage) => ({
+        start: Math.min(limits.start, chainage),
+        end: Math.max(limits.end, chainage),
+      }),
+      { start: Number.POSITIVE_INFINITY, end: Number.NEGATIVE_INFINITY },
+    )
+    return end > start ? { start, end } : null
+  }, [roadDesign?.stations])
 
   useEffect(() => {
     if (!data) return
@@ -101,6 +120,19 @@ export function RoadFieldPlanStep({
       : [...current, code]))
   }
 
+  const useSavedStationLimits = () => {
+    if (!savedStationLimits) return
+    markEdited(() => {
+      setStartChainage(String(savedStationLimits.start))
+      setEndChainage(String(savedStationLimits.end))
+    })
+  }
+
+  const useProjectCrs = () => {
+    if (!projectCrsSuggestion) return
+    markEdited(() => setProjectCrs(projectCrsSuggestion))
+  }
+
   const handleSave = async () => {
     if (validationError || draft.startChainageM === null || draft.endChainageM === null || draft.stationIntervalM === null) return
     setSaving(true)
@@ -140,6 +172,32 @@ export function RoadFieldPlanStep({
         </p>
         <p className="mt-2 text-xs text-zinc-500">Project: {projectName}{roadName ? ` · Road: ${roadName}` : ''}</p>
       </header>
+
+      {(savedStationLimits || projectCrsSuggestion) && (
+        <section aria-label="Suggestions from saved project records" className="grid gap-3 rounded-xl border border-sky-900/70 bg-sky-950/25 p-4 sm:grid-cols-2">
+          {savedStationLimits && (
+            <div>
+              <p className="text-xs font-semibold text-sky-100">Saved design station limits</p>
+              <p className="mt-1 font-mono text-xs text-sky-100/70">{savedStationLimits.start.toFixed(3)} m to {savedStationLimits.end.toFixed(3)} m</p>
+              <button type="button" onClick={useSavedStationLimits} className="mt-2 rounded-md border border-sky-700 px-2.5 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-900/60">
+                Use saved station limits
+              </button>
+            </div>
+          )}
+          {projectCrsSuggestion && (
+            <div>
+              <p className="text-xs font-semibold text-sky-100">Declared project CRS</p>
+              <p className="mt-1 text-xs text-sky-100/70">{projectCrsSuggestion}</p>
+              <button type="button" onClick={useProjectCrs} className="mt-2 rounded-md border border-sky-700 px-2.5 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-900/60">
+                Use declared project CRS
+              </button>
+            </div>
+          )}
+          <p className="text-xs leading-5 text-sky-100/60 sm:col-span-2">
+            Suggestions come from saved project records. Confirm the chainage limits and CRS against the approved survey brief before saving; station interval and control references still need the crew’s authoritative instructions.
+          </p>
+        </section>
+      )}
 
       <section className="grid gap-4 rounded-xl border border-zinc-800 bg-zinc-900/50 p-4 sm:grid-cols-3">
         <label className="text-sm text-zinc-300">
