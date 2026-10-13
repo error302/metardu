@@ -157,6 +157,24 @@ const RENDERERS: Record<EmailTemplateName, () => RenderedEmail> = {
 
 const TEMPLATE_NAMES = Object.keys(RENDERERS) as EmailTemplateName[]
 
+describe('payment failure messaging', () => {
+  it('explains possible access interruption without claiming every provider pauses immediately', () => {
+    const rendered = paymentFailedEmail.render({
+      to: TO,
+      name: 'METARDU Member',
+      planName: 'Team',
+      amount: 35,
+      currency: 'USD',
+      failureReason: 'PayPal reported a failed subscription payment.',
+    })
+
+    expect(rendered.html).toContain('Paid feature access follows your subscription status and current billing period')
+    expect(rendered.text).toContain('Paid feature access follows your subscription status and current billing period')
+    expect(rendered.html).not.toContain('Your subscription is paused')
+    expect(rendered.text).not.toContain('Your subscription is paused')
+  })
+})
+
 const VOID_ELEMENTS = new Set([
   'area',
   'base',

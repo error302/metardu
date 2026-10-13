@@ -44,7 +44,7 @@ export const paymentFailedEmail = {
         `${escapeOnce(formatCurrency(args.amount, args.currency))} for ${escapeOnce(args.planName)} — ${escapeOnce(args.failureReason)}`,
         { tone: 'warning' },
       )}
-      ${RichParagraph(`Your projects, observations, and documents are ${Accent('safe')} — we do not delete any of your work. Your subscription is paused until you update your payment method.`)}
+      ${RichParagraph(`Your projects, observations, and documents are ${Accent('safe')} — we do not delete your work. Paid feature access follows your subscription status and current billing period; an unresolved payment may interrupt access. Update your billing details or choose another payment method to continue.`)}
       ${args.retryAt
         ? Paragraph(`We will try again automatically on ${escapeOnce(args.retryAt)}. To avoid another failed charge, please update your details before then.`, { small: true, muted: true })
         : ''}

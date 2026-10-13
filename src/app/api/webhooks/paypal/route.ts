@@ -11,7 +11,8 @@ export const dynamic = 'force-dynamic'
  * 2. Add this URL: https://metardu.space/api/webhooks/paypal
  * 3. Subscribe to the handled events, including PAYMENT.SALE.COMPLETED,
  *    BILLING.SUBSCRIPTION.ACTIVATED, BILLING.SUBSCRIPTION.CANCELLED,
- *    BILLING.SUBSCRIPTION.EXPIRED, and BILLING.SUBSCRIPTION.SUSPENDED
+ *    BILLING.SUBSCRIPTION.EXPIRED, BILLING.SUBSCRIPTION.SUSPENDED, and
+ *    BILLING.SUBSCRIPTION.PAYMENT.FAILED
  * 4. Set PAYPAL_WEBHOOK_ID in your .env
  */
 
@@ -26,6 +27,8 @@ import { getPlan } from '@/lib/subscription/catalog'
 import { seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
 
 interface PayPalWebhookEvent {
+  id?: string
+  create_time?: string
   event_type: string
   resource?: {
     id?: string
@@ -34,6 +37,13 @@ interface PayPalWebhookEvent {
       related_ids?: { order_id?: string }
     }
     amount?: { value?: string; currency_code?: string }
+    create_time?: string
+    billing_info?: {
+      last_failed_payment?: {
+        amount?: { value?: string; currency_code?: string }
+        time?: string
+      }
+    }
   }
 }
 
@@ -57,6 +67,15 @@ interface PaymentHistoryRow {
 
 interface UserSubscriptionRow {
   id: string
+}
+
+interface PayPalSubscriptionPaymentRow {
+  user_id: string
+  plan_id: string | null
+  amount: number | string | null
+  currency: string | null
+  current_period_start: string | Date | null
+  current_period_end: string | Date | null
 }
 
 async function establishPaymentOwnerContext(providerKey: string): Promise<string | null> {
@@ -98,6 +117,7 @@ const HANDLED_EVENTS = new Set([
   'PAYMENT.CAPTURE.DENIED',
   'PAYMENT.CAPTURE.REFUNDED',
   'PAYMENT.SALE.COMPLETED',
+  'BILLING.SUBSCRIPTION.PAYMENT.FAILED',
   'BILLING.SUBSCRIPTION.ACTIVATED',
   'BILLING.SUBSCRIPTION.CANCELLED',
   'BILLING.SUBSCRIPTION.EXPIRED',
@@ -495,25 +515,173 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // ─── Handle PAYMENT.SALE.COMPLETED (recurring renewal charge) ─────
-    // Fired on every successful auto-charge. Extend the subscription period.
+    // ─── Handle PAYMENT.SALE.COMPLETED (recurring subscription payment) ─
+    // Record by sale ID before changing access. PayPal retries webhook delivery,
+    // so the provider_id uniqueness constraint makes period changes idempotent.
     if (eventType === 'PAYMENT.SALE.COMPLETED') {
       const subscriptionId = event.resource?.billing_agreement_id
-      if (subscriptionId) {
-        await establishPaymentOwnerContext(subscriptionId)
-        const { rows: payRows } = await db.query<Pick<PaymentHistoryRow, 'user_id'>>(
-          `SELECT ph.user_id FROM payment_history ph WHERE ph.transaction_id = $1 LIMIT 1`,
-          [subscriptionId]
-        )
-        if (payRows.length > 0) {
-          await db.query<never>(
-            `UPDATE user_subscriptions
-             SET status = 'active',
-                 current_period_start = NOW(),
-                 current_period_end = NOW() + INTERVAL '30 days'
-             WHERE user_id = $1`,
-            [payRows[0].user_id]
-          )
+      const saleId = event.resource?.id
+      if (!subscriptionId || !saleId || !event.id) {
+        logger.warn('[PayPal Webhook] Subscription sale is missing its subscription, sale, or event ID')
+        return NextResponse.json({ error: 'Incomplete subscription payment event' }, { status: 400 })
+      }
+
+      const userId = await establishPaymentOwnerContext(subscriptionId)
+      const { rows: payRows } = await db.query<PayPalSubscriptionPaymentRow>(
+        `SELECT ph.user_id, ph.plan_id, ph.amount, ph.currency,
+                us.current_period_start, us.current_period_end
+           FROM payment_history ph
+           LEFT JOIN user_subscriptions us ON us.user_id = ph.user_id
+          WHERE ph.transaction_id = $1 AND ph.payment_method = 'paypal'
+          ORDER BY ph.created_at DESC LIMIT 1`,
+        [subscriptionId]
+      )
+      const payment = payRows[0]
+      if (!userId || !payment || payment.user_id !== userId) {
+        logger.warn(`[PayPal Webhook] No owned subscription payment found for sale ${saleId}`)
+        return NextResponse.json({ received: true })
+      }
+
+      const reportedAmount = Number(event.resource?.amount?.value)
+      const amount = Number.isFinite(reportedAmount) && reportedAmount > 0
+        ? reportedAmount
+        : Number(payment.amount)
+      const currency = (event.resource?.amount?.currency_code || payment.currency || 'USD').toUpperCase()
+      if (!Number.isFinite(amount) || amount <= 0) {
+        logger.error(`[PayPal Webhook] Sale ${saleId} has no valid amount to record`)
+        return NextResponse.json({ error: 'Invalid subscription payment amount' }, { status: 422 })
+      }
+
+      // Activation already grants the first billing period. A sale completed
+      // within 24 hours of that period's start is its initial charge; recording
+      // it must not grant a second month. Later sales renew from the later of
+      // the current period end and receipt time, preserving any prepaid time.
+      const paymentTime = Date.parse(event.resource?.create_time || event.create_time || '')
+      const periodStart = payment.current_period_start
+        ? Date.parse(String(payment.current_period_start))
+        : Number.NaN
+      const isInitialCharge = Number.isFinite(paymentTime) && Number.isFinite(periodStart)
+        && paymentTime >= periodStart - 24 * 60 * 60 * 1000
+        && paymentTime <= periodStart + 24 * 60 * 60 * 1000
+      const planId = payment.plan_id || 'pro'
+      const paidAt = Number.isFinite(paymentTime) ? new Date(paymentTime).toISOString() : new Date().toISOString()
+
+      // The insert and entitlement extension share one statement/transaction.
+      // A replay either inserts nothing or applies no second period extension.
+      const { rows: recorded } = await db.query<{ user_id: string; period_extended: boolean }>(
+        `WITH recorded AS (
+           INSERT INTO payment_history
+             (user_id, amount, currency, payment_method, provider, provider_id,
+              status, transaction_id, plan_id, metadata)
+           VALUES ($1, $2, $3, 'paypal', 'paypal', $4, 'completed', $5, $6, $7::jsonb)
+           ON CONFLICT (provider_id) DO NOTHING
+           RETURNING user_id
+         ), extended AS (
+           UPDATE user_subscriptions us
+              SET status = 'active',
+                  current_period_start = GREATEST(COALESCE(us.current_period_end, NOW()), NOW()),
+                  current_period_end = GREATEST(COALESCE(us.current_period_end, NOW()), NOW()) + INTERVAL '30 days'
+             FROM recorded r
+            WHERE us.user_id = r.user_id AND $8::boolean
+           RETURNING us.user_id
+         )
+         SELECT r.user_id, EXISTS (SELECT 1 FROM extended) AS period_extended
+           FROM recorded r`,
+        [
+          userId,
+          amount,
+          currency,
+          `paypal-sale:${saleId}`,
+          saleId,
+          planId,
+          JSON.stringify({ subscriptionId, eventId: event.id, source: 'subscription_webhook' }),
+          !isInitialCharge,
+        ]
+      )
+
+      // No returned row means PayPal redelivered an already-recorded sale.
+      if (recorded.length > 0) {
+        const paidUser = await lookupUser(userId).catch(() => undefined)
+        if (paidUser?.email) {
+          notify('renewal-receipt', sendTemplatedEmail('paymentReceipt', {
+            to: paidUser.email,
+            name: paidUser.full_name,
+            planName: planDisplayName(planId),
+            amount,
+            currency,
+            paidAt,
+            transactionId: saleId,
+            paymentMethod: 'PayPal',
+          }))
+        }
+      }
+    }
+
+    // ─── Handle BILLING.SUBSCRIPTION.PAYMENT.FAILED ───────────────────
+    // PayPal may retry failed charges. Keep the current entitlement period
+    // intact; the existing SUSPENDED/EXPIRED events close access when PayPal
+    // actually changes the subscription state.
+    if (eventType === 'BILLING.SUBSCRIPTION.PAYMENT.FAILED') {
+      const subscriptionId = event.resource?.billing_agreement_id || event.resource?.id
+      if (!subscriptionId || !event.id) {
+        logger.warn('[PayPal Webhook] Failed subscription payment is missing its subscription or event ID')
+        return NextResponse.json({ error: 'Incomplete subscription failure event' }, { status: 400 })
+      }
+
+      const userId = await establishPaymentOwnerContext(subscriptionId)
+      const { rows: payRows } = await db.query<PayPalSubscriptionPaymentRow>(
+        `SELECT ph.user_id, ph.plan_id, ph.amount, ph.currency,
+                us.current_period_start, us.current_period_end
+           FROM payment_history ph
+           LEFT JOIN user_subscriptions us ON us.user_id = ph.user_id
+          WHERE ph.transaction_id = $1 AND ph.payment_method = 'paypal'
+          ORDER BY ph.created_at DESC LIMIT 1`,
+        [subscriptionId]
+      )
+      const payment = payRows[0]
+      if (!userId || !payment || payment.user_id !== userId) {
+        logger.warn(`[PayPal Webhook] No owned subscription payment found for failed event ${event.id}`)
+        return NextResponse.json({ received: true })
+      }
+
+      const failedPayment = event.resource?.billing_info?.last_failed_payment?.amount
+        || event.resource?.amount
+      const reportedAmount = Number(failedPayment?.value)
+      const amount = Number.isFinite(reportedAmount) && reportedAmount > 0
+        ? reportedAmount
+        : Number(payment.amount)
+      const currency = (failedPayment?.currency_code || payment.currency || 'USD').toUpperCase()
+      const planId = payment.plan_id || 'pro'
+      const { rows: recorded } = await db.query<{ id: string }>(
+        `INSERT INTO payment_history
+           (user_id, amount, currency, payment_method, provider, provider_id,
+            status, transaction_id, plan_id, metadata)
+         VALUES ($1, $2, $3, 'paypal', 'paypal', $4, 'failed', $5, $6, $7::jsonb)
+         ON CONFLICT (provider_id) DO NOTHING
+         RETURNING id`,
+        [
+          userId,
+          Number.isFinite(amount) && amount > 0 ? amount : null,
+          currency,
+          `paypal-failure:${event.id}`,
+          event.id,
+          planId,
+          JSON.stringify({ subscriptionId, eventId: event.id, source: 'subscription_webhook' }),
+        ]
+      )
+
+      // A duplicate webhook is acknowledged without sending the same notice twice.
+      if (recorded.length > 0) {
+        const failedUser = await lookupUser(userId).catch(() => undefined)
+        if (failedUser?.email) {
+          notify('subscription-payment-failed', sendTemplatedEmail('paymentFailed', {
+            to: failedUser.email,
+            name: failedUser.full_name,
+            planName: planDisplayName(planId),
+            amount: Number.isFinite(amount) && amount > 0 ? amount : 0,
+            currency,
+            failureReason: 'PayPal reported a failed subscription payment. PayPal may retry it; review your billing settings if you need to update your payment method.',
+          }))
         }
       }
     }

@@ -59,3 +59,19 @@ is extended. This is source evidence only; the change is not promoted, and the
 production webhook subscription and a real recurring payment remain unverified.
 The separate `BILLING.SUBSCRIPTION.PAYMENT.FAILED` event is still not handled;
 PayPal billing-lifecycle coverage is incomplete.
+
+PayPal lifecycle follow-up (13 October): The renewal handler now records each
+completed sale in `payment_history` using the provider sale ID as an idempotency
+key, and extends the paid period in the same database statement. The initial
+sale near activation is recorded without granting a second billing period;
+later renewals extend from the current period end. Failed subscription-payment
+events now create an idempotent failed-payment record and send a recovery email.
+They leave access active during PayPal's retry window; the existing suspended
+and expired events remain responsible for ending access. The shared payment
+failure email no longer claims every provider pauses access immediately. Three
+focused PayPal route tests and 58 PayPal/email-template tests passed, along with
+app and test TypeScript checks. This is source evidence only: the database
+inventory is still inaccessible to the Docker verifier, the webhook event
+subscription and delivery are unverified, and no live renewal or failed charge
+was generated. Production promotion remains behind the inventory, backup,
+migration-compatibility, and rollback checks above.

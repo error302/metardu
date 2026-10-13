@@ -138,7 +138,7 @@ We couldn't process your payment for the ${args.planName} plan.
 Amount: ${formatCurrency(args.amount, args.currency)}
 Reason: ${args.failureReason}
 
-Your subscription is paused but your data is safe. Update your payment method and retry:
+Your projects, observations, and documents stay in your account. Paid feature access follows your subscription status and current billing period; an unresolved payment may interrupt access. Update your payment method or choose another payment option:
 
 ${args.retryUrl}
 
