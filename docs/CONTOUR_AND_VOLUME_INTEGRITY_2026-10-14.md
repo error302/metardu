@@ -63,6 +63,14 @@ The original 052 artifact was recovered from the existing ignored recovery
 folder, matched to the current production ledger, and restored without changing
 SQL semantics, checksum records or the existing byte-preservation Git attributes.
 
+The GitHub push completed on the existing
+`codex/metardu-workflow-readiness-2026-10-12` branch. Its mandatory pre-push strict
+type check, changed-file lint and 124 related tests across 12 suites passed.
+The local secret scanner was unavailable and the hook skipped that scan; this is
+not secret-scan proof. Remote CI and the previously documented historical mock
+secret finding remain separate evidence. No scanner baseline was added or gate
+bypassed by this work.
+
 The existing host preview was absent, so its original wrapper and original cache
 were reused at `127.0.0.1:3021`, with provider credentials disabled and the
 separate synthetic database configuration. It remains process 15948 / child
