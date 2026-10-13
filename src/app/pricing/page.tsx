@@ -84,10 +84,12 @@ export default function PricingPage() {
 
     // Build price label
     let priceLabel: string
+    let priceNote: string | undefined
     if (isEnterprise) {
       priceLabel = 'Custom'
     } else if (plan.isPerSeat) {
-      priceLabel = `${formatPrice(basePrice, currency)} + ${formatPrice(perSeat, currency)}/seat`
+      priceLabel = formatPrice(basePrice, currency)
+      priceNote = `Includes ${plan.includedSeats} seats · ${formatPrice(perSeat, currency)} per additional seat/month`
     } else {
       priceLabel = formatPrice(basePrice, currency)
     }
@@ -105,6 +107,7 @@ export default function PricingPage() {
               ? 'For established firms with multiple teams (5 seats included)'
               : 'Custom deployment for government and large organizations',
       price: priceLabel,
+      priceNote,
       features: plan.features,
       checkoutHref: plan.id === 'free' || isEnterprise
         ? undefined

@@ -24,6 +24,7 @@ export interface PricingCardProps {
   planName: string;
   description: string;
   price: string;
+  priceNote?: string;
   features: string[];
   buttonText: string;
   checkoutHref?: string;
@@ -32,7 +33,7 @@ export interface PricingCardProps {
 }
 
 export const PricingCard = ({
-  planId, planName, description, price, features, buttonText, checkoutHref, isPopular = false, buttonVariant = 'primary'
+  planId, planName, description, price, priceNote, features, buttonText, checkoutHref, isPopular = false, buttonVariant = 'primary'
 }: PricingCardProps) => {
   const buttonHref = planId === 'free'
     ? '/register'
@@ -74,9 +75,12 @@ export const PricingCard = ({
         <h2 className="text-2xl md:text-[30px] font-semibold tracking-[-0.03em] text-[var(--text-primary)]">{planName}</h2>
         <p className="text-sm leading-6 text-[var(--text-secondary)] mt-2">{description}</p>
       </div>
-      <div className="my-6 flex items-baseline gap-2 flex-wrap">
-        <span className="text-[30px] font-semibold tabular-nums text-[var(--text-primary)] tracking-tight">{price}</span>
-        {planId !== 'enterprise' && <span className="text-xs text-[var(--text-muted)]">/month</span>}
+      <div className="my-6">
+        <div className="flex items-baseline gap-2 flex-wrap">
+          <span className="text-[30px] font-semibold tabular-nums text-[var(--text-primary)] tracking-tight">{price}</span>
+          {planId !== 'enterprise' && <span className="text-xs text-[var(--text-muted)]">/month</span>}
+        </div>
+        {priceNote && <p className="mt-2 text-xs leading-5 text-[var(--text-secondary)]">{priceNote}</p>}
       </div>
       <div className="card-divider mb-5 h-px w-full" style={{background: 'linear-gradient(90deg, transparent, var(--border-color) 50%, transparent)'}} />
       <ul className="flex flex-col gap-2.5 text-sm text-[var(--text-secondary)] mb-7">
