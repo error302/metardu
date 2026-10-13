@@ -35,9 +35,10 @@ import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
 import type { FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
-import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
+import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, resolveRoadFieldPlanCrsCode, roadFieldPlanCrsIsBoundToProject, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
 import { createClient } from '@/lib/api-client/client'
+import { resolveStageReference } from '@/lib/workspaces/stageReference'
 
 function isOfflinePlanFetchFailure(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return true
@@ -69,6 +70,8 @@ export function FieldDataCollector({
   const [roadPlanLoadError, setRoadPlanLoadError] = useState(false)
   const [roadPlanSource, setRoadPlanSource] = useState<'server_cached' | 'server_uncached' | 'offline_cache' | null>(null)
   const [roadPlanCachedAt, setRoadPlanCachedAt] = useState<string | null>(null)
+  const [roadPlanCrsError, setRoadPlanCrsError] = useState<string | null>(null)
+  const [roadProjectCrsCode, setRoadProjectCrsCode] = useState<string | null>(null)
   const [offlinePlanAcknowledged, setOfflinePlanAcknowledged] = useState(false)
   const [activeRoadStationIndex, setActiveRoadStationIndex] = useState(0)
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number; z: number } | null>(null)
@@ -106,6 +109,8 @@ export function FieldDataCollector({
       setRoadFieldPlan(null)
       setRoadPlanSource(null)
       setRoadPlanCachedAt(null)
+      setRoadPlanCrsError(null)
+      setRoadProjectCrsCode(null)
       setOfflinePlanAcknowledged(false)
 
       const loadOfflineCopy = async () => {
@@ -123,6 +128,12 @@ export function FieldDataCollector({
           setRoadFieldPlan(cachedPlan)
           setRoadPlanSource('offline_cache')
           setRoadPlanCachedAt(cached.cachedAt)
+          const cachedCrsCode = resolveRoadFieldPlanCrsCode(cachedPlan.projectCrs)
+          const isCrsBound = roadFieldPlanCrsIsBoundToProject(cachedPlan.projectCrs, cached.projectCrsCode)
+          setRoadProjectCrsCode(isCrsBound ? cachedCrsCode : null)
+          setRoadPlanCrsError(isCrsBound
+            ? null
+            : 'This offline plan has no verified project CRS binding. Reopen the collector online to validate and cache it before collecting GNSS points.')
           setActiveRoadStationIndex(0)
           setRoadPlanLoadError(false)
         }
@@ -145,9 +156,9 @@ export function FieldDataCollector({
       try {
         const result = await createClient()
           .from('projects')
-          .select('engineering_data')
+          .select('engineering_data,datum,utm_zone,hemisphere')
           .eq('id', projectId)
-          .limit(1) as unknown as { data: Array<{ engineering_data?: unknown }> | null; error: unknown }
+          .limit(1) as unknown as { data: Array<{ engineering_data?: unknown; datum?: unknown; utm_zone?: unknown; hemisphere?: unknown }> | null; error: unknown }
         if (result.error) throw result.error
         const engineeringData = result.data?.[0]?.engineering_data
         const planValue = typeof engineeringData === 'object' && engineeringData !== null
@@ -166,20 +177,51 @@ export function FieldDataCollector({
           return
         }
 
+        const referenceResult = await createClient()
+          .from('project_reference_systems')
+          .select('*')
+          .eq('project_id', projectId)
+          .limit(1)
+        if (referenceResult.error) throw referenceResult.error
+        const declaredReference = (referenceResult.data as unknown as Array<Record<string, unknown>> | null)?.[0] ?? null
+        const projectRow = result.data?.[0]
+        const projectReference = resolveStageReference(
+          declaredReference,
+          {
+            datum: typeof projectRow?.datum === 'string' ? projectRow.datum : null,
+            utm_zone: typeof projectRow?.utm_zone === 'number' ? projectRow.utm_zone : null,
+            hemisphere: typeof projectRow?.hemisphere === 'string' ? projectRow.hemisphere : null,
+          },
+        )
+        const planCrsCode = resolveRoadFieldPlanCrsCode(plan.projectCrs)
+        let crsError: string | null = null
+        if (!projectReference.code) {
+          crsError = 'The project has no valid reference system. Set it in Project Settings before collecting road points.'
+        } else if (!planCrsCode) {
+          crsError = 'The saved road plan CRS is not a supported projected EPSG code. Reopen and save the field plan using the project CRS.'
+        } else if (planCrsCode !== projectReference.code) {
+          crsError = `The saved road plan uses ${planCrsCode}, but the project reference system is ${projectReference.code}. Update the field plan before collecting.`
+        }
+        const validatedProjectCrsCode = crsError ? null : projectReference.code
+
         let cachedAt: string | null = null
         let source: 'server_cached' | 'server_uncached' = 'server_uncached'
-        try {
-          const { cacheRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
-          const cached = await cacheRoadFieldPlan(projectId, plan)
-          cachedAt = cached.cachedAt
-          source = 'server_cached'
-        } catch {
-          // Keep the online plan usable, but tell the operator this device is not prepared for offline reopening.
+        if (validatedProjectCrsCode) {
+          try {
+            const { cacheRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
+            const cached = await cacheRoadFieldPlan(projectId, plan, validatedProjectCrsCode)
+            cachedAt = cached.cachedAt
+            source = 'server_cached'
+          } catch {
+            // Keep the online plan usable, but tell the operator this device is not prepared for offline reopening.
+          }
         }
         if (current) {
           setRoadFieldPlan(plan)
           setRoadPlanSource(source)
           setRoadPlanCachedAt(cachedAt)
+          setRoadPlanCrsError(crsError)
+          setRoadProjectCrsCode(validatedProjectCrsCode)
           setActiveRoadStationIndex(0)
         }
       } catch (error) {
@@ -244,9 +286,13 @@ export function FieldDataCollector({
       ? `ROAD_CODE=${code ?? 'UNCODED'}; CHAINAGE_M=${activeRoadStation ?? 'UNSET'}`
       : code
     const notes = appendFieldPointId(captureNotes, pointId)
-    const measurement = await session.captureMeasurement({ pointId, notes })
+    const measurement = await session.captureMeasurement({
+      pointId,
+      notes,
+      projectCrs: roadSurvey ? roadProjectCrsCode ?? undefined : undefined,
+    })
     return measurement !== null
-  }, [session, sessionState.measurements, roadSurvey, activeRoadStation])
+  }, [session, sessionState.measurements, roadSurvey, activeRoadStation, roadProjectCrsCode])
 
   const handleSetupComplete = useCallback((setup: typeof sessionState.setup) => {
     if (setup) {
@@ -327,6 +373,12 @@ export function FieldDataCollector({
             <p className="text-sm text-[var(--text-muted)]">Loading the saved road field plan…</p>
           ) : roadFieldPlan ? (
             <div className="space-y-3">
+              {roadPlanCrsError && (
+                <div role="alert" className="rounded-lg border border-red-500/50 bg-red-500/10 p-3 text-sm text-red-100">
+                  <p>{roadPlanCrsError}</p>
+                  <a href={`/project/${projectId}/engineering?step=field_plan`} className="mt-2 inline-block font-semibold underline underline-offset-2">Update the road field plan</a>
+                </div>
+              )}
               {roadPlanSource === 'offline_cache' && (
                 <div role="alert" className="rounded-lg border border-amber-500/50 bg-amber-500/10 p-3 text-sm text-amber-100">
                   <p>
@@ -455,7 +507,7 @@ export function FieldDataCollector({
             )}
             <FieldMeasureButton
               onCapture={(pointId) => handleCapture(pointId, activeFeatureCode || undefined)}
-              disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || activeRoadStation === null || !activeFeatureCode || (roadPlanSource === 'offline_cache' && !offlinePlanAcknowledged)))}
+              disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || !roadProjectCrsCode || activeRoadStation === null || !activeFeatureCode || (roadPlanSource === 'offline_cache' && !offlinePlanAcknowledged)))}
               stationSetup={!!sessionState.setup}
               pointIdPrefix={pointIdPrefix}
               nextPointNumber={nextPointNumber}

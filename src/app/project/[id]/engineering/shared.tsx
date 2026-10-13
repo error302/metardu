@@ -1,6 +1,7 @@
 'use client'
 
 import type { EngineeringData, StepStatus } from '@/types/engineering'
+import type { StageReference } from '@/lib/workspaces/stageReference'
 
 /**
  * Shared types and constants used by the engineering page orchestrator,
@@ -51,6 +52,7 @@ export interface EngineeringProject {
   utm_zone: number
   hemisphere: 'N' | 'S'
   datum?: string
+  projectReferenceSystem?: StageReference
   lr_number?: string
   county?: string
   district?: string

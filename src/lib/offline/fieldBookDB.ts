@@ -69,6 +69,8 @@ export interface OfflineProject {
 export interface OfflineRoadFieldPlan {
   projectId: string
   plan: RoadFieldPlan
+  /** Project CRS confirmed against the server reference record when this copy was cached. */
+  projectCrsCode?: string
   cachedAt: string
 }
 
@@ -137,9 +139,9 @@ export async function deleteObservation(id: string): Promise<void> {
   await db.delete('observations', id)
 }
 
-export async function cacheRoadFieldPlan(projectId: string, plan: RoadFieldPlan): Promise<OfflineRoadFieldPlan> {
+export async function cacheRoadFieldPlan(projectId: string, plan: RoadFieldPlan, projectCrsCode: string): Promise<OfflineRoadFieldPlan> {
   const db = await getDB()
-  const cached: OfflineRoadFieldPlan = { projectId, plan, cachedAt: new Date().toISOString() }
+  const cached: OfflineRoadFieldPlan = { projectId, plan, projectCrsCode, cachedAt: new Date().toISOString() }
   await db.put('roadFieldPlans', cached)
   return cached
 }

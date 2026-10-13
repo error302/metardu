@@ -2,11 +2,17 @@ import {
   buildRoadFieldStations,
   formatRoadChainage,
   parseRoadFieldPlan,
+  resolveRoadFieldPlanCrsCode,
+  roadFieldPlanCrsIsBoundToProject,
   summarizeRoadStationCaptures,
   validateRoadFieldPlan,
   type RoadFieldPlanDraft,
 } from '../roadFieldPlan'
 import type { RoadFieldPlan } from '@/types/engineering'
+
+const REGISTERED_PROJECT_CRS = 'EPSG:21037'
+const WGS84_PROJECT_CRS = 'EPSG:32737'
+const MISMATCHED_PROJECT_CRS = 'EPSG:32637'
 
 const validPlan: RoadFieldPlanDraft = {
   startChainageM: 0,
@@ -51,6 +57,19 @@ describe('road field plan', () => {
     expect(validateRoadFieldPlan({ ...validPlan, projectCrs: '   ' })).toContain('approved project CRS')
     expect(validateRoadFieldPlan({ ...validPlan, controlReference: '' })).toContain('control or benchmark')
     expect(parseRoadFieldPlan({ ...validPlan, projectCrs: '' })).toBeNull()
+  })
+
+  it('uses only an explicit registered projected EPSG code for GNSS coordinate transformation', () => {
+    expect(resolveRoadFieldPlanCrsCode(`Arc 1960 / UTM zone 37S (${REGISTERED_PROJECT_CRS})`)).toBe(REGISTERED_PROJECT_CRS)
+    expect(resolveRoadFieldPlanCrsCode('EPSG:3857')).toBeNull()
+    expect(resolveRoadFieldPlanCrsCode('EPSG:99999')).toBeNull()
+    expect(resolveRoadFieldPlanCrsCode('UTM zone 37S')).toBeNull()
+  })
+
+  it('requires an offline plan CRS to match the project CRS confirmed when it was cached', () => {
+    expect(roadFieldPlanCrsIsBoundToProject(`WGS 84 / UTM zone 37S (${WGS84_PROJECT_CRS})`, WGS84_PROJECT_CRS)).toBe(true)
+    expect(roadFieldPlanCrsIsBoundToProject(`WGS 84 / UTM zone 37S (${WGS84_PROJECT_CRS})`, null)).toBe(false)
+    expect(roadFieldPlanCrsIsBoundToProject(`WGS 84 / UTM zone 37S (${WGS84_PROJECT_CRS})`, MISMATCHED_PROJECT_CRS)).toBe(false)
   })
 
   it('rejects plans that would create an impractically large station list', () => {

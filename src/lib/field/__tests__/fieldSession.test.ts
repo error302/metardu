@@ -16,8 +16,8 @@ const latestPoint = {
   pointName: 'GNSS-01',
   latitude: -1.2864,
   longitude: 36.8172,
-  northing: 9857660.12,
-  easting: 258144.33,
+  northing: 0,
+  easting: 0,
   elevation: 1684.2,
   timestamp: new Date('2026-10-12T08:00:00.000Z'),
   source: 'nmea' as const,
@@ -25,6 +25,7 @@ const latestPoint = {
   satellites: 18,
   hdop: 0.8,
 }
+const PROJECT_CRS = 'EPSG:32737'
 
 describe('field session point capture persistence', () => {
   beforeEach(() => {
@@ -39,7 +40,11 @@ describe('field session point capture persistence', () => {
     const session = getFieldSession(`storage-failure-${Date.now()}`, 'engineering')
     session.setupStation({ stationName: 'STN-01', instrumentHeight: 1.5, targetHeight: 2, isControlPoint: true })
 
-    const result = await session.captureMeasurement({ pointId: 'RD1', notes: 'ROAD_CODE=CL; CHAINAGE_M=0; METARDU_POINT_ID=RD1' })
+    const result = await session.captureMeasurement({
+      pointId: 'RD1',
+      projectCrs: PROJECT_CRS,
+      notes: 'ROAD_CODE=CL; CHAINAGE_M=0; METARDU_POINT_ID=RD1',
+    })
 
     expect(result).toBeNull()
     expect(session.getSnapshot().measurements).toHaveLength(0)
@@ -52,7 +57,11 @@ describe('field session point capture persistence', () => {
     const session = getFieldSession(projectId, 'engineering')
     session.setupStation({ stationName: 'STN-01', instrumentHeight: 1.5, targetHeight: 2, isControlPoint: true })
 
-    const result = await session.captureMeasurement({ pointId: 'RD1', notes: 'ROAD_CODE=CL; CHAINAGE_M=0; METARDU_POINT_ID=RD1' })
+    const result = await session.captureMeasurement({
+      pointId: 'RD1',
+      projectCrs: PROJECT_CRS,
+      notes: 'ROAD_CODE=CL; CHAINAGE_M=0; METARDU_POINT_ID=RD1',
+    })
 
     expect(result?.pointId).toBe('RD1')
     expect(session.getSnapshot().measurements).toHaveLength(1)
@@ -60,8 +69,34 @@ describe('field session point capture persistence', () => {
     const savedObservation = saveObservationMock.mock.calls[0]?.[0]
     expect(savedObservation?.projectId).toBe(projectId)
     expect(savedObservation?.notes).toBe('ROAD_CODE=CL; CHAINAGE_M=0; METARDU_POINT_ID=RD1')
-    expect(savedObservation?.easting).toBe(latestPoint.easting)
-    expect(savedObservation?.northing).toBe(latestPoint.northing)
+    expect(result?.easting).toBeCloseTo(257110.72, 2)
+    expect(result?.northing).toBeCloseTo(9857710.0, 2)
+    expect(savedObservation?.easting).toBeCloseTo(257110.72, 2)
+    expect(savedObservation?.northing).toBeCloseTo(9857710.0, 2)
+  })
+
+  it('keeps GNSS-only coordinates from masquerading as projected easting/northing without a project CRS', async () => {
+    saveObservationMock.mockResolvedValueOnce(undefined)
+    const session = getFieldSession(`gnss-no-crs-${Date.now()}`, 'engineering')
+    session.setupStation({ stationName: 'STN-01', instrumentHeight: 1.5, targetHeight: 2, isControlPoint: true })
+
+    const result = await session.captureMeasurement({ pointId: 'RD1' })
+
+    expect(result?.latitude).toBe(latestPoint.latitude)
+    expect(result?.longitude).toBe(latestPoint.longitude)
+    expect(result?.easting).toBeUndefined()
+    expect(result?.northing).toBeUndefined()
+    expect(saveObservationMock.mock.calls[0]?.[0]?.easting).toBeUndefined()
+  })
+
+  it('does not store GNSS coordinates when the project CRS is display-only', async () => {
+    const session = getFieldSession(`gnss-display-crs-${Date.now()}`, 'engineering')
+    session.setupStation({ stationName: 'STN-01', instrumentHeight: 1.5, targetHeight: 2, isControlPoint: true })
+
+    const result = await session.captureMeasurement({ pointId: 'RD1', projectCrs: 'EPSG:3857' })
+
+    expect(result).toBeNull()
+    expect(saveObservationMock).not.toHaveBeenCalled()
   })
 
   it('restores a captured point ID from the offline observation after reload', async () => {

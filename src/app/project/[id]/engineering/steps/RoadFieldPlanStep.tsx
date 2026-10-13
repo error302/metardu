@@ -6,6 +6,7 @@ import {
   buildRoadFieldStations,
   formatRoadChainage,
   ROAD_FIELD_CODE_OPTIONS,
+  resolveRoadFieldPlanCrsCode,
   type RoadFieldPlanDraft,
   validateRoadFieldPlan,
 } from '@/lib/engineering/roadFieldPlan'
@@ -24,6 +25,7 @@ export function RoadFieldPlanStep({
   roadName,
   roadDesign,
   projectCrsSuggestion,
+  projectCrsSource = 'declared',
   data,
   onSave,
 }: {
@@ -32,6 +34,7 @@ export function RoadFieldPlanStep({
   roadName?: string
   roadDesign?: RoadDesignData | null
   projectCrsSuggestion?: string | null
+  projectCrsSource?: 'declared' | 'legacy' | 'missing'
   data: RoadFieldPlan | null
   onSave: (data: Partial<EngineeringData>) => void | Promise<boolean>
 }) {
@@ -86,7 +89,16 @@ export function RoadFieldPlanStep({
     featureCodes,
   }), [startChainage, endChainage, stationInterval, leftExtent, rightExtent, projectCrs, controlReference, featureCodes])
 
-  const validationError = validateRoadFieldPlan(draft)
+  const projectCrsCode = resolveRoadFieldPlanCrsCode(projectCrs)
+  const suggestedCrsCode = projectCrsSuggestion ? resolveRoadFieldPlanCrsCode(projectCrsSuggestion) : null
+  const crsError = !suggestedCrsCode
+    ? 'Set a registered projected CRS in Project Settings before preparing road collection.'
+    : !projectCrsCode
+      ? 'Apply the supported project CRS before saving this field plan.'
+      : projectCrsCode !== suggestedCrsCode
+        ? 'The field plan CRS must match the project reference system. Apply the project CRS suggestion again.'
+        : null
+  const validationError = crsError ?? validateRoadFieldPlan(draft)
   const stationPreview = useMemo(() => {
     const { startChainageM, endChainageM, stationIntervalM } = draft
     if (validationError || startChainageM === null || endChainageM === null || stationIntervalM === null) return null
@@ -186,15 +198,15 @@ export function RoadFieldPlanStep({
           )}
           {projectCrsSuggestion && (
             <div>
-              <p className="text-xs font-semibold text-sky-100">Declared project CRS</p>
+              <p className="text-xs font-semibold text-sky-100">{projectCrsSource === 'legacy' ? 'Legacy project CRS' : 'Declared project CRS'}</p>
               <p className="mt-1 text-xs text-sky-100/70">{projectCrsSuggestion}</p>
               <button type="button" onClick={useProjectCrs} className="mt-2 rounded-md border border-sky-700 px-2.5 py-1.5 text-xs font-semibold text-sky-100 hover:bg-sky-900/60">
-                Use declared project CRS
+                {projectCrsSource === 'legacy' ? 'Use legacy project CRS' : 'Use declared project CRS'}
               </button>
             </div>
           )}
           <p className="text-xs leading-5 text-sky-100/60 sm:col-span-2">
-            Suggestions come from saved project records. Confirm the chainage limits and CRS against the approved survey brief before saving; station interval and control references still need the crew’s authoritative instructions.
+            Confirm the chainage limits and CRS against the approved survey brief before saving. A saved CRS declaration takes precedence; a legacy datum/zone is labeled as such. Station interval and control references still need the crew’s authoritative instructions.
           </p>
         </section>
       )}
@@ -221,8 +233,8 @@ export function RoadFieldPlanStep({
           <input className={inputClass} type="number" min="0" step="0.1" inputMode="decimal" value={rightExtent} onChange={event => markEdited(() => setRightExtent(event.target.value))} placeholder="From centreline" />
         </label>
         <label className="text-sm text-zinc-300">
-          Approved project CRS
-          <input className={inputClass} value={projectCrs} onChange={event => markEdited(() => setProjectCrs(event.target.value))} placeholder="Enter the project CRS exactly" required aria-required="true" />
+          Project CRS (from project settings)
+          <input className={inputClass} value={projectCrs} readOnly placeholder="Set a registered CRS in Project Settings" required aria-required="true" />
         </label>
         <label className="text-sm text-zinc-300 sm:col-span-3">
           Control / benchmark ID and source

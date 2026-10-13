@@ -22,7 +22,6 @@ import { DrainageStep2Pipes } from './DrainageStep2Pipes'
 import { DrainageStep3Outputs } from './DrainageStep3Outputs'
 import { calculateProjectDrainageRuns, generateProjectDrainageSetout } from '@/lib/engineering/projectDrainageEngine'
 import { parseRoadFieldPlan } from '@/lib/engineering/roadFieldPlan'
-import { buildProjectReferenceSystem } from '@/lib/spatial/projectReferenceSystem'
 
 /* ── Lazy-loaded engineering panels (only one step visible at a time) ─── */
 const LongSectionRenderer = dynamic(() => import('@/components/engineering/LongSectionRenderer'), {
@@ -208,19 +207,10 @@ export function renderStepContent(
   const roadData = engineeringData?.road || null
   const roadFieldPlan = parseRoadFieldPlan(engineeringData?.roadFieldPlan)
   const drainageData = engineeringData?.drainage || null
-  let projectCrsSuggestion: string | null = null
-  if (project.datum && Number.isInteger(project.utm_zone) && (project.hemisphere === 'N' || project.hemisphere === 'S')) {
-    try {
-      const referenceSystem = buildProjectReferenceSystem({
-        datum: project.datum,
-        utmZone: project.utm_zone,
-        hemisphere: project.hemisphere,
-      })
-      projectCrsSuggestion = `${referenceSystem.horizontalName} (${referenceSystem.horizontalCrs})`
-    } catch {
-      // An incomplete or unregistered project declaration is not suggested as a survey CRS.
-    }
-  }
+  const projectReferenceSystem = project.projectReferenceSystem
+  const projectCrsSuggestion = projectReferenceSystem?.code
+    ? `${projectReferenceSystem.name} (${projectReferenceSystem.code})`
+    : null
 
   switch (stepId) {
     case 'setup':
@@ -241,6 +231,7 @@ export function renderStepContent(
           roadName={roadData?.roadName}
           roadDesign={roadData}
           projectCrsSuggestion={projectCrsSuggestion}
+          projectCrsSource={projectReferenceSystem?.source ?? 'missing'}
           data={roadFieldPlan}
           onSave={onSave}
         />

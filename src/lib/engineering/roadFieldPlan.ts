@@ -1,4 +1,5 @@
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 
 export const ROAD_FIELD_CODE_OPTIONS: ReadonlyArray<{
   code: RoadFieldFeatureCode
@@ -19,6 +20,21 @@ export const ROAD_FIELD_CODE_OPTIONS: ReadonlyArray<{
 
 const VALID_CODES = new Set(ROAD_FIELD_CODE_OPTIONS.map(({ code }) => code))
 const MAX_ROAD_FIELD_STATIONS = 10_000
+
+/** Extract only an explicit, registered projected EPSG code; never infer from a zone label. */
+export function resolveRoadFieldPlanCrsCode(value: string): string | null {
+  const match = /\bEPSG:\s*(\d{4,6})\b/i.exec(value)
+  if (!match) return null
+  try {
+    return assertProjectedCrs(`EPSG:${match[1]}`).code
+  } catch {
+    return null
+  }
+}
+
+export function roadFieldPlanCrsIsBoundToProject(value: string, projectCrsCode: string | null | undefined): boolean {
+  return !!projectCrsCode && resolveRoadFieldPlanCrsCode(value) === projectCrsCode
+}
 
 export interface RoadFieldPlanDraft {
   startChainageM: number | null

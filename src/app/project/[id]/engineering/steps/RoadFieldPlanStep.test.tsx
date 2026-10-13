@@ -34,7 +34,7 @@ describe('RoadFieldPlanStep station preflight', () => {
 
     expect(screen.getByLabelText('Start chainage (m)')).toHaveValue(100)
     expect(screen.getByLabelText('End chainage (m)')).toHaveValue(180)
-    expect(screen.getByLabelText('Approved project CRS')).toHaveValue('Arc 1960 / UTM zone 37S (EPSG:21037)')
+    expect(screen.getByLabelText('Project CRS (from project settings)')).toHaveValue('Arc 1960 / UTM zone 37S (EPSG:21037)')
     expect(screen.getByLabelText('Station interval (m)')).toHaveValue(null)
   })
 
@@ -43,6 +43,7 @@ describe('RoadFieldPlanStep station preflight', () => {
       <RoadFieldPlanStep
         projectId="project-1"
         projectName="North access road"
+        projectCrsSuggestion="WGS 84 / UTM zone 37S (EPSG:32737)"
         data={null}
         onSave={jest.fn().mockResolvedValue(true)}
       />,
@@ -51,7 +52,8 @@ describe('RoadFieldPlanStep station preflight', () => {
     fireEvent.change(screen.getByLabelText('Start chainage (m)'), { target: { value: '0' } })
     fireEvent.change(screen.getByLabelText('End chainage (m)'), { target: { value: '50' } })
     fireEvent.change(screen.getByLabelText('Station interval (m)'), { target: { value: '20' } })
-    fireEvent.change(screen.getByLabelText('Approved project CRS'), { target: { value: 'PROJECT-CRS-TEST-01' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Use declared project CRS' }))
+    fireEvent.change(screen.getByLabelText('Control / benchmark ID and source'), { target: { value: 'BM-01 · approved project control list' } })
     fireEvent.change(screen.getByLabelText('Control / benchmark ID and source'), { target: { value: 'BM-01 · approved project control list' } })
 
     expect(screen.getByText('4 planned stations')).toBeInTheDocument()
@@ -60,5 +62,35 @@ describe('RoadFieldPlanStep station preflight', () => {
     expect(screen.getByText('0+040.000')).toBeInTheDocument()
     expect(screen.getByText('0+050.000')).toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('The exact end chainage is included. The final step is 10.000 m, shorter than the requested 20.000 m interval.')
+  })
+
+  it('blocks a saved plan whose CRS differs from the project reference system', () => {
+    render(
+      <RoadFieldPlanStep
+        projectId="project-1"
+        projectName="North access road"
+        projectCrsSuggestion="WGS 84 / UTM zone 37S (EPSG:32737)"
+        data={{
+          startChainageM: 0,
+          endChainageM: 50,
+          stationIntervalM: 20,
+          leftExtentM: null,
+          rightExtentM: null,
+          projectCrs: 'Arc 1960 / UTM zone 37S (EPSG:21037)',
+          controlReference: 'BM-01 / approved control list',
+          featureCodes: ['CL'],
+        }}
+        onSave={jest.fn().mockResolvedValue(true)}
+      />,
+    )
+
+    expect(screen.getByText('The field plan CRS must match the project reference system. Apply the project CRS suggestion again.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save field plan' })).toBeDisabled()
+    expect(screen.queryByRole('link', { name: 'Start road point collection →' })).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Use declared project CRS' }))
+
+    expect(screen.queryByText('The field plan CRS must match the project reference system. Apply the project CRS suggestion again.')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Save field plan' })).toBeEnabled()
   })
 })

@@ -11,6 +11,7 @@ import { useInstrumentStore } from '@/stores/instrumentStore'
 import { type ToleranceCheckResult } from '@/lib/survey/liveToleranceChecker'
 import { logger } from '@/lib/logger'
 import { readFieldPointId } from '@/lib/field/pointIds'
+import { assertProjectedCrs, transformPoint, WGS84_CRS } from '@/lib/spatial/projectCrs'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -126,6 +127,7 @@ class FieldSession {
     stationTo?: string
     targetHeight?: number
     notes?: string
+    projectCrs?: string
   }): Promise<FieldMeasurement | null> {
     if (!this.state.setup) {
       return null
@@ -141,6 +143,32 @@ class FieldSession {
 
     if (!latestPoint) {
       return null
+    }
+
+    let easting: number | undefined
+    let northing: number | undefined
+    if (latestPoint.source === 'nmea') {
+      if (!Number.isFinite(latestPoint.latitude)
+        || !Number.isFinite(latestPoint.longitude)
+        || latestPoint.latitude < -90
+        || latestPoint.latitude > 90
+        || latestPoint.longitude < -180
+        || latestPoint.longitude > 180) return null
+      if (params.projectCrs) {
+        try {
+          assertProjectedCrs(params.projectCrs)
+          const projected = transformPoint(latestPoint.longitude, latestPoint.latitude, WGS84_CRS, params.projectCrs)
+          if (!projected.every(Number.isFinite)) return null
+          easting = projected[0]
+          northing = projected[1]
+        } catch (error) {
+          logger.warn('[field-session] GNSS reading could not be transformed into the declared project CRS.', { error })
+          return null
+        }
+      }
+    } else if (Number.isFinite(latestPoint.easting) && Number.isFinite(latestPoint.northing)) {
+      easting = latestPoint.easting
+      northing = latestPoint.northing
     }
 
     // Determine instrument type from the reading source
@@ -167,8 +195,8 @@ class FieldSession {
       satellites: latestPoint.satellites,
       hdop: latestPoint.hdop,
       // Reduced coordinates (StreamedPoint has easting/northing)
-      easting: latestPoint.easting,
-      northing: latestPoint.northing,
+      easting,
+      northing,
       // Metadata
       instrumentType,
       mode: this.state.surveyType === 'leveling' ? 'leveling' : 'traverse',

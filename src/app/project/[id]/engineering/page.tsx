@@ -6,6 +6,7 @@ import { createClient } from '@/lib/api-client/client'
 import { z } from 'zod'
 import { apiGet, apiPost } from '@/lib/api/client'
 import { saveProjectEngineeringData } from '@/lib/engineering/projectEngineeringPersistence'
+import { resolveStageReference, type StageReference } from '@/lib/workspaces/stageReference'
 import type {
   EngineeringData,
   EngineeringMode,
@@ -260,8 +261,32 @@ export default function EngineeringWorkspacePage() {
       return
     }
 
+    const referenceResult = await dbClient
+      .from('project_reference_systems')
+      .select('*')
+      .eq('project_id', data.id)
+      .limit(1)
+    const legacyReference = {
+      datum: typeof data.datum === 'string' ? data.datum : null,
+      utm_zone: typeof data.utm_zone === 'number' ? data.utm_zone : null,
+      hemisphere: typeof data.hemisphere === 'string' ? data.hemisphere : null,
+    }
+    const declaredReference = (referenceResult.data as unknown as Array<Record<string, unknown>> | null)?.[0] ?? null
+    const projectReferenceSystem: StageReference = referenceResult.error
+      ? {
+          code: null,
+          name: 'Reference system not set',
+          source: 'missing',
+          hemisphere: null,
+          verticalDatum: null,
+          distanceMode: null,
+        }
+      : resolveStageReference(
+          declaredReference,
+          legacyReference,
+        )
     const engData = (data?.engineering_data ?? null) as EngineeringData | null
-    setProject({ ...data, engineering_data: engData } as EngineeringProject)
+    setProject({ ...data, engineering_data: engData, projectReferenceSystem } as EngineeringProject)
 
     const profileResult = (await dbClient
       .from('surveyor_profiles')
