@@ -140,3 +140,29 @@ was changed. Current-source pricing, safe-redirect, PayPal webhook/legacy route,
 marketing-reminder, notice-gate, email-template and PayPal-plan suites pass
 96/96 across nine suites. They do not prove a live PayPal approval round trip,
 customer reminder delivery, or the unpromoted fixes in production.
+
+## Five-family survey upgrade checkpoint — 14 October 2026
+
+The requested scope now explicitly covers cadastral, engineering, road,
+construction and topographical jobs through the existing tools. The continuing
+acceptance matrix is [SURVEY_WORKFLOW_UPGRADE_MATRIX.md](SURVEY_WORKFLOW_UPGRADE_MATRIX.md).
+This source batch repairs road PI/curve schedules, measured design/ground profile
+entry and reload, cross-section geometry/drawings, current-revision CSV/PDF
+schedule exports, standalone earthworks/print quantities and mixed TIN/grid
+volumes. It removes invented catch points, blank-level zeros, stale quantity
+overrides, fake middle-section/prismoidal quantities, hidden material factors
+and incorrect universal error/height-reference assertions from these paths.
+
+Final source verification: 411 tests across 40 suites, both strict TypeScript
+projects, all changed/new source lint and whitespace checks passed. The fresh
+read-only Docker verifier passed against one healthy existing production app
+and required services, with recent backup completion. No service lifecycle,
+image/build, migration or promotion occurred in this batch. Existing source
+preview ownership was verified, but CUA navigation returned
+`net::ERR_BLOCKED_BY_CLIENT`; browser/native/physical field evidence stays open.
+Production remains the previously verified image and 109-entry ledger; source
+migration 105 and recovery/rollback compatibility still precede promotion.
+The other provider, public ChatGPT consent/listing, payment, cadastral/legal,
+receiver/offline and field gates remain distinct from these successful source
+checks. No dependencies, duplicate containers, builders, scanner baselines or
+applied-migration hash changes were added.

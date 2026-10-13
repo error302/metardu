@@ -136,3 +136,23 @@ TIN reference-plane volume separation for mixed cut/fill triangles and the
 legacy simplified overhaul estimate also require their own analytical review.
 The broader drainage, OAuth/provider, ChatGPT consent/public HTTPS/listing,
 payment, receiver/field and professional certification gates remain open.
+
+### Road and terrain follow-up — 14 October 2026
+
+The Step6, station/design/profile entry and TIN reference-plane findings above
+are now repaired in source. The standalone earthworks calculator also uses the
+same measured-profile authority. Mixed TIN triangles retain separate cut/fill;
+the bounded between-surface midpoint grid no longer double-counts edge area.
+Road outputs use current engine results and reject missing observations/design,
+missing daylight, invalid CRS/radii and overlapping curve tangents. Complete
+ground profiles survive the legacy-mirror reload, and CSV exports preserve
+negative numeric offsets. Cross-section drawing bounds and stale supplied-area
+handling are repaired. The final source check passes 411 tests across 40 suites,
+strict app/test types and scoped lint. See
+[the five-family upgrade matrix](SURVEY_WORKFLOW_UPGRADE_MATRIX.md) for details
+and remaining cadastral, engineering, road, construction and topographical gates.
+
+These corrections are not promoted. The read-only Docker verifier remains
+healthy with one application. The owned host preview remains in use, but CUA
+navigation was blocked by the browser client; visual/native/field proof remains
+open. The legacy simplified overhaul estimate still needs separate review.
