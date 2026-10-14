@@ -466,3 +466,14 @@ project criteria. The project plumb-record API uses that default and derives
 height only from optional RLs. These are confirmed remaining implementation
 defects, not field-verified construction acceptance; repair the existing path
 with explicit criteria/height/reference evidence while preserving old records.
+
+Source checkpoint `74d353dee1e69d63253a56822e1a90fbeb9772d1` (implementation
+`9c4acba9fb7dcff3178da04cdefaa1c5e6edadfa` plus contract-test follow-ups) was
+pushed to the existing workflow branch. Normal pre-push strict app typing,
+changed-file lint and 145 related tests across 15 suites passed. The first push
+was blocked by three stale contract assertions, then a second by an inherited
+non-null assertion; both were repaired without bypassing hooks. Local Gitleaks
+was unavailable. GitHub Gitleaks run `38542868080` completed successfully for
+this exact source revision. Read-only remote inspection matched local HEAD and
+the working tree was clean. This is source/secret-scan proof, not full main/PR
+CI, PostgreSQL migration execution, production promotion or physical field proof.
