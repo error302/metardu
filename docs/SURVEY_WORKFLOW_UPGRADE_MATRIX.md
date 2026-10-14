@@ -254,3 +254,11 @@ result and still require the exact expected areas; no mathematical assertion or
 hook is bypassed. The sequential 141-test run had already passed. Parallel hook
 verification must pass before the source push is considered complete.
 The same parallel related-test command then passed **32 tests across six suites**.
+The normal push retry also passed strict app typing, changed-file lint and those
+32 related tests, with no hook bypass. Source/evidence commits through
+`0f1831a613404e54546ccdfc88f76fee372a1bf0` were pushed successfully; the working
+tree was clean and local HEAD matched the remote-tracking branch. GitHub's
+separate [Gitleaks run](https://github.com/error302/metardu/actions/runs/38487738533)
+reported success for that exact commit. Local Gitleaks remains unavailable; no
+scanner baseline/suppression was added. This is source-push/secret-scan evidence,
+not promotion or full platform/field acceptance.
