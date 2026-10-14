@@ -535,3 +535,15 @@ direct read-only inspection confirmed the Docker Desktop Linux-engine named pipe
 was absent. Current container health/inventory is therefore unverified, rather
 than inferred from the prior checkpoint. No service start, image build, container,
 builder, migration, cleanup or production lifecycle action was performed.
+
+Source checkpoint `e4b8f2b0dcf004be21cd071cf2ffd5d2f40ee2ed` was pushed to
+the existing workflow branch. Normal pre-push strict app typing, changed-file
+lint and 174 related tests across 17 suites passed, including the final matching
+concurrent-delivery test. Strict test typing passed separately after that test
+was added. Local Gitleaks was unavailable; GitHub Gitleaks run `38547577504`
+completed successfully for this exact source revision. Local HEAD matched the
+read-only remote query and the working tree was clean. The initial Git write
+attempt did not execute because approval review disconnected; the same reviewed
+action succeeded on retry. No hook, scanner or permission-review bypass was used.
+This checkpoint does not prove full main/PR CI, migration execution, live or field
+acceptance; the remaining workflow and release gates above are still required.
