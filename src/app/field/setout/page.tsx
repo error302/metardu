@@ -14,6 +14,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
+import ColumnPlumbCollector from '@/components/field/ColumnPlumbCollector'
 import { useSearchParams } from 'next/navigation'
 import { ArrowLeft, Check, ChevronRight, Radio, Ruler, TriangleAlert } from 'lucide-react'
 import {
@@ -77,6 +78,13 @@ function downloadRejectedShots(shots: QueuedSetoutShot[]): boolean {
 }
 
 export default function FieldSetOutPage() {
+  const params = useSearchParams()
+  return params?.get('mode') === 'plumb'
+    ? <ColumnPlumbCollector projectId={params?.get('projectId') ?? ''} />
+    : <PointSetOutCollector />
+}
+
+function PointSetOutCollector() {
   const params = useSearchParams()
   const projectId = params?.get('projectId') ?? ''
   const requestedDefinitionId = params?.get('definitionId') ?? ''

@@ -547,3 +547,64 @@ attempt did not execute because approval review disconnected; the same reviewed
 action succeeded on retry. No hook, scanner or permission-review bypass was used.
 This checkpoint does not prove full main/PR CI, migration execution, live or field
 acceptance; the remaining workflow and release gates above are still required.
+
+### Column-plumb field collector follow-up — 14 October 2026
+
+The existing `/field/setout` route now has a `mode=plumb` collector, reached from
+the selected project's field workflows. The normal point collector is preserved.
+This form starts with blank observations, criteria and uncertainty, requires the
+declared project reference, and delegates its numerical preview to the existing
+versioned engineering authority. Invalid/partly entered values cannot become
+zero. Missing evidence can be explicitly recorded as unassessed. Entered grid
+coordinates and applicable limits govern; the preview does not apply a
+grid-to-ground correction, statistical confidence model or construction approval.
+Display rounding does not change the captured/exported values.
+
+Each validated observation receives a stable UUID and its own device-storage key
+before delivery. Device records and unfinished form drafts are scoped to the
+signed-in account and project. Account/project changes remount the collector;
+late reference responses cannot populate another job. The backend also rejects a
+queued reading's `capturedBy` if it differs from the authenticated account. A
+double tap is locked so it cannot create two separate captures. Reading-specific
+coordinates, time, uncertainties and reference confirmation reset for the next
+reading, while the entered project specification and instrument setup remain.
+
+Network failures, expired authentication, throttling and schema-not-ready
+responses keep the original queued reading. Permanent server refusals/conflicts
+remain on the device for review. A successful HTTP flag alone cannot confirm a
+save: the returned server ID and parsed capture must match the original evidence.
+Retries preserve the original time, values, criteria and UUID. Device quota
+failure blocks delivery and leaves the measured values in the form. Unreadable
+records/drafts are not silently overwritten or discarded. Explicit device
+backups include scoped raw entries and the visible form even when storage cannot
+be read. No existing CAD/field-book database or customer record is rewritten.
+
+An unavailable connection can use the previously loaded project reference only
+after explicit cached-reference review. Its age/basis appears in the form and
+capture notes. A definitive 401/403/404 reference refusal cannot fall back to a
+cache to enable new capture. Server ownership and current reference checks still
+govern delivery. This proves source-level persistence/delivery behavior in an
+authenticated field view; cold offline authentication, browser storage recovery,
+real device operation and actual network/session transitions still require
+verification. Local drafts are not server-register or certified field evidence.
+
+Device CSV exports retain exact numeric E/N/RL, signed levels, full observation
+and criteria/reference/uncertainty/time metadata, source identity and explicit
+device-only versus server-confirmed draft status. Textual spreadsheet formulas
+are neutralized without converting negative numeric levels into text. UTF-8 BOM
+and an independent native Papa Parse round trip verify column names, negative
+levels, raw precision and missing-value blanks. JSON backs up complete scoped
+device entries and unfinished forms. Native PDF/HTML and full saved plumb-history
+reports remain the next output pass; these device exports do not substitute for
+an independently reviewed construction handover.
+
+Final focused source checks: 99 tests across 10 suites and both strict TypeScript
+projects pass, with changed-source lint/whitespace checks. The tests exercise
+the real React form and browser Storage API under jsdom, with external auth,
+network and PostgreSQL mocked. They do not prove live browser rendering, actual
+download completion, applied SQL constraints, hardware or field acceptance.
+Global app navigation, the canonical theme tokens and its primary content
+landmark are retained; no new dependency, container, image or builder is added.
+Fresh normal/reviewed `docker:verify` still failed to access Docker. No service
+lifecycle action, database migration, promotion or cleanup was performed.
+Migration 107 and the existing migration/recovery/rollback gates remain open.

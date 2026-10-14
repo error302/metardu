@@ -227,3 +227,18 @@ persistent device drafts/offline delivery and plumb report/CSV outputs still nee
 connection to this repaired API. Fresh Docker verification failed: its Linux
 engine pipe was absent, so this check does not confirm current container health.
 No container, image, service lifecycle or customer-data change occurred.
+
+Plumb collector follow-up: the existing field/set-out route now exposes the
+account/project-scoped column form, persistent device-first capture, stable retry
+delivery and recovery backups. Unknown inputs remain blank/INFO; no default
+criteria, time or uncertainty is inferred. Double taps are locked, observation
+uncertainties reset, access refusals cannot activate a cached reference, and the
+server rejects delivery under a different capturing account. CSV preserves exact
+precision/negative numeric levels and distinguishes device-only records; JSON
+backs up scoped raw entries and the visible form. A native CSV parser round trip,
+99 focused tests across 10 suites and strict app/test typing pass. These are
+source/jsdom/mock-network checks, not browser, applied-PostgreSQL or field proof.
+Full saved plumb-history/native report outputs, cold offline authentication and
+real device/session checks remain open. Migration 107 is still unapplied, Docker
+access remains unavailable, and no production lifecycle or dependency change
+occurred. Follow the survey upgrade matrix for the continuing full scope.

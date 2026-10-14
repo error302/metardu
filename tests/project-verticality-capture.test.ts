@@ -67,6 +67,11 @@ test('unknown actions cannot fall through into plumb observation writes', async 
   expect(response.status).toBe(400)
   expect(query.mock.calls.some(([sql]) => String(sql).includes('INSERT INTO verticality_readings'))).toBe(false)
 })
+test('a queued reading cannot be delivered under a different signed-in account', async () => {
+  const response = await POST(request({ ...body, capturedBy: 'bob' }), context())
+  expect(response.status).toBe(403)
+  expect(calls().some(([sql]) => sql.includes('INSERT INTO verticality_readings'))).toBe(false)
+})
 test('a matching concurrent insert returns the saved reading without a duplicate record', async () => {
   const snapshot = createVerticalityCapture({ projectId: 'project-1', definitionId: null, label: body.label, level: null, horizontalCrs: fixtureCrs, capturedCrs: null, verticalDatum: null, capturedVerticalDatum: null, capturedAt: body.capturedAt, base: { easting: body.baseEasting, northing: body.baseNorthing, rl: null }, top: { easting: body.topEasting, northing: body.topNorthing, rl: null }, horizontalUncertaintyM: null, heightUncertaintyM: null, criteria: null, instrument: null, notes: null })
   const implementation = query.getMockImplementation()

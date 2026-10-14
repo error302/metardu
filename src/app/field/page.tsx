@@ -102,7 +102,6 @@ export default function FieldPage() {
       .eq('user_id', userId)
       .order('created_at', { ascending: false })) as { data: FieldProject[] | null; error: unknown }
     if (data) setProjects(data)
-    if (data) setProjects(data)
   }, [dbClient])
 
   const fetchProjectPoints = useCallback(async (projectId: string) => {
@@ -770,7 +769,7 @@ export default function FieldPage() {
 
         {activeTab === 'map' && (
           <div className="space-y-3 h-full flex flex-col">
-            <h2 className="text-xs font-semibold text-white uppercase tracking-wide">GPS Field Collection</h2>
+            <h2 className="text-xs font-semibold text-white uppercase tracking-wide">Field survey workflows</h2>
             <div className="grid grid-cols-2 gap-2">
               <button onClick={() => router.push('/field/map')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Offline Maps</button>
               <button onClick={() => router.push('/field/collect')} className="w-full py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] rounded text-xs font-bold text-center">Collect Beacons</button>
@@ -784,6 +783,7 @@ export default function FieldPage() {
               >
                 Set Out Points
               </button>
+              <button disabled={!selectedProject} onClick={() => router.push(`/field/setout?projectId=${encodeURIComponent(selectedProject)}&mode=plumb`)} className="min-h-11 w-full rounded bg-[var(--bg-tertiary)] py-3 text-center text-xs font-bold text-[var(--text-primary)] disabled:opacity-40">Column Plumb Checks</button>
             </div>
             <div className="mt-4 p-4 rounded-xl bg-amber-900/30 border border-amber-700 text-amber-300 text-sm">
               <strong>Kenya Survey Regulations 1994:</strong> All GPS coordinates collected in the field must be verified against control beacons before submission. Field data is a draft — not a final survey.

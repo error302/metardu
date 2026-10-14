@@ -87,6 +87,7 @@ interface ObservationBody {
 }
 
 interface VerticalityBody {
+  capturedBy?: string
   clientReadingId?: string
   capturedAt?: string | null
   capturedCrs?: string | null
@@ -1224,6 +1225,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   }
 
   // record_verticality
+  if (body.capturedBy !== undefined && body.capturedBy !== userId) {
+    return NextResponse.json({ error: 'This device reading belongs to a different account. Sign in to the capturing account to deliver it.', code: 'CAPTURE_ACCOUNT_MISMATCH' }, { status: 403 });
+  }
   const baseE = num(body.baseEasting);
   const baseN = num(body.baseNorthing);
   const topE = num(body.topEasting);
