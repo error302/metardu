@@ -272,7 +272,7 @@ export function DrainageStep1Manholes({
     <div className="space-y-6">
       <div>
         <h3 className="mb-1 text-lg font-semibold text-white">Manholes and survey inputs</h3>
-        <p className="text-sm text-zinc-400">Enter surveyed chainage, projected coordinates, cover-top RL, pipe inverts and product dimensions. Outgoing pipe properties and optional alignment vertices belong to the run starting at that manhole. Blank fields remain unset; no spacing or levels are assumed.</p>
+        <p className="text-sm text-zinc-400">Enter surveyed chainage, projected coordinates, cover-top RL, internal pipe inverts and actual product dimensions. Invert RL means the bottom inside the pipe. Outside crown uses actual internal diameter plus one wall thickness for circular concentric pipes. Outgoing pipe properties and optional alignment vertices belong to the run starting at that manhole. Blank fields remain unset; no spacing or levels are assumed.</p>
       </div>
 
       <section className="grid grid-cols-1 gap-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4 sm:grid-cols-2 xl:grid-cols-4">

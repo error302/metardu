@@ -13,7 +13,7 @@ const validManholes = (): Manhole[] => [
 
 describe('project drainage run calculations', () => {
   it('records design fall along the generated alignment without assessing unmeasured ground', () => {
-    const result = generateProjectDrainageSetout({ projectCrs: 'EPSG:21037', minimumCoverM: 1.2,
+    const result = generateProjectDrainageSetout({ projectCrs: SRID_21037, minimumCoverM: 1.2,
       setoutIntervalM: 50, manholes: validManholes() })
     expect(result.issues).toEqual([])
     expect(drainagePipeGradeContext(result.stations).get('MH-A-MH-B')).toEqual({
@@ -122,7 +122,8 @@ describe('project drainage run calculations', () => {
     })
     expect(result.issues).toEqual([])
     expect(result.stations).toHaveLength(3)
-    expect(result.stations[0]).toMatchObject({ runChainageM: 100, easting: 500000, northing: 9800000, invertLevelM: 100, crownLevelM: 100.315, coverAssessment: 'Meets entered criterion at measured manhole' })
+    // 300 mm ID + 7.5 mm wall above the internal invert, not the full 315 mm OD.
+    expect(result.stations[0]).toMatchObject({ runChainageM: 100, easting: 500000, northing: 9800000, invertLevelM: 100, crownLevelM: 100.3075, coverAssessment: 'Meets entered criterion at measured manhole' })
     expect(result.stations[1]).toMatchObject({ runChainageM: 150, easting: 500050, northing: 9800000, invertLevelM: 99.5, groundStatus: 'Not surveyed at intermediate station', coverAssessment: 'Not assessed between surveyed manholes' })
     expect(result.stations[1].coverAboveCrownM).toBeUndefined()
     expect(result.stations[2].coverAssessment).toBe('Meets entered criterion at measured manhole')
@@ -250,6 +251,9 @@ describe('project drainage run calculations', () => {
     expect(result.issues).toEqual([])
     expect(result.stations).toHaveLength(3)
     expect(result.stations[1]).toMatchObject({ easting: 500050, northing: 9800000, invertLevelM: 99.5 })
+    expect(result.stations[0].crownLevelM).toBeNull()
+    expect(result.stations[0].coverAboveCrownM).toBeUndefined()
+    expect(result.stations[0].coverAssessment).toBe('Not assessed: internal diameter unknown')
   })
 
   it('blocks gravity pipe set-out when the downstream invert is not lower', () => {

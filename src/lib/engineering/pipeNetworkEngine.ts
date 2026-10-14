@@ -5,13 +5,16 @@
  * Rational Method runoff calculation, and AutoCAD DXF export.
  * These are engineering calculations, not a standards-compliance certificate.
  */
+import { outsideCrownRiseM, coverBelowMinimum } from './pipeGeometry'
 
 export interface Manhole {
   id: string;
   easting?: number;
   northing?: number;
   groundLevel?: number;
+  /** Internal bottom invert RL, not the outside pipe-bottom RL. */
   invertIn?: number;
+  /** Internal bottom invert RL, not the outside pipe-bottom RL. */
   invertOut?: number;
   /** User-supplied local-loss coefficient for the junction; required for pressure HGL between reaches. */
   junctionLossK?: number;
@@ -115,7 +118,8 @@ export interface PipeSetoutStation {
   easting: number;
   northing: number;
   invertLevelM: number;
-  crownLevelM: number;
+  /** Null when internal geometry is unknown in an invert-only field schedule. */
+  crownLevelM: number | null;
   groundLevelM?: number;
   coverAboveCrownM?: number;
   groundStatus: 'Measured at manhole' | 'Not surveyed at intermediate station';
@@ -176,6 +180,10 @@ export function validatePipeNetwork(
     if (pipe.fromId === pipe.toId) issues.push(`${label}: upstream and downstream manholes must differ.`);
     if (options.requireDiameter !== false && (!Number.isFinite(pipe.diameterMm) || pipe.diameterMm <= 0)) {
       issues.push(`${label}: hydraulic internal diameter must be greater than zero.`);
+    }
+    if (pipe.outsideDiameterMm !== undefined && Number.isFinite(pipe.diameterMm) && pipe.diameterMm > 0) {
+      try { outsideCrownRiseM(pipe.diameterMm, pipe.outsideDiameterMm) }
+      catch (error) { issues.push(`${label}: ${error instanceof Error ? error.message : String(error)}`) }
     }
     if (pipe.manningN !== undefined && (!Number.isFinite(pipe.manningN) || pipe.manningN <= 0)) {
       issues.push(`${label}: Manning roughness must be finite and greater than zero.`);
@@ -377,7 +385,8 @@ export function generatePipeSetoutStations(
       if (!Number.isFinite(pipe.outsideDiameterMm) || (pipe.outsideDiameterMm as number) <= 0) {
         throw new Error(`${pipe.id}: enter the manufacturer's outside diameter before generating physical set-out levels.`);
       }
-      const crownLevelM = invertLevelM + (pipe.outsideDiameterMm as number) / 1000;
+      const crownLevelM = Number.isFinite(pipe.diameterMm) && pipe.diameterMm > 0
+        ? invertLevelM + outsideCrownRiseM(pipe.diameterMm, pipe.outsideDiameterMm as number) : null;
       const coordinate = alignmentPointAt(alignment, pipeChainageM);
       stations.push({
         pipeId: pipe.id,
@@ -389,7 +398,7 @@ export function generatePipeSetoutStations(
         invertLevelM,
         crownLevelM,
         groundLevelM,
-        coverAboveCrownM: groundLevelM === undefined ? undefined : groundLevelM - crownLevelM,
+        coverAboveCrownM: groundLevelM === undefined || crownLevelM === null ? undefined : groundLevelM - crownLevelM,
         groundStatus: groundLevelM === undefined ? 'Not surveyed at intermediate station' : 'Measured at manhole',
       });
     });
@@ -663,7 +672,7 @@ export function calculatePipeCover(
       message: "Cover is not assessed until the manufacturer's outside diameter is supplied.",
     };
   }
-  const dM = (pipe.outsideDiameterMm as number) / 1000;
+  const dM = outsideCrownRiseM(pipe.diameterMm, pipe.outsideDiameterMm as number);
   const glUp = fromMh.groundLevel as number;
   const invUp = fromMh.invertOut as number;
   const crownUp = invUp + dM;
@@ -681,18 +690,18 @@ export function calculatePipeCover(
     ? 'Cover depth is calculated; enter the project minimum cover to assess it.'
     : `Cover meets the entered project requirement of ${requiredCoverM.toFixed(2)} m.`;
 
-  if (minCover < 0) {
+  if (coverBelowMinimum(minCover, 0, glUp, glDown, invUp, invDown)) {
     status = 'Daylight';
     message = 'CRITICAL: Pipe crown daylights above ground level!';
-  } else if (requiredCoverM !== undefined && minCover < requiredCoverM) {
+  } else if (requiredCoverM !== undefined && coverBelowMinimum(minCover, requiredCoverM, glUp, glDown, invUp, invDown)) {
     status = 'Below Criterion';
     message = `Cover is below the entered project requirement of ${requiredCoverM.toFixed(2)} m.`;
   }
 
   return {
-    coverUpstream: Math.round(coverUp * 100) / 100,
-    coverDownstream: Math.round(coverDown * 100) / 100,
-    minCover: Math.round(minCover * 100) / 100,
+    coverUpstream: coverUp,
+    coverDownstream: coverDown,
+    minCover,
     status,
     requiredCoverM,
     message,
@@ -804,7 +813,7 @@ export function autoGradeNetwork(
 ): { manholes: Manhole[]; adjustedCount: number; issues: string[] } {
   const { targetSlopePercent, minCoverM, manholeDropM } = options;
   const updatedMh: Manhole[] = manholes.map((m) => ({ ...m }));
-  const issues = validateLinearPipeRoute(manholes, pipes, { requireInverts: false, requireDesignFlow: false, requireDiameter: false });
+  const issues = validateLinearPipeRoute(manholes, pipes, { requireInverts: false, requireDesignFlow: false });
   if (!Number.isFinite(targetSlopePercent) || targetSlopePercent <= 0) issues.push('Target slope must be greater than zero.');
   if (!Number.isFinite(minCoverM) || minCoverM <= 0) issues.push('Project minimum cover must be greater than zero.');
   if (!Number.isFinite(manholeDropM) || manholeDropM < 0) issues.push('Manhole drop must be finite and non-negative.');
@@ -820,7 +829,7 @@ export function autoGradeNetwork(
   if (!firstPipe || !Number.isFinite(updatedMh[0].groundLevel)) {
     return { manholes, adjustedCount: 0, issues: ['The first manhole needs a ground level and an outgoing pipe.'] };
   }
-  const firstDiamM = (firstPipe.outsideDiameterMm as number) / 1000;
+  const firstDiamM = outsideCrownRiseM(firstPipe.diameterMm, firstPipe.outsideDiameterMm as number);
 
   let currentInvert: number;
   if (options.startInvertM !== undefined && Number.isFinite(options.startInvertM)) {
@@ -922,7 +931,7 @@ export function generateNetworkDXF(
   ];
 
   for (const l of layers) {
-    dxf += `0\nLAYER\n2\n${l.name}\n70\n0\n62\n${l.color}\n6\nCONTINUOUS\n0\n`;
+    dxf += `0\nLAYER\n2\n${l.name}\n70\n0\n62\n${l.color}\n6\nCONTINUOUS\n`;
   }
   dxf += `0\nENDTAB\n0\nENDSEC\n`;
   dxf += `0\nSECTION\n2\nENTITIES\n`;
@@ -1015,7 +1024,7 @@ export function generateNetworkDXF(
     if (m1 && m2) {
       const ch1 = mhChainages[m1.id] ?? 0;
       const ch2 = mhChainages[m2.id] ?? 0;
-      const dM = (p.outsideDiameterMm as number) / 1000;
+      const dM = outsideCrownRiseM(p.diameterMm, p.outsideDiameterMm as number);
       const inv1 = m1.invertOut as number;
       const inv2 = m2.invertIn as number;
 

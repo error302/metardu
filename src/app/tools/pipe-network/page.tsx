@@ -24,6 +24,7 @@ import {
   validateLinearPipeRoute,
 } from '@/lib/engineering/pipeNetworkEngine'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { coverBelowMinimum } from '@/lib/engineering/pipeGeometry'
 import { createPipeNetworkProjectData, type PipeNetworkProjectData } from '@/lib/engineering/pipeNetworkPersistence'
 import { PageHeader } from '@/components/shared/PageHeader'
 import {
@@ -659,9 +660,9 @@ export default function PipeNetworkPage() {
         const measuredCover = station.coverAboveCrownM
         const status = station.groundLevelM === undefined || measuredCover === undefined || coverRequirement === undefined
           ? 'Not assessed between surveyed manholes'
-          : measuredCover < 0
+          : coverBelowMinimum(measuredCover, 0, station.groundLevelM, station.invertLevelM)
             ? 'Daylight at measured manhole ground'
-            : measuredCover < coverRequirement
+            : coverBelowMinimum(measuredCover, coverRequirement, station.groundLevelM, station.invertLevelM)
               ? 'Below entered criterion at measured manhole'
               : 'Meets entered criterion at measured manhole'
         return [station.pipeId, station.stationRole, station.pipeChainageM, station.runChainageM,
@@ -672,8 +673,8 @@ export default function PipeNetworkPage() {
           coverRequirement, projectCrs.trim(), pressureHglAtStation,
           pressureReach ? 'Full-bore energy profile; entered outlet HGL and junction K' : undefined]
       })
-      const csvCell = (value: string | number | undefined) => {
-        let cell = value === undefined ? '' : String(value)
+      const csvCell = (value: string | number | null | undefined) => {
+        let cell = value === undefined || value === null ? '' : String(value)
         if (typeof value === 'string' && /^[=+@-]/.test(cell)) cell = `'${cell}`
         return `"${cell.replace(/"/g, '""')}"`
       }

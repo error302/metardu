@@ -467,7 +467,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     result.warnings.forEach(warning => coordinateWarnings.add(warning))
     for (const [index, station] of result.stations.entries()) {
       const label = `DR-${String(index + 1).padStart(5, '0')}`
-      if (![station.easting, station.northing, station.invertLevelM, station.crownLevelM].every(Number.isFinite)) {
+      if (![station.easting, station.northing, station.invertLevelM].every(Number.isFinite)
+        || station.crownLevelM !== null && !Number.isFinite(station.crownLevelM)) {
         coordinateErrors.push(`${label}: calculated station coordinates or levels are not finite.`)
         continue
       }
@@ -499,7 +500,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     const baseDefinitionMetadata = {
       source: 'project_drainage',
       sourceEngineeringHash: sourceHash,
-      generator: 'project-drainage-alignment-setout-v3',
+      generator: 'project-drainage-alignment-setout-v4',
       projectCrs: crs,
       declaredHeightReference: projectReference.verticalDatum ?? null,
       setoutIntervalM: drainage.setoutIntervalM,
@@ -514,7 +515,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         : routedSegmentCount > 0
           ? 'Stationing follows saved projected alignment vertices; segments without interior vertices are straight between saved manhole coordinates.'
           : 'Straight segments between saved manhole coordinates; no interior alignment vertices were supplied.',
-      verticalTarget: 'Pipe invert RL; crown RL is derived from the entered manufacturer outside diameter.',
+      verticalTarget: 'Internal pipe invert RL; outside crown RL = invert + (actual internal diameter + manufacturer outside diameter) / 2000 for a circular concentric pipe.',
       intermediateGround: 'Not surveyed or inferred.',
       setoutToleranceSource: toleranceProfileDraft.profile ? 'project_approved_profile' : 'METARDU_default',
     }

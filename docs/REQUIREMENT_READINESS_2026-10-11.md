@@ -268,3 +268,19 @@ or field proof. Durable offline persistence, reference binding, idempotent retri
 and measured traverse/level/radiation acceptance remain open. Current Docker
 verification still fails access, and no production promotion or additional
 container/image/dependency was created. See the workflow matrix for full details.
+
+Pipeline follow-up: the existing as-built tool now retains measured IDs, signed
+cover and downstream fall without invented values or a universal cover standard.
+A shared circular-pipe geometry authority corrects outside crown from internal
+invert across as-built, network cover, project targets, auto-grading and DXF.
+New saved field definitions identify generator v4; old definitions/observations
+remain unchanged and need review/fresh revision before crown/cover reliance.
+Strict template import, reversible full measurement CSV, evidence JSON and branded
+printable HTML now exist. Actual owned source-browser CSV/HTML downloads retain
+the synthetic observations and canonical PNG; native DXF parsing verifies corrected
+profile geometry and caught/fixed malformed layer group codes. This is source/
+synthetic proof, not production or physical field acceptance. Saved as-built design
+linkage, uncertainty/provenance, long-job print/mobile/CAD and field gates remain
+open, as does the legacy PipelinePanel integration. No production lifecycle,
+migration, dependency or additional container action occurred; Docker verification
+still fails access. The five-family workflow matrix remains the acceptance scope.

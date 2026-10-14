@@ -91,14 +91,34 @@ test('recomputes saved drainage data into a CRS-bound revisioned field set-out',
   expect(pointsInsert?.[1]).toHaveLength(26)
   expect(pointsInsert?.[1]?.[2]).toBe('DR-00001')
   const pointMetadata = JSON.parse(String(pointsInsert?.[1]?.[9])) as Record<string, unknown>
-  expect(pointMetadata).toMatchObject({ pipeId: 'MH-A-MH-B', verticalTarget: 'Pipe invert RL' })
+  expect(pointMetadata).toMatchObject({ pipeId: 'MH-A-MH-B', verticalTarget: 'Pipe invert RL', crownLevelM: null, coverAboveCrownM: null, coverAssessment: 'Not assessed: internal diameter unknown' })
   const definitionMetadata = JSON.parse(String(definitionInsert?.[1]?.[9])) as Record<string, unknown>
   expect(definitionMetadata).toMatchObject({
-    generator: 'project-drainage-alignment-setout-v3',
+    generator: 'project-drainage-alignment-setout-v4',
     routedSegmentCount: 0,
     coordinateMethod: 'Straight segments between saved manhole coordinates; no interior alignment vertices were supplied.',
   })
   expect(clientQuery).toHaveBeenCalledWith('COMMIT')
+})
+
+test('the v4 server field job records the external crown from actual internal and outside dimensions', async () => {
+  const source = drainage()
+  const design = { ...source, manholes: source.manholes.map((manhole, index) => index === 0 ? { ...manhole, pipeDiameterOut: 300 } : manhole) }
+  mockDbQuery
+    .mockResolvedValueOnce({ rows: [{ utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: design } }] })
+    .mockResolvedValueOnce({ rows: [{ project_id: 'project-1', horizontal_crs: SRID_21037 }] })
+  const query = jest.fn(async (sql: string, _values?: unknown[]) => {
+    if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-1' }] }
+    if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
+    return { rows: [] }
+  })
+  mockGetClient.mockResolvedValue({ query })
+  expect((await invoke()).status).toBe(201)
+  const calls = query.mock.calls as Array<[string, unknown[]?]>
+  const points = calls.find(([sql]) => sql.includes('INSERT INTO setout_points'))
+  const metadata = JSON.parse(String(points?.[1]?.[9])) as Record<string, unknown>
+  expect(metadata.crownLevelM).toBeCloseTo(100.3075, 10)
+  expect(metadata.coverAboveCrownM).toBeCloseTo(1.6925, 10)
 })
 
 test('persists routed-alignment provenance and stations a bent drainage run in the field job', async () => {
@@ -145,7 +165,7 @@ test('persists routed-alignment provenance and stations a bent drainage run in t
   const body = await response.json() as { data: { definitionId: string; pointCount: number; coordinateWarnings: string[] } }
   expect(body).toMatchObject({ data: { definitionId: 'definition-bent', pointCount: 5 } })
   expect(metadata).toMatchObject({
-    generator: 'project-drainage-alignment-setout-v3',
+    generator: 'project-drainage-alignment-setout-v4',
     routedSegmentCount: 1,
     mapAlignmentSegmentCount: 1,
   })

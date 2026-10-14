@@ -195,11 +195,11 @@ describe('pipeNetworkEngine', () => {
       manholeDropM: 0.03, // 30mm benching drop
     })
 
-    // Starting crown cover uses manufacturer outside diameter, not hydraulic internal diameter.
-    expect(graded[0].invertOut).toBeCloseTo(103.485, 3)
-    expect(graded[1].invertIn).toBeCloseTo(102.985, 3)
-    expect(graded[1].invertOut).toBeCloseTo(102.955, 3)
-    expect(graded[2].invertIn).toBeCloseTo(102.455, 3)
+    // Exact start = 105 - 1.2 - (300 + 315) / 2000 = 103.4925, displayed to millimetres.
+    expect(graded[0].invertOut).toBeCloseTo(103.492, 3)
+    expect(graded[1].invertIn).toBeCloseTo(102.992, 3)
+    expect(graded[1].invertOut).toBeCloseTo(102.962, 3)
+    expect(graded[2].invertIn).toBeCloseTo(102.462, 3)
   })
 
   it('uses developed alignment length for hydraulic grade and auto-grading', () => {
@@ -310,7 +310,8 @@ describe('pipeNetworkEngine', () => {
     expect(stations.map(station => station.pipeChainageM)).toEqual([0, 4, 8, 10])
     expect(stations[1].easting).toBeCloseTo(104)
     expect(stations[1].invertLevelM).toBeCloseTo(9.6)
-    expect(stations[1].crownLevelM).toBeCloseTo(9.92)
+    // Crown rise above internal invert = (300 + 320) / 2000 = 0.310 m.
+    expect(stations[1].crownLevelM).toBeCloseTo(9.91, 8)
     expect(stations[1].runChainageM).toBeCloseTo(1004)
     expect(stations[1].groundLevelM).toBeUndefined()
     expect(stations[1].coverAboveCrownM).toBeUndefined()

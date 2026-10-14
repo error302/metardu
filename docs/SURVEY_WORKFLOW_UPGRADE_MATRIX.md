@@ -748,3 +748,85 @@ and idempotent retries; stricter quick traverse/level/radiation entry and actual
 reductions; live PostgreSQL, browser/mobile and physical instrument checks.
 The matrix's cadastral, engineering, road, construction and topographical
 acceptance work remains open; this repair does not declare the platform finished.
+
+## Pipeline as-built and shared outside-crown repair — 14 October 2026
+
+The old `/tools/pipeline-asbuilt` path invented zeros and a 300 mm diameter from
+blank/bad CSV, clamped exposed cover to zero, assigned an unexplained 0.6 m
+criterion and an unspecified Kenyan standards claim, and left the final grade
+as a fabricated zero. Its report/export/reopen workflow was incomplete.
+
+It now uses a versioned engineering authority through the existing module export,
+explicit observation IDs, strictly ordered chainages and finite measured internal
+invert RLs. Ground and actual internal/manufacturer outside diameters are optional
+unknowns. Cover stays signed, and the final row has no next-segment grade. Entered
+cover comparisons require a positive minimum plus specification reference and
+revision; absence means NOT ASSESSED. Numerical comparison is separate from
+control, observation uncertainty, design compliance and contractual acceptance.
+
+For circular concentric pipes, the outside crown above an **internal bottom
+invert** is internal diameter plus one wall thickness: `(ID + OD) / 2000` metres.
+The earlier standalone code used only ID, while the network/project set-out,
+auto-grading and DXF profile paths used the whole OD above the internal invert.
+Those paths now share `pipeGeometry.ts`. This geometry is consistent with the
+[Autodesk depth-to-invert expressions](https://help.autodesk.com/cloudhelp/2026/ENU/Civil3D-UserGuide/files/GUID-D1B45DF0-8A61-47BE-8F3E-D97897ECAC71.htm),
+which distinguish cover, internal diameter and wall thickness; the relationship
+is not a jurisdiction-specific minimum-cover approval. Outside diameter smaller
+than internal diameter is rejected. Machine-roundoff handling is separate from
+measurement uncertainty; raw calculated cover is retained without centimetre
+rounding in the engineering result.
+
+Invert-only project targets remain available when internal diameter is unknown;
+crown and cover remain null/unassessed and a review warning is returned. New field
+definition metadata uses generator `project-drainage-alignment-setout-v4`, with
+the explicit internal-invert convention. Old definitions, shots and applied
+migrations were not rewritten. Before production/field reliance, review earlier
+v3 crown/cover outputs and create a fresh revision from the saved design; an old
+record must not be silently re-labelled as a current corrected calculation.
+
+The existing as-built page now imports an explicit template, rejects incomplete
+or unsupported batches atomically, invalidates results/exports on input edits,
+and provides full CSV, raw-evidence JSON and offline printable HTML. Report CSV
+reopens original measurements while ignoring previously calculated columns.
+Spreadsheet formula protection has per-row escape markers so genuine leading
+apostrophes and formula-like observation IDs can be restored exactly. Metadata
+and project criteria require review/re-entry when importing measurement CSV;
+that file does not independently verify the declared reference or specification.
+HTML escapes entered text, retains all observations/unknowns/notes and embeds the
+canonical company PNG; browser print/Save as PDF is offered without claiming a
+new native PDF compiler or certified issued sheet.
+
+Actual CUA checks on the existing owned `127.0.0.1:3021` source preview confirmed
+the blank-start page and synthetic two-point example: crown 10.350 m, signed
+cover -0.150 m, downstream fall +1.000%, and no inferred cover criterion. Native
+browser CSV and HTML downloads were independently read from disk: both rows,
+blank final grade, signed cover and NOT ASSESSED values were retained, and the
+embedded PNG hashes identically to `public/metardu-icon.png`. Ignored reusable
+`.cache/release-verify/pipeline-asbuilt.*` files are **synthetic verification only**.
+The initial browser navigation timed out; the same tab subsequently loaded, and
+the existing preview was reused without restarting it. The localhost training
+drawing was not opened or modified.
+
+Native DXF parsing additionally exposed an extra group code in every layer record;
+the invalid stream was fixed. Independent fixture geometry verifies the exported
+profile crown and declared metre units, rather than relying on substring presence.
+Engine, CSV/HTML, page DOM, network, project engine/API and both drainage UI steps
+have focused regressions. No production promotion, new Docker container/image/
+builder, migration or dependency installation occurred. Docker verification again
+failed access, so current stack health remains unknown.
+
+Remaining pipeline gates: full saved as-built linkage to project design/control,
+measurement/device/time/uncertainty provenance, live schema and persistence,
+browser/mobile/printed-page checks over long jobs, CAD-application reopening,
+approved route/design and actual field/control/utility/cover validation.
+The legacy `PipelinePanel` still contains local preset/placeholder route/profile
+inputs and should be integrated with these saved project workflows in the next
+source pass; it must not imply issued set-out or QA from those placeholders.
+
+Final source verification for this batch: 102 tests across ten explicit-path
+suites passed, with the new API case and unchanged UI regression rechecked after
+the final edits. Both full strict TypeScript projects passed. Changed-file lint
+passed after replacing test CRS literals with the established fixture constant.
+Fresh public `/api/health` returned Cloudflare HTTP 530; public delivery and Docker
+health must be restored/verified before promotion. A source/native download check
+does not resolve this live uptime gate.

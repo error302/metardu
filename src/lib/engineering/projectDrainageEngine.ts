@@ -1,4 +1,5 @@
 import { manningPipeCapacity, MANNING_N } from './drainageDesign'
+import { coverBelowMinimum } from './pipeGeometry'
 import type { DrainageData, Manhole, PipeMaterial, PipeRun } from '@/types/engineering'
 import { assertProjectedCrs, resolveEpsg, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { isDrainageMapAlignmentSource } from './drainageAlignment'
@@ -23,7 +24,7 @@ export interface ProjectDrainageCalculation {
 }
 
 export interface ProjectDrainageSetoutStation extends PipeSetoutStation {
-  coverAssessment: 'Not assessed between surveyed manholes' | 'Daylight at measured manhole' | 'Below entered criterion at measured manhole' | 'Meets entered criterion at measured manhole'
+  coverAssessment: 'Not assessed between surveyed manholes' | 'Not assessed: internal diameter unknown' | 'Daylight at measured manhole' | 'Below entered criterion at measured manhole' | 'Meets entered criterion at measured manhole'
 }
 
 export interface ProjectDrainageSetout {
@@ -154,6 +155,11 @@ export function generateProjectDrainageSetout(data: DrainageData): ProjectDraina
     }
     if (index < data.manholes.length - 1) {
       const downstreamManhole = data.manholes[index + 1]
+      if (manhole.pipeDiameterOut !== undefined && (!Number.isFinite(manhole.pipeDiameterOut) || manhole.pipeDiameterOut <= 0)) {
+        issues.push(`${label}: actual internal diameter must be positive when supplied.`)
+      } else if (manhole.pipeDiameterOut === undefined) {
+        warnings.add(`${label}: actual internal diameter is unknown; invert targets remain available but outside crown and cover cannot be assessed.`)
+      }
       if (!Number.isFinite(manhole.invertLevelOut)) issues.push(`${label}: enter the upstream outgoing invert RL.`)
       if (!Number.isFinite(downstreamManhole?.invertLevelIn)) {
         issues.push(`${downstreamManhole?.name || `Manhole ${index + 2}`}: enter the downstream incoming invert RL.`)
@@ -230,11 +236,13 @@ export function generateProjectDrainageSetout(data: DrainageData): ProjectDraina
       { requireDiameter: false, requireDesignFlow: false, requireInverts: false },
     ).map(station => ({
       ...station,
-      coverAssessment: station.groundLevelM === undefined || station.coverAboveCrownM === undefined
+      coverAssessment: station.crownLevelM === null
+        ? 'Not assessed: internal diameter unknown' as const
+        : station.groundLevelM === undefined || station.coverAboveCrownM === undefined
         ? 'Not assessed between surveyed manholes' as const
-        : station.coverAboveCrownM < 0
+        : coverBelowMinimum(station.coverAboveCrownM, 0, station.groundLevelM, station.invertLevelM)
           ? 'Daylight at measured manhole' as const
-          : station.coverAboveCrownM < (data.minimumCoverM as number)
+          : coverBelowMinimum(station.coverAboveCrownM, data.minimumCoverM as number, station.groundLevelM, station.invertLevelM)
             ? 'Below entered criterion at measured manhole' as const
             : 'Meets entered criterion at measured manhole' as const,
     }))

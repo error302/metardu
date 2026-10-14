@@ -6,7 +6,7 @@ import type { DrainageData } from '@/types/engineering'
 import { calculateProjectDrainageRuns, generateProjectDrainageSetout } from '@/lib/engineering/projectDrainageEngine'
 import { PipeFlowScreening } from './PipeFlowScreening'
 
-const rl = (value: number | undefined) => Number.isFinite(value) ? (value as number).toFixed(3) : '—'
+const rl = (value: number | null | undefined) => Number.isFinite(value) ? (value as number).toFixed(3) : '—'
 
 /** Review saved field inputs and the calculated single-run schedule. */
 export function DrainageStep3Outputs({ data, projectId }: { data: DrainageData | null; projectId: string }) {
@@ -118,6 +118,7 @@ export function DrainageStep3Outputs({ data, projectId }: { data: DrainageData |
       <section className="space-y-3 rounded-lg border border-zinc-700 p-4">
         <div>
           <h4 className="mb-1 font-medium text-white">Pipe invert and crown set-out schedule</h4>
+          <p className="text-xs text-zinc-400">Invert is the bottom inside the pipe. For circular concentric pipes, outside crown = internal invert + (actual internal diameter + outside diameter) / 2000. Missing internal geometry leaves crown and cover unknown.</p>
           <p className="text-xs text-zinc-400">CRS: {data?.projectCrs || 'not set'} · {data?.setoutIntervalM ? `interval ${data.setoutIntervalM} m` : 'interval not set'} · coordinates follow entered pipe alignment vertices; a straight run is used when none are entered.</p>
           <p className="mt-1 text-xs text-amber-200">Cover is checked only at manholes using the entered cover-top RL. Ground and cover at intermediate stations are not surveyed or inferred.</p>
         </div>
@@ -172,7 +173,7 @@ export function DrainageStep3Outputs({ data, projectId }: { data: DrainageData |
                 <td className="px-3 py-2 text-right text-zinc-300">{station.easting.toFixed(3)}</td>
                 <td className="px-3 py-2 text-right text-zinc-300">{station.northing.toFixed(3)}</td>
                 <td className="px-3 py-2 text-right text-zinc-300">{station.invertLevelM.toFixed(3)}</td>
-                <td className="px-3 py-2 text-right text-zinc-300">{station.crownLevelM.toFixed(3)}</td>
+                <td className="px-3 py-2 text-right text-zinc-300">{rl(station.crownLevelM)}</td>
                 <td className="px-3 py-2 text-right text-zinc-300">{rl(station.coverAboveCrownM)}</td>
                 <td className="px-3 py-2 text-zinc-300">{station.coverAssessment}</td>
               </tr>)}</tbody>
