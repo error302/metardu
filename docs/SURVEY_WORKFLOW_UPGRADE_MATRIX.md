@@ -395,3 +395,11 @@ tolerance fallback, approved design/control/benchmark provenance, independently
 observed checks and versioned as-built acceptance require the next pass. No
 automatic relabelling of prior registered targets, migration hash changes,
 statutory/construction certification or full platform-readiness claim is made.
+
+Source checkpoint `10ca818fd45eb3b203768d801edf7416a06e009f` was pushed to the
+existing `codex/metardu-workflow-readiness-2026-10-12` branch. Normal pre-push
+checks passed strict app typing, changed-file lint and 75 related tests across
+eight suites, in addition to the focused source checks above. No hook bypass was
+used. Local Gitleaks was unavailable; GitHub's separate scan was in progress at
+the first post-push observation. The working tree was clean and local HEAD
+matched the remote-tracking branch. Promotion/field acceptance remains open.
