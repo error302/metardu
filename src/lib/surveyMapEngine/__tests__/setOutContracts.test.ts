@@ -75,7 +75,7 @@ describe('the set-out route is project-scoped and CRS-guarded', () => {
   })
 
   test('a plumb reading is judged and stored', () => {
-    expect(route).toMatch(/evaluateVerticality\(/)
+    expect(/createVerticalityCapture\(/.test(route)).toBe(true)
     expect(route).toMatch(/INSERT INTO verticality_readings/)
   })
 
@@ -125,7 +125,7 @@ describe('judgements never overstate certainty', () => {
   })
 
   test('a column outside the tilt ratio fails even when the offset is small', () => {
-    const result = evaluateVerticality({ baseE: 0, baseN: 0, topE: 0.02, topN: 0, heightM: 3 })
+    const result = evaluateVerticality({ baseE: 0, baseN: 0, topE: 0.02, topN: 0, heightM: 3, horizontalUncertaintyM: 0.001, heightUncertaintyM: 0.001 }, { name: 'Synthetic criteria', reference: 'Synthetic drawing', version: 'R1', maxOffsetM: 0.025, minTiltRatio: 600 })
     expect(result.offsetM).toBeCloseTo(0.02, 6)
     expect(result.result).toBe('FAIL')
   })

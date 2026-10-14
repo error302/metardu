@@ -459,13 +459,13 @@ approval review could not complete for the redirected `localhost:3021` origin.
 No review bypass, browser storage injection or CAD drawing modification occurred.
 Fresh field/browser/print/receiver checks and all wider release gates stay open.
 
-Adjacent source audit: `evaluateVerticality` currently substitutes an infinite
+Adjacent source audit at checkpoint `74d353de`: `evaluateVerticality` substituted an infinite
 tilt ratio when height is absent, permitting PASS from the absolute offset cap
 alone. Its default name also asserts a Cap. 299 standard without recorded
 project criteria. The project plumb-record API uses that default and derives
-height only from optional RLs. These are confirmed remaining implementation
-defects, not field-verified construction acceptance; repair the existing path
-with explicit criteria/height/reference evidence while preserving old records.
+height only from optional RLs. These were confirmed implementation defects,
+not field-verified construction acceptance; the follow-up below repairs the
+calculation/evidence path while preserving old records.
 
 Source checkpoint `74d353dee1e69d63253a56822e1a90fbeb9772d1` (implementation
 `9c4acba9fb7dcff3178da04cdefaa1c5e6edadfa` plus contract-test follow-ups) was
@@ -477,3 +477,61 @@ was unavailable. GitHub Gitleaks run `38542868080` completed successfully for
 this exact source revision. Read-only remote inspection matched local HEAD and
 the working tree was clean. This is source/secret-scan proof, not full main/PR
 CI, PostgreSQL migration execution, production promotion or physical field proof.
+
+### Column-plumb calculation and evidence follow-up — 14 October 2026
+
+The source engine no longer adopts default plumb limits. It requires explicit
+limits, specification reference/version, measured positive height and separately
+reported displacement/height-difference uncertainty for a numerical comparison.
+Missing height gives a NULL ratio and INFO, not an infinite ratio and PASS.
+Zero measured displacement with known height alone has an infinite ratio and no
+defined bearing. Non-finite coordinates, non-positive height, invalid criteria,
+negative uncertainties and overflow fail closed. Both the absolute cap and ratio
+must hold; FAIL identifies the actual exceeded condition, with no arbitrary
+warning band or automated grouting/remediation instruction. The retained exported
+default constant is labelled a historical example, not a Cap. 299 requirement.
+Entered uncertainties are prerequisites, not a statistical confidence model,
+independently verified instrument calibration or construction acceptance.
+
+The project API stores a versioned original capture containing exact base/top
+coordinates and RLs, declared/captured references, device time, separately
+reported uncertainties, criterion transcription and source/reviewer identity,
+instrument and notes. Height derives from top minus base; reversed or equal
+levels are rejected instead of taking an absolute value. Missing criteria,
+height/time/reference evidence is retained as INFO. Infinite versus unknown
+ratios have distinct JSON-safe representations. Snapshot parsing re-evaluates
+the declared algorithm and rejects tampered fields, while allowing JSONB object
+key reordering. These plumb snapshots are a new algorithm; existing set-out
+capture versions and old plumb rows are not rerated or rewritten.
+
+New plumb writes require a client UUID retained before delivery. Matching retries
+return the original record without another write; altered evidence conflicts.
+The unique project/delivery key and insert-conflict path handle concurrent retry
+delivery. Unknown API actions cannot fall through into a plumb write. Project
+reads preserve the recorded historical result, with a separate current numerical
+result/scope that stays INFO for historical or invalid snapshot evidence.
+The API returns a specific retryable 503 when the new capture columns are absent.
+
+Forward migration 107 adds nullable capture/delivery fields, a unique delivery
+index and structural/rounded-register coherence checks to the existing
+append-only plumb table. It is NOT executed on PostgreSQL. Old migration 075 and
+its immutability triggers remain unchanged; no customer records were backfilled.
+SQL execution/legacy-row validation, index/lock behavior, recovery and rollback
+compatibility require verification before promotion alongside migrations 105/106.
+
+Source verification: 127 focused tests across 13 suites, both strict TypeScript
+projects, changed/new source lint and whitespace checks passed. Cases cover
+analytical plumb limits, unknown/invalid inputs, JSON round trips/tampering,
+API ownership, unknown-criteria persistence, replay/conflict and schema-not-ready
+behavior, plus existing set-out capture, construction/drainage and native export
+regressions. The per-column field form is still absent; connect this repaired API
+to the field collector with persistent account-scoped drafts/offline delivery and
+native plumb report/CSV outputs next. API tests mock PostgreSQL and do not prove
+SQL constraints, receiver operation, browser rendering or physical field
+acceptance. The broader construction/as-built and five-family scope stays active.
+
+Fresh `npm run docker:verify` failed both normally and with Docker access review;
+direct read-only inspection confirmed the Docker Desktop Linux-engine named pipe
+was absent. Current container health/inventory is therefore unverified, rather
+than inferred from the prior checkpoint. No service start, image build, container,
+builder, migration, cleanup or production lifecycle action was performed.

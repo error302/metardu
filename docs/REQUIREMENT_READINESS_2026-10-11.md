@@ -212,3 +212,18 @@ host preview was restarted only after its old processes were confirmed absent;
 automatic browser approval review could not complete inspection after a login
 redirect to localhost. Browser and field acceptance remain open. Follow the
 upgrade matrix for details and the continuing five-family workflow scope.
+
+Column-plumb follow-up: source no longer treats an absent measured height as an
+infinite tilt ratio or adopts a regulatory/default plumb criterion. Explicit
+criteria, source/version, measured height and separate displacement/height
+uncertainties govern numerical comparison. The append-only API now captures exact
+observations/references/criteria under a versioned algorithm with stable delivery
+IDs, replay conflict protection and a specific migration-not-ready response.
+Historical results remain recorded, separately from current INFO/numerical scope.
+127 tests across 13 suites, both strict typing projects and changed-source lint
+pass. Migration 107 is prepared but NOT executed or promoted; PostgreSQL,
+recovery/rollback and actual field checks remain required. The per-column form,
+persistent device drafts/offline delivery and plumb report/CSV outputs still need
+connection to this repaired API. Fresh Docker verification failed: its Linux
+engine pipe was absent, so this check does not confirm current container health.
+No container, image, service lifecycle or customer-data change occurred.

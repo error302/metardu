@@ -30,10 +30,7 @@ import {
   resolveSetoutToleranceProfile,
   serializeSetoutToleranceRules,
 } from '@/lib/engineering/setoutToleranceProfile'
-import {
-  evaluateVerticality,
-  DEFAULT_VERTICALITY_STANDARD,
-} from '@/lib/engineering/verticality'
+import { createVerticalityCapture, parseVerticalityCapture, sameVerticalityEvidence, type VerticalityCaptureSnapshot } from '@/lib/field/verticalityCapture'
 import { recordEvidenceEvent } from '@/lib/observations/observationBatches'
 import { assertProjectedCrs, resolveEpsg, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
@@ -90,6 +87,13 @@ interface ObservationBody {
 }
 
 interface VerticalityBody {
+  clientReadingId?: string
+  capturedAt?: string | null
+  capturedCrs?: string | null
+  capturedVerticalDatum?: string | null
+  horizontalUncertaintyM?: number | null
+  heightUncertaintyM?: number | null
+  criteria?: unknown
   definitionId?: string
   label: string
   level?: string
@@ -319,9 +323,11 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 120, windowMs: 600
     tilt_ratio: string | null
     result: string
     observed_at: string
+    capture_snapshot: unknown
   }>(
-    `SELECT DISTINCT ON (label, level) label, level, offset_h, tilt_ratio, result, observed_at
-       FROM verticality_readings
+    `SELECT DISTINCT ON (label, level) label, level, offset_h, tilt_ratio, result, observed_at,
+            to_jsonb(v)->'capture_snapshot' AS capture_snapshot
+       FROM verticality_readings v
       WHERE project_id = $1
       ORDER BY label, level NULLS FIRST, observed_at DESC`,
     [projectId]
@@ -331,9 +337,16 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 120, windowMs: 600
     data: {
       definitions,
       register,
-      verticality,
+      verticality: verticality.map(row => {
+        const parsed = parseVerticalityCapture(row.capture_snapshot);
+        const capture = parsed?.projectId === projectId && parsed.label === row.label && parsed.level === row.level ? parsed : null;
+        return { ...row, captureSnapshot: capture, recordedResult: row.result,
+          numericalResult: capture?.assessment.result ?? 'INFO',
+          assessmentScope: capture ? 'numerical_comparison_only' : row.capture_snapshot == null ? 'historical_result_not_currently_assessed' : 'invalid_capture_evidence_not_assessed' };
+      }),
       progress: progress[0] ?? { staked: 0, fails: 0, points: 0 },
-      standard: DEFAULT_VERTICALITY_STANDARD,
+      standard: null,
+      standardSource: 'requires_recorded_project_criteria',
       tolerance: null,
       toleranceSource: 'requires_project_profile',
     },
@@ -364,6 +377,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
 
   if (!body?.action) {
     return NextResponse.json({ error: 'action is required' }, { status: 400 });
+  }
+  if (!['save_definition', 'save_drainage_definition', 'record_observation', 'record_verticality'].includes(body.action)) {
+    return NextResponse.json({ error: 'Unsupported set-out action.' }, { status: 400 });
   }
 
   // The project CRS governs: set-out coordinates without a stated reference
@@ -1229,40 +1245,75 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     }
   }
 
-  const baseRL = num(body.baseRL);
-  const topRL = num(body.topRL);
-  const derivedHeight =
-    baseRL != null && topRL != null && Math.abs(topRL - baseRL) > 0 ? Math.abs(topRL - baseRL) : null;
-
-  const check = evaluateVerticality({ baseE, baseN, topE, topN, heightM: derivedHeight });
-
-  const inserted = await db.query<{ id: string }>(
+  const baseLevel = optionalNum(body.baseRL), topLevel = optionalNum(body.topRL);
+  const horizontalUncertainty = optionalNum(body.horizontalUncertaintyM), heightUncertainty = optionalNum(body.heightUncertaintyM);
+  if (![baseLevel, topLevel, horizontalUncertainty, heightUncertainty].every(value => value.valid)) {
+    return NextResponse.json({ error: 'Optional levels and uncertainties must be finite numbers or absent.' }, { status: 400 });
+  }
+  if (typeof body.clientReadingId !== 'string' || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(body.clientReadingId)) {
+    return NextResponse.json({ error: 'Generate a stable UUID clientReadingId before recording a plumb observation.' }, { status: 400 });
+  }
+  const schemaError = (error: unknown) => {
+    const code = error && typeof error === 'object' && 'code' in error ? error.code : null;
+    return code === '42703' ? NextResponse.json({ error: 'The plumb capture migration is not ready. Retain the original reading and retry with the same clientReadingId after deployment.', code: 'VERTICALITY_CAPTURE_SCHEMA_NOT_READY' }, { status: 503 }) : null;
+  };
+  let existing: { id: string; capture_snapshot: unknown } | undefined;
+  try {
+    existing = (await db.query<{ id: string; capture_snapshot: unknown }>('SELECT id, capture_snapshot FROM verticality_readings WHERE project_id = $1 AND client_reading_id = $2', [projectId, body.clientReadingId])).rows[0];
+  } catch (error) { const response = schemaError(error); if (response) return response; throw error; }
+  const stored = existing ? parseVerticalityCapture(existing.capture_snapshot) : null;
+  if (existing && (!stored || stored.projectId !== projectId)) return NextResponse.json({ error: 'The saved reading evidence is inconsistent; review it before retrying.', code: 'VERTICALITY_REPLAY_CONFLICT' }, { status: 409 });
+  let snapshot: VerticalityCaptureSnapshot;
+  try {
+    snapshot = createVerticalityCapture({ projectId, definitionId: body.definitionId ?? null, label: body.label, level: body.level ?? null,
+      horizontalCrs: stored?.horizontalCrs ?? crs, capturedCrs: body.capturedCrs ?? null,
+      verticalDatum: stored ? stored.verticalDatum : projectReference.verticalDatum, capturedVerticalDatum: body.capturedVerticalDatum ?? null, capturedAt: body.capturedAt ?? null,
+      base: { easting: baseE, northing: baseN, rl: baseLevel.value }, top: { easting: topE, northing: topN, rl: topLevel.value },
+      horizontalUncertaintyM: horizontalUncertainty.value, heightUncertaintyM: heightUncertainty.value, criteria: body.criteria ?? null, instrument: body.instrument ?? null, notes: body.notes ?? null });
+  } catch (error) { return NextResponse.json({ error: error instanceof Error ? error.message : 'Invalid plumb capture evidence.' }, { status: 400 }); }
+  const check = snapshot.assessment;
+  if (existing) {
+    if (!sameVerticalityEvidence(stored, snapshot)) return NextResponse.json({ error: 'This reading ID already belongs to different evidence. Retain the original and use a new ID for a new observation.', code: 'VERTICALITY_REPLAY_CONFLICT' }, { status: 409 });
+    return NextResponse.json({ data: { id: existing.id, ...check, captureSnapshot: stored, replayed: true } });
+  }
+  const ratioText = check.tiltRatioKind === 'infinite' ? '1:inf' : check.tiltRatio === null ? null : `1:${Math.round(check.tiltRatio)}`;
+  let inserted: { rows: Array<{ id: string }> };
+  try { inserted = await db.query<{ id: string }>(
     `INSERT INTO verticality_readings
        (project_id, definition_id, label, level, base_easting, base_northing, base_rl,
         top_easting, top_northing, top_rl, offset_h, tilt_ratio, tolerance_ratio, result,
-        instrument, observed_by, notes)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)
+        instrument, observed_by, notes, capture_snapshot, client_reading_id)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18::jsonb,$19)
+     ON CONFLICT (project_id, client_reading_id) WHERE client_reading_id IS NOT NULL DO NOTHING
      RETURNING id`,
     [
       projectId,
-      body.definitionId ?? null,
-      body.label,
-      body.level ?? null,
+      snapshot.definitionId,
+      snapshot.label,
+      snapshot.level,
       baseE,
       baseN,
-      baseRL,
+      snapshot.base.rl,
       topE,
       topN,
-      topRL,
+      snapshot.top.rl,
       check.offsetM,
-      `1:${Number.isFinite(check.tiltRatio) ? Math.round(check.tiltRatio) : 'inf'}`,
-      `1:${DEFAULT_VERTICALITY_STANDARD.minTiltRatio}`,
+      ratioText,
+      snapshot.criteria ? `1:${snapshot.criteria.minTiltRatio}` : null,
       check.result,
-      body.instrument ?? null,
+      snapshot.instrument,
       userId,
-      body.notes ?? null,
+      snapshot.notes,
+      JSON.stringify(snapshot),
+      body.clientReadingId,
     ]
-  );
+  ); } catch (error) { const response = schemaError(error); if (response) return response; throw error; }
+  if (!inserted.rows[0]) {
+    const concurrent = (await db.query<{ id: string; capture_snapshot: unknown }>('SELECT id, capture_snapshot FROM verticality_readings WHERE project_id = $1 AND client_reading_id = $2', [projectId, body.clientReadingId])).rows[0];
+    const capture = concurrent ? parseVerticalityCapture(concurrent.capture_snapshot) : null;
+    if (!concurrent || !capture || !sameVerticalityEvidence(capture, snapshot)) return NextResponse.json({ error: 'The concurrent reading uses different evidence.', code: 'VERTICALITY_REPLAY_CONFLICT' }, { status: 409 });
+    return NextResponse.json({ data: { id: concurrent.id, ...capture.assessment, captureSnapshot: capture, replayed: true } });
+  }
 
   await recordEvidenceEvent({
     projectId,
@@ -1274,10 +1325,14 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       label: body.label,
       level: body.level ?? null,
       offset_mm: Number((check.offsetM * 1000).toFixed(1)),
-      tilt_ratio: `1:${Number.isFinite(check.tiltRatio) ? Math.round(check.tiltRatio) : 'inf'}`,
+      tilt_ratio: ratioText,
       result: check.result,
+      capture_algorithm: snapshot.algorithm,
+      scope: snapshot.scope,
+      criteria: snapshot.criteria,
+      evidence_issues: check.issues,
     },
   }).catch((error) => logger.error('[setout] verticality evidence failed', { error }));
 
-  return NextResponse.json({ data: { id: inserted.rows[0].id, ...check } }, { status: 201 });
+  return NextResponse.json({ data: { id: inserted.rows[0].id, ...check, captureSnapshot: snapshot } }, { status: 201 });
 });

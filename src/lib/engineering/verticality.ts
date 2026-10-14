@@ -7,13 +7,15 @@
  * the inverse is the tilt ratio a site engineer states as "1:850".
  *
  * PURE geometry: no IO, no framework, no OpenLayers. The surveyor supplies
- * observations; this decides whether the column is inside tolerance and
- * whether it needs a re-stake.
+ * observations and explicit criteria. Numerical comparison does not establish
+ * survey control, design approval or construction acceptance.
  */
 
-/** Default plumb tolerance: 1:600 of the height, capped at 25 mm (blueprint §16). */
+/** Limits transcribed from the applicable project drawing/specification. */
 export interface VerticalityStandard {
   name: string;
+  reference: string;
+  version: string;
   /** Maximum horizontal offset over the measured height, in metres. */
   maxOffsetM: number;
   /** Minimum acceptable tilt ratio, e.g. 600 means "not worse than 1:600". */
@@ -21,11 +23,13 @@ export interface VerticalityStandard {
 }
 
 /**
- * Cap. 299 / common practice: plumb to 1:600 over the storey height, and never
- * more than 25 mm of offset at the top.
+ * Historical example retained for compatibility and explicit training only.
+ * It is not a regulatory standard or automatically adopted project criterion.
  */
 export const DEFAULT_VERTICALITY_STANDARD: VerticalityStandard = {
-  name: 'Cap. 299 column plumb (1:600, max 25 mm)',
+  name: 'Historical example — not issued project criteria',
+  reference: 'METARDU historical example only',
+  version: 'LEGACY-EXAMPLE',
   maxOffsetM: 0.025,
   minTiltRatio: 600,
 };
@@ -37,71 +41,77 @@ export interface VerticalityReading {
   topN: number;
   /** Height from base to top; derived from RLs when both are supplied. */
   heightM?: number | null;
+  /** Entered uncertainty of the measured horizontal displacement, not one fix. */
+  horizontalUncertaintyM?: number | null;
+  /** Entered uncertainty of the measured base-to-top height difference. */
+  heightUncertaintyM?: number | null;
 }
 
 export interface VerticalityResult {
   /** Horizontal offset of the top from the base, metres. */
   offsetM: number;
-  /** Offset expressed as a ratio, e.g. 850 for 1:850 (Infinity for zero height). */
-  tiltRatio: number;
+  /** Height/offset; null without height, Infinity only for zero offset with height. */
+  tiltRatio: number | null;
   /** Bearing from base to top, degrees. */
-  bearingDeg: number;
+  bearingDeg: number | null;
   heightM: number | null;
-  result: 'PASS' | 'WARN' | 'FAIL';
+  result: 'PASS' | 'FAIL' | 'INFO';
   message: string;
+  issues: string[];
 }
 
 /** Tilt as "1:x" for display; the raw number is returned alongside. */
-export function formatTiltRatio(ratio: number): string {
-  if (!Number.isFinite(ratio)) return '∞';
+export function formatTiltRatio(ratio: number | null): string {
+  if (ratio === null) return 'Not assessed';
+  if (ratio === Infinity) return '∞';
+  if (!Number.isFinite(ratio) || ratio <= 0) throw new RangeError('Tilt ratio must be positive, infinite or unknown.');
   if (ratio >= 1000) return `1:${Math.round(ratio / 100) * 100}`;
   return `1:${Math.round(ratio)}`;
 }
 
 export function evaluateVerticality(
   reading: VerticalityReading,
-  standard: VerticalityStandard = DEFAULT_VERTICALITY_STANDARD
+  standard: VerticalityStandard | null = null
 ): VerticalityResult {
+  if (![reading.baseE, reading.baseN, reading.topE, reading.topN].every(Number.isFinite)) {
+    throw new RangeError('Base and top coordinates must be finite.');
+  }
+  const heightM = reading.heightM ?? null;
+  if (heightM !== null && (!Number.isFinite(heightM) || heightM <= 0)) throw new RangeError('Measured height must be finite and positive.');
+  for (const uncertainty of [reading.horizontalUncertaintyM, reading.heightUncertaintyM]) {
+    if (uncertainty != null && (!Number.isFinite(uncertainty) || uncertainty < 0)) throw new RangeError('Reported uncertainties must be finite and non-negative.');
+  }
+  if (standard && (!standard.name?.trim() || !standard.reference?.trim() || !standard.version?.trim()
+    || !Number.isFinite(standard.maxOffsetM) || standard.maxOffsetM <= 0
+    || !Number.isFinite(standard.minTiltRatio) || standard.minTiltRatio <= 0)) {
+    throw new RangeError('Plumb criteria need positive finite limits, name, source reference and version.');
+  }
   const dE = reading.topE - reading.baseE;
   const dN = reading.topN - reading.baseN;
-  const offsetM = Math.sqrt(dE * dE + dN * dN);
-
-  let heightM = reading.heightM ?? null;
-  if (heightM == null || !Number.isFinite(heightM)) heightM = null;
-  const tiltRatio = heightM && heightM > 0 ? heightM / offsetM : Infinity;
-
-  let bearingDeg = (Math.atan2(dE, dN) * 180) / Math.PI;
-  if (bearingDeg < 0) bearingDeg += 360;
-
-  // Both criteria must hold: an absolute cap (so a very tall column is not
-  // excused) and a ratio (so a short column is still tight). A ratio failure
-  // is a genuine plumb failure and must FAIL outright — it is never softened
-  // to a warning just because the millimetre offset happens to sit inside the
-  // warning band.
-  const withinAbsolute = offsetM <= standard.maxOffsetM;
-  const withinRatio = offsetM === 0 ? true : tiltRatio >= standard.minTiltRatio;
-
-  let result: 'PASS' | 'WARN' | 'FAIL' | 'INFO';
-  if (withinAbsolute && withinRatio) {
-    result = 'PASS';
-  } else if (!withinRatio) {
-    // Tilt ratio outside the standard: the column is not plumb, full stop.
-    result = 'FAIL';
-  } else if (offsetM <= standard.maxOffsetM * 2) {
-    // Inside the absolute cap, plumb by ratio, but past the nominal figure.
-    result = 'WARN';
-  } else {
-    result = 'FAIL';
+  const offsetM = Math.hypot(dE, dN);
+  if (!Number.isFinite(offsetM)) throw new RangeError('Plumb displacement exceeds the finite calculation range.');
+  const tiltRatio = heightM === null ? null : offsetM === 0 ? Infinity : heightM / offsetM;
+  if (tiltRatio !== null && offsetM !== 0 && (!Number.isFinite(tiltRatio) || tiltRatio <= 0)) throw new RangeError('Tilt ratio exceeds the finite calculation range.');
+  const bearingDeg = offsetM === 0 ? null : ((Math.atan2(dE, dN) * 180) / Math.PI + 360) % 360;
+  const issues: string[] = [];
+  if (!standard) issues.push('Project plumb criteria are not recorded; no standard is inferred.');
+  if (heightM === null) issues.push('Measured base-to-top height is missing; tilt ratio is not assessed.');
+  const h = reading.horizontalUncertaintyM, v = reading.heightUncertaintyM;
+  if (h == null || h === 0) issues.push('Reported displacement uncertainty is missing or zero (unknown).');
+  else if (standard && h > Math.min(standard.maxOffsetM, heightM === null ? standard.maxOffsetM : heightM / standard.minTiltRatio)) issues.push('Reported displacement uncertainty exceeds the entered criterion.');
+  if (v == null || v === 0) issues.push('Reported height-difference uncertainty is missing or zero (unknown).');
+  else if (heightM !== null && v >= heightM) issues.push('Reported height uncertainty cannot establish a positive height.');
+  let result: VerticalityResult['result'] = 'INFO';
+  let message = issues.join(' ');
+  if (issues.length === 0 && standard && tiltRatio !== null) {
+    const withinAbsolute = offsetM <= standard.maxOffsetM;
+    const withinRatio = tiltRatio >= standard.minTiltRatio;
+    result = withinAbsolute && withinRatio ? 'PASS' : 'FAIL';
+    message = result === 'PASS'
+      ? 'Within entered numerical plumb limits. Survey control and construction acceptance are not verified.'
+      : `Numerical plumb limits exceeded: ${[!withinAbsolute ? 'absolute offset cap' : '', !withinRatio ? 'minimum tilt ratio' : ''].filter(Boolean).join(' and ')}. Review observations and project criteria.`;
   }
-
-  const message =
-    result === 'PASS'
-      ? `Plumb within ${standard.name}: offset ${(offsetM * 1000).toFixed(1)} mm, tilt 1:${formatTiltRatio(tiltRatio).replace('1:', '')}`
-      : result === 'WARN'
-        ? `Marginally out: ${(offsetM * 1000).toFixed(1)} mm at the top; review before grouting`
-        : `Out of plumb: ${(offsetM * 1000).toFixed(1)} mm offset exceeds ${standard.maxOffsetM * 1000} mm — re-stake or remediate`;
-
-  return { offsetM, tiltRatio, bearingDeg, heightM, result, message };
+  return { offsetM, tiltRatio, bearingDeg, heightM, result, message, issues };
 }
 
 /**

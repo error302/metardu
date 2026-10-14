@@ -53,7 +53,8 @@ describe('as-staked shot evaluation', () => {
 
     expect(result.moveE).toBeCloseTo(-result.dE, 9);
     expect(result.moveN).toBeCloseTo(-result.dN, 9);
-    expect(result.moveZ).toBeCloseTo(-result.dZ!, 9);
+    if (result.dZ === null) throw new Error('Supplied design and observed levels must produce a vertical delta.');
+    expect(result.moveZ).toBeCloseTo(-result.dZ, 9);
   });
 
   test('a coarse fix cannot certify a fine shot (no unearned PASS)', () => {
@@ -118,10 +119,11 @@ describe('as-staked shot evaluation', () => {
 });
 
 describe('verticality (plumb) evaluation', () => {
-  const base = { baseE: 500000, baseN: 9860000 };
+  const base = { baseE: 500000, baseN: 9860000, horizontalUncertaintyM: 0.001, heightUncertaintyM: 0.001 };
+  const criteria = { name: 'Synthetic criteria', reference: 'Synthetic drawing', version: 'R1', maxOffsetM: 0.025, minTiltRatio: 600 };
 
   test('a plumb column passes with no offset', () => {
-    const result = evaluateVerticality({ ...base, topE: base.baseE, topN: base.baseN, heightM: 3 });
+    const result = evaluateVerticality({ ...base, topE: base.baseE, topN: base.baseN, heightM: 3 }, criteria);
     expect(result.offsetM).toBeCloseTo(0, 9);
     expect(result.result).toBe('PASS');
   });
@@ -133,11 +135,11 @@ describe('verticality (plumb) evaluation', () => {
       topE: base.baseE + 0.015,
       topN: base.baseN,
       heightM: 3,
-    });
+    }, criteria);
     expect(result.offsetM).toBeCloseTo(0.015, 6);
     expect(result.tiltRatio).toBeCloseTo(200, 6);
     expect(result.result).toBe('FAIL');
-    expect(result.message).toMatch(/out of plumb/i);
+    expect(result.message).toMatch(/minimum tilt ratio/i);
   });
 
   test('within 1:600 over three metres passes the 25 mm cap', () => {
@@ -146,7 +148,7 @@ describe('verticality (plumb) evaluation', () => {
       topE: base.baseE + 0.004,
       topN: base.baseN,
       heightM: 3,
-    });
+    }, criteria);
     expect(result.result).toBe('PASS');
     expect(result.tiltRatio).toBeGreaterThanOrEqual(DEFAULT_VERTICALITY_STANDARD.minTiltRatio);
   });
@@ -154,9 +156,8 @@ describe('verticality (plumb) evaluation', () => {
   test('height is unknown when no levels were read', () => {
     const result = evaluateVerticality({ ...base, topE: base.baseE + 0.01, topN: base.baseN });
     expect(result.heightM).toBeNull();
-    expect(result.tiltRatio).toBe(Infinity);
+    expect(result.tiltRatio).toBeNull();
     expect(formatTiltRatio(Infinity)).toBe('∞');
-    // The absolute cap alone still judges it.
-    expect(['PASS', 'WARN', 'FAIL']).toContain(result.result);
+    expect(result.result).toBe('INFO');
   });
 });
