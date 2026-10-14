@@ -315,3 +315,12 @@ checks, downstream CAD/print acceptance and the standalone automatic vertical
 designer's design-selection policies remain open. Existing migration/recovery,
 OAuth/notice/public-directory, paid-delivery and cadastral/legal gates remain
 open; this source has not been promoted to the production container.
+
+Source checkpoint `6e98b8d31a10aaa38938c754d5db432bfc6ce718` was pushed to
+`codex/metardu-workflow-readiness-2026-10-12`. Normal pre-push checks passed
+strict app typing, changed-file lint and **215 related tests across 23 suites**.
+Local Gitleaks was unavailable and was explicitly skipped by the existing hook;
+no hook bypass or scanner suppression was used. The working tree was clean and
+local HEAD matched the remote-tracking branch after the push. GitHub's separate
+secret scan was still in progress at the first post-push observation; do not
+equate the source push with deployment, full CI or field acceptance.
