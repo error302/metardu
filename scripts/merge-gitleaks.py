@@ -63,23 +63,12 @@ paths = [
 id = "metardu-obvious-placeholders"
 description = "Self-evidently-fake placeholder values — safe to honor in ANY file because they cannot be valid credentials"
 regexes = [
-  '(?i).*(your|my|replace[_-]?me|example|dummy|fake|test|placeholder|sample|xxx+)[-_a-z0-9]*$',
-  '(?i).*(your|my|example|dummy|fake|placeholder)[-_a-z0-9]+(key|token|secret|password|passphrase|pwd|host)$',
+  '(?i)^(your|my|replace[_-]?me|example|dummy|fake|test|placeholder|sample|xxx+)[-_a-z0-9]*$',
+  '(?i)^(your|my|example|dummy|fake|placeholder)[-_a-z0-9]+(key|token|secret|password|passphrase|pwd|host)$',
   '<your[_-][a-z_]+>',
   '\\$\\{[A-Z][A-Z_0-9]+:\\?[^}]*\\}',
   '\\bDUMMY[A-Z0-9_]*\\b',
   '\\b(sk|pk|rk)_(test|dummy|example)_[A-Za-z0-9]{4,}\\b',
-  '(?i).*dev-auth-secret-32-chars-long-or-more-needed-for-nextauth.*',
-  '(?i).*e2e-ci-secret-not-used-by-mocked-auth.*',
-  '(?i).*metardu_secure_2024.*',
-  '(?i).*abc123def456.*',
-  '(?i).*MCowBQYDK2VwAyEA.*',
-  '(?i).*k12_quiz_theme.*',
-  '(?i).*cron-admin-key-9d3f.*',
-  '(?i).*test-webhook-secret-3f2a.*',
-  '(?i).*clarke1880_modified.*',
-  '(?i).*securePassword123.*',
-  '.*curl.*secrets.*',
 ]
 '''
 
