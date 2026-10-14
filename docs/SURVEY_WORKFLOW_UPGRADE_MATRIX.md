@@ -608,3 +608,14 @@ landmark are retained; no new dependency, container, image or builder is added.
 Fresh normal/reviewed `docker:verify` still failed to access Docker. No service
 lifecycle action, database migration, promotion or cleanup was performed.
 Migration 107 and the existing migration/recovery/rollback gates remain open.
+
+Source checkpoint `e5546a45d815cbc33ccb2c81ccc3528d41f2c4d7` was pushed to
+the existing workflow branch. Normal pre-push app typing, changed-file lint and
+65 related tests across eight suites passed, in addition to the explicit-path
+99-test/ten-suite run and strict app/test checks above. GitHub Gitleaks run
+`38563335216` completed successfully for that exact source revision; local
+Gitleaks was unavailable and no hook bypass was used. The working tree was clean
+at the post-push check. Follow-up presentation uses the existing foreground/
+background theme roles for capture-button contrast in dark/light/outdoor modes,
+with the company accent retained on its border. That source correction is not a
+substitute for fresh rendered viewport/physical-device review.

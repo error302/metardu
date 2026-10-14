@@ -163,7 +163,19 @@ function OwnedCollector({ ownerId, projectId }: { ownerId: string; projectId: st
         <p className="text-sm text-[var(--text-muted)]">{preview.snapshot.assessment.message}</p>
       </> : <p className="text-sm text-[var(--text-muted)]">{preview.error}</p>}
     </section>
-    <div className="flex flex-wrap gap-3"><button type="button" data-action="record-plumb" disabled={busy || Boolean(storageError) || !preview.snapshot || Boolean(reference?.cached && !cachedConfirmed)} onClick={() => void record()} className={`${actionClass} bg-[var(--accent)] text-[var(--bg-primary)]`}>{busy ? 'Working…' : preview.snapshot?.assessment.result === 'INFO' ? 'Record unassessed reading' : 'Record field reading'}</button><button type="button" disabled={busy || Boolean(storageError) || !rows.some(row => row.state === 'queued')} onClick={() => void retry()} className={actionClass}>Retry pending delivery</button><button type="button" onClick={backup} className={actionClass}>Export device backup</button><button type="button" disabled={!rows.length || Boolean(storageError)} onClick={() => download(`metardu-plumb-device-${projectId}.csv`, exportDevicePlumbCsv(rows), 'text/csv;charset=utf-8')} className={actionClass}>Export device CSV</button></div>
+    <div className="flex flex-wrap gap-3">
+      <button type="button" data-action="record-plumb"
+        disabled={busy || Boolean(storageError) || !preview.snapshot || Boolean(reference?.cached && !cachedConfirmed)}
+        onClick={() => void record()}
+        className={`${actionClass} border-[var(--accent)] bg-[var(--text-primary)] font-semibold text-[var(--bg-primary)]`}>
+        {busy ? 'Working…' : preview.snapshot?.assessment.result === 'INFO' ? 'Record unassessed reading' : 'Record field reading'}
+      </button>
+      <button type="button" disabled={busy || Boolean(storageError) || !rows.some(row => row.state === 'queued')} onClick={() => void retry()} className={actionClass}>Retry pending delivery</button>
+      <button type="button" onClick={backup} className={actionClass}>Export device backup</button>
+      <button type="button" disabled={!rows.length || Boolean(storageError)}
+        onClick={() => download(`metardu-plumb-device-${projectId}.csv`, exportDevicePlumbCsv(rows), 'text/csv;charset=utf-8')}
+        className={actionClass}>Export device CSV</button>
+    </div>
     {message && <p role="status" className="text-sm text-[var(--text-muted)]">{message}</p>}
     <section className="space-y-3"><h2 className="font-semibold">This account’s device readings · {rows.length}</h2><p className="text-xs text-[var(--text-muted)]">Device-only readings are not on the project register. A confirmed save remains a draft numerical comparison. Export a backup regularly; browser storage can be cleared by the device.</p><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--border-color)]"><th className="p-2 text-left">Column</th><th className="p-2 text-left">Capture UTC</th><th className="p-2 text-left">Numerical result</th><th className="p-2 text-left">Register status</th></tr></thead><tbody>{rows.slice(page * 20, (page + 1) * 20).map(row => <tr key={row.id} className="border-b border-[var(--border-color)]"><td className="p-2">{row.snapshot.label}<br /><span className="text-xs">{row.id}</span></td><td className="p-2">{row.snapshot.capturedAt ?? 'Unknown'}</td><td className="p-2">{row.snapshot.assessment.result}</td><td className="p-2">{row.state === 'synced' ? `Server confirmed (${row.serverId})` : row.state === 'rejected' ? 'Device only · needs review' : 'Only on this device'}{row.message && <p className="text-xs">{row.message}</p>}</td></tr>)}</tbody></table></div>{rows.length > 20 && <div className="flex gap-3"><button className={actionClass} disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous readings</button><button className={actionClass} disabled={(page + 1) * 20 >= rows.length} onClick={() => setPage(value => value + 1)}>Next readings</button></div>}</section>
   </section>
