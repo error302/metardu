@@ -15,6 +15,7 @@ import { welcomeEmail, WelcomeEmail } from './welcome'
 import { trialEndingEmail, TrialEndingEmail } from './trialEnding'
 import { trialExpiringEmail, TrialExpiringEmail } from './trialExpiring'
 import { passwordResetEmail, PasswordResetEmail } from './passwordReset'
+import { passwordChangedEmail, PasswordChangedEmail } from './passwordChanged'
 import { paymentReceiptEmail, PaymentReceiptEmail } from './paymentReceipt'
 import { paymentFailedEmail, PaymentFailedEmail } from './paymentFailed'
 import { securityAlertEmail, SecurityAlertEmail } from './securityAlert'
@@ -31,6 +32,7 @@ export {
   trialEndingEmail,
   trialExpiringEmail,
   passwordResetEmail,
+  passwordChangedEmail,
   paymentReceiptEmail,
   paymentFailedEmail,
   securityAlertEmail,
@@ -47,6 +49,7 @@ export type {
   TrialEndingEmail,
   TrialExpiringEmail,
   PasswordResetEmail,
+  PasswordChangedEmail,
   PaymentReceiptEmail,
   PaymentFailedEmail,
   SecurityAlertEmail,
@@ -63,6 +66,7 @@ export type EmailTemplateName =
   | 'trialEnding'
   | 'trialExpiring'
   | 'passwordReset'
+  | 'passwordChanged'
   | 'paymentReceipt'
   | 'paymentFailed'
   | 'securityAlert'
@@ -84,6 +88,7 @@ interface TemplateMap {
   trialEnding: TemplateSpec<TrialEndingEmail>
   trialExpiring: TemplateSpec<TrialExpiringEmail>
   passwordReset: TemplateSpec<PasswordResetEmail>
+  passwordChanged: TemplateSpec<PasswordChangedEmail>
   paymentReceipt: TemplateSpec<PaymentReceiptEmail>
   paymentFailed: TemplateSpec<PaymentFailedEmail>
   securityAlert: TemplateSpec<SecurityAlertEmail>
@@ -100,6 +105,7 @@ export const EMAIL_TEMPLATES: TemplateMap = {
   trialEnding: trialEndingEmail,
   trialExpiring: trialExpiringEmail,
   passwordReset: passwordResetEmail,
+  passwordChanged: passwordChangedEmail,
   paymentReceipt: paymentReceiptEmail,
   paymentFailed: paymentFailedEmail,
   securityAlert: securityAlertEmail,

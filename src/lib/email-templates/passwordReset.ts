@@ -13,20 +13,24 @@ import {
 } from './components'
 import { passwordResetText, PasswordResetTextArgs } from './text'
 import { formatDateTime } from './utils'
-
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://metardu.space'
+import { getPublicAppUrl } from '@/lib/site'
+import { safeRedirectPath } from '@/lib/auth/safeRedirect'
 
 export interface PasswordResetEmail {
   to: string
   name: string
   resetToken: string
   expiresAt: string
+  nextPath?: string
 }
 
 export const passwordResetEmail = {
   subject: 'Reset your METARDU password',
   render(args: PasswordResetEmail) {
-    const resetUrl = `${APP_URL}/auth/reset-password?token=${encodeURIComponent(args.resetToken)}`
+    const url = new URL('/auth/reset-password', getPublicAppUrl())
+    url.searchParams.set('token', args.resetToken)
+    url.searchParams.set('next', safeRedirectPath(args.nextPath))
+    const resetUrl = url.toString()
     const expiryLabel = formatDateTime(args.expiresAt)
 
     const bodyHtml = `

@@ -18,6 +18,7 @@ import { resolve } from 'node:path'
 import {
   EMAIL_TEMPLATES,
   passwordResetEmail,
+  passwordChangedEmail,
   paymentFailedEmail,
   paymentReceiptEmail,
   projectSharedEmail,
@@ -69,6 +70,7 @@ const RENDERERS: Record<EmailTemplateName, () => RenderedEmail> = {
     trialExpiringEmail.render({ to: TO, name: PAYLOAD, trialEndsAt: BAD_DATE, planPriceNote: PAYLOAD }),
   passwordReset: () =>
     passwordResetEmail.render({ to: TO, name: PAYLOAD, resetToken: PAYLOAD, expiresAt: BAD_DATE }),
+  passwordChanged: () => passwordChangedEmail.render({ to: TO, name: PAYLOAD }),
   paymentReceipt: () =>
     paymentReceiptEmail.render({
       to: TO,

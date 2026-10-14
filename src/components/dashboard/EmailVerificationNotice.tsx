@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { MailCheck } from 'lucide-react'
+import { authFetch } from '@/lib/auth/client'
 
 export default function EmailVerificationNotice({ email }: { email: string }) {
   const [sending, setSending] = useState(false)
@@ -12,7 +13,7 @@ export default function EmailVerificationNotice({ email }: { email: string }) {
     setSending(true)
     setMessage('')
     try {
-      const response = await fetch('/api/auth/email-verification/send', { method: 'POST' })
+      const response = await authFetch('/api/auth/email-verification/send', { method: 'POST' })
       const data = await response.json().catch(() => ({})) as { error?: string; sent?: boolean; verified?: boolean }
       if (!response.ok) throw new Error(data.error || 'Could not send the verification email.')
       setSent(data.sent === true)

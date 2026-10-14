@@ -1,3 +1,4 @@
+/** @jest-environment node */
 import { resolveDefaultFrom } from '../email'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -42,6 +43,7 @@ describe('Resend branded email delivery', () => {
 
       expect(result.success).toBe(true)
       const [, request] = fetchMock.mock.calls[0] as unknown as [string, RequestInit]
+      expect(request.signal).toBeDefined()
       const requestBody = JSON.parse(String(request.body)) as {
         html: string
         attachments: Array<{ filename: string; content: string; content_type: string; content_id: string }>

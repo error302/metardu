@@ -54,4 +54,10 @@ describe('POST /api/auth/email-verification/confirm', () => {
     expect(response.status).toBe(400)
     expect(await response.json()).toEqual({ error: 'This verification link no longer matches your account.' })
   })
+
+  it('reports a recoverable outage instead of leaving verification without a response', async () => {
+    mockVerifyToken.mockReturnValue({ sub: USER_ID, email: 'crew@example.com', exp: 1_900_000_000 })
+    mockQuery.mockRejectedValueOnce(new Error('database unavailable'))
+    expect((await POST(request({ token: 'signed-token' }))).status).toBe(503)
+  })
 })

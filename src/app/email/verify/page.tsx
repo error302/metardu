@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
 import { CheckCircle2, LoaderCircle, TriangleAlert } from 'lucide-react'
+import { authFetch } from '@/lib/auth/client'
 
 function VerifyEmailContent() {
   const searchParams = useSearchParams()
@@ -19,7 +20,7 @@ function VerifyEmailContent() {
       return () => { active = false }
     }
 
-    void fetch('/api/auth/email-verification/confirm', {
+    void authFetch('/api/auth/email-verification/confirm', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),

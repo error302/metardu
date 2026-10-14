@@ -93,7 +93,8 @@ export async function middleware(request: NextRequest) {
   }
 
   // Redirect authenticated users away from login/register
-  if (isAuthRoute && isAuthenticated) {
+  const isPasswordRecovery = request.nextUrl.pathname === '/login' && request.nextUrl.searchParams.get('recovery') === '1'
+  if (isAuthRoute && isAuthenticated && !isPasswordRecovery) {
     return NextResponse.redirect(new URL('/dashboard', request.url))
   }
 

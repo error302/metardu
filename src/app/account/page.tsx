@@ -1,6 +1,6 @@
 'use client';
 import { useEffect, useState } from 'react'
-import { useSession } from 'next-auth/react'
+import { useSession, signOut } from 'next-auth/react'
 import { z } from 'zod'
 import { apiGet, apiPost, ApiError } from '@/lib/api/client'
 
@@ -11,7 +11,7 @@ const subscriptionResponseSchema = z.object({
   trialEndsAt: z.string().optional(),
   periodEnd: z.string().optional(),
 }).passthrough()
-const updatePasswordMutationSchema = z.object({}).passthrough()
+const updatePasswordMutationSchema = z.object({ confirmationEmailSent: z.boolean().optional() }).passthrough()
 
 interface Subscription {
   plan_id: string
@@ -55,16 +55,20 @@ export default function AccountPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id])
 
-  async function updatePassword(newPassword: string) {
+  async function updatePassword(currentPassword: string, newPassword: string, confirmPassword: string) {
+    if (newPassword !== confirmPassword) { setMessage('Error: Passwords do not match'); return }
     setSaving(true)
     setMessage('')
     try {
-      await apiPost(
+      const result = await apiPost(
         '/api/auth/update-password',
         updatePasswordMutationSchema,
-        { password: newPassword },
+        { currentPassword, password: newPassword },
       )
-      setMessage('Password updated successfully!')
+      await signOut({ redirect: false }).catch(() => null)
+      setMessage(result.confirmationEmailSent === false
+        ? 'Password updated. The confirmation email could not be sent. Sign in again with your new password.'
+        : 'Password updated. A confirmation email was sent. Sign in again with your new password.')
     } catch (err) {
       if (err instanceof ApiError) {
         setMessage('Error: ' + err.message)
@@ -110,19 +114,30 @@ export default function AccountPage() {
                 e.preventDefault()
                 const form = e.target as HTMLFormElement
                 const newPassword = (form.elements.namedItem('newPassword') as HTMLInputElement).value
-                updatePassword(newPassword)
+                const currentPassword = (form.elements.namedItem('currentPassword') as HTMLInputElement).value
+                const confirmPassword = (form.elements.namedItem('confirmPassword') as HTMLInputElement).value
+                void updatePassword(currentPassword, newPassword, confirmPassword)
               }}
               className="space-y-4"
             >
+              <div>
+                <label htmlFor="account-current-password" className="block text-sm text-[var(--text-secondary)] mb-1">Current Password</label>
+                <input id="account-current-password" name="currentPassword" type="password" autoComplete="current-password" required className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-4 py-2 text-[var(--text-primary)]" />
+              </div>
               <div>
                 <label htmlFor="account-new-password" className="block text-sm text-[var(--text-secondary)] mb-1">New Password</label>
                 <input id="account-new-password"
                   name="newPassword"
                   type="password"
                   required
-                  minLength={6}
+                  minLength={8}
+                  autoComplete="new-password"
                   className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-4 py-2 text-[var(--text-primary)]"
                 />
+              </div>
+              <div>
+                <label htmlFor="account-confirm-password" className="block text-sm text-[var(--text-secondary)] mb-1">Confirm New Password</label>
+                <input id="account-confirm-password" name="confirmPassword" type="password" autoComplete="new-password" minLength={8} required className="w-full bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg px-4 py-2 text-[var(--text-primary)]" />
               </div>
               <button
                 type="submit"
@@ -132,8 +147,9 @@ export default function AccountPage() {
                 {saving ? 'Updating...' : 'Update Password'}
               </button>
               {message && (
-                <p className={`text-sm ${message.includes('Error') ? 'text-red-500' : 'text-green-500'}`}>
+                <p role={message.includes('Error') ? 'alert' : 'status'} className={`text-sm ${message.includes('Error') ? 'text-red-500' : 'text-green-500'}`}>
                   {message}
+                  {!message.includes('Error') && <a href="/login?reset=success" className="ml-2 underline">Sign in again</a>}
                 </p>
               )}
             </form>

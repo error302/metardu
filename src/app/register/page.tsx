@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react'
 import { signIn } from 'next-auth/react'
 import { Eye, EyeOff, CheckCircle2, Mail } from 'lucide-react'
+import { safeRedirectPath } from '@/lib/auth/safeRedirect'
+import { authFetch } from '@/lib/auth/client'
 
 function getPasswordStrength(password: string): { label: string; color: string; width: string } {
   if (password.length < 8) return { label: 'Weak', color: 'bg-red-500', width: 'w-1/3' }
@@ -29,6 +31,9 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [redirectTo, setRedirectTo] = useState('/dashboard')
+  const [emailDeliveryFailed, setEmailDeliveryFailed] = useState(false)
+  useEffect(() => { setRedirectTo(safeRedirectPath(new URLSearchParams(window.location.search).get('next'))) }, [])
 
   const strength = getPasswordStrength(password)
 
@@ -48,13 +53,13 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const res = await authFetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password, fullName }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), password, fullName: fullName.trim() }),
       })
 
-      const data = (await res.json()) as { error?: string }
+      const data = (await res.json()) as { error?: string; verificationEmailSent?: boolean; onboardingComplete?: boolean }
 
       if (!res.ok) {
         setError(data.error || 'Registration failed. Please try again.')
@@ -63,31 +68,34 @@ export default function RegisterPage() {
       }
 
       // Auto-login after successful registration
-      const loginResult = await signIn('credentials', {
-        email,
-        password,
-        redirect: false,
-      })
+      setEmailDeliveryFailed(data.verificationEmailSent === false)
+      let loginResult
+      try {
+        loginResult = await signIn('credentials', { email: email.trim().toLowerCase(), password, redirect: false })
+      } catch {
+        setSuccess(true)
+        setLoading(false)
+        return
+      }
 
-      if (loginResult?.error) {
+      if (!loginResult?.ok || loginResult.error) {
         // Registration succeeded but auto-login failed — send to login page
         setSuccess(true)
         setLoading(false)
         return
       }
 
-      // Finish onboarding through the authenticated server route. This creates
-      // the trial subscription and sends the branded METARDU welcome email;
-      // registration remains successful even if an email provider is offline.
+      // Retry setup only if the server could not finish it after registration.
+      // The route preserves an existing subscription and does not renew trials.
       try {
-        await fetch('/api/auth/register-complete', { method: 'POST' })
+        if (data.onboardingComplete === false) await authFetch('/api/auth/register-complete', { method: 'POST' })
       } catch {
         // The user can still sign in; the idempotent onboarding route can be
         // retried from the account flow when the email service recovers.
       }
 
       // Redirect to dashboard
-      window.location.href = '/dashboard'
+      window.location.href = redirectTo
     } catch {
       setError('Registration failed. Please try again.')
       setLoading(false)
@@ -126,7 +134,8 @@ export default function RegisterPage() {
               <Mail className="w-16 h-16 text-[var(--accent)] mx-auto mb-4" />
               <h2 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Account created!</h2>
               <p className="text-[var(--text-secondary)] mb-4">Your account has been created successfully.</p>
-              <a href="/login" className="inline-block px-6 py-3 bg-[var(--accent)] text-black font-semibold rounded-lg hover:bg-[var(--accent-dim)] transition-colors">
+              <p className="mb-4 text-sm text-[var(--text-secondary)]">{emailDeliveryFailed ? 'The verification email could not be sent. Sign in, then use the verification notice to retry.' : 'Check your inbox for the METARDU verification email. You can also sign in now.'}</p>
+              <a href={`/login?next=${encodeURIComponent(redirectTo)}`} className="inline-block px-6 py-3 bg-[var(--accent)] text-black font-semibold rounded-lg hover:bg-[var(--accent-dim)] transition-colors">
                 Sign in now
               </a>
             </div>

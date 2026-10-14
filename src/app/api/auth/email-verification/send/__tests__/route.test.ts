@@ -81,4 +81,11 @@ describe('POST /api/auth/email-verification/send', () => {
     expect(mockQuery).not.toHaveBeenCalled()
     expect(mockSend).not.toHaveBeenCalled()
   })
+
+  it('returns a recoverable service response when account lookup is unavailable', async () => {
+    mockQuery.mockReset().mockRejectedValueOnce(new Error('database unavailable'))
+    const response = await POST()
+    expect(response.status).toBe(503)
+    expect(mockSend).not.toHaveBeenCalled()
+  })
 })

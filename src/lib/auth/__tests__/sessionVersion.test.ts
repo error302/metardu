@@ -1,6 +1,6 @@
 process.env.AUTH_SECRET = 'test-only-session-version-secret'
 
-jest.mock('@/lib/db', () => ({ db: { query: jest.fn() } }))
+jest.mock('@/lib/db', () => ({ db: { query: jest.fn() }, setCurrentUserId: jest.fn() }))
 jest.mock('@/lib/security/loginLimiter', () => ({
   checkLoginAllowed: jest.fn(),
   recordFailedLogin: jest.fn(),

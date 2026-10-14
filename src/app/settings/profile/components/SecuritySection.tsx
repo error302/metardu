@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { signOut } from 'next-auth/react'
+import { authFetch } from '@/lib/auth/client'
 
 interface SecuritySectionProps {
   email: string
@@ -53,7 +54,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
     setStatus({ state: 'saving' })
 
     try {
-      const res = await fetch('/api/auth/update-password', {
+      const res = await authFetch('/api/auth/update-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -67,7 +68,11 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
         throw new Error(err.error || `Failed (status ${res.status})`)
       }
 
-      setStatus({ state: 'saved', message: 'Password updated successfully.' })
+      const result = await res.json().catch(() => ({})) as { confirmationEmailSent?: boolean }
+      await signOut({ redirect: false }).catch(() => null)
+      setStatus({ state: 'saved', message: result.confirmationEmailSent === false
+        ? 'Password updated. The confirmation email could not be sent. Sign in again.'
+        : 'Password updated. A confirmation email was sent. Sign in again.' })
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')
@@ -196,6 +201,7 @@ export default function SecuritySection({ email }: SecuritySectionProps) {
           {status.state === 'saved' && (
             <span className="text-sm text-green-600 dark:text-green-400" role="status">
               {status.message}
+              <a href="/login?reset=success" className="ml-2 underline">Sign in again</a>
             </span>
           )}
           {status.state === 'error' && (

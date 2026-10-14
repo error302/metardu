@@ -3,6 +3,7 @@ jest.mock('next-auth', () => ({ getServerSession: jest.fn() }))
 jest.mock('@/lib/auth', () => ({ authOptions: {} }))
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn() }, setCurrentUserId: jest.fn() }))
 jest.mock('@/lib/email-templates', () => ({ sendTemplatedEmail: jest.fn() }))
+jest.mock('@/lib/security/rateLimit', () => ({ rateLimit: async () => ({ allowed: true }) }))
 jest.mock('@/lib/auth/emailVerification', () => ({
   createEmailVerificationToken: jest.fn(() => 'signed-verification-token'),
 }))
@@ -26,8 +27,7 @@ describe('POST /api/auth/register-complete', () => {
     mockGetServerSession.mockResolvedValue({ user: { id: USER_ID, email: 'stale-session@example.test', name: 'Field Team' } })
     mockQuery
       .mockResolvedValueOnce(mr([{ email: USER_EMAIL, full_name: 'Road Survey Team', email_verified: false }]))
-      .mockResolvedValueOnce(mr([]))
-      .mockResolvedValueOnce(mr([]))
+      .mockResolvedValueOnce(mr([{ trial_ends_at: '2026-10-28T00:00:00Z' }]))
     mockSend.mockResolvedValue({ success: true })
   })
 
@@ -36,7 +36,7 @@ describe('POST /api/auth/register-complete', () => {
     const body: unknown = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ ok: true, verificationEmailSent: true })
+    expect(body).toEqual({ ok: true, verificationEmailSent: true, welcomeEmailSent: true })
     expect(mockSend).toHaveBeenCalledWith('emailVerification', expect.objectContaining({
       to: USER_EMAIL,
       name: 'Road Survey Team',
@@ -54,8 +54,18 @@ describe('POST /api/auth/register-complete', () => {
     const body: unknown = await response.json()
 
     expect(response.status).toBe(200)
-    expect(body).toEqual({ ok: true, verificationEmailSent: false })
+    expect(body).toEqual({ ok: true, verificationEmailSent: false, welcomeEmailSent: true })
     expect(mockSend).toHaveBeenNthCalledWith(1, 'emailVerification', expect.objectContaining({ to: USER_EMAIL }))
     expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO user_subscriptions"), expect.any(Array))
+  })
+
+  it('preserves an existing subscription and does not issue another trial welcome email', async () => {
+    mockQuery.mockReset()
+      .mockResolvedValueOnce(mr([{ email: USER_EMAIL, full_name: 'Road Survey Team', email_verified: true }]))
+      .mockResolvedValueOnce(mr([]))
+    const response = await POST(new NextRequest('http://localhost/api/auth/register-complete', { method: 'POST' }))
+    expect(response.status).toBe(200)
+    expect(mockQuery).toHaveBeenCalledWith(expect.stringContaining('ON CONFLICT (user_id) DO NOTHING'), expect.any(Array))
+    expect(mockSend).not.toHaveBeenCalled()
   })
 })

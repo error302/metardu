@@ -247,15 +247,18 @@ export function createClient(): BrowserClient {
         } catch {}
       },
       async updateUser(_params: unknown) {
-        const params = _params as { password?: string } | undefined
+        const params = _params as { password?: string; currentPassword?: string } | undefined
         if (!params?.password) {
           return { data: { user: null }, error: { message: 'Only password updates are supported.' } }
+        }
+        if (!params.currentPassword) {
+          return { data: { user: null }, error: { message: 'Current password is required. Change your password in Account Settings, or use password recovery.' } }
         }
         try {
           const res = await fetch('/api/auth/update-password', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ password: params.password }),
+            body: JSON.stringify({ currentPassword: params.currentPassword, password: params.password }),
           })
           const json = (await res.json().catch(() => ({}))) as { error?: string; user?: unknown | null }
           if (!res.ok) {

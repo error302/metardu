@@ -3,7 +3,7 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import GoogleProvider from 'next-auth/providers/google'
 import AzureADProvider from 'next-auth/providers/azure-ad'
 import bcrypt from 'bcryptjs'
-import { db } from '@/lib/db'
+import { db, setCurrentUserId } from '@/lib/db'
 import { checkLoginAllowed, recordFailedLogin, recordSuccessfulLogin, getFailedAttemptCount } from '@/lib/security/loginLimiter'
 import { logger } from '@/lib/logger'
 
@@ -248,7 +248,7 @@ export const authOptions: AuthOptions = {
         const loginCheck = await checkLoginAllowed(credentials.email, clientIp)
         if (!loginCheck.allowed) {
           logger.warn(`[auth] Login blocked for ${credentials.email} from ${clientIp}: ${loginCheck.reason}`)
-          return null
+          throw new Error('ACCOUNT_TEMPORARILY_LOCKED')
         }
 
         try {
@@ -281,6 +281,7 @@ export const authOptions: AuthOptions = {
             return null
           }
 
+          setCurrentUserId(user.id)
           // Check if account is suspended
           try {
             const { rows: profileRows } = await db.query<{ is_suspended: boolean; suspension_reason: string | null }>(
@@ -364,7 +365,7 @@ export const authOptions: AuthOptions = {
           }
         } catch (err) {
           logger.error('[auth] Login DB error:', { error: err })
-          return null
+          throw new Error('AUTH_SERVICE_UNAVAILABLE')
         }
       },
     }),
@@ -492,6 +493,7 @@ export const authOptions: AuthOptions = {
         return token
       }
 
+      setCurrentUserId(userId)
       const { rows } = await db.query<{ session_version: string | number; is_suspended: boolean }>(
         `SELECT u.session_version, COALESCE(sp.is_suspended, FALSE) AS is_suspended
            FROM users u LEFT JOIN surveyor_profiles sp ON sp.user_id = u.id

@@ -8,6 +8,7 @@ import MetarduLogo from '@/components/MetarduLogo'
 import Image from 'next/image'
 import { logger } from '@/lib/logger'
 import { safeRedirectPath } from '@/lib/auth/safeRedirect'
+import { authFetch, signInErrorMessage } from '@/lib/auth/client'
 
 type View = 'login' | 'forgot' | 'sent'
 
@@ -38,7 +39,7 @@ function MicrosoftIcon({ className }: { className?: string }) {
 function LoginForm() {
   const searchParams = useSearchParams()
 
-  const [view, setView] = useState<View>('login')
+  const [view, setView] = useState<View>(() => searchParams.get('recovery') === '1' ? 'forgot' : 'login')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -80,20 +81,22 @@ function LoginForm() {
   }, [])
 
   useEffect(() => {
-    const saved = localStorage.getItem('metardu_remember')
-    if (saved === 'true') setRememberMe(true)
+    try {
+      if (localStorage.getItem('metardu_remember') === 'true') setRememberMe(true)
+    } catch { /* Browser storage is optional for signing in. */ }
   }, [])
 
   const getRedirectTo = () => {
     const param = searchParams.get('next') || searchParams.get('redirectTo') || searchParams.get('callbackUrl')
     if (param) return safeRedirectPath(param)
     if (typeof window !== 'undefined') {
-      return safeRedirectPath(localStorage.getItem('auth:redirect'))
+      try { return safeRedirectPath(localStorage.getItem('auth:redirect')) } catch { return '/dashboard' }
     }
     return '/dashboard'
   }
 
   const validateEmail = (value: string) => {
+    value = value.trim()
     if (!value) return 'Please enter your email address'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return 'Please enter a valid email address'
     return ''
@@ -122,17 +125,21 @@ function LoginForm() {
 
     try {
       const result = await signIn('credentials', {
-        email,
+        email: email.trim().toLowerCase(),
         password,
         redirect: false,
       })
 
       setLoading(false)
 
-      if (result?.error) {
+      if (!result?.ok || result.error) {
+        if (result?.error === 'AUTH_SERVICE_UNAVAILABLE' || result?.error === 'ACCOUNT_TEMPORARILY_LOCKED') {
+          setError(signInErrorMessage(result.error))
+          return
+        }
         // Check if the database is available — if not, show a service-unavailable message
         try {
-          const healthRes = await fetch('/api/public/health')
+          const healthRes = await authFetch('/api/public/health', {})
           const healthData = await healthRes.json() as { checks?: { database?: string } }
           if (healthData.checks?.database === 'error') {
             setError('Service temporarily unavailable. The database is not reachable. Please try again later.')
@@ -141,17 +148,16 @@ function LoginForm() {
         } catch {
           // Health check itself failed — likely a network issue
         }
-        setError('Incorrect email or password. Please try again.')
+        setError(result ? signInErrorMessage(result.error ?? undefined) : 'Sign-in could not be completed. Please try again.')
         return
       }
-      if (rememberMe) {
-        localStorage.setItem('metardu_remember', 'true')
-      } else {
-        localStorage.removeItem('metardu_remember')
-      }
-
-      localStorage.removeItem('auth:redirect')
-      window.location.href = getRedirectTo()
+      const destination = getRedirectTo()
+      try {
+        if (rememberMe) localStorage.setItem('metardu_remember', 'true')
+        else localStorage.removeItem('metardu_remember')
+        localStorage.removeItem('auth:redirect')
+      } catch { /* Storage restrictions must not prevent a valid sign-in. */ }
+      window.location.href = destination
     } catch (err) {
       logger.error('Login error:', { error: err })
       setLoading(false)
@@ -175,6 +181,7 @@ function LoginForm() {
 
   const handleForgotPassword = async (e: React.FormEvent) => {
     e.preventDefault()
+    setError('')
     setEmailTouched(true)
 
     const emailErr = validateEmail(email)
@@ -183,15 +190,16 @@ function LoginForm() {
 
     setLoading(true)
     try {
-      const res = await fetch('/api/auth/forgot-password', {
+      const res = await authFetch('/api/auth/forgot-password', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), next: getRedirectTo() }),
       })
       if (res.ok) {
         setView('sent')
       } else {
-        setError('Unable to send reset link. Please try again.')
+        const data = await res.json().catch(() => ({})) as { error?: string }
+        setError(data.error || 'Unable to send reset link. Please try again.')
       }
     } catch {
       setError('A network error occurred. Please check your connection and try again.')
@@ -243,6 +251,7 @@ function LoginForm() {
                     </p>
                   </div>
 
+                  {searchParams.get('reset') === 'success' && <p role="status" className="mb-5 text-sm text-emerald-200">Your password has been updated. Sign in with your new password.</p>}
                   {/* ── OAuth Buttons (shown first for prominence) ── */}
                   {(availableOAuthProviders.google || availableOAuthProviders['azure-ad']) && (
                     <div className="space-y-3">
@@ -397,7 +406,7 @@ function LoginForm() {
                   <p className="text-center mt-6 text-white/60 text-sm">
                     Don&apos;t have an account?{' '}
                     <a
-                      href="/register"
+                      href={`/register?next=${encodeURIComponent(getRedirectTo())}`}
                       className="text-[#E7A77D] hover:text-[#F3C6A8] hover:underline font-medium transition-colors"
                     >
                       Create one
@@ -477,7 +486,7 @@ function LoginForm() {
                     </svg>
                   </div>
                   <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">Check your email</h1>
-                  <p className="text-white/60 mb-1">We&apos;ve sent a password reset link to:</p>
+                  <p className="text-white/60 mb-1">If an account matches this address, you will receive a reset link. Check your inbox and spam folder:</p>
                   <p className="text-white font-medium mb-6">{email}</p>
 
                   <button
