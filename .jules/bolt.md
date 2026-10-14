@@ -1,0 +1,3 @@
+## 2024-06-25 - Avoid Math.min/Math.max with spread operator on large arrays
+**Learning:** Using `Math.min(...arr)` or `Math.max(...arr)` on large datasets like point clouds throws V8 "Maximum call stack size exceeded" errors because every element in the spread array is passed as a separate argument to the function call. Additionally, using `.map()` just to extract values before spreading creates massive unnecessary intermediate arrays.
+**Action:** Always use simple `for` loops (or `.reduce()`) to compute min/max on large datasets (e.g. `pointCloudClassification`, `idwEngine`, `contourGenerator`) to avoid stack overflows and excessive memory allocation.
