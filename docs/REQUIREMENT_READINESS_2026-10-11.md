@@ -166,3 +166,15 @@ The other provider, public ChatGPT consent/listing, payment, cadastral/legal,
 receiver/offline and field gates remain distinct from these successful source
 checks. No dependencies, duplicate containers, builders, scanner baselines or
 applied-migration hash changes were added.
+
+Road follow-up: project vertical profiles now evaluate supplied parabolic designs
+through the engineering engine, and explicit station sources feed current levels
+to sections, quantities and exports. Straight/simple-circular centreline targets
+include E/N, surface/formation RL and grid bearing, gated by declared CRS/height
+reference and bounded coverage. Blank levels, automatic curve selection,
+shortening overlapping designs and stale stored target overrides are rejected.
+Analytical, input, persistence and shared export checks pass 106 tests across
+14 suites. Details and remaining corridor/design/control/field gates are recorded
+in the survey upgrade matrix. CUA still blocks the owned local preview; no
+browser/physical print/field proof is inferred. No Docker lifecycle, image,
+dependency or migration change occurred, and production remains unpromoted.

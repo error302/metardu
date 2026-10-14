@@ -2,14 +2,17 @@
 import { useState } from 'react'
 import type { RoadDesignData } from '@/types/engineering'
 import { calculateRoadSection } from '@/lib/engineering/roadProjectOutputs'
+import { resolveRoadDesignStations } from '@/lib/engineering/roadVerticalAlignment'
 
 export function RoadProfilePanel({ data }: { data: RoadDesignData | null }) {
   const [index, setIndex] = useState(0)
-  const stations = data?.stations ?? []
+  const resolved = resolveRoadDesignStations(data)
+  const stations = resolved.stations
   const station = stations[index] ?? stations[0]
   let section: ReturnType<typeof calculateRoadSection> | null = null
   let issue = ''
   try {
+    if (resolved.issues.length) throw new RangeError(resolved.issues.join(' '))
     if (!station || !data?.crossSectionTemplate) throw new RangeError('Save measured station profiles and a complete template to draw a cross-section.')
     section = calculateRoadSection(station, data.crossSectionTemplate)
   } catch (error) { issue = error instanceof Error ? error.message : 'Review the measured profile and design inputs.' }

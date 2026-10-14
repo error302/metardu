@@ -144,15 +144,15 @@ function DrainageCsvExports({ data, projectName }: { data: DrainageData | null; 
 
 function RoadCsvExports({ data, projectName, crsCode, verticalDatum }: { data: RoadDesignData | null; projectName: string; crsCode: string; verticalDatum: string | null }) {
   const [pdfError, setPdfError] = useState<string | null>(null)
-  const computed = buildRoadSchedules(data, crsCode)
+  const computed = buildRoadSchedules(data, crsCode, verticalDatum)
   const verticalRows = data?.vips ?? []
-  const stations = data?.stations ?? []
   const exports = [
     computed.horizontal,
-    { name: 'Vertical alignment CSV', filename: 'metardu-vertical-alignment.csv', rows: verticalRows.map(ip => [ip.chainage, ip.reducedLevel, ip.gradientIn, ip.gradientOut, ip.kValue, ip.curveLength]), headers: ['Chainage_m', 'RL_m', 'Gradient_in', 'Gradient_out', 'K_value', 'Curve_length_m'] },
+    computed.vertical, computed.verticalStations, computed.centrelineSetout,
+    { name: 'Vertical design input records CSV', filename: 'metardu-vertical-design-inputs.csv', rows: verticalRows.map(ip => [ip.chainage, ip.reducedLevel, ip.gradientIn, ip.gradientOut, ip.kValue, ip.curveLength]), headers: ['Chainage_m', 'RL_m', 'Gradient_in', 'Gradient_out', 'K_value', 'Curve_length_m'] },
     computed.earthworks,
     computed.profiles,
-    { name: 'Station level schedule CSV', filename: 'metardu-station-levels.csv', rows: stations.map(row => [row.chainage, row.groundLevel, row.designLevel]), headers: ['Chainage_m', 'Ground_RL_m', 'Design_surface_RL_m'] },
+    computed.stationLevels,
   ]
   const exportPdf = async () => {
     setPdfError(null)
@@ -165,7 +165,7 @@ function RoadCsvExports({ data, projectName, crsCode, verticalDatum }: { data: R
         notes: [
           ...computed.issues,
           `Vertical datum / height reference: ${verticalDatum || 'NOT DECLARED'}.`,
-          'Horizontal curves and earthworks are freshly computed from saved observations and supplied design inputs. Vertical rows reproduce saved inputs; they are not an independently evaluated vertical alignment.',
+          'Horizontal curves, parabolic vertical profiles and quantities are freshly evaluated. Tangent-intersection input RL differs from actual curve RL. Centreline coordinate targets require the declared CRS and height reference; manual targets are retained unless alignment levels are selected explicitly.',
           'Design surface RL is the finished centreline level. Formation RL subtracts the entered subgrade depth. Average end-area uses actual station spacing and separate measured cut/fill areas; material factors and curvature corrections are unassessed.',
           'Check coordinate reference, vertical datum, chainage, field control, design criteria, and current revisions before setting out or issuing for construction.',
         ],
@@ -177,7 +177,7 @@ function RoadCsvExports({ data, projectName, crsCode, verticalDatum }: { data: R
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-400">Export current circular alignment and measured section quantities, source profiles and saved vertical inputs. These are draft review schedules; verify CRS, height reference, control and design revision before field issue.</p>
+      <p className="text-sm text-zinc-400">Export evaluated circular/vertical geometry, centreline coordinate targets, measured section quantities and source records. These are draft review schedules; verify CRS, height reference, control and design revision before field issue.</p>
       {computed.issues.map(issue => <p role="status" key={issue} className="text-sm text-amber-300">{issue}</p>)}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button type="button" disabled={exports.every(item => item.rows.length === 0)} onClick={() => void exportPdf()} className="rounded-lg border border-amber-600 px-4 py-3 text-left text-sm text-amber-200 hover:bg-amber-950/50 disabled:cursor-not-allowed disabled:opacity-40">Download road schedules PDF</button>
@@ -248,7 +248,7 @@ export function renderStepContent(
       return (
         <Step3Vertical
           data={roadData}
-          onSave={(vips) => onSave({ road: { ...roadData, vips } as RoadDesignData })}
+          onSave={(vips, interval) => onSave({ road: { ...roadData, vips, verticalStationIntervalM: interval } as RoadDesignData })}
         />
       )
     case 'cross_section':
@@ -316,48 +316,7 @@ export function renderStepContent(
         </div>
       )
     case 'long_section': {
-      const stations = roadData?.stations || []
-      const vips = roadData?.vips || []
-      if (stations.length === 0) {
-        return (
-          <div className="space-y-6">
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-1">Long Section</h3>
-              <p className="text-zinc-400 text-sm">Chainage vs elevation profile.</p>
-            </div>
-            <div className="text-center py-12 text-zinc-500">
-              <p>Add station levels in Step 5 (Stations & Levels) first.</p>
-            </div>
-          </div>
-        )
-      }
-      return (
-        <div className="space-y-6">
-          <div>
-            <h3 className="text-lg font-semibold text-white mb-1">Long Section</h3>
-            <p className="text-zinc-400 text-sm">Chainage vs elevation profile with vertical curves, cut/fill areas.</p>
-          </div>
-          <LongSectionRenderer
-            stations={stations.map(s => ({
-              chainage: s.chainage,
-              groundLevel: s.groundLevel,
-              designLevel: s.designLevel,
-            }))}
-            verticalIPs={vips.map(v => ({
-              chainage: v.chainage,
-              reducedLevel: v.reducedLevel,
-              kValue: v.kValue,
-            }))}
-            projectInfo={{
-              roadName: roadData?.roadName || 'Unnamed Road',
-              roadClass: roadData?.roadClass || 'C',
-              designSpeed: roadData?.designSpeed || 60,
-              startChainage: roadData?.startChainage || 0,
-              datum: roadData?.datum || 'Arc 1960',
-            }}
-          />
-        </div>
-      )
+      return <LongSectionRenderer data={roadData} projectName={project.name} heightReference={projectReferenceSystem?.verticalDatum ?? null} />
     }
     case 'cross_section_view': {
       return <RoadProfilePanel data={roadData} />

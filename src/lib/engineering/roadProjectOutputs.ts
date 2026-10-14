@@ -1,60 +1,15 @@
+import { calculateRoadHorizontal } from './roadHorizontalAlignment'
+export { calculateRoadHorizontal } from './roadHorizontalAlignment'
+export type { ProjectRoadCurve } from './roadHorizontalAlignment'
 import Papa from 'papaparse'
-import { computeHorizontalCurve, endAreaVolume } from '@/lib/engine/engineering'
-import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
-import type { CrossSectionTemplate, IntersectionPoint, StationData, RoadDesignData } from '@/types/engineering'
+import { endAreaVolume } from '@/lib/engine/engineering'
+import type { CrossSectionTemplate, StationData, RoadDesignData } from '@/types/engineering'
 import { computeSlopeIntercept } from './crossSectionGeometry'
 import { integrateProfileAreas, interpolateProfile, validateProfile } from './profileGeometry'
+import { buildRoadVerticalSchedules, resolveRoadDesignStations } from './roadVerticalAlignment'
+import { buildRoadCentrelineSetout } from './roadCoordinateSetout'
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Review the supplied road survey data.'
-export interface ProjectRoadCurve {
-  ipId: string; name: string; radius: number; turn: 'left' | 'right'; deflectionAngle: number;
-  tangentLength: number; arcLength: number; chainageTC: number; chainageMC: number; chainageCT: number
-}
-
-export function calculateRoadHorizontal(ips: IntersectionPoint[], startChainage: number, crsCode: string) {
-  const curves: ProjectRoadCurve[] = []
-  try {
-    if (assertProjectedCrs(crsCode).units !== 'metres') throw new RangeError('Road alignment requires a projected metre CRS.')
-    if (!Number.isFinite(startChainage)) throw new RangeError('The starting chainage must be finite.')
-    if (ips.length < 2) throw new RangeError('Enter at least two observed alignment endpoints; a curve requires three points.')
-    if (ips.some(ip => ![ip.easting, ip.northing, ip.radius].every(Number.isFinite)) || new Set(ips.map(ip => ip.id)).size !== ips.length) throw new RangeError('Alignment points need unique IDs and finite coordinates/radii.')
-    const legs = ips.slice(1).map((ip, i) => Math.hypot(ip.easting - ips[i].easting, ip.northing - ips[i].northing))
-    if (legs.some(length => !Number.isFinite(length) || length <= 0)) throw new RangeError('Adjacent alignment points must have distinct coordinates and finite separation.')
-    const elements = ips.map((ip, i) => {
-      if (i === 0 || i === ips.length - 1) return null
-      const before = ips[i - 1], after = ips[i + 1]
-      const b1 = Math.atan2(ip.easting - before.easting, ip.northing - before.northing) * 180 / Math.PI
-      const b2 = Math.atan2(after.easting - ip.easting, after.northing - ip.northing) * 180 / Math.PI
-      const signed = ((b2 - b1 + 540) % 360) - 180
-      if (Math.abs(signed) < 1e-9) return null
-      if (Math.abs(signed) >= 180 - 1e-9) throw new RangeError(`${ip.name}: a reversing tangent cannot define a simple circular curve.`)
-      if (ip.radius <= 0) throw new RangeError(`${ip.name}: supply a positive design radius; no default radius is used.`)
-      if (ip.hasTransition || ip.transitionLengthIn || ip.transitionLengthOut) throw new RangeError(`${ip.name}: transition-curve geometry must be resolved before using a simple circular schedule.`)
-      return { ...computeHorizontalCurve(ip.radius, Math.abs(signed), 0), signed }
-    })
-    for (let i = 0; i < legs.length; i++) {
-      if ((elements[i]?.tangentLength ?? 0) + (elements[i + 1]?.tangentLength ?? 0) > legs[i] + 1e-9) throw new RangeError('Curve tangents overlap or extend beyond the observed alignment endpoints; review radii and spacing.')
-    }
-    let rawChainage = startChainage, correction = 0
-    for (let i = 1; i < ips.length; i++) {
-      rawChainage += legs[i - 1]
-      if (!Number.isFinite(rawChainage)) throw new RangeError('Alignment chainages exceed the finite calculation range.')
-      const curve = elements[i]
-      if (!curve) continue
-      const tc = rawChainage - correction - curve.tangentLength
-      if (![tc, tc + curve.curveLength, curve.tangentLength, curve.curveLength].every(Number.isFinite)) throw new RangeError('Curve quantities exceed the finite calculation range.')
-      curves.push({ ipId: ips[i].id, name: ips[i].name, radius: curve.radius,
-        turn: curve.signed > 0 ? 'right' : 'left', deflectionAngle: curve.delta,
-        tangentLength: curve.tangentLength, arcLength: curve.curveLength,
-        chainageTC: tc, chainageMC: tc + curve.curveLength / 2, chainageCT: tc + curve.curveLength })
-      correction += 2 * curve.tangentLength - curve.curveLength
-    }
-    const length = legs.reduce((sum, span) => sum + span, 0) - correction
-    if (!Number.isFinite(length)) throw new RangeError('Alignment length exceeds the finite calculation range.')
-    return { curves, issues: [] as string[], length }
-  } catch (error) { return { curves: [] as ProjectRoadCurve[], issues: [message(error)], length: null } }
-}
-
 /** Preserve the H:V convention used by the existing project template inputs. */
 export function parseProjectSlope(slope: string): number {
   const match = slope.trim().toUpperCase().match(/^(\d+(?:\.\d+)?)\s*H?\s*:\s*(\d+(?:\.\d+)?)\s*V?$/)
@@ -141,13 +96,17 @@ export function parseRoadStationsCSV(text: string): StationData[] {
     return Number(value)
   }
   const rows = result.data.map((row, i) => ({ chainage: number(row.chainage, i + 2), groundLevel: number(row.groundlevel, i + 2),
-    ...(row.designlevel?.trim() ? { designLevel: number(row.designlevel, i + 2) } : {}) }))
+    ...(row.designlevel?.trim() ? { designLevel: number(row.designlevel, i + 2) } : {}),
+    ...(result.meta.fields?.includes('designlevelsource') ? { designLevelSource: row.designlevelsource?.trim() as StationData['designLevelSource'] } : {}) }))
+  if (result.meta.fields.includes('designlevelsource') && rows.some(row => !['manual', 'vertical-alignment'].includes(row.designLevelSource ?? ''))) throw new RangeError('Every supplied design_level_source must be manual or vertical-alignment.')
   if (result.meta.fields.includes('offset')) {
-    const groups = new Map<number, { profile: Array<{ offset: number; level: number }>; designLevel?: number }>()
+    const groups = new Map<number, { profile: Array<{ offset: number; level: number }>; designLevel?: number; designLevelSource?: StationData['designLevelSource'] }>()
     rows.forEach((row, i) => {
       const group = groups.get(row.chainage) ?? { profile: [] }
       if (group.designLevel != null && row.designLevel != null && group.designLevel !== row.designLevel) throw new RangeError(`CSV row ${i + 2}: conflicting design levels at the same chainage.`)
       group.designLevel ??= row.designLevel
+      if (group.designLevelSource != null && group.designLevelSource !== row.designLevelSource) throw new RangeError(`CSV row ${i + 2}: conflicting design level sources at the same chainage.`)
+      group.designLevelSource ??= row.designLevelSource
       group.profile.push({ offset: number(result.data[i].offset, i + 2), level: row.groundLevel })
       groups.set(row.chainage, group)
     })
@@ -156,7 +115,7 @@ export function parseRoadStationsCSV(text: string): StationData[] {
       const groundProfile = validateProfile(group.profile)
       const groundLevel = interpolateProfile(groundProfile, 0)
       if (groundLevel === null) throw new RangeError(`Chainage ${chainage}: measured offsets must span the centreline.`)
-      return { chainage, groundLevel, designLevel: group.designLevel, groundProfile }
+      return { chainage, groundLevel, designLevel: group.designLevel, ...(group.designLevelSource ? { designLevelSource: group.designLevelSource } : {}), groundProfile }
     }).sort((a, b) => a.chainage - b.chainage)
   }
   if (!rows.length || new Set(rows.map(s => s.chainage)).size !== rows.length) throw new RangeError('Supply valid rows with distinct chainages.')
@@ -164,9 +123,12 @@ export function parseRoadStationsCSV(text: string): StationData[] {
 }
 
 /** Export exactly the same fresh engineering result displayed in the workspace. */
-export function buildRoadSchedules(data: RoadDesignData | null, crsCode: string) {
+export function buildRoadSchedules(data: RoadDesignData | null, crsCode: string, verticalDatum?: string | null) {
   const horizontal = calculateRoadHorizontal(data?.ips ?? [], data?.startChainage ?? Number.NaN, crsCode)
-  const quantities = calculateRoadEarthworks(data?.stations ?? [], data?.crossSectionTemplate)
+  const resolved = resolveRoadDesignStations(data)
+  const quantities = calculateRoadEarthworks(resolved.stations, data?.crossSectionTemplate)
+  const vertical = buildRoadVerticalSchedules(data)
+  const setout = buildRoadCentrelineSetout(data, crsCode, verticalDatum)
   const horizontalRows = horizontal.curves.map(curve => {
     const ip = data?.ips.find(point => point.id === curve.ipId)
     return [curve.name, ip?.easting, ip?.northing, curve.radius, curve.turn, curve.deflectionAngle,
@@ -175,10 +137,18 @@ export function buildRoadSchedules(data: RoadDesignData | null, crsCode: string)
   return {
     horizontal: { name: 'Horizontal alignment CSV', filename: 'metardu-horizontal-alignment.csv', rows: horizontalRows,
       headers: ['PI', 'Easting_m', 'Northing_m', 'Radius_m', 'Turn', 'Deflection_deg', 'Tangent_m', 'Arc_m', 'Chainage_TC_m', 'Chainage_MC_m', 'Chainage_CT_m'] },
+    vertical: { name: 'Evaluated vertical curves CSV', filename: 'metardu-vertical-curves.csv', rows: vertical.curves.map(c => [c.vipId, c.type, c.gradeIn, c.gradeOut, c.length, c.k, c.pvcChainage, c.pvcLevel, c.pvtChainage, c.pvtLevel, c.engineCurve.highLowPoint?.chainage, c.engineCurve.highLowPoint?.elevation]),
+      headers: ['VIP_ID', 'Type', 'Grade_in_percent', 'Grade_out_percent', 'Length_m', 'K_m_per_percent', 'PVC_chainage_m', 'PVC_RL_m', 'PVT_chainage_m', 'PVT_RL_m', 'Turning_chainage_m', 'Turning_RL_m'] },
+    verticalStations: { name: 'Vertical profile design stations CSV', filename: 'metardu-vertical-profile-stations.csv', rows: vertical.stations.map(s => [s.chainage, s.elevation, s.grade, s.segment, s.vipId, verticalDatum]),
+      headers: ['Chainage_m', 'Design_surface_RL_m', 'Grade_percent', 'Segment', 'Curve_VIP_ID', 'Declared_height_reference'] },
+    centrelineSetout: { name: 'Centreline coordinate targets CSV', filename: 'metardu-centreline-coordinate-targets.csv', rows: setout.rows.map(s => [s.chainage, s.easting, s.northing, s.designLevel, s.formationLevel, s.bearing, s.levelSource, s.horizontalSegment, crsCode, verticalDatum, 'DRAFT']),
+      headers: ['Chainage_m', 'Easting_m', 'Northing_m', 'Design_surface_RL_m', 'Formation_RL_m', 'Grid_tangent_bearing_deg', 'Level_source', 'Horizontal_segment', 'Declared_CRS', 'Declared_height_reference', 'Issue_status'] },
     earthworks: { name: 'Earthworks CSV', filename: 'metardu-earthworks.csv', rows: quantities.rows.map(row => [row.chainage, row.formationLevel, row.designLevel, row.cutArea, row.fillArea, row.cutVolume, row.fillVolume, row.cumulativeCut, row.cumulativeFill, row.leftDaylightOffset, row.rightDaylightOffset, row.method]),
       headers: ['Chainage_m', 'Formation_RL_m', 'Design_surface_RL_m', 'Cut_area_m2', 'Fill_area_m2', 'Cut_volume_m3', 'Fill_volume_m3', 'Cumulative_cut_m3', 'Cumulative_fill_m3', 'Left_daylight_offset_m', 'Right_daylight_offset_m', 'Method'] },
-    profiles: { name: 'Measured ground profiles CSV', filename: 'metardu-road-ground-profiles.csv', rows: (data?.stations ?? []).flatMap(station => (station.groundProfile ?? []).map(p => [station.chainage, p.offset, p.level, station.designLevel])),
-      headers: ['chainage', 'offset', 'ground_level', 'design_level'] },
-    issues: [...horizontal.issues, ...quantities.issues],
+    profiles: { name: 'Measured ground profiles CSV', filename: 'metardu-road-ground-profiles.csv', rows: (data?.stations ?? []).flatMap(station => (station.groundProfile ?? []).map(p => [station.chainage, p.offset, p.level, station.designLevel, station.designLevelSource ?? 'manual'])),
+      headers: ['chainage', 'offset', 'ground_level', 'design_level', 'design_level_source'] },
+    stationLevels: { name: 'Station level schedule CSV', filename: 'metardu-station-levels.csv', rows: resolved.stations.map(station => [station.chainage, station.groundLevel, station.designLevel, station.designLevelSource ?? 'manual']),
+      headers: ['Chainage_m', 'Ground_RL_m', 'Design_surface_RL_m', 'Design_level_source'] },
+    issues: [...new Set([...horizontal.issues, ...quantities.issues, ...resolved.issues, ...vertical.issues, ...setout.issues])],
   }
 }

@@ -106,11 +106,11 @@ export function computeVerticalCurve(input: VerticalCurveInput): VerticalCurveRe
     pvcChainage,
     pvtElevation,
     pvtChainage,
-    A: Math.round(A * 10000) / 10000,
-    K: Math.round(K * 100) / 100,
-    turningPointElevation: turningPointElevation === undefined ? undefined : Math.round(turningPointElevation * 1000) / 1000,
-    turningPointChainage: turningPointChainage === undefined ? undefined : Math.round(turningPointChainage * 1000) / 1000,
-    turningPointDistance: turningPointDistance === undefined ? undefined : Math.round(turningPointDistance * 1000) / 1000,
+    A,
+    K,
+    turningPointElevation,
+    turningPointChainage,
+    turningPointDistance,
     curveType,
   };
 }
@@ -124,7 +124,9 @@ export function computeVerticalCurveStations(
 ): VerticalCurveStationResult[] {
   if (!Number.isFinite(interval) || interval <= 0) throw new Error('Station interval must be finite and greater than zero.')
   const stations: VerticalCurveStationResult[] = [];
-  const { g1, A, length, pvcElevation, pvcChainage } = curve;
+  const { g1, g2, length, pvcElevation, pvcChainage } = curve;
+  if (![g1, g2, length, pvcElevation, pvcChainage].every(Number.isFinite) || length <= 0) throw new RangeError('Station evaluation requires finite curve parameters and positive length.')
+  const A = g2 - g1;
   
   const numStations = Math.floor(length / interval);
   if (numStations > 100_000) throw new Error('Station interval creates too many rows; increase the interval.')
@@ -139,17 +141,17 @@ export function computeVerticalCurveStations(
     const tangentOffset = elevation - tangentElevation;
     
     stations.push({
-      chainage: Math.round((pvcChainage + x) * 1000) / 1000,
+      chainage: pvcChainage + x,
       distanceFromPVC: x,
-      elevation: Math.round(elevation * 1000) / 1000,
-      grade: Math.round(grade * 10000) / 10000,
-      tangentOffset: Math.round(tangentOffset * 1000) / 1000,
+      elevation,
+      grade,
+      tangentOffset,
     });
   }
   
   // Add PVT station if not at interval
   const lastStation = stations[stations.length - 1];
-  if (Math.abs(lastStation.distanceFromPVC - length) > 0.01) {
+  if (lastStation.distanceFromPVC !== length) {
     const elevation = pvcElevation + 
       (g1 / 100) * length + 
       (A / (200 * length)) * length * length;
@@ -157,9 +159,9 @@ export function computeVerticalCurveStations(
     stations.push({
       chainage: curve.pvtChainage,
       distanceFromPVC: length,
-      elevation: Math.round(elevation * 1000) / 1000,
+      elevation,
       grade: curve.g2,
-      tangentOffset: Math.round((elevation - curve.pvtElevation) * 1000) / 1000,
+      tangentOffset: elevation - (pvcElevation + g1 / 100 * length),
     });
   }
   

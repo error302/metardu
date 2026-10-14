@@ -22,7 +22,7 @@ create legal authority or construction approval.
 | --- | --- | --- | --- |
 | Cadastral | `/cadastral-workflow`, traverse/COGO, CAD, topology check, subdivision, mutation plan, deed plan, sectional area schedule | Source boundary records and control → observations/adjustment → boundary reconstruction and neighbour/topology checks → subdivision/areas → reviewable plans and coordinate schedules with evidence/revisions | Independent known-boundary fixtures; closure/adjustment/area and topology checks; parser round trips; traceable legal/source boundaries and jurisdiction-specific issue review. The sectional page is now a measured area schedule, not a registrable floor/parcel drawing. A title search or certification must not be simulated. |
 | Engineering | Project engineering workspace, network adjustment, level book/two-peg test, drainage, deformation, as-built, reserve and pile/grid panels | Establish/verify control → measured work geometry → approved target/design → set-out → independent checks → as-built/deformation → accountable reports | Route-specific calculation/input/persistence checks, adopted tolerances, actual receiver/instrument tests, and repeat field observations. Hydraulic/pavement screening is not full design approval. |
-| Road | Road field plan/collector, horizontal/vertical alignment, station entry, cross sections, earthworks/mass haul, drainage, long section, export | Ordered alignment and chainage → surveyed centreline and offset profiles → approved pavement/formation/slopes → sections/daylights/quantities → set-out/level/profile schedules → as-built comparison | Current batch improves circular geometry and measured sections, including standalone calculator consolidation. Transition/compound/reverse alignments, vertical design evaluation, full corridor coordinate set-out, measured-middle-section prismoidal scheduling, curvature/material evidence and field checks remain open. |
+| Road | Road field plan/collector, horizontal/vertical alignment, station entry, cross sections, earthworks/mass haul, drainage, long section, export | Ordered alignment and chainage → surveyed centreline and offset profiles → approved pavement/formation/slopes → sections/daylights/quantities → set-out/level/profile schedules → as-built comparison | Source now evaluates supplied parabolic vertical designs and straight/simple-circular centreline coordinate targets alongside measured sections. Transition/compound/reverse alignments, full corridor offsets/superelevation, measured-middle-section prismoidal scheduling, design/control identity, curvature/material evidence and field checks remain open. |
 | Construction | Setting-out, setting-out sheet/stakeout report, pile grid, drainage, as-built deviation, terrain quantities | Import approved design revision → bind control/CRS/height reference → generate traceable points/offsets/levels → field checks and tolerance assessment → re-observe → as-built/handover | Design/observation identity and version checks; zero/negative-coordinate fixtures; device-format round trips; actual grid/back-sight/level/receiver checks; adopted tolerances, not a universal pass threshold. |
 | Topographical | `/topographic-workflow`, topo survey/drawing, point imports, breaklines/TIN, contour generator, cut/fill, exports | Reviewed measured ground/control → coded features/breaklines → bounded terrain → contours and spot heights → plan/key/scale/reference metadata → usable CAD/PDF/data files | The supplied-point-loss and mixed-triangle volume regressions are corrected in source. Fresh browser/native export/print inspection, masked terrain boundaries, exact surface-overlay quantities where required, and independent field/height checks remain open. |
 
@@ -84,9 +84,9 @@ checks remain unassessed.
 
 ## Next implementation priorities
 
-1. Connect the established spiral/vertical engines, approved alignment revisions
-   and coordinate set-out to road project schedules. Replace stale saved derived
-   values with explicit current-revision computations and acceptance evidence.
+1. Extend the evaluated straight/circular centreline targets to approved spiral
+   alignments and corridor offsets/superelevation. Bind design revisions and field
+   control before issued set-out; retain the source checks documented below.
 2. Run cadastral boundary-to-document fixtures through actual import, adjustment,
    CAD/topology, subdivision and native output parsers; repair the discovered
    failures, retaining original observations and legal/source evidence.
@@ -262,3 +262,56 @@ separate [Gitleaks run](https://github.com/error302/metardu/actions/runs/3848773
 reported success for that exact commit. Local Gitleaks remains unavailable; no
 scanner baseline/suppression was added. This is source-push/secret-scan evidence,
 not promotion or full platform/field acceptance.
+
+### Evaluated road profiles and centreline targets follow-up
+
+The existing project vertical inputs now retain blank values until explicitly
+entered, accept incremental/emptied drafts, and preserve supplied curve length,
+K and optional design station interval in authoritative project JSON. Tangent
+grades derive from the supplied design points. The established engineering
+engine evaluates symmetric parabolic curves with unrounded intermediate values.
+Nonzero grade changes require a supplied length or K; conflicting parameters,
+overlaps, endpoint curve parameters and coverage beyond the supplied design
+are rejected. No curve is automatically selected or shortened. The low-level
+standalone vertical station schedule also retains precision and includes the
+exact PVT, correcting its incoming-tangent offset at that endpoint.
+
+Station entry explicitly selects manual target RL or the saved vertical design.
+Legacy manual targets, including zero, remain manual. Linked targets are freshly
+evaluated for cross sections, earthworks, long-section tables and station-level
+exports; stale stored RL cannot override the selected design. Measured offset
+observations and the selected source survive profile CSV re-import and project
+reload. Derived design samples never become ground observations.
+
+Long sections display the evaluated parabola, supplied ground and separate
+manual target points. The preview identifies independent axis scaling and the
+declared/unknown height reference; it no longer invents a printed scale, road
+class, speed, K or Arc 1960 datum. Parameter tables and station pages accompany
+the preview. Fresh CSV/PDF schedules include curve parameters, critical/optional
+regular profile stations and draft centreline E/N/surface/formation targets.
+Straight and simple circular coordinates follow the supplied route geometry
+and corrected chainage, including left/right curves and grid tangent bearings.
+3D coordinate targets require declared projected metre CRS and height reference;
+missing levels and targets outside horizontal coverage block the whole schedule.
+
+Analytical fixtures verify a crest whose tangent intersection RL is 2 m but
+whose actual mid-curve surface is 1.5 m, exact PVC/PVT levels, shallow-grade
+precision, left/right quarter-circle coordinates/bearings, manual zero targets,
+linked stale-RL rejection, invalid intervals and source-preserving reload/import.
+Focused source checks pass **106 tests across 14 suites**, including shared
+cross-section, CSV/PDF and persistence regressions. Both strict app/test
+TypeScript projects, changed/new source lint and whitespace checks pass.
+Browser navigation to the
+owned existing `127.0.0.1:3021` preview remains blocked by
+`net::ERR_BLOCKED_BY_CLIENT`; visual/browser downloads remain unverified.
+The read-only Docker verifier confirms one healthy existing production app and
+required services, with backup completion at `2026-10-13T21:33:38Z`. No package,
+container, image, builder, migration or service lifecycle change was made.
+
+This source milestone is centreline design evaluation, not full corridor staking
+or construction acceptance. Spiral/compound/reverse alignment integration,
+offsets and superelevation, issued design/control provenance, instrument/field
+checks, downstream CAD/print acceptance and the standalone automatic vertical
+designer's design-selection policies remain open. Existing migration/recovery,
+OAuth/notice/public-directory, paid-delivery and cadastral/legal gates remain
+open; this source has not been promoted to the production container.

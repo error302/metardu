@@ -92,4 +92,14 @@ describe('road project survey outputs', () => {
     expect(schedules.earthworks.rows.flat()).not.toContain(999999)
     expect(schedules.profiles.rows).toHaveLength(6)
   })
+  it('exports exact evaluated vertical targets and keeps the selected source through profile CSV re-import', () => {
+    const road = { ips: [ips[0], { ...ips[2], easting:200, northing:0 }], stations: stations.map(s => ({ ...s, chainage: s.chainage + 50, designLevel:999, designLevelSource:'vertical-alignment' as const })), startChainage:0, crossSectionTemplate:template,
+      vips:[{id:'a',chainage:0,reducedLevel:0},{id:'p',chainage:100,reducedLevel:2,curveLength:100},{id:'b',chainage:200,reducedLevel:0}], verticalStationIntervalM:25 } as unknown as import('@/types/engineering').RoadDesignData
+    const schedules = buildRoadSchedules(road, fixtureCrs, 'Declared BM')
+    expect(schedules.verticalStations.rows.find(row => row[0] === 100)?.[1]).toBe(1.5)
+    expect(schedules.centrelineSetout.rows.find(row => row[0] === 100)?.slice(1,4)).toEqual([100,0,1.5])
+    expect(schedules.stationLevels.rows[0]).toEqual([50, 1, 1, 'vertical-alignment'])
+    const csv = [schedules.profiles.headers, ...schedules.profiles.rows].map(row => row.join(',')).join('\n')
+    expect(parseRoadStationsCSV(csv)[0].designLevelSource).toBe('vertical-alignment')
+  })
 })

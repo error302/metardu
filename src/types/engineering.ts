@@ -57,6 +57,8 @@ export interface RoadDesignData {
 
   ips: IntersectionPoint[]
   vips: VerticalIP[]
+  /** Operator-selected design sampling interval; absence uses saved/critical chainages only. */
+  verticalStationIntervalM?: number
   crossSectionTemplate: CrossSectionTemplate
   stations: StationData[]
 
@@ -112,6 +114,8 @@ export interface StationData {
   chainage: number
   groundLevel: number
   designLevel?: number
+  /** Explicit target source; omitted retains the manually entered design RL. */
+  designLevelSource?: 'manual' | 'vertical-alignment'
   /** Measured offset/RL ground observations; offsets negative left, positive right. */
   groundProfile?: Array<{ offset: number; level: number }>
   cutArea?: number

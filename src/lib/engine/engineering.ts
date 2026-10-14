@@ -140,6 +140,15 @@ export function verticalCurveElevation(
   return pvcElevation + (vc.gradeIn * x / 100) + (r * x * x / 200);
 }
 
+/** Percent grade on the supplied parabola, with the outgoing/incoming tangent beyond its ends. */
+export function verticalCurveGrade(vc: VerticalCurve, chainage: number): number {
+  if (![vc.pvIChainage, vc.gradeIn, vc.gradeOut, vc.length, chainage].every(Number.isFinite) || vc.length <= 0) throw new RangeError('Supply finite curve parameters and chainage.')
+  const x = Math.max(0, Math.min(vc.length, chainage - (vc.pvIChainage - vc.length / 2)))
+  const grade = vc.gradeIn + (vc.gradeOut - vc.gradeIn) * (x / vc.length)
+  if (!Number.isFinite(grade)) throw new RangeError('Vertical grade exceeds the finite calculation range.')
+  return grade
+}
+
 /**
  * Compute cut/fill areas for a cross-section using trapezoidal integration.
  *
