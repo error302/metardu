@@ -458,3 +458,11 @@ out during compilation; subsequent inspection was rejected because automatic
 approval review could not complete for the redirected `localhost:3021` origin.
 No review bypass, browser storage injection or CAD drawing modification occurred.
 Fresh field/browser/print/receiver checks and all wider release gates stay open.
+
+Adjacent source audit: `evaluateVerticality` currently substitutes an infinite
+tilt ratio when height is absent, permitting PASS from the absolute offset cap
+alone. Its default name also asserts a Cap. 299 standard without recorded
+project criteria. The project plumb-record API uses that default and derives
+height only from optional RLs. These are confirmed remaining implementation
+defects, not field-verified construction acceptance; repair the existing path
+with explicit criteria/height/reference evidence while preserving old records.
