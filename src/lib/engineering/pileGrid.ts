@@ -11,6 +11,11 @@
  *   Ghilani & Wolf §24.1 – Construction Surveying
  */
 
+import Papa from 'papaparse'
+import { engineeringScheduleCsv } from './engineeringScheduleCsv'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { normalizeBearing } from '@/lib/engine/angles'
+
 // ─── TYPES ────────────────────────────────────────────────────────────────────
 
 export interface PileGridDefinition {
@@ -57,11 +62,20 @@ export const MAX_PILE_GRID_POINTS = 5000
 
 export interface PileSettingOutData {
   pile: PileCoordinate;
-  bearingDeg: number;
-  bearingDMS: string;
+  bearingDeg: number | null;
+  bearingDMS: string | null;
   horizontalDistance: number;
+  /** Legacy field: signed design-ground RL minus instrument-axis RL, NOT prism height. */
   targetHeight: number | null;
+  /** Instrument-axis RL minus design RL; a negative value is above the sight horizon. */
+  staffReading: number | null;
+  horizontalAngleDeg: number | null;
+  prismVerticalDifference: number | null;
+  verticalAngleDeg: number | null;
+  slopeDistance: number | null;
 }
+
+export interface PileInstrumentOptions { backsight?: { easting: number; northing: number }; prismHeight?: number }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
@@ -94,6 +108,16 @@ function parseStartLabel(
   rowMode: 'alpha' | 'numeric',
   colMode: 'alpha' | 'numeric',
 ): { rowOffset: number; colOffset: number } {
+  const alpha = (text: string) => { let index = 0; for (const letter of text.toUpperCase()) index = index * 26 + letter.charCodeAt(0) - 64; return index - 1 }
+  const checked = (rowOffset: number, colOffset: number) => {
+    if (![rowOffset,colOffset].every(n=>Number.isSafeInteger(n) && n>=0 && n<=1000000)) throw new RangeError('Starting label indices must be positive and within the supported label range.')
+    return {rowOffset,colOffset}
+  }
+  if (rowMode === colMode) {
+    const parts = startLabel.trim().match(rowMode === 'numeric' ? /^(\d+)-(\d+)$/ : /^([A-Za-z]+)-([A-Za-z]+)$/)
+    if (!parts) throw new RangeError('Same-format grid labels need a separator, for example 1-1 or A-A; ambiguous labels are not renamed automatically.')
+    return checked(rowMode==='numeric' ? Number(parts[1])-1 : alpha(parts[1]), rowMode==='numeric' ? Number(parts[2])-1 : alpha(parts[2]))
+  }
   // Try "A1" style labels (alpha row, numeric col)
   const alphaMatch = startLabel.match(/^([A-Za-z]+)(\d+)$/);
   if (alphaMatch && rowMode === 'alpha' && colMode === 'numeric') {
@@ -104,7 +128,7 @@ function parseStartLabel(
     }
     rowIdx--; // zero-based
     const colIdx = parseInt(alphaMatch[2], 10) - 1;
-    return { rowOffset: rowIdx, colOffset: colIdx };
+    return checked(rowIdx, colIdx);
   }
 
   // Try "1A" style (numeric row, alpha column)
@@ -117,10 +141,10 @@ function parseStartLabel(
       colIdx = colIdx * 26 + (colLetters.charCodeAt(i) - 64);
     }
     colIdx--;
-    return { rowOffset: rowIdx, colOffset: colIdx };
+    return checked(rowIdx, colIdx);
   }
 
-  return { rowOffset: 0, colOffset: 0 };
+  throw new RangeError('Starting label must match the selected row/column formats, for example A1 or 1A.')
 }
 
 // ─── CORE FUNCTIONS ───────────────────────────────────────────────────────────
@@ -130,7 +154,7 @@ function parseStartLabel(
  *
  * Rotation convention:
  *   0 deg  = grid aligned with north (row spacing along N, column spacing along E)
- *   90 deg = column spacing along N, row spacing along E
+ *   90 deg = columns toward south, rows toward east
  *   Positive = clockwise
  *
  * For each (col, row):
@@ -142,6 +166,8 @@ function parseStartLabel(
  *   northing = originN + ry
  */
 export function generatePileGrid(def: PileGridDefinition): PileGridResult {
+  if (!['alpha','numeric'].includes(def.labelRowsAs) || !['alpha','numeric'].includes(def.labelColumnsAs)) throw new RangeError('Grid label formats must be alpha or numeric.')
+  for (const n of [def.pileDiameter,def.depth]) if (n != null && (!Number.isFinite(n) || n<=0)) throw new RangeError('Supplied diameter/depth must be finite and positive.')
   if (!Number.isInteger(def.rows) || def.rows < 1 || !Number.isInteger(def.columns) || def.columns < 1) {
     throw new RangeError('Grid rows and columns must be positive whole numbers.')
   }
@@ -160,14 +186,20 @@ export function generatePileGrid(def: PileGridDefinition): PileGridResult {
   if (!Number.isFinite(def.rotation)) {
     throw new RangeError('Grid rotation must be a finite angle.')
   }
+  const width = (def.columns-1)*def.columnSpacing, height = (def.rows-1)*def.rowSpacing
+  if (![width,height,width*height].every(Number.isFinite)) throw new RangeError('Grid extent/area exceeds the finite calculation range.')
 
-  const theta = (def.rotation * Math.PI) / 180;
+  const theta = normalizeBearing(def.rotation) * Math.PI / 180;
   const cosT = Math.cos(theta);
   const sinT = Math.sin(theta);
 
   const parsed = parseStartLabel(def.startLabel, def.labelRowsAs, def.labelColumnsAs);
+  const numericParts = def.startLabel.match(/\d+/g) ?? []
+  const rowWidth = def.labelRowsAs === 'numeric' ? numericParts[0]?.length ?? 1 : 0
+  const colWidth = def.labelColumnsAs === 'numeric' ? numericParts[def.labelRowsAs === 'numeric' ? 1 : 0]?.length ?? 1 : 0
 
   const piles: PileCoordinate[] = [];
+  const coordinates = new Set<string>()
 
   for (let r = 0; r < def.rows; r++) {
     for (let c = 0; c < def.columns; c++) {
@@ -177,9 +209,13 @@ export function generatePileGrid(def: PileGridDefinition): PileGridResult {
       const rx = lx * cosT + ly * sinT;
       const ry = -lx * sinT + ly * cosT;
 
-      const rowLabel = labelForRow(parsed.rowOffset + r, def.labelRowsAs);
-      const colLabel = labelForColumn(parsed.colOffset + c, def.labelColumnsAs);
-      const label = rowLabel + colLabel;
+      const rowLabel = labelForRow(parsed.rowOffset + r, def.labelRowsAs).padStart(rowWidth, '0');
+      const colLabel = labelForColumn(parsed.colOffset + c, def.labelColumnsAs).padStart(colWidth, '0');
+      const label = def.labelRowsAs === def.labelColumnsAs ? `${rowLabel}-${colLabel}` : rowLabel + colLabel;
+      if (![lx,ly,rx,ry,def.originEasting+rx,def.originNorthing+ry].every(Number.isFinite)) throw new RangeError('Grid coordinates exceed the finite calculation range.')
+      const location = `${def.originEasting+rx},${def.originNorthing+ry}`
+      if (coordinates.has(location)) throw new RangeError('Grid spacing cannot produce distinct coordinates at this origin precision.')
+      coordinates.add(location)
 
       piles.push({
         label,
@@ -206,6 +242,7 @@ export function generatePileGrid(def: PileGridDefinition): PileGridResult {
   const area =
     (Math.max(def.columns - 1, 0) * def.columnSpacing) *
     (Math.max(def.rows - 1, 0) * def.rowSpacing);
+  if (![area,maxE-minE,maxN-minN].every(Number.isFinite)) throw new RangeError('Grid extent/area exceeds the finite calculation range.')
 
   return {
     definition: def,
@@ -222,35 +259,50 @@ export function generatePileGrid(def: PileGridDefinition): PileGridResult {
  *
  * Bearing = atan2(dE, dN), normalised to 0-360 degrees.
  * Distance = sqrt(dE^2 + dN^2)
- * Target height on staff = pile.designRL - stationRL - heightOfInstrument
+ * Signed ground offset = designRL - (stationRL + instrument height).
+ * Level staff reading = (stationRL + instrument height) - designRL.
+ * Prism offset includes the explicitly supplied prism height; orientation needs a backsight.
  */
 export function computeSettingOut(
   piles: PileCoordinate[],
   stationE: number,
   stationN: number,
-  stationRL: number,
-  heightOfInstrument: number,
+  stationRL: number | null,
+  heightOfInstrument: number | null,
+  options: PileInstrumentOptions = {},
 ): PileSettingOutData[] {
+  if (![stationE,stationN].every(Number.isFinite)) throw new RangeError('Instrument coordinates must be finite.')
+  if ((stationRL==null)!==(heightOfInstrument==null)) throw new RangeError('Enter station RL and instrument height together, or leave both unknown.')
+  if (stationRL != null && !Number.isFinite(stationRL) || heightOfInstrument != null && (!Number.isFinite(heightOfInstrument) || heightOfInstrument<0)) throw new RangeError('Station RL must be finite and instrument height finite and non-negative.')
+  if (options.prismHeight != null && (!Number.isFinite(options.prismHeight) || options.prismHeight<0)) throw new RangeError('Prism height must be finite and non-negative.')
+  if (piles.length>MAX_PILE_GRID_POINTS || new Set(piles.map(p=>p.label)).size!==piles.length) throw new RangeError('Target labels must be unique and the point count bounded.')
+  const inverse = (e: number,n: number) => {
+    const de=e-stationE,dn=n-stationN,distance=Math.hypot(de,dn)
+    if (![e,n,de,dn,distance].every(Number.isFinite)) throw new RangeError('Target coordinates/distances exceed the finite calculation range.')
+    return {distance,bearing:distance===0 ? null : normalizeBearing(Math.atan2(de,dn)*180/Math.PI)}
+  }
+  const bs = options.backsight ? inverse(options.backsight.easting,options.backsight.northing) : null
+  if (bs && bs.bearing==null) throw new RangeError('Backsight must be distinct from the instrument station.')
+  const axis = stationRL!=null && heightOfInstrument!=null ? stationRL+heightOfInstrument : null
+  if (axis!=null && !Number.isFinite(axis)) throw new RangeError('Instrument axis height exceeds the finite range.')
   return piles.map((pile) => {
-    const dE = pile.easting - stationE;
-    const dN = pile.northing - stationN;
-
-    // Bearing: atan2(dE, dN) in radians, then to degrees, normalise 0-360
-    let bearingRad = Math.atan2(dE, dN);
-    if (bearingRad < 0) bearingRad += 2 * Math.PI;
-    const bearingDeg = (bearingRad * 180) / Math.PI;
-
-    const horizontalDistance = Math.sqrt(dE * dE + dN * dN);
-    const targetHeight = pile.designRL == null
-      ? null
-      : pile.designRL - stationRL - heightOfInstrument;
+    if (pile.designRL!=null && !Number.isFinite(pile.designRL)) throw new RangeError('Target design level must be finite or unknown.')
+    const point=inverse(pile.easting,pile.northing), bearingDeg=point.bearing, horizontalDistance=point.distance
+    const targetHeight=pile.designRL!=null && axis!=null ? pile.designRL-axis : null
+    const prismVerticalDifference=targetHeight!=null && options.prismHeight!=null ? targetHeight+options.prismHeight : null
+    const verticalAngleDeg=prismVerticalDifference!=null && horizontalDistance>0 ? Math.atan2(prismVerticalDifference,horizontalDistance)*180/Math.PI : null
+    const slopeDistance=prismVerticalDifference!=null && horizontalDistance>0 ? Math.hypot(horizontalDistance,prismVerticalDifference) : null
+    for (const n of [targetHeight,prismVerticalDifference,verticalAngleDeg,slopeDistance]) if (n!=null && !Number.isFinite(n)) throw new RangeError('Target height/distance exceeds the finite range.')
 
     return {
       pile,
       bearingDeg,
-      bearingDMS: formatBearingDMS(bearingDeg),
+      bearingDMS: bearingDeg==null ? null : formatBearingDMS(bearingDeg),
       horizontalDistance,
       targetHeight,
+      staffReading:targetHeight==null ? null : -targetHeight,
+      horizontalAngleDeg:bs?.bearing!=null && bearingDeg!=null ? normalizeBearing(bearingDeg-bs.bearing) : null,
+      prismVerticalDifference,verticalAngleDeg,slopeDistance,
     };
   });
 }
@@ -263,19 +315,10 @@ export function computeSettingOut(
  * Output: e.g. "127\u00B030'15.2\""
  */
 export function formatBearingDMS(degrees: number): string {
-  // Normalise to 0-360
-  let totalDeg = degrees % 360;
-  if (totalDeg < 0) totalDeg += 360;
-
-  const deg = Math.floor(totalDeg);
-  const remMin = (totalDeg - deg) * 60;
-  const min = Math.floor(remMin);
-  const sec = (remMin - min) * 60;
-
-  // Pad seconds: e.g. "05.2" -> "05.2", "15.2" -> "15.2"
-  const secStr = sec < 10 ? `0${sec.toFixed(1)}` : sec.toFixed(1);
-
-  return `${deg}\u00B0${String(min).padStart(2, '0')}'${secStr}"`;
+  if (!Number.isFinite(degrees)) throw new RangeError('Bearing must be finite.')
+  const ticks=Math.round(normalizeBearing(degrees)*36000)%12960000
+  const deg=Math.floor(ticks/36000),min=Math.floor(ticks%36000/600),sec=(ticks%600)/10
+  return `${deg}°${String(min).padStart(2,'0')}'${sec.toFixed(1).padStart(4,'0')}"`
 }
 
 // ─── CSV ──────────────────────────────────────────────────────────────────────
@@ -285,70 +328,53 @@ export function formatBearingDMS(degrees: number): string {
  * Expected format: "Parameter,Value" per line.
  */
 export function parsePileGridCSV(csv: string): Partial<PileGridDefinition> {
-  const lines = csv.trim().split('\n').map((l) => l.trim()).filter(Boolean);
-  const result: Record<string, string> = {};
-
-  for (const line of lines) {
-    const parts = line.split(',');
-    if (parts.length >= 2) {
-      const key = parts[0].trim();
-      // Skip header row
-      if (key.toLowerCase() === 'parameter') continue;
-      result[key] = parts.slice(1).join(',').trim();
-    }
+  if (!csv.trim()) return {}
+  if (csv.length>65536) throw new RangeError('Use a grid definition CSV smaller than 64 KiB.')
+  const parsed=Papa.parse<string[]>(csv,{skipEmptyLines:'greedy'})
+  if (parsed.errors.length || parsed.data.length>100) throw new RangeError('Supply complete Parameter,Value rows, up to 100.')
+  const values=new Map<string,string>()
+  for (const row of parsed.data) {
+    if (row.length!==2) throw new RangeError('Each definition row needs one parameter and one value.')
+    const key=row[0].trim(),value=row[1].trim()
+    if (key.toLowerCase()==='parameter' && value.toLowerCase()==='value') continue
+    if (values.has(key)) throw new RangeError('Duplicate parameter: '+key)
+    values.set(key,value)
   }
-
-  const def: Partial<PileGridDefinition> = {};
-
-  if (result['Name']) def.name = result['Name'];
-  if (result['Origin E']) def.originEasting = parseFloat(result['Origin E']);
-  if (result['Origin N']) def.originNorthing = parseFloat(result['Origin N']);
-  if (Object.prototype.hasOwnProperty.call(result, 'Origin RL')) {
-    def.originRL = result['Origin RL'] ? parseFloat(result['Origin RL']) : null;
+  const result: Partial<PileGridDefinition>={}
+  const strings: Record<string,'name'|'startLabel'|'coordinateSystem'>={'Name':'name','Start Label':'startLabel','Coordinate System':'coordinateSystem'}
+  const numbers: Record<string,'originEasting'|'originNorthing'|'originRL'|'rows'|'columns'|'rowSpacing'|'columnSpacing'|'rotation'|'pileDiameter'|'depth'>={
+    'Origin E':'originEasting','Origin N':'originNorthing','Origin RL':'originRL','Rows':'rows','Columns':'columns','Row Spacing':'rowSpacing','Column Spacing':'columnSpacing','Rotation':'rotation','Pile Diameter':'pileDiameter','Depth':'depth'}
+  for (const [key,value] of values) {
+    if (strings[key]) result[strings[key]]=value
+    else if (numbers[key]) {
+      if (key==='Origin RL' && !value) { result.originRL=null; continue }
+      if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value) || !Number.isFinite(Number(value))) throw new RangeError(key+': supply a complete finite decimal.')
+      const n=Number(value)
+      if ((key==='Rows'||key==='Columns') && (!Number.isInteger(n)||n<1)) throw new RangeError(key+': supply a positive whole number.')
+      result[numbers[key]]=n
+    } else if (key==='Label Rows As'||key==='Label Columns As') {
+      const mode=value.toLowerCase()
+      if (mode!=='alpha' && mode!=='numeric') throw new RangeError('Label format must be alpha or numeric.')
+      if (key==='Label Rows As') result.labelRowsAs=mode; else result.labelColumnsAs=mode
+    } else if (key==='Pile Type') {
+      const kind=value.toLowerCase()
+      if (!['pile','column','pier','abutment'].includes(kind)) throw new RangeError('Select a supported element type.')
+      result.pileType=kind as PileGridDefinition['pileType']
+    } else throw new RangeError('Unsupported grid parameter: '+key)
   }
-  if (result['Rows']) def.rows = parseInt(result['Rows'], 10);
-  if (result['Columns']) def.columns = parseInt(result['Columns'], 10);
-  if (result['Row Spacing']) def.rowSpacing = parseFloat(result['Row Spacing']);
-  if (result['Column Spacing']) def.columnSpacing = parseFloat(result['Column Spacing']);
-  if (result['Rotation']) def.rotation = parseFloat(result['Rotation']);
-  if (result['Start Label']) def.startLabel = result['Start Label'];
-  if (result['Label Rows As']) {
-    const v = result['Label Rows As'].toLowerCase();
-    if (v === 'alpha' || v === 'numeric') def.labelRowsAs = v;
-  }
-  if (result['Label Columns As']) {
-    const v = result['Label Columns As'].toLowerCase();
-    if (v === 'alpha' || v === 'numeric') def.labelColumnsAs = v;
-  }
-  if (result['Pile Type']) {
-    const v = result['Pile Type'].toLowerCase();
-    if (['pile', 'column', 'pier', 'abutment'].includes(v)) {
-      def.pileType = v as PileGridDefinition['pileType'];
-    }
-  }
-  if (result['Pile Diameter']) def.pileDiameter = parseFloat(result['Pile Diameter']);
-  if (result['Depth']) def.depth = parseFloat(result['Depth']);
-  if (result['Coordinate System']) def.coordinateSystem = result['Coordinate System'];
-
-  return def;
+  return result
 }
 
-/**
- * Export a PileGridResult to CSV string (pile coordinates).
- */
-export function pileGridToCSV(result: PileGridResult): string {
-  const header = [
-    'Label', 'Row', 'Column', 'Easting', 'Northing', 'Design RL',
-    'Grid Offset E', 'Grid Offset N',
-  ].join(',');
-  const rows = result.piles.map((p) =>
-    [
-      p.label, p.row, p.column,
-      p.easting.toFixed(4), p.northing.toFixed(4), p.designRL?.toFixed(4) ?? '',
-      p.gridOffsetE.toFixed(4), p.gridOffsetN.toFixed(4),
-    ].join(',')
-  );
-  return [header, ...rows].join('\n');
+function checkedGrid(result: PileGridResult): PileGridResult {
+  const fresh=generatePileGrid(result.definition)
+  if (JSON.stringify(fresh)!==JSON.stringify(result)) throw new RangeError('Grid result is stale; regenerate from current design inputs.')
+  if (assertProjectedCrs(fresh.definition.coordinateSystem).units!=='metres') throw new RangeError('Declare a projected metre CRS before exporting design targets.')
+  return fresh
+}
+export function pileGridToCSV(result: PileGridResult, heightReference?: string | null): string {
+  const fresh=checkedGrid(result)
+  return engineeringScheduleCsv(['Label','Row','Column','Easting','Northing','Design RL','Grid Offset E','Grid Offset N','Declared_CRS','Declared_height_reference','Issue_status'],
+    fresh.piles.map(p=>[p.label,p.row,p.column,p.easting,p.northing,p.designRL,p.gridOffsetE,p.gridOffsetN,fresh.definition.coordinateSystem,heightReference,'DRAFT']))
 }
 
 // ─── DXF GENERATION ───────────────────────────────────────────────────────────
@@ -363,103 +389,41 @@ export function pileGridToCSV(result: PileGridResult): string {
  *   GRID           - internal grid lines (LINE entities, dashed)
  *   PILE_CIRCLE    - pile diameter circles (CIRCLE entities)
  */
-export function generatePileGridDXF(result: PileGridResult): string {
-  const { definition: def, piles, boundingBox } = result;
-  const theta = (def.rotation * Math.PI) / 180;
-  const cosT = Math.cos(theta);
-  const sinT = Math.sin(theta);
-
-  // Helper: rotate local (e, n) offset around origin to world coords
-  const rotate = (le: number, ln: number) => ({
-    e: le * cosT + ln * sinT + def.originEasting,
-    n: -le * sinT + ln * cosT + def.originNorthing,
-  });
-
-  const totalWidth = Math.max(def.columns - 1, 0) * def.columnSpacing;
-  const totalHeight = Math.max(def.rows - 1, 0) * def.rowSpacing;
-
-  // Grid corners
-  const c0 = rotate(0, 0);
-  const c1 = rotate(totalWidth, 0);
-  const c2 = rotate(totalWidth, totalHeight);
-  const c3 = rotate(0, totalHeight);
-
-  const f = (v: number) => v.toFixed(4);
-
-  let dxf = '';
-
-  // ─── HEADER ──────────────────────────────────────────────────────────────
-  dxf += `0\nSECTION\n2\nHEADER\n`;
-  dxf += `9\n$ACADVER\n1\nAC1021\n`;
-  dxf += `9\n$EXTMIN\n10\n${f(boundingBox.minE - 10)}\n20\n${f(boundingBox.minN - 10)}\n30\n0.0\n`;
-  dxf += `9\n$EXTMAX\n10\n${f(boundingBox.maxE + 10)}\n20\n${f(boundingBox.maxN + 10)}\n30\n0.0\n`;
-  dxf += `0\nENDSEC\n`;
-
-  // ─── TABLES ──────────────────────────────────────────────────────────────
-  dxf += `0\nSECTION\n2\nTABLES\n`;
-  // LTYPE table with DASHED linetype
-  dxf += `0\nTABLE\n2\nLTYPE\n70\n1\n`;
-  dxf += `0\nLTYPE\n2\nDASHED\n70\n0\n3\nDash __ __ __ __ __ __ __ __ __ __ __ __ __ _\n72\n65\n73\n2\n40\n5.0\n50\n3.0\n51\n2.0\n`;
-  dxf += `0\nENDTAB\n`;
-  // LAYER table
-  dxf += `0\nTABLE\n2\nLAYER\n70\n5\n`;
-  const layers = ['SETOUT_POINTS', 'ANNOTATIONS', 'BORDER', 'GRID', 'PILE_CIRCLE'];
-  for (const layer of layers) {
-    dxf += `0\nLAYER\n2\n${layer}\n70\n0\n62\n7\n6\nCONTINUOUS\n`;
+export function generatePileGridDXF(result: PileGridResult, heightReference?: string | null): string {
+  const {definition:def,piles,boundingBox}=checkedGrid(result)
+  const hasHeight=!!heightReference?.trim() && def.originRL!=null
+  const z=hasHeight ? def.originRL as number : 0
+  const theta=normalizeBearing(def.rotation)*Math.PI/180,cosT=Math.cos(theta),sinT=Math.sin(theta)
+  const rotate=(e:number,n:number)=>({e:e*cosT+n*sinT+def.originEasting,n:-e*sinT+n*cosT+def.originNorthing})
+  const width=(def.columns-1)*def.columnSpacing,height=(def.rows-1)*def.rowSpacing
+  let dxf=''
+  const pair=(code:number,value:string|number)=>{ dxf+=String(code)+'\n'+String(value)+'\n' }
+  const safe=(text:string)=>text.replace(/[\r\n\u0000-\u001f\u007f]/g,' ').slice(0,500)
+  pair(0,'SECTION');pair(2,'HEADER');pair(9,'$ACADVER');pair(1,'AC1015');pair(9,'$INSUNITS');pair(70,6);pair(9,'$MEASUREMENT');pair(70,1)
+  pair(9,'$EXTMIN');pair(10,boundingBox.minE);pair(20,boundingBox.minN);pair(30,z)
+  pair(9,'$EXTMAX');pair(10,boundingBox.maxE);pair(20,boundingBox.maxN);pair(30,z);pair(0,'ENDSEC')
+  pair(0,'SECTION');pair(2,'TABLES');pair(0,'TABLE');pair(2,'LTYPE');pair(70,1)
+  pair(0,'LTYPE');pair(2,'CONTINUOUS');pair(70,0);pair(3,'Solid');pair(72,65);pair(73,0);pair(40,0);pair(0,'ENDTAB')
+  const layers=['SETOUT_POINTS','ANNOTATIONS','BORDER','GRID','PILE_CIRCLE','DRAFT_REFERENCE']
+  pair(0,'TABLE');pair(2,'LAYER');pair(70,layers.length)
+  for (const layer of layers) { pair(0,'LAYER');pair(2,layer);pair(70,0);pair(62,7);pair(6,'CONTINUOUS') }
+  pair(0,'ENDTAB');pair(0,'ENDSEC');pair(0,'SECTION');pair(2,'ENTITIES')
+  const point=(p:{e:number;n:number},end=false)=>{pair(end?11:10,p.e);pair(end?21:20,p.n);if(hasHeight)pair(end?31:30,z)}
+  const line=(layer:string,a:{e:number;n:number},b:{e:number;n:number})=>{pair(0,'LINE');pair(8,layer);point(a);point(b,true)}
+  const corners=[rotate(0,0),rotate(width,0),rotate(width,height),rotate(0,height)]
+  for(let i=0;i<4;i++) if (width>0 && height>0) line('BORDER',corners[i],corners[(i+1)%4])
+  for(let row=0;row<def.rows;row++) if(width>0) line('GRID',rotate(0,row*def.rowSpacing),rotate(width,row*def.rowSpacing))
+  for(let col=0;col<def.columns;col++) if(height>0) line('GRID',rotate(col*def.columnSpacing,0),rotate(col*def.columnSpacing,height))
+  const textHeight=Math.max(Math.min(def.rowSpacing,def.columnSpacing)*0.12,0.01)
+  for (const p of piles) {
+    const pxy={e:p.easting,n:p.northing}
+    pair(0,'POINT');pair(8,'SETOUT_POINTS');point(pxy)
+    if (def.pileDiameter!=null) {pair(0,'CIRCLE');pair(8,'PILE_CIRCLE');point(pxy);pair(40,def.pileDiameter/2000)}
+    pair(0,'TEXT');pair(8,'ANNOTATIONS');point({e:p.easting+textHeight,n:p.northing+textHeight});pair(40,textHeight);pair(1,safe(p.label))
   }
-  dxf += `0\nENDTAB\n`;
-  dxf += `0\nENDSEC\n`;
-
-  // ─── ENTITIES ───────────────────────────────────────────────────────────
-  dxf += `0\nSECTION\n2\nENTITIES\n`;
-
-  // ─── BORDER: outer rectangle ────────────────────────────────────────────
-  const borderCorners = [c0, c1, c2, c3];
-  for (let i = 0; i < 4; i++) {
-    const p1 = borderCorners[i];
-    const p2 = borderCorners[(i + 1) % 4];
-    dxf += `0\nLINE\n8\nBORDER\n10\n${f(p1.e)}\n20\n${f(p1.n)}\n30\n0.0\n11\n${f(p2.e)}\n21\n${f(p2.n)}\n31\n0.0\n`;
-  }
-
-  // ─── GRID: dashed lines for grid lines ──────────────────────────────────
-  // Row grid lines (horizontal in local space)
-  for (let r = 1; r < def.rows; r++) {
-    const localN = r * def.rowSpacing;
-    const p1 = rotate(0, localN);
-    const p2 = rotate(totalWidth, localN);
-    dxf += `0\nLINE\n8\nGRID\n6\nDASHED\n10\n${f(p1.e)}\n20\n${f(p1.n)}\n30\n0.0\n11\n${f(p2.e)}\n21\n${f(p2.n)}\n31\n0.0\n`;
-  }
-  // Column grid lines (vertical in local space)
-  for (let c = 1; c < def.columns; c++) {
-    const localE = c * def.columnSpacing;
-    const p1 = rotate(localE, 0);
-    const p2 = rotate(localE, totalHeight);
-    dxf += `0\nLINE\n8\nGRID\n6\nDASHED\n10\n${f(p1.e)}\n20\n${f(p1.n)}\n30\n0.0\n11\n${f(p2.e)}\n21\n${f(p2.n)}\n31\n0.0\n`;
-  }
-
-  // ─── SETOUT_POINTS: POINT entities at each pile ─────────────────────────
-  for (const pile of piles) {
-    dxf += `0\nPOINT\n8\nSETOUT_POINTS\n10\n${f(pile.easting)}\n20\n${f(pile.northing)}\n30\n0.0\n`;
-  }
-
-  // ─── PILE_CIRCLE: CIRCLE entities if pileDiameter > 0 ───────────────────
-  if (def.pileDiameter && def.pileDiameter > 0) {
-    const radius = def.pileDiameter / 2000; // mm to metres, then /2 for radius
-    for (const pile of piles) {
-      dxf += `0\nCIRCLE\n8\nPILE_CIRCLE\n10\n${f(pile.easting)}\n20\n${f(pile.northing)}\n30\n0.0\n40\n${f(radius)}\n`;
-    }
-  }
-
-  // ─── ANNOTATIONS: TEXT entities for labels ───────────────────────────────
-  const labelOffset = (def.pileDiameter ? def.pileDiameter / 2000 : 0) + 0.8;
-  for (const pile of piles) {
-    // Place label north-east of the pile
-    const labelE = pile.easting + labelOffset * (sinT * 0.5 + cosT * 0.5);
-    const labelN = pile.northing + labelOffset * (cosT * 0.5 - sinT * 0.5);
-    dxf += `0\nTEXT\n8\nANNOTATIONS\n10\n${f(labelE)}\n20\n${f(labelN)}\n30\n0.0\n40\n1.2\n1\n${pile.label}\n`;
-  }
-
-  dxf += `0\nENDSEC\n0\nEOF\n`;
-
-  return dxf;
+  const notes=['DRAFT - DESIGN TARGETS; FIELD CONTROL AND APPROVED REVISION REQUIRED',
+    'Declared projected CRS: '+def.coordinateSystem+'; metre units',
+    hasHeight ? 'Design RL height reference: '+safe(heightReference as string) : '2D PLAN ONLY - NO DESIGN OR SURVEYED Z ENCODED; HEIGHT REFERENCE NOT USED']
+  notes.forEach((note,i)=>{pair(0,'TEXT');pair(8,'DRAFT_REFERENCE');point({e:boundingBox.minE,n:boundingBox.minN-(i+2)*textHeight*1.6});pair(40,textHeight);pair(1,note)})
+  pair(0,'ENDSEC');pair(0,'EOF');return dxf
 }

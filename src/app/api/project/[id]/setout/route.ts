@@ -62,6 +62,7 @@ interface DefinitionBody {
   labelColumnsAs?: 'alpha' | 'numeric'
   pileDiameterMm?: number | null
   depthM?: number | null
+  toleranceProfile?: unknown
 }
 
 interface ObservationBody {
@@ -234,7 +235,9 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 120, windowMs: 600
     updated_at: string
   }>(
     `SELECT id, name, structure_type, status, rows, columns, crs, tolerance_profile_id, metadata,
-            origin_easting, origin_northing, updated_at
+            origin_easting, origin_northing, origin_rl, row_spacing, column_spacing,
+            rotation, start_label, label_rows_as, label_columns_as, pile_diameter_mm, depth_m, updated_at,
+            (SELECT COALESCE(MAX(p.revision), 0) FROM setout_points p WHERE p.definition_id = setout_definitions.id) AS revision
        FROM setout_definitions
       WHERE project_id = $1 AND status <> 'SUPERSEDED'
       ORDER BY updated_at DESC`,
@@ -627,6 +630,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   }
 
   if (body.action === 'save_definition') {
+    const toleranceProfileDraft = parseSetoutToleranceProfileDraft(body.toleranceProfile)
+    if (toleranceProfileDraft.issues.length) return NextResponse.json({ error: toleranceProfileDraft.issues.join(' '), code: 'INVALID_TOLERANCE_PROFILE' }, { status: 400 })
     const originEasting = num(body.originEasting);
     const originNorthing = num(body.originNorthing);
     const rows = num(body.rows);
@@ -696,7 +701,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       rowSpacing,
       columnSpacing,
       rotation,
-      startLabel: startLabel || 'A',
+      startLabel,
       labelRowsAs: labelRowsAs as PileGridDefinition['labelRowsAs'],
       labelColumnsAs: labelColumnsAs as PileGridDefinition['labelColumnsAs'],
       pileType: structureType as PileGridDefinition['pileType'],
@@ -813,6 +818,29 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         definitionId = inserted.rows[0].id;
       }
 
+      const recordedAt = new Date().toISOString()
+      const toleranceRules = toleranceProfileDraft.profile ? serializeSetoutToleranceRules(toleranceProfileDraft.profile, userId, recordedAt) : null
+      let toleranceProfileId: string | null = null
+      if (toleranceProfileDraft.profile && toleranceRules) {
+        const profile = toleranceProfileDraft.profile
+        const savedProfile = await client.query<{ id: string }>(
+          `INSERT INTO tolerance_profiles (name, jurisdiction, version, description, rules, is_default, created_by)
+           VALUES ($1,$2,$3,$4,$5::jsonb,FALSE,$6) RETURNING id`,
+          [profile.name, profile.jurisdiction, profile.version, `Pile/grid criteria transcribed from ${profile.source}; effective ${profile.effectiveDate}; approved by ${profile.approvedBy}.`, JSON.stringify(toleranceRules), userId])
+        toleranceProfileId = savedProfile.rows[0]?.id ?? null
+        if (!toleranceProfileId) throw new Error('Tolerance profile was not returned after save')
+      }
+      const metadata = {
+        source: 'project_pile_grid', generator: 'pile-grid-v2', projectCrs: crs,
+        generatedAt: recordedAt, generatedBy: userId,
+        setoutToleranceSource: toleranceProfileDraft.profile ? 'project_profile_transcription' : 'METARDU_default',
+        setoutToleranceProfileSnapshot: toleranceProfileDraft.profile && toleranceRules && toleranceProfileId
+          ? { id: toleranceProfileId, ...toleranceProfileDraft.profile, rules: toleranceRules } : null,
+      }
+      await client.query(
+        `UPDATE setout_definitions SET tolerance_profile_id = $2, metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb WHERE id = $1`,
+        [definitionId, toleranceProfileId, JSON.stringify(metadata)])
+
       // Every save writes a fresh design revision; existing shots keep the
       // revision they were taken against.
       const { rows: revRows } = await client.query<{ revision: number }>(
@@ -821,12 +849,13 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       );
       const revision = Number(revRows[0]?.revision ?? 1);
 
+      const pointMetadata = JSON.stringify({ ...metadata, sourceDefinition: definition, declaredHeightReference: projectReference.verticalDatum ?? null, designRevision: revision })
       const insertBatchSize = 500;
       for (let offset = 0; offset < result.piles.length; offset += insertBatchSize) {
         const batch = result.piles.slice(offset, offset + insertBatchSize);
         const values: unknown[] = [definitionId, revision];
         const rowsSql = batch.map((pile, batchIndex) => {
-          const base = 3 + batchIndex * 7;
+          const base = 3 + batchIndex * 8;
           values.push(
             pile.label,
             pile.row,
@@ -835,12 +864,13 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
             pile.northing,
             pile.designRL,
             definition.pileType,
+            pointMetadata,
           );
-          return `($1,$2,${Array.from({ length: 7 }, (_, valueIndex) => `$${base + valueIndex}`).join(',')})`;
+          return `($1,$2,${Array.from({ length: 8 }, (_, valueIndex) => `$${base + valueIndex}${valueIndex === 7 ? '::jsonb' : ''}`).join(',')})`;
         }).join(',');
         await client.query(
           `INSERT INTO setout_points
-             (definition_id, revision, label, row_index, column_index, easting, northing, design_rl, point_type)
+             (definition_id, revision, label, row_index, column_index, easting, northing, design_rl, point_type, metadata)
            VALUES ${rowsSql}
            ON CONFLICT (definition_id, revision, label) DO NOTHING`,
           values

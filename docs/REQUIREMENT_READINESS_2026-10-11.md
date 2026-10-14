@@ -178,3 +178,19 @@ Analytical, input, persistence and shared export checks pass 106 tests across
 in the survey upgrade matrix. CUA still blocks the owned local preview; no
 browser/physical print/field proof is inferred. No Docker lifecycle, image,
 dependency or migration change occurred, and production remains unpromoted.
+
+Construction follow-up: the existing pile/grid panel now retains unknown inputs,
+invalidates stale results, reloads original project grid parameters, separates
+staff/ground/prism height quantities and supports explicit backsight orientation.
+Grid labels are unique with retained numeric padding; overflow/precision loss,
+invalid setup and stale exports fail closed. CSV/DXF retain exact coordinates,
+declared references and draft status; 2D DXF leaves unknown point/line Z absent.
+The pile API now persists supplied criteria that it previously ignored, including
+the source/rules snapshot, with each saved design; partial criteria are rejected.
+101 focused tests across eight suites and strict app/test typing pass. Internal
+native-format parser/extractor proof is not downstream CAD/device or field proof.
+Fresh CUA navigation remains blocked, Docker still has one existing healthy app,
+and no promotion or runtime lifecycle change occurred. The shared legacy capture
+algorithm's fallback tolerance policy and control/height evidence remain release
+gates; follow the survey workflow matrix rather than treating this batch as
+completed construction acceptance.

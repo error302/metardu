@@ -8,6 +8,7 @@ import {
   generatePileGridDXF,
 } from '@/lib/engineering/pileGrid';
 import { defined } from '@/test-utils/defined'
+import Papa from 'papaparse'
 
 // ─── Test fixtures ──────────────────────────────────────────────────────────
 
@@ -25,13 +26,14 @@ const basicDef: PileGridDefinition = {
   labelRowsAs: 'alpha',
   labelColumnsAs: 'numeric',
   pileType: 'pile',
-  coordinateSystem: 'Local Grid',
+  coordinateSystem: 'EPSG:32737',
 };
 
 const numericDef: PileGridDefinition = {
   ...basicDef,
   labelRowsAs: 'numeric',
   labelColumnsAs: 'numeric',
+  startLabel: '1-1',
 };
 
 // ─── generatePileGrid ──────────────────────────────────────────────────────
@@ -63,9 +65,9 @@ describe('generatePileGrid()', () => {
   it('label generation works for numeric-numeric (e.g. 1-1, 1-2, 2-1)', () => {
     const result = generatePileGrid(numericDef);
     const labels = result.piles.map(p => p.label);
-    expect(labels).toContain('11');
-    expect(labels).toContain('12');
-    expect(labels).toContain('21');
+    expect(labels).toContain('1-1');
+    expect(labels).toContain('1-2');
+    expect(labels).toContain('2-1');
   });
 
   it('rotation 90° swaps E/N offsets', () => {
@@ -237,7 +239,7 @@ describe('pileGridToCSV()', () => {
     expect(lines[0]).toContain('Northing');
 
     // Check a data row
-    const dataRow = lines[1].split(',');
+    const dataRow = Papa.parse<string[]>(csv).data[1];
     expect(dataRow[0]).toBe('A1');
   });
 });

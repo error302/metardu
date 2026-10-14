@@ -387,7 +387,7 @@ export function renderStepContent(
         <div>
           <h3 className="text-xl font-bold text-white mb-4">Pile / Column Grid Setting Out</h3>
           <p className="text-zinc-400 text-sm mb-4">Generate pile or column grid coordinates, compute bearings and distances from an instrument station, and export DXF setout drawings.</p>
-          <PileGridPanel projectId={project.id} />
+          <PileGridPanel key={project.id} projectId={project.id} crsCode={projectReferenceSystem?.code ?? ''} heightReference={projectReferenceSystem?.verticalDatum ?? null} />
         </div>
       )
     }

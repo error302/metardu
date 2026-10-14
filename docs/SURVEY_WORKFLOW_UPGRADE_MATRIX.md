@@ -90,9 +90,11 @@ checks remain unassessed.
 2. Run cadastral boundary-to-document fixtures through actual import, adjustment,
    CAD/topology, subdivision and native output parsers; repair the discovered
    failures, retaining original observations and legal/source evidence.
-3. Verify construction control, design import, stakeout/level checks and as-built
-   outputs together. Connect field observations to targets and tolerances rather
-   than treating a manually entered coordinate as verified construction.
+3. Finish versioned construction capture assessment: the shared legacy snapshot
+   builder still falls back to METARDU defaults when no adopted project profile
+   exists. Preserve historical snapshot interpretation while requiring current
+   criterion/reference/control evidence for new acceptance. Verify construction
+   control, design import, stakeout/level checks and as-built outputs together.
 4. Add measured-middle-section quantity schedules where independently observed
    middle profiles are available; require declared material conversion evidence
    and retain explicit method labels. Do not restore invented prismoidal values.
@@ -324,3 +326,72 @@ no hook bypass or scanner suppression was used. The working tree was clean and
 local HEAD matched the remote-tracking branch after the push. GitHub's separate
 secret scan was still in progress at the first post-push observation; do not
 equate the source push with deployment, full CI or field acceptance.
+
+### Construction pile/grid follow-up — 14 October 2026
+
+The existing pile/column tool now begins with blank survey coordinates, design
+RL, dimensions, rotation and instrument height. Unknown values are not replaced
+by zero or a sample Arc 1960 location. Explicit zero/negative measurements remain
+valid where geometrically meaningful. Synthetic training values require the
+named demo action. Source edits clear computed coordinates and export actions;
+instrument edits clear the instrument schedule. Project/reference changes and
+late responses cannot publish another project's calculated or saved state.
+
+The grid engine preserves the clockwise rotation convention and full precision.
+It rejects non-finite/overflowed extents, repeated coordinates caused by lost
+floating-point precision, invalid starting labels and invalid dimensions. Same
+label formats require separators (`1-1`, `A-A`) so targets cannot share IDs;
+supplied numeric padding such as `A007` is retained. Existing ambiguous saved
+labels are not silently repaired or relabelled: they require source-design review
+and an explicit new save/revision. Historical design points/observations remain
+in the existing database revision history.
+
+The instrument schedule separates signed ground-minus-instrument-axis offset,
+signed level staff reading, supplied prism height, prism vertical difference,
+VA above the horizontal and slope distance. Backsight coordinates explicitly
+enable clockwise angles from BS=0 degrees. Missing orientation/heights remain
+unknown; partial height/backsight inputs and invalid heights block the schedule.
+A co-located target has zero horizontal distance and an undefined bearing,
+rather than an invented north bearing. DMS seconds carry into minutes/degrees
+and wrap at north. Staff readings assume a horizontal level sight and can be
+negative for targets above that horizon; they are not a requested prism height.
+
+CSV exports retain exact numeric coordinates/levels and declared reference,
+source/height conventions, setup, design identity/revision and draft status.
+The DXF declares metre units and separates points, grid, outlines, annotations
+and draft reference. With a supplied height reference it preserves exact design
+XYZ; without one it emits a 2D plan with no point/line Z measurement. Native
+parser and design-extractor fixtures verify this prevents an unknown RL becoming
+zero in another METARDU tool. Stale result exports are rejected. Display tables
+are paginated, the equal-axis grid-north-up preview bounds visible points, and
+exports retain the complete schedule. Downstream CAD/device/print acceptance
+is still separate from these internal format checks.
+
+The authenticated project read now exposes all original saved grid parameters,
+optional zero RL, label conventions and current revision for explicit reload.
+The pile save previously ignored the UI's tolerance profile. It now validates
+the full transcription, stores its profile and source/rules snapshot in the same
+transaction as the revisioned design, and rejects a partial profile before any
+write. Each revisioned point retains its source definition, height reference and
+criteria snapshot, so a later definition update does not overwrite that original
+design evidence. The panel reloads supplied criteria and links a confirmed saved design to
+the existing field capture workflow. Project CRS and height reference govern;
+the local input label cannot override the project's reference. A failed write
+does not claim the local draft was saved or expose it as a confirmed field plan.
+
+Source checks pass 101 focused tests across eight suites, including field queue,
+capture UI, existing drainage API and native instrument workflow regressions,
+with both strict app/test TypeScript projects. Changed/new source lint and
+whitespace checks pass. The required read-only Docker verifier passed against
+one healthy existing production app and required services; latest backup
+completion remains `2026-10-13T21:33:38Z` (archive/header, not restore proof).
+Existing preview wrapper 15948, Next process 17860 and server 5544 were reused;
+fresh CUA navigation to `/tools/pile-grid` returned `net::ERR_BLOCKED_BY_CLIENT`.
+Browser/download/visual proof remains open. No dependency, container, image,
+builder, migration or service lifecycle change was made.
+
+This remains unpromoted source work. Current field assessment's legacy default
+tolerance fallback, approved design/control/benchmark provenance, independently
+observed checks and versioned as-built acceptance require the next pass. No
+automatic relabelling of prior registered targets, migration hash changes,
+statutory/construction certification or full platform-readiness claim is made.
