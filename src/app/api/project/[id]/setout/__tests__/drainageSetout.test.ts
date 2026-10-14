@@ -17,7 +17,7 @@ jest.mock('@/lib/db', () => ({
 jest.mock('@/lib/auth/ownership', () => ({ requireProjectOwnership: jest.fn() }))
 jest.mock('@/lib/observations/observationBatches', () => ({ recordEvidenceEvent: jest.fn().mockResolvedValue(undefined) }))
 jest.mock('@/lib/workspaces/stageReference', () => ({
-  resolveStageReference: jest.fn(() => ({ code: SRID_21037 })),
+  resolveStageReference: jest.fn(() => ({ code: SRID_21037,verticalDatum:'Synthetic BM' })),
 }))
 
 const mockDbQuery = db.query as jest.Mock
@@ -297,11 +297,11 @@ test('records a horizontal-only shot to a 3D target as INFO, never as a false pa
   expect(observationSql).toContain('reported_accuracy_m')
   expect(observationInsert?.[9]).toBeNull()
   expect(observationInsert?.[15]).toBeNull()
-  expect(observationInsert?.[18]).toBe(0.01)
-  expect(observationInsert?.[19]).toBe(0.005)
+  expect(observationInsert?.[18]).toBeNull()
+  expect(observationInsert?.[19]).toBeNull()
 })
 
-test('persists the reported fix accuracy with a verified field observation', async () => {
+test('persists the reported fix accuracy without inventing adopted project criteria', async () => {
   mockDbQuery
     .mockResolvedValueOnce({ rows: [{ utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: {} }] })
     .mockResolvedValueOnce({ rows: [{ project_id: 'project-1', horizontal_crs: SRID_21037 }] })
@@ -326,7 +326,7 @@ test('persists the reported fix accuracy with a verified field observation', asy
   const observationSql = calls[3]?.[0] ?? ''
   const observationValues = calls[3]?.[1]
   expect(response.status).toBe(201)
-  expect(body.data.result).toBe('PASS')
+  expect(body.data.result).toBe('INFO')
   expect(observationSql).toContain('reported_accuracy_m')
   expect(observationValues?.[15]).toBe(0.005)
 })
@@ -354,6 +354,7 @@ test('judges and records drainage field shots against the saved project profile'
     .mockResolvedValueOnce({ rows: [{
       id: 'point-1', easting: 500000, northing: 9800000, design_rl: 100, revision: 1,
       tolerance_profile_id: 'profile-1', definition_metadata: { setoutToleranceProfileSnapshot: snapshot },
+      definition_crs:SRID_21037,point_metadata:{projectCrs:SRID_21037,declaredHeightReference:'Synthetic BM',setoutToleranceProfileSnapshot:snapshot},
     }] })
     .mockResolvedValueOnce({ rows: [{ id: 'shot-1' }] })
 
@@ -369,6 +370,7 @@ test('judges and records drainage field shots against the saved project profile'
     observedNorthing: 9800000,
     observedRL: 100.01,
     accuracyM: 0.005,
+    verticalAccuracyM:0.001,capturedCrs:SRID_21037,capturedVerticalDatum:'Synthetic BM',capturedToleranceProfileId:'profile-1',capturedAt:'2026-10-14T06:00:00Z',
   })
   const body = await response.json() as { data: { result: string; toleranceProfileId: string; tolerance: { horizontalM: number; verticalM: number } } }
   const calls = mockDbQuery.mock.calls as Array<[string, unknown[]?]>

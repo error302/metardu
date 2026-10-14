@@ -149,12 +149,14 @@ test('a saved grid uses the registered CRS and preserves an unknown design RL as
   expect(mockSetRlsContext.mock.invocationCallOrder[0]).toBeLessThan(clientQuery.mock.invocationCallOrder[definitionInsertIndex])
 })
 
+const overrideFixtureCrs='EPSG:21037'
 test('client-supplied tolerance overrides cannot change the recorded judgement', async () => {
+  const issued={id:'issued-profile',name:'Synthetic criteria',jurisdiction:'Synthetic job',version:'R1',rules:{acknowledged:true,effectiveDate:'2026-10-14',source:'Synthetic specification',approvedBy:'Synthetic reviewer',setout:{horizontalM:0.01,verticalM:0.005}}}
   query
     .mockResolvedValueOnce({ rows: [{ user_id: 'alice' }] })
     .mockResolvedValueOnce({ rows: [projectCrs] })
     .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ id: 'point-1', easting: 500000, northing: 9860000, design_rl: null, revision: 1, tolerance_profile_id: null, definition_metadata: null }] })
+    .mockResolvedValueOnce({ rows: [{ id: 'point-1', easting: 500000, northing: 9860000, design_rl: null, revision: 1, definition_crs:overrideFixtureCrs,tolerance_profile_id:issued.id,definition_metadata:{setoutToleranceProfileSnapshot:issued} }] })
     .mockResolvedValueOnce({ rows: [{ id: 'shot-1' }] })
 
   const response = await POST(
@@ -168,6 +170,7 @@ test('client-supplied tolerance overrides cannot change the recorded judgement',
       designRevision: 1,
       observedEasting: 500000.02,
       observedNorthing: 9860000,
+      capturedCrs:overrideFixtureCrs,capturedToleranceProfileId:issued.id,capturedAt:'2026-10-14T06:00:00Z',accuracyM:0.001,
       toleranceHorizontalM: 100,
       toleranceVerticalM: 100,
     }),
@@ -181,8 +184,8 @@ test('client-supplied tolerance overrides cannot change the recorded judgement',
   expect(body.data.result).toBe('WARN')
   expect(insertValues[6]).toBeNull() // no design RL was supplied
   expect(insertValues[9]).toBeNull() // no observed RL was supplied
-  expect(insertValues[16]).toBeNull() // no approved profile is attached to this definition
-  expect(insertValues[17]).toBe('METARDU-1')
+  expect(insertValues[16]).toBe(issued.id)
+  expect(insertValues[17]).toBe('R1')
   expect(insertValues[18]).toBe(0.01)
   expect(insertValues[19]).toBe(0.005)
 })

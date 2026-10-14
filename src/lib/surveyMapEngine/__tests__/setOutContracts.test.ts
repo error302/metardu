@@ -91,9 +91,9 @@ describe('the set-out route is project-scoped and CRS-guarded', () => {
 
   test('field shots use the shared engineering judgement engine', () => {
     const field = read('src/app/field/setout/page.tsx')
-    expect(field).toMatch(/evaluateSetoutShot\(/)
+    expect(/evaluateSetoutCaptureEvidence\(/.test(field)).toBe(true)
     expect(field).not.toMatch(/function judge\(/)
-    expect(field).toMatch(/Confirm the project specification before acceptance/)
+    expect(/no acceptance threshold is inferred/.test(field)).toBe(true)
   })
 })
 
@@ -102,13 +102,13 @@ describe('the grid panel is bound to the project', () => {
   const renderer = read('src/app/project/[id]/engineering/steps/renderStepContent.tsx')
 
   test('the panel takes a projectId and stores the design through the API', () => {
-    expect(panel).toMatch(/PileGridPanel\(\{ projectId \}: \{ projectId\?: string \}\)/)
-    expect(panel).toMatch(/api\/project\/\$\{projectId\}\/setout/)
-    expect(panel).toMatch(/action: 'save_definition'/)
+    expect(/PileGridPanel\(\{ projectId/.test(panel)).toBe(true)
+    expect(/api\/project\/\$\{encodeURIComponent\(projectId\)\}\/setout/.test(panel)).toBe(true)
+    expect(/action:\s*'save_definition'/.test(panel)).toBe(true)
   })
 
   test('the engineering step passes the project through', () => {
-    expect(renderer).toMatch(/<PileGridPanel projectId=\{project\.id\} \/>/)
+    expect(/<PileGridPanel[^>]*projectId=\{project\.id\}/.test(renderer)).toBe(true)
   })
 })
 

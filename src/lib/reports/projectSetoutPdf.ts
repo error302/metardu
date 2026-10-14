@@ -18,7 +18,7 @@ export async function generateProjectSetoutPdf(rows: SavedShotRow[], options: Pr
 }): Promise<Buffer> {
   if (rows.length > MAX_SETOUT_PDF_SHOTS) throw new RangeError('PDF reports support up to 1,000 saved shots; select a narrower design revision.')
   if (createHash('sha256').update(options.font).digest('hex') !== fontCoverage.fontSha256) throw new Error('The report font does not match its verified glyph coverage.')
-  const { first, reports, legacy } = prepareProjectSetoutReport(rows, options)
+  const { first, reports, legacy,unassessedCaptures } = prepareProjectSetoutReport(rows, options)
   const created = new Date().toISOString()
   const doc = createSurveyDocument({ paperSize: 'A4', orientation: 'landscape', scale: 1, bufferPages: true,
     metadata: { title: `DRAFT saved set-out history - ${first.definition_name}`, surveyorName: 'Not provided',
@@ -76,6 +76,7 @@ export async function generateProjectSetoutPdf(rows: SavedShotRow[], options: Pr
   }
   const newPage = () => {
     doc.addPage(); header(); reportHeading()
+    if(activePoint&&!activeReport)tableHeader()
     if (activePoint) { text(`Observation: ${activePoint}`, margin, y, 8); y += 20 }
   }
   const paragraph = (value: string, size = 8) => {
@@ -153,6 +154,19 @@ export async function generateProjectSetoutPdf(rows: SavedShotRow[], options: Pr
       activePoint = ''
       paragraph(`Group summary: ${report.summary.totalPoints} shots; ${report.summary.passedPoints} numerical PASS; ${report.summary.warningPoints} WARN; ${report.summary.failedPoints} FAIL; ${report.summary.unassessedPoints} NOT ASSESSED. All verdicts require review.`)
     })
+    if(unassessedCaptures.length){
+      activeReport=null;activePoint='';if(reports.length||y+110>bottom)newPage()
+      paragraph('CAPTURED OBSERVATIONS - NOT ASSESSED. Adopted project criteria were not recorded; no tolerance or acceptance is inferred.',10)
+      paragraph('Coordinates retain captured values; derived differences are rounded for display. CSV retains the complete numerical record.')
+      tableHeader()
+      for(const {row,snapshot:s} of unassessedCaptures)point({pointId:`${row.label} (shot ${row.id})`,
+        design:{easting:s.design.easting,northing:s.design.northing,elevation:s.design.rl??undefined},staked:{easting:s.observed.easting,northing:s.observed.northing,elevation:s.observed.rl??undefined},
+        timestamp:s.capturedAt??'',timestampSource:'device_capture',accuracyM:s.reportedAccuracyM??undefined,
+        deltaE:s.assessment.dE,deltaN:s.assessment.dN,deltaH:s.assessment.dZ??undefined,horizontalOffset:s.assessment.horizontalErrorM,verticalOffset:s.assessment.verticalErrorM??undefined,
+        horizontalPass:false,verticalPass:null,pass:false,status:'INFO',statusReason:s.assessment.message,
+        notes:`CRS ${s.horizontalCrs}; design revision ${s.designRevision}; design/observed height reference ${s.verticalDatum??'not recorded'} / ${s.deviceVerticalDatum??'not recorded'} | Reported V uncertainty ${s.reportedVerticalAccuracyM??'not recorded'} m | Captured criterion ${s.capturedToleranceProfileId??'not recorded'} | Server UTC ${new Date(row.staked_at).toISOString()} | ${row.notes??''}`})
+      activePoint=''
+    }
     if (legacy.length) {
       activeReport = null
       activePoint = ''

@@ -80,6 +80,9 @@ export interface QueuedSetoutShot {
   observedNorthing: number
   observedRL: number | null
   accuracyM: number | null
+  verticalAccuracyM?: number | null
+  capturedVerticalDatum?: string | null
+  capturedToleranceProfileId?: string | null
   /** The judgement shown in the field, kept so the record is self-describing. */
   result: 'PASS' | 'WARN' | 'FAIL' | 'INFO'
   /** Design the shot was taken against, so it can be replayed exactly. */
@@ -287,6 +290,9 @@ export function buildSetoutObservationPayload(shot: QueuedSetoutShot) {
     observedNorthing: shot.observedNorthing,
     observedRL: shot.observedRL,
     accuracyM: shot.accuracyM,
+    verticalAccuracyM: shot.verticalAccuracyM,
+    capturedVerticalDatum: shot.capturedVerticalDatum,
+    capturedToleranceProfileId: shot.capturedToleranceProfileId,
     designEasting: shot.designEasting,
     designNorthing: shot.designNorthing,
     designRL: shot.designRL,

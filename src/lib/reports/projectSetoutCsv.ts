@@ -61,6 +61,7 @@ export async function exportProjectSetoutCsv(projectId: string, definitionId: st
     'Capture_CRS', 'Capture_Vertical_Datum', 'Device_Capture_At_UTC', 'Capture_Time_Source', 'Assessment_Algorithm', 'Assessment_Version',
     'Instrument', 'Instrument_Serial', 'Operator', 'Crew', 'Observation_Batch_ID', 'Recorded_By_Account_ID',
     'Server_Recorded_At_UTC', 'Device_Shot_ID', 'Notes',
+    'Capture_Schema_Version','Reported_V_Accuracy_m','Captured_Criteria_ID','Observed_Height_Reference','Numerical_Eligibility_Issues',
   ]
   const values = rows.map((row) => {
     const recorded = new Date(row.staked_at)
@@ -82,6 +83,7 @@ export async function exportProjectSetoutCsv(projectId: string, definitionId: st
       snapshot?.algorithm.id ?? '', snapshot?.algorithm.version ?? '', row.instrument ?? '', row.instrument_serial ?? '',
       row.operator_name ?? '', row.crew ?? '', row.observation_batch_id ?? '', row.staked_by ?? '',
       recorded.toISOString(), row.client_shot_id ?? '', row.notes ?? '',
+      snapshot?.schemaVersion??'',snapshot?.schemaVersion===2?numberCell(snapshot.reportedVerticalAccuracyM):'',snapshot?.schemaVersion===2?snapshot.capturedToleranceProfileId??'':'',snapshot?.schemaVersion===2?snapshot.deviceVerticalDatum??'':'',snapshot?.schemaVersion===2?snapshot.acceptance.issues.join(' '):'Current capture prerequisites were not stored',
     ]
   })
   return { csv: Papa.unparse({ fields: columns, data: values }, { escapeFormulae: true }), count: rows.length }

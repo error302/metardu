@@ -24,24 +24,25 @@ jest.mock('@/lib/field/setoutQueue', () => ({
   saveShotLocally: jest.fn(),
 }))
 
+const profile={id:'profile-1',name:'Synthetic issued criteria',jurisdiction:'Synthetic job',version:'R1',rules:{acknowledged:true,effectiveDate:'2026-10-14',source:'Synthetic drawing',approvedBy:'Synthetic reviewer',setout:{horizontalM:0.01,verticalM:0.005}}}
 const definitions = [{
   id: 'definition-1',
   name: 'Drainage set-out',
   structure_type: 'drainage',
   crs: 'EPSG:21037',
-  metadata: { source: 'project_drainage' },
+  tolerance_profile_id:profile.id,metadata: { source: 'project_drainage',declaredHeightReference:'BM1',setoutToleranceProfileSnapshot:profile },
 }]
 
 const points = [
   {
     label: 'DR-00001', easting: 500000, northing: 9800000, design_rl: 100,
     point_type: 'drainage_station', revision: 1,
-    metadata: { pipeId: 'MH-A-MH-B', stationRole: 'Pipe start' },
+    metadata: { pipeId: 'MH-A-MH-B', stationRole: 'Pipe start',declaredHeightReference:'BM1' },
   },
   {
     label: 'DR-00002', easting: 500050, northing: 9800000, design_rl: 99.5,
     point_type: 'drainage_station', revision: 1,
-    metadata: { pipeId: 'MH-A-MH-B', stationRole: 'Intermediate' },
+    metadata: { pipeId: 'MH-A-MH-B', stationRole: 'Intermediate',declaredHeightReference:'BM1' },
   },
 ]
 
@@ -136,6 +137,8 @@ test('loads a saved target plan offline and requires confirmation against the is
   await enter('Observed northing', '9800000')
   await enter('Observed reduced level', '100')
   await enter('Fix accuracy', '0.006')
+  await enter('Level accuracy','0.001')
+  await enter('Observed height reference','BM1')
   expect(recordButton().disabled).toBe(true)
 
   const confirm = container.querySelector<HTMLInputElement>(
@@ -232,7 +235,7 @@ test('an unknown fix accuracy cannot be accepted as an on-target shot', async ()
   await enter('Observed reduced level', '100')
   await enter('Fix accuracy', '0')
 
-  await waitForText('Reported fix accuracy is 0 (unknown)')
+  await waitForText('Reported horizontal accuracy is missing or 0 (unknown)')
   expect(recordButton().disabled).toBe(true)
 })
 
@@ -266,7 +269,7 @@ test('shows the latest observation result and fix accuracy without implying ever
 
   await renderPage()
 
-  expect(container.textContent).toContain('Latest recorded shot · FAIL')
+  expect(container.textContent).toContain('Latest recorded numerical result · FAIL')
   expect(container.textContent).toContain('H 32.0 mm')
   expect(container.textContent).toContain('V 7.0 mm')
   expect(container.textContent).toContain('Fix ±12.0 mm')
@@ -368,4 +371,30 @@ test('changing the selected point discards coordinates measured for the previous
   expect(inputFor('Observed easting').value).toBe('')
   expect(inputFor('Observed northing').value).toBe('')
   expect(inputFor('Observed reduced level').value).toBe('')
+})
+
+test('saves raw observations as INFO when adopted criteria are absent, preserving unknown uncertainty',async()=>{
+  const unissued=definitions.map(d=>({...d,tolerance_profile_id:null,metadata:{source:'project_drainage'}}))
+  global.fetch=jest.fn(async(input:RequestInfo|URL)=>({ok:true,json:async()=>({data:String(input).includes('definitionId=')?{points,register:[]}:{definitions:unissued,register:[]}})}) as Response)
+  const queue=jest.requireMock('@/lib/field/setoutQueue') as {saveShotLocally:jest.Mock;deliverShot:jest.Mock}
+  queue.saveShotLocally.mockImplementation(async(value:Record<string,unknown>)=>({...value,id:'raw-1',capturedAt:'2026-10-14T06:00:00Z',synced:false}))
+  queue.deliverShot.mockResolvedValue({delivered:false,retryable:true,reason:'offline'})
+  await renderPage()
+  await enter('Observed easting','500000.0001')
+  await enter('Observed northing','9800000')
+  expect(recordButton().disabled).toBe(true)
+  const button=Array.from(container.querySelectorAll('button')).find(b=>b.textContent?.includes('Save unassessed observation'))
+  if(!button)throw new Error('Missing raw observation action')
+  await act(async()=>button.click())
+  expect(queue.saveShotLocally).toHaveBeenCalledWith(expect.objectContaining({result:'INFO',observedEasting:500000.0001,accuracyM:null,verticalAccuracyM:null,observedRL:null,capturedToleranceProfileId:null}))
+})
+
+test('a 3D preview needs level uncertainty and matching reference even when horizontal accuracy is good',async()=>{
+  await renderPage()
+  await enter('Observed easting','500000');await enter('Observed northing','9800000');await enter('Observed reduced level','100');await enter('Fix accuracy','0.001')
+  expect(recordButton().disabled).toBe(true)
+  await enter('Level accuracy','0.001');await enter('Observed height reference','BM1')
+  expect(recordButton().disabled).toBe(false)
+  await enter('Observed height reference','Other BM')
+  expect(recordButton().disabled).toBe(true)
 })

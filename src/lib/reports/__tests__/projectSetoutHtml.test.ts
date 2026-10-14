@@ -1,16 +1,12 @@
-import { createSetoutCaptureSnapshot } from '@/lib/field/setoutCapture'
+import { createSetoutCaptureSnapshot,parseSetoutCaptureSnapshot } from '@/lib/field/setoutCapture'
+import archived from '@/test-utils/fixtures/setout-capture-v1.json'
+import { defined } from '@/test-utils/defined'
 import { generateProjectSetoutHtml } from '../projectSetoutHtml'
 import type { SavedShotRow } from '../projectSetoutCsv'
 const captureCrs = 'EPSG:' + 21037
 const editedCrs = 'EPSG:' + 21036
 
-const snapshot = createSetoutCaptureSnapshot({
-  projectId: 'project-1', definitionId: 'definition-1', pointId: 'point-1', pointLabel: 'MH-01', designRevision: 3,
-  horizontalCrs: captureCrs, definitionCrs: captureCrs, deviceCrs: captureCrs, verticalDatum: 'Synthetic BM-01',
-  capturedAt: '2026-10-08T06:30:00Z',
-  design: { easting: 500000, northing: 9860000, rl: 100 }, capturedDesign: { easting: 500000, northing: 9860000, rl: 100 },
-  observed: { easting: 500000.00321, northing: 9860000.00432, rl: 100.0054 }, reportedAccuracyM: 0.001, profile: null,
-})
+const snapshot = defined(parseSetoutCaptureSnapshot(archived))
 const row: SavedShotRow = {
   id: 'shot-1', project_id: 'project-1', definition_id: 'definition-1', definition_name: 'Synthetic drain line',
   definition_crs: editedCrs, design_revision: 3, setout_point_id: 'point-1', label: 'MH-01',
@@ -42,7 +38,7 @@ test('does not reconstruct a PASS, CRS, timestamp or criteria for legacy observa
 })
 test('missing capture reference evidence cannot earn a report PASS', () => {
   const incomplete = createSetoutCaptureSnapshot({ ...snapshot, deviceCrs: null, profile: null })
-  const html = generateProjectSetoutHtml([{ ...row, capture_snapshot: incomplete }], { revision: 3 })
+  const html = generateProjectSetoutHtml([{ ...row, result:incomplete.assessment.result,tolerance_version:incomplete.tolerance.version,capture_snapshot: incomplete }], { revision: 3 })
   expect(html).toContain('Capture CRS was not confirmed by both device and definition')
   expect(html).toContain('NOT ASSESSED')
 })
@@ -53,7 +49,7 @@ test('rejects corrupted snapshot evidence instead of silently exporting the roun
 test('keeps different recorded criteria in separate sections instead of applying the newer limit to old shots', () => {
   const profile = { id: 'profile-2', name: 'Synthetic issued criteria', jurisdiction: 'Synthetic contract', version: 'R02',
     horizontalM: 0.02, verticalM: 0.01, effectiveDate: '2026-10-08', source: 'Synthetic drawing D02', approvedBy: 'Synthetic approver' }
-  const newer = createSetoutCaptureSnapshot({ ...snapshot, profile })
+  const newer = createSetoutCaptureSnapshot({ ...snapshot, profile,capturedToleranceProfileId:profile.id,deviceVerticalDatum:snapshot.verticalDatum,reportedVerticalAccuracyM:0.001 })
   const html = generateProjectSetoutHtml([row, { ...row, id: 'shot-2', result: 'PASS', tolerance_profile_id: profile.id,
     tolerance_version: profile.version, threshold_h: profile.horizontalM, threshold_v: profile.verticalM, capture_snapshot: newer }], { revision: 3 })
   expect((html.match(/<section class="capture-section">/g) ?? []).length).toBe(2)
@@ -89,4 +85,13 @@ test('does not attach target context from a different revision or reconstruct mi
     target_metadata: { pipeId: 'WRONG-REVISION', runChainageM: 999 } }], { revision: 3 })
   expect(html).not.toContain('WRONG-REVISION')
   expect(html).not.toContain('Chainage: 999')
+})
+
+test('exports current unassessed coordinates without substituting rounded rows or invented criteria',()=>{
+  const capture=createSetoutCaptureSnapshot({...snapshot,profile:null,observed:{...snapshot.observed,easting:500000.0001234567},reportedVerticalAccuracyM:null})
+  const html=generateProjectSetoutHtml([{...row,result:'INFO',tolerance_version:null,threshold_h:null,threshold_v:null,capture_snapshot:capture}],{revision:3})
+  expect(html).toContain('Captured observations — NOT ASSESSED')
+  expect(html).toContain('500000.0001234567')
+  expect(html).not.toContain('METARDU default numeric criteria')
+  expect(html).not.toContain('WITHIN ENTERED LIMITS')
 })

@@ -1,0 +1,55 @@
+{
+  "schemaVersion": 1,
+  "algorithm": {
+    "id": "metardu.setout-shot",
+    "version": "1"
+  },
+  "projectId": "project-1",
+  "definitionId": "definition-1",
+  "pointId": "point-1",
+  "pointLabel": "MH-01",
+  "designRevision": 3,
+  "horizontalCrs": "EPSG:21037",
+  "definitionCrs": "EPSG:21037",
+  "deviceCrs": "EPSG:21037",
+  "verticalDatum": "Synthetic BM-01",
+  "horizontalCrsEvidence": "device_and_definition",
+  "capturedAt": "2026-10-08T06:30:00.000Z",
+  "captureTimeSource": "device_reported",
+  "design": {
+    "easting": 500000,
+    "northing": 9860000,
+    "rl": 100
+  },
+  "observed": {
+    "easting": 500000.00321,
+    "northing": 9860000.00432,
+    "rl": 100.0054
+  },
+  "capturedDesign": {
+    "easting": 500000,
+    "northing": 9860000,
+    "rl": 100
+  },
+  "reportedAccuracyM": 0.001,
+  "tolerance": {
+    "horizontalM": 0.01,
+    "verticalM": 0.005,
+    "version": "METARDU-1",
+    "source": "metardu_default",
+    "profile": null
+  },
+  "assessment": {
+    "dE": 0.0032099999953061342,
+    "dN": 0.0043199993669986725,
+    "dZ": 0.00539999999999452,
+    "moveE": -0.0032099999953061342,
+    "moveN": -0.0043199993669986725,
+    "moveZ": -0.00539999999999452,
+    "horizontalErrorM": 0.00538205300055047,
+    "verticalErrorM": 0.00539999999999452,
+    "distanceToTargetM": 0.007624073353573871,
+    "result": "WARN",
+    "message": "Close — within 3x tolerance, verify before marking"
+  }
+}

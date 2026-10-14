@@ -29,7 +29,7 @@ import {
   type FieldSetoutRegisterEntry,
   type QueuedSetoutShot,
 } from '@/lib/field/setoutQueue'
-import { DEFAULT_SETOUT_TOLERANCE, evaluateSetoutShot } from '@/lib/engineering/verticality'
+import { evaluateSetoutCaptureEvidence } from '@/lib/field/setoutCapture'
 import { resolveSetoutToleranceProfile } from '@/lib/engineering/setoutToleranceProfile'
 
 type SetoutPoint = FieldSetoutPoint
@@ -40,6 +40,7 @@ interface ObservationDraft {
   targetKey: string
   observed: { e: string; n: string; z: string }
   accuracy: string
+  levelAccuracy: string
 }
 
 const EMPTY_OBSERVED = { e: '', n: '', z: '' }
@@ -86,6 +87,7 @@ export default function FieldSetOutPage() {
   const [register, setRegister] = useState<Record<string, RegisterEntry>>({})
   const [index, setIndex] = useState(0)
   const [readingDraft, setReadingDraft] = useState<ObservationDraft | null>(null)
+  const [heightReadingReference,setHeightReadingReference]=useState<{key:string;value:string}|null>(null)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -311,14 +313,18 @@ export default function FieldSetOutPage() {
 
   const target = points[index] ?? null
   const currentDefinition = definitions.find((definition) => definition.id === definitionId)
-  const toleranceProfileSnapshot = currentDefinition?.metadata?.setoutToleranceProfileSnapshot
+  const hasPointProfile=target?.metadata!=null&&Object.prototype.hasOwnProperty.call(target.metadata,'setoutToleranceProfileSnapshot')
+  const toleranceProfileSnapshot = hasPointProfile?target?.metadata?.setoutToleranceProfileSnapshot:currentDefinition?.metadata?.setoutToleranceProfileSnapshot
   const toleranceProfile = resolveSetoutToleranceProfile(toleranceProfileSnapshot)
   const hasToleranceSnapshot = toleranceProfileSnapshot != null
-  const toleranceProfileMismatch = (hasToleranceSnapshot || currentDefinition?.tolerance_profile_id != null)
-    && (!toleranceProfile || toleranceProfile.id !== currentDefinition?.tolerance_profile_id)
-  const horizontalToleranceM = toleranceProfile?.horizontalM ?? DEFAULT_SETOUT_TOLERANCE.horizontalM
-  const verticalToleranceM = toleranceProfile?.verticalM ?? DEFAULT_SETOUT_TOLERANCE.verticalM
-  const activeTolerance = { horizontalM: horizontalToleranceM, verticalM: verticalToleranceM }
+  const toleranceProfileMismatch = (hasToleranceSnapshot || !hasPointProfile&&currentDefinition?.tolerance_profile_id != null)
+    && (!toleranceProfile || !hasPointProfile&&toleranceProfile.id !== currentDefinition?.tolerance_profile_id)
+  const hasPointHeight=target?.metadata!=null&&Object.prototype.hasOwnProperty.call(target.metadata,'declaredHeightReference')
+  const rawHeight=hasPointHeight?target?.metadata?.declaredHeightReference:currentDefinition?.metadata?.declaredHeightReference
+  const plannedHeight=typeof rawHeight==='string'?rawHeight.trim():null
+  const pointCrs=typeof target?.metadata?.projectCrs==='string'?target.metadata.projectCrs:currentDefinition?.crs??null
+  const heightKey=JSON.stringify([projectId,definitionId,pointCrs,plannedHeight])
+  const observedHeightReference=heightReadingReference?.key===heightKey?heightReadingReference.value:''
   const drainageMetadata = target?.point_type === 'drainage_station' ? target.metadata : null
   const rawAlignmentSource = drainageMetadata?.alignmentSource
   const mapAlignmentSource = rawAlignmentSource && typeof rawAlignmentSource === 'object' && !Array.isArray(rawAlignmentSource)
@@ -330,11 +336,12 @@ export default function FieldSetOutPage() {
   // If a user changes points or the server refreshes a design revision, old
   // coordinates must never be judged or stored against the new target.
   const targetKey = target
-    ? JSON.stringify([projectId, definitionId, target.label, target.revision, target.easting, target.northing, target.design_rl])
+    ? JSON.stringify([projectId, definitionId, target.label, target.revision, target.easting, target.northing, target.design_rl,pointCrs,plannedHeight,toleranceProfileSnapshot])
     : ''
   const activeDraft = readingDraft?.targetKey === targetKey ? readingDraft : null
   const observed = activeDraft?.observed ?? EMPTY_OBSERVED
   const accuracy = activeDraft?.accuracy ?? ''
+  const levelAccuracy=activeDraft?.levelAccuracy??''
   const observedEasting = parseNumericField(observed.e)
   const observedNorthing = parseNumericField(observed.n)
   const horizontalInputIssue = !observedEasting.valid || !observedNorthing.valid
@@ -347,7 +354,7 @@ export default function FieldSetOutPage() {
     setReadingDraft((current) => {
       const base = current?.targetKey === targetKey
         ? current
-        : { targetKey, observed: EMPTY_OBSERVED, accuracy: '' }
+        : { targetKey, observed: EMPTY_OBSERVED, accuracy: '',levelAccuracy:'' }
       return { ...base, observed: { ...base.observed, [field]: value } }
     })
   }
@@ -355,7 +362,7 @@ export default function FieldSetOutPage() {
     setReadingDraft((current) => {
       const base = current?.targetKey === targetKey
         ? current
-        : { targetKey, observed: EMPTY_OBSERVED, accuracy: '' }
+        : { targetKey, observed: EMPTY_OBSERVED, accuracy: '',levelAccuracy:'' }
       return { ...base, accuracy: value }
     })
   }
@@ -365,6 +372,7 @@ export default function FieldSetOutPage() {
     setReadingDraft(null)
     setMessage(null)
   }
+  const updateLevelAccuracy=(value:string)=>setReadingDraft(current=>({...((current?.targetKey===targetKey)?current:{targetKey,observed:EMPTY_OBSERVED,accuracy:'',levelAccuracy:''}),levelAccuracy:value}))
 
   const verdict = useMemo(() => {
     if (!target || toleranceProfileMismatch) return null
@@ -372,33 +380,26 @@ export default function FieldSetOutPage() {
     const n = parseNumericField(observed.n)
     const rl = parseNumericField(observed.z)
     const accuracyValue = parseNumericField(accuracy)
+    const levelAccuracyValue=parseNumericField(levelAccuracy)
     if (
       !e.valid || e.value == null || !n.valid || n.value == null ||
-      !rl.valid || !accuracyValue.valid ||
-      (accuracyValue.value != null && accuracyValue.value < 0)
+      !rl.valid || !accuracyValue.valid ||!levelAccuracyValue.valid ||
+      (accuracyValue.value != null && accuracyValue.value < 0)||(levelAccuracyValue.value!=null&&levelAccuracyValue.value<0)||!currentDefinition?.crs
     ) return null
-    return evaluateSetoutShot(
-      {
-        designE: target.easting,
-        designN: target.northing,
-        designZ: target.design_rl,
-        observedE: e.value,
-        observedN: n.value,
-        observedZ: rl.value,
-      },
-      { horizontalM: horizontalToleranceM, verticalM: verticalToleranceM, accuracyM: accuracyValue.value }
-    )
-  }, [target, observed.e, observed.n, observed.z, accuracy, toleranceProfileMismatch, horizontalToleranceM, verticalToleranceM])
+    try{return evaluateSetoutCaptureEvidence({horizontalCrs:currentDefinition.crs,definitionCrs:pointCrs,deviceCrs:currentDefinition.crs,verticalDatum:plannedHeight,deviceVerticalDatum:observedHeightReference.trim()||null,capturedAt:null,
+      design:{easting:target.easting,northing:target.northing,rl:target.design_rl},capturedDesign:{easting:target.easting,northing:target.northing,rl:target.design_rl},observed:{easting:e.value,northing:n.value,rl:rl.value},reportedAccuracyM:accuracyValue.value,reportedVerticalAccuracyM:levelAccuracyValue.value,profile:toleranceProfile,capturedToleranceProfileId:toleranceProfile?.id??null},false).assessment}catch{return null}
+  }, [target, observed.e, observed.n, observed.z, accuracy,levelAccuracy,observedHeightReference,plannedHeight,pointCrs,currentDefinition?.crs, toleranceProfileMismatch,toleranceProfile])
 
-  const recordShot = useCallback(async () => {
-    if (!projectId || !definitionId || !target || !verdict || verdict.result === 'INFO'
+  const recordShot = useCallback(async (saveUnassessed=false) => {
+    if (!projectId || !definitionId || !target || !verdict || verdict.result === 'INFO'&&!saveUnassessed
       || (usingOfflinePlan && !offlinePlanConfirmed)) return
     const e = parseNumericField(observed.e)
     const n = parseNumericField(observed.n)
     const rl = parseNumericField(observed.z)
     const fix = parseNumericField(accuracy)
-    if (!e.valid || e.value == null || !n.valid || n.value == null || !rl.valid || !fix.valid) return
-    if (target.design_rl != null && rl.value == null) return
+    const levelFix=parseNumericField(levelAccuracy)
+    if (!e.valid || e.value == null || !n.valid || n.value == null || !rl.valid || !fix.valid||!levelFix.valid) return
+    if (target.design_rl != null && rl.value == null&&!saveUnassessed) return
     if (fix.value != null && fix.value < 0) return
 
     setSaving(true)
@@ -413,6 +414,7 @@ export default function FieldSetOutPage() {
         observedNorthing: n.value,
         observedRL: rl.value,
         accuracyM: fix.value,
+        verticalAccuracyM:levelFix.value,capturedVerticalDatum:observedHeightReference.trim()||null,capturedToleranceProfileId:toleranceProfile?.id??null,
         result: verdict.result,
         designEasting: target.easting,
         designNorthing: target.northing,
@@ -447,7 +449,7 @@ export default function FieldSetOutPage() {
     } finally {
       setSaving(false)
     }
-  }, [projectId, definitionId, currentDefinition?.crs, target, verdict, observed, accuracy, index, points, register, loadRegister, loadDefinition, refreshPending, usingOfflinePlan, offlinePlanConfirmed])
+  }, [projectId, definitionId, currentDefinition?.crs, target, verdict, observed, accuracy,levelAccuracy,observedHeightReference,toleranceProfile, index, points, register, loadRegister, loadDefinition, refreshPending, usingOfflinePlan, offlinePlanConfirmed])
 
   if (!projectId) {
     return (
@@ -658,14 +660,14 @@ export default function FieldSetOutPage() {
               </span>
             </div>
             <div className="mt-2 font-mono text-xl">
-              <div>E {target.easting.toFixed(3)}</div>
-              <div>N {target.northing.toFixed(3)}</div>
-              <div>{target.design_rl != null ? `RL ${target.design_rl.toFixed(3)}` : 'RL not designed'}</div>
+              <div>E {String(target.easting)}</div>
+              <div>N {String(target.northing)}</div>
+              <div>{target.design_rl != null ? `RL ${String(target.design_rl)}` : 'RL not designed'}</div>
             </div>
             {latestObservation && (
               <div className="mt-3 border-t border-[var(--border-color)] pt-2 text-[11px] text-[var(--text-secondary)]">
                 <p className="font-semibold">
-                  Latest recorded shot · {latestObservation.result.toUpperCase()}
+                  Latest recorded numerical result · {latestObservation.result.toUpperCase()}
                 </p>
                 <p className="mt-1 font-mono">
                   H {latestObservation.horizontal_error == null ? '—' : `${(latestObservation.horizontal_error * 1000).toFixed(1)} mm`}
@@ -744,7 +746,7 @@ export default function FieldSetOutPage() {
               <div className="rounded-lg border border-amber-700/60 bg-amber-950/20 p-2 text-[11px] text-amber-100">
                 <p className="font-semibold">Project profile · {toleranceProfile.name} · {toleranceProfile.version}</p>
                 <p className="mt-1 font-mono">
-                  H ±{(activeTolerance.horizontalM * 1000).toFixed(1)} mm · V ±{(activeTolerance.verticalM * 1000).toFixed(1)} mm
+                  H ±{(toleranceProfile.horizontalM * 1000).toFixed(1)} mm · V ±{(toleranceProfile.verticalM * 1000).toFixed(1)} mm
                 </p>
                 <p className="mt-1">{toleranceProfile.jurisdiction} · effective {toleranceProfile.effectiveDate} · source: {toleranceProfile.source}</p>
                 <p className="mt-1">Recorded as approved by: {toleranceProfile.approvedBy}</p>
@@ -752,12 +754,12 @@ export default function FieldSetOutPage() {
               </div>
             ) : (
               <p className="text-[11px] text-[var(--text-muted)]">
-                METARDU default comparison: ±{(activeTolerance.horizontalM * 1000).toFixed(1)} mm horizontal, ±{(activeTolerance.verticalM * 1000).toFixed(1)} mm vertical. This is not a project-issued acceptance criterion. Confirm the project specification before acceptance and construction.
+                Adopted project criteria are not recorded. Differences can be saved as unassessed observations; no acceptance threshold is inferred. Review the issued specification before numerical assessment.
               </p>
             )}
             {target.design_rl != null && (
               <p id="setout-level-help" className="text-[11px] text-amber-200">
-                This target has a design RL. Enter the observed RL before METARDU can verify this 3D set-out.
+                This target has a design RL. Record the observed RL, its uncertainty and the common height reference for a numerical level comparison. Design height reference: {plannedHeight||'not recorded'}.
               </p>
             )}
             <input
@@ -803,6 +805,8 @@ export default function FieldSetOutPage() {
             />
           </section>
 
+          {target.design_rl!=null&&<div className="space-y-2"><input aria-label="Level accuracy" value={levelAccuracy} onChange={e=>updateLevelAccuracy(e.target.value)} disabled={saving} className={numberClass} inputMode="decimal" placeholder="Reported level uncertainty (m)"/><input aria-label="Observed height reference" value={observedHeightReference} onChange={e=>setHeightReadingReference({key:heightKey,value:e.target.value})} disabled={saving} className={inputClass} placeholder="Observed datum / benchmark reference"/><p className="text-[11px] text-[var(--text-muted)]">Enter the uncertainty of the level observation. Horizontal fix accuracy does not establish level accuracy. The reference remains your reported field evidence, not independently verified control.</p></div>}
+          {verdict?.result==='INFO'&&<button type="button" onClick={()=>void recordShot(true)} disabled={saving||(usingOfflinePlan&&!offlinePlanConfirmed)} className="min-h-11 rounded-lg border border-amber-600 px-4 py-3 text-sm text-amber-200">Save unassessed observation</button>}
           {verdict && (
             <section
               className={`p-3 rounded-xl border text-sm font-semibold ${

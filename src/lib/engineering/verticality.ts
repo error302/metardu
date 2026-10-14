@@ -151,6 +151,18 @@ export const DEFAULT_SETOUT_TOLERANCE: SetoutTolerance = {
 /** Version string stored with shots judged against METARDU's built-in default. */
 export const DEFAULT_SETOUT_TOLERANCE_VERSION = 'METARDU-1';
 
+/** Raw entered-coordinate differences. No tolerance, accuracy or acceptance is inferred. */
+export function computeSetoutDeltas(shot: SetoutShot): Omit<SetoutShotResult, 'result' | 'message'> {
+  if (![shot.designE,shot.designN,shot.observedE,shot.observedN].every(Number.isFinite)
+    || shot.designZ != null && !Number.isFinite(shot.designZ) || shot.observedZ != null && !Number.isFinite(shot.observedZ)) throw new RangeError('Design and observed coordinates must be finite.')
+  const dE=shot.observedE-shot.designE,dN=shot.observedN-shot.designN
+  const dZ=shot.designZ!=null&&shot.observedZ!=null?shot.observedZ-shot.designZ:null
+  const horizontalErrorM=Math.hypot(dE,dN),verticalErrorM=dZ==null?null:Math.abs(dZ)
+  const distanceToTargetM=Math.hypot(horizontalErrorM,verticalErrorM??0)
+  if (![dE,dN,horizontalErrorM,distanceToTargetM].every(Number.isFinite)||dZ!=null&&!Number.isFinite(dZ)) throw new RangeError('Set-out differences exceed the finite calculation range.')
+  return {dE,dN,dZ,moveE:-dE,moveN:-dN,moveZ:dZ==null?null:-dZ,horizontalErrorM,verticalErrorM,distanceToTargetM}
+}
+
 /**
  * Evaluate an as-staked shot. A coarse or zero-reported fix, or a missing
  * reading for a 3D target, cannot prove the shot: the verdict is INFO, never PASS.

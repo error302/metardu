@@ -194,3 +194,21 @@ and no promotion or runtime lifecycle change occurred. The shared legacy capture
 algorithm's fallback tolerance policy and control/height evidence remain release
 gates; follow the survey workflow matrix rather than treating this batch as
 completed construction acceptance.
+
+Field capture follow-up: new source captures now use version 2, with no default
+tolerance and separate horizontal/vertical uncertainty, point criteria and
+reference binding. Missing evidence is retained as an explicit unassessed
+observation; retries preserve it. Historic v1 snapshots keep their recorded
+semantics and are identified as historical in draft reports. Current CSV/HTML/PDF
+retain raw precision, unknown criteria and missing-evidence reasons. 118 focused
+tests across 11 suites, both strict typing projects and changed-source lint pass;
+real native PDF generation, independent extraction and visual inspection confirm
+a one-page synthetic NOT ASSESSED table with full source coordinate precision.
+Migration 106 is prepared, NOT executed or promoted. Its SQL compatibility,
+legacy-row validation, target-column locking and restore/rollback checks remain
+required. Applied migration 096 is unchanged. Docker verification passed against
+the existing single app; no production lifecycle change occurred. The existing
+host preview was restarted only after its old processes were confirmed absent;
+automatic browser approval review could not complete inspection after a login
+redirect to localhost. Browser and field acceptance remain open. Follow the
+upgrade matrix for details and the continuing five-family workflow scope.

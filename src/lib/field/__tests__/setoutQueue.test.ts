@@ -45,6 +45,9 @@ test('sends the device capture time and captured CRS as structured evidence', ()
     capturedAt: shot.capturedAt, capturedCrs: PROJECT_TEST_CRS,
   })
 })
+test('retains independently reported level accuracy and original reference/criterion bindings on retry',()=>{
+  expect(buildSetoutObservationPayload({...shot,verticalAccuracyM:0.002,capturedVerticalDatum:'BM1',capturedToleranceProfileId:'profile-1'})).toMatchObject({verticalAccuracyM:0.002,capturedVerticalDatum:'BM1',capturedToleranceProfileId:'profile-1'})
+})
 
 test('adds the offline target cache store without recreating the existing shot store', () => {
   const stores = new Set(['setout_shots'])

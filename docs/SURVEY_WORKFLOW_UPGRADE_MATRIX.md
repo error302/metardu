@@ -90,11 +90,11 @@ checks remain unassessed.
 2. Run cadastral boundary-to-document fixtures through actual import, adjustment,
    CAD/topology, subdivision and native output parsers; repair the discovered
    failures, retaining original observations and legal/source evidence.
-3. Finish versioned construction capture assessment: the shared legacy snapshot
-   builder still falls back to METARDU defaults when no adopted project profile
-   exists. Preserve historical snapshot interpretation while requiring current
-   criterion/reference/control evidence for new acceptance. Verify construction
-   control, design import, stakeout/level checks and as-built outputs together.
+3. Verify and promote the version 2 construction capture migration described
+   below, after compatibility and recovery checks. New source captures require
+   recorded criteria and separate horizontal/vertical evidence for numerical
+   comparison. Verify construction control, design import, stakeout/level checks
+   and as-built outputs together; legacy standalone assessment remains separate.
 4. Add measured-middle-section quantity schedules where independently observed
    middle profiles are available; require declared material conversion evidence
    and retain explicit method labels. Do not restore invented prismoidal values.
@@ -403,3 +403,58 @@ eight suites, in addition to the focused source checks above. No hook bypass was
 used. Local Gitleaks was unavailable; GitHub's separate scan was in progress at
 the first post-push observation. The working tree was clean and local HEAD
 matched the remote-tracking branch. Promotion/field acceptance remains open.
+
+### Field capture and draft outputs follow-up — 14 October 2026
+
+New project set-out captures use schema/algorithm version 2. The shared server
+and field-preview authority records raw deltas without inferred criteria. A
+numerical PASS/WARN/FAIL requires the point's recorded project profile, exact
+design binding, declared matching CRS, capture time and positive horizontal
+uncertainty within the supplied limit. Level targets additionally require an
+observed level, matching declared height reference and separately supplied
+vertical uncertainty. Horizontal accuracy cannot stand in for level accuracy.
+These are entered numerical comparisons, not independently verified instrument
+accuracy, design approval, control verification or construction acceptance.
+
+Missing evidence remains INFO. The field screen offers an explicit unassessed
+save, retaining raw values and missing facts in the device queue. Retries retain
+the criteria/reference/uncertainty binding and reject changed replay evidence.
+Point revision metadata governs; later project/definition edits cannot silently
+replace its original criteria or known reference. Legacy targets without a
+recorded original height reference remain unknown. Historic version 1 snapshots
+retain their original algorithm/results, including their original default
+criteria; they are not rewritten into current acceptance. Other standalone
+legacy verticality/as-built paths still require their separate audit.
+
+CSV, HTML and native PDF preserve current raw captures with unknown thresholds
+and explicit eligibility issues. The unassessed PDF uses a vector table and
+full-value coordinate detail, rather than invented criteria or rounded source
+coordinates. Historical results are identified as historical. Both strict
+TypeScript projects, changed source lint and 118 focused tests across 11 suites
+passed; the final PDF layout also passed its two native export tests. Actual PDF
+generation, independent text extraction and rendered inspection confirmed a
+one-page synthetic draft with coordinate `500000.0001234567` and NOT ASSESSED.
+The artifacts in `.cache/release-verify/` are synthetic verification output,
+not customer documents, downstream device acceptance or field proof.
+
+Forward migration 106 extends the existing snapshot constraint to both versions
+and retains target precision for future saved designs using double precision.
+It does not regenerate old points or rewrite applied migration 096, whose
+unchanged SHA-256 is
+`FF47A546A2253F04235BAD43FB0E46268D10DF7FE339D75FEAA945D2F815E2D8`.
+Migration 106 has NOT been executed against PostgreSQL. Real SQL compatibility,
+constraint/legacy-row validation, alteration lock duration, backup restore and
+forward-compatible rollback evidence are required before promotion. The API
+retains queued work and returns a specific retryable 503 if the older v1-only
+constraint rejects v2. A rejected customer database clone is not bypassed.
+
+The required read-only Docker verifier passed with one existing healthy app and
+required services; backup completion was `2026-10-13T21:33:38Z`, archive/header
+evidence only. No image, container, builder, migration or production lifecycle
+change occurred. The previous host preview processes were confirmed absent;
+the existing synthetic wrapper was restarted on the same loopback port/cache.
+Next reported ready and compiled middleware/login. CUA's first navigation timed
+out during compilation; subsequent inspection was rejected because automatic
+approval review could not complete for the redirected `localhost:3021` origin.
+No review bypass, browser storage injection or CAD drawing modification occurred.
+Fresh field/browser/print/receiver checks and all wider release gates stay open.

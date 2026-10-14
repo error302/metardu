@@ -31,8 +31,6 @@ import {
   serializeSetoutToleranceRules,
 } from '@/lib/engineering/setoutToleranceProfile'
 import {
-  DEFAULT_SETOUT_TOLERANCE,
-  DEFAULT_SETOUT_TOLERANCE_VERSION,
   evaluateVerticality,
   DEFAULT_VERTICALITY_STANDARD,
 } from '@/lib/engineering/verticality'
@@ -80,6 +78,9 @@ interface ObservationBody {
   observedNorthing: number
   observedRL?: number | null
   accuracyM?: number | null
+  verticalAccuracyM?: number | null
+  capturedVerticalDatum?: string | null
+  capturedToleranceProfileId?: string | null
   instrument?: string
   instrumentSerial?: string
   operatorName?: string
@@ -333,7 +334,8 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 120, windowMs: 600
       verticality,
       progress: progress[0] ?? { staked: 0, fails: 0, points: 0 },
       standard: DEFAULT_VERTICALITY_STANDARD,
-      tolerance: DEFAULT_SETOUT_TOLERANCE,
+      tolerance: null,
+      toleranceSource: 'requires_project_profile',
     },
   });
 });
@@ -482,6 +484,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       sourceEngineeringHash: sourceHash,
       generator: 'project-drainage-alignment-setout-v3',
       projectCrs: crs,
+      declaredHeightReference: projectReference.verticalDatum ?? null,
       setoutIntervalM: drainage.setoutIntervalM,
       stationCount: result.stations.length,
       routedSegmentCount,
@@ -601,6 +604,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
             alignmentSource: mapAlignmentSourceByPipeId.get(station.pipeId) ?? null,
             horizontalTarget: 'Pipe centreline',
             verticalTarget: 'Pipe invert RL',
+            declaredHeightReference: projectReference.verticalDatum ?? null,
+            setoutToleranceProfileSnapshot: definitionMetadata.setoutToleranceProfileSnapshot,
+            projectCrs: crs,
           }
           const base = 3 + batchIndex * 8
           values.push(label, 0, stationIndex, station.easting, station.northing, station.invertLevelM, 'drainage_station', JSON.stringify(metadata))
@@ -903,6 +909,12 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     const observedN = num(body.observedNorthing);
     const observedRLValue = optionalNum(body.observedRL);
     const accuracyValue = optionalNum(body.accuracyM);
+    const verticalAccuracyValue = optionalNum(body.verticalAccuracyM);
+    const capturedVerticalDatum = typeof body.capturedVerticalDatum === 'string' && body.capturedVerticalDatum.trim() ? body.capturedVerticalDatum.trim() : null;
+    const capturedProfileId = typeof body.capturedToleranceProfileId === 'string' && body.capturedToleranceProfileId.trim() ? body.capturedToleranceProfileId.trim() : null;
+    if (!verticalAccuracyValue.valid || verticalAccuracyValue.value != null && verticalAccuracyValue.value < 0
+      || body.capturedVerticalDatum != null && (typeof body.capturedVerticalDatum !== 'string' || body.capturedVerticalDatum.length > 500)
+      || body.capturedToleranceProfileId != null && (typeof body.capturedToleranceProfileId !== 'string' || body.capturedToleranceProfileId.length > 128)) return NextResponse.json({error:'Level accuracy and captured reference/criterion identifiers are invalid.'},{status:400});
     const clientShotId = body.clientShotId;
     if (clientShotId !== undefined && (typeof clientShotId !== 'string' || !/^[A-Za-z0-9_-]{1,128}$/.test(clientShotId))) {
       return NextResponse.json({ error: 'clientShotId must be a stable identifier of at most 128 letters, numbers, underscores or hyphens' }, { status: 400 });
@@ -969,6 +981,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
           && snapshot.observed.easting === observedE && snapshot.observed.northing === observedN && snapshot.observed.rl === observedRLValue.value
           && snapshot.reportedAccuracyM === accuracyValue.value && snapshot.designRevision === capturedRevision
           && snapshot.capturedAt === capturedAt && snapshot.deviceCrs === deviceCrs
+        if(snapshot.schemaVersion===2)matchesRequest=matchesRequest&&snapshot.reportedVerticalAccuracyM===verticalAccuracyValue.value&&snapshot.deviceVerticalDatum===capturedVerticalDatum&&snapshot.capturedToleranceProfileId===capturedProfileId
+        else if(verticalAccuracyValue.value!=null||capturedVerticalDatum!=null||capturedProfileId!=null)matchesRequest=false
       }
 
       if (!matchesRequest) {
@@ -1025,11 +1039,12 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       tolerance_profile_id: string | null
       definition_metadata: Record<string, unknown> | null
       definition_crs: string | null
+      point_metadata: Record<string, unknown> | null
     }>(
       `SELECT p.id, p.easting::double precision AS easting,
               p.northing::double precision AS northing,
               p.design_rl::double precision AS design_rl, p.revision,
-              d.tolerance_profile_id, d.metadata AS definition_metadata, d.crs AS definition_crs
+              d.tolerance_profile_id, d.metadata AS definition_metadata, d.crs AS definition_crs, p.metadata AS point_metadata
          FROM setout_points p
         JOIN setout_definitions d ON d.id = p.definition_id
         WHERE d.project_id = $1 AND d.id = $2 AND p.label = $3
@@ -1061,38 +1076,46 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       )
     }
 
-    const profileSnapshotValue = design.definition_metadata?.setoutToleranceProfileSnapshot
+    const hasPointProfile=design.point_metadata!=null&&Object.prototype.hasOwnProperty.call(design.point_metadata,'setoutToleranceProfileSnapshot')
+    const profileSnapshotValue = hasPointProfile ? design.point_metadata?.setoutToleranceProfileSnapshot : design.definition_metadata?.setoutToleranceProfileSnapshot
     const toleranceProfile = resolveSetoutToleranceProfile(profileSnapshotValue)
     const hasProfileSnapshot = profileSnapshotValue != null
-    if ((hasProfileSnapshot && (!toleranceProfile || toleranceProfile.id !== design.tolerance_profile_id))
-      || (design.tolerance_profile_id != null && !toleranceProfile)) {
+    if ((hasProfileSnapshot && (!toleranceProfile || !hasPointProfile && toleranceProfile.id !== design.tolerance_profile_id))
+      || (!hasPointProfile && design.tolerance_profile_id != null && !toleranceProfile)) {
       return NextResponse.json(
         { error: 'The set-out definition has an invalid or mismatched tolerance profile snapshot. Rebuild and review the field definition before recording this shot.', code: 'SETOUT_TOLERANCE_PROFILE_INVALID' },
         { status: 409 }
       )
     }
-    const activeTolerance = {
-      horizontalM: toleranceProfile?.horizontalM ?? DEFAULT_SETOUT_TOLERANCE.horizontalM,
-      verticalM: toleranceProfile?.verticalM ?? DEFAULT_SETOUT_TOLERANCE.verticalM,
-      accuracyM: accuracyValue.value,
-    }
-    const toleranceVersion = toleranceProfile?.version ?? DEFAULT_SETOUT_TOLERANCE_VERSION
+    const originalHeight=design.point_metadata?.declaredHeightReference
+    const recordedHeight=design.point_metadata!=null&&Object.prototype.hasOwnProperty.call(design.point_metadata,'declaredHeightReference')
+      ? typeof originalHeight==='string'&&originalHeight.trim()?originalHeight:null
+      : typeof design.definition_metadata?.declaredHeightReference==='string'&&design.definition_metadata.declaredHeightReference.trim()?design.definition_metadata.declaredHeightReference:null;
+    const recordedCrs=typeof design.point_metadata?.projectCrs==='string'?design.point_metadata.projectCrs:design.definition_crs??null;
+    if(recordedCrs!=null&&recordedCrs!==crs)return NextResponse.json({error:'The target revision belongs to a different coordinate reference. Review its original design.',code:'SETOUT_CRS_CHANGED'},{status:409});
+    if(design.design_rl!=null && recordedHeight!=null && recordedHeight!==projectReference.verticalDatum)return NextResponse.json({error:'The project height reference changed after this target revision. Review the original design and reference before capturing against it.',code:'SETOUT_HEIGHT_REFERENCE_CHANGED'},{status:409});
+    if(capturedProfileId!=null && capturedProfileId!==toleranceProfile?.id)return NextResponse.json({error:'The captured criterion changed or is not bound to this target revision. Keep this shot and review its original plan.',code:'SETOUT_CRITERIA_CHANGED'},{status:409});
+    if(capturedVerticalDatum!=null && capturedVerticalDatum!==projectReference.verticalDatum)return NextResponse.json({error:'The captured height reference differs from the project reference. Keep this shot for review.',code:'SETOUT_HEIGHT_REFERENCE_CHANGED'},{status:409});
 
     let captureSnapshot: SetoutCaptureSnapshot
     try {
       captureSnapshot = createSetoutCaptureSnapshot({
         projectId, definitionId: body.definitionId, pointId: design.id, pointLabel: body.label, designRevision: Number(design.revision),
-        horizontalCrs: crs, definitionCrs: design.definition_crs ?? null, deviceCrs, verticalDatum: projectReference.verticalDatum,
+        horizontalCrs: crs, definitionCrs: recordedCrs, deviceCrs, verticalDatum: recordedHeight,
         capturedAt, design: { easting: Number(design.easting), northing: Number(design.northing), rl: design.design_rl == null ? null : Number(design.design_rl) },
         capturedDesign: { easting: capturedDesignE.value, northing: capturedDesignN.value, rl: capturedDesignRL.value },
         observed: { easting: observedE, northing: observedN, rl: observedRLValue.value }, reportedAccuracyM: accuracyValue.value, profile: toleranceProfile,
+        reportedVerticalAccuracyM:verticalAccuracyValue.value,deviceVerticalDatum:capturedVerticalDatum,capturedToleranceProfileId:capturedProfileId,
       })
     } catch (error) {
       return NextResponse.json({ error: error instanceof Error ? error.message : 'Capture evidence is invalid.', code: 'CAPTURE_EVIDENCE_INVALID' }, { status: 400 })
     }
     const shot = captureSnapshot.assessment;
+    const activeTolerance=captureSnapshot.tolerance;
+    const toleranceVersion=activeTolerance.version;
 
-    const inserted = await db.query<{ id: string }>(
+    let inserted:{rows:Array<{id:string}>};
+    try { inserted = await db.query<{ id: string }>(
       `INSERT INTO setout_observations
          (project_id, definition_id, setout_point_id, label, design_easting, design_northing, design_rl,
           observed_easting, observed_northing, observed_rl, d_e, d_n, d_z, horizontal_error, vertical_error,
@@ -1133,7 +1156,11 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         clientShotId ?? null,
         JSON.stringify(captureSnapshot),
       ]
-    );
+    ); } catch(error) {
+      const detail=error&&typeof error==='object'?error as {code?:unknown;constraint?:unknown}:null;
+      if(detail?.code==='23514'&&detail.constraint==='setout_capture_snapshot_shape')return NextResponse.json({error:'The server is not ready to store this version of capture evidence. Keep the observation on the device and retry after the service is updated.',code:'SETOUT_CAPTURE_SCHEMA_NOT_READY'},{status:503});
+      throw error;
+    }
 
     if (!inserted.rows[0]) {
       const concurrentDelivery = await findClientShot();
@@ -1159,9 +1186,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         vertical_error_mm: shot.verticalErrorM == null ? null : Number((shot.verticalErrorM * 1000).toFixed(1)),
         tolerance_profile_id: toleranceProfile?.id ?? null,
         tolerance_version: toleranceVersion,
-        horizontal_tolerance_mm: activeTolerance.horizontalM * 1000,
-        vertical_tolerance_mm: activeTolerance.verticalM * 1000,
-        tolerance_source: toleranceProfile ? 'project_profile_transcription' : 'METARDU_default',
+        horizontal_tolerance_mm: activeTolerance.horizontalM==null?null:activeTolerance.horizontalM * 1000,
+        vertical_tolerance_mm: activeTolerance.verticalM==null?null:activeTolerance.verticalM * 1000,
+        tolerance_source: activeTolerance.source,
       },
     }).catch((error) => logger.error('[setout] evidence failed', { error }));
 
