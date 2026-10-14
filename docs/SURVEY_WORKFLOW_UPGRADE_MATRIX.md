@@ -676,3 +676,21 @@ new capture writes still require unapplied migration 107. Real PostgreSQL query/
 constraint testing, recovery/rollback compatibility, production promotion,
 browser/download/printed-page checks, offline session/device tests and independent
 field/control acceptance remain open across the five-family workflow matrix.
+
+Source checkpoint `6189dbfb1e991a6a26c1a5d8762f86dc438dcd8f` was pushed to
+the existing workflow branch. Normal pre-push app typing, changed-file lint and
+45 related tests across five suites passed, in addition to the explicit-path
+55-test/eight-suite run and strict app/test typing above. GitHub Gitleaks run
+`38571087721` completed successfully for this exact source revision. Local
+Gitleaks was unavailable; no hook/scanner bypass was used. Read-only remote
+inspection matched local HEAD and the working tree was clean. Full main/PR CI,
+PostgreSQL/runtime, browser/print and physical-field gates remain distinct.
+
+Adjacent shared-collector audit identifies the next source pass: `/field` retains
+projects/points/measurement drafts when its auth callback changes accounts, and
+its request callbacks have no owner/project generation guard. Its batch parser
+uses `parseFloat`, fixed easting/northing limits and generated labels instead of
+the declared project reference and atomic strict input contract. These defects
+are confirmed in source, not a demonstrated live cross-account disclosure. Repair
+the existing collector and test account changes, delayed responses and imports
+before claiming the broader offline/field workflow is complete.
