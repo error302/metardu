@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { createVerticalityCapture, type VerticalityCaptureSnapshot } from '@/lib/field/verticalityCapture'
 import { deliverDevicePlumbReading, exportDevicePlumbCsv, listDevicePlumbReadings, plumbScope, retainDevicePlumbReading, type DevicePlumbReading } from '@/lib/field/verticalityQueue'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { normalizeCaptureTime } from '@/lib/field/setoutCapture'
 
 const EMPTY = { label: '', level: '', baseE: '', baseN: '', baseRL: '', topE: '', topN: '', topRL: '', horizontalUncertainty: '', heightUncertainty: '', observedReference: '', capturedAt: '', instrument: '', notes: '', criteriaName: '', criteriaReference: '', criteriaVersion: '', criteriaApprover: '', maxOffset: '', minRatio: '', criteriaAcknowledged: '', crsConfirmed: '' }
 type Draft = typeof EMPTY
@@ -57,6 +58,9 @@ function OwnedCollector({ ownerId, projectId }: { ownerId: string; projectId: st
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState('')
   const [page, setPage] = useState(0)
+  const [reportLabel, setReportLabel] = useState('')
+  const [reportFrom, setReportFrom] = useState('')
+  const [reportTo, setReportTo] = useState('')
   const working = useRef(false)
   const active = useRef(true)
   useEffect(() => { active.current = true; return () => { active.current = false } }, [])
@@ -145,6 +149,17 @@ function OwnedCollector({ ownerId, projectId }: { ownerId: string; projectId: st
   }
   const field = (key: keyof Draft, label: string, numeric = false) => <label key={key} className="space-y-1 text-sm"><span>{label}</span><input aria-label={label} value={form[key]} onChange={event => setForm(current => ({ ...current, [key]: event.target.value }))} className={`${inputClass}${numeric ? ' font-mono tabular-nums text-right' : ''}`} inputMode={numeric ? 'decimal' : 'text'} disabled={busy || Boolean(storageError)} /></label>
   const checkbox = (key: keyof Draft, label: string) => <label className="flex min-h-11 items-center gap-3 text-sm"><input type="checkbox" checked={form[key] === 'yes'} onChange={event => setForm(current => ({ ...current, [key]: event.target.checked ? 'yes' : '' }))} disabled={busy || Boolean(storageError)} />{label}</label>
+  let reportError: string | null = null
+  const reportQuery = new URLSearchParams({ kind: 'plumb' })
+  try {
+    const label = reportLabel.trim()
+    if (label.length > 40) throw new RangeError('Report column labels must be 40 characters or fewer.')
+    const from = normalizeCaptureTime(reportFrom.trim() || null), to = normalizeCaptureTime(reportTo.trim() || null)
+    if (from && to && Date.parse(from) > Date.parse(to)) throw new RangeError('The report recording range start must not follow its end.')
+    if (label) reportQuery.set('label', label)
+    if (from) reportQuery.set('fromUtc', from)
+    if (to) reportQuery.set('toUtc', to)
+  } catch (error) { reportError = error instanceof Error ? error.message : 'Invalid report filter.' }
   return <section aria-label="Column plumb collector" className="mx-auto w-full max-w-5xl space-y-6 p-4 pb-28 text-[var(--text-primary)]">
     <header className="space-y-2 border-b border-[var(--border-color)] pb-4"><nav aria-label="Field workflow" className="flex flex-wrap gap-4"><Link href={`/field/setout?projectId=${encodeURIComponent(projectId)}`} className="text-sm text-[var(--accent)]">Back to set-out points</Link><Link href={`/project/${encodeURIComponent(projectId)}/settings`} className="text-sm text-[var(--accent)]">Project reference settings</Link></nav><h1 className="text-xl font-semibold">Column plumb observations</h1><p className="text-sm text-[var(--text-muted)]">Record measured base/top centres and levels. Numerical limits require project criteria; these readings do not certify survey control or construction acceptance.</p></header>
     <section className="space-y-2 text-sm" aria-label="Project reference"><p>Project CRS: {reference?.code ?? 'Not loaded'} · Height reference: {reference?.verticalDatum ?? 'Not declared'}</p>{reference?.cached && <label className="flex min-h-11 items-center gap-3"><input type="checkbox" checked={cachedConfirmed} onChange={event => setCachedConfirmed(event.target.checked)} />I reviewed the cached project reference ({reference.cachedAt}) for this observation.</label>}{checkbox('crsConfirmed', 'The observed coordinates use the displayed project grid.')}</section>
@@ -177,6 +192,17 @@ function OwnedCollector({ ownerId, projectId }: { ownerId: string; projectId: st
         className={actionClass}>Export device CSV</button>
     </div>
     {message && <p role="status" className="text-sm text-[var(--text-muted)]">{message}</p>}
+    <section className="space-y-3 border-t border-[var(--border-color)] pt-4" aria-label="Saved server history reports">
+      <h2 className="font-semibold">Saved server history reports</h2>
+      <p className="text-sm text-[var(--text-muted)]">Device-only drafts are excluded. Reports preserve repeat observations and historical results. Reconnect to download saved history; a draft report does not approve construction.</p>
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <label className="space-y-1 text-sm">Column label (optional)<input aria-label="Saved report column filter" className={inputClass} value={reportLabel} onChange={event => setReportLabel(event.target.value)} /></label>
+        <label className="space-y-1 text-sm">Server recorded from UTC (optional)<input aria-label="Saved report from UTC" className={inputClass} value={reportFrom} onChange={event => setReportFrom(event.target.value)} placeholder="ISO timestamp with timezone" /></label>
+        <label className="space-y-1 text-sm">Server recorded to UTC (optional)<input aria-label="Saved report to UTC" className={inputClass} value={reportTo} onChange={event => setReportTo(event.target.value)} placeholder="ISO timestamp with timezone" /></label>
+      </div>
+      {reportError ? <p role="alert" className="text-sm text-[var(--error)]">{reportError}</p> : <div className="flex flex-wrap gap-3">{(['csv', 'html', 'pdf'] as const).map(format => <a key={format} className={actionClass} href={`/api/project/${encodeURIComponent(projectId)}/setout/export?${reportQuery.toString()}&format=${format}`}>Saved {format.toUpperCase()} report</a>)}</div>}
+      <p className="text-xs text-[var(--text-muted)]">Filter by the server recording time, which may differ from device capture time. CSV/HTML allow 1,000 readings; PDF allows 250. Narrow the column or date range for larger jobs.</p>
+    </section>
     <section className="space-y-3"><h2 className="font-semibold">This account’s device readings · {rows.length}</h2><p className="text-xs text-[var(--text-muted)]">Device-only readings are not on the project register. A confirmed save remains a draft numerical comparison. Export a backup regularly; browser storage can be cleared by the device.</p><div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-[var(--border-color)]"><th className="p-2 text-left">Column</th><th className="p-2 text-left">Capture UTC</th><th className="p-2 text-left">Numerical result</th><th className="p-2 text-left">Register status</th></tr></thead><tbody>{rows.slice(page * 20, (page + 1) * 20).map(row => <tr key={row.id} className="border-b border-[var(--border-color)]"><td className="p-2">{row.snapshot.label}<br /><span className="text-xs">{row.id}</span></td><td className="p-2">{row.snapshot.capturedAt ?? 'Unknown'}</td><td className="p-2">{row.snapshot.assessment.result}</td><td className="p-2">{row.state === 'synced' ? `Server confirmed (${row.serverId})` : row.state === 'rejected' ? 'Device only · needs review' : 'Only on this device'}{row.message && <p className="text-xs">{row.message}</p>}</td></tr>)}</tbody></table></div>{rows.length > 20 && <div className="flex gap-3"><button className={actionClass} disabled={page === 0} onClick={() => setPage(value => value - 1)}>Previous readings</button><button className={actionClass} disabled={(page + 1) * 20 >= rows.length} onClick={() => setPage(value => value + 1)}>Next readings</button></div>}</section>
   </section>
 }

@@ -619,3 +619,60 @@ at the post-push check. Follow-up presentation uses the existing foreground/
 background theme roles for capture-button contrast in dark/light/outdoor modes,
 with the company accent retained on its border. That source correction is not a
 substitute for fresh rendered viewport/physical-device review.
+
+### Saved column-plumb history outputs — 14 October 2026
+
+The existing private set-out export endpoint now accepts `kind=plumb` and CSV,
+standalone printable HTML or native PDF. The field collector exposes these saved
+report links separately from device-only CSV/JSON backups. Optional exact column
+label and server-recording UTC bounds narrow larger histories; device time is
+not substituted for the server-recording filter. Bounds normalize timezones and
+reject reversed/invalid ranges. All saved re-observations remain visible, ordered
+by column/level/time/ID, rather than only the latest result.
+
+Project access is checked before the observations query. The returned project
+identity is also verified against the authorized project. SQL uses bound filter
+parameters, explicit project ownership scope and a limit sentinel. More than
+1,000 CSV/HTML readings or 250 PDF readings requires narrower filters, with an
+explicit 413; no partial report is silently issued. Empty histories return 404.
+Responses are private/no-store attachments, and self-contained HTML has a strict
+no-script/no-external-resource content policy.
+
+The report evidence model validates snapshot algorithm, identity, result,
+instrument/notes and rounded-register coherence before using captured values.
+Inconsistent/unsupported captures block export instead of becoming plausible
+legacy data. New captures retain exact original E/N/RL, declared/observed CRS and
+height reference, separate uncertainties, criterion source/revision/transcribed
+approver, instrument/account identity, device/server times and algorithm version.
+Historical PASS/WARN/FAIL/INFO results remain recorded, separately from current
+NOT ASSESSED. Missing capture references, units, height or criteria are not
+reconstructed from current project settings or old rounded values. Legacy table
+headers show stored values without an invented metre label; CSV explicitly flags
+capture coordinate units while retaining the coordinate-column convention.
+These are draft numerical histories, not construction acceptance or a statutory
+plan/certificate. Device-only observations are excluded from server reports.
+
+Native PDFs reuse the canonical company icon, verified bundled font and existing
+vector PDF engine. Tables retain full coordinate precision; source/uncertainty/
+identity notes wrap and continue on numbered pages. Unsupported font characters
+produce a specific 422 with HTML/CSV alternatives rather than silently losing
+saved text; a mismatched font is rejected. CSV neutralizes spreadsheet formulas
+while retaining numerical values, and HTML escapes all saved labels/notes.
+No browser renderer, external font, added package or Docker image is required.
+
+Verification passed 55 focused tests across eight suites, both strict TypeScript
+projects, changed-source lint and whitespace checks. Actual native generation,
+independent PDF text extraction and PNG inspection verified a two-page synthetic
+current/historical example, exact coordinate `500000.0001234567`, clear historical
+NOT ASSESSED and no assigned legacy coordinate units. Long-note pagination,
+glyph/font failure, scope/refusal, filters, limits, mismatch and the existing
+set-out/field regressions pass. The ignored `.cache/release-verify/` artifacts
+are synthetic QA output, not customer documents or field evidence.
+
+Fresh normal/reviewed Docker verification remained unavailable; no service
+lifecycle, migration, image, builder, container or cleanup action occurred.
+The history loader reads older rows without requiring new capture columns, but
+new capture writes still require unapplied migration 107. Real PostgreSQL query/
+constraint testing, recovery/rollback compatibility, production promotion,
+browser/download/printed-page checks, offline session/device tests and independent
+field/control acceptance remain open across the five-family workflow matrix.

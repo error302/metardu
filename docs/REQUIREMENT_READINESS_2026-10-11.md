@@ -242,3 +242,17 @@ Full saved plumb-history/native report outputs, cold offline authentication and
 real device/session checks remain open. Migration 107 is still unapplied, Docker
 access remains unavailable, and no production lifecycle or dependency change
 occurred. Follow the survey upgrade matrix for the continuing full scope.
+
+Saved plumb-history follow-up: private server-register CSV, printable HTML and
+native PDF now use the existing export endpoint and field collector links, with
+column/recording-time filters, bounded histories and preserved re-observations.
+Current captures use original precision and validated evidence; historical
+results remain separately NOT ASSESSED, without guessed current CRS/units or
+criteria. Private access/scope checks precede export; mismatched evidence blocks
+it. Native vector reports reuse the canonical icon/verified font and explicitly
+reject unsupported characters. 55 focused tests across eight suites, strict
+app/test typing, lint and actual two-page PDF extraction/render inspection pass.
+These are synthetic/source proofs. New capture migration 107, actual PostgreSQL,
+recovery/promotion, browser downloads/printing and independent field checks remain
+unverified. Docker access still failed, with no runtime lifecycle or dependency
+change. The wider platform objective remains active.

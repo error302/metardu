@@ -104,3 +104,12 @@ test('an authoritative access refusal cannot enable capture from an old cached r
   expect(container.querySelector<HTMLButtonElement>('button[data-action="record-plumb"]')?.disabled).toBe(true)
   expect(container.textContent).not.toContain('I reviewed the cached project reference')
 })
+test('saved report links distinguish server history from device backups and include the requested column filter', async () => {
+  await act(async () => root.render(<FieldSetOutPage />))
+  await input('Saved report column filter', 'C1')
+  const pdf = Array.from(container.querySelectorAll('a')).find(anchor => anchor.textContent === 'Saved PDF report')
+  expect(pdf?.getAttribute('href')).toContain('kind=plumb')
+  expect(pdf?.getAttribute('href')).toContain('format=pdf')
+  expect(pdf?.getAttribute('href')).toContain('label=C1')
+  expect(container.textContent).toContain('Device-only drafts are excluded')
+})
