@@ -1,6 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { useSession } from 'next-auth/react'
+import { fieldPointEntry, fieldPointNumber, parseFieldPointCsv, type FieldPointEntry } from '@/lib/field/pointEntry'
 import { createClient } from '@/lib/api-client/client'
 import dynamic from 'next/dynamic'
 // ponytail: lazy-load instrument connection panel (heavy component with Web Serial API)
@@ -22,33 +24,50 @@ import {
   LucideIcon,
 } from 'lucide-react'
 import { FieldBookMobile } from '@/components/fieldbook/FieldBookMobile'
-import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
-import { checkTolerance, type ToleranceCheckResult, type SurveyType } from '@/lib/survey/liveToleranceChecker'
-import type { RawObservation } from '@/lib/computations/traverseEngine'
-import { logger } from '@/lib/logger'
 
 type Tab = 'points' | 'traverse' | 'leveling' | 'radiation' | 'offline' | 'map'
-type SyncStatus = 'synced' | 'pending' | 'offline'
+type SyncStatus = 'idle' | 'saving' | 'saved' | 'failed'
 
 
 
 interface FieldProject { id: string; name: string; survey_type?: string }
-interface FieldPoint { id?: string; name: string; easting: number; northing: number; is_control?: boolean }
-interface BatchResult { name: string; easting: number | string; northing: number | string; elevation?: number | null; is_control?: boolean }
+interface FieldPoint { id?: string; name: string; easting: number | null; northing: number | null; is_control?: boolean }
+interface BatchResult extends FieldPointEntry { description?: string }
 interface FieldTraverseLeg { id: string; fromStation: string; toStation: string; distance: number; bearing: { deg: number; min: number; sec: number } }
 interface LevelReading { id: string; station: string; bs?: number; is?: number; fs?: number }
 interface RadiationPoint { id: string; pointName: string; bearing: { deg: string; min: string; sec: string }; distance: number }
 
+function storedCoordinate(value: unknown): number | null {
+  if (typeof value !== 'number' && typeof value !== 'string') return null
+  try { return fieldPointNumber(String(value), 'Coordinate') } catch { return null }
+}
+
 export default function FieldPage() {
+  const { data: session, status } = useSession()
+  const router = useRouter()
+  const accountId = session?.user?.id
+  useEffect(() => {
+    if (status === 'unauthenticated') router.replace('/login?next=%2Ffield')
+  }, [status, router])
+  if (status !== 'authenticated' || !accountId) return <div role="status" className="p-6">Loading field workspace...</div>
+  // Account changes destroy the previous account's private in-memory workspace.
+  return <FieldAccountWorkspace key={accountId} user={{ id: accountId }} />
+}
+
+function FieldAccountWorkspace({ user }: { user: { id: string } }) {
   const router = useRouter()
   const { t } = useLanguage()
-  const [, setMsg] = useState<string | null>(null)
+  const [msg, setMsg] = useState<string | null>(null)
   const [activeTab, setActiveTab] = useState<Tab>('traverse')
-  const [syncStatus] = useState<SyncStatus>('offline')
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>('idle')
+  const [saving, setSaving] = useState(false)
+  const savingRef = useRef(false)
+  const mounted = useRef(false)
+  const pointsRequest = useRef(0)
+  const instrumentGeneration = useRef(0)
+  const instrumentScope = instrumentGeneration.current
   const [projects, setProjects] = useState<FieldProject[]>([])
   const [selectedProject, setSelectedProject] = useState<string>('')
-  const [loading, setLoading] = useState(true)
-  const [user, setUser] = useState<{ id: string } | null>(null)
   
   // Points state
   const [points, setPoints] = useState<FieldPoint[]>([])
@@ -73,9 +92,6 @@ export default function FieldPage() {
   const [tLegs, setTLegs] = useState<FieldTraverseLeg[]>([])
 
 
-  // Tolerance check state (Phase 1 — live field-side closure checking)
-  const [toleranceResult, setToleranceResult] = useState<ToleranceCheckResult | null>(null)
-
   // Leveling state
   const [lStation, setLStation] = useState('')
   const [lReading, setLReading] = useState('')
@@ -92,150 +108,159 @@ export default function FieldPage() {
   const [rBearingSec, setRBearingSec] = useState('')
   const [rDist, setRDist] = useState('')
 
+  const captureDraft = () => ({
+    pName, pE, pN, pZ, pCtrl, showBatch, batchCSV, batchParseResults, batchErrors,
+    tStation, tDist, tDeg, tMin, tSec, tLegs,
+    lStation, lReading, lType, lReadings,
+    rStation, rInstH, rPoints, rNewName, rBearingDeg, rBearingMin, rBearingSec, rDist,
+  })
+  const emptyDraft = useRef(captureDraft())
+  const projectDrafts = useRef(new Map<string, ReturnType<typeof captureDraft>>())
+  const changeProject = (projectId: string) => {
+    if (savingRef.current || projectId === selectedProject) return
+    if (projectId && !projects.some(project => project.id === projectId)) return
+    projectDrafts.current.set(selectedProject, captureDraft())
+    const draft = projectDrafts.current.get(projectId) ?? emptyDraft.current
+    setPName(draft.pName); setPE(draft.pE); setPN(draft.pN); setPZ(draft.pZ); setPCtrl(draft.pCtrl)
+    setShowBatch(draft.showBatch); setBatchCSV(draft.batchCSV); setBatchParseResults(draft.batchParseResults); setBatchErrors(draft.batchErrors)
+    setTStation(draft.tStation); setTDist(draft.tDist); setTDeg(draft.tDeg); setTMin(draft.tMin); setTSec(draft.tSec); setTLegs(draft.tLegs)
+    setLStation(draft.lStation); setLReading(draft.lReading); setLType(draft.lType); setLReadings(draft.lReadings)
+    setRStation(draft.rStation); setRInstH(draft.rInstH); setRPoints(draft.rPoints); setRNewName(draft.rNewName)
+    setRBearingDeg(draft.rBearingDeg); setRBearingMin(draft.rBearingMin); setRBearingSec(draft.rBearingSec); setRDist(draft.rDist)
+    pointsRequest.current++
+    instrumentGeneration.current++
+    setPoints([]); setMsg(null); setSyncStatus('idle')
+    setSelectedProject(projectId)
+  }
+
   // AUDIT FIX (H-007, 2026-07-27): useMemo prevents infinite loop.
   const dbClient = useMemo(() => createClient(), [])
 
   const fetchProjects = useCallback(async (userId: string) => {
-    const { data } = (await dbClient
+    const { data, error } = (await dbClient
       .from('projects')
       .select('id, name, survey_type')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })) as { data: FieldProject[] | null; error: unknown }
+    if (!mounted.current) return
+    if (error) { setMsg('Unable to load projects.'); return }
     if (data) setProjects(data)
   }, [dbClient])
 
   const fetchProjectPoints = useCallback(async (projectId: string) => {
+    const request = ++pointsRequest.current
     if (!projectId) return
-    const { data } = (await dbClient
+    try {
+      const { data, error } = (await dbClient
       .from('survey_points')
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })) as { data: FieldPoint[] | null; error: unknown }
-    if (data) setPoints(data)
+      if (!mounted.current || request !== pointsRequest.current) return
+      if (error) { setMsg('Unable to load project points.'); return }
+      if (data) setPoints(data.map(point => ({ ...point, name: (point as FieldPoint & { point_name?: string }).point_name ?? point.name, easting: storedCoordinate(point.easting), northing: storedCoordinate(point.northing) })))
+    } catch {
+      if (mounted.current && request === pointsRequest.current) setMsg('Unable to load project points.')
+    }
   }, [dbClient])
 
-  // Auth check
+  // Ignore responses after account unmount and invalidate old project reads.
   useEffect(() => {
-    const checkAuth = async () => {
-      const authRes = await dbClient.auth.getSession()
-      const session = authRes.data?.session
-      const user = (session as unknown as { user?: { id: string } } | null)?.user
-      if (!user) {
-        window.location.replace('/login?next=%2Ffield')
-        return
-      }
-      setUser(user as { id: string })
-      setLoading(false)
-      fetchProjects((user as { id: string }).id)
-      fetchProjectPoints(selectedProject)
-    }
-    checkAuth()
-  }, [router, dbClient, selectedProject, fetchProjects, fetchProjectPoints])
+    const requests = pointsRequest
+    mounted.current = true
+    void fetchProjects(user.id).catch(() => { if (mounted.current) setMsg('Unable to load projects.') })
+    return () => { mounted.current = false; requests.current++ }
+  }, [user.id, fetchProjects])
 
   useEffect(() => {
-    if (!user) return
-    
-    const subRes = dbClient.auth.onAuthStateChange((_event, session) => {
-      if (!session) {
-        setUser(null)
-        window.location.replace('/login?next=%2Ffield')
-      } else {
-        setUser((session as Record<string, unknown>).user as { id: string } | null)
-      }
-    })
-    return () => subRes.data.subscription.unsubscribe()
-  }, [user, dbClient, router])
+    const requests = pointsRequest
+    setPoints([])
+    void fetchProjectPoints(selectedProject)
+    return () => { requests.current++ }
+  }, [selectedProject, fetchProjectPoints])
 
   // Point batch parser
   const parseBatchCSV = () => {
-    const lines = batchCSV.trim().split('\n')
-    const results: BatchResult[] = []
-    const errors: string[] = []
-    let lineNum = 0
-
-    for (const line of lines) {
-      lineNum++
-      const parts = line.split(',').map((p) => p.trim())
-      if (parts.length < 3) {
-        errors.push(`Line ${lineNum}: Need at least 3 columns`)
-        continue
-      }
-
-      const [name, easting, northing, elevation] = parts
-      const e = parseFloat(easting)
-      const n = parseFloat(northing)
-      const z = elevation ? parseFloat(elevation) : null
-
-      if (isNaN(e) || e < 100000 || e > 900000) {
-        errors.push(`Line ${lineNum}: Invalid easting`)
-        continue
-      }
-      if (isNaN(n) || n < 0) {
-        errors.push(`Line ${lineNum}: Invalid northing`)
-        continue
-      }
-
-      results.push({
-        name: name.trim() || `PT${results.length + 1}`,
-        easting: e,
-        northing: n,
-        elevation: z,
-        is_control: false
-      })
-    }
-
-    setBatchParseResults(results)
-    setBatchErrors(errors)
+    try { setBatchParseResults(parseFieldPointCsv(batchCSV)); setBatchErrors([]) }
+    catch (error) { setBatchParseResults([]); setBatchErrors([error instanceof Error ? error.message : String(error)]) }
   }
 
   const saveBatchPoints = async () => {
-    if (!selectedProject || batchParseResults.length === 0) return
+    if (!selectedProject || batchParseResults.length === 0 || batchErrors.length || savingRef.current) return
+    savingRef.current = true; setSaving(true); setSyncStatus('saving'); setMsg(null)
 
     try {
+      if (batchParseResults.length > 1000) throw new Error('Save at most 1000 points per batch.')
+      const names = new Set<string>()
+      const validated = batchParseResults.map(point => {
+        const entry = fieldPointEntry(point.name, String(point.easting), String(point.northing), point.elevation === null ? '' : String(point.elevation), point.is_control)
+        if (names.has(entry.name)) throw new Error(`Duplicate point name: ${entry.name}`)
+        names.add(entry.name)
+        return { ...entry, description: point.description }
+      })
       // T1.5d FIX (2026-07-10): Map 'name' to 'point_name' (the actual DB column).
       // The local type uses 'name' for convenience, but the DB column is 'point_name'.
-      await dbClient.from('survey_points').insert(
-        batchParseResults.map((p) => ({
+      const { error } = await dbClient.from('survey_points').insert(
+        validated.map((p) => ({
           project_id: selectedProject,
           point_name: p.name,  // T1.5d: was 'name' (column doesn't exist)
           easting: p.easting,
           northing: p.northing,
           elevation: p.elevation,
           is_control: p.is_control ?? false,
+          ...(p.description ? { description: p.description } : {}),
         }))
       )
+      if (error) throw new Error(error.message)
+      if (!mounted.current) return
       setBatchCSV('')
       setBatchParseResults([])
       setBatchErrors([])
       setShowBatch(false)
       fetchProjectPoints(selectedProject)
       setMsg(` Saved ${batchParseResults.length} points successfully`)
+      setSyncStatus('saved')
     } catch (e: unknown) {
+      if (!mounted.current) return
       setMsg('Error: ' + (e instanceof Error ? (e as Error).message : String(e)))
+      setSyncStatus('failed')
+    } finally {
+      savingRef.current = false
+      if (mounted.current) setSaving(false)
     }
   }
 
   // Single point save
   const savePoint = async () => {
-    if (!pName || !pE || !pN || !selectedProject) return
+    if (!selectedProject || savingRef.current) return
+    savingRef.current = true; setSaving(true); setSyncStatus('saving'); setMsg(null)
 
     try {
-      await dbClient.from('survey_points').insert({
-        point_name: pName,  // T1.5d FIX: was 'name' (column doesn't exist)
-        easting: parseFloat(pE),
-        northing: parseFloat(pN),
-        elevation: pZ ? parseFloat(pZ) : null,
-        is_control: pCtrl,
+      const point = fieldPointEntry(pName, pE, pN, pZ, pCtrl)
+      const { error } = await dbClient.from('survey_points').insert({
+        point_name: point.name,
+        easting: point.easting,
+        northing: point.northing,
+        elevation: point.elevation,
+        is_control: point.is_control,
         project_id: selectedProject
       })
+      if (error) throw new Error(error.message)
+      if (!mounted.current) return
       setPName('')
       setPE('')
       setPN('')
       setPZ('')
       setPCtrl(false)
       fetchProjectPoints(selectedProject)
+      setSyncStatus('saved'); setMsg('Point saved to project.')
     } catch (e) {
-      logger.error(e instanceof Error ? e.message : String(e))
+      if (!mounted.current) return
+      setMsg('Error: ' + (e instanceof Error ? e.message : String(e)))
+      setSyncStatus('failed')
+    } finally {
+      savingRef.current = false
+      if (mounted.current) setSaving(false)
     }
   }
 
@@ -267,67 +292,6 @@ export default function FieldPage() {
 
   const traverseTotal = tLegs.reduce((sum, l) => sum + l.distance, 0)
 
-  // Phase 1: Live tolerance check — recompute whenever traverse legs change
-  useEffect(() => {
-    if (tLegs.length < 3 || !selectedProject) {
-      setToleranceResult(null)
-      return
-    }
-
-    try {
-      // Convert field page traverse legs to RawObservation format
-      const observations: RawObservation[] = tLegs.map((leg) => ({
-        station: leg.toStation,
-        bs: leg.fromStation,
-        fs: leg.toStation,
-        hclDeg: String(leg.bearing.deg),
-        hclMin: String(leg.bearing.min),
-        hclSec: String(leg.bearing.sec),
-        hcrDeg: String((leg.bearing.deg + 180) % 360),
-        hcrMin: String(leg.bearing.min),
-        hcrSec: String(leg.bearing.sec),
-        slopeDist: String(leg.distance),
-        vaDeg: '90', vaMin: '00', vaSec: '00',
-        ih: '1.5', th: '1.5',
-      }))
-
-      // Get project survey type
-      const project = projects.find(p => p.id === selectedProject)
-      const surveyType = (project?.survey_type as string) || 'cadastral'
-
-      // T1.5i FIX (2026-07-10): Use control points from the project for
-      // opening/closing coordinates. Fall back to a loop traverse (same
-      // opening = closing) if no control points are available — the closure
-      // check still works, it just checks internal misclosure.
-      const controlPoints = points.filter((p) => p.is_control)
-      const openingPoint = controlPoints[0]
-      const closingPoint = controlPoints[controlPoints.length - 1] || controlPoints[0]
-
-      const openingE = openingPoint?.easting || 0
-      const openingN = openingPoint?.northing || 0
-      const closingE = closingPoint?.easting || openingE
-      const closingN = closingPoint?.northing || openingN
-
-      const result = checkTolerance({
-        surveyType: surveyType as SurveyType,
-        observations,
-        openingEasting: openingE,
-        openingNorthing: openingN,
-        openingStation: tLegs[0]?.fromStation || 'A',
-        closingEasting: closingE,
-        closingNorthing: closingN,
-        closingStation: tLegs[0]?.fromStation || 'A',
-        backsightBearingDeg: tLegs[0]?.bearing?.deg || 0,
-        backsightBearingMin: tLegs[0]?.bearing?.min || 0,
-        backsightBearingSec: tLegs[0]?.bearing?.sec || 0,
-      })
-      setToleranceResult(result)
-    } catch {
-      // Tolerance check may fail if data is incomplete — that's OK
-      setToleranceResult(null)
-    }
-  }, [tLegs, selectedProject, projects, points])
-
   const renderTabButton = (tab: Tab, Icon: LucideIcon, label: string) => (
     <button
       onClick={() => setActiveTab(tab)}
@@ -355,28 +319,18 @@ export default function FieldPage() {
   const inputClass = "w-full px-3 py-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-sm text-[var(--text-primary)] focus:border-[var(--accent)] focus:outline-none"
   const inputNumberClass = `${inputClass} font-mono text-right`
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-[var(--text-secondary)] text-sm">Loading...</div>
-      </div>
-    )
-  }
-
-  if (!user) {
-    return null
-  }
-
   return (
     <div className="min-h-screen flex flex-col">
       {/* Header */}
       <header className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] p-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
             <h1 className="text-sm font-bold text-[var(--text-primary)]">{t('field.fieldMode')}</h1>
             <select
+              aria-label="Field project"
+              disabled={saving}
               value={selectedProject}
-              onChange={(e) => setSelectedProject(e.target.value)}
+              onChange={(e) => changeProject(e.target.value)}
               className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded px-2 py-1 text-xs text-[var(--text-primary)] w-36"
             >
               <option value="">Select Project</option>
@@ -385,27 +339,34 @@ export default function FieldPage() {
               ))}
             </select>
           </div>
-          <div className="flex items-center gap-2">
-            {syncStatus === 'synced' && <CheckCircle2 className="w-4 h-4 text-green-400" />}
-            {syncStatus === 'pending' && <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />}
-            {syncStatus === 'offline' && <X className="w-4 h-4 text-[var(--text-muted)]" />}
+          <div className="flex items-center gap-2" title={saving ? 'Saving points' : 'Point saves only; measurement drafts are not synced'}>
+            {syncStatus === 'saved' && <CheckCircle2 className="w-4 h-4 text-green-400" />}
+            {syncStatus === 'saving' && <RefreshCw className="w-4 h-4 text-yellow-400 animate-spin" />}
+            {syncStatus === 'failed' && <X className="w-4 h-4 text-[var(--text-muted)]" />}
+            <span className="text-[10px] text-[var(--text-secondary)]">{syncStatus === 'saving' ? 'Saving points' : syncStatus === 'saved' ? 'Last point save recorded' : syncStatus === 'failed' ? 'Point save failed' : 'Point drafts'}</span>
           </div>
         </div>
       </header>
       {/* Instrument Connection Panel */}
       <div className="p-3 border-b border-[var(--border-color)]">
-        <InstrumentConnectionPanel onImportPoints={(points) => {
-          // Auto-add imported points to the field book
-          setBatchParseResults(prev => [...prev, ...points.map(p => ({
-            name: p.id || `P${Date.now()}`,
-            easting: String(p.easting),
-            northing: String(p.northing),
-          }))])
+        <InstrumentConnectionPanel key={selectedProject} onImportPoints={(points) => {
+          if (!mounted.current || savingRef.current || instrumentScope !== instrumentGeneration.current) return
+          try {
+            const imported: BatchResult[] = points.map(point => ({
+              ...fieldPointEntry(point.pointName, String(point.easting ?? ''), String(point.northing ?? ''), point.elevation === null || point.elevation === undefined ? '' : String(point.elevation)),
+              description: `INSTRUMENT_READING_JSON=${JSON.stringify(point)}`,
+            }))
+            setBatchParseResults(prev => [...prev, ...imported])
+            setShowBatch(true); setBatchErrors([])
+          } catch (error) {
+            setMsg('Instrument import: ' + (error instanceof Error ? error.message : String(error)))
+          }
         }} />
       </div>
 
       {/* Main */}
       <main className="flex-1 overflow-y-auto p-3 pb-20">
+        {msg && <p role="status" className="mb-3 text-sm text-[var(--text-primary)]">{msg}</p>}
         <div className="mb-3 rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_20%,transparent)] p-3">
           <div className="text-[10px] uppercase tracking-wider text-[var(--text-muted)]">Workflow</div>
           <div className="text-sm text-[var(--text-primary)] mt-1">Field Mode = quick capture (phone/tablet). Field Book = textbook tables + checks + exports.</div>
@@ -438,8 +399,9 @@ export default function FieldPage() {
         </div>
 
         {activeTab === 'points' && (
-          <div className="space-y-3">
+          <fieldset disabled={saving} className="space-y-3">
             {/* Quick batch entry button */}
+            <p className="text-xs text-[var(--text-secondary)]">Raw point entry: confirm the project grid, coordinate units and height reference before saving. This page does not transform coordinates. Drafts stay in memory for this account and job until this page closes.</p>
             <div className="flex justify-between items-center">
               <h2 className="text-xs font-semibold text-white uppercase tracking-wide">{t('field.points')}</h2>
               <button
@@ -458,7 +420,7 @@ export default function FieldPage() {
                   <textarea
                     id="field-batch-csv"
                     value={batchCSV}
-                    onChange={(e) => setBatchCSV(e.target.value)}
+                    onChange={(e) => { setBatchCSV(e.target.value); setBatchParseResults([]); setBatchErrors([]) }}
                     placeholder="PT1,500000,4500000,100&#10;PT2,500100,4500100,101"
                     className={`${inputClass} h-20 text-xs font-mono mt-1`}
                   />
@@ -467,7 +429,7 @@ export default function FieldPage() {
                   <button onClick={parseBatchCSV} className="flex-1 text-[10px] bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] text-[var(--text-primary)] py-1.5 rounded">
                     {t('field.parse')}
                   </button>
-                  <button onClick={saveBatchPoints} disabled={batchParseResults.length === 0} className="flex-1 text-[10px] bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black py-1.5 rounded disabled:opacity-50">
+                  <button onClick={saveBatchPoints} disabled={!selectedProject || batchErrors.length > 0 || batchParseResults.length === 0 || saving} className="flex-1 text-[10px] bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black py-1.5 rounded disabled:opacity-50">
                     {t('common.save')} {batchParseResults.length}
                   </button>
                 </div>
@@ -528,12 +490,12 @@ export default function FieldPage() {
                 {points.slice(0, 5).map((p) => (
                   <div key={p.id} className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] rounded px-2 py-1.5 flex justify-between items-center text-[10px]">
                     <span className="text-[var(--text-primary)]">{p.name}</span>
-                    <span className="text-[var(--text-muted)] font-mono">{p.easting.toFixed(0)}, {p.northing.toFixed(0)}</span>
+                    <span className="text-[var(--text-muted)] font-mono">{p.easting === null || p.northing === null ? 'Coordinates not recorded' : `${p.easting.toFixed(0)}, ${p.northing.toFixed(0)}`}</span>
                   </div>
                 ))}
               </div>
             )}
-          </div>
+          </fieldset>
         )}
 
         {activeTab === 'traverse' && (
@@ -543,12 +505,7 @@ export default function FieldPage() {
               <span className="text-[10px] text-[var(--text-muted)]">{t('field.total')}: {traverseTotal.toFixed(2)} m</span>
             </div>
 
-            {/* Phase 1: Live tolerance badge — shows green/red closure status */}
-            {toleranceResult && (
-              <div className="sticky top-0 z-10">
-                <ToleranceBadge result={toleranceResult} compact />
-              </div>
-            )}
+            <p className="text-xs text-[var(--text-secondary)]">Closure not assessed here. Quick bearing entries do not contain measured faces, vertical angles, reductions or an independently identified closing control. Use Field Book to record the full observation and control setup.</p>
 
             <div className="grid grid-cols-2 gap-2">
               <div>

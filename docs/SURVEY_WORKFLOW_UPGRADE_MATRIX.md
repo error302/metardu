@@ -694,3 +694,57 @@ the declared project reference and atomic strict input contract. These defects
 are confirmed in source, not a demonstrated live cross-account disclosure. Repair
 the existing collector and test account changes, delayed responses and imports
 before claiming the broader offline/field workflow is complete.
+
+## Shared field collector repair — 14 October 2026
+
+The existing `/field` page now uses the application's NextAuth session instead
+of the legacy polling auth adapter. Each account has a separate mounted workspace;
+late reads/saves from a previous account cannot update the new account form.
+Project point requests and instrument callbacks carry generation guards. Switching
+projects retains each job's point, batch, traverse, level and radiation drafts in
+account-local memory, and restores that job's original values. Project switching
+and point-form editing are blocked while a point save is outstanding.
+
+Single and batch point saves inspect returned database errors before clearing
+input or showing success. A synchronous save guard prevents duplicate taps; this
+is not yet an idempotent retry contract after an ambiguous network response.
+Messages and point-save status are visible, and no permanent fake offline/synced
+indicator implies that all measurement drafts have been persisted.
+
+The shared raw-point parser uses the existing Papa Parse dependency for quoted
+CSV. Complete finite decimal values, explicit names and optional finite heights
+are required. Missing heights remain null, zero/negative local-grid coordinates
+are retained, and no arbitrary UTM range or generated name is used. A malformed
+row rejects the whole preview; changing CSV invalidates the old preview. Duplicate
+names within a batch, extra columns and batches over 1000 rows are rejected without
+silent truncation. No CRS transformation, datum, units or instrument accuracy is
+inferred by this quick entry path. The UI requires the surveyor to confirm the
+applicable project reference before using these raw coordinates.
+
+Instrument import retains the observed name, E/N and optional height; a reading
+with only latitude/longitude cannot be stored as projected E/N. Original reading
+metadata is retained in the existing `survey_points.description` text column,
+not an invented `notes` column. Stored null/blank coordinates remain unknown in
+recent-point display. These source/DOM checks do not prove receiver operation or
+database storage on the deployed schema.
+
+The quick traverse page no longer fabricates face-right readings, 90-degree
+vertical angles, 1.5 m instrument/target heights and zero control coordinates from
+entered bearings to obtain a tolerance grade. It retains quick entries and labels
+closure as unassessed, directing measured observation/control setup to Field Book.
+The established engineering engine is unchanged; this removes a false evidence
+adapter rather than asserting that quick entry supplies a complete traverse.
+
+65 focused tests across four suites pass: actual field-page DOM interactions,
+strict point parsing, the plumb collector and the database query adapter. The new
+regressions failed before repair. Fresh ordinary and reviewed Docker verification
+both failed access; current production health remains unknown. No container,
+image, builder, lifecycle, migration, cleanup or dependency installation occurred.
+Both strict TypeScript projects and changed-file ESLint also pass for this batch.
+
+Remaining field gates: durable storage and scoped recovery for this quick page;
+explicit project/point CRS and height-reference binding; stable observation IDs
+and idempotent retries; stricter quick traverse/level/radiation entry and actual
+reductions; live PostgreSQL, browser/mobile and physical instrument checks.
+The matrix's cadastral, engineering, road, construction and topographical
+acceptance work remains open; this repair does not declare the platform finished.

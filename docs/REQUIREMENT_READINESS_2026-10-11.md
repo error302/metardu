@@ -256,3 +256,15 @@ These are synthetic/source proofs. New capture migration 107, actual PostgreSQL,
 recovery/promotion, browser downloads/printing and independent field checks remain
 unverified. Docker access still failed, with no runtime lifecycle or dependency
 change. The wider platform objective remains active.
+
+Shared field-page follow-up: account/job draft isolation, stale-response guards,
+database-error retention, duplicate-tap prevention and strict atomic CSV previews
+are now implemented in the existing `/field` tool. Instrument point names/heights
+and original reading metadata are retained; missing projected coordinates remain
+unknown/rejected. Quick bearings no longer generate fabricated full observations
+to obtain a tolerance grade. 65 focused tests across four suites pass. These are
+source/DOM fixtures with mocked network/device boundaries, not deployed database
+or field proof. Durable offline persistence, reference binding, idempotent retries
+and measured traverse/level/radiation acceptance remain open. Current Docker
+verification still fails access, and no production promotion or additional
+container/image/dependency was created. See the workflow matrix for full details.
