@@ -884,3 +884,63 @@ started at `2026-10-14T20:21:08.479067242Z`. The app mounts only its existing
 uploads volume; it does not bind the changing source checkout. New login/auth
 edits are active separate work in this shared checkout and were preserved outside
 the verified pipeline commit; do not treat them as checked by this batch's tests.
+
+## Private measured pipeline history — 15 October 2026
+
+The five survey families above remain the acceptance scope. The actual reachable
+`/tools/pipeline-asbuilt` workflow now has account-scoped project selection,
+private paginated batch history, explicit recording and reopening. The drainage
+project output page links to it with the project identity. The old PipelinePanel
+is currently unreferenced; implementing its placeholder rows would not improve
+the reachable workflow.
+
+The new owner-only API reparses measured CSV and runs the established pipeline
+engine on the server. It retains raw CSV, entered metadata/criterion, precise
+results and algorithm version, a SHA256 input identity, recorder, server receipt
+time and the project name/reference declaration at recording. It does not equate
+receipt time with measurement time or assert that entered heights match the
+project datum. Cover and fall screening remain numerical, without inferred
+country minima, control/accuracy evidence, design approval or certification.
+
+Migration `108_pipeline_asbuilt_history` prepares a separate append-only table,
+forced RLS, owner read/append policies, delivery uniqueness and retained-evidence
+constraints. It protects batches from stale design-JSON replacement. Matching
+retries return the original batch; changed retries conflict. API detail verifies
+the supported archived algorithm, raw-input hash and calculated values before
+returning results; invalid or unsupported archives remain unchanged. Missing
+schema returns retryable HTTP 503 rather than a false save. CSV stays in the
+form on failure; editing starts a fresh batch identity. Account changes clear
+private form/history; changing project or reopening over a draft asks before
+clearing it. Evidence JSON from a saved batch retains the full archive, including
+project reference snapshot and receipt identity. CSV/HTML remain measurement
+reports; use the JSON alongside them for archive provenance.
+
+Source verification covers private read/write denial, strict input, known signed
+cover, retry conflict/concurrency, no-row save failure, missing schema, invalid
+history cursors and archive tampering/version rejection, plus actual React form
+save failure/retry/reopen/account-clear behavior. Existing engine and CSV suites
+also pass: 39 tests across four suites. Strict app/test type checks and
+changed-file lint pass. Final hook checks also run against the committed paths.
+The real owned `127.0.0.1:3021` interface was exercised with two synthetic rows:
+first crown 10.350 m, signed cover -0.150 m, next fall 1.000%; unknown criterion
+stays NOT ASSESSED and the final grade remains unknown.
+
+`scripts/verify-pipeline-history-db.mjs` executed the actual 108 UP SQL against
+the existing marked synthetic `metardu_runtime_verify` database. A restricted
+runtime role could append/read its owner's batch; other-owner access/append,
+duplicate delivery, malformed capture, runtime update/delete, administrative
+update/delete and parent project deletion were blocked. All DDL and test records
+rolled back, leaving no history table. The existing inspected PostgreSQL rehearsal
+container was resumed; no new container, image, builder or database clone was
+created. This SQL rehearsal and mocked API/DOM boundaries do not prove a full
+authenticated browser-to-database recording flow or customer deployment.
+
+The read-only production metadata audit before preparing 108 found 109 applied
+of 112 source migrations, pending 105/106/107, no mutated/missing applied hashes
+or ghosts, and a restricted `metardu_app` role. Preparing 108 adds a further
+pending migration; none was applied by this batch. The original healthy app is
+separate from the source preview. A separate authorized auth-release chat is
+building its own exact committed revision; this batch does not promote source,
+alter its candidate or claim that 108 is deployed. Production recovery/rollback,
+approved-design comparison, measured uncertainty, durable offline batches,
+instrument field tests and issued long-job/mobile/print deliverables remain gates.

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import type { DrainageData } from '@/types/engineering'
 import { calculateProjectDrainageRuns, generateProjectDrainageSetout } from '@/lib/engineering/projectDrainageEngine'
 import { PipeFlowScreening } from './PipeFlowScreening'
@@ -59,6 +60,7 @@ export function DrainageStep3Outputs({ data, projectId }: { data: DrainageData |
         <p className="text-sm text-zinc-400">Review the saved manhole chainage and level schedule, calculated pipe gradients, and normal-depth screening against the circular open-channel peak. The screening does not establish intermediate cover, inlet/outlet control, HGL/backwater, surcharge at manholes, or design approval.</p>
       </div>
 
+      <Link href={`/tools/pipeline-asbuilt?projectId=${encodeURIComponent(projectId)}`} className="inline-flex min-h-11 items-center rounded border border-zinc-700 px-4 py-2 text-sm text-zinc-200">Record and review measured pipe as-built profiles</Link>
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <section className="overflow-x-auto rounded-lg border border-zinc-700 p-4">
           <h4 className="mb-3 font-medium text-white">Manhole level schedule</h4>

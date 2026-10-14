@@ -298,3 +298,19 @@ rollback and field gates remain. The endpoint recovery is a workaround, with
 future restart stability still unverified. Pipeline source `13a88904` passed
 normal pre-push 141 tests/17 suites and GitHub secret scanning. See the workflow
 matrix for the precise source/runtime/field boundaries and recovery record.
+
+Measured pipeline project-history follow-up (15 October): the reachable as-built
+tool now offers private owner project selection, recording, paginated reopening
+and archival JSON. Server computation retains raw input and numeric results;
+stable delivery IDs prevent duplicate retries and conflict on changed input.
+Missing schema never becomes a false save; draft inputs survive failure and
+account changes clear private history. New migration 108 prepares an independent
+append-only/RLS-protected archive so mutable design JSON cannot overwrite field
+evidence. Its actual SQL passed the restricted-role synthetic PostgreSQL rehearsal,
+including private access, immutable evidence, uniqueness, malformed-data and parent
+deletion checks; the complete transaction rolled back. No production migration,
+clone, image/container creation or promotion occurred in this batch. Source/API/DOM
+tests and actual anonymous source-browser arithmetic are distinct from a full
+authenticated recording flow, issued design comparison, uncertainty and field
+acceptance. The five survey families remain in scope and the overall goal remains
+active. See the workflow matrix for exact checks and unresolved release gates.
