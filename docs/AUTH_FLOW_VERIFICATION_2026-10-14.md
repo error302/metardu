@@ -1,5 +1,7 @@
 # Account access and recovery repair — 14 October 2026
 
+Update, 15 October: this auth release has now been promoted and its three pending migrations applied. Live HTTPS signup/login, received verification/reset links, password changes, session revocation and five branded inbox deliveries passed using a disposable QA account. See [the production release record](PRODUCTION_AUTH_RELEASE_2026-10-15.md); the runtime limitations below describe the earlier investigation checkpoint.
+
 ## Reported problem and confirmed defects
 
 The owner reported that requesting a password reset displayed success but no email arrived. Source investigation confirmed that the recovery route returned HTTP 200 after both database errors and email-provider rejections. The client then claimed a message had been sent.
