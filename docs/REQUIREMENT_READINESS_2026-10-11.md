@@ -284,3 +284,17 @@ linkage, uncertainty/provenance, long-job print/mobile/CAD and field gates remai
 open, as does the legacy PipelinePanel integration. No production lifecycle,
 migration, dependency or additional container action occurred; Docker verification
 still fails access. The five-family workflow matrix remains the acceptance scope.
+
+Production recovery follow-up: the Docker startup fault was traced to inaccessible
+zero-byte inference and Secrets Engine IPC endpoints. Inspected stopped runtime
+directories were reversibly renamed aside, preserving all entries and application,
+volume, backup and credential data. The original engine/stack now passes reviewed
+Docker health/ownership/duplicate inventory: one METARDU application container,
+required support services healthy, no dated verification images/builders; latest
+completed backup run `2026-10-14T02:00:03Z` is not restore proof. The existing named
+Cloudflare connector was restarted, and fresh public home plus public health return
+HTTP 200 with database/Redis ok. New source remains unpromoted; schema/recovery/
+rollback and field gates remain. The endpoint recovery is a workaround, with
+future restart stability still unverified. Pipeline source `13a88904` passed
+normal pre-push 141 tests/17 suites and GitHub secret scanning. See the workflow
+matrix for the precise source/runtime/field boundaries and recovery record.

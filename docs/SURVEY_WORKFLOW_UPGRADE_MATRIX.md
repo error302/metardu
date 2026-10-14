@@ -830,3 +830,57 @@ passed after replacing test CRS literals with the established fixture constant.
 Fresh public `/api/health` returned Cloudflare HTTP 530; public delivery and Docker
 health must be restored/verified before promotion. A source/native download check
 does not resolve this live uptime gate.
+
+## Original production recovery checkpoint — 14 October 2026
+
+The pipeline source batch was committed/pushed as
+`13a88904d2df1e0d4ef6aecf031bd6eed799959d`. Normal pre-push app typing, changed-file
+lint and 141 related tests across 17 suites passed, beyond the explicit 102-test
+run and both strict projects. GitHub Gitleaks run `38625444876` passed for this
+exact revision. No local scanner/hook bypass was used.
+
+Fresh public home/health requests initially returned Cloudflare HTTP 530 with
+error 1033, and the original port 3000 refused connections. Docker's installed
+CLI and launcher accepted startup, but existing host logs showed the backend
+exiting before engine readiness: first it could not unlink the `dockerInference`
+IPC endpoint, then the analogous `docker-secrets-engine/engine.sock` endpoint.
+These were zero-byte reparse endpoints, not containers, virtual disks or database
+files. The failure class is described in the
+[Docker Desktop issue](https://github.com/docker/desktop-feedback/issues/531);
+the actual local logs and inventories, rather than that issue alone, determined
+the repair.
+
+With Docker components stopped, exact parent directories were inspected for
+normal directory attributes and only allowlisted zero-byte IPC entries, and both
+resolved source/destination paths were checked within their named application
+directories. The stale entries were **renamed aside, not deleted**. A fresh
+inference endpoint left by the intermediate failed start was also preserved
+aside so both startup locations were clear together. Recovery receipts are in
+ignored `.cache/release-verify/docker-runtime-repair.jsonl`. No credential files,
+container/image/volume data, backup archive or migration hashes were removed,
+rewritten or reset. No Docker/WSL shutdown, disk compaction, blanket prune, builder
+creation or application-image build occurred.
+
+The existing Docker engine then started. Reviewed `npm run docker:verify` now
+passes: app, worker, PostgreSQL, Redis, collaboration and NTRIP are healthy;
+backup is running; completed backup run is `2026-10-14T02:00:03Z`. Ownership and
+inventory confirm **one METARDU application container and no dated verification
+images/builders**. This backup timestamp is archive/header evidence, not a restore
+test. The user's existing named Cloudflare connector was restarted using its
+existing token file after the original stack passed health; no new tunnel,
+hostname, credential, preview or application container was created.
+
+Fresh public verification now returns home HTTP 200 and `/api/public/health`
+HTTP 200 with status healthy, database ok and Redis ok. This restores the original
+production release; it does **not** promote the new pipeline or earlier pending
+source changes. Compatibility, actual recovery/rollback, historical crown/cover
+review and field acceptance still gate the one planned source promotion. The
+reversible endpoint workaround does not prove that the vendor startup issue is
+permanently resolved across future Docker/Windows restarts.
+
+Running-image verification is
+`sha256:44106f7a461e7e4d204f4416744ca2852cbf2ef94b5fbc15ea35d31dd9d1f5d6`,
+started at `2026-10-14T20:21:08.479067242Z`. The app mounts only its existing
+uploads volume; it does not bind the changing source checkout. New login/auth
+edits are active separate work in this shared checkout and were preserved outside
+the verified pipeline commit; do not treat them as checked by this batch's tests.
