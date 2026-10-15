@@ -13,6 +13,8 @@ backups
 download
 upload
 map-audit-results
+# Local browser captures belong outside the application build context.
+/*.png
 e2e-results
 skills
 # Historical audit output and stale generated PWA build inputs

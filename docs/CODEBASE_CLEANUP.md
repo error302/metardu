@@ -49,3 +49,22 @@ test TypeScript checks passed. Standalone packaging passed four tests, with its
 junction case skipped because the Windows sandbox cannot create that junction.
 The lint script passed Node's syntax check. No production build or promotion
 was performed for this cleanup.
+
+Follow-up on 2026-10-16 removed 33 untracked browser captures from the repository
+root, all dated August 2026, totaling 11,314,958 bytes (about 11 MiB).
+Names, sizes and hashes are recorded in the ignored
+`.cache/cleanup-audit/root-captures-manifest.json`; every target was checked for
+containment, reparse points, tracked status and unchanged content before deletion.
+The few filename matches in smoke-test scripts are screenshot **outputs** in
+`live-test-results/`, not inputs from the root. No application code consumes these
+root captures. Current verification evidence in other directories remains.
+
+Root captures are excluded from Docker build inputs. The PNG ignore rule is now
+scoped to the root, with generated audit directories ignored separately, so new
+application assets are not silently omitted from Git. This revealed the existing
+ChatGPT package icon referenced by `plugin.json` was ignored; it is now included
+and matches `public/metardu-icon.png` byte for byte.
+
+The follow-up retained all active public photographs and icons, calculation and
+security regressions, migrations, recovery evidence and the user's CAD drawing.
+No Docker image, application container, volume or builder was created or removed.

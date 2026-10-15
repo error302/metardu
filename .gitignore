@@ -221,7 +221,9 @@ submission-numbering-before-after.excalidraw
 # Temp Agent Files
 .freebuff/
 .playwright-mcp/
-*.png
+/*.png
+/map-audit-results/
+/.artifacts/screens-prod/
 tunnel-log*.txt
 tunnel-url.txt
 fix-roles.sql
