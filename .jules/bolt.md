@@ -1,0 +1,3 @@
+## 2024-10-15 - V8 Call Stack Overflow with Math.max/min Spread Operator
+**Learning:** Using the spread operator (`...`) with `Math.min()` or `Math.max()` on large arrays (e.g., `Math.max(0, ...readings.map(r => r.totalDisplacement * 1000))`) causes V8 "Maximum call stack size exceeded" errors and excessive memory allocation due to intermediate array creation. This is a critical performance bottleneck and anti-pattern in the codebase for large datasets like point clouds or deformation monitoring readings.
+**Action:** Use `reduce` (e.g., `readings.reduce((max, r) => Math.max(max, r.totalDisplacement * 1000), 0)`) or a standard `for` loop to calculate bounds on large datasets to prevent call stack overflow and avoid intermediate array allocations.
