@@ -2,15 +2,20 @@
 // Never exports credentials, clones customer databases, or creates preview services.
 import assert from 'node:assert/strict'
 import { spawnSync, spawn } from 'node:child_process'
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync, existsSync, createWriteStream, statfsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
 import pg from 'pg'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, assertBuildSpace } from './release-plan.mjs'
+import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 
-const directory = resolve('.cache/release-verify/auth-release')
+const legacy = process.argv.length === 3
+const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
+  : pinnedReleaseArguments(process.argv.slice(2),process.cwd())
+const directory = requested.directory
 const receiptPath = join(directory, 'promotion.json')
-const revision = 'c1591bda793e415d300f7f58176e1ced8c020f6b'
+const revision = requested.revision
 const candidateTag = 'metardu-metardu-app:candidate'
 const rollbackTag = 'metardu-metardu-app:rollback-current'
 const names = ['metardu-app','metardu-postgres','metardu-redis','metardu-worker','metardu-collaboration','metardu-ntrip','metardu-backup']
@@ -27,7 +32,7 @@ const envOf = container => Object.fromEntries(container.Config.Env.map(value => 
 const mounts = c => c.Mounts.map(m=>({type:m.Type,name:m.Name??null,source:m.Source,destination:m.Destination,rw:m.RW})).sort((a,b)=>a.destination.localeCompare(b.destination))
 const describe = c => ({name:c.Name.slice(1),id:c.Id,image:c.Image,startedAt:c.State.StartedAt,mounts:mounts(c)})
 const save = receipt => writeFileSync(receiptPath,JSON.stringify(receipt,null,2)+'\n')
-const load = () => JSON.parse(readFileSync(receiptPath,'utf8'))
+const load = () => { const receipt=JSON.parse(readFileSync(receiptPath,'utf8'));assert.equal(receipt.revision,revision,'The receipt belongs to a different pinned source revision.');return receipt }
 const inspect = () => JSON.parse(docker(['inspect',...names]))
 function stageMigrations(files) {
   const staging=join(directory,'migration-source')
@@ -56,17 +61,17 @@ async function withAdmin(containers,work) {
 async function snapshotExistingRows(client, catalog) {
   const tables=catalog || (await client.query(`SELECT table_name AS name,array_agg(column_name::text ORDER BY ordinal_position) AS columns
     FROM information_schema.columns WHERE table_schema='public'
-    AND table_name IN ('setout_points','setout_observations','verticality_readings','user_consents')
+    AND table_name IN ('setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations')
     GROUP BY table_name ORDER BY table_name`)).rows
   const rows=[]
   const literal=value=>`'${value.replaceAll("'","''")}'`
   await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
   try {
     for(const table of tables) {
-      assert.ok(['setout_points','setout_observations','verticality_readings','user_consents'].includes(table.name))
+      assert.ok(['setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations'].includes(table.name))
       const result=await client.query(`SELECT count(*)::integer AS rows,
         md5(COALESCE(string_agg(md5(payload::text),'' ORDER BY md5(payload::text)),'')) AS fingerprint
-        FROM (SELECT (SELECT jsonb_object_agg(j.key,CASE WHEN jsonb_typeof(j.value)='number'
+        FROM (SELECT (SELECT jsonb_object_agg(j.key,CASE ${table.name==='road_alignments' ? "WHEN j.key='cross_section_template' THEN t.cross_section_template::text::jsonb" : ''} WHEN jsonb_typeof(j.value)='number'
           THEN to_jsonb(trim_scale((j.value #>> '{}')::numeric)) ELSE j.value END ORDER BY j.key)
           FROM jsonb_each(to_jsonb(t)) j WHERE j.key=ANY(ARRAY[${table.columns.map(literal).join(',')}]::text[])) AS payload
           FROM public."${table.name}" t) normalized`)
@@ -88,13 +93,14 @@ function assertEnvironment(before, config) {
   for(const [key,value] of Object.entries(next)) if(key!=='METARDU_BUILD_SHA') assert.equal(String(value??''),String(old[key]??''),`Review runtime setting before changing it: ${key}`)
 }
 async function plan() {
+  if(existsSync(receiptPath)) throw new Error('A release receipt already exists. Inspect its status before changing or resuming this release.')
   assert.equal(git(['rev-parse',revision]),revision)
   const before=inspect();validateContainers(before)
   assert.notEqual(envOf(before.find(c=>c.Name==='/metardu-app')).METARDU_BUILD_SHA,revision,'This release is already promoted; use read-only verification')
   const config=composeConfig();assertEnvironment(before,config)
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
-  const drift=computeDrift(files,applied)
+  const drift=legacy?computeDrift(files,applied):assertSurveyReleaseDrift(files,applied)
   assert.equal(drift.mutated.length,0,'Applied migration hashes must remain unchanged')
   assert.equal(drift.ghost.length,0,'No applied migration may be omitted')
   const recovery=JSON.parse(readFileSync('test-results/recovery-proof/verification.json','utf8'))
@@ -102,30 +108,68 @@ async function plan() {
   assert.ok(Object.values(recovery.cleanup).every(value=>value===true))
   const image=before.find(c=>c.Name==='/metardu-app').Image
   const result={revision,status:'planned',candidateTag,rollbackTag,before:before.map(describe),project:before.find(c=>c.Name==='/metardu-app').Config.Labels['com.docker.compose.project'],
-    migrationBefore:applied,pending:drift.missing,rollbackImage:image,recoveryEvidence:{status:recovery.status,archiveSha256:recovery.archiveSha256,cleanup:recovery.cleanup},phases:[]}
+    migrationBefore:applied,pending:drift.missing,rollbackImage:image,priorRevision:envOf(before.find(c=>c.Name==='/metardu-app')).METARDU_BUILD_SHA,
+    sourceRegistry:files.map(file=>({version:file.version,checksum:file.checksum})),
+    recoveryEvidence:{status:recovery.status,archiveSha256:recovery.archiveSha256,cleanup:recovery.cleanup},phases:[]}
+  if(!legacy) {
+    assertBuildSpace(hostFreeBytes())
+    const parsed=await withAdmin(before,async client=>{
+      const rows=(await client.query('SELECT cross_section_template::text AS value FROM road_alignments WHERE cross_section_template IS NOT NULL')).rows
+      for(const row of rows){try{JSON.parse(row.value)}catch{throw new Error('An existing template is invalid JSON; reconcile that legacy record before promotion. Diagnostic payload suppressed.')}}
+      return rows.length
+    })
+    result.compatibility={existingTemplatesParseAsJson:true,templateRows:parsed,reviewedPendingVersions:drift.missing}
+    result.hostFreeBytes=hostFreeBytes()
+  }
   save(result)
   console.log(JSON.stringify({revision,image,applied:applied.length,pending:drift.missing,configurationPreserved:true,priorRecoveryProof:true,oneApplication:true}))
+}
+function hostFreeBytes(){const stats=statfsSync(process.cwd());return stats.bavail*stats.bsize}
+function rollbackRegistry(receipt,files,applied){
+  const selected=compatibleRollbackRegistry(files,applied)
+  const key=createHash('sha256').update(JSON.stringify(applied)).digest('hex').slice(0,16)
+  const target=join(directory,'rollback-registry',key);mkdirSync(target,{recursive:true})
+  for(const file of selected)writeFileSync(join(target,file.path.split('/').at(-1)),file.content)
+  return {directory:target,versions:selected.map(file=>file.version),strictVerification:true,originalHashesPreserved:true}
 }
 async function build() {
   const receipt=load();assert.equal(receipt.status,'planned')
   assert.equal(receipt.rehearsal?.passed,true,'Pending SQL must first succeed on the existing synthetic database')
+  if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'source-checks.json'),'utf8'));assert.equal(proof.revision,revision);assert.equal(proof.status,'passed');receipt.sourceChecks=proof.checks}
+  if(!legacy)assert.equal(receipt.rehearsal.rollbackVerifier?.passed,true,'The current image startup verifier must accept the pinned forward registry in the existing synthetic database.')
   const before=inspect();assert.equal(before.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
+  assertBuildSpace(hostFreeBytes())
+  const priorTag=JSON.parse(docker(['image','inspect',rollbackTag]))[0].Id
+  if(priorTag!==receipt.rollbackImage){
+    const alias='metardu-metardu-app:rollback-prior-current'
+    const probe=spawnSync('docker',['image','inspect',alias,'--format','{{.Id}}'],{encoding:'utf8',windowsHide:true})
+    assert.ok(probe.status!==0||probe.stdout.trim()===priorTag,'Preserve an existing prior rollback alias before reusing it.')
+    docker(['image','tag',priorTag,alias]);receipt.preservedPriorRollback={image:priorTag,tag:alias}
+  }
   docker(['image','tag',receipt.rollbackImage,rollbackTag])
   assert.equal(docker(['image','inspect',rollbackTag,'--format','{{.Id}}']),receipt.rollbackImage)
   const config=composeConfig();assertEnvironment(before,config)
-  const args=['build','--progress=plain','--tag',candidateTag,'--label',`org.opencontainers.image.revision=${revision}`,
+  const args=['build','--builder','desktop-linux','--progress=plain','--tag',candidateTag,'--label',`org.opencontainers.image.revision=${revision}`,
     '--build-arg',`NEXT_PUBLIC_APP_URL=${config.services['metardu-app'].environment.NEXT_PUBLIC_APP_URL}`,
     '--build-arg',`NEXT_PUBLIC_PAYPAL_CLIENT_ID=${config.services['metardu-app'].build.args.NEXT_PUBLIC_PAYPAL_CLIENT_ID||''}`,'-']
   const archive=spawn('git',['-c','core.fsmonitor=false','archive','--format=tar',revision],{windowsHide:true,stdio:['ignore','pipe','pipe']})
-  const builder=spawn('docker',args,{windowsHide:true,stdio:['pipe','inherit','inherit']})
+  const logPath=join(directory,`build-${(receipt.buildAttempts?.length??0)+1}.log`),log=createWriteStream(logPath,{flags:'wx'})
+  const builder=spawn('docker',args,{windowsHide:true,stdio:['pipe','pipe','pipe']})
+  builder.stdout.pipe(log,{end:false});builder.stderr.pipe(log,{end:false})
+  const attempt={startedAt:new Date().toISOString(),builderPid:builder.pid,archivePid:archive.pid,log:logPath,status:'running'}
+  receipt.buildAttempts=[...(receipt.buildAttempts??[]),attempt];receipt.status='building';save(receipt)
+  let spaceFailure=false
+  const monitor=setInterval(()=>{try{assertBuildSpace(hostFreeBytes())}catch{spaceFailure=true;builder.kill('SIGTERM');archive.kill('SIGTERM')}},5000)
   archive.stdout.pipe(builder.stdin)
   builder.stdin.on('error',()=>{})
   const archiveDone=new Promise((resolve,reject)=>{archive.once('error',reject);archive.once('exit',code=>code===0?resolve():reject(new Error('Committed build archive failed')))})
   const buildDone=new Promise((resolve,reject)=>{builder.once('error',reject);builder.once('exit',code=>code===0?resolve():reject(new Error(`Candidate build failed: ${code}`)))})
-  await Promise.all([archiveDone,buildDone])
+  try{await Promise.all([archiveDone,buildDone]);assert.ok(!spaceFailure,'Build cancelled at the host free-space reserve.')}
+  catch(error){builder.kill('SIGTERM');archive.kill('SIGTERM');await Promise.allSettled([archiveDone,buildDone]);attempt.status='failed';attempt.reason=spaceFailure?'host-space-reserve':error.message;receipt.status='build-failed';save(receipt);throw error}
+  finally{clearInterval(monitor);await new Promise(resolve=>log.end(resolve))}
   receipt.candidateImage=docker(['image','inspect',candidateTag,'--format','{{.Id}}'])
   assert.equal(JSON.parse(docker(['image','inspect',candidateTag]))[0].Config.Labels['org.opencontainers.image.revision'],revision)
-  receipt.status='built';save(receipt)
+  attempt.status='passed';receipt.status='built';save(receipt)
   console.log(JSON.stringify({status:receipt.status,image:receipt.candidateImage,revision}))
 }
 async function rehearse() {
@@ -154,6 +198,8 @@ async function rehearse() {
     await client.query('SELECT capture_snapshot,client_reading_id FROM verticality_readings WHERE false')
     const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE conname IN ('setout_capture_snapshot_shape','verticality_capture_snapshot_shape') ORDER BY conname")
     assert.equal(constraints.rows.length,2);assert.ok(constraints.rows.every(row=>row.convalidated))
+    if(!legacy)receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
+      registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:rehearsalDatabaseConfig().runtimeUrl})
     receipt.rehearsal.passed=true;receipt.rehearsal.applied=after.length;receipt.rehearsal.constraints=constraints.rows;save(receipt)
     console.log(JSON.stringify(receipt.rehearsal))
   }finally{await client.end()}
@@ -168,6 +214,7 @@ async function migrateAndPromote() {
   assertEnvironment(before,composeConfig())
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
+  if(!legacy)assertSurveyReleaseDrift(files,applied)
   assert.deepEqual(applied,receipt.migrationBefore)
   const jobs=await withAdmin(before,async client=>(await client.query(`SELECT
     (SELECT count(*)::integer FROM background_jobs WHERE status='running') AS background,
@@ -204,11 +251,15 @@ async function migrateAndPromote() {
     assert.deepEqual(recordsAfter.rows,receipt.existingRecordsBefore.rows,'Original recorded values must survive migration unchanged')
     receipt.existingRecordsPreserved=true
     const access=await withAdmin(before,async client=>(await client.query(`SELECT
-      has_table_privilege($1,'public.marketing_email_deliveries','SELECT') AS can_read,
-      has_table_privilege($1,'public.marketing_email_deliveries','INSERT') AS can_insert,
-      has_table_privilege($1,'public.marketing_email_deliveries','UPDATE') AS can_update,
-      has_table_privilege($1,'public.marketing_email_deliveries','DELETE') AS can_delete`,[oldEnv.DB_USER])).rows[0])
+      has_table_privilege($1,$2,'SELECT') AS can_read,
+      has_table_privilege($1,$2,'INSERT') AS can_insert`,[oldEnv.DB_USER,legacy?'public.marketing_email_deliveries':'public.pipeline_asbuilt_batches'])).rows[0])
     assert.ok(Object.values(access).every(Boolean),'Runtime must receive its ordinary privileges on the new table')
+    if(legacy) {
+      const mutable=await withAdmin(before,async client=>(await client.query(`SELECT
+        has_table_privilege($1,'public.marketing_email_deliveries','UPDATE') AS can_update,
+        has_table_privilege($1,'public.marketing_email_deliveries','DELETE') AS can_delete`,[oldEnv.DB_USER])).rows[0])
+      assert.ok(Object.values(mutable).every(Boolean),'Preserve the earlier release runtime privilege checks')
+    }
     receipt.migrationAfter=afterLedger;receipt.status='migrated';save(receipt)
     console.log(`Production migrations verified: ${afterLedger.length} entries; historical hashes unchanged.`)
     docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',override,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','120','metardu-app'],{timeout:150_000})
@@ -225,8 +276,17 @@ async function migrateAndPromote() {
     receipt.status='failed';receipt.failure=error.message;save(receipt)
     // Do not restore database archives over customer data or reverse forward-only migrations.
     // Keep the original app available when migration failed before replacement.
-    const current=JSON.parse(docker(['inspect','metardu-app']))[0]
-    if(current.Image===receipt.rollbackImage&&!current.State.Running){docker(['start','metardu-app']);receipt.originalAppRestarted=true;save(receipt)}
+    try{
+      const actual=await withAdmin(before,ledger)
+      receipt.rollbackRegistry=rollbackRegistry(receipt,files,actual)
+      const rollbackOverride=join(directory,'rollback.override.yml')
+      writeFileSync(rollbackOverride,JSON.stringify({services:{'metardu-app':rollbackService(rollbackTag,receipt.priorRevision,receipt.rollbackRegistry.directory)}},null,2))
+      docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',rollbackOverride,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','120','metardu-app'],{timeout:150_000})
+      const restored=inspect();assert.equal(restored.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
+      assert.equal(restored.find(c=>c.Name==='/metardu-app').State.Health.Status,'healthy')
+      for(const prior of before.filter(c=>c.Name!=='/metardu-app')){const kept=restored.find(c=>c.Name===prior.Name);assert.equal(kept.Id,prior.Id);assert.equal(kept.State.StartedAt,prior.State.StartedAt);assert.deepEqual(mounts(kept),mounts(prior))}
+      receipt.status='rolled-back';receipt.rollbackHealthy=true;save(receipt)
+    }catch(rollbackError){receipt.status='maintenance-failure';receipt.rollbackFailure=rollbackError.message;save(receipt)}
     throw error
   }
 }
@@ -236,5 +296,6 @@ try {
   else if(action==='rehearse') await rehearse()
   else if(action==='build') await build()
   else if(action==='promote') await migrateAndPromote()
+  else if(action==='status') console.log(JSON.stringify(load(),null,2))
   else throw new Error('Use plan, rehearse, build, or promote')
 }catch(error){console.error(error instanceof assert.AssertionError ? `Release guard failed: ${error.message.split('\n')[0]}` : error.message);process.exitCode=1}
