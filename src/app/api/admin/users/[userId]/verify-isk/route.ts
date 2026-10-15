@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { PLATFORM_ADMIN_API_ROLES } from '@/lib/auth/rbac'
 import { z } from 'zod'
 
@@ -32,6 +32,7 @@ const verifyIskSchema = z.object({
 export const PATCH = apiHandler(
   { auth: true, roles: PLATFORM_ADMIN_API_ROLES, optimisticLock: true, schema: verifyIskSchema, rateLimit: { max: 60, windowMs: 60000 } },
   async (req, ctx) => {
+    setCurrentRlsServiceRole('platform_admin')
     const userId = ctx.params?.userId
     if (!userId) {
       return NextResponse.json(

@@ -135,10 +135,13 @@ export async function assignRole(
       [role, userId],
     )
 
-    // Also update surveyor_profiles role if exists
+    // This legacy enum accepts admin/surveyor/auditor/viewer, not the global
+    // RBAC role names. Only a platform administrator gets its admin marker.
+    // Demotion must clear that marker as well as the authoritative users role.
+    const profileRole = role === ROLES.SUPER_ADMIN ? 'admin' : role === ROLES.VIEWER ? 'viewer' : 'surveyor'
     await client.query(
       `UPDATE surveyor_profiles SET role = $1 WHERE user_id = $2`,
-      [role, userId],
+      [profileRole, userId],
     )
   })
 }

@@ -5,6 +5,7 @@ import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import pg from 'pg'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
+import { migrationChecksums } from './verify-migrations.mjs'
 const config = rehearsalDatabaseConfig()
 assert.equal(config.database, 'metardu_runtime_verify', 'Use the existing marked synthetic database.')
 const client = new pg.Client({ connectionString: config.adminUrl, connectionTimeoutMillis: 5000 })
@@ -12,12 +13,17 @@ await client.connect()
 let transaction = false
 try {
   assert.equal((await client.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=current_database()")).rows[0].marker, 'METARDU synthetic beacon verification only 2026-10-08')
-  assert.equal((await client.query("SELECT to_regclass('public.pipeline_asbuilt_batches') AS existing")).rows[0].existing, null, 'Do not overwrite an existing history table.')
+  const existing = (await client.query("SELECT to_regclass('public.pipeline_asbuilt_batches') AS existing")).rows[0].existing
   const role = (await client.query('SELECT rolsuper, rolbypassrls FROM pg_roles WHERE rolname=$1', [config.runtimeRole])).rows[0]
   assert.ok(role && !role.rolsuper && !role.rolbypassrls)
   const sql = await readFile('src/lib/db/migrations/108_pipeline_asbuilt_history.sql', 'utf8')
+  if (existing) {
+    const applied = (await client.query("SELECT checksum FROM schema_migrations WHERE version='108_pipeline_asbuilt_history'")).rows[0]?.checksum
+    const source = migrationChecksums(Buffer.from(sql))
+    assert.ok(applied && [source.checksum, ...source.equivalentChecksums].includes(applied), 'An existing history table requires the exact applied source migration; never overwrite it.')
+  }
   await client.query('BEGIN'); transaction = true
-  await client.query(sql.split(/^-- DOWN:/m)[0])
+  if (!existing) await client.query(sql.split(/^-- DOWN:/m)[0])
   const owner = randomUUID(), other = randomUUID(), project = randomUUID(), delivery = randomUUID()
   for (const actor of [owner, other]) await client.query("INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,'synthetic-unusable-hash','SYNTHETIC pipeline SQL verification')", [actor, `pipeline-${actor}@example.invalid`])
   await client.query("INSERT INTO projects(id,user_id,name,survey_type) VALUES($1,$2,'SYNTHETIC pipeline storage contract','engineering')", [project, owner])
@@ -49,6 +55,6 @@ try {
   await rejected(() => client.query('DELETE FROM pipeline_asbuilt_batches WHERE id=$1', [id]), '55000')
   await rejected(() => client.query('DELETE FROM projects WHERE id=$1', [project]), '23503')
   await client.query('ROLLBACK'); transaction = false
-  assert.equal((await client.query("SELECT to_regclass('public.pipeline_asbuilt_batches') AS existing")).rows[0].existing, null)
-  console.log(JSON.stringify({ syntheticOnly: true, migrationUpPassed: true, ownerReadAppend: true, otherOwnerBlocked: true, duplicateBlocked: true, runtimeMutationBlocked: true, administrativeMutationBlocked: true, malformedCaptureBlocked: true, projectDeletionBlocked: true, rolledBack: true }))
+  assert.equal((await client.query("SELECT to_regclass('public.pipeline_asbuilt_batches') AS existing")).rows[0].existing, existing)
+  console.log(JSON.stringify({ syntheticOnly: true, migrationUpExercised: !existing, exactAppliedMigrationVerified: Boolean(existing), ownerReadAppend: true, otherOwnerBlocked: true, duplicateBlocked: true, runtimeMutationBlocked: true, administrativeMutationBlocked: true, malformedCaptureBlocked: true, projectDeletionBlocked: true, rolledBack: true }))
 } finally { if (transaction) await client.query('ROLLBACK'); await client.end() }

@@ -145,9 +145,9 @@ async function findOrCreateOAuthUser(params: {
     try {
       await db.query(
         `INSERT INTO surveyor_profiles (id, user_id, role, is_suspended)
-         VALUES (gen_random_uuid(), $1, $2, false)
+         VALUES (gen_random_uuid(), $1, 'surveyor', false)
          ON CONFLICT (user_id) DO NOTHING`,
-        [user.id, role]
+        [user.id]
       )
     } catch {
       // Non-critical
@@ -180,7 +180,7 @@ async function findOrCreateOAuthUser(params: {
   try {
     await db.query(
       `INSERT INTO surveyor_profiles (id, user_id, role, is_suspended)
-       VALUES (gen_random_uuid(), $1, 'user', false)
+       VALUES (gen_random_uuid(), $1, 'surveyor', false)
        ON CONFLICT (user_id) DO NOTHING`,
       [newUser.id]
     )
@@ -345,9 +345,9 @@ export const authOptions: AuthOptions = {
             try {
               await db.query(
                 `INSERT INTO surveyor_profiles (id, user_id, role, is_suspended)
-                 VALUES (gen_random_uuid(), $1, $2, false)
+                 VALUES (gen_random_uuid(), $1, 'surveyor', false)
                  ON CONFLICT (user_id) DO NOTHING`,
-                [user.id, role]
+                [user.id]
               )
             } catch {
               // Non-critical — continue login

@@ -1,5 +1,5 @@
 import { apiHandler, apiSuccess, type ApiHandlerContext } from '@/lib/apiHandler'
-import { db } from '@/lib/db'
+import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { logAuditEvent } from '@/lib/enterprise/auditTrail'
 import { z } from 'zod'
 
@@ -8,6 +8,8 @@ export const dynamic = 'force-dynamic'
 const suspendSchema = z.object({ reason: z.string().min(1, 'Suspension reason is required') })
 
 async function changeSuspension(request: Pick<Request, 'headers'>, ctx: Pick<ApiHandlerContext, 'userId' | 'params'>, suspended: boolean, reason?: string) {
+  // Both entry points have already revalidated platform administrator access.
+  setCurrentRlsServiceRole('platform_admin')
   const { userId } = ctx.params
   if (!z.string().uuid().safeParse(userId).success) return apiSuccess({ error: 'Invalid user ID' }, 400)
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown'

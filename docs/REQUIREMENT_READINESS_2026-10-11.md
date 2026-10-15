@@ -332,3 +332,19 @@ unchanged applied hashes and only migration 108 pending. This contour batch has
 no production lifecycle/schema/container/dependency change. Project recording,
 terrain masks/ground selection, long-job/mobile/print/field checks and the other
 survey-family gates remain open. The complete objective has not been reduced.
+
+Private recording/security follow-up (15 October): 31 real source HTTP checks now
+exercise private pipeline capture/reopening/retries and profile authorization with
+disposable accounts in the existing marked synthetic database. They exposed and
+then verified the closure of ordinary-account self-promotion/self-verification
+through `/api/db`. Declared profile editing remains available; protected values,
+mixed batches and deletion are refused. New forward-only migration 109 adds a
+database trigger safeguard; 14 native restricted-role checks pass. Platform admin
+contexts and global/legacy role mapping are corrected, and real HTTP assignment,
+suspension and restoration checks preserve session revocation. Normal identity/
+auth/profile tests and strict typing pass. See the workflow matrix for exact
+source/synthetic boundaries, retained fixture evidence and scripts. Production
+still runs pinned `c1591bda` with 112 applied entries; 108 and 109 are pending
+reviewed promotion, so this is not a claim of live remediation or platform-wide
+professional/field completion. No duplicate app container, builder, customer clone
+or production database change was made for these checks.

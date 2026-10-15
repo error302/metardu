@@ -22,6 +22,7 @@ import { db, setCurrentRlsServiceRole, setCurrentTillClaimCode } from '@/lib/db'
 import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { checkProjectAccess } from '@/lib/security/projectAccess'
+import { isSafeSurveyorProfileWrite } from '@/lib/security/surveyorProfileWrite'
 import { env } from '@/lib/env'
 
 // ponytail: Phase 6 Batch 7 — typed request body for /api/db proxy.
@@ -208,6 +209,16 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   if (PUBLIC_BROWSE_TABLES.has(table as string) && operation !== 'select') {
     return NextResponse.json(
       { data: null, error: { message: 'This table is read-only', code: 'FORBIDDEN' } },
+      { status: 403 }
+    )
+  }
+
+  // Profile ownership does not confer permission to grant roles, verify a
+  // licence, remove suspension, forge reviews or delete account restrictions.
+  // Apply to every payload row before insert/upsert/update reach QueryBuilder.
+  if (table === 'surveyor_profiles' && !isSafeSurveyorProfileWrite(operation, payload)) {
+    return NextResponse.json(
+      { data: null, error: { message: 'Use the authorized account workflow for protected profile changes', code: 'FORBIDDEN' } },
       { status: 403 }
     )
   }

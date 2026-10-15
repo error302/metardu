@@ -1016,3 +1016,59 @@ is `2026-10-15T02:00:03Z`; that timestamp alone is not restore proof. This conto
 batch creates no application container, image, builder, clone or migration and
 does not promote source. Current concurrent admin/navigation edits are preserved
 outside this batch. The broader five-family platform goal remains active.
+
+## Private recording and profile authorization — 15 October 2026
+
+The real source HTTP/session exercise now passes 31 checks against the existing
+marked `metardu_runtime_verify` database and the existing `127.0.0.1:3021` host
+preview. It verifies owner-only pipeline recording/reopening, private cache
+headers, server calculations, immutable raw input, changed/identical retries,
+concurrent delivery, and retained records after mutable project edits. It also
+checks ordinary firm updates/document-profile upserts and cross-account isolation
+through the actual browser database proxy. This is API/database evidence, not a
+complete authenticated browser recording or physical survey demonstration.
+
+That exercise confirmed an authenticated privilege escalation: the generic proxy
+previously allowed a disposable surveyor to set its profile role to `admin` and
+`verified_isk` to true. No production account was probed or changed. The source
+proxy now allows only declared profile fields, rejects protected values in every
+insert/update/upsert batch, and rejects profile deletion. Roles, verification,
+suspension and earned marketplace metrics cannot be supplied through it.
+
+New forward-only migration 109 protects profile identity, roles, verification,
+suspension and deletion in PostgreSQL, independently of row-policy configuration.
+Its restricted-role native SQL exercise passes 14 checks, including ordinary
+registration/editing, rejected insert/conflict-update attacks, authorized review,
+suspension revocation and parent account deletion. Candidate DDL/fixtures first
+rolled back; the ordinary migration runner then applied 109 only to the marked
+synthetic database, retaining all previous ledger hashes. That synthetic legacy
+profile table has RLS disabled; do not mistake the trigger tests for proof of
+production-wide row policies. The separate archive table's forced-RLS checks pass.
+
+Admin profile/suspension/verification handlers now set the trusted database context
+after their platform role gate. Global role assignment requires a freshly checked
+platform administrator; organization invitation permission cannot grant global
+account roles. The authoritative global role and the legacy profile enum are
+mapped separately, including clearing its admin marker on demotion. Automatic
+sign-in profile creation uses the safe existing `surveyor` enum value. Real HTTP
+tests verify ordinary role assignment is refused, legitimate platform assignment
+works, suspension revokes the old session version, and restoration does not revive
+it. Disposable accounts are reset and suspended after the exercise; append-only
+synthetic evidence remains clearly marked and retained.
+
+Reproducible scripts: `scripts/verify-pipeline-history-http.mjs`,
+`scripts/verify-pipeline-history-db.mjs` and
+`scripts/verify-profile-privileges-db.mjs`. They require explicitly selected
+loopback synthetic credentials, never fall back to deployment `.env`/`DATABASE_URL`,
+and never create a container or clone customer records. The HTTP receipt is ignored
+at `.cache/release-verify/pipeline-http/result.json`. Focused auth/identity/profile
+checks pass 29 tests across four suites; app/test typing passes, with normal push
+gates required for the final commit.
+
+Production remains the pinned `c1591bda` auth release with 112 applied migrations;
+source migrations 108 and 109 require reviewed promotion. Existing-stack runtime
+verification remains healthy with exactly one application container. This source
+repair is not yet live protection. Preserve the deployed/rollback images and
+review recovery and compatibility before one planned promotion. Concurrent admin
+UI work is outside this batch. Jurisdictional/professional verification, issued
+plans, field acceptance and all five survey-family completion gates remain open.
