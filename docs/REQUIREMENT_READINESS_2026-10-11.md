@@ -1,4 +1,14 @@
-# METARDU requirement readiness — updated 13 October 2026
+# METARDU requirement readiness — updated 16 October 2026
+
+Latest release update: pinned application source `eac2835e` is now deployed with
+all 115 migrations, unchanged historical hashes and checked customer-record
+preservation. The single production application and required services are healthy.
+Thirteen live HTTPS checks cover selected private alignment/pipeline reads,
+cross-account denial, profile authority protection and ordinary editing. Exact
+QA records were removed. Build, recovery-review and source-upgrade evidence are
+in `SURVEY_RELEASE_PREPARATION.md`; these do not replace the outstanding
+interaction, provider and field evidence in the table. The older dated events
+below remain historical context.
 
 This record tracks the user's workflow requests against source, browser, synthetic
 HTTP and production evidence. A shipped build does not prove every interaction,

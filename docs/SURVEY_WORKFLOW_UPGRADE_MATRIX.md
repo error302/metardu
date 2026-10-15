@@ -1221,3 +1221,35 @@ changed-file lint pass. The original synthetic service is stopped again, its
 data retained, and the existing single production app/required services are
 healthy. See `ALIGNMENT_PERSISTENCE_VERIFICATION.md` for exact evidence and open
 quantity-storage, snapshot/revision, browser, device, field and promotion gates.
+
+## Pinned production promotion — 16 October 2026
+
+Pinned source `eac2835e` is now running in the existing `metardu-app` service.
+All 115 source migrations match the live ledger; 108/109/110 applied normally,
+historical hashes and the checked original records were preserved, and fresh
+database/upload checkpoints passed archive/header integrity checks. This updates
+the earlier source-only and unpromoted statuses above. Required supporting
+services and uploads mounts were preserved; no duplicate application container
+or new builder was created.
+
+Before promotion, all 112 prior source migrations bootstrapped in a temporary
+synthetic database, then the three forward migrations applied normally. Five
+native checks covered record/template preservation, the profile guard and
+private pipeline storage, followed by exact temporary-database cleanup. Pinned
+source passed 616 related tests, strict app/test typing and changed-source lint;
+the candidate passed strict production typing, static pages and standalone build.
+
+Thirteen live HTTPS checks now verify owner alignment access, other-account
+alignment/station read and IP-write denial, private cache behavior, anonymous
+refusal, self-promotion protection, ordinary profile editing and empty owned
+pipeline history. The exact disposable project/accounts were removed and their
+absence independently confirmed. No measured field evidence or email was created.
+See `SURVEY_RELEASE_PREPARATION.md` for exact receipts and rollback boundaries.
+
+The broader objective remains open. In particular, the legacy earthworks endpoint
+still accepts caller-supplied derived results and refers to missing method/net/
+mass-ordinate columns; it needs an owned, server-calculated persistence contract.
+The current workspace recomputes measured-profile exports independently and has
+no caller for that legacy endpoint. Revision/approval gating, wider corridor and
+survey families, current browser/device/field/print checks, paid/provider flows
+and public-directory acceptance still need their own evidence.

@@ -1,7 +1,9 @@
 # Alignment persistence and private access repair
 
-Source/synthetic checkpoint: 16 October 2026. This does not certify a road design
-or prove production promotion, instrument accuracy or field acceptance.
+Source/synthetic checkpoint: 16 October 2026. The corresponding pinned source is
+now promoted; live privacy/security checks are recorded in
+`SURVEY_RELEASE_PREPARATION.md`. This does not certify a road design, instrument
+accuracy, full browser interaction or field acceptance.
 
 ## Reproduced failures
 
@@ -88,8 +90,10 @@ builder, production schema or customer record was changed by this batch.
 
 ## Remaining release work
 
-Migration 110 and these handlers remain unpromoted. Pending 108/109 and 110 must
-pass the existing pinned release, recovery and compatibility process together.
+Migration 110 and these handlers were promoted with 108/109 after the pinned
+build, native forward upgrade, recovery review and preservation checks passed.
+Thirteen live HTTPS checks confirm selected privacy/security behavior; the
+earlier 31 source HTTP checks remain separate evidence of calculation/persistence.
 The legacy earthworks storage path still needs its own owned-write calculation
 and schema reconciliation; this batch adds its missing ownership check, not
 authority for caller-supplied quantities. Project exports continue to evaluate

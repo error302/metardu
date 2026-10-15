@@ -69,13 +69,14 @@ instrument import, physical print scale or field check is claimed here.
 The legacy IP persistence defects were reproduced and repaired in the subsequent
 source batch documented in `ALIGNMENT_PERSISTENCE_VERIFICATION.md`. Native HTTP
 checks now cover its server calculation, private access and canonical draft
-synchronization. Migration 110 and source promotion remain required; old deployed
-computed columns are not field truth. Draft step-completion indicators still
+synchronization. Migration 110 and the pinned source were subsequently promoted;
+see `SURVEY_RELEASE_PREPARATION.md`. Old computed columns are not field truth.
+Draft step-completion indicators still
 need evaluation/evidence-based gating across the workspace.
 
 Asymmetric/compound/reverse transitions, corridor offsets, superelevation,
 approved design/control/revision identity, real device round trips and field
-acceptance remain open. Source promotion must still satisfy the recovery and
-migration gates. The cadastral, drainage, construction, topographic, ChatGPT,
+acceptance remain open. The completed source promotion does not prove those
+field workflows. The cadastral, drainage, construction, topographic, ChatGPT,
 provider, payment and release gates in the workflow/readiness trackers remain
 part of the full platform objective.
