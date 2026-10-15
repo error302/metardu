@@ -141,8 +141,17 @@ export function generateDeformationReport(
     r => r.status === 'warning' || r.status === 'critical'
   )
 
-  const maxDisplacement = Math.max(0, ...readings.map(r => r.totalDisplacement * 1000))
-  const maxVelocity = Math.max(0, ...readings.map(r => r.velocityMmPerWeek))
+  // Optimization: use reduce instead of map + spread operator to avoid
+  // V8 "Maximum call stack size exceeded" errors on very large datasets (> 100k readings)
+  // and eliminate intermediate array allocations.
+  const maxDisplacement = readings.reduce(
+    (max, r) => Math.max(max, r.totalDisplacement * 1000),
+    0
+  )
+  const maxVelocity = readings.reduce(
+    (max, r) => Math.max(max, r.velocityMmPerWeek),
+    0
+  )
 
   const epochNumbers = [...new Set(readings.map(r => r.epochNumber))].sort((a, b) => a - b)
   const dates = readings.map(r => new Date(r.observedAt)).sort((a, b) => a.getTime() - b.getTime())
