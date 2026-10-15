@@ -64,7 +64,7 @@ beforeEach(() => {
     if (sql.includes('FROM survey_points')) return { rows: [{ name: 'A', easting: 500000, northing: 9860000 }] }
     if (sql.includes('FROM field_book_entries')) return { rows: [] }
     if (sql.includes('FROM project_reference_systems')) return { rows: [] }
-    return { rows: [{ id: 'project-1', revision: '2026-10-08', datum: 'Arc1960', utm_zone: 37, hemisphere: 'S', survey_type: 'cadastral' }] }
+    return { rows: [{ id: 'project-1', user_id: 'user-1', revision: '2026-10-08', datum: 'Arc1960', utm_zone: 37, hemisphere: 'S', survey_type: 'cadastral' }] }
   })
   mockTransaction.mockImplementation(async (work: (client: typeof mockClient) => Promise<unknown>) => {
     const before = saved
@@ -90,6 +90,19 @@ test('alignment history failure rejects the save and rolls back the alignment', 
   mockRevision.mockRejectedValue(new Error('Revision unavailable'))
   expect((await alignmentRequest()).status).toBe(500)
   expect(saved).toBe(false)
+  expect(mockRevision).toHaveBeenCalledTimes(1)
+})
+
+test('alignment rechecks changed ownership on the locked transaction row before writing', async () => {
+  const original = mockQuery.getMockImplementation()
+  mockQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+    if (sql.includes('FROM projects') && sql.includes('FOR SHARE')) return { rows: [{ id: 'project-1', user_id: 'other-owner', datum: 'Arc1960', utm_zone: 37, hemisphere: 'S' }] }
+    if (!original) throw new Error('Missing query fixture')
+    return original(sql, ...args)
+  })
+  expect((await alignmentRequest()).status).toBeGreaterThanOrEqual(400)
+  expect(saved).toBe(false)
+  expect(mockRevision).not.toHaveBeenCalled()
 })
 test('alignment save and revision use one transaction client', async () => {
   expect((await alignmentRequest()).status).toBe(200)

@@ -74,6 +74,12 @@ include handler tests with mocked transport/database boundaries; the real HTTP
 exercise above is separate evidence. No browser save/reload, instrument import,
 physical print or live field proof is claimed.
 
+The transactional-save fixtures now supply the recorded owner read inside the
+transaction. An additional ownership-change regression verifies that a stale
+earlier permission check cannot authorize the write, and the history-failure
+case confirms it actually invokes the revision writer before rollback. The
+combined persistence/transaction/mirror run passes 27 tests in three suites.
+
 The exact existing synthetic database was reused, then returned to its original
 stopped state after zero active queries and the other source-work chat's inactive
 state were verified. Its data remains. Production health/database/Redis and the
