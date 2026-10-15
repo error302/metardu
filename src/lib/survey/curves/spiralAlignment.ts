@@ -114,7 +114,7 @@ export interface AlignmentStation {
   /** Signed offset from the approach tangent (m, +right). */
   offset: number
   /** Current segment. */
-  segment: 'entry-spiral' | 'circular' | 'exit-spiral' | 'before' | 'after'
+  segment: 'entry-spiral' | 'circular' | 'exit-spiral'
   /** Deflection angle from TS (decimal degrees, clockwise from approach tangent). */
   deflectionDeg: number
   /** Instantaneous tangent bearing, clockwise from North (world frame). */

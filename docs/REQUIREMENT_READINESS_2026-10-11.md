@@ -362,3 +362,15 @@ gates required for the final commit. See the workflow matrix for native receipts
 source/production boundaries and the exact remaining road/project/field gates.
 The security repair is pushed as `cd067a8d` (351 related tests and GitHub Gitleaks
 passed); live promotion of pending source remains a separate requirement.
+
+Project transition follow-up (15 October): saved road inputs now connect equal
+entry/exit spirals to the established engine, project chainages, centreline
+coordinates and CSV/PDF outputs. Native synthetic CSV/PDF checks retain 99 target
+rows and TS/SC/CS/ST; rendered schedules now keep printed numerical cells whole
+using linked tables and explicit precision. The focused run passes 104 tests in
+14 suites; strict app/test typing and changed-file lint passed. See
+`PROJECT_ROAD_TRANSITION_VERIFICATION.md` for evidence and the newly traced
+legacy IP mirror defects. Asymmetric transitions, corridor/superelevation,
+design/control identity, persistence reconciliation, instrument/field acceptance
+and promotion remain open. The read-only Docker verifier passed against the
+existing single application stack; no production service/schema/image changed.

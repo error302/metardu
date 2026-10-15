@@ -132,11 +132,14 @@ export function buildRoadSchedules(data: RoadDesignData | null, crsCode: string,
   const horizontalRows = horizontal.curves.map(curve => {
     const ip = data?.ips.find(point => point.id === curve.ipId)
     return [curve.name, ip?.easting, ip?.northing, curve.radius, curve.turn, curve.deflectionAngle,
-      curve.tangentLength, curve.arcLength, curve.chainageTC, curve.chainageMC, curve.chainageCT]
+      curve.tangentLength, curve.arcLength, curve.spiralAlignment ? null : curve.chainageTC, curve.chainageMC, curve.spiralAlignment ? null : curve.chainageCT,
+      curve.kind, curve.transitionLength, curve.transitionLength, curve.totalLength, curve.chainageTS,
+      curve.spiralAlignment ? curve.chainageTC : null, curve.spiralAlignment ? curve.chainageCT : null, curve.chainageST, crsCode, 'DRAFT']
   })
   return {
     horizontal: { name: 'Horizontal alignment CSV', filename: 'metardu-horizontal-alignment.csv', rows: horizontalRows,
-      headers: ['PI', 'Easting_m', 'Northing_m', 'Radius_m', 'Turn', 'Deflection_deg', 'Tangent_m', 'Arc_m', 'Chainage_TC_m', 'Chainage_MC_m', 'Chainage_CT_m'] },
+      headers: ['PI', 'Easting_m', 'Northing_m', 'Radius_m', 'Turn', 'Deflection_deg', 'Tangent_m', 'Arc_m', 'Chainage_TC_m', 'Chainage_MC_m', 'Chainage_CT_m',
+        'Curve_type', 'Spiral_in_m', 'Spiral_out_m', 'Total_curve_length_m', 'Chainage_TS_m', 'Chainage_SC_m', 'Chainage_CS_m', 'Chainage_ST_m', 'Declared_CRS', 'Issue_status'] },
     vertical: { name: 'Evaluated vertical curves CSV', filename: 'metardu-vertical-curves.csv', rows: vertical.curves.map(c => [c.vipId, c.type, c.gradeIn, c.gradeOut, c.length, c.k, c.pvcChainage, c.pvcLevel, c.pvtChainage, c.pvtLevel, c.engineCurve.highLowPoint?.chainage, c.engineCurve.highLowPoint?.elevation]),
       headers: ['VIP_ID', 'Type', 'Grade_in_percent', 'Grade_out_percent', 'Length_m', 'K_m_per_percent', 'PVC_chainage_m', 'PVC_RL_m', 'PVT_chainage_m', 'PVT_RL_m', 'Turning_chainage_m', 'Turning_RL_m'] },
     verticalStations: { name: 'Vertical profile design stations CSV', filename: 'metardu-vertical-profile-stations.csv', rows: vertical.stations.map(s => [s.chainage, s.elevation, s.grade, s.segment, s.vipId, verticalDatum]),

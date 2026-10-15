@@ -35,7 +35,7 @@ export function getEngineeringSteps(data: EngineeringData | null): EngineeringSt
     steps.push({
       id: 'horizontal',
       label: 'Horizontal Alignment',
-      description: 'Intersection points (IPs) and circular curves',
+      description: 'Intersection points, circular and symmetric transition curves',
       status: rd?.ips?.length ? 'complete' : (roadSetupDone ? 'in_progress' : 'locked'),
       gated: true
     })

@@ -84,9 +84,10 @@ checks remain unassessed.
 
 ## Next implementation priorities
 
-1. Extend the evaluated straight/circular centreline targets to approved spiral
-   alignments and corridor offsets/superelevation. Bind design revisions and field
-   control before issued set-out; retain the source checks documented below.
+1. Extend the connected symmetric project transitions to evaluated asymmetric
+   transitions and corridor offsets/superelevation. Repair the legacy relational
+   alignment mirror; bind design revisions and field control before issued
+   set-out. Retain the source checks documented below.
 2. Run cadastral boundary-to-document fixtures through actual import, adjustment,
    CAD/topology, subdivision and native output parsers; repair the discovered
    failures, retaining original observations and legal/source evidence.
@@ -1174,3 +1175,27 @@ active queries, then returned to its initial stopped state. Its data and retaine
 synthetic evidence remain intact; production services were untouched. Temporary
 QA browser tabs were closed and the user's localhost CAD drawing was preserved.
 Concurrent admin UI/navigation work remains uncommitted outside these batches.
+
+## Project road transition connection — 15 October 2026
+
+The existing project workflow now accepts supplied equal entry/exit clothoid
+lengths and delegates to the established spiral engine. Horizontal schedules,
+centreline coordinate targets and CSV/PDF exports retain TS/SC/CS/ST and use
+the complete curve length when chaining later PIs. Independent integration,
+both turns, mixed curve routes, rejection cases and form/output checks pass.
+Printed curve parameters and stationing use separate linked tables after native
+rendering exposed split numerical cells in the original expanded table. CSV
+retains full calculated precision; printed road values explicitly use three
+decimal places. A native 99-row synthetic CSV/PDF check and rendered A3 pages
+verify the output; this is not browser saving, device, production or field proof.
+
+See `PROJECT_ROAD_TRANSITION_VERIFICATION.md` for exact receipts and remaining
+acceptance work. The focused road/spiral/vertical/drainage/PDF/CSV run passes
+104 tests across 14 suites. Strict app/test typing and changed-file lint passed.
+The read-only Docker verifier passed with one application
+and required services; no production lifecycle/schema/image change was made.
+Asymmetric transitions, corridor/superelevation, design/control identity and
+field acceptance remain open. Investigation also confirmed that the legacy IP
+mirror rejects zero-radius endpoints and has a separate incorrect curve/chainage
+algorithm; it must be reconciled with the shared authority. Complete project
+JSON remains authoritative. Other survey-family and live release gates remain.

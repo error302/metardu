@@ -24,6 +24,7 @@ import { calculateProjectDrainageRuns, generateProjectDrainageSetout } from '@/l
 import { parseRoadFieldPlan } from '@/lib/engineering/roadFieldPlan'
 import { buildRoadSchedules } from '@/lib/engineering/roadProjectOutputs'
 import { engineeringScheduleCsv } from '@/lib/engineering/engineeringScheduleCsv'
+import { roadSchedulePdfSections } from '@/lib/engineering/roadSchedulePresentation'
 import { RoadProfilePanel } from '@/components/engineering/RoadProfilePanel'
 
 /* ── Lazy-loaded engineering panels (only one step visible at a time) ─── */
@@ -161,10 +162,11 @@ function RoadCsvExports({ data, projectName, crsCode, verticalDatum }: { data: R
         title: 'Road engineering schedules',
         projectName,
         coordinateReference: crsCode,
-        sections: exports.map(item => ({ title: item.name.replace(/ CSV$/, ''), headers: item.headers, rows: item.rows })),
+        sections: roadSchedulePdfSections(exports),
         notes: [
           ...computed.issues,
           `Vertical datum / height reference: ${verticalDatum || 'NOT DECLARED'}.`,
+          'Printed numerical values use three decimal places; CSV retains full calculated precision. Horizontal transition stationing is printed separately from curve parameters.',
           'Horizontal curves, parabolic vertical profiles and quantities are freshly evaluated. Tangent-intersection input RL differs from actual curve RL. Centreline coordinate targets require the declared CRS and height reference; manual targets are retained unless alignment levels are selected explicitly.',
           'Design surface RL is the finished centreline level. Formation RL subtracts the entered subgrade depth. Average end-area uses actual station spacing and separate measured cut/fill areas; material factors and curvature corrections are unassessed.',
           'Check coordinate reference, vertical datum, chainage, field control, design criteria, and current revisions before setting out or issuing for construction.',
@@ -177,7 +179,7 @@ function RoadCsvExports({ data, projectName, crsCode, verticalDatum }: { data: R
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-zinc-400">Export evaluated circular/vertical geometry, centreline coordinate targets, measured section quantities and source records. These are draft review schedules; verify CRS, height reference, control and design revision before field issue.</p>
+      <p className="text-sm text-zinc-400">Export evaluated circular, symmetric transition and vertical geometry, centreline coordinate targets, measured section quantities and source records. These are draft review schedules; verify CRS, height reference, control and design revision before field issue.</p>
       {computed.issues.map(issue => <p role="status" key={issue} className="text-sm text-amber-300">{issue}</p>)}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <button type="button" disabled={exports.every(item => item.rows.length === 0)} onClick={() => void exportPdf()} className="rounded-lg border border-amber-600 px-4 py-3 text-left text-sm text-amber-200 hover:bg-amber-950/50 disabled:cursor-not-allowed disabled:opacity-40">Download road schedules PDF</button>

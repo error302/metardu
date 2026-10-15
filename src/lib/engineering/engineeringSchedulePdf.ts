@@ -5,6 +5,10 @@ export interface EngineeringScheduleSection {
   title: string
   headers: string[]
   rows: unknown[][]
+  /** Optional printed precision; machine exports retain their source numbers. */
+  decimalPlaces?: number
+  /** Repeat identifier columns across groups without omitting any source column. */
+  columnGroups?: number[][]
 }
 
 export interface EngineeringSchedulePdfOptions {
@@ -16,13 +20,22 @@ export interface EngineeringSchedulePdfOptions {
   generatedAt?: Date
 }
 
-function pdfCell(value: unknown): string {
+function pdfCell(value: unknown, decimalPlaces?: number): string {
   if (value === null || value === undefined || (typeof value === 'number' && !Number.isFinite(value))) return '—'
+  if (typeof value === 'number' && decimalPlaces != null) return value.toFixed(decimalPlaces)
   return String(value)
 }
 
 /** Build a reviewable A3 landscape schedule report from saved project values. */
 export function generateEngineeringSchedulePdf(options: EngineeringSchedulePdfOptions): Uint8Array {
+  const sections = options.sections.flatMap(section => {
+    if (section.decimalPlaces != null && (!Number.isInteger(section.decimalPlaces) || section.decimalPlaces < 0 || section.decimalPlaces > 10)) throw new RangeError('Printed decimal places must be an integer from 0 to 10.')
+    if (!section.columnGroups) return [section]
+    const groups = section.columnGroups
+    if (!groups.length || groups.some(group => !group.length || new Set(group).size !== group.length || group.some(i => !Number.isInteger(i) || i < 0 || i >= section.headers.length)) || new Set(groups.flat()).size !== section.headers.length) throw new RangeError('Printed column groups must cover every source column without invalid indices or omitted measurements.')
+    return groups.map((group, i) => ({ ...section, title: `${section.title} - part ${i + 1} of ${groups.length}`,
+      headers: group.map(index => section.headers[index]), rows: section.rows.map(row => group.map(index => row[index])) }))
+  })
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
   const pageWidth = doc.internal.pageSize.getWidth()
   const pageHeight = doc.internal.pageSize.getHeight()
@@ -51,7 +64,7 @@ export function generateEngineeringSchedulePdf(options: EngineeringSchedulePdfOp
   doc.text('DRAFT - REVIEW REQUIRED - NOT APPROVED FOR CONSTRUCTION', margin, 34)
 
   let cursorY = 42
-  for (const section of options.sections) {
+  for (const section of sections) {
     if (cursorY > pageHeight - 25) {
       doc.addPage()
       cursorY = 18
@@ -74,7 +87,7 @@ export function generateEngineeringSchedulePdf(options: EngineeringSchedulePdfOp
       startY: cursorY + 3,
       margin: { left: margin, right: margin, bottom: 14 },
       head: [section.headers],
-      body: section.rows.map(row => row.map(pdfCell)),
+      body: section.rows.map(row => row.map(value => pdfCell(value, section.decimalPlaces))),
       theme: 'grid',
       styles: { font: 'helvetica', fontSize: 7, cellPadding: 1.5, overflow: 'linebreak', textColor: [35, 42, 50] },
       headStyles: { fillColor: [27, 58, 92], textColor: [255, 255, 255], fontStyle: 'bold' },
@@ -99,7 +112,7 @@ export function generateEngineeringSchedulePdf(options: EngineeringSchedulePdfOp
     doc.setFontSize(8)
     doc.setTextColor(50, 58, 68)
     for (const note of options.notes) {
-      const lines = doc.splitTextToSize(`- ${note}`, pageWidth - margin * 2)
+      const lines = doc.splitTextToSize(`- ${note}`, pageWidth - margin * 2) as string[]
       for (const line of lines) {
         if (cursorY > pageHeight - 18) {
           doc.addPage()

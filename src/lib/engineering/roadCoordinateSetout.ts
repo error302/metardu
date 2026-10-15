@@ -1,11 +1,13 @@
 import type { IntersectionPoint, RoadDesignData } from '@/types/engineering'
 import { calculateRoadHorizontal } from './roadHorizontalAlignment'
 import { buildRoadVerticalSchedules, resolveRoadDesignStations } from './roadVerticalAlignment'
+import { stationAtDistance, type SpiralAlignmentResult } from '@/lib/survey/curves/spiralAlignment'
 
 interface Point { easting: number; northing: number }
 interface LineSegment { kind: 'tangent'; start: number; end: number; from: Point; to: Point; direction: Point }
 interface CurveSegment { kind: 'circular'; start: number; end: number; from: Point; to: Point; direction: Point; centre: Point; radius: number; turn: number }
-export interface ProjectHorizontalGeometry { segments: Array<LineSegment | CurveSegment>; start: number; end: number }
+interface TransitionSegment { kind: 'spiral-circular-spiral'; start: number; end: number; spiral: SpiralAlignmentResult }
+export interface ProjectHorizontalGeometry { segments: Array<LineSegment | CurveSegment | TransitionSegment>; start: number; end: number }
 const text = (error: unknown) => error instanceof Error ? error.message : 'Review the supplied route geometry.'
 
 export function buildRoadHorizontalGeometry(ips: IntersectionPoint[], startChainage: number, crsCode: string) {
@@ -27,6 +29,14 @@ export function buildRoadHorizontalGeometry(ips: IntersectionPoint[], startChain
     for (let i = 1; i < ips.length - 1; i++) {
       const pi = ips[i], curve = computed.curves.find(c => c.ipId === pi.id)
       if (!curve) continue
+      if (curve.spiralAlignment) {
+        const spiral = curve.spiralAlignment
+        if (!spiral.tsCoord || !spiral.stCoord) throw new RangeError('Transition world coordinates could not be resolved.')
+        lineTo(spiral.tsCoord, spiral.tsChainage)
+        segments.push({ kind: 'spiral-circular-spiral', start: spiral.tsChainage, end: spiral.stChainage, spiral })
+        position = spiral.stCoord; chainage = spiral.stChainage
+        continue
+      }
       const previous = ips[i - 1], next = ips[i + 1]
       const beforeLength = Math.hypot(pi.easting - previous.easting, pi.northing - previous.northing), afterLength = Math.hypot(next.easting - pi.easting, next.northing - pi.northing)
       const direction = { easting: (pi.easting - previous.easting) / beforeLength, northing: (pi.northing - previous.northing) / beforeLength }
@@ -51,6 +61,12 @@ export function roadHorizontalStation(alignment: ProjectHorizontalGeometry, chai
   let low = 0, high = alignment.segments.length - 1
   while (low < high) { const mid = Math.floor((low + high) / 2); if (alignment.segments[mid].end < chainage) low = mid + 1; else high = mid }
   const segment = alignment.segments[low], distance = chainage - segment.start
+  if (segment.kind === 'spiral-circular-spiral') {
+    // At the exact end use the engine's distance, avoiding subtraction drift.
+    const station = stationAtDistance(segment.spiral, chainage === segment.end ? segment.spiral.totalLength : distance)
+    if (!station) throw new RangeError('Unable to resolve the requested transition station.')
+    return { chainage, easting: station.easting, northing: station.northing, bearing: station.tangentBearingDeg, segment: station.segment }
+  }
   let point: Point, direction = segment.direction
   if (segment.kind === 'tangent') point = { easting: segment.from.easting + distance * direction.easting, northing: segment.from.northing + distance * direction.northing }
   else {
@@ -64,7 +80,7 @@ export function roadHorizontalStation(alignment: ProjectHorizontalGeometry, chai
   return { chainage, ...point, bearing, segment: segment.kind }
 }
 
-export interface CentrelineSetoutRow { chainage: number; easting: number; northing: number; bearing: number; designLevel: number; formationLevel: number | null; levelSource: 'manual' | 'vertical-alignment'; horizontalSegment: 'tangent' | 'circular' }
+export interface CentrelineSetoutRow { chainage: number; easting: number; northing: number; bearing: number; designLevel: number; formationLevel: number | null; levelSource: 'manual' | 'vertical-alignment'; horizontalSegment: 'tangent' | 'circular' | 'entry-spiral' | 'exit-spiral' }
 export function buildRoadCentrelineSetout(data: RoadDesignData | null, crsCode: string, verticalDatum?: string | null) {
   try {
     if (!data) throw new RangeError('Save the supplied horizontal/vertical design and target stations.')
