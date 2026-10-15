@@ -182,7 +182,9 @@ export async function middleware(request: NextRequest) {
 
     if (category) {
       const limits = RATE_LIMITS[category]
-      const result = await rateLimit(identifier, limits.max, limits.windowMs)
+      // Keep category budgets distinct: loading project data must not consume
+      // the much smaller credential allowance for the same surveyor/IP.
+      const result = await rateLimit(`middleware:${category}:${identifier}`, limits.max, limits.windowMs)
 
       if (!result.allowed) {
         // Compute seconds until the window resets.

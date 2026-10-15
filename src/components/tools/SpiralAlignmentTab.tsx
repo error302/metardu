@@ -12,7 +12,7 @@
  *          station table, CSV export.
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useId, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -22,7 +22,7 @@ import {
   computeSpiralAlignment,
   stationSpiralAlignment,
   alignmentToCoordinateArray,
-  spiralAlignmentToCSV,
+  stationAtDistance,
   type SpiralAlignmentResult,
 } from '@/lib/survey/curves/spiralAlignment';
 
@@ -35,24 +35,35 @@ export function SpiralAlignmentTab() {
     approachBearingDeg: '0',
     piEasting: '',
     piNorthing: '',
+    horizontalCrs: '',
   });
   const [result, setResult] = useState<SpiralAlignmentResult | null>(null);
   const [error, setError] = useState('');
+  const revision = useRef(0);
+  const updateInput = (field: keyof typeof input, value: string) => {
+    revision.current++;
+    setInput(previous => ({ ...previous, [field]: value }));
+    setResult(null);
+    setError('');
+  };
+  const requiredNumber = (value: string) => value.trim() ? Number(value) : NaN;
 
   const compute = () => {
     setError('');
+    revision.current++;
     try {
       const r = computeSpiralAlignment({
-        radius: Number(input.radius),
-        intersectionAngleDeg: Number(input.intersectionAngleDeg),
-        spiralLength: Number(input.spiralLength),
-        piChainage: Number(input.piChainage),
+        radius: requiredNumber(input.radius),
+        intersectionAngleDeg: requiredNumber(input.intersectionAngleDeg),
+        spiralLength: requiredNumber(input.spiralLength),
+        piChainage: requiredNumber(input.piChainage),
         approachBearingDeg: input.approachBearingDeg
           ? Number(input.approachBearingDeg)
           : undefined,
         piEasting: input.piEasting ? Number(input.piEasting) : undefined,
         piNorthing: input.piNorthing ? Number(input.piNorthing) : undefined,
       });
+      stationSpiralAlignment(r, 2); // Validate the finest diagram/export sampling before rendering.
       setResult(r);
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e));
@@ -65,84 +76,30 @@ export function SpiralAlignmentTab() {
     return stationSpiralAlignment(result, 10);
   }, [result]);
 
-  const exportCSV = () => {
-    if (stations.length === 0) return;
-    downloadCSV(spiralAlignmentToCSV(stations), `spiral-alignment-${Date.now()}.csv`);
-  };
-
-  const exportGeoJSON = () => {
-    if (!result) return;
-    const coords = alignmentToCoordinateArray(result, 2);
-    if (coords.length < 2) return;
-    const gj = {
-      type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature' as const,
-          geometry: { type: 'LineString' as const, coordinates: coords },
-          properties: {
-            type: 'spiral-alignment',
-            radius: result.input.radius,
-            intersection_angle_deg: result.input.intersectionAngleDeg,
-            spiral_length: result.input.spiralLength,
-            total_length: result.totalLength,
-            ts_chainage: result.tsChainage,
-            sc_chainage: result.scChainage,
-            cs_chainage: result.csChainage,
-            st_chainage: result.stChainage,
-          },
-        },
-        // Key station points as separate Features
-        ...(
-          [
-            ['TS', result.tsChainage, result.tsCoord],
-            ['SC', result.scChainage, result.scCoord],
-            ['CS', result.csChainage, result.csCoord],
-            ['ST', result.stChainage, result.stCoord],
-            ['PI', result.input.piChainage, result.piCoord],
-          ] as const
-        )
-          .filter(([, , coord]) => coord !== null)
-          .map(([label, chainage, coord]) => ({
-            type: 'Feature' as const,
-            geometry: {
-              type: 'Point' as const,
-              coordinates: [coord?.easting ?? 0, coord?.northing ?? 0],
-            },
-            properties: { label, chainage },
-          })),
-      ],
-    };
-    const blob = new Blob([JSON.stringify(gj, null, 2)], {
-      type: 'application/geo+json',
-    });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `spiral-alignment-${Date.now()}.geojson`;
-    a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  const copyCoords = async () => {
-    if (!result) return;
-    const coords = alignmentToCoordinateArray(result, 2);
-    if (coords.length < 2) return;
-    // Format as JSON array for direct paste into OpenLayers code:
-    //   new LineString([[e, n], [e, n], ...])
-    const text = JSON.stringify(coords);
+  // Load CRS/export code only after an export action. A late import cannot
+  // download an earlier design after the surveyor has edited the inputs.
+  const withExports = async (action: (exporters: typeof import('@/lib/survey/curves/spiralAlignmentExport')) => void | Promise<void>) => {
+    const current = revision.current;
     try {
-      await navigator.clipboard.writeText(text);
-    } catch {
-      // Fallback for browsers without clipboard API
-      const ta = document.createElement('textarea');
-      ta.value = text;
-      document.body.appendChild(ta);
-      ta.select();
-      document.execCommand('copy');
-      document.body.removeChild(ta);
+      const exporters = await import('@/lib/survey/curves/spiralAlignmentExport');
+      if (current === revision.current) await action(exporters);
+    } catch (failure) {
+      if (current === revision.current) setError(failure instanceof Error ? failure.message : 'Export could not be completed.');
     }
   };
+  const exportCSV = () => result && withExports(exporters => {
+    downloadCSV(exporters.spiralAlignmentSurveyCSV(result, input.horizontalCrs), 'spiral-alignment.csv');
+  });
+  const exportGeoJSON = () => result && withExports(exporters => {
+    const content = exporters.spiralAlignmentGeoJSON(result, input.horizontalCrs);
+    const url = URL.createObjectURL(new Blob([JSON.stringify(content, null, 2)], { type: 'application/geo+json' }));
+    const link = document.createElement('a');
+    link.href = url; link.download = 'spiral-alignment.geojson'; link.click();
+    URL.revokeObjectURL(url);
+  });
+  const copyCoords = () => result && withExports(async exporters => {
+    await navigator.clipboard.writeText(JSON.stringify(exporters.spiralAlignmentRecord(result, input.horizontalCrs), null, 2));
+  });
 
   return (
     <div className="space-y-6">
@@ -159,37 +116,43 @@ export function SpiralAlignmentTab() {
           <Field
             label="Radius R (m)"
             value={input.radius}
-            onChange={v => setInput({ ...input, radius: v })}
+            onChange={v => updateInput('radius', v)}
           />
           <Field
             label="Intersection Δ (deg)"
             value={input.intersectionAngleDeg}
-            onChange={v => setInput({ ...input, intersectionAngleDeg: v })}
+            onChange={v => updateInput('intersectionAngleDeg', v)}
           />
           <Field
             label="Spiral length Ls (m)"
             value={input.spiralLength}
-            onChange={v => setInput({ ...input, spiralLength: v })}
+            onChange={v => updateInput('spiralLength', v)}
           />
           <Field
             label="PI chainage (m)"
             value={input.piChainage}
-            onChange={v => setInput({ ...input, piChainage: v })}
+            onChange={v => updateInput('piChainage', v)}
           />
           <Field
             label="Approach bearing (deg, opt)"
             value={input.approachBearingDeg}
-            onChange={v => setInput({ ...input, approachBearingDeg: v })}
+            onChange={v => updateInput('approachBearingDeg', v)}
           />
           <Field
             label="PI easting (opt)"
             value={input.piEasting}
-            onChange={v => setInput({ ...input, piEasting: v })}
+            onChange={v => updateInput('piEasting', v)}
           />
           <Field
             label="PI northing (opt)"
             value={input.piNorthing}
-            onChange={v => setInput({ ...input, piNorthing: v })}
+            onChange={v => updateInput('piNorthing', v)}
+          />
+          <Field
+            label="Horizontal CRS (EPSG code, optional)"
+            type="text"
+            value={input.horizontalCrs}
+            onChange={v => updateInput('horizontalCrs', v)}
           />
         </div>
 
@@ -208,6 +171,13 @@ export function SpiralAlignmentTab() {
       {/* Results */}
       {result && (
         <>
+          <p className="text-sm text-[var(--text-secondary)]">
+            {result.piCoord
+              ? `Projected coordinates · ${input.horizontalCrs.trim() || 'horizontal CRS undeclared'}.`
+              : 'Local tangent frame · X forward along the approach, Y right.'}
+            {' '}Draft numerical design; verify approved geometry and field control before set-out.
+            GeoJSON requires PI coordinates and a declared projected CRS, and is a geographic map preview.
+          </p>
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-5">
             <h3 className="font-display text-lg text-[var(--text-primary)] mb-3">
               Key Stations & Geometry
@@ -259,10 +229,10 @@ export function SpiralAlignmentTab() {
                 Station Table ({stations.length} rows)
               </h3>
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={copyCoords} title="Copy coordinate array for OpenLayers LineString">
-                  <Copy className="w-3 h-3 mr-1" /> Coords
+                <Button variant="outline" size="sm" onClick={copyCoords} title="Copy the numerical design, source inputs and coordinate reference as JSON">
+                  <Copy className="w-3 h-3 mr-1" /> Survey JSON
                 </Button>
-                <Button variant="outline" size="sm" onClick={exportGeoJSON} title="Download as GeoJSON FeatureCollection (LineString + key stations)">
+                <Button variant="outline" size="sm" onClick={exportGeoJSON} disabled={!result.piCoord || !input.horizontalCrs.trim()} title="WGS84 longitude/latitude map preview; requires declared source CRS and PI coordinates">
                   <MapPin className="w-3 h-3 mr-1" /> GeoJSON
                 </Button>
                 <Button variant="outline" size="sm" onClick={exportCSV}>
@@ -276,10 +246,11 @@ export function SpiralAlignmentTab() {
                   <tr className="text-[var(--text-muted)] uppercase tracking-wide border-b border-[var(--border-color)]">
                     <th className="text-right py-2 pr-3 font-medium">Chainage (m)</th>
                     <th className="text-right py-2 px-3 font-medium">Dist from TS</th>
-                    <th className="text-right py-2 px-3 font-medium">Easting</th>
-                    <th className="text-right py-2 px-3 font-medium">Northing</th>
-                    <th className="text-right py-2 px-3 font-medium">Offset (m)</th>
-                    <th className="text-right py-2 px-3 font-medium">Defl. (°)</th>
+                    <th className="text-right py-2 px-3 font-medium">{result.piCoord ? 'Easting (m)' : 'Local X (m)'}</th>
+                    <th className="text-right py-2 px-3 font-medium">{result.piCoord ? 'Northing (m)' : 'Local Y (m)'}</th>
+                    <th className="text-right py-2 px-3 font-medium">Offset +right (m)</th>
+                    <th className="text-right py-2 px-3 font-medium">Chord defl. (°)</th>
+                    <th className="text-right py-2 px-3 font-medium">Tangent bearing (°)</th>
                     <th className="text-left py-2 pl-3 font-medium">Segment</th>
                   </tr>
                 </thead>
@@ -303,6 +274,7 @@ export function SpiralAlignmentTab() {
                       <td className="py-1.5 px-3 text-right font-mono">{s.northing.toFixed(3)}</td>
                       <td className="py-1.5 px-3 text-right font-mono">{s.offset.toFixed(3)}</td>
                       <td className="py-1.5 px-3 text-right font-mono">{s.deflectionDeg.toFixed(4)}</td>
+                      <td className="py-1.5 px-3 text-right font-mono">{s.tangentBearingDeg.toFixed(4)}</td>
                       <td className="py-1.5 pl-3">
                         <span
                           className={`text-[10px] uppercase tracking-wide ${
@@ -334,17 +306,21 @@ function Field({
   label,
   value,
   onChange,
+  type = 'number',
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
+  type?: 'number' | 'text';
 }) {
+  const id = useId();
   return (
     <div>
-      <Label className="text-xs text-[var(--text-muted)]">{label}</Label>
+      <Label htmlFor={id} className="text-xs text-[var(--text-muted)]">{label}</Label>
       <Input
-        type="number"
-        step="any"
+        id={id}
+        type={type}
+        step={type === 'number' ? 'any' : undefined}
         value={value}
         onChange={e => onChange(e.target.value)}
         className="mt-1 font-mono text-sm bg-[var(--bg-secondary)] border-[var(--border-color)]"
@@ -382,8 +358,9 @@ function SpiralPlanDiagram({ result }: { result: SpiralAlignmentResult }) {
   }
 
   // Compute scale to fit
-  const xs = coords.map(c => c[0]);
-  const ys = coords.map(c => c[1]);
+  const pi = result.piCoord ? [result.piCoord.easting, result.piCoord.northing] : [result.T, 0];
+  const xs = [...coords.map(c => c[0]), pi[0]];
+  const ys = [...coords.map(c => c[1]), pi[1]];
   const minX = Math.min(...xs);
   const maxX = Math.max(...xs);
   const minY = Math.min(...ys);
@@ -405,24 +382,19 @@ function SpiralPlanDiagram({ result }: { result: SpiralAlignmentResult }) {
   // Tangent lines (approach and departure)
   const ts = coords[0];
   const st = coords[coords.length - 1];
-  // Approach tangent: extend backward from TS
-  const approachDx = (coords[1][0] - ts[0]) * 5;
-  const approachDy = (coords[1][1] - ts[1]) * 5;
-  const approachEnd = [ts[0] - approachDx, ts[1] - approachDy];
-  // Departure tangent: extend forward from ST
-  const depDx = (st[0] - coords[coords.length - 2][0]) * 5;
-  const depDy = (st[1] - coords[coords.length - 2][1]) * 5;
-  const depStart = [st[0] + depDx, st[1] + depDy];
 
-  // PI = intersection of tangents
-  // Simplified: assume PI is somewhere "above" the alignment center
-  // For visualization, just mark SC and CS
-  const scIdx = Math.floor(result.spiral.spiralLength / 2); // approx index for SC
-  const sc = coords[Math.min(scIdx, coords.length - 1)];
-  const cs = coords[Math.max(coords.length - 1 - scIdx, 0)];
+  // Key markers use exact chainages rather than guessed sample indices.
+  const keyPoint = (distance: number) => {
+    const station = stationAtDistance(result, distance);
+    return station ? [station.easting, station.northing] : coords[0];
+  };
+  const sc = keyPoint(result.input.spiralLength);
+  const cs = keyPoint(result.input.spiralLength + result.Lc);
 
   return (
     <svg
+      role="img"
+      aria-label="Spiral alignment plan"
       viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
       className="w-full h-auto"
       style={{ minWidth: 500 }}
@@ -431,8 +403,8 @@ function SpiralPlanDiagram({ result }: { result: SpiralAlignmentResult }) {
       <line
         x1={tx(ts[0])}
         y1={ty(ts[1])}
-        x2={tx(approachEnd[0])}
-        y2={ty(approachEnd[1])}
+        x2={tx(pi[0])}
+        y2={ty(pi[1])}
         stroke="#71717a"
         strokeWidth="1"
         strokeDasharray="4,3"
@@ -442,8 +414,8 @@ function SpiralPlanDiagram({ result }: { result: SpiralAlignmentResult }) {
       <line
         x1={tx(st[0])}
         y1={ty(st[1])}
-        x2={tx(depStart[0])}
-        y2={ty(depStart[1])}
+        x2={tx(pi[0])}
+        y2={ty(pi[1])}
         stroke="#71717a"
         strokeWidth="1"
         strokeDasharray="4,3"
@@ -452,32 +424,37 @@ function SpiralPlanDiagram({ result }: { result: SpiralAlignmentResult }) {
       {/* Alignment */}
       <path d={pathD} fill="none" stroke="var(--accent)" strokeWidth="2.5" />
 
+      <g>
+        <circle cx={tx(pi[0])} cy={ty(pi[1])} r="4" fill="#f87171" />
+        <text x={tx(pi[0]) + 10} y={ty(pi[1]) - 10} fontSize="11" fill="#f87171" fontFamily="monospace">PI</text>
+      </g>
+
       {/* TS marker */}
       <g>
         <circle cx={tx(ts[0])} cy={ty(ts[1])} r="6" fill="#fbbf24" stroke="#1A1816" strokeWidth="1" />
         <text x={tx(ts[0])} y={ty(ts[1]) - 12} textAnchor="middle" fontSize="11" fill="#fbbf24" fontFamily="monospace">
-          TS
+          {result.input.spiralLength === 0 ? 'TS / SC' : 'TS'}
         </text>
       </g>
       {/* SC marker */}
-      <g>
+      {result.input.spiralLength > 0 && <g>
         <circle cx={tx(sc[0])} cy={ty(sc[1])} r="5" fill="#22d3ee" stroke="#1A1816" strokeWidth="1" />
         <text x={tx(sc[0])} y={ty(sc[1]) - 10} textAnchor="middle" fontSize="10" fill="#22d3ee" fontFamily="monospace">
           SC
         </text>
-      </g>
+      </g>}
       {/* CS marker */}
-      <g>
+      {result.input.spiralLength > 0 && <g>
         <circle cx={tx(cs[0])} cy={ty(cs[1])} r="5" fill="#22d3ee" stroke="#1A1816" strokeWidth="1" />
         <text x={tx(cs[0])} y={ty(cs[1]) - 10} textAnchor="middle" fontSize="10" fill="#22d3ee" fontFamily="monospace">
           CS
         </text>
-      </g>
+      </g>}
       {/* ST marker */}
       <g>
         <circle cx={tx(st[0])} cy={ty(st[1])} r="6" fill="#fbbf24" stroke="#1A1816" strokeWidth="1" />
         <text x={tx(st[0])} y={ty(st[1]) - 12} textAnchor="middle" fontSize="11" fill="#fbbf24" fontFamily="monospace">
-          ST
+          {result.input.spiralLength === 0 ? 'CS / ST' : 'ST'}
         </text>
       </g>
     </svg>

@@ -348,3 +348,17 @@ still runs pinned `c1591bda` with 112 applied entries; 108 and 109 are pending
 reviewed promotion, so this is not a claim of live remediation or platform-wide
 professional/field completion. No duplicate app container, builder, customer clone
 or production database change was made for these checks.
+
+Road/reliability follow-up (15 October): the existing spiral tab now uses corrected
+left/right transition/circular geometry, finite circular-limit endpoints, exact
+junctions and separate chord/tangent direction. Independent integration checks
+the calculation, and actual source-browser CSV/GeoJSON downloads retain the
+synthetic design's coordinates and reference metadata. The exporter requires a
+declared source CRS for geographic mapping, and the form clears stale results on
+edits. Middleware quotas are separated so routine API traffic cannot consume
+the smaller sign-in allowance; repeated auth requests remain throttled. 71
+focused checks pass across seven suites, with strict typing/lint and normal push
+gates required for the final commit. See the workflow matrix for native receipts,
+source/production boundaries and the exact remaining road/project/field gates.
+The security repair is pushed as `cd067a8d` (351 related tests and GitHub Gitleaks
+passed); live promotion of pending source remains a separate requirement.

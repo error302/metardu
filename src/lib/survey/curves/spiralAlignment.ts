@@ -35,7 +35,7 @@
  *   - KeNHA Road Design Manual, Part 4 — Horizontal Curves
  */
 
-import { computeSpiralCurve, type SpiralCurveInput, type SpiralCurveResult } from './transition'
+import type { SpiralCurveResult } from './transition'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -111,320 +111,142 @@ export interface AlignmentStation {
   easting: number
   /** Northing (m, world coords if PI supplied, else local). */
   northing: number
-  /** Elevation/offset from tangent (m, +left of tangent). */
+  /** Signed offset from the approach tangent (m, +right). */
   offset: number
   /** Current segment. */
   segment: 'entry-spiral' | 'circular' | 'exit-spiral' | 'before' | 'after'
   /** Deflection angle from TS (decimal degrees, clockwise from approach tangent). */
   deflectionDeg: number
+  /** Instantaneous tangent bearing, clockwise from North (world frame). */
+  tangentBearingDeg: number
 }
 
-// ─── Math Helpers ───────────────────────────────────────────────────────────
+// ─── Geometry and stationing ─────────────────────────────────────────────
 
 const DEG = Math.PI / 180
+const MAX_STATIONS = 20_000
+export const SPIRAL_ALIGNMENT_VERSION = '2.0.0'
 
-/**
- * Compute a full TS → SC → CS → ST spiral alignment.
- *
- * The approach tangent is assumed to run from TS towards PI along the
- * +X axis (local coordinates). The departure tangent rotates by Δ
- * clockwise (right-hand curve). For a left-hand curve, supply a
- * negative intersection angle.
+/** Integrate cos(theta), sin(theta) for theta(s) = s²/(2RL).
+ * The convergent series is evaluated to Float64 precision in the supported
+ * range theta < pi/2, rather than rounding intermediate coordinates.
+ * Clothoid definition: https://pro.arcgis.com/en/pro-app/latest/sdk/api-reference/topic75875.html
  */
-export function computeSpiralAlignment(
-  input: SpiralAlignmentInput
-): SpiralAlignmentResult {
-  const {
-    radius,
-    intersectionAngleDeg,
-    spiralLength,
-    piChainage,
-    approachBearingDeg = 0,
-    piEasting,
-    piNorthing,
-  } = input
-
-  if (radius <= 0) throw new Error('Radius must be positive')
-  if (spiralLength < 0) throw new Error('Spiral length must be non-negative')
-  if (Math.abs(intersectionAngleDeg) < 1e-6) {
-    throw new Error('Intersection angle must be non-zero')
+function spiralDisplacement(distance: number, radius: number, length: number) {
+  if (distance === 0) return { x: 0, y: 0, theta: 0 }
+  const theta = (distance / radius) * (distance / length) / 2
+  const square = theta * theta
+  let tx = distance, ty = distance * theta / 3, x = tx, y = ty
+  for (let n = 1; n <= 20; n++) {
+    tx *= -square * (4 * n - 3) / ((2 * n - 1) * (2 * n) * (4 * n + 1))
+    ty *= -square * (4 * n - 1) / ((2 * n) * (2 * n + 1) * (4 * n + 3))
+    x += tx; y += ty
+    if (Math.abs(tx) + Math.abs(ty) <= Number.EPSILON * (Math.abs(x) + Math.abs(y))) break
   }
+  return { x, y, theta }
+}
 
-  // Single-spiral math (symmetric entry/exit)
-  const spiralInput: SpiralCurveInput = {
-    radius,
-    designSpeed: 80, // placeholder, not used when Ls is derived externally
-    c: 0.3,
+// Local +X is along the approach tangent, +Y is right of it. This gives a
+// positive clockwise survey deflection without mirroring East/West on the map.
+function localToWorld(ts: { easting: number; northing: number }, x: number, y: number, bearing: number) {
+  return {
+    easting: ts.easting + x * Math.sin(bearing) + y * Math.cos(bearing),
+    northing: ts.northing + x * Math.cos(bearing) - y * Math.sin(bearing),
   }
-  const spiral = computeSpiralCurve(spiralInput)
-  // Override the spiral length with the user-supplied value
-  // (computeSpiralCurve derives Ls from speed; we override for direct control)
-  const Ls = spiralLength
-  const thetaS = Ls / (2 * radius)
-  const deltaRad = Math.abs(intersectionAngleDeg) * DEG
+}
 
-  if (2 * thetaS >= deltaRad) {
-    throw new Error(
-      `Spiral angle ${thetaS / DEG}° × 2 ≥ intersection angle ${intersectionAngleDeg}° — no room for circular curve. Reduce Ls or increase Δ.`
-    )
-  }
-
-  // Series expansion coordinates (Schofeld Eq. 12.8)
-  const x = Ls * (1 - Math.pow(thetaS, 2) / 10 + Math.pow(thetaS, 4) / 216)
-  const y = Ls * (thetaS / 3 - Math.pow(thetaS, 3) / 42 + Math.pow(thetaS, 5) / 1320)
-
-  const p = y - radius * (1 - Math.cos(thetaS))
+/** Symmetric TS → SC → CS → ST; positive intersection angle turns right. */
+export function computeSpiralAlignment(input: SpiralAlignmentInput): SpiralAlignmentResult {
+  const { radius, intersectionAngleDeg, spiralLength: Ls, piChainage, approachBearingDeg = 0, piEasting, piNorthing } = input
+  if (![radius, intersectionAngleDeg, Ls, piChainage, approachBearingDeg].every(Number.isFinite)) throw new RangeError('Alignment inputs must be finite numbers.')
+  if (radius <= 0) throw new RangeError('Radius must be positive')
+  if (Ls < 0) throw new RangeError('Spiral length must be non-negative')
+  if (Math.abs(intersectionAngleDeg) < 1e-6) throw new RangeError('Intersection angle must be non-zero')
+  if (Math.abs(intersectionAngleDeg) >= 180) throw new RangeError('Intersection angle must be less than 180 degrees in magnitude.')
+  if ((piEasting === undefined) !== (piNorthing === undefined)) throw new RangeError('Supply both PI coordinates or leave both blank for local geometry.')
+  if ([piEasting, piNorthing].some(value => value !== undefined && !Number.isFinite(value))) throw new RangeError('PI coordinates must be finite.')
+  const thetaS = Ls / radius / 2, deltaRad = Math.abs(intersectionAngleDeg) * DEG
+  if (2 * thetaS >= deltaRad) throw new RangeError('Spiral angles leave no room for circular curve. Reduce the spiral length or increase the intersection angle.')
+  const { x, y } = spiralDisplacement(Ls, radius, Ls)
+  const p = y - 2 * radius * Math.sin(thetaS / 2) ** 2
   const k = x - radius * Math.sin(thetaS)
   const T = k + (radius + p) * Math.tan(deltaRad / 2)
-  const Lc = radius * (deltaRad - 2 * thetaS)
-  const totalLength = 2 * Ls + Lc
-
-  // Chainages
-  const tsChainage = piChainage - T
-  const scChainage = tsChainage + Ls
-  const csChainage = scChainage + Lc
-  const stChainage = csChainage + Ls
-
-  // World coordinates (if PI supplied)
-  let tsCoord: { easting: number; northing: number } | null = null
-  let scCoord: { easting: number; northing: number } | null = null
-  let csCoord: { easting: number; northing: number } | null = null
-  let stCoord: { easting: number; northing: number } | null = null
-  const piCoord =
-    piEasting !== undefined && piNorthing !== undefined
-      ? { easting: piEasting, northing: piNorthing }
-      : null
-
-  if (piCoord) {
-    // Approach tangent direction (from TS to PI): approachBearing reversed
-    const approachBrng = approachBearingDeg * DEG
-    // TS is "behind" the PI along the approach tangent
-    const dx = -T * Math.sin(approachBrng)
-    const dy = -T * Math.cos(approachBrng)
-    tsCoord = { easting: piCoord.easting + dx, northing: piCoord.northing + dy }
-
-    // SC = TS + (x, y) in local frame, rotated by approachBearing
-    // For a right-hand curve (positive Δ), Y points LEFT of the tangent
-    scCoord = localToWorld(tsCoord, x, y, approachBrng)
-
-    // CS = SC + circular arc (Δ - 2θs) along R
-    // Center of circular curve is at distance (R + p) perpendicular to the
-    // approach tangent, on the curve side. For right-hand curve, +Y direction.
-    // Center = SC + R * (direction from curve to center)
-    // Direction from SC to center: rotate tangent direction by 90° toward curve side
-    // For right-hand curve: tangent +X, curve side +Y, center is at angle (90° + θs) from tangent at SC
-    // Simpler: compute CS as SC rotated about center by (Δ - 2θs)
-    const arcAngle = deltaRad - 2 * thetaS
-    // Center of circular curve in local frame:
-    // At SC, the tangent direction is rotated by θs from the original tangent.
-    // The center is perpendicular to that, at distance R, on the inside of the curve.
-    // For right-hand curve: center is at angle (90° + θs) from original tangent at TS.
-    const centerLocalX = x - radius * Math.sin(thetaS)
-    const centerLocalY = y + radius * Math.cos(thetaS)
-    // SC relative to center: rotate by -arcAngle to get CS (for right-hand curve, clockwise)
-    // Vector from center to SC (local frame)
-    const scRelCx = x - centerLocalX
-    const scRelCy = y - centerLocalY
-    // Rotate by -arcAngle (clockwise for right-hand curve)
-    const csRelCx = scRelCx * Math.cos(-arcAngle) - scRelCy * Math.sin(-arcAngle)
-    const csRelCy = scRelCx * Math.sin(-arcAngle) + scRelCy * Math.cos(-arcAngle)
-    const csLocalX = centerLocalX + csRelCx
-    const csLocalY = centerLocalY + csRelCy
-    csCoord = localToWorld(tsCoord, csLocalX, csLocalY, approachBrng)
-
-    // ST = CS + exit spiral (mirror of entry spiral)
-    // At CS, tangent direction is rotated by (Δ - θs) from original.
-    // Exit spiral mirrors entry: it curves in the opposite rotational sense,
-    // starting from CS and ending at ST.
-    // ST in local frame: reflect entry spiral about the perpendicular bisector.
-    // Simplification: ST = PI + T * (departure tangent direction)
-    const departureBrng = approachBrng + deltaRad // right-hand
-    const stDx = T * Math.sin(departureBrng)
-    const stDy = T * Math.cos(departureBrng)
-    stCoord = { easting: piCoord.easting + stDx, northing: piCoord.northing + stDy }
+  const Lc = radius * (deltaRad - 2 * thetaS), totalLength = 2 * Ls + Lc
+  const tsChainage = piChainage - T, scChainage = tsChainage + Ls
+  const csChainage = scChainage + Lc, stChainage = csChainage + Ls
+  if (![x, y, p, k, T, Lc, totalLength, tsChainage, scChainage, csChainage, stChainage].every(Number.isFinite)) throw new RangeError('Alignment exceeds the finite calculation range.')
+  if (totalLength <= 0 || stChainage <= tsChainage || (Ls > 0 && (scChainage <= tsChainage || stChainage <= csChainage)) || csChainage <= scChainage) throw new RangeError('Chainages cannot resolve the supplied curve lengths at this magnitude.')
+  const result: SpiralAlignmentResult = {
+    input: { ...input },
+    spiral: { radius, spiralLength: Ls, spiralAngle: thetaS / DEG, p, k, x, y, longChord: Math.hypot(x, y) },
+    deltaRad, thetaSRad: thetaS, p, k, T, Lc, totalLength,
+    tsChainage, scChainage, csChainage, stChainage,
+    tsCoord: null, scCoord: null, csCoord: null, stCoord: null,
+    piCoord: piEasting !== undefined && piNorthing !== undefined ? { easting: piEasting, northing: piNorthing } : null,
   }
-
-  return {
-    input,
-    spiral: { ...spiral, spiralLength: Ls, spiralAngle: (thetaS * 180) / Math.PI },
-    deltaRad,
-    thetaSRad: thetaS,
-    p,
-    k,
-    T,
-    Lc,
-    totalLength,
-    tsChainage,
-    scChainage,
-    csChainage,
-    stChainage,
-    tsCoord,
-    scCoord,
-    csCoord,
-    stCoord,
-    piCoord,
+  if (result.piCoord) {
+    const bearing = (approachBearingDeg % 360) * DEG
+    result.tsCoord = localToWorld(result.piCoord, -T, 0, bearing)
+    const coordinate = (distance: number) => {
+      const station = stationAtDistance(result, distance)
+      if (!station) throw new RangeError('Unable to resolve an alignment station.')
+      return { easting: station.easting, northing: station.northing }
+    }
+    result.scCoord = coordinate(Ls)
+    result.csCoord = coordinate(Ls + Lc)
+    result.stCoord = coordinate(totalLength)
   }
+  return result
 }
 
-/**
- * Transform a local-frame (x, y) point to world coordinates given a TS
- * origin and an approach bearing. Local frame: +X = along approach tangent
- * (toward PI), +Y = LEFT of tangent. Bearing convention: 0° = North, clockwise.
- */
-function localToWorld(
-  ts: { easting: number; northing: number },
-  x: number,
-  y: number,
-  approachBrngRad: number
-): { easting: number; northing: number } {
-  // Approach tangent unit vector (TS → PI)
-  const tx = Math.sin(approachBrngRad)
-  const ty = Math.cos(approachBrngRad)
-  // Left perpendicular (for right-hand curve, +Y is left)
-  // For bearing 0 (North), tangent is (0, +1). Left of that is (-1, 0) which is West.
-  // So left-perp = (-ty, tx)? Let's verify: rotate tangent 90° CCW = (-ty, tx)
-  // For (0, 1) tangent, CCW 90° = (-1, 0). Yes that's West = left.
-  const lx = -ty
-  const ly = tx
-  return {
-    easting: ts.easting + x * tx + y * lx,
-    northing: ts.northing + x * ty + y * ly,
-  }
-}
-
-// ─── Station Interpolation ──────────────────────────────────────────────────
-
-/**
- * Sample the spiral alignment at a fixed interval and return stations
- * with world coordinates, offsets, deflection angles, and segment labels.
- *
- * @param alignment  - Result of `computeSpiralAlignment`
- * @param interval   - Sample interval in metres (default 10)
- */
-export function stationSpiralAlignment(
-  alignment: SpiralAlignmentResult,
-  interval: number = 10
-): AlignmentStation[] {
-  const stations: AlignmentStation[] = []
-  const { tsChainage, totalLength } = alignment
-
-  const N = Math.floor(totalLength / interval)
-  for (let i = 0; i <= N; i++) {
-    const d = i * interval // distance from TS
-    if (d > totalLength + 0.01) continue
-    const ch = tsChainage + d
-    const station = stationAtDistance(alignment, d)
-    if (station) stations.push({ ...station, chainage: ch })
-  }
-  // Ensure final station at ST
-  const last = stations[stations.length - 1]
-  if (!last || Math.abs(last.distanceFromTS - totalLength) > 0.01) {
-    const station = stationAtDistance(alignment, totalLength)
-    if (station) stations.push({ ...station, chainage: tsChainage + totalLength })
-  }
-
-  return stations
-}
-
-/**
- * Compute the station at a given distance from TS.
- *
- * Returns null for distances outside [0, totalLength].
- */
-export function stationAtDistance(
-  alignment: SpiralAlignmentResult,
-  distanceFromTS: number
-): AlignmentStation | null {
-  const { input, thetaSRad, deltaRad, T, tsChainage, totalLength, tsCoord } = alignment
-  const { radius, spiralLength: Ls, approachBearingDeg = 0 } = input
-  const approachBrng = approachBearingDeg * DEG
-
-  if (distanceFromTS < -0.01 || distanceFromTS > totalLength + 0.01) return null
-  const d = Math.max(0, Math.min(totalLength, distanceFromTS))
-
-  let localX: number
-  let localY: number
+/** Exact station request within the saved alignment; no extrapolation. */
+export function stationAtDistance(alignment: SpiralAlignmentResult, distanceFromTS: number): AlignmentStation | null {
+  const { input, thetaSRad, deltaRad, T, tsChainage, totalLength, tsCoord, Lc } = alignment
+  if (!Number.isFinite(distanceFromTS) || distanceFromTS < 0 || distanceFromTS > totalLength) return null
+  const { radius, spiralLength: Ls, intersectionAngleDeg, approachBearingDeg = 0 } = input
+  const d = distanceFromTS, turn = Math.sign(intersectionAngleDeg)
+  let x: number, y: number, tangentAngle: number
   let segment: AlignmentStation['segment']
-  let deflectionDeg: number
-
-  if (d < Ls) {
-    // Entry spiral (TS → SC)
-    segment = 'entry-spiral'
-    const s = d
-    const theta = (s * s) / (2 * radius * Ls) // instantaneous spiral angle at s
-    // Clothoid coordinates (series expansion about s)
-    localX = s * (1 - Math.pow(theta, 2) / 10 + Math.pow(theta, 4) / 216)
-    localY = s * (theta / 3 - Math.pow(theta, 3) / 42 + Math.pow(theta, 5) / 1320)
-    deflectionDeg = (theta * 180) / Math.PI / 3 // approximate deflection (1/3 of spiral angle)
-  } else if (d < Ls + alignment.Lc) {
-    // Circular curve (SC → CS)
+  if (Ls > 0 && d < Ls) {
+    const spiral = spiralDisplacement(d, radius, Ls)
+    x = spiral.x; y = spiral.y; tangentAngle = spiral.theta; segment = 'entry-spiral'
+  } else if (Ls === 0 || d < Ls + Lc) {
+    const entry = spiralDisplacement(Ls, radius, Ls)
+    tangentAngle = thetaSRad + (d - Ls) / radius
+    // Integrating the tangent around the positive local circular arc avoids
+    // the former reversed rotation and preserves continuity at SC and CS.
+    x = entry.x + radius * (Math.sin(tangentAngle) - Math.sin(thetaSRad))
+    y = entry.y + radius * (Math.cos(thetaSRad) - Math.cos(tangentAngle))
     segment = 'circular'
-    const s = d - Ls
-    const arcAngle = s / radius
-    // At SC, the tangent is rotated by θs from the original tangent.
-    // The point on the circular curve, measured from SC, is at angle
-    // (θs + arcAngle) from the original tangent at TS.
-    // Center is at (x_SC - R sin θs, y_SC + R cos θs) — see alignment computation
-    const xSC = Ls * (1 - Math.pow(thetaSRad, 2) / 10 + Math.pow(thetaSRad, 4) / 216)
-    const ySC = Ls * (thetaSRad / 3 - Math.pow(thetaSRad, 3) / 42 + Math.pow(thetaSRad, 5) / 1320)
-    const centerLocalX = xSC - radius * Math.sin(thetaSRad)
-    const centerLocalY = ySC + radius * Math.cos(thetaSRad)
-    // Vector from center to SC
-    const scRelCx = xSC - centerLocalX
-    const scRelCy = ySC - centerLocalY
-    // Rotate by -arcAngle (clockwise for right-hand curve)
-    const relCx = scRelCx * Math.cos(-arcAngle) - scRelCy * Math.sin(-arcAngle)
-    const relCy = scRelCx * Math.sin(-arcAngle) + scRelCy * Math.cos(-arcAngle)
-    localX = centerLocalX + relCx
-    localY = centerLocalY + relCy
-    deflectionDeg = ((thetaSRad + arcAngle) * 180) / Math.PI
   } else {
-    // Exit spiral (CS → ST) — mirror of entry
-    segment = 'exit-spiral'
-    const sFromST = totalLength - d // distance from ST, going backwards
-    const s = sFromST
-    const theta = (s * s) / (2 * radius * Ls)
-    // Local coords of ST relative to TS would require rotating the entire
-    // exit spiral; simpler to compute ST in local frame and add the reverse
-    // spiral displacement
-    // ST local: PI is at (T, 0); ST is at (T + T cos Δ, T sin Δ) ... actually
-    // ST is reached by traveling T along departure tangent from PI.
-    const stLocalX = T + T * Math.cos(deltaRad)
-    const stLocalY = T * Math.sin(deltaRad) // right-hand curve: +Y
-    // Reverse spiral at ST goes backward, curving opposite to entry spiral
-    // For right-hand curve, exit spiral curves from CS (which is to the LEFT
-    // of departure tangent) toward ST
-    // Entry spiral coords (rotated): rotate (x, y) by Δ, then mirror
-    const xSpiral = s * (1 - Math.pow(theta, 2) / 10 + Math.pow(theta, 4) / 216)
-    const ySpiral = s * (theta / 3 - Math.pow(theta, 3) / 42 + Math.pow(theta, 5) / 1320)
-    // At ST, looking back along the approach direction (departure tangent - 180°),
-    // the spiral extends to the LEFT (for right-hand curve). So in the TS-local frame:
-    localX = stLocalX - (xSpiral * Math.cos(deltaRad) + ySpiral * Math.sin(deltaRad))
-    localY = stLocalY - (xSpiral * Math.sin(deltaRad) - ySpiral * Math.cos(deltaRad))
-    deflectionDeg = ((deltaRad - theta) * 180) / Math.PI
+    const remaining = totalLength - d, spiral = spiralDisplacement(remaining, radius, Ls)
+    x = T * (1 + Math.cos(deltaRad)) - spiral.x * Math.cos(deltaRad) - spiral.y * Math.sin(deltaRad)
+    y = T * Math.sin(deltaRad) - spiral.x * Math.sin(deltaRad) + spiral.y * Math.cos(deltaRad)
+    tangentAngle = deltaRad - spiral.theta; segment = 'exit-spiral'
   }
+  y *= turn
+  const bearing = (approachBearingDeg % 360) * DEG
+  const point = tsCoord ? localToWorld(tsCoord, x, y, bearing) : { easting: x, northing: y }
+  const tangentBearingDeg = (((approachBearingDeg % 360) + turn * tangentAngle / DEG) % 360 + 360) % 360
+  const chainage = tsChainage + d
+  if (![point.easting, point.northing, x, y, chainage, tangentBearingDeg].every(Number.isFinite)) throw new RangeError('Alignment coordinates exceed the finite calculation range.')
+  return { chainage, distanceFromTS: d, ...point, offset: y, segment,
+    deflectionDeg: Math.atan2(y, x) / DEG, tangentBearingDeg }
+}
 
-  // Offset = perpendicular distance from approach tangent (the Y coordinate in local frame)
-  const offset = localY
-
-  // World coordinates
-  let easting = localX
-  let northing = localY
-  if (tsCoord) {
-    const world = localToWorld(tsCoord, localX, localY, approachBrng)
-    easting = world.easting
-    northing = world.northing
-  }
-
-  return {
-    chainage: tsChainage + d,
-    distanceFromTS: Math.round(d * 1000) / 1000,
-    easting: Math.round(easting * 1000) / 1000,
-    northing: Math.round(northing * 1000) / 1000,
-    offset: Math.round(offset * 1000) / 1000,
-    segment,
-    deflectionDeg: Math.round(deflectionDeg * 10000) / 10000,
-  }
+/** Bounded regular sampling, always retaining the exact TS/SC/CS/ST boundaries. */
+export function stationSpiralAlignment(alignment: SpiralAlignmentResult, interval = 10): AlignmentStation[] {
+  if (!Number.isFinite(interval) || interval <= 0) throw new RangeError('Station interval must be finite and positive.')
+  const count = Math.floor(alignment.totalLength / interval)
+  if (!Number.isSafeInteger(count) || count + 5 > MAX_STATIONS) throw new RangeError(`Use a larger station interval; at most ${MAX_STATIONS} stations are supported.`)
+  const length = alignment.totalLength
+  const distances = new Set([0, alignment.input.spiralLength, alignment.input.spiralLength + alignment.Lc, length])
+  for (let i = 1; i <= count; i++) if (i * interval <= length) distances.add(i * interval)
+  return [...distances].sort((a, b) => a - b).map(distance => {
+    const station = stationAtDistance(alignment, distance)
+    if (!station) throw new RangeError('Unable to sample an alignment station.')
+    return station
+  })
 }
 
 // ─── OpenLayers Geometry Helper ─────────────────────────────────────────────

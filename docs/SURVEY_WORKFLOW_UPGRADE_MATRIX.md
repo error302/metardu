@@ -1072,3 +1072,77 @@ repair is not yet live protection. Preserve the deployed/rollback images and
 review recovery and compatibility before one planned promotion. Concurrent admin
 UI work is outside this batch. Jurisdictional/professional verification, issued
 plans, field acceptance and all five survey-family completion gates remain open.
+
+Security source commit `cd067a8d` is pushed. Its normal pre-push gates passed
+351 related tests in 56 suites, typing and changed-file lint. GitHub
+[Gitleaks passed for the exact commit](https://github.com/error302/metardu/actions/runs/38795213401).
+No hook bypass was used. Existing privileged profile assignments and professional
+verification decisions are preserved; their provenance must be reviewed rather
+than silently resetting customer account records.
+
+## Existing spiral-road tool and sign-in reliability — 15 October 2026
+
+The reachable `/tools/curves` spiral tab previously mirrored right-hand survey
+coordinates, rotated the circular section backwards, ignored a negative turn,
+mixed chord deflection with tangent direction, and produced a nonfinite endpoint
+when transition length was zero. Missing/nonfinite inputs and unbounded sampling
+were also accepted. Its displayed key points used guessed sample indices, and
+its GeoJSON wrote local/projected metres directly as geographic coordinates.
+
+The existing shared `survey/curves/spiralAlignment` engine now integrates the
+clothoid heading law with a convergent series, preserves numerical precision,
+uses consistent clockwise survey bearings, supports left/right symmetric
+transitions and the zero-transition circular limit, and derives displayed key
+points from the same station evaluator. It retains the source input snapshot and
+all exact TS/SC/CS/ST samples. Invalid geometry, incomplete coordinates,
+unresolvable chainage magnitudes and oversized/nonpositive sampling are explicit
+errors. This implements the defining linear-curvature property documented by
+[Esri's clothoid API](https://pro.arcgis.com/en/pro-app/latest/sdk/api-reference/topic75875.html);
+it does not certify compliance with an entire road design manual.
+
+The form now links input labels accessibly, rejects blank required chainage,
+clears results/exports on edits, guards delayed export imports, and reports large
+sampling requests before rendering. Its plan draws the actual PI, tangent
+intersection and exact transition junctions. Tables distinguish chord deflection,
+tangent bearing, signed right offset and local versus projected coordinates.
+Draft/reference notices describe the current numerical design, rather than a
+development tier or an implied standards approval.
+
+CSV and survey JSON retain full input/result precision, method version `2.0.0`,
+draft status and declared/unknown reference identity. GeoJSON requires world PI
+coordinates and an explicitly declared projected metre CRS; it transforms through
+the existing CRS authority to WGS84 longitude/latitude, as required by
+[RFC 7946](https://www.rfc-editor.org/rfc/rfc7946#section-4). Its source CRS/notes
+remain attached, and its purpose is explicitly a map preview, not set-out.
+CRS/export code loads only on an export action. No new package or system
+geospatial installation was introduced.
+
+Independent Simpson integration of the heading law checks both turns through
+entry/circular/exit sections. The actual source-browser download contains 45
+CSV rows and a 216-vertex GeoJSON line plus TS/SC/CS/ST/PI features for the
+synthetic R=300 m, delta=70 degrees, Ls=60 m example. A separate native Python
+integration derives tangent distance from endpoint geometry and verifies every
+downloaded coordinate within `1e-7` m numerically; this is a numerical regression
+tolerance, never a claim of physical survey accuracy. Native browser editing also
+confirms stale results disappear. Reusable ignored artifacts are
+`.cache/release-verify/spiral-alignment-source.{csv,geojson,png}` and
+`spiral-alignment-source-result.json`.
+
+Middleware previously shared one counter across unlike rate-limit categories:
+21 routine API reads could make a subsequent first credential POST return 429.
+Each category now has its own namespaced counter while all auth POST routes still
+share the existing auth quota. Unit checks reproduce the old failure and retain
+brute-force throttling. A separate real source HTTP exercise performs 25 liveness
+reads (all 200), then receives the expected 401 `CredentialsSignin` for a random
+nonexistent synthetic account, without a false 429 or account creation. Its
+ignored receipt is `.cache/release-verify/auth-budget-source-result.json`.
+
+The combined focused geometry/export/DOM/middleware/limiter checks pass 71 tests
+across seven suites. Native downloads are distinct from mocked browser-unit
+boundaries. App/test typing and changed-file lint remain final gates. Production
+promotion is still separate and pending; existing required services and the one
+application inventory remain preserved. This standalone symmetric-spiral repair
+does not yet integrate transitions into project road alignment/set-out outputs.
+Asymmetric transitions, compound/reverse project routes, corridor offsets,
+superelevation, approved design/control identity, device round trips and actual
+field checks remain open, alongside the other four survey-family gates.
