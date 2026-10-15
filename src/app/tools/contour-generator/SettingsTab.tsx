@@ -7,6 +7,7 @@
 import type { ContourLine, TINSurface } from '@/lib/engine/contours';
 import type { Bounds, VolumeResult } from './types';
 import { fmt, formatContourHeight } from './helpers';
+import { contourElevationAtIndex } from '@/lib/topo/tinContours';
 
 interface SettingsTabProps {
   contourInterval: number;
@@ -64,6 +65,8 @@ export function SettingsTab({
   generationComplete = false,
 }: SettingsTabProps) {
   const heightUnits = heightsInMetres ? 'm' : 'source units';
+  let indexSpacing = 'unavailable';
+  try { if (indexMultiplier >= 1) indexSpacing = formatContourHeight(contourElevationAtIndex(contourInterval, indexMultiplier)); } catch { /* Invalid settings remain editable; generation explains the error. */ }
   return (
     <div className="space-y-6">
       <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
@@ -127,7 +130,7 @@ export function SettingsTab({
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
             />
             <p className="text-xs text-zinc-500 mt-1">
-              Every Nth contour is an index (thick) line (interval &times; {indexMultiplier} = {formatContourHeight(contourInterval * indexMultiplier)} {heightUnits})
+              Every Nth contour is an index (thick) line (interval &times; {indexMultiplier} = {indexSpacing} {heightUnits})
             </p>
           </div>
           <div className="flex flex-col">

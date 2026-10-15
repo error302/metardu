@@ -944,3 +944,75 @@ building its own exact committed revision; this batch does not promote source,
 alter its candidate or claim that 108 is deployed. Production recovery/rollback,
 approved-design comparison, measured uncertainty, durable offline batches,
 instrument field tests and issued long-job/mobile/print deliverables remain gates.
+
+## Contour source, decimal levels and actual export review — 15 October 2026
+
+The existing contour tool now accepts ordinary single-space XYZ/named XYZ data
+and preserves decimal elevations. The shared TIN contour engine no longer loses
+valid positive/negative decimal boundary levels through floating division or
+merges distinct levels by imposing 15 significant figures. Decimal interval
+multiplication is shared with the settings caption. Height-side classification
+uses arithmetic roundoff only, without adding a field acceptance tolerance or
+an absolute dead band around zero. Representational/work limits fail explicitly.
+
+Project loading is keyed to the account and project. It retains all returned
+observations as reviewable CSV, including missing measurements and stored
+horizontal/height references. Missing coordinates/heights, missing supplied
+reference declarations and mixed reference frames block generation; source
+declarations cannot be changed into a different export CRS/height label. The
+points API has an owner/member-authorized, private `includeIncomplete=true`
+review mode so rows with missing projected coordinates are not silently removed
+before terrain review. Default map consumers retain their projected-only response.
+Unknown flag values fail rather than selecting a partial dataset. Review queries
+are capped at 10,001 rows and reject oversized projects explicitly before returning
+point payloads. A response for a different project is rejected without loading it.
+
+Manual source edits immediately invalidate derived geometry and exports. Late
+file/project responses cannot overwrite a newer source; account/job changes clear
+private state. A PDF completing after a source/reference edit is not downloaded
+under the new context, and duplicate PDF requests are blocked. Imports have an
+explicit 2 MB / 10,000-row limit without truncation. Demo CSV retains the same
+unrounded synthetic heights as its in-memory dataset.
+
+Native verification used the existing owned `127.0.0.1:3021` source preview and
+its real background worker, not substituted browser state. Three clearly named
+synthetic points on `z=0.1+0.02[(E-500000)+(N-9900000)]` produced the expected
+0.2/0.3 m lines, one index line, one triangle and 6.666... m3 above the minimum
+plane. Actual browser-downloaded CSV and DXF vertices agree with that plane.
+The existing native `ezdxf` verifier accepts two metre-unit polylines at 0.2/0.3;
+no dependency installation was needed. Actual A3 PDF media dimensions, declared
+references and DRAFT status were independently extracted. Poppler rendering
+caught an endpoint index-label/spot-label collision. PDF, SVG and map now use
+the established engine's arc-length midpoint placement; the corrected native
+PDF was downloaded again, rendered, inspected and its label position verified.
+Source CAD-editor import/3D behavior and physical print/device/field acceptance
+are separate checks, not implied by this native DXF parsing result.
+
+Focused source verification passes 64 tests across eight suites, including
+known decimal/negative/fine-level geometry, closed hills, constrained breaklines,
+reference/import checks, real React stale-source/account behavior, PDF completion
+races, wrong-project responses, oversized review rejection and the API's
+complete-review/default-map response scopes. Network/device
+boundaries in those unit/DOM tests are mocked; the anonymous native worker/export
+exercise above is separate evidence. Full strict app/test typing and changed-file
+lint remain required pre-push checks.
+
+Reusable synthetic receipts/artifacts are ignored at
+`.cache/release-verify/contour-decimal-source.{pdf,png,txt,csv,dxf}`. These are
+test observations, not customer/field survey evidence or a country submission.
+The plan still requires reviewed ground selection, control, accuracy, breaklines,
+survey limits/masks and the applicable project/authority requirements. Dense and
+long-job label layout, mobile/physical instrument checks and a complete private
+project browser-to-database recording workflow remain open.
+
+Fresh read-only runtime/audit checks pass with one application container and
+production image `sha256:fd7c870ce441fd67bf9b7ad64d0ad9675aec2094b70a323eaef99c1c8dda966b`.
+The separate authorized auth release promoted pinned source `c1591bda`; it is
+documented in `PRODUCTION_AUTH_RELEASE_2026-10-15.md`. The customer ledger now
+contains 112 entries, with only source migration 108 pending and no altered/
+missing historical hashes or ghosts. The runtime role remains non-superuser,
+without RLS bypass or database/role creation. Latest backup completion observed
+is `2026-10-15T02:00:03Z`; that timestamp alone is not restore proof. This contour
+batch creates no application container, image, builder, clone or migration and
+does not promote source. Current concurrent admin/navigation edits are preserved
+outside this batch. The broader five-family platform goal remains active.

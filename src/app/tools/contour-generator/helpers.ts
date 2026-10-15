@@ -23,11 +23,11 @@ export function fmt(n: number, d: number = 3): string {
 
 /** Retain distinct contour levels instead of rounding centimetre intervals to decimetres. */
 export function formatContourHeight(value: number): string {
-  return Number(value.toPrecision(15)).toString();
+  return String(value);
 }
 
 export function detectDelimiter(text: string): string {
-  const firstLines = text.split('\n').slice(0, 5);
+  const firstLines = text.split('\n').filter(line => line.trim() && !line.trim().startsWith('#')).slice(0, 5);
   let commaCount = 0;
   let tabCount = 0;
   let semicolonCount = 0;
@@ -48,6 +48,7 @@ export function detectDelimiter(text: string): string {
     [' ', spaceCount],
   ];
   counts.sort((a, b) => b[1] - a[1]);
+  if (counts[0][1] === 0) return ' ';
   return counts[0][0];
 }
 
@@ -96,11 +97,14 @@ export function parseXYZText(text: string): {
   errors: ParseError[];
   delimiter: string;
   hasHeader: boolean;
+  reference?: { horizontalCrs: string | null; verticalDatum: string | null };
 } {
+  if (new TextEncoder().encode(text).length > 2_000_000) throw new RangeError('Import at most 2 MB of measured text; split the survey explicitly.')
   const delimiter = detectDelimiter(text);
   const lines = text.split('\n');
   const errors: ParseError[] = [];
   const points: ParsedPoint[] = [];
+  const references: Array<{ label: string; index: number; values: Set<string> }> = [];
   const firstContent = lines.findIndex(line => line.trim() && !line.trim().startsWith('#'));
   let startIdx = firstContent < 0 ? lines.length : firstContent;
   let hasHeader = false;
@@ -113,6 +117,10 @@ export function parseXYZText(text: string): {
   let colMapping: ColMapping | null = null;
   if (hasHeader) {
     const headers = splitSourceLine(lines[firstContent], delimiter);
+    for (const [name, label] of [['horizontal_crs', 'horizontal CRS'], ['vertical_datum', 'height reference']] as const) {
+      const index = headers.findIndex(header => header.trim().toLowerCase() === name)
+      if (index >= 0) references.push({ label, index, values: new Set<string>() })
+    }
     colMapping = guessColumnIndices(headers);
     const axes = [colMapping.easting, colMapping.northing, colMapping.elevation];
     if (axes.some(index => index < 0) || new Set(axes).size !== 3) {
@@ -142,9 +150,11 @@ export function parseXYZText(text: string): {
     }
   }
 
+  let sourceRows = 0;
   for (let i = startIdx; i < lines.length; i++) {
     const trimmed = lines[i].trim();
     if (trimmed === '' || trimmed.startsWith('#')) continue;
+    if (++sourceRows > 10000) throw new RangeError('Import at most 10,000 measured rows; no survey rows are truncated.')
 
     const parts = splitSourceLine(trimmed, delimiter);
     if (parts.length < 3) {
@@ -161,25 +171,53 @@ export function parseXYZText(text: string): {
     const northing = decimal(parts[mapping.northing]);
     const elevation = decimal(parts[mapping.elevation]);
 
+    const pointName = mapping.name >= 0 && mapping.name < parts.length ? parts[mapping.name] : `P${points.length + 1}`;
     if (![easting, northing, elevation].every(Number.isFinite)) {
-      errors.push({ row: i + 1, message: 'Missing or invalid coordinate: enter complete finite decimal Easting, Northing and Height values.' });
+      errors.push({ row: i + 1, message: `${pointName || `Row ${i + 1}`}: missing or invalid coordinate/height; enter complete finite decimal Easting, Northing and Height values.` });
       continue;
     }
-
-    const pointName =
-      mapping.name >= 0 && mapping.name < parts.length
-        ? parts[mapping.name]
-        : `P${points.length + 1}`;
+    for (const reference of references) {
+      const value = parts[reference.index]?.trim()
+      if (!value) errors.push({ row: i + 1, message: `${pointName}: ${reference.label} is not recorded. Review the observation basis; no reference is guessed.` })
+      else reference.values.add(value)
+    }
 
     points.push({ name: pointName, easting, northing, elevation });
+    if (points.length > 10000) throw new RangeError('Import at most 10,000 measured points; no survey rows are truncated.')
   }
+  for (const reference of references) if (reference.values.size > 1) errors.push({ row: 0, message: `Mixed ${reference.label} values cannot form one survey surface. Transform/review the source; changing a label does not convert coordinates or heights.` })
 
   return {
     points,
     errors: errors.slice(0, 50),
     delimiter,
     hasHeader,
+    reference: references.length ? {
+      horizontalCrs: references.find(item => item.label === 'horizontal CRS' && item.values.size === 1)?.values.values().next().value ?? null,
+      verticalDatum: references.find(item => item.label === 'height reference' && item.values.size === 1)?.values.values().next().value ?? null,
+    } : undefined,
   };
+}
+
+/** Preserve all returned project observations, including missing values, for review. */
+export function projectXYZText(data: unknown): string {
+  if (!Array.isArray(data) || data.length > 10000) throw new RangeError('Project points must be an array of at most 10,000 observations; no rows are truncated.')
+  const rows = data.map((raw: unknown) => {
+    if (!raw || typeof raw !== 'object') throw new RangeError('A project observation has an invalid record shape.')
+    const point = raw as Record<string, unknown>
+    if (typeof point.id !== 'string' || !point.id.trim()) throw new RangeError('Every project observation needs its retained ID.')
+    const name = typeof point.point_name === 'string' && point.point_name.trim() ? point.point_name : point.id
+    const cell = (key: string) => {
+      const value = point[key]
+      if (value === null || value === undefined) return ''
+      if (key === 'horizontal_crs' || key === 'vertical_datum') {
+        if (typeof value !== 'string') throw new RangeError(`${name}: ${key} must be a reference name.`)
+      } else if (typeof value !== 'number' || !Number.isFinite(value)) throw new RangeError(`${name}: ${key} must be a finite measurement, not a substituted value.`)
+      return value
+    }
+    return [name, cell('easting'), cell('northing'), cell('elevation'), cell('horizontal_crs'), cell('vertical_datum')]
+  })
+  return Papa.unparse({ fields: ['Name', 'Easting', 'Northing', 'Elevation', 'horizontal_crs', 'vertical_datum'], data: rows })
 }
 
 export function generateDemoData(): SpotHeight[] {

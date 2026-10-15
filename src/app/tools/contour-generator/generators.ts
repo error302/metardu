@@ -1,4 +1,4 @@
-import type { ContourLine, SpotHeight } from '@/lib/engine/contours'
+import { contourLabelMidpoint, type ContourLine, type SpotHeight } from '@/lib/engine/contours'
 import type { Bounds } from './types'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 import { formatContourHeight } from './helpers'
@@ -208,10 +208,16 @@ export async function generateContourPDF(
       pdf.line(map.toX(previous.easting), map.toY(previous.northing), map.toX(current.easting), map.toY(current.northing))
     }
     if (contour.isIndex) {
-      const labelPoint = contour.points[Math.floor(contour.points.length / 2)]
+      const labelPoint = contourLabelMidpoint(contour)
+      if (!labelPoint) continue
       pdf.setFont('helvetica', 'bold')
       pdf.setFontSize(6.5)
-      pdf.text(`${formatContourHeight(contour.elevation)} m`, map.toX(labelPoint.easting) + 1, map.toY(labelPoint.northing) - 1)
+      const text = `${formatContourHeight(contour.elevation)} m`
+      const x = map.toX(labelPoint.easting), y = map.toY(labelPoint.northing) - 1
+      const textWidth = pdf.getTextWidth(text)
+      pdf.setFillColor(255, 255, 255)
+      pdf.rect(x - textWidth / 2 - 0.6, y - 2.5, textWidth + 1.2, 3.2, 'F')
+      pdf.text(text, x, y, { align: 'center' })
     }
   }
 
@@ -371,7 +377,8 @@ export function generateSVGExport(
     const color = contour.isIndex ? '#70411e' : '#97704a'
     svg.push(`<polyline points="${coordinates}" fill="none" stroke="${color}" stroke-width="${contour.isIndex ? 2.2 : 0.9}" stroke-linejoin="round" stroke-linecap="round"/>`)
     if (contour.isIndex) {
-      const point = contour.points[Math.floor(contour.points.length / 2)]
+      const point = contourLabelMidpoint(contour)
+      if (!point) continue
       svg.push(`<text x="${plot.toX(point.easting)}" y="${plot.toY(point.northing) - 4}" fill="#603518" stroke="#fff" stroke-width="3" paint-order="stroke" text-anchor="middle" font-family="Arial,sans-serif" font-size="11" font-weight="700">${formatContourHeight(contour.elevation)} m</text>`)
     }
   }

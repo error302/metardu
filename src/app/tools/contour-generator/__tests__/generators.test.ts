@@ -29,6 +29,17 @@ const metadata = {
 }
 
 describe('professional contour exports', () => {
+  it('places a short index-line label at its arc midpoint rather than on an end observation', () => {
+    const short = [{ ...contours[0], points: [contours[0].points[0], contours[0].points[2]] }]
+    const svg = generateSVGExport(short, bounds, points, metadata)
+    expect(svg).toMatch(/<text x="530" y="411"[^>]*>110 m<\/text>/)
+  })
+  it('does not merge distinct retained height labels by imposing 15 significant figures', () => {
+    const precise = [{ ...contours[0], elevation: 110.0000000000001 }, { ...contours[0], elevation: 110.0000000000002 }]
+    const svg = generateSVGExport(precise, bounds, points, { ...metadata, contourInterval: 1e-13 })
+    expect(svg).toContain('110.0000000000001 m</text>')
+    expect(svg).toContain('110.0000000000002 m</text>')
+  })
   it('retains centimetre elevations on index labels, including short vertex lists', () => {
     const precise = [{ ...contours[0], elevation: 110.05 }]
     expect(generateSVGExport(precise, bounds, points, { ...metadata, contourInterval: 0.01 })).toContain('110.05 m</text>')

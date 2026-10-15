@@ -1,6 +1,6 @@
 'use client';
 
-import type { ContourLine, SpotHeight } from '@/lib/engine/contours';
+import { contourLabelMidpoint, type ContourLine, type SpotHeight } from '@/lib/engine/contours';
 import type { Bounds } from './types';
 import { MARGIN, SVG_HEIGHT, SVG_WIDTH } from './constants';
 import { formatContourHeight } from './helpers';
@@ -78,11 +78,11 @@ export function MapTab({ contours, bounds, points, contourInterval, svgElements,
           {contours.map((contour, index) => {
             if (contour.points.length < 2) return null
             const coordinates = contour.points.map(point => `${svgElements.toSvgX(point.easting).toFixed(2)},${svgElements.toSvgY(point.northing).toFixed(2)}`).join(' ')
-            const labelPoint = contour.points[Math.floor(contour.points.length / 2)]
+            const labelPoint = contour.isIndex ? contourLabelMidpoint(contour) : null
             return (
               <g key={`contour-${index}`}>
                 <polyline points={coordinates} fill="none" stroke={contour.isIndex ? '#70411e' : '#97704a'} strokeWidth={contour.isIndex ? 2 : 0.85} strokeLinejoin="round" strokeLinecap="round" />
-                {contour.isIndex && (
+                {contour.isIndex && labelPoint && (
                   <text x={svgElements.toSvgX(labelPoint.easting)} y={svgElements.toSvgY(labelPoint.northing) - 4} textAnchor="middle" fill="#603518" stroke="#fff" strokeWidth="3" paintOrder="stroke" fontSize="9" fontWeight="700">
                     {formatContourHeight(contour.elevation)} {units}
                   </text>

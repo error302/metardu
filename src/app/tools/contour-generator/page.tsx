@@ -4,6 +4,8 @@ import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { Mountain } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { contourElevationAtIndex } from '@/lib/topo/tinContours';
 import {
   computeVolumeFromTIN,
   type SpotHeight,
@@ -20,8 +22,8 @@ import {
 import type { TabId, Bounds, ImportStats, ParseError, VolumeResult } from './types';
 import { MARGIN, SVG_HEIGHT, SVG_WIDTH } from './constants';
 import {
-  fmt,
   parseXYZText,
+  projectXYZText,
   generateDemoData,
   downloadBlob,
 } from './helpers';
@@ -51,14 +53,6 @@ import { ComputeLimitNotice } from '@/components/tools/ComputeLimitNotice'
 import MetarduLogo from '@/components/MetarduLogo'
 
 // ─── Project point row shape (from /api/project/[id]/points) ───────────────
-interface ProjectPointRow {
-  id: string
-  point_name?: string | null
-  easting: number
-  northing: number
-  elevation: number | null
-}
-
 interface SurveyGenerationInputs {
   points: SpotHeight[]
   breaklines: Breakline[]
@@ -75,6 +69,13 @@ const NO_CONTOURS: ContourLine[] = [];
 // ─── Component ──────────────────────────────────────────────────────────────
 
 export default function ContourGeneratorPage() {
+  const searchParams = useSearchParams();
+  const projectId = searchParams.get('project');
+  const { data: session } = useSession();
+  const userId = session?.user?.id ?? null;
+  return <ContourWorkspace key={`${userId ?? 'anonymous'}:${projectId ?? 'local'}`} projectId={projectId} userId={userId} />;
+}
+function ContourWorkspace({ projectId, userId }: { projectId: string | null; userId: string | null }) {
   const { t } = useLanguage()
   const [activeTab, setActiveTab] = useState<TabId>('import');
 
@@ -107,6 +108,14 @@ export default function ContourGeneratorPage() {
   // Results
   const [generation, setGeneration] = useState<SurveyGeneration | null>(null);
   const requestVersion = useRef(0);
+  const sourceVersion = useRef(0);
+  const [projectLoading, setProjectLoading] = useState(false);
+  const [projectError, setProjectError] = useState('');
+  const [projectSource, setProjectSource] = useState(false);
+  const alive = useRef(true);
+  const pdfLock = useRef(false);
+  const [pdfExporting, setPdfExporting] = useState(false);
+  const [sourceReference, setSourceReference] = useState<{ horizontalCrs: string | null; verticalDatum: string | null } | null>(null);
   const currentInputs = useRef<SurveyGenerationInputs>({ points, breaklines, contourInterval, indexMultiplier });
   currentInputs.current = { points, breaklines, contourInterval, indexMultiplier };
   const currentGeneration = generation && generation.points === points && generation.breaklines === breaklines &&
@@ -125,45 +134,51 @@ export default function ContourGeneratorPage() {
     setUsingWorker(false);
     setActiveTab(tab => tab === 'map' || tab === 'export' ? 'settings' : tab);
   }, [points, breaklines, contourInterval, indexMultiplier]);
-  useEffect(() => () => { requestVersion.current += 1 }, []);
+  useEffect(() => {
+    const requests = requestVersion, sources = sourceVersion;
+    alive.current = true;
+    return () => { alive.current = false; requests.current++; sources.current++ };
+  }, []);
 
   // ─── Project integration: auto-load points from project survey data ──────
-  const searchParams = useSearchParams();
-  const projectId = searchParams.get('project');
-  const [projectLoaded, setProjectLoaded] = useState(false);
-
   useEffect(() => {
-    if (!projectId || projectLoaded) return;
+    if (!projectId || !userId) return;
     let cancelled = false;
+    const version = ++sourceVersion.current;
+    const current = () => !cancelled && version === sourceVersion.current;
+    setProjectLoading(true);
     (async () => {
       try {
-        const res = await fetch(`/api/project/${projectId}/points`)
-        if (!res.ok) return
-        const json = await res.json() as { data?: ProjectPointRow[] }
-        const pts: SpotHeight[] = (json.data || [])
-          .filter((p): p is ProjectPointRow & { elevation: number } => p.elevation != null)
-          .map((p) => ({
-            name: p.point_name || p.id,
-            easting: p.easting,
-            northing: p.northing,
-            elevation: p.elevation,
-          }))
-        if (!cancelled && pts.length > 0) {
-          setPoints(pts)
-          setImportStats({
-            delimiter: 'auto',
-            hasHeader: false,
-          })
-        }
-      } catch {
-        // silent fail — user can import manually
+        const res = await fetch(`/api/project/${encodeURIComponent(projectId)}/points?includeIncomplete=true`, { cache: 'no-store' });
+        const json = await res.json() as { data?: unknown; error?: string; meta?: { project_id?: string } };
+        if (!current()) return;
+        if (!res.ok) throw new Error(json.error || 'Could not load private project observations.');
+        if (json.meta?.project_id !== projectId) throw new Error('The returned point record does not match the requested project. No terrain was loaded.');
+        const text = projectXYZText(json.data);
+        const parsed = parseXYZText(text);
+        if (!current()) return;
+        setRawText(text); setPoints(parsed.points); setParseErrors(parsed.errors);
+        setSourceReference(parsed.reference ?? null);
+        setHorizontalCrs(parsed.reference?.horizontalCrs ?? ''); setVerticalDatum(parsed.reference?.verticalDatum ?? '');
+        setImportStats({ delimiter: 'project CSV', hasHeader: true }); setProjectSource(true);
+        if (!Array.isArray(json.data) || json.data.length === 0) setProjectError('This project has no available point observations. No terrain was assumed.');
+      } catch (error) {
+        if (current()) setProjectError(error instanceof Error ? error.message : 'Could not load project observations.');
       } finally {
-        if (!cancelled) setProjectLoaded(true)
+        if (current()) setProjectLoading(false);
       }
     })()
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, projectLoaded])
+  }, [projectId, userId]);
+
+  const replaceSource = useCallback((text: string) => {
+    sourceVersion.current++; requestVersion.current++;
+    setRawText(text); setPoints([]); setBreaklines([]); setGeneration(null);
+    setParseErrors([]); setImportStats(null); setFileName(''); setProjectSource(false);
+    setProjectLoading(false); setProjectError(''); setIsParsing(false);
+    setSourceReference(null); setHorizontalCrs(''); setVerticalDatum(''); setHeightsInMetres(false);
+    setGenerateError(''); setExportError('');
+  }, []);
 
   // ─── Bounding box computation ────────────────────────────────────────────
 
@@ -189,11 +204,21 @@ export default function ContourGeneratorPage() {
     contourInterval,
     heightsInMetres,
   }), [mapTitle, horizontalCrs, verticalDatum, contourInterval, heightsInMetres])
-  const referenceIssue = useMemo(() => contourExportReferenceIssue(exportMetadata), [exportMetadata])
+  const referenceIssue = useMemo(() => {
+    const issue = contourExportReferenceIssue(exportMetadata)
+    if (issue) return issue
+    if (sourceReference?.horizontalCrs && sourceReference.horizontalCrs.split('/')[0].trim().toUpperCase() !== horizontalCrs.split('/')[0].trim().toUpperCase()) return 'The entered CRS differs from the observation source. Transform the source coordinates before exporting; changing the label does not convert them.'
+    if (sourceReference?.verticalDatum && sourceReference.verticalDatum.trim() !== verticalDatum.trim()) return 'The entered height reference differs from the observation source. Review or transform the source levels before exporting.'
+    return null
+  }, [exportMetadata, sourceReference, horizontalCrs, verticalDatum])
+  const exportContext = useRef({ generation: currentGeneration, metadata: exportMetadata });
+  exportContext.current = { generation: currentGeneration, metadata: exportMetadata };
 
   // ─── File upload handler ──────────────────────────────────────────────────
 
   const processText = useCallback((text: string) => {
+    sourceVersion.current++; requestVersion.current++;
+    setProjectLoading(false);
     setIsParsing(true);
     setParseErrors([]);
     setGeneration(null);
@@ -201,6 +226,8 @@ export default function ContourGeneratorPage() {
 
     try {
       const result = parseXYZText(text);
+      setSourceReference(result.reference ?? null);
+      if (result.reference) { setHorizontalCrs(result.reference.horizontalCrs ?? ''); setVerticalDatum(result.reference.verticalDatum ?? ''); setHeightsInMetres(false); }
       const spotHeights: SpotHeight[] = result.points.map(p => ({
         name: p.name,
         easting: p.easting,
@@ -222,6 +249,8 @@ export default function ContourGeneratorPage() {
   }, []);
 
   const handleFileUpload = useCallback(async (file: File) => {
+    replaceSource('');
+    const version = sourceVersion.current;
     setFileName(file.name);
     setIsParsing(true);
     setParseErrors([]);
@@ -229,15 +258,17 @@ export default function ContourGeneratorPage() {
     setBreaklines([]);
 
     try {
+      if (file.size > 2_000_000) throw new RangeError('Import at most 2 MB of measured text; split the survey explicitly.');
       const text = await file.text();
+      if (version !== sourceVersion.current) return;
       setRawText(text);
       processText(text);
     } catch (err) {
-      setParseErrors([{ row: 0, message: `Failed to read file: ${err instanceof Error ? err.message : 'Unknown error'}` }]);
+      if (version === sourceVersion.current) setParseErrors([{ row: 0, message: `Failed to read file: ${err instanceof Error ? err.message : 'Unknown error'}` }]);
     } finally {
-      setIsParsing(false);
+      if (version === sourceVersion.current) setIsParsing(false);
     }
-  }, [processText]);
+  }, [processText, replaceSource]);
 
   const handleDropZone = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -257,6 +288,7 @@ export default function ContourGeneratorPage() {
   }, [rawText, processText]);
 
   const handleLoadDemo = useCallback(() => {
+    replaceSource('');
     const demoPoints = generateDemoData();
     setPoints(demoPoints);
     setGeneration(null);
@@ -269,10 +301,10 @@ export default function ContourGeneratorPage() {
     // ellipsis row.
     const csvLines = [
       'Name,Easting,Northing,Elevation',
-      ...demoPoints.map(p => `${p.name},${fmt(p.easting, 3)},${fmt(p.northing, 3)},${fmt(p.elevation, 2)}`),
+      ...demoPoints.map(p => `${p.name},${p.easting},${p.northing},${p.elevation}`),
     ];
     setRawText(csvLines.join('\n'));
-  }, []);
+  }, [replaceSource]);
 
   // ─── Generate contours ───────────────────────────────────────────────────
 
@@ -307,7 +339,7 @@ export default function ContourGeneratorPage() {
     };
 
     try {
-      const indexInterval = contourInterval * indexMultiplier;
+      const indexInterval = contourElevationAtIndex(contourInterval, indexMultiplier);
 
       // Use the surveyor's supplied observations without automatic classification
       // or silent removal of measured slopes, hilltops and boundary controls.
@@ -348,39 +380,47 @@ export default function ContourGeneratorPage() {
 
   const exportDXF = useCallback(() => {
     if (!contours.length || !bounds) return;
+    if (referenceIssue) { setExportError(referenceIssue); return; }
     setExportError('');
     try {
     const dxf = generateDXF(contours, bounds, exportMetadata);
     downloadBlob(dxf, 'contours.dxf', 'application/dxf');
     } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.'); }
-  }, [contours, bounds, exportMetadata]);
+  }, [contours, bounds, exportMetadata, referenceIssue]);
 
   const exportPDF = useCallback(async () => {
-    if (!contours.length || !bounds) return;
+    if (!contours.length || !bounds || pdfLock.current) return;
+    if (referenceIssue) { setExportError(referenceIssue); return; }
+    const version = requestVersion.current;
+    const current = () => alive.current && version === requestVersion.current && exportContext.current.generation === currentGeneration && exportContext.current.metadata === exportMetadata;
+    pdfLock.current = true; setPdfExporting(true);
     setExportError('')
     try {
     const pdf = await generateContourPDF(contours, bounds, points, exportMetadata)
-    downloadBlob(pdf, 'contour-plan-a3.pdf', 'application/pdf')
-    } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.') }
-  }, [contours, bounds, points, exportMetadata])
+    if (current()) downloadBlob(pdf, 'contour-plan-a3.pdf', 'application/pdf')
+    } catch (error) { if (current()) setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.') }
+    finally { pdfLock.current = false; if (alive.current) setPdfExporting(false); }
+  }, [contours, bounds, points, exportMetadata, currentGeneration, referenceIssue])
 
   const exportSVG = useCallback(() => {
     if (!contours.length || !bounds) return;
+    if (referenceIssue) { setExportError(referenceIssue); return; }
     setExportError('');
     try {
     const svg = generateSVGExport(contours, bounds, points, exportMetadata);
     downloadBlob(svg, 'contours.svg', 'image/svg+xml');
     } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.'); }
-  }, [contours, bounds, points, exportMetadata]);
+  }, [contours, bounds, points, exportMetadata, referenceIssue]);
 
   const exportCSV = useCallback(() => {
     if (!contours.length) return;
+    if (referenceIssue) { setExportError(referenceIssue); return; }
     setExportError('');
     try {
     const csv = generateContourCSV(contours, exportMetadata);
     downloadBlob(csv, 'contours.csv', 'text/csv');
     } catch (error) { setExportError(error instanceof Error ? error.message : 'The contour source could not be exported.'); }
-  }, [contours, exportMetadata]);
+  }, [contours, exportMetadata, referenceIssue]);
 
   // ─── SVG rendering computations ──────────────────────────────────────────
 
@@ -451,6 +491,10 @@ export default function ContourGeneratorPage() {
         tool="Contour generation"
         message="Contour generation runs in a browser worker. Large point clouds and dense contours increase processing time and memory use. Review the source points, derived surface and export before field use."
       />
+      {projectId && !userId && <p role="status" className="mt-4 text-sm"><a href={`/login?next=${encodeURIComponent(`/tools/contour-generator?project=${projectId}`)}`} className="underline">Sign in</a> to read this project’s private observations. Manual input remains a local draft.</p>}
+      {projectLoading && <p role="status" className="mt-4 text-sm">Loading private project observations…</p>}
+      {projectError && <p role="alert" className="mt-4 text-sm text-red-400">{projectError}</p>}
+      {projectSource && <p className="mt-4 text-sm text-zinc-400">Project observations loaded for review. Missing heights and missing/mixed reference declarations block generation. No automatic datum or unit conversion is applied.</p>}
 
       {/* Tab bar */}
       <div className="flex gap-2 mt-6 mb-6 flex-wrap">
@@ -476,7 +520,7 @@ export default function ContourGeneratorPage() {
       {activeTab === 'import' && (
         <ImportTab
           rawText={rawText}
-          setRawText={setRawText}
+          setRawText={replaceSource}
           fileName={fileName}
           points={points}
           parseErrors={parseErrors}
@@ -556,6 +600,7 @@ export default function ContourGeneratorPage() {
           metadata={exportMetadata}
           referenceIssue={referenceIssue}
           exportError={exportError}
+          pdfExporting={pdfExporting}
         />
       )}
     </div>

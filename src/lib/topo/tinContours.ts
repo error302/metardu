@@ -13,6 +13,29 @@ const MAX_LEVELS = 500
 const MAX_TRIANGLE_LEVEL_PAIRS = 2000000
 const MAX_OUTPUT_VERTICES = 200000
 type XY = [number, number]
+// Floating arithmetic only, never a survey measurement/acceptance tolerance.
+const roundoff = (a: number, b: number) => 8 * Number.EPSILON * Math.max(1, Math.abs(a), Math.abs(b))
+function integralLevel(ratio: number): number {
+  const nearest = Math.round(ratio)
+  return Math.abs(ratio - nearest) <= roundoff(ratio, nearest) ? nearest : ratio
+}
+function side(height: number, level: number): number {
+  const tolerance = Number.EPSILON * Math.max(Math.abs(height), Math.abs(level))
+  return Math.abs(height - level) <= tolerance ? 0 : height < level ? -1 : 1
+}
+function decimalLevels(interval: number): (index: number) => number {
+  const [mantissa, exponent = '0'] = interval.toString().split('e')
+  const coefficient = BigInt(mantissa.replace('.', ''))
+  const power = Number(exponent) - (mantissa.split('.')[1]?.length ?? 0)
+  return index => Number(`${coefficient * BigInt(index)}e${power}`)
+}
+/** Decimal interval multiple shared by contour generation and its settings. */
+export function contourElevationAtIndex(interval: number, index: number): number {
+  if (!Number.isFinite(interval) || interval <= 0 || !Number.isSafeInteger(index)) throw new RangeError('A contour level needs a positive finite interval and safe integer index.')
+  const elevation = decimalLevels(interval)(index)
+  if (!Number.isFinite(elevation)) throw new RangeError('The contour level exceeds the finite calculation range.')
+  return elevation
+}
 
 /** Piecewise-linear isolines on the actual TIN, clipped to its observation hull.
  * Shared mesh edges use identical keys; no raster boundary is traced as a contour.
@@ -27,13 +50,19 @@ export function generateTINContours(tin: TIN, options: TINContourOptions): Conto
   const elevations = tin.points.map(p => p.z)
   const minZ = Math.min(...elevations), maxZ = Math.max(...elevations)
   if (minZ === maxZ) return []
-  const first = Math.ceil(minZ / interval), last = Math.floor(maxZ / interval)
+  const first = Math.ceil(integralLevel(minZ / interval)), last = Math.floor(integralLevel(maxZ / interval))
   const count = Math.max(0, last - first + 1)
   if (!Number.isSafeInteger(first) || !Number.isSafeInteger(last) || count > MAX_LEVELS || count * tin.triangles.length > MAX_TRIANGLE_LEVEL_PAIRS) throw new RangeError('Contour computation exceeds the level/work limit; increase the interval or split the surface.')
   const output: ContourLine[] = []
+  // Multiply the decimal interval exactly, then convert once to Float64.
+  // Fixed significant-digit rounding used to merge distinct contour levels.
+  const levelAt = decimalLevels(interval)
   let outputVertices = 0
+  let previousLevel: number | null = null
   for (let index = first; index <= last; index++) {
-    const elevation = Number((index * interval).toPrecision(15))
+    const elevation = levelAt(index)
+    if (!Number.isFinite(elevation) || (previousLevel !== null && elevation <= previousLevel)) throw new RangeError('The contour interval cannot produce distinct finite levels at this height; increase the interval.')
+    previousLevel = elevation
     const nodes = new Map<string, XY>(), edges: Array<[string, string]> = [], seen = new Set<string>()
     function node(key: string): XY {
       const point = nodes.get(key)
@@ -55,13 +84,14 @@ export function generateTINContours(tin: TIN, options: TINContourOptions): Conto
     for (const triangle of tin.triangles) {
       const ids = [triangle.a, triangle.b, triangle.c]
       if (ids.some(id => !Number.isInteger(id) || !tin.points[id])) throw new RangeError('TIN contains an invalid triangle index.')
-      if (ids.every(id => tin.points[id].z === elevation)) continue
+      if (ids.every(id => side(tin.points[id].z, elevation) === 0)) continue
       const hits = new Set<string>()
       for (let i = 0; i < 3; i++) {
         const a = ids[i], b = ids[(i + 1) % 3], az = tin.points[a].z, bz = tin.points[b].z
-        if (az === elevation) hits.add(vertex(a))
-        if (bz === elevation) hits.add(vertex(b))
-        if (az < elevation && bz > elevation || bz < elevation && az > elevation) hits.add(crossing(a, b))
+        const aSide = side(az, elevation), bSide = side(bz, elevation)
+        if (aSide === 0) hits.add(vertex(a))
+        if (bSide === 0) hits.add(vertex(b))
+        if (aSide * bSide < 0) hits.add(crossing(a, b))
       }
       if (hits.size !== 2) continue
       const [a, b] = [...hits], p = node(a), q = node(b)

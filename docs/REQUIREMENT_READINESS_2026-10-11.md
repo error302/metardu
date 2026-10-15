@@ -314,3 +314,21 @@ tests and actual anonymous source-browser arithmetic are distinct from a full
 authenticated recording flow, issued design comparison, uncertainty and field
 acceptance. The five survey families remain in scope and the overall goal remains
 active. See the workflow matrix for exact checks and unresolved release gates.
+
+Contour follow-up (15 October): ordinary space-separated observations, valid
+decimal/negative boundary levels and distinct fine elevations are retained by
+the shared engine. The private project loader now requests incomplete rows for
+review, retains missing values/references visibly, rejects mixed frames and
+clears stale results across edits/account/project changes. Late PDF completion
+is guarded. Native source-browser worker generation and actual CSV/DXF/A3 PDF
+downloads agree with the known synthetic plane; native DXF parsing and PDF
+rendering/extraction verify the output. An observed short-line label collision
+was corrected at the arc midpoint and rechecked in the actual PDF. Wrong-project
+responses and oversized source reviews fail explicitly. 64 focused
+tests/eight suites pass; strict typing/lint are required final checks. These are
+source/synthetic checks, not field or country submission approval. Production
+now runs the separate pinned auth release (see its release record), with 112
+unchanged applied hashes and only migration 108 pending. This contour batch has
+no production lifecycle/schema/container/dependency change. Project recording,
+terrain masks/ground selection, long-job/mobile/print/field checks and the other
+survey-family gates remain open. The complete objective has not been reduced.

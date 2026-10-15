@@ -1,6 +1,31 @@
-import { downloadBlob, parseXYZText } from '../helpers'
+import { downloadBlob, parseXYZText, projectXYZText } from '../helpers'
+const fixtureCrs = 'EPSG:32737'
+const alternateCrs = 'EPSG:32637'
 
 describe('contour source measurements', () => {
+  it('retains and validates declared observation references instead of allowing mixed grids/heights', () => {
+    const header = 'Name,Easting,Northing,Height,horizontal_crs,vertical_datum\n'
+    expect(parseXYZText(header + `P1,0,0,100,${fixtureCrs},SYN BM`)).toMatchObject({ reference: { horizontalCrs: fixtureCrs, verticalDatum: 'SYN BM' } })
+    expect(parseXYZText(header + `P1,0,0,100,${fixtureCrs},SYN BM\nP2,10,0,101,${alternateCrs},SYN BM`).errors.some(error => /Mixed horizontal CRS/.test(error.message))).toBe(true)
+    expect(parseXYZText(header + `P1,0,0,100,${fixtureCrs},SYN BM\nP2,10,0,101,${fixtureCrs},OTHER BM`).errors.some(error => /Mixed height reference/.test(error.message))).toBe(true)
+    expect(parseXYZText(header + 'P1,0,0,100,,').errors).toHaveLength(2)
+  })
+  it('project review retains missing values and exact source heights in a complete CSV', () => {
+    const source = projectXYZText([{ id: 'actual-id', point_name: 'Control, A', easting: 0, northing: -10, elevation: 100.0054, horizontal_crs: fixtureCrs, vertical_datum: 'SYN BM' },
+      { id: 'missing-id', point_name: 'Missing height', easting: 10, northing: 0, elevation: null }])
+    expect(source).toContain('"Control, A",0,-10,100.0054')
+    expect(source).toContain('Missing height,10,0,,,')
+    expect(parseXYZText(source).errors.some(error => /Missing height.*height/.test(error.message))).toBe(true)
+  })
+  it('accepts ordinary single-space XYZ and named XYZ rows without inventing a tab delimiter', () => {
+    expect(parseXYZText('500000 9900000 100.0054\n500010 9900000 101').points).toEqual([
+      { name: 'P1', easting: 500000, northing: 9900000, elevation: 100.0054 },
+      { name: 'P2', easting: 500010, northing: 9900000, elevation: 101 },
+    ])
+    expect(parseXYZText('# Survey observations\nName Easting Northing Height\nBM1 500000 9900000 0').points).toEqual([
+      { name: 'BM1', easting: 500000, northing: 9900000, elevation: 0 },
+    ])
+  })
   it('rejects non-finite and partial numeric tokens without creating points', () => {
     for (const value of ['Infinity', '1e309', '500000m', '0x123']) {
       const result = parseXYZText(`Name,Easting,Northing,Elevation\nP1,${value},9900000,100`)

@@ -276,6 +276,13 @@ export interface LabelOptions {
   indexOnly?: boolean
 }
 
+/** Shared arc-length midpoint for drawing labels, including two-vertex lines. */
+export function contourLabelMidpoint(contour: ContourLine): Pick<ContourLabel, 'easting' | 'northing'> | null {
+  const label = labelContours([contour], { labelSpacing: Number.MAX_VALUE, minContourLength: 0, textHeight: 0 })[0]
+  return label && Number.isFinite(label.easting) && Number.isFinite(label.northing)
+    ? { easting: label.easting, northing: label.northing } : null
+}
+
 /**
  * Places elevation labels along contour polylines at regular intervals.
  *

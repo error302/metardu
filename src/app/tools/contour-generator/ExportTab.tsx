@@ -18,6 +18,7 @@ interface ExportTabProps {
   metadata: ContourExportMetadata;
   referenceIssue: string | null;
   exportError: string;
+  pdfExporting?: boolean;
 }
 
 export function ExportTab({
@@ -30,6 +31,7 @@ export function ExportTab({
   metadata,
   referenceIssue,
   exportError,
+  pdfExporting = false,
 }: ExportTabProps) {
   return (
     <div className="space-y-6">
@@ -54,8 +56,8 @@ export function ExportTab({
             <p className="text-xs text-[var(--text-secondary)] mb-3 leading-relaxed">
               Includes a map key, equal-scale coordinate frame, scale bar, spot heights, interval, and explicit CRS / datum provenance.
             </p>
-            <button disabled={referenceIssue != null} onClick={exportPDF} className="min-h-11 px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed">
-              Download A3 PDF
+            <button disabled={referenceIssue != null || pdfExporting} onClick={exportPDF} className="min-h-11 px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-semibold w-full disabled:opacity-50 disabled:cursor-not-allowed">
+              {pdfExporting ? 'Preparing PDF…' : 'Download A3 PDF'}
             </button>
           </div>
 

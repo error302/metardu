@@ -45,7 +45,9 @@ interface SurveyPointFullRow {
 /**
  * GET /api/project/[id]/points
  *
- * Fetch all survey points for a project, ordered by point name.
+ * Fetch projected survey points for a project, ordered by point name.
+ * includeIncomplete=true also returns missing coordinates for complete terrain
+ * source review; the consumer must reject unknowns rather than infer zero.
  * Used by the deed plan generator, contour generator, mutation plan,
  * cross-sections, and earthworks tools to auto-populate from project data.
  *
@@ -70,7 +72,7 @@ interface SurveyPointFullRow {
  */
 export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
-  async (_req, ctx) => {
+  async (req, ctx) => {
     const { id } = ctx.params
 
     // T1.7: Verify project ownership before returning data (IDOR fix).
@@ -79,6 +81,12 @@ export const GET = apiHandler(
   if (!ownership.error) throw new Error('Ownership check failed without an error response')
   return ownership.error
 }
+
+    const reviewFlag = new URL(req.url).searchParams.get('includeIncomplete')
+    if (reviewFlag !== null && reviewFlag !== 'true' && reviewFlag !== 'false') {
+      return NextResponse.json({ error: 'includeIncomplete must be true or false.' }, { status: 400, headers: { 'Cache-Control': 'private, no-store' } })
+    }
+    const includeIncomplete = reviewFlag === 'true'
 
     const { rows } = await db.query<SurveyPointFullRow>(
       `SELECT
@@ -100,11 +108,14 @@ export const GET = apiHandler(
        FROM survey_points
        WHERE project_id = $1
          AND deleted_at IS NULL
-         AND easting IS NOT NULL
-         AND northing IS NOT NULL
-       ORDER BY point_name ASC`,
+         ${includeIncomplete ? '' : 'AND easting IS NOT NULL AND northing IS NOT NULL'}
+       ORDER BY point_name ASC ${includeIncomplete ? 'LIMIT 10001' : ''}`,
       [id]
     )
+
+    if (includeIncomplete && rows.length > 10000) {
+      return NextResponse.json({ code: 'CONTOUR_SOURCE_TOO_LARGE', error: 'This project exceeds the 10,000-row terrain review limit. Import an explicitly selected survey area; no rows were silently truncated.' }, { status: 413, headers: { 'Cache-Control': 'private, no-store' } })
+    }
 
     // Map coordinates use the explicit project declaration. The legacy
     // projects.datum/utm_zone columns may contain values materialized from
@@ -127,6 +138,7 @@ export const GET = apiHandler(
             }
           : null,
         count: rows.length,
+        includes_incomplete: includeIncomplete,
       },
     }, { headers: { 'Cache-Control': 'private, no-store' } })
   }
