@@ -1146,3 +1146,31 @@ does not yet integrate transitions into project road alignment/set-out outputs.
 Asymmetric transitions, compound/reverse project routes, corridor offsets,
 superelevation, approved design/control identity, device round trips and actual
 field checks remain open, alongside the other four survey-family gates.
+
+Final source receipt: `9904a08a` is pushed, its normal pre-push typing/lint and
+52 related tests in six suites pass, and
+[GitHub Gitleaks passed](https://github.com/error302/metardu/actions/runs/38797592292).
+The separate focused run above covers 71 tests/seven suites. The native source
+browser also confirms finite zero-transition results with combined TS/SC and
+CS/ST markers. The final compact plan proof is ignored at
+`.cache/release-verify/spiral-plan-proof.png`.
+
+The fresh read-only production compatibility receipt is ignored at
+`.cache/release-verify/survey-promotion-audit.json`: 114 source migrations versus
+112 applied, exactly 108/109 pending, no mutated or ghost entries, and deployed
+revision still `c1591bda`. The six columns required by the profile guard exist with
+the expected types. The production runtime is neither superuser, RLS-bypass nor
+profile-table owner. The legacy production profile table itself has RLS disabled,
+which makes the independent trigger safeguard essential; do not infer profile
+row-policy enforcement from the login's restricted flags. Existing recovery
+evidence in `RECOVERY_AND_MIGRATION_REVIEW_2026-10-10.md` was reviewed, but this
+read-only audit is not a promotion or a new archive restore. One pinned,
+recovery-reviewed promotion remains the immediate release step.
+
+No application image/container, builder, customer clone or volume was created or
+deleted. After the other source-work chat was confirmed idle, the exact owned
+synthetic rehearsal service was checked for identity, isolation, mount and zero
+active queries, then returned to its initial stopped state. Its data and retained
+synthetic evidence remain intact; production services were untouched. Temporary
+QA browser tabs were closed and the user's localhost CAD drawing was preserved.
+Concurrent admin UI/navigation work remains uncommitted outside these batches.
