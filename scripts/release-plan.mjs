@@ -42,3 +42,13 @@ export function rollbackService(image,revision,registryDirectory) {
 export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
   assert.ok(Number.isFinite(freeBytes)&&freeBytes>=reserveBytes,'Host free space is below the 8 GiB build reserve.')
 }
+
+export function assertSyntheticUpgradeProof(proof,revision) {
+  assert.equal(proof.revision,revision)
+  assert.equal(proof.status,'passed')
+  assert.equal(proof.sourceBaseline,112)
+  assert.equal(proof.customerDataCopied,false)
+  assert.equal(proof.newContainer,false)
+  assert.equal(proof.cleanup?.syntheticDatabaseRemoved,true)
+  assert.ok(proof.checks?.length>=5&&proof.checks.every(check=>check.passed===true),'A completed forward upgrade and preservation check is required.')
+}

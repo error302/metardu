@@ -7,7 +7,7 @@ import { resolve, join } from 'node:path'
 import pg from 'pg'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, assertBuildSpace } from './release-plan.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 
 const legacy = process.argv.length === 3
@@ -137,6 +137,7 @@ async function build() {
   assert.equal(receipt.rehearsal?.passed,true,'Pending SQL must first succeed on the existing synthetic database')
   if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'source-checks.json'),'utf8'));assert.equal(proof.revision,revision);assert.equal(proof.status,'passed');receipt.sourceChecks=proof.checks}
   if(!legacy)assert.equal(receipt.rehearsal.rollbackVerifier?.passed,true,'The current image startup verifier must accept the pinned forward registry in the existing synthetic database.')
+  if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'upgrade-checks.json'),'utf8'));assertSyntheticUpgradeProof(proof,revision);receipt.syntheticUpgrade=proof}
   const before=inspect();assert.equal(before.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
   assertBuildSpace(hostFreeBytes())
   const priorTag=JSON.parse(docker(['image','inspect',rollbackTag]))[0].Id

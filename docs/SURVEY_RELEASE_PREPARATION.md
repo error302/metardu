@@ -34,9 +34,19 @@ source, and 616 related tests in 91 suites passed. Next's production build and
 generated route validation remain separate gates.
 
 The existing synthetic rehearsal database already contained all 115 migrations.
-The normal migrator found no pending versions; this run did not prove applying
-the three pending migrations to a new copy of the production schema. It did
-check the complete synthetic ledger and validated construction constraints.
+Its no-op rerun checks the complete ledger and construction constraints; separate
+forward-upgrade proof is now required before building.
+
+`scripts/verify-survey-upgrade.mjs` subsequently bootstrapped all 112 prior source
+migrations in a separately marked temporary database on the existing synthetic
+service, then applied 108/109/110 through the normal pinned runner. No customer
+data or customer database schema was copied. All prior hashes, synthetic records,
+zero and negative measurements survived; the legacy text template became JSONB
+without losing its values. The new profile guard blocked self-promotion while
+allowing firm edits, and the new pipeline history accepted its owner while
+remaining hidden from another user. All five native checks passed. The temporary
+database was removed and its cleanup receipt verified. This source-baseline
+upgrade does not represent production data or replace recovery evidence.
 
 The **actual existing image's** production startup verifier accepted the pinned
 115-file registry against that synthetic database using its restricted runtime
@@ -60,7 +70,8 @@ receipts separate from the earlier authentication release. Review the existing
 receipt before resuming; `plan` refuses to overwrite it. Local evidence is in
 `.cache/release-verify/survey-release/`.
 
-Builds must pass pinned source checks and synthetic rehearsal first. The current
+Builds must pass pinned source checks, synthetic rehearsal and the separate
+completed forward-upgrade/preservation check first. The current
 production image is protected before reusing the candidate tag; the prior
 rollback alias is preserved without copying image data. Build context is a Git
 archive, so unrelated working-tree admin changes cannot enter it. The existing
