@@ -1,66 +1,9 @@
 'use client'
 /**
- * METARDU Global Map Page — Premium OpenLayers Interface
- *
- * ┌──────────────────────────────────────────────────────────────┐
- * │  ARCHITECTURE: Split into sub-components for maintainability │
- * │                                                              │
- * │  MapClient.tsx    → Orchestrator (state + wiring)           │
- * │  ├─ hooks/useMapInit.ts        → Map initialization         │
- * │  ├─ hooks/useMapBasemaps.ts    → Basemap layer management   │
- * │  ├─ hooks/useMapState.ts       → View persistence           │
- * │  ├─ hooks/useMapInteractions.ts → Draw/Measure/GPS/Export   │
- * │  ├─ components/MapToolbar.tsx   → Left sidebar (context)    │
- * │  ├─ components/MapOverlays.tsx  → Zoom/GPS/Stakeout (ctx)   │
- * │  ├─ components/MapStatusBar.tsx → Bottom coord bar (ctx)    │
- * │  ├─ components/MapLoadingOverlay.tsx → Loading/Error (ctx)  │
- * │  ├─ components/MapNotifications.tsx  → Toast (context)      │
- * │  ├─ components/MapCoordSearch.tsx   → Coord search (ctx)    │
- * │  ├─ components/CogoInfoPanel.tsx    → COGO traverse (ctx)   │
- * │  ├─ components/CogoToolsPanel.tsx   → COGO compute (ctx)    │
- * │  ├─ components/RotationControl.tsx  → North arrow reset     │
- * │  ├─ components/MapPrintButton.tsx   → Print button (ctx)    │
- * │  ├─ LayerControl (reusable, props)  → Grid/XYZ/WMS/Opacity │
- * │  ├─ VertexEditToolbar (ctx version) → Vertex editing + snap │
- * │  ├─ ProjectionSwitcher (context)    → CRS switching         │
- * │  ├─ StakeoutPanel (context)         → GPS stakeout HUD      │
- * │  ├─ SchemeLayerPanel (context)      → Scheme layer controls │
- * │  ├─ OfflineTileDownloader (context) → Offline tile dialog   │
- * │  ├─ SheetLayout (dynamic)           → Print layout overlay  │
- * │  └─ MapReactContext                 → Zero-prop data bus    │
- * │                                                              │
- * │  Performance optimizations:                                  │
- * │  - All sub-components wrapped in React.memo                 │
- * │  - useMemo for stable object references                     │
- * │  - useCallback for all interaction handlers                 │
- * │  - 100ms mouse position throttle                            │
- * │  - Dynamic imports for all OpenLayers modules               │
- * │  - Tile cache size 2048 for all basemaps                    │
- * │  - Map state persistence every 10s (not per move)           │
- * │  - Safety timeout: force ready after 5s                     │
- * └──────────────────────────────────────────────────────────────┘
- *
- * Features:
- *  - Draw interaction (Point, Line, Polygon, Circle)
- *  - Modify interaction (vertex editing)
- *  - Select interaction + Popup overlays
- *  - Undo / Redo history (via useMapHistory hook)
- *  - Measurement (Distance & Area with bearing)
- *  - GeoJSON / KML / WKT import; limited ASCII DXF import with project CRS and unit confirmation
- *  - GeoJSON / KML / WKT / DXF / LandXML export (LandXML import is not supported)
- *  - Drag & Drop file import
- *  - MousePosition (live coordinates in the declared survey CRS)
- *  - Geolocation (GPS tracking)
- *  - GPS Stakeout mode (Pro+)
- *  - Cluster source for project markers
- *  - Multiple basemaps (OSM, Satellite, Dark, Terrain)
- *  - Bearing/distance annotations on drawn features
- *  - Save drawn features to project
- *  - Offline tile download (Pro+)
- *  - URL param ?projectId=xxx deep linking
- *  - Keyboard shortcuts (Ctrl+Z/Y, Del, Esc)
- *  - Map state persistence (localStorage)
- *  - Coordinate search (lat/lon, UTM, DMS)
+ * Global OpenLayers map. MapClient wires the shared survey engine, project
+ * layers, drawing, measurement, set-out and export hooks into the workspace.
+ * The header, tool panels, navigation controls and status strip share the
+ * scoped layout in map-workspace.css. Controls mount after initialization.
  */
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
@@ -81,7 +24,6 @@ import { useGpsTracking } from '@/app/map/hooks/useGpsTracking'
 import { useProjectPoints } from '@/app/map/hooks/useProjectPoints'
 import { useMapPrintFlow } from '@/app/map/hooks/useMapPrintFlow'
 import { useMapSnapping } from '@/app/map/hooks/useMapSnapping'
-import { SchemeLayerPanel } from '@/app/map/components/SchemeLayerPanel'
 import type { StakeoutState } from '@/lib/surveyMapEngine/ol/stakeout'
 import type { MapCleanupRefs } from '@/lib/map/olTypes'
 
@@ -93,8 +35,8 @@ import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapRightDock } from '@/app/map/components/MapRightDock'
 import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
 import MapRail from '@/app/map/components/MapRail'
-import { SurveyWorkflowBadge } from '@/app/map/components/SurveyWorkflowBadge'
-import { MapCoordSearch } from '@/app/map/components/MapCoordSearch'
+import { MapWorkspaceHeader, MapBasemapBar } from '@/app/map/components/MapWorkspaceHeader'
+import './map-workspace.css'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
 import { MapToolDock, ReconContent, CaptureContent, ComputeContent, SetOutContent, LayersContent, ExportContent } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
@@ -674,17 +616,6 @@ export default function MapClient() {
     return () => clearTimeout(timer)
   }, [])
 
-  // ── Safety timeout: force mapReady after 5s ──
-  useEffect(() => {
-    const timeout = setTimeout(() => {
-      if (!mapReady) {
-        logger.warn('[MapClient] Forcing mapReady=true after 5s timeout')
-        setMapReady(true)
-      }
-    }, 5000)
-    return () => clearTimeout(timeout)
-  }, [mapReady])
-
   // ── Feature name update wrapper ──
   const handleUpdateFeatureName = useCallback((name: string) => {
     setFeatureName(name)
@@ -827,7 +758,7 @@ export default function MapClient() {
     setPaperSize,
     setOrientation,
     offlineMapExtent,
-    retryInit: () => { setInitError(''); setMapReady(false) },
+    retryInit: () => window.location.reload(),
     schemeProjectId,
     hasFeature,
     canUndo,
@@ -911,7 +842,7 @@ export default function MapClient() {
       <MapOverlayProvider>
       <div
         id="metardu-global-map"
-        className="h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
+        className="map-workspace h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
         style={{ '--map-bottom-offset': isMobile ? '64px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
@@ -920,24 +851,13 @@ export default function MapClient() {
         <div className="w-full h-full relative">
           <div ref={mapRef} className="w-full h-full" aria-label="Interactive survey map" />
 
-          {/* A quiet workspace header keeps the map context visible while the
-              tool rails remain dedicated to actions. */}
-          <div className="pointer-events-none absolute left-4 top-4 z-20 max-w-[min(17rem,calc(100vw-8rem))]">
-            <div className="rounded-xl border border-white/[0.08] bg-[color-mix(in_srgb,var(--bg-secondary)_82%,transparent)] px-3 py-2 shadow-lg backdrop-blur-xl">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Survey workspace</p>
-              <div className="mt-0.5 flex min-w-0 items-center gap-2">
-                <h1 className="text-sm font-semibold text-[var(--text-primary)]">Map &amp; capture</h1>
-                {schemeProjectId && <span className="min-w-0 truncate text-[10px] font-mono text-[var(--text-muted)]">Project {schemeProjectId}</span>}
-              </div>
-            </div>
-          </div>
-
           {/* ── Overlays (only when map is ready) ── */}
           {mapReady && (
             <>
               <MapOverlays />
 
-              <MapCoordSearch />
+              <MapWorkspaceHeader layersOpen={activeRailTool === 'layers'} onToggleLayers={() => setActiveRailTool(current => current === 'layers' ? null : 'layers')} />
+              <MapBasemapBar />
 
               {/* ── Tool Dock — MOBILE ONLY (bottom-sheet UX) ── */}
               {isMobile && <MapToolDock />}
@@ -999,9 +919,6 @@ export default function MapClient() {
 
               <MapNotifications />
 
-              {/* Scheme Layer Panel (right side, zero-prop) */}
-              <SchemeLayerPanel />
-
               {/* ── Unified Collapsible Right Dock (Zoom, Projection, North Arrow, Print) ── */}
               <MapRightDock />
 
@@ -1017,38 +934,19 @@ export default function MapClient() {
                 <>
                   <MapRail
                     items={[
-                      { id: 'recon', label: 'Recon & Search', icon: Binoculars, shortcut: '1', accent: '#3B82F6', panel: <ReconContent /> },
-                      { id: 'capture', label: 'Draw & Capture', icon: Crosshair, shortcut: '2', accent: '#D17B47', panel: <CaptureContent /> },
-                      { id: 'vertex', label: 'Vertex Editing', icon: PenLine, shortcut: '3', accent: '#D17B47', dividerAfter: true, panel: <VertexEditToolbar /> },
-                      { id: 'compute', label: 'Compute (COGO / Traverse)', icon: Calculator, shortcut: '4', accent: '#8B5CF6', panel: <ComputeContent /> },
-                      { id: 'measure', label: 'Measure', icon: Ruler, shortcut: '5', accent: '#8B5CF6', dividerAfter: true, panel: <MeasureRailPanel /> },
-                      { id: 'stakeout', label: 'Stakeout & GPS', icon: Target, shortcut: '6', accent: '#10B981', dividerAfter: true, panel: <SetOutContent /> },
-                      { id: 'layers', label: 'Layers', icon: Layers, shortcut: '7', accent: '#6366F1', panel: <LayersContent /> },
-                      { id: 'export', label: 'Export & Print', icon: Download, shortcut: '8', accent: '#F59E0B', panel: <ExportContent /> },
+                      { id: 'recon', label: 'Recon & Search', icon: Binoculars, shortcut: '1', panel: <ReconContent /> },
+                      { id: 'capture', label: 'Draw & Capture', icon: Crosshair, shortcut: '2', panel: <CaptureContent /> },
+                      { id: 'vertex', label: 'Vertex Editing', icon: PenLine, shortcut: '3', dividerAfter: true, panel: <VertexEditToolbar /> },
+                      { id: 'compute', label: 'Compute (COGO / Traverse)', icon: Calculator, shortcut: '4', panel: <ComputeContent /> },
+                      { id: 'measure', label: 'Measure', icon: Ruler, shortcut: '5', dividerAfter: true, panel: <MeasureRailPanel /> },
+                      { id: 'stakeout', label: 'Stakeout & GPS', icon: Target, shortcut: '6', dividerAfter: true, panel: <SetOutContent /> },
+                      { id: 'layers', label: 'Layers', icon: Layers, shortcut: '7', panel: <LayersContent /> },
+                      { id: 'export', label: 'Export & Print', icon: Download, shortcut: '8', panel: <ExportContent /> },
                     ]}
                     activeId={activeRailTool}
                     onActivate={setActiveRailTool}
                   />
 
-                  {/* Desktop active workflow badge */}
-                  {activeRailTool && (
-                    <SurveyWorkflowBadge
-                      activeItems={(() => {
-                        const defs: Record<string, { id: string; label: string; accent: string }> = {
-                          recon: { id: 'recon', label: 'Recon', accent: '#3B82F6' },
-                          capture: { id: 'capture', label: 'Capture', accent: '#D17B47' },
-                          vertex: { id: 'vertex', label: 'Vertex', accent: '#D17B47' },
-                          compute: { id: 'compute', label: 'Compute', accent: '#8B5CF6' },
-                          measure: { id: 'measure', label: 'Measure', accent: '#8B5CF6' },
-                          stakeout: { id: 'stakeout', label: 'Set Out', accent: '#10B981' },
-                          layers: { id: 'layers', label: 'Layers', accent: '#6366F1' },
-                          export: { id: 'export', label: 'Export', accent: '#F59E0B' },
-                        }
-                        const def = defs[activeRailTool]
-                        return def ? [def] : []
-                      })()}
-                    />
-                  )}
                 </>
               )}
 

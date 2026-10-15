@@ -27,7 +27,7 @@ const PROJECTIONS: ProjectionOption[] = [
   { code: 'EPSG:32736', label: 'WGS 84 / UTM Zone 36S', shortLabel: '32736', datum: 'WGS 84' },
 ]
 
-export const ProjectionSwitcher = memo(function ProjectionSwitcher() {
+export const ProjectionSwitcher = memo(function ProjectionSwitcher({ compact = false }: { compact?: boolean }) {
   const { activeSurveyCrs, selectSurveyGrid, currentSurveyCrs, schemeProjectId } = useMapContext()
   const [open, setOpen] = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
@@ -57,7 +57,7 @@ export const ProjectionSwitcher = memo(function ProjectionSwitcher() {
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setOpen(v => !v)}
-        className={[
+        className={compact ? 'map-grid-switcher' : [
           'flex items-center gap-1.5 px-2.5 h-11 sm:h-10 rounded-xl transition-all shadow-lg select-none',
           'bg-[color-mix(in_srgb,var(--bg-secondary)_85%,transparent)] backdrop-blur-xl border',
           'text-xs font-mono text-[var(--text-secondary)]',
@@ -67,14 +67,15 @@ export const ProjectionSwitcher = memo(function ProjectionSwitcher() {
         ].join(' ')}
         title={linkedProject ? `Survey grid: ${active.label}. Set in project reference system.` : `Survey grid: ${active.label}`}
         aria-label={`Survey grid: ${active.label}`}
+        aria-expanded={open}
       >
         <Globe className="w-3.5 h-3.5 text-[var(--accent)] shrink-0" />
-        <span className="font-semibold text-[11px]">{active.shortLabel}</span>
+        <span className="font-semibold text-[11px]">{compact && selectedCode && selectedCode !== 'EPSG:3857' ? active.label : active.shortLabel}</span>
         <ChevronDown className={`w-3 h-3 text-[var(--text-muted)] transition-transform duration-200 ${open ? 'rotate-180 text-[var(--accent)]' : ''}`} />
       </button>
 
       {open && (
-        <div className="absolute right-0 top-full mt-2 bg-[#0d0d0d]/95 backdrop-blur-2xl border border-white/10 rounded-xl shadow-2xl z-[1200] min-w-[240px] py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150">
+        <div className="map-projection-menu absolute right-0 top-full mt-2 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl shadow-2xl z-50 min-w-[240px] py-1.5 overflow-hidden animate-in fade-in zoom-in-95 duration-150" onKeyDown={(event) => { if (event.key === 'Escape') setOpen(false) }}>
           <div className="px-3 py-1.5 text-[10px] text-zinc-400 uppercase tracking-wider font-semibold border-b border-white/10 flex items-center justify-between">
             <span>{linkedProject ? 'Project survey grid' : 'Survey calculation grid'}</span>
             <span className="text-[9px] text-[var(--accent)] font-mono">EPSG</span>

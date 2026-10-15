@@ -41,6 +41,8 @@ import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
 import { InstantClosureFeedback } from '@/app/map/components/InstantClosureFeedback'
 import { SurveyWorkflowBadge } from '@/app/map/components/SurveyWorkflowBadge'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
+import { SchemeLayerPanel } from './SchemeLayerPanel'
+import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
 import { useSearchParams } from 'next/navigation'
 import { mapTopologyVertices } from '@/lib/survey/mapTopologyInput'
@@ -62,12 +64,12 @@ interface CategoryDef {
 }
 
 const CATEGORIES: CategoryDef[] = [
-  { id: 'recon',   icon: Binoculars,  label: 'Recon',   shortcut: '1', accent: '#3B82F6' },
+  { id: 'recon',   icon: Binoculars,  label: 'Recon',   shortcut: '1', accent: '#D17B47' },
   { id: 'capture', icon: Crosshair,   label: 'Capture', shortcut: '2', accent: '#D17B47' },
-  { id: 'compute', icon: Calculator,  label: 'Compute', shortcut: '3', accent: '#8B5CF6' },
-  { id: 'setout',  icon: Target,      label: 'Set Out', shortcut: '4', accent: '#10B981' },
-  { id: 'layers',  icon: Layers,      label: 'Layers',  shortcut: '5', accent: '#6366F1' },
-  { id: 'export',  icon: Download,    label: 'Export',  shortcut: '6', accent: '#F59E0B' },
+  { id: 'compute', icon: Calculator,  label: 'Compute', shortcut: '3', accent: '#D17B47' },
+  { id: 'setout',  icon: Target,      label: 'Set Out', shortcut: '4', accent: '#D17B47' },
+  { id: 'layers',  icon: Layers,      label: 'Layers',  shortcut: '5', accent: '#D17B47' },
+  { id: 'export',  icon: Download,    label: 'Export',  shortcut: '6', accent: '#D17B47' },
 ]
 
 // ---------------------------------------------------------------------------
@@ -89,7 +91,7 @@ function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: st
   )
 }
 
-function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled }: {
+function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled, pressed }: {
   label: string
   icon: React.ReactNode
   isActive: boolean
@@ -97,11 +99,13 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled 
   danger?: boolean
   shortcut?: string
   disabled?: boolean
+  pressed?: boolean
 }) {
   return (
     <button
       onClick={onClick}
       disabled={disabled}
+      aria-pressed={pressed}
       title={shortcut ? `${label} (${shortcut})` : label}
       className={`
         flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all duration-150 text-xs font-medium
@@ -138,7 +142,7 @@ function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
       title={shortcut ? `${label} (${shortcut})` : label}
       className={`
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150
-        w-[50px] h-[50px] shrink-0 relative
+        w-full min-h-[50px] shrink-0 relative
         ${isActive
           ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'
           : 'bg-white/[0.02] border border-white/[0.05] text-[var(--text-secondary)] hover:bg-white/[0.05] hover:text-[var(--text-primary)]'}
@@ -521,16 +525,15 @@ export const LayersContent = memo(function LayersContent() {
   const {
     mapInstance, basemap, toggleBasemap, setOfflineDialogOpen,
     layerOpacity, handleOpacityChange,
-    showSchemeParcels, showSchemeBlocks, showSchemeBeacons,
-    toggleSchemeParcelVisibility, toggleSchemeBlockVisibility, toggleSchemeBeaconVisibility,
-    schemeLoaded, schemeParcelCount, schemeBlockCount, schemeBeaconCount,
-    zoomToScheme, removeScheme, loadSchemeData, schemeLoading,
     showOsmBuildings, toggleOsmBuildings,
+    hasProjectId, featureCount, currentSurveyCrs,
   } = useMapContext()
+  const [section, setSection] = useState<'base' | 'survey' | 'reference'>('base')
   const [cachedTileSources, setCachedTileSources] = useState<CachedSourceInfo[]>([])
   const [cachedTilesLoading, setCachedTilesLoading] = useState(false)
   const [cachedTilesError, setCachedTilesError] = useState<string | null>(null)
-  const [activeCachedSourceId, setActiveCachedSourceId] = useState<string | null>(null)
+  const visibleBasemap = useVisibleBasemap()
+  const activeCachedSourceId = visibleBasemap.startsWith('offline-') ? visibleBasemap.slice('offline-'.length) : null
 
   const refreshCachedTileSources = useCallback(async () => {
     setCachedTilesLoading(true)
@@ -559,7 +562,6 @@ export const LayersContent = memo(function LayersContent() {
     if (!map) return
 
     if (activeCachedSourceId === source.sourceId) {
-      setActiveCachedSourceId(null)
       toggleBasemap(basemap)
       return
     }
@@ -588,25 +590,26 @@ export const LayersContent = memo(function LayersContent() {
       }
       offlineLayer.setVisible(true)
       map.render()
-      setActiveCachedSourceId(source.sourceId)
     } catch (error) {
       setCachedTilesError(error instanceof Error ? error.message : 'Could not activate this cached map.')
     }
   }, [mapInstance, activeCachedSourceId, basemap, toggleBasemap])
 
   const selectStandardBasemap = useCallback((mode: 'osm' | 'satellite' | 'dark' | 'terrain') => {
-    setActiveCachedSourceId(null)
     toggleBasemap(mode)
   }, [toggleBasemap])
 
   return (
     <div className="space-y-0.5">
-      <SectionLabel hint="⌘B">Basemap</SectionLabel>
-      <div className="grid grid-cols-3 gap-1.5">
-        <ToolBtn label="OSM"       icon={<Globe className="w-5 h-5" />}     isActive={!activeCachedSourceId && basemap === 'osm'}       onClick={() => selectStandardBasemap('osm')} />
-        <ToolBtn label="Satellite" icon={<Satellite className="w-5 h-5" />} isActive={!activeCachedSourceId && basemap === 'satellite'} onClick={() => selectStandardBasemap('satellite')} />
-        <ToolBtn label="Dark"      icon={<Moon className="w-5 h-5" />}      isActive={!activeCachedSourceId && basemap === 'dark'}      onClick={() => selectStandardBasemap('dark')} />
-        <ToolBtn label="Terrain"   icon={<Mountain className="w-5 h-5" />}  isActive={!activeCachedSourceId && basemap === 'terrain'}  onClick={() => selectStandardBasemap('terrain')} />
+      <div className="map-layer-tabs" role="group" aria-label="Layer groups">
+        {(['base', 'survey', 'reference'] as const).map(group => <button type="button" key={group} aria-pressed={section === group} onClick={() => setSection(group)}>{group.charAt(0).toUpperCase() + group.slice(1)}</button>)}
+      </div>
+      <div hidden={section !== 'base'}>
+      <div className="space-y-1" role="group" aria-label="Base layers">
+        <ActionBtn label="OpenStreetMap" icon={<Globe className="w-4 h-4" />} isActive={visibleBasemap === 'osm'} pressed={visibleBasemap === 'osm'} onClick={() => selectStandardBasemap('osm')} />
+        <ActionBtn label="Satellite · Esri" icon={<Satellite className="w-4 h-4" />} isActive={visibleBasemap === 'satellite'} pressed={visibleBasemap === 'satellite'} onClick={() => selectStandardBasemap('satellite')} />
+        <ActionBtn label="Terrain · Esri" icon={<Mountain className="w-4 h-4" />} isActive={visibleBasemap === 'terrain'} pressed={visibleBasemap === 'terrain'} onClick={() => selectStandardBasemap('terrain')} />
+        <ActionBtn label="Dark · OpenStreetMap" icon={<Moon className="w-4 h-4" />} isActive={visibleBasemap === 'dark'} pressed={visibleBasemap === 'dark'} onClick={() => selectStandardBasemap('dark')} />
       </div>
 
       <SectionLabel>Downloaded Basemaps</SectionLabel>
@@ -641,14 +644,6 @@ export const LayersContent = memo(function LayersContent() {
         {cachedTilesError && <p role="alert" className="px-1 text-[10px] text-red-400">{cachedTilesError}</p>}
       </div>
 
-      <SectionLabel>3D Footprints</SectionLabel>
-      <ActionBtn
-        label={showOsmBuildings ? 'OSM Buildings (Active)' : 'OSM Buildings'}
-        icon={<Building2 className="w-4 h-4" />}
-        isActive={showOsmBuildings}
-        onClick={toggleOsmBuildings}
-      />
-
       <SectionLabel>Basemap Opacity</SectionLabel>
       <div className="flex items-center gap-2 px-1">
         <input
@@ -661,23 +656,21 @@ export const LayersContent = memo(function LayersContent() {
         <span className="text-[10px] text-[var(--text-muted)] font-mono w-8 text-right">{Math.round(layerOpacity * 100)}%</span>
       </div>
 
-      <SectionLabel hint="⌘L">Scheme Layers</SectionLabel>
-      {!schemeLoaded ? (
-        <ActionBtn label={schemeLoading ? 'Loading…' : 'Load Scheme Data'} icon={<Layers className="w-4 h-4" />} isActive={schemeLoading} onClick={loadSchemeData} />
-      ) : (
-        <div className="space-y-1">
-          <ActionBtn label={`Parcels (${schemeParcelCount})`}  icon={<Hexagon className="w-4 h-4" />} isActive={showSchemeParcels} onClick={toggleSchemeParcelVisibility} />
-          <ActionBtn label={`Blocks (${schemeBlockCount})`}    icon={<Layers className="w-4 h-4" />}  isActive={showSchemeBlocks}  onClick={toggleSchemeBlockVisibility} />
-          <ActionBtn label={`Beacons (${schemeBeaconCount})`}  icon={<MapPin className="w-4 h-4" />}  isActive={showSchemeBeacons} onClick={toggleSchemeBeaconVisibility} />
-          <div className="flex gap-1.5 mt-1">
-            <button onClick={zoomToScheme} className="flex-1 py-1.5 rounded-lg border border-white/[0.06] text-[10px] text-[var(--text-secondary)] hover:bg-white/[0.04] transition-all">Zoom to Scheme</button>
-            <button onClick={removeScheme} className="flex-1 py-1.5 rounded-lg border border-red-500/20 text-[10px] text-red-400 hover:bg-red-500/10 transition-all">Remove</button>
-          </div>
-        </div>
-      )}
-
-      <SectionLabel hint="⌘O">Offline</SectionLabel>
+      <SectionLabel>Offline</SectionLabel>
       <ActionBtn label="Download Tiles" icon={<Download className="w-4 h-4" />} isActive={false} onClick={() => setOfflineDialogOpen(true)} shortcut="⌘O" />
+      </div>
+      <div hidden={section !== 'survey'}>
+        <p className="mb-3 text-xs text-[var(--text-secondary)]">{featureCount} drawn feature{featureCount === 1 ? '' : 's'}. Import GeoJSON, KML or WKT by dropping a file onto the map.</p>
+        {hasProjectId ? <SchemeLayerPanel /> : <p className="text-xs leading-relaxed text-[var(--text-muted)]">Open the map from a project to load its parcels, blocks and beacons. <a href="/projects" className="text-[var(--accent)] underline">Choose a project</a></p>}
+      </div>
+      <div hidden={section !== 'reference'}>
+        <SectionLabel>Context layers</SectionLabel>
+        <ActionBtn label={showOsmBuildings ? 'OSM Buildings (Active)' : 'OSM Buildings'} icon={<Building2 className="w-4 h-4" />} isActive={showOsmBuildings} onClick={toggleOsmBuildings} />
+        <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">OpenStreetMap footprints provide context and are not surveyed boundaries.</p>
+        <SectionLabel>Coordinate reference</SectionLabel>
+        <p className="text-xs text-[var(--text-secondary)]">{currentSurveyCrs ?? 'Survey grid not set'}</p>
+        <p className="mt-2 text-[11px] leading-relaxed text-[var(--text-muted)]">The map displays in EPSG:3857. The survey grid in the header controls coordinate calculations.</p>
+      </div>
     </div>
   )
 })
@@ -746,12 +739,13 @@ export const MapToolDock = memo(function MapToolDock() {
 
   const togglePanel = useCallback((cat: DockCategory) => {
     setOpenPanels(prev => {
+      if (isMobile) return prev.has(cat) ? new Set() : new Set([cat])
       const next = new Set(prev)
       if (next.has(cat)) next.delete(cat)
       else next.add(cat)
       return next
     })
-  }, [])
+  }, [isMobile])
 
   const closePanel = useCallback((cat: DockCategory) => {
     setOpenPanels(prev => {
@@ -768,7 +762,7 @@ export const MapToolDock = memo(function MapToolDock() {
       '4': 'setout', '5': 'layers', '6': 'export',
     }
     function handleKey(e: KeyboardEvent) {
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return
+      if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement)?.isContentEditable) return
       const cat = keyMap[e.key]
       if (cat) { e.preventDefault(); togglePanel(cat) }
       if (e.key === 'Escape' && openPanels.size > 0) setOpenPanels(new Set())
@@ -803,7 +797,6 @@ export const MapToolDock = memo(function MapToolDock() {
   if (isMobile) {
     return (
       <>
-        <SurveyWorkflowBadge activeItems={CATEGORIES.filter(c => openPanels.has(c.id))} />
         <MetarduWatermark />
 
         {/* Active panel — bottom sheet, only one at a time on mobile */}
@@ -812,8 +805,8 @@ export const MapToolDock = memo(function MapToolDock() {
           const catDef = CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
           return (
             <div
-              className="fixed inset-x-0 z-40 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border-t border-white/[0.08] rounded-t-2xl shadow-[0_-8px_40px_rgba(0,0,0,0.5)] transition-transform duration-300"
-              style={{ maxHeight: '70vh', bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}
+              className="map-mobile-tool-panel bg-[var(--bg-secondary)] shadow-xl"
+              role="region" aria-label={`${catDef.label} tools`}
             >
               <div className="flex justify-center pt-2 pb-1">
                 <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
@@ -829,7 +822,7 @@ export const MapToolDock = memo(function MapToolDock() {
                   <X className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="overflow-y-auto px-3 pb-4 max-h-[55vh] custom-scrollbar">
+              <div className="map-mobile-panel-body overflow-y-auto px-3 pb-4 custom-scrollbar">
                 {renderPanelContent(cat)}
               </div>
             </div>
@@ -837,7 +830,7 @@ export const MapToolDock = memo(function MapToolDock() {
         })()}
 
         {/* Bottom horizontal dock bar */}
-        <div className="fixed inset-x-0 z-50 flex items-center justify-center gap-1 px-2 py-2 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-2xl border-t border-white/[0.06]" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 64px)' }}>
+        <div className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
             const open = openPanels.has(cat.id)

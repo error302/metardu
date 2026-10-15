@@ -112,7 +112,7 @@ export function MapInteractionToggle({ mapInstance }: { mapInstance: React.Mutab
 
   return (
     <>
-      <MapOverlaySlot id="gesture-lock" anchor="bottom-left" order={50} layer="STAKEOUT">
+      <MapOverlaySlot id="gesture-lock" anchor="bottom-left" order={50} layer="CONTROLS" className="map-gesture-lock">
         <button
           onClick={toggleLock}
           className={`flex items-center justify-center w-12 h-12 rounded-xl backdrop-blur-xl border transition-all duration-200 shadow-lg ${

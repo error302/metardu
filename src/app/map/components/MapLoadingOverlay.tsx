@@ -11,6 +11,7 @@
 
 import React, { memo } from 'react'
 import { useMapContext } from '@/app/map/MapReactContext'
+import { LoadingState } from '@/components/shared/LoadingState'
 
 export const MapLoadingOverlay = memo(function MapLoadingOverlay() {
   const { mapReady, initError, retryInit } = useMapContext()
@@ -19,7 +20,7 @@ export const MapLoadingOverlay = memo(function MapLoadingOverlay() {
 
   return (
     <div className="absolute inset-0 z-30 flex items-center justify-center bg-black/60 backdrop-blur-sm">
-      <div className="text-center max-w-md px-6 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] rounded-xl py-5 shadow-2xl">
+      <div className="text-center max-w-md px-6">
         {initError ? (
           <>
             <div className="text-[var(--error)] text-lg mb-2">Map Error</div>
@@ -40,10 +41,7 @@ export const MapLoadingOverlay = memo(function MapLoadingOverlay() {
             </div>
           </>
         ) : (
-          <>
-            <div className="w-8 h-8 border-2 border-[var(--accent)] border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-            <p className="text-sm text-[var(--text-secondary)]">Loading map...</p>
-          </>
+          <LoadingState message="Loading survey map" />
         )}
       </div>
     </div>

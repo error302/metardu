@@ -16,7 +16,6 @@ export const MapOverlays = memo(function MapOverlays() {
     panelOpen,
     setPanelOpen,
     gpsTracking,
-    gpsPos,
     stakeoutActive,
     stakeoutTarget,
     stakeoutInfo,
@@ -40,24 +39,13 @@ export const MapOverlays = memo(function MapOverlays() {
       )}
 
 
-      {/* GPS status badge - bottom left */}
-      {gpsTracking && gpsPos && (
-        <div
-          className="absolute z-[1000] bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-sm border border-amber-500/35 rounded-lg px-3 py-1.5 text-xs text-amber-300 font-mono"
-          style={{ bottom: `calc(${isMobile ? '64px' : '0px'} + 56px)`, left: '16px' }}
-          title="Browser device location. Confirm your survey GNSS solution and job tolerance before setting out."
-        >
-          Device location {'\u00B1'}{Math.round(gpsPos.accuracy)}m
-        </div>
-      )}
-
       {/* Stakeout HUD (simplified — full panel is in StakeoutPanel component) */}
       {stakeoutActive && stakeoutTarget && (() => {
         const info = stakeoutInfo()
         return (
           <div
             className="absolute z-[1000] bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-4 py-3 shadow-2xl"
-            style={{ bottom: `calc(${isMobile ? '64px' : '0px'} + 56px)`, right: '16px', width: isMobile ? '180px' : '220px' }}
+            style={{ bottom: 'calc(var(--map-bottom-clearance) + 60px)', right: '68px', width: isMobile ? '180px' : '220px' }}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-[10px] text-[var(--accent)] uppercase tracking-[0.15em] font-bold">Stakeout</span>

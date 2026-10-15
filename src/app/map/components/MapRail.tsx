@@ -47,6 +47,7 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
     const handleKeyDown = (e: KeyboardEvent) => {
       // Don't trigger if user is typing in an input or editable element
       if (
+        e.target instanceof HTMLSelectElement ||
         e.target instanceof HTMLInputElement ||
         e.target instanceof HTMLTextAreaElement ||
         (e.target as HTMLElement)?.isContentEditable
@@ -55,6 +56,7 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
       }
 
       if (e.metaKey || e.ctrlKey || e.altKey) return
+      if (e.key === 'Escape') { onActivate(null); return }
 
       const matchingItem = items.find((i) => i.shortcut && i.shortcut.toLowerCase() === e.key.toLowerCase())
       if (matchingItem) {
@@ -81,7 +83,7 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
           title="Expand Map Tools Rail"
           aria-label="Expand tools rail"
           className={cn(
-            'absolute left-1.5 top-1/2 -translate-y-1/2 z-30 flex flex-col items-center gap-2 px-2 py-3.5 rounded-xl',
+            'map-tools-expand absolute z-30 flex flex-col items-center gap-2 px-2 py-3.5 rounded-xl',
             'bg-[color-mix(in_srgb,var(--bg-secondary)_85%,transparent)] backdrop-blur-xl',
             'border border-[var(--border-color)]/[0.15] shadow-xl',
             'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-[var(--bg-secondary)] transition-all group cursor-pointer'
@@ -100,7 +102,7 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
           role="toolbar"
           aria-label="Map tools"
           className={cn(
-            'absolute left-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-1 p-1 rounded-xl',
+            'map-tools-rail absolute z-30 flex flex-col gap-1 p-1 rounded-xl',
             'bg-[color-mix(in_srgb,var(--bg-secondary)_75%,transparent)] backdrop-blur-xl',
             'border border-[var(--border-color)]/[0.08] shadow-lg transition-all duration-200',
             className,
@@ -176,14 +178,15 @@ export default function MapRail({ items, activeId, onActivate, className }: MapR
         <div
           role="complementary"
           aria-label={`${active.label} panel`}
-          className="absolute left-16 top-1/2 -translate-y-1/2 z-30 w-72 max-h-[70vh] overflow-y-auto rounded-xl bg-[color-mix(in_srgb,var(--bg-secondary)_85%,transparent)] backdrop-blur-xl border border-[var(--border-color)]/[0.08] shadow-xl"
+          id={`map-panel-${active.id}`}
+          className={`map-context-panel ${active.id === 'layers' ? 'map-layers-panel' : ''}`}
         >
           <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
             <div className="flex items-center gap-2">
               {active.accent && (
                 <div className="w-2 h-2 rounded-full" style={{ backgroundColor: active.accent }} />
               )}
-              <span className="text-xs font-semibold uppercase tracking-wider text-[var(--text-primary)]">{active.label}</span>
+              <span className="text-xs font-semibold text-[var(--text-primary)]">{active.id === 'layers' ? 'Map layers' : active.label}</span>
             </div>
             <button
               onClick={() => onActivate(null)}

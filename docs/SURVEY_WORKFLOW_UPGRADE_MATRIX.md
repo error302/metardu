@@ -1253,3 +1253,17 @@ The current workspace recomputes measured-profile exports independently and has
 no caller for that legacy endpoint. Revision/approval gating, wider corridor and
 survey families, current browser/device/field/print checks, paid/provider flows
 and public-directory acceptance still need their own evidence.
+
+### Source checkpoint — 16 October 2026
+
+The legacy quantity endpoint has a source replacement with server-calculated,
+hashed draft snapshots and a workspace register/CSV workflow. Initial native
+and browser proof passed, but the extended shared-reader/atomic-rollback run is
+incomplete after source authentication failures. No new quantity release has
+been promoted. See `ROAD_QUANTITY_RECORDING.md` for precise evidence and gates.
+
+The map workspace now follows the supplied arrangement with a shared header,
+right-side grouped layers, visible scale/attribution and mobile tools in rows of
+three. Decimal navigation no longer guesses a latitude/longitude swap, and tools
+wait for actual map initialization. See `MAP_WORKSPACE_LAYOUT.md`; source/browser
+verification is distinct from production and field acceptance.

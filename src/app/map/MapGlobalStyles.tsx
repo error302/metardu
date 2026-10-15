@@ -22,9 +22,6 @@ export default function MapGlobalStyles() {
       .ol-mouse-position {
         display: none !important;
       }
-      .ol-scale-line {
-        display: none !important;
-      }
 
       /* ── Overview map styling ── */
       .ol-overviewmap {
@@ -147,12 +144,6 @@ export default function MapGlobalStyles() {
         overscroll-behavior: none;
       }
 
-      /* ── Attribution collapse on mobile ── */
-      @media (max-width: 640px) {
-        .ol-attribution {
-          display: none !important;
-        }
-      }
 
       /* ── Slide in animation ── */
       @keyframes slideInLeft {

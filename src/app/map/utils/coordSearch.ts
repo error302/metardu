@@ -304,11 +304,16 @@ export async function handleCoordSearch(
   }
 
   // ── Try decimal lat/lon or UTM ──
-  const parts = searchInput.trim().split(/[,\s]+/).map(Number).filter(n => !isNaN(n))
+  const tokens = searchInput.trim().split(/[,\s]+/)
+  const parts = tokens.map(Number)
+  if (tokens.length !== 2 || !tokens.every(token => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(token)) || !parts.every(Number.isFinite)) {
+    onMessage?.('Enter latitude, longitude in that order, or a valid DMS, MGRS, beacon or parcel reference.')
+    return
+  }
 
   if (parts.length >= 2) {
-    let lon = parts[1]
-    let lat = parts[0]
+    const lon = parts[1]
+    const lat = parts[0]
 
     // If values look like Eastings/Northings (large numbers), treat differently
     if (Math.abs(parts[0]) > 100 && Math.abs(parts[1]) > 100) {
@@ -320,12 +325,16 @@ export async function handleCoordSearch(
       try {
         const { transform } = await import('ol/proj')
         const [x, y] = transform([parts[0], parts[1]], epsg, 'EPSG:3857')
+        if (!Number.isFinite(x) || !Number.isFinite(y)) throw new Error('Invalid projected coordinates')
         map.getView().animate({ center: [x, y], zoom: 16, duration: 600 })
       } catch {
         onMessage?.(`These coordinates could not be transformed from ${epsg}. Verify the CRS and values.`)
       }
     } else {
-      if (lon > lat) { [lon, lat] = [lat, lon] } // common swap
+      if (Math.abs(lat) > 90 || Math.abs(lon) > 180) {
+        onMessage?.('Latitude must be between −90 and 90; longitude between −180 and 180. Enter latitude first.')
+        return
+      }
       const { fromLonLat } = await import('ol/proj')
       const center = fromLonLat([lon, lat])
       map.getView().animate({ center, zoom: 16, duration: 600 })
