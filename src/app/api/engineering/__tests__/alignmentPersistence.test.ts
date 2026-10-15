@@ -90,7 +90,7 @@ it.each([
   ['IPs', saveIPs, { alignment_id: 'alignment', ips: [{ name: 'PI', easting: 0, northing: 0, radius: 20 }] }],
   ['VIPs', saveVIPs, { alignment_id: 'alignment', vips: [{ chainage: 0, reduced_level: 0, k_value: 20 }] }],
   ['stations', saveStations, { alignment_id: 'alignment', stations: [{ chainage: 0, ground_level: 0 }] }],
-  ['earthworks', saveEarthworks, { alignment_id: 'alignment', method: 'end-area', results: [{ chainage: 0, cut_area: 0, fill_area: 0, cut_volume: 0, fill_volume: 0, cumulative_cut: 0, cumulative_fill: 0, net_volume: 0, mass_ordinate: 0 }] }],
+  ['earthworks', saveEarthworks, { alignment_id: '11111111-1111-4111-8111-111111111111', client_run_id: '22222222-2222-4222-8222-222222222222', expected_input_hash: 'a'.repeat(64) }],
 ])('refuses another owner before any %s mutation when row policies are absent', async (_name, handler, body) => {
   owner = 'someone-else'
   const response = await invoke(handler, body)

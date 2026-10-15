@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { apiGet, apiPost } from '@/lib/api/client'
 import { saveProjectEngineeringData, hydrateSavedEngineeringRoad } from '@/lib/engineering/projectEngineeringPersistence'
 import { roadAlignmentMirrorPayload, roadFromAlignmentMirror } from '@/lib/engineering/roadAlignmentMirror'
-import { resolveStageReference, type StageReference } from '@/lib/workspaces/stageReference'
+import { resolveStageReference, resolveDeclaredStageReference, type StageReference } from '@/lib/workspaces/stageReference'
 import type {
   EngineeringData,
   EngineeringMode,
@@ -17,6 +17,7 @@ import type {
 } from '@/types/engineering'
 import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
+import { LoadingState } from '@/components/shared/LoadingState'
 import type { EngineeringProject, EngineeringStepId } from './shared'
 import { getEngineeringSteps } from './getEngineeringSteps'
 import { renderStepContent } from './steps/renderStepContent'
@@ -44,6 +45,7 @@ const alignmentRowSchema = z.object({
 const alignmentResponseSchema = z.object({
   data: z.union([alignmentRowSchema, z.null()]),
 }).passthrough()
+const projectReferenceResponseSchema = z.object({ referenceSystem: z.record(z.unknown()).nullable() })
 
 // POST /api/engineering/alignment returns { data: { id, ... } }
 const alignmentMutationSchema = z.object({
@@ -64,25 +66,25 @@ interface SurveyorProfileDbRow {
   isk_number?: string | null
   verified_isk?: boolean | null
   full_name?: string | null
-  name?: string | null
   firm_name?: string | null
-  company?: string | null
 }
 
 export default function EngineeringWorkspacePage() {
   const params = useParams<{ id: string }>()
   const router = useRouter()
   const searchParams = useSearchParams()
-  const dbClient = createClient()
+  const [dbClient] = useState(createClient)
 
   const [project, setProject] = useState<EngineeringProject | null>(null)
   const [surveyorProfile, setSurveyorProfile] = useState<SurveyorProfileSubmission | null>(null)
   const [loading, setLoading] = useState(true)
+  const [projectLoadError, setProjectLoadError] = useState('')
   const [loadingEngineering, setLoadingEngineering] = useState(false)
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
   const [engineeringLoadError, setEngineeringLoadError] = useState('')
   const engineeringLoadGeneration = useRef(0)
+  const projectLoadGeneration = useRef(0)
   const appliedStepRef = useRef<string | null>(null)
 
   // Sub-tab for quick compute panels
@@ -128,69 +130,72 @@ export default function EngineeringWorkspacePage() {
   }, [])
 
   const fetchProject = useCallback(async () => {
+    const generation = ++projectLoadGeneration.current
     setLoading(true)
+    setProjectLoadError('')
+    try {
     const projectResult = (await dbClient
       .from('projects')
       .select('*')
       .eq('id', params.id)
       .single()) as { data: ProjectDbRow | null; error: { message: string } | null }
     const { data, error } = projectResult
+    if (generation !== projectLoadGeneration.current) return
 
-    if (error || !data) {
-      setLoading(false)
+    if (error) {
+      setProjectLoadError('The project could not be loaded. Check your connection or access, then retry.')
       return
     }
+    if (!data) {
+      setProject(null)
+      return
+    }
+    if (data.id !== params.id) throw new Error('Unexpected project response')
 
-    const referenceResult = await dbClient
-      .from('project_reference_systems')
-      .select('*')
-      .eq('project_id', data.id)
-      .limit(1)
+    const referenceResult = await apiGet(`/api/project/${encodeURIComponent(data.id)}/reference-system`, projectReferenceResponseSchema, { ttlMs: 0 })
+    if (generation !== projectLoadGeneration.current) return
     const legacyReference = {
       datum: typeof data.datum === 'string' ? data.datum : null,
       utm_zone: typeof data.utm_zone === 'number' ? data.utm_zone : null,
       hemisphere: typeof data.hemisphere === 'string' ? data.hemisphere : null,
     }
-    const declaredReference = (referenceResult.data as unknown as Array<Record<string, unknown>> | null)?.[0] ?? null
-    const projectReferenceSystem: StageReference = referenceResult.error
-      ? {
-          code: null,
-          name: 'Reference system not set',
-          source: 'missing',
-          hemisphere: null,
-          verticalDatum: null,
-          distanceMode: null,
-        }
-      : resolveStageReference(
-          declaredReference,
-          legacyReference,
-        )
+    const declaredReference = referenceResult.referenceSystem
+    const projectReferenceSystem: StageReference = declaredReference
+      ? resolveDeclaredStageReference(declaredReference)
+      : resolveStageReference(null, legacyReference)
+    if (declaredReference && !projectReferenceSystem.code) throw new Error('Invalid saved reference system')
     const engData = (data?.engineering_data ?? null) as EngineeringData | null
     setProject({ ...data, engineering_data: engData, projectReferenceSystem } as EngineeringProject)
 
     const profileResult = (await dbClient
       .from('surveyor_profiles')
-      .select('isk_number, verified_isk, full_name, name, firm_name, company')
+      .select('isk_number, verified_isk, full_name, firm_name')
       .eq('user_id', data.user_id)
       .single()) as { data: SurveyorProfileDbRow | null }
     const profile = profileResult.data
+    if (generation !== projectLoadGeneration.current) return
 
     if (profile) {
       setSurveyorProfile({
         registrationNumber: profile.isk_number ?? '',
         iskNumber: profile.isk_number ?? '',
         verifiedIsk: profile.verified_isk ?? false,
-        fullName: profile.full_name ?? profile.name ?? '',
-        firmName: profile.firm_name ?? profile.company ?? '',
+        fullName: profile.full_name ?? '',
+        firmName: profile.firm_name ?? '',
         isKMemberActive: profile.verified_isk ?? true
       })
     }
 
-    setLoading(false)
+    } catch {
+      if (generation === projectLoadGeneration.current) setProjectLoadError('The project could not be loaded. Check your connection or access, then retry.')
+    } finally {
+      if (generation === projectLoadGeneration.current) setLoading(false)
+    }
   }, [params.id, dbClient])
 
   useEffect(() => {
-    fetchProject()
+    void fetchProject()
+    return () => { projectLoadGeneration.current += 1 }
   }, [fetchProject])
 
   // Load engineering data from the relational backend after project is fetched
@@ -340,11 +345,15 @@ export default function EngineeringWorkspacePage() {
   }
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-black flex items-center justify-center">
-        <div className="text-zinc-500 animate-pulse">Loading...</div>
-      </div>
-    )
+    return <LoadingState message="Loading engineering project" />
+  }
+
+  if (projectLoadError) {
+    return <div className="min-h-screen bg-black flex flex-col items-center justify-center gap-4 p-6 text-center">
+      <p role="alert" className="text-amber-300">{projectLoadError}</p>
+      <button type="button" onClick={() => void fetchProject()} className="rounded-lg border border-zinc-600 px-4 py-2 text-amber-300">Retry project load</button>
+      <button type="button" onClick={() => router.push('/dashboard')} className="text-zinc-400">Back to Dashboard</button>
+    </div>
   }
 
   if (!project) {

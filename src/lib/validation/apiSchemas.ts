@@ -384,20 +384,10 @@ export const SaveStationsSchema = z.object({
 })
 
 export const SaveEarthworksSchema = z.object({
-  alignment_id: z.string().min(1, 'alignment_id is required'),
-  method: z.string().min(1, 'method is required').max(50),
-  results: z.array(z.object({
-    chainage: z.number(),
-    cut_area: z.number(),
-    fill_area: z.number(),
-    cut_volume: z.number(),
-    fill_volume: z.number(),
-    cumulative_cut: z.number(),
-    cumulative_fill: z.number(),
-    net_volume: z.number(),
-    mass_ordinate: z.number(),
-  })).min(1, 'At least one result row is required').max(5000),
-})
+  alignment_id: z.string().uuid(),
+  client_run_id: z.string().uuid(),
+  expected_input_hash: z.string().regex(/^[a-f0-9]{64}$/),
+}).strict()
 
 export const SaveEngineeringDataSchema = z.object({
   projectId: z.string().min(1, 'projectId is required'),

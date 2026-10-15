@@ -15,6 +15,7 @@
 import { db } from '@/lib/db'
 import { recordEvidenceEvent } from '@/lib/observations/observationBatches'
 import type { PoolClient } from 'pg'
+import { canonicalJson } from '@/lib/provenance/canonicalJson'
 
 export type DesignDiscipline =
   | 'general'
@@ -42,6 +43,8 @@ export interface DesignRevisionInput {
   userId?: string | null
   /** Default true. False is only valid when no current revision exists. */
   supersedeCurrent?: boolean
+  /** Calculation snapshots remain drafts; recording is not a review submission. */
+  draftOnly?: boolean
 }
 
 export interface DesignRevisionRecord {
@@ -62,23 +65,10 @@ export interface DesignRevisionRecord {
 
 /** Stable hash of a design payload, so two identical designs are detectable. */
 export function hashDesignPayload(payload: Record<string, unknown>): string {
-  const canonical = JSON.stringify(sortKeys(payload));
+  const canonical = canonicalJson(payload);
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { createHash } = require('crypto') as typeof import('crypto');
   return createHash('sha256').update(canonical).digest('hex');
-}
-
-function sortKeys(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(sortKeys);
-  if (value && typeof value === 'object') {
-    return Object.keys(value as Record<string, unknown>)
-      .sort()
-      .reduce<Record<string, unknown>>((acc, key) => {
-        acc[key] = sortKeys((value as Record<string, unknown>)[key]);
-        return acc;
-      }, {});
-  }
-  return value;
 }
 
 /**
@@ -143,7 +133,7 @@ export async function recordDesignRevision(
         entityId,
         revisionLabel,
         revisionNumber,
-        previous ? 'IN_REVIEW' : 'DRAFT',
+        previous && !input.draftOnly ? 'IN_REVIEW' : 'DRAFT',
         previous?.id ?? null,
         input.sourceRevision ?? null,
         input.summary ?? null,

@@ -4,6 +4,7 @@ import type { EngineeringProject } from '../shared'
 import { calculateRoadEarthworks, calculateRoadHorizontal } from '@/lib/engineering/roadProjectOutputs'
 import { resolveRoadDesignStations } from '@/lib/engineering/roadVerticalAlignment'
 import { buildRoadCentrelineSetout } from '@/lib/engineering/roadCoordinateSetout'
+import { RoadQuantityRegister } from './RoadQuantityRegister'
 
 export function Step6Outputs({ project, data }: { project: EngineeringProject; data: RoadDesignData | null }) {
   const horizontal = calculateRoadHorizontal(data?.ips ?? [], data?.startChainage ?? Number.NaN, project.projectReferenceSystem?.code ?? '')
@@ -32,6 +33,7 @@ export function Step6Outputs({ project, data }: { project: EngineeringProject; d
           <tbody>{earthworks.rows.map(row => <tr key={row.chainage} className="border-t border-zinc-800">{[row.chainage, row.groundLevel, row.designLevel, row.formationLevel, row.cutArea, row.fillArea, row.cutVolume, row.fillVolume, row.cumulativeCut, row.cumulativeFill, row.leftDaylightOffset, row.rightDaylightOffset].map((value, i) => <td className="px-3 py-2" key={i}>{value.toFixed(3)}</td>)}</tr>)}</tbody>
         </table></div>
       </>}
+      {data&&<RoadQuantityRegister projectId={project.id} data={data} reference={project.projectReferenceSystem??{code:null,verticalDatum:null,distanceMode:null}} canRecord={earthworks.rows.length>0&&!resolved.issues.length} />}
     </section>
     <section className="rounded-lg border border-zinc-700 p-4">
       <h4 className="mb-3 font-medium text-white">Draft Centreline Coordinate Targets</h4>

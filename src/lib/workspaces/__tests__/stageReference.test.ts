@@ -1,9 +1,14 @@
-import { resolveStageReference } from '../stageReference'
+import { resolveStageReference, resolveDeclaredStageReference } from '../stageReference'
 
 const wgs84Zone36S = 'EPSG:' + (32700 + 36)
 const wgs84Zone36N = 'EPSG:' + (32600 + 36)
 
 describe('stage reference system', () => {
+  it('uses a dedicated API record without guessing missing or incompatible fields', () => {
+    const prs = { horizontalCrs:wgs84Zone36S,horizontalName:'WGS84 UTM 36S',datum:'WGS84',units:'metres',zone:36,hemisphere:'S',verticalDatum:'Declared BM',distanceMode:'grid',coordinatePrecision:3 }
+    expect(resolveDeclaredStageReference({prs})).toMatchObject({code:wgs84Zone36S,source:'declared',verticalDatum:'Declared BM'})
+    for (const value of [null,{}, {prs:{...prs,units:'degrees'}}, {prs:{...prs,zone:37}}, {prs:{...prs,distanceMode:undefined}}]) expect(resolveDeclaredStageReference(value).code).toBeNull()
+  })
   it('uses the declared project CRS even when legacy zone fields disagree', () => {
     const reference = resolveStageReference(
       {

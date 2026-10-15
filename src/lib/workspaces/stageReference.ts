@@ -1,5 +1,5 @@
 import { resolveEpsg } from '@/lib/spatial/projectCrs'
-import { fromReferenceSystemRow, horizontalCrsFor } from '@/lib/spatial/projectReferenceSystem'
+import { fromReferenceSystemRow, horizontalCrsFor, toReferenceSystemRow, type ProjectReferenceSystemRecord } from '@/lib/spatial/projectReferenceSystem'
 
 export type StageReference =
   | { code: string; name: string; source: 'declared' | 'legacy'; hemisphere: 'N' | 'S' | null; verticalDatum: string | null; distanceMode: 'grid' | 'ground' | null }
@@ -18,6 +18,15 @@ const MISSING: StageReference = {
   hemisphere: null,
   verticalDatum: null,
   distanceMode: null,
+}
+
+/** Adapt the dedicated API's declared record through the existing CRS authority. */
+export function resolveDeclaredStageReference(value: unknown): StageReference {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return MISSING
+  const record = value as ProjectReferenceSystemRecord
+  if (!record.prs || typeof record.prs !== 'object' || record.prs.units !== 'metres') return MISSING
+  try { return resolveStageReference(toReferenceSystemRow('', record, null), {}) }
+  catch { return MISSING }
 }
 
 /** Use the saved declaration first. Legacy project fields are labelled as such. */

@@ -84,7 +84,7 @@ try{
     ['header read',readPath,undefined],['station read',`/api/engineering/stations?alignment_id=${alignmentId}`,undefined],
     ['header write','/api/engineering/alignment',header],['IP write','/api/engineering/ips',{alignment_id:alignmentId,ips}],['VIP write','/api/engineering/vips',vipBody],['station write','/api/engineering/stations',stationBody],
     ['IP edit','/api/engineering/ips',{id:horizontal.value.data[1].id,radius:25},'PUT'],
-    ['earthworks write','/api/engineering/earthworks',{alignment_id:alignmentId,method:'end-area',results:[{chainage:0,cut_area:0,fill_area:0,cut_volume:0,fill_volume:0,cumulative_cut:0,cumulative_fill:0,net_volume:0,mass_ordinate:0}]}],
+    ['earthworks write','/api/engineering/earthworks',{alignment_id:alignmentId,client_run_id:randomUUID(),expected_input_hash:'a'.repeat(64)}],
   ])check(`foreign actor is denied ${name}`,[403,404].includes((await other(path,body,method)).status))
   check('all denied foreign calls preserve owned geometry and observations',await snapshot()===ownedBefore)
   const forged=await owner('/api/engineering/ips',{id:horizontal.value.data[1].id,tangent_length:999,chainage_tc:999},'PUT')

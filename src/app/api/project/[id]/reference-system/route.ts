@@ -13,7 +13,7 @@
  *         denormalized projects.utm_zone / hemisphere / datum columns in
  *         sync with what was declared.
  *
- * SECURITY: requireProjectOwnership (IDOR) on both methods. Validation
+ * SECURITY: project read access for GET, recorded ownership for PUT. Validation
  * failures return 400 with the CrsError code/message — no silent fallback
  * to a default CRS.
  */
@@ -22,7 +22,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
-import { requireProjectOwnership } from '@/lib/auth/ownership'
+import { requireProjectOwnership, requireProjectReadAccess } from '@/lib/auth/ownership'
 import { db } from '@/lib/db'
 import { CacheKeys, projectCache } from '@/lib/cache/memory-cache'
 import { CrsError, describeProjectReferenceSystem } from '@/lib/spatial/projectCrs'
@@ -132,7 +132,7 @@ function readForm(body: unknown): ProjectReferenceSystemForm {
 export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60000 } },
   async (_req, ctx) => {
-    const ownership = await requireProjectOwnership(ctx.params.id, ctx.userId)
+    const ownership = await requireProjectReadAccess(ctx.params.id, ctx.userId)
     const denied = ownershipError(ownership)
     if (denied) return denied
 
