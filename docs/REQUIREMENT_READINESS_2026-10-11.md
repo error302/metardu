@@ -374,3 +374,16 @@ legacy IP mirror defects. Asymmetric transitions, corridor/superelevation,
 design/control identity, persistence reconciliation, instrument/field acceptance
 and promotion remain open. The read-only Docker verifier passed against the
 existing single application stack; no production service/schema/image changed.
+
+Alignment persistence follow-up (16 October): source now repairs middle-PI
+stationing, zero-radius endpoint validation, canonical table/schema mismatches,
+lost design/profile fields and private read/write checks. Accepted child edits
+synchronize the selected canonical project draft and retain removed input notes
+in immutable history. Migration 110 was verified only in the existing marked
+synthetic database; no old hashes changed. The production catalog confirms
+affected table row security is disabled, making these application guards a
+required release change. 31 real source HTTP checks and 60 tests/nine suites
+pass, with strict app/test types and changed-file lint. See
+`ALIGNMENT_PERSISTENCE_VERIFICATION.md`. The original synthetic service is stopped
+again and the single production stack remains healthy. Source promotion, legacy
+quantity storage, full revision/issue and all broader acceptance gates remain.

@@ -322,42 +322,65 @@ export const NearbyBenchmarksSchema = z.object({
 export const CreateAlignmentSchema = z.object({
   project_id: z.string().min(1, 'project_id is required'),
   road_name: z.string().min(1, 'road_name is required').max(200).trim(),
-  start_chainage: z.number().min(0).optional().default(0),
-  datum: z.string().max(50).trim().optional().default('ARC1960'),
-  coordinate_system: z.string().max(50).trim().optional().default('UTM'),
-  design_speed: z.number().min(20).max(200).optional().default(80),
-  road_class: z.string().max(20).trim().optional().default('B'),
+  start_chainage: z.number().finite().optional().default(0),
+  datum: z.string().max(50).trim().optional(),
+  coordinate_system: z.string().max(50).trim().optional(),
+  design_speed: z.number().finite().min(20).max(200).nullable().optional(),
+  road_class: z.string().trim().min(1).max(20).nullable().optional(),
   terrain_type: z.string().max(50).trim().optional(),
   standard: z.string().max(50).trim().optional(),
   cross_section_template: z.record(z.unknown()).optional().default({}),
   road_reserve_width: z.number().positive().max(100).optional(),
+  vertical_station_interval_m: z.number().finite().positive().nullable().optional(),
 })
 
 export const SaveIPsSchema = z.object({
   alignment_id: z.string().min(1, 'alignment_id is required'),
   ips: z.array(z.object({
-    name: z.string().min(1).max(50).trim(),
-    easting: z.number(),
-    northing: z.number(),
-    radius: z.number().positive(),
-  })).min(1, 'At least one IP is required').max(200),
-})
+    id: z.string().uuid().optional(),
+    source_id: z.string().trim().min(1).max(200).optional(),
+    name: z.string().trim().min(1).max(255),
+    easting: z.number().finite(),
+    northing: z.number().finite(),
+    radius: z.number().finite().nonnegative(),
+    has_transition: z.boolean().optional(),
+    transition_length_in: z.number().finite().nonnegative().nullable().optional(),
+    transition_length_out: z.number().finite().nonnegative().nullable().optional(),
+  }).strict()).max(200),
+}).strict()
+
+export const UpdateIPInputsSchema = z.object({
+  id: z.string().uuid(),
+  radius: z.number().finite().nonnegative().optional(),
+  has_transition: z.boolean().optional(),
+  transition_length_in: z.number().finite().nonnegative().nullable().optional(),
+  transition_length_out: z.number().finite().nonnegative().nullable().optional(),
+}).strict().refine(value => Object.keys(value).some(key => key !== 'id'), 'Supply a design input to update; computed quantities are server-owned.')
 
 export const SaveVIPsSchema = z.object({
   alignment_id: z.string().min(1, 'alignment_id is required'),
+  replace: z.boolean().optional().default(false),
   vips: z.array(z.object({
-    chainage: z.number().min(0),
-    reduced_level: z.number(),
-    k_value: z.number().positive().optional(),
-  })).min(1, 'At least one VIP is required').max(200),
+    source_id: z.string().trim().min(1).max(200).optional(),
+    chainage: z.number().finite(),
+    reduced_level: z.number().finite(),
+    k_value: z.number().finite().positive().nullable().optional(),
+    curve_length: z.number().finite().positive().nullable().optional(),
+    gradient_in: z.number().finite().nullable().optional(),
+    gradient_out: z.number().finite().nullable().optional(),
+  }).strict()).max(200),
 })
 
 export const SaveStationsSchema = z.object({
   alignment_id: z.string().min(1, 'alignment_id is required'),
+  replace: z.boolean().optional().default(false),
   stations: z.array(z.object({
-    chainage: z.number().min(0),
-    ground_level: z.number(),
-  })).min(1, 'At least one station is required').max(500),
+    chainage: z.number().finite(),
+    ground_level: z.number().finite(),
+    design_level: z.number().finite().nullable().optional(),
+    design_level_source: z.enum(['manual', 'vertical-alignment']).optional(),
+    ground_profile: z.array(z.object({ offset: z.number().finite(), level: z.number().finite() }).strict()).min(2).max(10000).nullable().optional(),
+  }).strict()).max(500),
 })
 
 export const SaveEarthworksSchema = z.object({

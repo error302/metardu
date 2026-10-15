@@ -85,8 +85,8 @@ checks remain unassessed.
 ## Next implementation priorities
 
 1. Extend the connected symmetric project transitions to evaluated asymmetric
-   transitions and corridor offsets/superelevation. Repair the legacy relational
-   alignment mirror; bind design revisions and field control before issued
+   transitions and corridor offsets/superelevation. Verify/promote the repaired
+   alignment persistence; bind design revisions and field control before issued
    set-out. Retain the source checks documented below.
 2. Run cadastral boundary-to-document fixtures through actual import, adjustment,
    CAD/topology, subdivision and native output parsers; repair the discovered
@@ -1199,3 +1199,25 @@ field acceptance remain open. Investigation also confirmed that the legacy IP
 mirror rejects zero-radius endpoints and has a separate incorrect curve/chainage
 algorithm; it must be reconciled with the shared authority. Complete project
 JSON remains authoritative. Other survey-family and live release gates remain.
+
+## Alignment persistence and private access — 16 October 2026
+
+The legacy save/reload gaps above are now repaired in source. IPs use shared
+server geometry, correct middle-PI/route stationing, retained transitions and
+server-owned reductions. Canonical VIP/station tables retain complete inputs,
+zero measurements and profiles. Selected-road synchronization keeps the main
+project JSON consistent with accepted API edits and preserves unrelated notes.
+Snapshots retain pre-edit inputs and canonical metadata before explicit clearing.
+Project-first locks and explicit owner/read checks protect these handlers even
+where table row security is disabled. Ambiguous multi-road reloads are refused.
+
+The production catalog check confirms the affected row policies are disabled;
+these application checks are a release requirement, not live remediation.
+Forward-only migration 110 corrects template storage and retains source IDs and
+sampling. Only the existing marked synthetic database was migrated, with every
+historical hash unchanged and an invalid-template refusal verified natively.
+31 real source HTTP checks, 60 tests/nine suites, strict app/test typing and
+changed-file lint pass. The original synthetic service is stopped again, its
+data retained, and the existing single production app/required services are
+healthy. See `ALIGNMENT_PERSISTENCE_VERIFICATION.md` for exact evidence and open
+quantity-storage, snapshot/revision, browser, device, field and promotion gates.

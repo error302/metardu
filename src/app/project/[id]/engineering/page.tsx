@@ -6,6 +6,7 @@ import { createClient } from '@/lib/api-client/client'
 import { z } from 'zod'
 import { apiGet, apiPost } from '@/lib/api/client'
 import { saveProjectEngineeringData, hydrateSavedEngineeringRoad } from '@/lib/engineering/projectEngineeringPersistence'
+import { roadAlignmentMirrorPayload, roadFromAlignmentMirror } from '@/lib/engineering/roadAlignmentMirror'
 import { resolveStageReference, type StageReference } from '@/lib/workspaces/stageReference'
 import type {
   EngineeringData,
@@ -13,10 +14,6 @@ import type {
   EngineeringStandard,
   RoadDesignData,
   DrainageData,
-  StationData,
-  IntersectionPoint,
-  VerticalIP,
-  CrossSectionTemplate,
 } from '@/types/engineering'
 import type { SurveyorProfileSubmission } from '@/lib/api-client/community'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
@@ -38,10 +35,10 @@ const alignmentRowSchema = z.object({
   design_speed: z.union([z.number(), z.string(), z.null()]).optional(),
   road_class: z.string().nullable().optional(),
   standard: z.string().nullable().optional(),
-  cross_section_template: z.any().optional(),
-  ips: z.array(z.any()).optional(),
-  vips: z.array(z.any()).optional(),
-  stations: z.array(z.any()).optional(),
+  cross_section_template: z.unknown().optional(),
+  ips: z.array(z.record(z.unknown())).optional(),
+  vips: z.array(z.record(z.unknown())).optional(),
+  stations: z.array(z.record(z.unknown())).optional(),
 }).passthrough()
 
 const alignmentResponseSchema = z.object({
@@ -54,63 +51,7 @@ const alignmentMutationSchema = z.object({
 }).passthrough()
 
 // The three sub-resource POSTs return various shapes — accept any object payload.
-const subResourceMutationSchema = z.record(z.any())
-
-interface CrossSectionTemplateRow {
-  carriageway_width?: number | string | null
-  carriagewayWidth?: number | string | null
-  shoulder_width?: number | string | null
-  shoulderWidth?: number | string | null
-  cut_slope?: string | null
-  cutSlope?: string | null
-  fill_slope?: string | null
-  fillSlope?: string | null
-  camber?: number | string | null
-  subgrade_depth?: number | string | null
-  subgradeDepth?: number | string | null
-}
-
-interface EngineeringIpRow {
-  id: string | number
-  name: string | null
-  easting: number | string | null
-  northing: number | string | null
-  radius: number | string | null
-  deflection_angle?: number | string | null
-  tangent_length?: number | string | null
-  arc_length?: number | string | null
-  chainage_tc?: number | string | null
-  chainage_mc?: number | string | null
-  chainage_ct?: number | string | null
-  sort_order?: number | string | null
-}
-
-interface EngineeringVipRow {
-  id: string | number
-  chainage: number | string | null
-  reduced_level: number | string | null
-  k_value?: number | string | null
-}
-
-interface EngineeringStationRow {
-  chainage: number | string | null
-  ground_level: number | string | null
-}
-
-interface EngineeringAlignmentRow {
-  id: string | number
-  road_name?: string | null
-  start_chainage?: number | string | null
-  datum?: string | null
-  coordinate_system?: string | null
-  design_speed?: number | string | null
-  road_class?: string | null
-  standard?: string | null
-  cross_section_template?: CrossSectionTemplateRow | null
-  ips?: EngineeringIpRow[]
-  vips?: EngineeringVipRow[]
-  stations?: EngineeringStationRow[]
-}
+const subResourceMutationSchema = z.record(z.unknown())
 
 interface ProjectDbRow {
   id: string
@@ -140,7 +81,8 @@ export default function EngineeringWorkspacePage() {
   const [loadingEngineering, setLoadingEngineering] = useState(false)
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
-  const [, setAlignmentId] = useState<string | null>(null)
+  const [engineeringLoadError, setEngineeringLoadError] = useState('')
+  const engineeringLoadGeneration = useRef(0)
   const appliedStepRef = useRef<string | null>(null)
 
   // Sub-tab for quick compute panels
@@ -148,15 +90,18 @@ export default function EngineeringWorkspacePage() {
   const requestedStep = searchParams.get('step')
 
   // --- Load engineering data from the relational DB backend ---
-  const loadEngineeringData = useCallback(async (projectId: string) => {
+  const loadEngineeringData = useCallback(async (projectId: string, roadName?: string) => {
+    const generation = ++engineeringLoadGeneration.current
     setLoadingEngineering(true)
+    setEngineeringLoadError('')
     try {
       const result = await apiGet(
-        `/api/engineering/alignment?project_id=${projectId}`,
+        `/api/engineering/alignment?project_id=${encodeURIComponent(projectId)}${roadName ? `&road_name=${encodeURIComponent(roadName)}` : ''}`,
         alignmentResponseSchema,
         { ttlMs: 0 },
       )
-      const dbData = result.data as EngineeringAlignmentRow | null
+      if (generation !== engineeringLoadGeneration.current) return
+      const dbData = result.data
 
       if (!dbData) {
         // No alignment row yet — nothing to hydrate
@@ -164,69 +109,7 @@ export default function EngineeringWorkspacePage() {
         return
       }
 
-      // Store the alignment ID for subsequent saves (IPs, VIPs, stations)
-      setAlignmentId(String(dbData.id))
-
-      // Map DB column names → TypeScript shape
-      const crossSectionTemplate: CrossSectionTemplate | undefined = dbData.cross_section_template
-        ? {
-            carriagewayWidth: Number(dbData.cross_section_template.carriageway_width ?? dbData.cross_section_template.carriagewayWidth ?? 6.0),
-            shoulderWidth: Number(dbData.cross_section_template.shoulder_width ?? dbData.cross_section_template.shoulderWidth ?? 1.0),
-            cutSlope: String(dbData.cross_section_template.cut_slope ?? dbData.cross_section_template.cutSlope ?? '1:1'),
-            fillSlope: String(dbData.cross_section_template.fill_slope ?? dbData.cross_section_template.fillSlope ?? '1:1.5'),
-            camber: Number(dbData.cross_section_template.camber ?? 3),
-            subgradeDepth: Number(dbData.cross_section_template.subgrade_depth ?? dbData.cross_section_template.subgradeDepth ?? 0.5),
-          }
-        : undefined
-
-      const ips: IntersectionPoint[] = (dbData.ips || []).map((row) => ({
-        id: String(row.id),
-        name: String(row.name),
-        easting: Number(row.easting),
-        northing: Number(row.northing),
-        radius: Number(row.radius),
-        deflectionAngle: row.deflection_angle != null ? Number(row.deflection_angle) : undefined,
-        tangentLength: row.tangent_length != null ? Number(row.tangent_length) : undefined,
-        arcLength: row.arc_length != null ? Number(row.arc_length) : undefined,
-        chainageTC: row.chainage_tc != null ? Number(row.chainage_tc) : undefined,
-        chainageMC: row.chainage_mc != null ? Number(row.chainage_mc) : undefined,
-        chainageCT: row.chainage_ct != null ? Number(row.chainage_ct) : undefined,
-        sortOrder: row.sort_order != null ? Number(row.sort_order) : undefined,
-      }))
-
-      const vips: VerticalIP[] = (dbData.vips || []).map((row) => ({
-        id: String(row.id),
-        chainage: Number(row.chainage),
-        reducedLevel: Number(row.reduced_level),
-        kValue: row.k_value != null ? Number(row.k_value) : undefined,
-      }))
-
-      const stations: StationData[] = (dbData.stations || []).map((row) => ({
-        chainage: Number(row.chainage),
-        groundLevel: Number(row.ground_level),
-      }))
-
-      // Build a RoadDesignData object from the DB row
-      const roadFromDb: RoadDesignData = {
-        roadName: String(dbData.road_name || ''),
-        startChainage: Number(dbData.start_chainage ?? 0),
-        datum: String(dbData.datum || 'Arc 1960'),
-        coordinateSystem: String(dbData.coordinate_system || 'UTM Zone 37S'),
-        designSpeed: Number(dbData.design_speed ?? 60),
-        roadClass: String(dbData.road_class || 'C') as RoadDesignData['roadClass'],
-        standard: (dbData.standard || 'KRDM2017') as EngineeringStandard,
-        ips,
-        vips,
-        crossSectionTemplate: crossSectionTemplate || {
-          carriagewayWidth: 6.0,
-          shoulderWidth: 1.0,
-          cutSlope: '1:1',
-          fillSlope: '1:1.5',
-          camber: 3,
-          subgradeDepth: 0.5,
-        },
-        stations,
-      }
+      const roadFromDb = roadFromAlignmentMirror(dbData)
 
       // Merge into the existing engineering_data, preserving mode/drainage
       setProject(prev => {
@@ -238,9 +121,9 @@ export default function EngineeringWorkspacePage() {
         }
       })
     } catch {
-      /* ignore load error */
+      if (generation === engineeringLoadGeneration.current) setEngineeringLoadError('Saved alignment records could not be loaded. Your saved project draft is unchanged. Check your connection and retry.')
     } finally {
-      setLoadingEngineering(false)
+      if (generation === engineeringLoadGeneration.current) setLoadingEngineering(false)
     }
   }, [])
 
@@ -312,12 +195,13 @@ export default function EngineeringWorkspacePage() {
 
   // Load engineering data from the relational backend after project is fetched
   const projectId = project?.id
+  const savedRoadName = project?.engineering_data?.road?.roadName
   useEffect(() => {
     if (projectId && !loading) {
-      loadEngineeringData(projectId)
+      void loadEngineeringData(projectId, savedRoadName)
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [projectId, loading, loadEngineeringData])
+    return () => { engineeringLoadGeneration.current += 1 }
+  }, [projectId, savedRoadName, loading, loadEngineeringData])
 
   useEffect(() => {
     if (!project || !requestedStep || appliedStepRef.current === requestedStep) return
@@ -365,85 +249,14 @@ export default function EngineeringWorkspacePage() {
     if (!road) return false
 
     try {
-      // Step 1: Upsert alignment header → get alignment_id
-      const templateForDb = road.crossSectionTemplate
-        ? {
-            carriagewayWidth: road.crossSectionTemplate.carriagewayWidth,
-            shoulderWidth: road.crossSectionTemplate.shoulderWidth,
-            cutSlope: road.crossSectionTemplate.cutSlope,
-            fillSlope: road.crossSectionTemplate.fillSlope,
-            camber: road.crossSectionTemplate.camber,
-            subgradeDepth: road.crossSectionTemplate.subgradeDepth,
-            shoulderCrossfall: road.crossSectionTemplate.shoulderCrossfall,
-          }
-        : {}
-
-      const alignResult = await apiPost(
-        '/api/engineering/alignment',
-        alignmentMutationSchema,
-        {
-          project_id: project.id,
-          road_name: road.roadName || 'Unnamed Road',
-          start_chainage: road.startChainage ?? 0,
-          datum: road.datum || 'Arc 1960',
-          coordinate_system: road.coordinateSystem || 'UTM Zone 37S',
-          design_speed: road.designSpeed ?? 60,
-          road_class: road.roadClass || 'C',
-          standard: road.standard || 'KRDM2017',
-          cross_section_template: templateForDb,
-        },
-      )
+      const payload = roadAlignmentMirrorPayload(road, project.id)
+      const alignResult = await apiPost('/api/engineering/alignment', alignmentMutationSchema, payload.header)
       const aId = alignResult.data?.id
       if (!aId) throw new Error('No alignment ID returned')
-      setAlignmentId(String(aId))
-
-      // Step 2: Save IPs (if any)
-      if (road.ips && road.ips.length > 0) {
-        await apiPost(
-          '/api/engineering/ips',
-          subResourceMutationSchema,
-          {
-            alignment_id: aId,
-            ips: road.ips.map(ip => ({
-              name: ip.name,
-              easting: ip.easting,
-              northing: ip.northing,
-              radius: ip.radius,
-            })),
-          },
-        )
-      }
-
-      // Step 3: Save VIPs (if any)
-      if (road.vips && road.vips.length > 0) {
-        await apiPost(
-          '/api/engineering/vips',
-          subResourceMutationSchema,
-          {
-            alignment_id: aId,
-            vips: road.vips.map(v => ({
-              chainage: v.chainage,
-              reduced_level: v.reducedLevel,
-              k_value: v.kValue ?? null,
-            })),
-          },
-        )
-      }
-
-      // Step 4: Save stations (if any)
-      if (road.stations && road.stations.length > 0) {
-        await apiPost(
-          '/api/engineering/stations',
-          subResourceMutationSchema,
-          {
-            alignment_id: aId,
-            stations: road.stations.map(s => ({
-              chainage: s.chainage,
-              ground_level: s.groundLevel,
-            })),
-          },
-        )
-      }
+      // Full snapshots explicitly replace even an emptied input list.
+      await apiPost('/api/engineering/ips', subResourceMutationSchema, { alignment_id: aId, ips: payload.ips })
+      await apiPost('/api/engineering/vips', subResourceMutationSchema, { alignment_id: aId, replace: true, vips: payload.vips })
+      await apiPost('/api/engineering/stations', subResourceMutationSchema, { alignment_id: aId, replace: true, stations: payload.stations })
 
       return true
     } catch {
@@ -601,6 +414,10 @@ export default function EngineeringWorkspacePage() {
       )}
 
       {/* Saving indicator */}
+      {engineeringLoadError && <div role="alert" className="mb-4 rounded border border-amber-700 p-3 text-sm text-amber-200">
+        <p>{engineeringLoadError}</p>
+        <button type="button" disabled={loadingEngineering || !projectId} onClick={() => { if (projectId) void loadEngineeringData(projectId, savedRoadName) }} className="mt-2 min-h-11 rounded border border-amber-700 px-3">Retry alignment load</button>
+      </div>}
       {(saving || loadingEngineering) && (
         <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-zinc-800 border border-zinc-600 text-zinc-300 px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-lg">
           <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>

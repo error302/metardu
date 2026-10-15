@@ -66,12 +66,12 @@ instrument import, physical print scale or field check is claimed here.
 
 ## Open acceptance work
 
-The older `/api/engineering/ips` mirror still rejects valid zero-radius endpoints
-and derives curves at the wrong PI using uncorrected route chainages. It also
-omits transition fields on POST/hydration. That path must be reconciled with the
-shared calculation authority; current project JSON remains the complete draft.
-Do not treat legacy computed columns as field truth. Draft step-completion
-indicators also need evaluation/evidence-based gating across the workspace.
+The legacy IP persistence defects were reproduced and repaired in the subsequent
+source batch documented in `ALIGNMENT_PERSISTENCE_VERIFICATION.md`. Native HTTP
+checks now cover its server calculation, private access and canonical draft
+synchronization. Migration 110 and source promotion remain required; old deployed
+computed columns are not field truth. Draft step-completion indicators still
+need evaluation/evidence-based gating across the workspace.
 
 Asymmetric/compound/reverse transitions, corridor offsets, superelevation,
 approved design/control/revision identity, real device round trips and field
