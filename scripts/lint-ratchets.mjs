@@ -112,7 +112,7 @@ if (EXISTING_SCOPE.length === 0) {
   process.exit(2)
 }
 
-// The regenerated a11y audit evidence file (committed to the repo).
+// Regenerated local a11y evidence; ignored by Git, written only with --write-audit.
 const AUDIT_PATH = '.a11y-audit.json'
 
 const { ESLint } = await import(

@@ -15,9 +15,10 @@ copy and is distributed under the same license. Both photographs are examples
 of field practice outside Kenya. They are not METARDU customer work and do not
 imply endorsement by the photographers.
 
-Unverified concept art and mock interface images have been moved to
-`docs/marketing/archive-unverified-concepts/` so they are not shipped as public
-assets. Some contain invented coordinates, accuracy indicators, adjustment
-results, or regulatory controls. Do not present them as METARDU product
+Unverified concept art and mock interface images were retired from the working
+tree; their Git history is recorded in
+`docs/marketing/archive-unverified-concepts/README.md`. Some contain invented
+coordinates, accuracy indicators, adjustment results, or regulatory controls.
+Do not present them as METARDU product
 screenshots or survey evidence. Replace them only with captures from a tested
 workflow, clearly marking synthetic project data where applicable.

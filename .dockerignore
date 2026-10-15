@@ -15,6 +15,17 @@ upload
 map-audit-results
 e2e-results
 skills
+# Historical audit output and stale generated PWA build inputs
+.a11y-*.json
+.eslint-now.json
+.axe-sweep-ci*.json
+.axe-sweep-ci*.md
+scripts/lh-desktop.json
+scripts/lh-local-mobile.json
+scripts/lh-mobile.json
+public/sw.js
+public/workbox-*.js
+public/workbox-*.js.map
 chatgpt/*.zip
 update_pw.sql
 /*.sql
