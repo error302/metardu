@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, ChevronDown, ChevronUp,
   MapPinned, FileText, AlertCircle, CheckCircle
 } from 'lucide-react';
+import { sanitizeHtml } from '@/lib/security/sanitize';
 import { renderFormNo3 } from '@/lib/reports/surveyPlan/formNo3Renderer';
 import { shoelaceArea } from '@/lib/reports/surveyPlan/geometry';
 import { generateMutationPlanDXF } from '@/lib/generators/mutationPlanDXF';
@@ -1586,7 +1587,7 @@ export default function MutationPlanGenerator({
           <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg overflow-auto">
             <div className="p-2">
               {svgOutput ? (
-                <div dangerouslySetInnerHTML={{ __html: svgOutput }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(svgOutput) }} />
               ) : (
                 <div className="text-center py-12 text-zinc-500">
                   <Eye className="h-10 w-10 mx-auto mb-3 opacity-30" />
