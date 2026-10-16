@@ -692,9 +692,9 @@ export async function exportDeedPlan(options: DeedPlanExportOptions): Promise<Bl
 
         // ── Composite layer canvases ───────────────────────────────────────
         const viewport = map.getViewport();
-        const layerCanvases = viewport.querySelectorAll(
+        const layerCanvases = viewport?.querySelectorAll?.(
           '.ol-layer canvas, canvas.ol-layer',
-        );
+        ) || [];
 
         for (let i = 0; i < layerCanvases.length; i++) {
           const lc = layerCanvases[i] as HTMLCanvasElement;

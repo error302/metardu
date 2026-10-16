@@ -450,7 +450,7 @@ export function useMapInit(params: UseMapInitParams) {
           const selected = evt.selected
           if (selected.length > 0) {
             const feature = selected[0]
-            const coord = feature.getGeometry()?.getClosestPoint(evt.mapBrowserEvent.coordinate)
+            const coord = feature.getGeometry()?.getClosestPoint(evt.mapBrowserEvent?.coordinate || [0, 0])
             const geometry = feature.getGeometry()
             const geomType = geometry?.getType?.() || 'unknown'
             const props = feature.getProperties()

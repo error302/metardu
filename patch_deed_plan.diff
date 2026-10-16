@@ -1,0 +1,13 @@
+--- src/lib/map/deedPlanExport.ts
++++ src/lib/map/deedPlanExport.ts
+@@ -692,8 +692,8 @@
+
+         // ── Composite layer canvases ───────────────────────────────────────
+         const viewport = map.getViewport();
+-        const layerCanvases = viewport?.querySelectorAll(
++        const layerCanvases = viewport?.querySelectorAll?.(
+           '.ol-layer canvas, canvas.ol-layer',
+-        );
++        ) || [];
+
+         for (let i = 0; i < layerCanvases.length; i++) {
