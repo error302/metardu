@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import {computeDrift} from './verify-migrations.mjs'
 
-export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence']
+export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock']
 export function pinnedReleaseArguments(argv,root) {
   assert.equal(argv.length,2,'Supply an action and the full reviewed commit SHA.')
   const [action,revision]=argv
@@ -46,7 +46,7 @@ export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
 export function assertSyntheticUpgradeProof(proof,revision) {
   assert.equal(proof.revision,revision)
   assert.equal(proof.status,'passed')
-  assert.equal(proof.sourceBaseline,112)
+  assert.ok(proof.sourceBaseline===112||proof.sourceBaseline===115)
   assert.equal(proof.customerDataCopied,false)
   assert.equal(proof.newContainer,false)
   assert.equal(proof.cleanup?.syntheticDatabaseRemoved,true)

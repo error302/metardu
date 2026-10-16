@@ -210,6 +210,11 @@ services:
       - RESEND_API_KEY=${RESEND_API_KEY:-}
       # NVIDIA NIM AI (Survey Assistant, report generation, field-photo OCR)
       - NVIDIA_API_KEY=${NVIDIA_API_KEY:-}
+      # OAuth sign-in providers (NextAuth enables each only when both ID and Secret are set)
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-}
+      - AZURE_AD_CLIENT_ID=${AZURE_AD_CLIENT_ID:-}
+      - AZURE_AD_CLIENT_SECRET=${AZURE_AD_CLIENT_SECRET:-}
     depends_on:
       metardu-postgres:
         condition: service_healthy

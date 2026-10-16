@@ -139,7 +139,7 @@ const DURATION_OPTIONS: { value: DurationOption; label: string }[] = [
   { value: '90', label: '90 days' },
   { value: '365', label: '1 year' },
   { value: 'custom', label: 'Custom' },
-  { value: 'forever', label: 'Forever' },
+  { value: 'forever', label: '10 years' },
 ]
 
 function durationToDays(option: DurationOption, customDays: number): number | null {
@@ -477,7 +477,7 @@ function PlanOverrideModal({
           <div className="flex items-center gap-2">
             <Crown className="w-5 h-5 text-amber-400" />
             <h3 className="text-base font-semibold text-[var(--text-primary)]">
-              Promote Plan
+              Grant a plan
             </h3>
           </div>
           <button
@@ -726,9 +726,9 @@ export default function AdminUsersPage() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState('')
-  const [roleFilter, setRoleFilter] = useState('')
-  const [statusFilter, setStatusFilter] = useState('')
+  const [search, setSearch] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('search') ?? '')
+  const [roleFilter, setRoleFilter] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('role') ?? '')
+  const [statusFilter, setStatusFilter] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('status') ?? '')
   const [activeModal, setActiveModal] = useState<
     | { type: 'role'; user: UserRecord }
     | { type: 'suspend'; user: UserRecord }
@@ -818,7 +818,7 @@ export default function AdminUsersPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">User Management</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Customer directory</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
             Manage platform users, roles, and access
           </p>
@@ -829,7 +829,7 @@ export default function AdminUsersPage() {
             className="btn btn-primary text-sm flex items-center gap-2 shrink-0 self-start sm:self-auto"
           >
             <Crown className="w-4 h-4" />
-            Promote Plan
+            Grant a plan
           </button>
         )}
       </div>

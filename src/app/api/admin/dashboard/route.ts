@@ -1,6 +1,8 @@
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db, setCurrentRlsServiceRole } from '@/lib/db'
 import { buildRevenueDashboardMetrics, buildSubscriptionDashboardMetrics } from '@/lib/admin/dashboardMetrics'
+import { loadAdminOperations } from '@/lib/admin/operations'
+import { syntheticAccountSql } from '@/lib/admin/dashboardContract'
 import { PLATFORM_ADMIN_API_ROLES } from '@/lib/auth/rbac'
 
 interface CountRow {
@@ -45,6 +47,7 @@ interface IskQueueRow {
   email: string
   full_name: string | null
   isk_number: string | null
+  updated_at: Date | string
   created_at: string | Date
 }
 
@@ -142,6 +145,7 @@ export const GET = apiHandler(
               us.plan_id
        FROM users u
        LEFT JOIN user_subscriptions us ON us.user_id = u.id
+       WHERE NOT ${syntheticAccountSql}
        ORDER BY u.created_at DESC
        LIMIT 10`,
     )
@@ -157,7 +161,7 @@ export const GET = apiHandler(
 
     // ── ISK Verification Queue ──
     const iskPendingRes = await db.query<CountRow>(
-      `SELECT COUNT(*)::int AS count FROM users WHERE verified_isk = false AND isk_number IS NOT NULL`,
+      `SELECT COUNT(*)::int AS count FROM users WHERE verified_isk = false AND NULLIF(TRIM(isk_number), '') IS NOT NULL`,
     )
     const iskPendingCount = iskPendingRes.rows[0]?.count ?? 0
 
@@ -179,9 +183,9 @@ export const GET = apiHandler(
 
     // ── ISK pending users (for queue display) ──
     const iskQueueRes = await db.query<IskQueueRow>(
-      `SELECT id, email, full_name, isk_number, created_at
+      `SELECT id, email, full_name, isk_number, created_at, updated_at::text AS updated_at
        FROM users
-       WHERE verified_isk = false AND isk_number IS NOT NULL
+       WHERE verified_isk = false AND NULLIF(TRIM(isk_number), '') IS NOT NULL
        ORDER BY created_at DESC
        LIMIT 10`,
     )
@@ -191,6 +195,7 @@ export const GET = apiHandler(
       name: row.full_name || row.email?.split('@')[0],
       iskNumber: row.isk_number,
       submittedAt: row.created_at,
+      updatedAt: row.updated_at,
     }))
 
     // ── System health ──
@@ -207,9 +212,12 @@ export const GET = apiHandler(
     const uptime = process.uptime()
     const memoryUsage = process.memoryUsage()
 
+    const operations = await loadAdminOperations()
     const responseTime = Date.now() - startTime
 
     return apiSuccess({
+      operations,
+      generatedAt: new Date().toISOString(),
       users: {
         total: totalUsers,
         newThisMonth: newUsersThisMonth,

@@ -114,7 +114,6 @@ function StatCard({
   label,
   value,
   subValue,
-  color = 'var(--accent)',
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
@@ -127,9 +126,9 @@ function StatCard({
       <div className="flex items-center justify-between">
         <div
           className="w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `${color}15` }}
+          style={{ backgroundColor: 'color-mix(in srgb, var(--accent) 10%, transparent)' }}
         >
-          <span style={{ color }}><Icon className="w-5 h-5" /></span>
+          <span className="text-[var(--accent)]"><Icon className="w-5 h-5" /></span>
         </div>
       </div>
       <div>
@@ -151,7 +150,7 @@ export default function AdminPaymentsPage() {
   const { status: sessionStatus } = useSession()
   const router = useRouter()
 
-  const [activeTab, setActiveTab] = useState<'history' | 'till-claims'>('history')
+  const [activeTab, setActiveTab] = useState<'history' | 'till-claims'>(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'till-claims' ? 'till-claims' : 'history')
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [tillClaims, setTillClaims] = useState<TillClaim[]>([])
   const [claimsLoading, setClaimsLoading] = useState(false)
@@ -251,12 +250,12 @@ export default function AdminPaymentsPage() {
         throw new Error(data.error || 'Failed to approve claim')
       }
 
-      setActionSuccessMsg('Payment approved! Subscription activated and receipt emailed.')
+      setActionSuccessMsg('Payment approved and subscription activated. Receipt delivery is handled separately.')
       setTimeout(() => setActionSuccessMsg(null), 4000)
       fetchTillClaims()
       fetchPayments(pagination.page)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to approve claim')
+      setError(err instanceof Error ? err.message : 'Failed to approve claim')
     } finally {
       setActionLoadingId(null)
     }
@@ -271,7 +270,7 @@ export default function AdminPaymentsPage() {
       const res = await fetch('/api/admin/payments/till-claims', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId: claimId, action: 'reject', reason }),
+        body: JSON.stringify({ paymentId: claimId, action: 'reject', ...(reason.trim() ? { reason: reason.trim() } : {}) }),
       })
 
       if (!res.ok) {
@@ -284,7 +283,7 @@ export default function AdminPaymentsPage() {
       fetchTillClaims()
       fetchPayments(pagination.page)
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to reject claim')
+      setError(err instanceof Error ? err.message : 'Failed to reject claim')
     } finally {
       setActionLoadingId(null)
     }
@@ -314,7 +313,7 @@ export default function AdminPaymentsPage() {
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Payments &amp; Till Hub</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">Payment ledger &amp; claim review</h1>
           <p className="text-sm text-[var(--text-secondary)] mt-1">
             Track revenue, verify M-Pesa Buy Goods Till claims, and manage transactions
           </p>

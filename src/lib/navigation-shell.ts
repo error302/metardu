@@ -32,6 +32,54 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
  */
 export const APP_SHELL_LINKS: PrimaryNavItem[] = PRIMARY_NAV_ITEMS
 
+export type NavMenuItem = PrimaryNavItem & { description?: string }
+export type NavGroup = { id: string; label: string; items: NavMenuItem[] }
+export type DesktopNavEntry = { kind: 'link'; item: PrimaryNavItem } | { kind: 'group'; group: NavGroup }
+
+/**
+ * Desktop top-bar structure for signed-in users. Every PRIMARY_NAV_ITEMS
+ * destination is reachable from here in at most one click-open, so the
+ * desktop never depends on the collapsible menu. The field group follows
+ * the surveyor's order of work: collect → set out → review on the map.
+ */
+export const APP_DESKTOP_NAV: DesktopNavEntry[] = [
+  { kind: 'link', item: { href: '/dashboard', label: 'Dashboard' } },
+  { kind: 'link', item: { href: '/projects', label: 'Projects' } },
+  {
+    kind: 'group',
+    group: {
+      id: 'field',
+      label: 'Field',
+      items: [
+        { href: '/field/collect', label: 'Collect points', description: 'Record shots against a job' },
+        { href: '/field/setout', label: 'Set out', description: 'Stake design points and chainages' },
+        { href: '/fieldbook', label: 'Field Book', description: 'Observation books and reductions' },
+        { href: '/map', label: 'Survey Map', icon: 'map', description: 'Review points on the map' },
+        { href: '/schedule', label: 'Job schedule', description: 'Crew days and site visits' },
+        { href: '/beacons', label: 'Beacon registry', description: 'Control and boundary marks' },
+      ],
+    },
+  },
+  { kind: 'link', item: { href: '/tools', label: 'Toolbox', icon: 'tools' } },
+  { kind: 'link', item: { href: '/reports', label: 'Documents', icon: 'reports' } },
+  {
+    kind: 'group',
+    group: {
+      id: 'more',
+      label: 'More',
+      items: [
+        { href: '/equipment', label: 'Equipment', description: 'Instruments and calibration' },
+        { href: '/marketplace', label: 'Marketplace', description: 'Buy, sell and hire gear' },
+        { href: '/docs', label: 'Documentation', description: 'Guides and method notes' },
+      ],
+    },
+  },
+]
+
+export function isNavGroupActive(pathname: string | null | undefined, group: NavGroup) {
+  return group.items.some((item) => isNavItemActive(pathname, item.href))
+}
+
 /**
  * Public routes use product and company destinations rather than protected
  * workspace pages.

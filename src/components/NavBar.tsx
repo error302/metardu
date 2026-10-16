@@ -11,7 +11,7 @@ import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
-import { APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
+import { APP_DESKTOP_NAV, APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavGroupActive, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
 import FieldModeToggle from '@/components/shared/FieldModeToggle'
 
 const LANDING_NAV_LINKS: PrimaryNavItem[] = [
@@ -350,6 +350,7 @@ export default function NavBar() {
   const shellLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
   const desktopLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
   const mobileLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
+  const useGroupedDesktopNav = isAuthenticated && shellVariant === 'app' && !landingPage
 
   return (
     <nav aria-label="Primary navigation" className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
@@ -392,7 +393,66 @@ export default function NavBar() {
             </div>
           )}
 
-          {/* Desktop Navigation */}
+          {/* Desktop Navigation — signed-in workspace: grouped menus from md up,
+              so desktop never depends on the collapsible menu. */}
+          {useGroupedDesktopNav ? (
+            <div className="hidden md:flex items-center gap-0.5 min-w-0">
+              {APP_DESKTOP_NAV.map((entry) => {
+                if (entry.kind === 'link') {
+                  const active = isNavItemActive(pathname, entry.item.href)
+                  return (
+                    <Link
+                      key={entry.item.href}
+                      href={entry.item.href}
+                      prefetch={false}
+                      aria-current={active ? 'page' : undefined}
+                      className={`inline-flex items-center px-2.5 py-2 text-[13px] whitespace-nowrap rounded-lg transition-colors ${
+                        active ? 'text-[var(--accent)] bg-white/5' : 'text-[var(--text-secondary)] hover:text-[var(--accent)] hover:bg-white/5'
+                      }`}
+                    >
+                      {entry.item.label}
+                    </Link>
+                  )
+                }
+                const group = entry.group
+                const groupActive = isNavGroupActive(pathname, group)
+                return (
+                  <Dropdown
+                    key={group.id}
+                    label={group.label}
+                    isOpen={openDropdown === `nav-${group.id}`}
+                    onToggle={() => handleDropdownToggle(`nav-${group.id}`)}
+                    panelClassName="w-72 p-1.5"
+                    buttonClassName={`inline-flex items-center gap-1 rounded-lg px-2.5 py-2 text-[13px] whitespace-nowrap transition-colors hover:bg-white/5 hover:text-[var(--accent)] ${
+                      groupActive ? 'text-[var(--accent)] bg-white/5' : 'text-[var(--text-secondary)]'
+                    }`}
+                  >
+                    <div role="menu" aria-label={group.label}>
+                      {group.items.map((item) => {
+                        const active = isNavItemActive(pathname, item.href)
+                        return (
+                          <Link
+                            key={item.href}
+                            href={item.href}
+                            role="menuitem"
+                            prefetch={false}
+                            aria-current={active ? 'page' : undefined}
+                            onClick={() => setOpenDropdown(null)}
+                            className="block rounded-md px-3 py-2 transition-colors hover:bg-white/5"
+                          >
+                            <span className={`block text-sm ${active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>{item.label}</span>
+                            {item.description ? (
+                              <span className="block text-xs text-[var(--text-muted)]">{item.description}</span>
+                            ) : null}
+                          </Link>
+                        )
+                      })}
+                    </div>
+                  </Dropdown>
+                )
+              })}
+            </div>
+          ) : (
           <div className="hidden lg:flex items-center gap-0.5 min-w-0">
             {desktopLinks.map((item, index) => (
               <Link
@@ -439,14 +499,28 @@ export default function NavBar() {
               </div>
             )}
           </div>
+          )}
 
           {/* Right Side */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            {/* Quick action: the most common start-of-day step */}
+            {useGroupedDesktopNav && (
+              <Link
+                href="/project/new"
+                prefetch={false}
+                className="hidden xl:inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[13px] font-semibold text-black hover:bg-[var(--accent-dim)] transition-colors"
+              >
+                <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" d="M12 5v14M5 12h14" />
+                </svg>
+                New project
+              </Link>
+            )}
             {/* Global Search — opens CommandPalette via synthetic Cmd+K (UI-5) */}
             {!landingPage && <SearchTrigger t={t} />}
 
             {/* Language Selector — compact on mobile */}
-            <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
+            <div className={useGroupedDesktopNav ? (isRootPath(pathname) ? 'block md:hidden xl:block' : 'hidden xl:block') : (isRootPath(pathname) ? "block" : "hidden md:block")}>
               <Dropdown
                 label={`${currentLang.flag} ${currentLang.code.toUpperCase()}`}
                 isOpen={openDropdown === 'lang'}
@@ -482,7 +556,7 @@ export default function NavBar() {
             {authStatus === 'loading' ? (
               <div className="w-20 h-8 bg-[var(--bg-tertiary)] animate-pulse rounded"></div>
             ) : isAuthenticated ? (
-              <div className="hidden lg:block relative">
+              <div className={`hidden ${useGroupedDesktopNav ? 'md:block' : 'lg:block'} relative`}>
                 <button
                   onClick={() => handleDropdownToggle('user')}
                   aria-expanded={openDropdown === 'user'}
@@ -552,6 +626,21 @@ export default function NavBar() {
                         >
                           Notifications
                         </Link>
+                        {useGroupedDesktopNav && (
+                          <div className="xl:hidden mt-1 flex flex-wrap gap-1 px-2 py-1" aria-label="Language">
+                            {languages.map((lang) => (
+                              <button
+                                key={lang.code}
+                                type="button"
+                                onClick={() => { setLanguage(lang.code); setOpenDropdown(null) }}
+                                aria-pressed={language === lang.code}
+                                className={`rounded px-2 py-1 text-xs border border-[var(--border-color)] hover:border-[var(--accent)] ${language === lang.code ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}
+                              >
+                                {lang.flag} {lang.code.toUpperCase()}
+                              </button>
+                            ))}
+                          </div>
+                        )}
                         {isAdminUser && (
                           <>
                             <div className="border-t border-white/5 my-2" />
@@ -609,7 +698,7 @@ export default function NavBar() {
                 aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileMenuOpen}
                 aria-controls="primary-nav-menu"
-                className="lg:hidden p-2 text-[var(--text-primary)]"
+                className={`${useGroupedDesktopNav ? 'md:hidden' : 'lg:hidden'} p-2 text-[var(--text-primary)]`}
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen ? (
@@ -625,7 +714,7 @@ export default function NavBar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div id="primary-nav-menu" className="lg:hidden bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4">
+          <div id="primary-nav-menu" className={`${useGroupedDesktopNav ? 'md:hidden' : 'lg:hidden'} bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4`}>
             <div className="py-2">
               {mobileLinks.map((item) => (
                 <Link
@@ -649,6 +738,12 @@ export default function NavBar() {
                   <div className="px-4 py-1">
                     <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Field Operations</span>
                   </div>
+                  <Link href="/field/collect" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Collect points
+                  </Link>
+                  <Link href="/field/setout" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
+                    Set out
+                  </Link>
                   <Link href="/schedule" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     Job Schedule
                   </Link>

@@ -1,75 +1,28 @@
 'use client'
 
-import { useState } from 'react'
-import { Menu } from 'lucide-react'
-import AppSidebar from '@/components/layout/AppSidebar'
-import { PerformanceMonitor } from '@/components/admin/PerformanceMonitor'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+import { ArrowUpRight, ShieldCheck } from 'lucide-react'
 import MetarduLogo from '@/components/MetarduLogo'
+import { OutdoorModeToggle } from '@/components/shared/OutdoorModeToggle'
+import './admin.css'
 
-// ---------------------------------------------------------------------------
-// Layout
-// ---------------------------------------------------------------------------
-
-export default function AdminLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-
-  return (
-    <div className="min-h-screen flex">
-      {/* Mobile overlay */}
-      {sidebarOpen && (
-        <div
-          className="fixed inset-0 z-40 bg-black/50 lg:hidden"
-          onClick={() => setSidebarOpen(false)}
-        />
-      )}
-
-      {/* Sidebar — unified AppSidebar component */}
-      <aside
-        className={`
-          fixed lg:sticky top-0 left-0 z-50 lg:z-auto
-          w-64 h-screen lg:h-auto
-          transform transition-transform duration-200 ease-in-out
-          ${sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
-        `}
-      >
-        <AppSidebar
-          variant="admin"
-          onNavigate={() => setSidebarOpen(false)}
-        />
-      </aside>
-
-      {/* Main content */}
-      <div className="flex-1 min-w-0 bg-[var(--bg-primary)]">
-        {/* Mobile header */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-2 -ml-2 text-[var(--text-secondary)] hover:text-[var(--text-primary)]"
-          >
-            <Menu className="w-5 h-5" />
-          </button>
-          <MetarduLogo size={24} showWordmark={true} color="var(--text-primary)" />
-          <span className="ml-auto text-xs text-[var(--text-muted)] uppercase tracking-wider">Admin</span>
-        </div>
-
-        {/* Page content */}
-        <div className="border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_55%,transparent)] px-4 py-2.5 md:px-6 lg:px-8">
-          <div className="mx-auto flex max-w-7xl items-center justify-between text-[10px] uppercase tracking-[0.18em] text-[var(--text-muted)]">
-            <span>METARDU operations</span>
-            <span className="text-[var(--accent)]">Private admin workspace</span>
-          </div>
-        </div>
-        <div className="p-4 md:p-6 lg:p-8 max-w-7xl mx-auto">
-          {children}
-        </div>
-
-        {/* Performance Monitor — admin-only Core Web Vitals overlay */}
-        <PerformanceMonitor visible={true} />
-      </div>
-    </div>
-  )
+export default function AdminLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const { data: session, status } = useSession()
+  const role = (session?.user as { role?: string } | undefined)?.role
+  const permitted = role === 'admin' || role === 'super_admin'
+  return <div className="admin-workspace min-h-screen bg-[var(--bg-primary)] text-[var(--text-primary)]">
+    <header className="admin-shell-header"><div className="admin-shell-inner">
+      <Link href="/admin" aria-label="METARDU business overview"><MetarduLogo size={30} /></Link>
+      <span className="admin-shell-label"><ShieldCheck className="h-3.5 w-3.5" /> Business administration</span>
+      <div className="ml-auto flex items-center gap-3"><OutdoorModeToggle /><Link className="admin-text-link text-xs" href="/dashboard">Back to app <ArrowUpRight className="h-3.5 w-3.5" /></Link></div>
+    </div></header>
+    {status === 'loading' ? <div className="mx-auto max-w-7xl px-5 py-12" role="status">Checking administrator access…</div> : !permitted ? <div className="mx-auto max-w-xl px-5 py-16"><h1 className="text-2xl font-semibold">Administrator access required</h1><p className="mt-3 text-[var(--text-secondary)]">This workspace is available to platform administrators.</p><Link href={status === 'unauthenticated' ? '/login?next=%2Fadmin' : '/dashboard'} className="btn btn-primary mt-6">{status === 'unauthenticated' ? 'Sign in' : 'Return to dashboard'}</Link></div> : <>
+      <nav className="admin-primary-nav" aria-label="Administration"><div className="admin-shell-inner">{[['/admin', 'Business overview'], ['/admin/users', 'Customer directory'], ['/admin/payments', 'Payment ledger'], ['/audit-logs', 'Audit trail']].map(([href, label]) => <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{label}</Link>)}<span className="ml-auto hidden text-xs text-[var(--text-muted)] md:block">{role?.replace('_', ' ')} · private workspace</span></div></nav>
+      <div className="mx-auto w-full max-w-[1440px] px-4 py-7 md:px-8 md:py-10">{children}</div>
+      <footer className="admin-shell-inner admin-footer"><span>METARDU · Owner operations</span><div className="flex gap-4"><Link href="/docs/privacy">Privacy</Link><Link href="/docs/terms">Terms</Link><Link href="/support">Support</Link></div></footer>
+    </>}
+  </div>
 }

@@ -30,7 +30,7 @@ async function main() {
   const directory=resolve('.cache/release-verify/survey-release')
   const receipt=JSON.parse(readFileSync(join(directory,'promotion.json'),'utf8'))
   assert.equal(receipt.revision,revision);assert.equal(receipt.status,'planned')
-  const report={revision,customerDataCopied:false,newContainer:false,sourceBaseline:112,checks:[],cleanup:{},status:'checking'}
+  const report={revision,customerDataCopied:false,newContainer:false,sourceBaseline:receipt.migrationBefore.length,checks:[],cleanup:{},status:'checking'}
   const save=()=>writeFileSync(join(directory,'upgrade-checks.json'),JSON.stringify(report,null,2)+'\n')
   const check=name=>{report.checks.push({name,passed:true});save();console.log('PASS '+name)}
   const git=args=>{
@@ -45,7 +45,7 @@ async function main() {
   const paths=git(['ls-tree','-r','--name-only',revision,'src/lib/db/migrations']).trim().split('\n').filter(p=>p.endsWith('.sql')).sort()
   const files=paths.map(path=>{const content=git(['show',`${revision}:${path}`]);return{path,version:path.split('/').at(-1).slice(0,-4),content,...migrationChecksums(Buffer.from(content))}})
   const previous=new Set(receipt.migrationBefore.map(row=>row.version))
-  assert.equal(previous.size,112);assert.equal(files.length,115)
+  assert.equal(previous.size,receipt.migrationBefore.length);assert.equal(files.length,receipt.migrationBefore.length+receipt.pending.length)
   assert.deepEqual(files.filter(file=>!previous.has(file.version)).map(file=>file.version),receipt.pending)
   const stage=(name,selected)=>{
     const target=join(directory,name)
@@ -78,7 +78,7 @@ async function main() {
     migrate(baseline,'baseline')
     const ledger=async()=>(await target.query('SELECT version,checksum FROM schema_migrations ORDER BY version')).rows
     const before=await ledger();assert.ok(computeDrift(files.filter(f=>previous.has(f.version)),before).ok)
-    check('all 112 prior source migrations bootstrap normally')
+    check(`all ${previous.size} prior source migrations bootstrap normally`)
     const owner=randomUUID(),other=randomUUID(),project=randomUUID(),alignment=randomUUID()
     for(const id of [owner,other])await target.query("INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,'unusable-synthetic-hash','SYNTHETIC upgrade operator')",[id,`${id}@example.invalid`])
     await target.query("INSERT INTO surveyor_profiles(user_id,role,verified_isk,is_suspended) VALUES($1,'surveyor',false,false),($2,'surveyor',false,false)",[owner,other])
@@ -98,11 +98,11 @@ async function main() {
     migrate(full,'forward')
     const after=await ledger();assert.ok(computeDrift(files,after).ok)
     assert.deepEqual(after.filter(row=>previous.has(row.version)),before)
-    check('108, 109 and 110 apply through the normal runner with historical hashes unchanged')
+    check('pending migrations apply through the normal runner with historical hashes unchanged')
     const upgraded=await snapshot()
     for(const table of tables){
       assert.equal(upgraded[table].length,records[table].length)
-      for(let i=0;i<records[table].length;i++)for(const [key,value]of Object.entries(records[table][i]))assert.deepEqual(upgraded[table][i][key],table==='road_alignments'&&key==='cross_section_template'?JSON.parse(value):value)
+      for(let i=0;i<records[table].length;i++)for(const [key,value]of Object.entries(records[table][i]))assert.deepEqual(upgraded[table][i][key],table==='road_alignments'&&key==='cross_section_template'&&typeof value==='string'?JSON.parse(value):value)
     }
     check('all original synthetic records and zero/negative measurements survive; template converts without loss')
     assert.equal((await target.query("SELECT data_type FROM information_schema.columns WHERE table_schema='public' AND table_name='road_alignments' AND column_name='cross_section_template'")).rows[0].data_type,'jsonb')

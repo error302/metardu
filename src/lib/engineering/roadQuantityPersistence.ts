@@ -15,7 +15,10 @@ export async function lockQuantityAlignment(client:PoolClient,id:string,userId:s
   if(write)return lockOwnedAlignment(client,id,userId)
   const {rows:links}=await client.query<{project_id:string}>('SELECT project_id FROM road_alignments WHERE id = $1',[id])
   if(!links[0])throw new NotFoundError('Alignment not found')
-  const {rows:project}=await client.query<{user_id:string|null}>('SELECT user_id FROM projects WHERE id = $1 FOR SHARE',[links[0].project_id])
+  // Direct row locking also invokes UPDATE RLS, hiding read-only viewer rows.
+  // This helper checks read scope and retains the project snapshot lock;
+  // application RBAC is checked again below. It grants no project writes.
+  const {rows:project}=await client.query<{user_id:string|null}>('SELECT user_id FROM public.lock_project_for_read($1)',[links[0].project_id])
   if(!project[0])throw new NotFoundError('Project not found')
   const access=await requireProjectReadAccess(links[0].project_id,userId)
   if(!access.ok)throw new AuthorizationError('This quantity register requires project read access.')

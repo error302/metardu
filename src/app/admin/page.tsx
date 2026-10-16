@@ -5,32 +5,26 @@ import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import {
-  Users, FolderKanban, LandPlot, RadioTower,
-  DollarSign, Activity, TrendingUp,
-  UserPlus, ShieldCheck, Settings2, FileText,
+  Activity, UserPlus, ShieldCheck,
   CreditCard, Loader2, AlertCircle, ChevronRight,
-  Megaphone, Check, X,
+  Megaphone, Check, X, ArrowUpRight,
 } from 'lucide-react'
 import { z } from 'zod'
 import { getPlan, PLAN_CATALOG, type PlanId } from '@/lib/subscription/catalog'
 import { apiGet, apiPost, apiPatch, ApiError } from '@/lib/api/client'
 import dynamic from 'next/dynamic'
-import { RevenueLineChart, SubscriptionDonutChart } from '@/components/admin/charts/AdminCharts'
+import { OwnerOverview, SubscriptionReview } from '@/components/admin/OwnerOverview'
+import FeedbackInbox from '@/components/admin/FeedbackInbox'
+import { dashboardResponseSchema, type DashboardData } from '@/lib/admin/dashboardContract'
 import SystemHealthPanel from '@/components/admin/SystemHealthPanel'
 
-const DashboardSearch = dynamic(
-  () => import('@/components/dashboard/DashboardSearch').then(m => m.default || m),
-  { ssr: false },
-)
 const PerformanceDashboard = dynamic(
   () => import('@/components/PerformanceDashboard').then(m => m.default || m),
   { ssr: false },
 )
 
-// ponytail: response schemas — Phase 4 wave 2 will move these to src/lib/api/schemas/
+// Mutation responses are validated separately from the shared dashboard contract.
 
-// Dashboard payload is large and may grow; accept any object shape and cast to DashboardData.
-const dashboardResponseSchema = z.record(z.any())
 
 const announcementMutationSchema = z.object({
   ok: z.boolean().optional(),
@@ -51,69 +45,9 @@ const verifyIskMutationSchema = z.object({
 // Types
 // ---------------------------------------------------------------------------
 
-interface DashboardData {
-  users: {
-    total: number
-    newThisMonth: number
-    active: number
-  }
-  projects: {
-    total: number
-    byStatus: Record<string, number>
-  }
-  parcels: number
-  beacons: number
-  revenue: {
-    total: number
-    byMonth: { month: string; total: number }[]
-    byCurrency: { currency: string; total: number }[]
-  }
-  recentSignups: {
-    id: string
-    email: string
-    name: string
-    role: string
-    plan: string
-    createdAt: string
-  }[]
-  iskPendingCount: number
-  iskQueue: {
-    id: string
-    email: string
-    name: string
-    iskNumber: string
-    submittedAt: string
-  }[]
-  activeSubscriptions: Record<string, number>
-  trialSubscriptions: number
-  submissionsThisMonth: number
-  system: {
-    database: {
-      status: string
-      latencyMs: number
-    }
-    uptime: number
-    memory: {
-      heapUsedMb: number
-      heapTotalMb: number
-      rssMb: number
-    }
-    responseTimeMs: number
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-
-function formatCurrency(amount: number, currencyCode = 'KES'): string {
-  const currency = /^[A-Z]{3}$/.test(currencyCode) ? currencyCode : 'KES'
-  return new Intl.NumberFormat('en-KE', {
-    style: 'currency',
-    currency,
-    ...(currency === 'KES' ? { minimumFractionDigits: 0, maximumFractionDigits: 0 } : {}),
-  }).format(amount)
-}
 
 function formatDate(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString('en-KE', {
@@ -142,62 +76,20 @@ function roleBadgeClass(role: string): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Stat Card
-// ---------------------------------------------------------------------------
-
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  subValue,
-  trend,
-  color = 'var(--accent)',
-}: {
-  icon: React.ComponentType<{ className?: string }>
-  label: string
-  value: string | number
-  subValue?: string
-  trend?: 'up' | 'down' | 'neutral'
-  color?: string
-}) {
-  return (
-    <div className="card p-5 flex flex-col gap-3">
-      <div className="flex items-center justify-between">
-        <div
-          className="w-10 h-10 rounded-lg flex items-center justify-center"
-          style={{ backgroundColor: `${color}15` }}
-        >
-          <span style={{ color }}><Icon className="w-5 h-5" /></span>
-        </div>
-        {trend === 'up' && (
-          <div className="flex items-center gap-1 text-xs text-green-400">
-            <TrendingUp className="w-3 h-3" />
-            <span>Up</span>
-          </div>
-        )}
-      </div>
-      <div>
-        <p className="text-2xl font-bold text-[var(--text-primary)]">{value}</p>
-        {subValue && (
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">{subValue}</p>
-        )}
-      </div>
-      <p className="text-xs text-[var(--text-secondary)]">{label}</p>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------------------
-// Main Page
-// ---------------------------------------------------------------------------
-
 export default function AdminDashboardPage() {
   const { data: session, status: sessionStatus } = useSession()
   const router = useRouter()
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [section, setSection] = useState('overview')
+  const [broadcastReviewed, setBroadcastReviewed] = useState(false)
+  const [overrideReviewed, setOverrideReviewed] = useState(false)
+  useEffect(() => {
+    const sync = () => { const hash = window.location.hash.slice(1); setSection(['customers', 'billing', 'communications', 'feedback', 'system'].includes(hash) ? hash : 'overview') }
+    sync(); window.addEventListener('hashchange', sync); return () => window.removeEventListener('hashchange', sync)
+  }, [])
+
 
   // Broadcast state
   const [announcementTitle, setAnnouncementTitle] = useState('')
@@ -213,15 +105,12 @@ export default function AdminDashboardPage() {
   const [overrideSending, setOverrideSending] = useState(false)
   const [overrideResult, setOverrideResult] = useState<{ ok: boolean; msg: string } | null>(null)
 
+  useEffect(() => setBroadcastReviewed(false), [announcementTitle, announcementBody, announcementTarget])
+  useEffect(() => setOverrideReviewed(false), [overrideEmail, overridePlan, overrideDays])
+
   // ISK queue processing
   const [iskProcessing, setIskProcessing] = useState<Set<string>>(new Set())
 
-  const activePlanCounts = data?.activeSubscriptions ?? {}
-  const activePaidSubscriptionCount = Object.entries(activePlanCounts)
-    .filter(([plan]) => plan !== 'free')
-    .reduce((total, [, count]) => total + count, 0)
-  const otherCurrencyRevenue = (data?.revenue.byCurrency ?? [])
-    .filter(({ currency, total }) => currency !== 'KES' && total !== 0)
   const requestedOverrideDays = overrideDays.trim() === '' ? 30 : Number(overrideDays)
   const overrideDurationIsValid = Number.isInteger(requestedOverrideDays)
     && requestedOverrideDays >= 1
@@ -232,7 +121,7 @@ export default function AdminDashboardPage() {
       setLoading(true)
       setError(null)
       const json = await apiGet('/api/admin/dashboard', dashboardResponseSchema, { ttlMs: 0 })
-      setData(json as unknown as DashboardData)
+      setData(json)
     } catch (err) {
       if (err instanceof ApiError) {
         if (err.isUnauthorized) {
@@ -263,7 +152,7 @@ export default function AdminDashboardPage() {
   }, [sessionStatus, fetchDashboard, router])
 
   const handleBroadcast = async () => {
-    if (!announcementTitle || !announcementBody) return
+    if (!announcementTitle.trim() || !announcementBody.trim() || !broadcastReviewed) return
     setBroadcastSending(true)
     setBroadcastResult(null)
     try {
@@ -276,9 +165,10 @@ export default function AdminDashboardPage() {
           target: announcementTarget,
         },
       )
-      setBroadcastResult({ ok: true, msg: 'Announcement sent successfully!' })
+      setBroadcastResult({ ok: true, msg: 'In-app announcement published. No email was sent.' })
       setAnnouncementTitle('')
       setAnnouncementBody('')
+      await fetchDashboard()
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Network error'
       setBroadcastResult({ ok: false, msg })
@@ -288,7 +178,7 @@ export default function AdminDashboardPage() {
   }
 
   const handleOverride = async () => {
-    if (!overrideEmail || !overridePlan) return
+    if (!overrideEmail || !overridePlan || !overrideDurationIsValid || !overrideReviewed) return
     setOverrideSending(true)
     setOverrideResult(null)
     try {
@@ -301,8 +191,9 @@ export default function AdminDashboardPage() {
           ...(overrideDays.trim() ? { days: requestedOverrideDays } : {}),
         },
       )
-      setOverrideResult({ ok: true, msg: `Plan updated to ${overridePlan} for ${overrideDays} days` })
+      setOverrideResult({ ok: true, msg: `Plan updated to ${overridePlan} for ${requestedOverrideDays} days` })
       setOverrideEmail('')
+      await fetchDashboard()
     } catch (err) {
       const msg = err instanceof ApiError ? err.message : 'Network error'
       setOverrideResult({ ok: false, msg })
@@ -317,9 +208,9 @@ export default function AdminDashboardPage() {
       await apiPatch(
         `/api/admin/users/${userId}/verify-isk`,
         verifyIskMutationSchema,
-        { verified: approve },
+        { verified: approve, updated_at: data?.iskQueue.find(user => user.id === userId)?.updatedAt },
       )
-      // Remove from queue locally
+      // Remove only after the server accepts the version-bound change.
       setData(prev => prev ? {
         ...prev,
         iskQueue: prev.iskQueue.filter(u => u.id !== userId),
@@ -341,12 +232,7 @@ export default function AdminDashboardPage() {
   // Loading state
   if (sessionStatus === 'loading' || (loading && !data)) {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 text-[var(--accent)] animate-spin" />
-          <p className="text-sm text-[var(--text-secondary)]">Loading admin dashboard...</p>
-        </div>
-      </div>
+      <div className="space-y-5" aria-busy="true" aria-label="Loading admin dashboard"><div className="h-28 animate-pulse rounded-xl bg-[var(--bg-secondary)]" /><div className="grid grid-cols-2 gap-4 md:grid-cols-4">{[0,1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-xl bg-[var(--bg-secondary)]" />)}</div><div className="h-72 animate-pulse rounded-xl bg-[var(--bg-secondary)]" /></div>
     )
   }
 
@@ -376,228 +262,14 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 shadow-xl md:flex md:items-center md:justify-between md:gap-6 md:p-6">
-        <div className="pointer-events-none absolute -right-12 -top-20 h-56 w-56 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] blur-3xl" />
-        <div className="relative flex items-start gap-4">
-          <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] sm:flex">
-            <Activity className="h-5 w-5" />
-          </div>
-          <div>
-            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">Business operations</p>
-            <h1 className="text-2xl font-semibold tracking-tight text-[var(--text-primary)] md:text-3xl">METARDU control room</h1>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-              Customers, subscriptions, revenue, verification queues, and platform health in one workspace.
-            </p>
-          </div>
-        </div>
-        <div className="relative mt-5 flex items-center gap-3 md:mt-0">
-          <DashboardSearch />
-          <button
-            onClick={fetchDashboard}
-            className="btn btn-secondary min-h-10 text-sm"
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Activity className="w-4 h-4" />
-            )}
-            Refresh
-          </button>
-        </div>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard
-          icon={Users}
-          label="Total Users"
-          value={data.users.total.toLocaleString()}
-          subValue={`${data.users.newThisMonth} new this month`}
-          trend="up"
-          color="#4ade80"
-        />
-        <StatCard
-          icon={Activity}
-          label="Active Users"
-          value={data.users.active.toLocaleString()}
-          subValue="Last 30 days"
-          color="#60a5fa"
-        />
-        <StatCard
-          icon={FolderKanban}
-          label="Total Projects"
-          value={data.projects.total.toLocaleString()}
-          subValue={Object.entries(data.projects.byStatus)
-            .map(([s, c]) => `${s}: ${c}`)
-            .join(', ')}
-          color="#f59e0b"
-        />
-        <StatCard
-          icon={LandPlot}
-          label="Total Parcels"
-          value={data.parcels.toLocaleString()}
-          color="#a78bfa"
-        />
-        <StatCard
-          icon={RadioTower}
-          label="Total Beacons"
-          value={data.beacons.toLocaleString()}
-          color="#f472b6"
-        />
-      </div>
-
-      {/* Extended Stats Row + Subscription Donut */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          icon={CreditCard}
-          label="Active paid subscriptions"
-          value={activePaidSubscriptionCount}
-          subValue={`Trials: ${data.trialSubscriptions ?? 0} · Free: ${activePlanCounts.free ?? 0}`}
-          color="#a78bfa"
-        />
-        <StatCard
-          icon={FileText}
-          label="Submissions (month)"
-          value={data.submissionsThisMonth ?? 0}
-          subValue="This calendar month"
-          color="#34d399"
-        />
-        <StatCard
-          icon={ShieldCheck}
-          label="ISK Pending Verification"
-          value={data.iskPendingCount ?? 0}
-          trend={data.iskPendingCount > 0 ? 'up' : 'neutral'}
-          color="#fbbf24"
-        />
-        {/* Subscription Donut Chart */}
-        <div className="card p-4">
-          <p className="text-xs text-[var(--text-secondary)] mb-2">Active subscriptions by plan</p>
-          <SubscriptionDonutChart
-            data={Object.entries(activePlanCounts).map(([name, value]) => ({ name, value }))}
-          />
-        </div>
-      </div>
-
-      {/* Revenue + ISK Verification Queue */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Revenue Overview */}
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center gap-2">
-              <DollarSign className="w-5 h-5 text-green-400" />
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Revenue Overview
-              </h2>
-            </div>
-            <span className="text-xs text-[var(--text-muted)]">KES payments · other currencies shown separately</span>
-          </div>
-          <div className="p-5">
-            <p className="text-3xl font-bold text-[var(--text-primary)] mb-4">
-              {formatCurrency(data.revenue.total)}
-            </p>
-            {otherCurrencyRevenue.length > 0 && (
-              <div className="mb-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)]/60 p-3">
-                <p className="text-xs font-medium text-[var(--text-secondary)]">Other currencies · no conversion applied</p>
-                <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-                  {otherCurrencyRevenue.map(({ currency, total }) => (
-                    <span key={currency} className="text-sm text-[var(--text-primary)]">
-                      {currency} <span className="font-mono tabular-nums">{formatCurrency(total, currency)}</span>
-                    </span>
-                  ))}
-                </div>
-              </div>
-            )}
-            {data.revenue.byMonth.length > 0 ? (
-              <RevenueLineChart data={data.revenue.byMonth} />
-            ) : (
-              <p className="text-sm text-[var(--text-muted)]">No revenue data yet</p>
-            )}
-          </div>
-        </div>
-
-        {/* ISK Verification Queue */}
-        <div className="card">
-          <div className="card-header">
-            <div className="flex items-center gap-2">
-              <ShieldCheck className="w-5 h-5 text-amber-400" />
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                ISK Verification Queue
-              </h2>
-            </div>
-            <Link href="/admin/users?role=surveyor" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1">
-              View all <ChevronRight className="w-3 h-3" />
-            </Link>
-          </div>
-          <div className="p-0">
-            {(data.iskQueue ?? []).length > 0 ? (
-              <div className="max-h-72 overflow-y-auto">
-                <table className="w-full min-w-[480px]">
-                  <thead>
-                    <tr className="table-header">
-                      <th className="px-4 py-2 text-left">Surveyor</th>
-                      <th className="px-4 py-2 text-left">ISK No.</th>
-                      <th className="px-4 py-2 text-right">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {data.iskQueue.map((user) => (
-                      <tr key={user.id} className="table-row">
-                        <td className="table-cell">
-                          <div>
-                            <p className="text-[var(--text-primary)] font-medium text-sm truncate max-w-[160px]">
-                              {user.name}
-                            </p>
-                            <p className="text-xs text-[var(--text-muted)] truncate max-w-[160px]">
-                              {user.email}
-                            </p>
-                          </div>
-                        </td>
-                        <td className="table-cell text-sm font-mono">
-                          {user.iskNumber}
-                        </td>
-                        <td className="table-cell text-right">
-                          <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleIskAction(user.id, true)}
-                              disabled={iskProcessing.has(user.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
-                              title="Approve ISK"
-                            >
-                              {iskProcessing.has(user.id) ? (
-                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5" />
-                              )}
-                            </button>
-                            <button
-                              onClick={() => handleIskAction(user.id, false)}
-                              disabled={iskProcessing.has(user.id)}
-                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
-                              title="Reject ISK"
-                            >
-                              <X className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="p-5 text-center text-sm text-[var(--text-muted)]">
-                No pending ISK verifications
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Recent Signups + Broadcast */}
-      <div className="grid lg:grid-cols-2 gap-6">
-        {/* Recent Signups */}
+      <header className="admin-page-heading">
+        <div><p className="admin-eyebrow">The business behind the fieldwork</p><h1>Owner’s workspace</h1><p className="admin-description">A clear view of your customers, payments and the work that needs you.</p></div>
+        <div className="flex flex-wrap items-center gap-3"><span className="admin-caption">Updated {new Date(data.generatedAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}</span><button onClick={fetchDashboard} className="btn btn-secondary" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />} Refresh</button></div>
+      </header>
+      <nav aria-label="Business workspace sections" className="admin-section-nav">{[['overview','Overview'],['customers','Customers'],['billing','Billing'],['communications','Communications'],['feedback','Feedback'],['system','System']].map(([id,label]) => <a key={id} href={`#${id}`} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}>{label}{id === 'feedback' && data.operations.openFeedback > 0 && <span>{data.operations.openFeedback}</span>}</a>)}</nav>
+      {error && <div className="admin-error" role="alert">{error} <button onClick={fetchDashboard} className="underline ml-2">Retry</button></div>}
+      {section === 'overview' && <OwnerOverview data={data} />}
+      {section === 'customers' && <div className="space-y-5"><div className="admin-section-heading"><div><h2>Customer accounts & verification</h2><p className="admin-caption">Recent customers exclude explicitly labelled verification fixtures. All accounts remain in the directory.</p></div><Link href="/admin/users" className="btn btn-primary">Manage customers <ArrowUpRight className="h-4 w-4" /></Link></div><div className="admin-split">{/* Recent Signups */}
         <div className="card">
           <div className="card-header">
             <div className="flex items-center gap-2">
@@ -662,141 +334,94 @@ export default function AdminDashboardPage() {
               </div>
             )}
           </div>
-        </div>
-
-        {/* Broadcast Announcement */}
+        </div>{/* ISK Verification Queue */}
         <div className="card">
           <div className="card-header">
             <div className="flex items-center gap-2">
-              <Megaphone className="w-5 h-5 text-blue-400" />
+              <ShieldCheck className="w-5 h-5 text-amber-400" />
               <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                Broadcast Announcement
+                ISK Verification Queue
               </h2>
             </div>
+            <Link href="/admin/users?role=surveyor" className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1">
+              View all <ChevronRight className="w-3 h-3" />
+            </Link>
           </div>
-          <div className="p-5 space-y-3">
-            <input
-              type="text"
-              aria-label="Announcement title" placeholder="Announcement title..."
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] outline-none transition-all"
-              value={announcementTitle}
-              onChange={e => setAnnouncementTitle(e.target.value)}
-            />
-            <textarea
-              placeholder="Message body..."
-              rows={3}
-              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm resize-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] outline-none transition-all"
-              value={announcementBody}
-              onChange={e => setAnnouncementBody(e.target.value)}
-            />
-            <div className="flex gap-2">
-              <select
-                className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
-                value={announcementTarget}
-                onChange={e => setAnnouncementTarget(e.target.value)}
-              >
-                <option value="all">All Users</option>
-                <option value="pro">Pro Users Only</option>
-                <option value="free">Free Users Only</option>
-                <option value="enterprise">Enterprise Only</option>
-              </select>
-              <button
-                onClick={handleBroadcast}
-                className="btn btn-primary flex items-center gap-2"
-                disabled={!announcementTitle || !announcementBody || broadcastSending}
-              >
-                {broadcastSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
-                Send
-              </button>
-            </div>
-            {broadcastResult && (
-              <p className={`text-xs ${broadcastResult.ok ? 'text-green-400' : 'text-red-400'}`}>
-                {broadcastResult.msg}
-              </p>
+          <div className="p-0">
+            {(data.iskQueue ?? []).length > 0 ? (
+              <div className="max-h-96 overflow-auto">
+                <table className="w-full min-w-[480px]">
+                  <thead>
+                    <tr className="table-header">
+                      <th className="px-4 py-2 text-left">Surveyor</th>
+                      <th className="px-4 py-2 text-left">ISK No.</th>
+                      <th className="px-4 py-2 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {data.iskQueue.map((user) => (
+                      <tr key={user.id} className="table-row">
+                        <td className="table-cell">
+                          <div>
+                            <p className="text-[var(--text-primary)] font-medium text-sm truncate max-w-[160px]">
+                              {user.name}
+                            </p>
+                            <p className="text-xs text-[var(--text-muted)] truncate max-w-[160px]">
+                              {user.email}
+                            </p>
+                          </div>
+                        </td>
+                        <td className="table-cell text-sm font-mono">
+                          {user.iskNumber}
+                        </td>
+                        <td className="table-cell text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              onClick={() => handleIskAction(user.id, true)}
+                              disabled={iskProcessing.has(user.id)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors disabled:opacity-50"
+                              aria-label={`Approve ISK for ${user.name}`} title="Approve ISK"
+                            >
+                              {iskProcessing.has(user.id) ? (
+                                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                              ) : (
+                                <Check className="w-3.5 h-3.5" />
+                              )}
+                            </button>
+                            <button
+                              onClick={() => handleIskAction(user.id, false)}
+                              disabled={iskProcessing.has(user.id)}
+                              className="w-8 h-8 flex items-center justify-center rounded-lg bg-red-500/10 text-red-400 hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                              aria-label={`Reject ISK for ${user.name}`} title="Reject ISK"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <div className="p-5 text-center text-sm text-[var(--text-muted)]">
+                No pending ISK verifications
+              </div>
             )}
           </div>
-        </div>
-      </div>
-
-      {/* System Health + Quick Actions + Subscription Override */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* System Health — Enhanced with charts */}
-        <SystemHealthPanel />
-
-        {/* Quick Actions */}
-        <div className="card">
-          <div className="card-header">
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Quick Actions
-            </h2>
-          </div>
-          <div className="p-5 grid grid-cols-2 gap-3">
-            <Link
-              href="/admin/users"
-              className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all group"
-            >
-              <Users className="w-5 h-5 text-[var(--accent)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)]">
-                  User Management
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">Manage users & roles</p>
-              </div>
-            </Link>
-
-            <Link
-              href="/audit-logs"
-              className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all group"
-            >
-              <ShieldCheck className="w-5 h-5 text-[var(--accent)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)]">
-                  Audit Logs
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">View security logs</p>
-              </div>
-            </Link>
-
-            <Link
-              href="/admin/payments"
-              className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all group"
-            >
-              <CreditCard className="w-5 h-5 text-[var(--accent)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)]">
-                  Payments
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">Revenue & billing</p>
-              </div>
-            </Link>
-
-            <Link
-              href="/admin"
-              className="flex items-center gap-3 p-3 rounded-lg border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] hover:bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] transition-all group"
-            >
-              <Settings2 className="w-5 h-5 text-[var(--accent)]" />
-              <div>
-                <p className="text-sm font-medium text-[var(--text-primary)] group-hover:text-[var(--accent)]">
-                  System Health
-                </p>
-                <p className="text-xs text-[var(--text-muted)]">View diagnostics</p>
-              </div>
-            </Link>
-          </div>
-        </div>
-
-        {/* Subscription Override (admin/super_admin) */}
+        </div></div></div>}
+      {section === 'billing' && <div className="space-y-5"><div className="admin-section-heading"><div><h2>Subscriptions & billing</h2><p className="admin-caption">Review incoming payments, upcoming plan endings and exceptional access grants.</p></div><Link href="/admin/payments" className="btn btn-primary">Open payment ledger <ArrowUpRight className="h-4 w-4" /></Link></div><SubscriptionReview data={data} />{/* Manual plan grant (admin/super_admin) */}
         {canOverridePlans && (
           <div className="card">
             <div className="card-header">
               <div className="flex items-center gap-2">
                 <CreditCard className="w-5 h-5 text-purple-400" />
                 <h2 className="text-base font-semibold text-[var(--text-primary)]">
-                  Subscription Override
+                  Manual plan grant
                 </h2>
               </div>
             </div>
-            <div className="p-5 space-y-3">
+            <div className="p-5 space-y-3"><p className="admin-caption">Use for agreed exceptions or support adjustments. This changes access immediately, is audited, and does not record a payment.</p><label className="admin-confirm"><input type="checkbox" checked={overrideReviewed} onChange={e => setOverrideReviewed(e.target.checked)} />I reviewed the account, plan and duration below.</label>
               <input
                 type="email"
                 aria-label="User email" placeholder="User email..."
@@ -807,7 +432,7 @@ export default function AdminDashboardPage() {
               <div className="flex gap-2">
                 <select
                   className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
-                  value={overridePlan}
+                  aria-label="Grant plan" value={overridePlan}
                   onChange={e => {
                     const selectedPlan = getPlan(e.target.value)
                     if (selectedPlan) setOverridePlan(selectedPlan.id)
@@ -830,7 +455,7 @@ export default function AdminDashboardPage() {
                 <button
                   onClick={handleOverride}
                   className="btn btn-primary flex items-center gap-2"
-                  disabled={!overrideEmail || !overrideDurationIsValid || overrideSending}
+                  disabled={!overrideEmail || !overrideDurationIsValid || !overrideReviewed || overrideSending}
                 >
                   {overrideSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                   Apply
@@ -843,23 +468,62 @@ export default function AdminDashboardPage() {
               )}
             </div>
           </div>
-        )}
-      </div>
-
-      {/* Performance Dashboard — Web Vitals & Optimization */}
-      <div className="card">
-        <div className="card-header">
-          <div className="flex items-center gap-2">
-            <Activity className="w-5 h-5 text-[var(--accent)]" />
-            <h2 className="text-base font-semibold text-[var(--text-primary)]">
-              Performance Monitoring
-            </h2>
+        )}</div>}
+      {section === 'communications' && <div className="admin-split"><div>{/* Publish an in-app announcement */}
+        <div className="card">
+          <div className="card-header">
+            <div className="flex items-center gap-2">
+              <Megaphone className="w-5 h-5 text-blue-400" />
+              <h2 className="text-base font-semibold text-[var(--text-primary)]">
+                Publish an in-app announcement
+              </h2>
+            </div>
           </div>
-        </div>
-        <div className="[&_*]:text-[var(--text-primary)] [&_.bg-gray-900]:bg-[var(--bg-primary)] [&_.bg-gray-800]:bg-[var(--bg-secondary)] [&_.bg-gray-700]:bg-[var(--bg-tertiary)] [&_.text-white]:text-[var(--text-primary)] [&_.text-gray-400]:text-[var(--text-muted)] [&_.text-gray-300]:text-[var(--text-secondary)] [&_.text-gray-500]:text-[var(--text-muted)] [&_.border-gray-700]:border-[var(--border-color)] [&_.border-b_border-gray-700]:border-[var(--border-color)]">
-          <PerformanceDashboard />
-        </div>
-      </div>
+          <div className="p-5 space-y-3">
+            <input
+              type="text"
+              maxLength={200} aria-label="Announcement title" placeholder="Announcement title..."
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] outline-none transition-all"
+              value={announcementTitle}
+              onChange={e => setAnnouncementTitle(e.target.value)}
+            />
+            <textarea
+              placeholder="Announcement message..."
+              aria-label="Announcement message" rows={3} maxLength={5000}
+              className="w-full bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm resize-none focus:border-[var(--accent)] focus:ring-1 focus:ring-[color-mix(in_srgb,var(--accent)_30%,transparent)] outline-none transition-all"
+              value={announcementBody}
+              onChange={e => setAnnouncementBody(e.target.value)}
+            />
+            <label className="admin-confirm"><input type="checkbox" checked={broadcastReviewed} onChange={e => setBroadcastReviewed(e.target.checked)} />I reviewed this message for the {announcementTarget} audience. Publishing makes it visible in the app; it does not send email.</label><div className="flex gap-2">
+              <select
+                className="flex-1 bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-lg px-3 py-2 text-[var(--text-primary)] text-sm focus:border-[var(--accent)] outline-none transition-all"
+                aria-label="Announcement audience" value={announcementTarget}
+                onChange={e => setAnnouncementTarget(e.target.value)}
+              >
+                <option value="all">All Users</option>
+                <option value="pro">Pro Users Only</option>
+                <option value="free">Free Users Only</option>
+                <option value="team">Team Users Only</option><option value="firm">Firm Users Only</option><option value="enterprise">Enterprise Only</option>
+              </select>
+              <button
+                onClick={handleBroadcast}
+                className="btn btn-primary flex items-center gap-2"
+                disabled={!announcementTitle.trim() || !announcementBody.trim() || !broadcastReviewed || broadcastSending}
+              >
+                {broadcastSending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                Publish
+              </button>
+            </div>
+            {broadcastResult && (
+              <p className={`text-xs ${broadcastResult.ok ? 'text-green-400' : 'text-red-400'}`}>
+                {broadcastResult.msg}
+              </p>
+            )}
+          </div>
+        </div><div className="admin-note mt-4">Marketing reminders use the existing opt-in scheduler and unsubscribe rules. Publishing an announcement does not trigger a marketing send.</div></div><section className="admin-panel"><div className="admin-section-heading"><div><p className="admin-eyebrow">Published in the app</p><h2>Announcement history</h2></div></div>{data.operations.announcements.length ? data.operations.announcements.map(item => <article className="border-b border-[var(--border-color)] py-4 last:border-0" key={item.id}><p className="admin-caption">{item.target} · {formatDate(item.createdAt)}</p><h3 className="mt-2 font-medium">{item.title}</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm text-[var(--text-secondary)]">{item.body}</p></article>) : <div className="admin-empty"><h3>No announcements published yet.</h3><p>Keep notices short and relevant to the selected audience.</p></div>}</section></div>}
+
+      {section === 'feedback' && <FeedbackInbox items={data.operations.feedback} onUpdated={fetchDashboard} />}
+      {section === 'system' && <div id="system" className="space-y-5"><div className="admin-section-heading"><div><h2>Platform operations</h2><p className="admin-caption">Process and database diagnostics. These readings do not establish field accuracy or backup recoverability.</p></div><Link className="admin-text-link" href="/audit-logs">Open audit trail →</Link></div><SystemHealthPanel /><details className="admin-panel"><summary className="cursor-pointer font-medium">Browser performance diagnostics</summary><div className="mt-5"><PerformanceDashboard /></div></details><div className="admin-note">Backups, migrations and production promotion stay in the controlled deployment workflow. This dashboard does not run Docker cleanup or database migrations.</div></div>}
     </div>
   )
 }
