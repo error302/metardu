@@ -1,0 +1,3 @@
+## 2024-10-16 - Point Cloud Bounds Calculation Optimization
+**Learning:** Using the spread operator (`...`) with `Math.min()` or `Math.max()` on large arrays (like point cloud datasets) can cause V8 "Maximum call stack size exceeded" errors and excessive memory allocation due to argument count limits.
+**Action:** Always use standard `for` loops or `reduce` instead of the spread operator when calculating bounds or aggregating values over potentially large datasets.

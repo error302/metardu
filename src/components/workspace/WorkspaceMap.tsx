@@ -295,7 +295,7 @@ export default function WorkspaceMap({ projectName, boundaryData, epsg = 'EPSG:2
         select.on('select', (evt: import('ol/interaction/Select').SelectEvent) => {
           if (evt.selected.length > 0) {
             const f = evt.selected[0];
-            const coord = f.getGeometry()?.getClosestPoint(evt.mapBrowserEvent.coordinate);
+            const coord = f.getGeometry()?.getClosestPoint(evt.mapBrowserEvent?.coordinate || [0, 0]);
             const name = (f.get('name') as string | undefined) || 'Station';
             // VULN-002 FIX (security review 2026-08-03): station names are
             // user-entered — render with textContent, never innerHTML.
