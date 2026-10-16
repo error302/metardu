@@ -567,6 +567,11 @@ regexes = [
     '''AIzaSyA8vmApnrHNFE0bApF4hoZ11srVL_n0nvY''',
 ]
 
+[[rules.allowlists]]
+regexes = [
+    '''clarke1880_modified'''
+]
+
 [[rules]]
 id = "generic-api-key"
 description = "Detected a Generic API Key, potentially exposing access to various services and sensitive operations."
@@ -2090,6 +2095,11 @@ regexes = [
     '''SRC[^=]*=\s*"[a-zA-Z0-9]+''',
 ]
 
+[[rules.allowlists]]
+regexes = [
+    '''clarke1880_modified'''
+]
+
 [[rules]]
 id = "github-app-token"
 description = "Identified a GitHub App Token, which may compromise GitHub application integrations and source code security."
@@ -3182,4 +3192,12 @@ regexes = [
   '\\$\\{[A-Z][A-Z_0-9]+:\\?[^}]*\\}',
   '\\bDUMMY[A-Z0-9_]*\\b',
   '\\b(sk|pk|rk)_(test|dummy|example)_[A-Za-z0-9]{4,}\\b',
+  '(?i)^(clarke1880_modified|clarke1858|wgs84)$',
+  'clarke1880_modified',
+  'clarke[0-9]{4}(_modified)?',
+]
+
+[[rules.allowlists]]
+regexes = [
+    '''clarke1880_modified'''
 ]

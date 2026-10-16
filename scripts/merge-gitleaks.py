@@ -69,6 +69,7 @@ regexes = [
   '\\$\\{[A-Z][A-Z_0-9]+:\\?[^}]*\\}',
   '\\bDUMMY[A-Z0-9_]*\\b',
   '\\b(sk|pk|rk)_(test|dummy|example)_[A-Za-z0-9]{4,}\\b',
+  '(?i)^(clarke1880_modified|clarke1858|wgs84)$',
 ]
 '''
 
