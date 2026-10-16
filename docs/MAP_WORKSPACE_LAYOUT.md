@@ -60,3 +60,55 @@ preview also logged a NextAuth client session-fetch error; a separate quantity
 verification rerun encountered credential rejection. Those source authentication
 issues remain under investigation and are not treated as successful live login
 or OAuth evidence.
+
+## Current-map printing and map space (16 October 2026)
+
+The ordinary print control now downloads `metardu-current-map.pdf` from the
+current rendered OpenLayers frame. It does not open the engineering sheet
+overlay, refit the view or resize the map. Layer canvases are composited in
+render order with their opacity/transforms. A4/A3/A1 PDF output retains the
+company icon, capture time, declared survey CRS, view rotation and actual source
+credits/URLs. Missing tiles, unsupported transforms, blocked canvas export and
+unavailable attribution report errors rather than a false successful export.
+This is a current-view reference, explicitly not a certified-scale survey plan.
+The advanced survey-sheet action remains a separate explicit workflow.
+
+Mobile tool groups start collapsed and expand into two rows of three. Hiding
+tools closes the context panel and releases the reserved map space. Normal
+OpenLayers dragging/inertia is enabled by default; the optional mobile lock uses
+public `DragPan.setActive`, replacing modifier-key/private-field overrides.
+The artificial regional pan extent was removed and zoom-out permits wider
+navigation. No field-device frame-rate or hardware benchmark is claimed.
+
+GPS has a visible on/off control. It centers once on the first valid fix and
+then permits free panning. Stopping or a real OpenLayers `error` event releases
+the pending first-fix listener and clears location/stakeout state. Generation
+guards prevent late asynchronous position work from reappearing after stop.
+Device accuracy remains device accuracy, not an RTK claim.
+
+Source attribution is rendered directly below the map canvas, including the
+provider's copyright link, rather than obscuring the map. Exported PDFs retain
+the source credit and URL. This placement follows the OSM Foundation's adjacent
+map attribution guidance:
+https://osmfoundation.org/wiki/Licence/Attribution_Guidelines
+
+The source preview returned 503 during verification with 97 idle application
+database sessions. Next development hot reloads could recreate the module pool.
+Development now caches one pool across reloads, rejects changed configuration
+until restart, and installs its error listener once. Production pool ownership
+is unchanged. After a guarded restart of only the existing host preview on
+127.0.0.1:3021, health returned 200 and direct synthetic-database inspection
+showed one idle application session. This does not establish OAuth completion.
+
+Evidence: 28 focused map checks and seven database checks passed, followed by
+eight targeted rerun checks after the small GPS/credit refinements. Strict app
+and test type checking and scoped ESLint passed. CUA downloaded and inspected
+one-page A4 PDFs first for the basemap and then with a synthetic line and an
+explicit EPSG:32737 grid. The line appears in the PDF without toolbar overlays.
+PDFs and rendered evidence are under `.cache/release-verify/map-workspace/`.
+Mobile collapsed/expanded tools and the capture panel were observed in CUA.
+The synthetic line was selected and deleted through the UI; the export panel
+then showed no remaining features/clear action. GPS was switched on (locating)
+and off again through the visible control. No real location fix was recorded.
+GPS hardware, real-phone gesture speed and production deployment remain
+separate release/field checks. No Docker image/container/builder was created.

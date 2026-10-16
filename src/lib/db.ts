@@ -3,6 +3,10 @@ import { logger } from '@/lib/logger'
 import { env } from '@/lib/env'
 
 let pool: Pool | null = null
+// Next development reloads this server module. Keep one pool across those
+// reloads instead of orphaning connections until PostgreSQL refuses new ones.
+const developmentPoolKey = Symbol.for('metardu.development.postgres-pool')
+type DevelopmentPoolCache = typeof globalThis & { [developmentPoolKey]?: { pool: Pool; configuration: string } }
 
 /**
  * Per-request storage for the current user ID and organization ID.
@@ -166,7 +170,14 @@ function assertTable(table: string): void {
 /** Get the singleton Pool instance (lazy-initialized) */
 export function getPool(): Pool {
   if (!pool) {
-    pool = new Pool(getPoolConfig())
+    const config = getPoolConfig()
+    const development = process.env.NODE_ENV === 'development'
+    const registry = globalThis as DevelopmentPoolCache
+    const configuration = JSON.stringify(config)
+    const cached = development ? registry[developmentPoolKey] : undefined
+    if (cached && cached.configuration !== configuration) throw new Error('Database configuration changed. Restart the development server before connecting.')
+    pool = cached?.pool ?? new Pool(config)
+    if (development && !cached) registry[developmentPoolKey] = { pool, configuration }
     // NOTE: DDL migrations removed from hot path.
     // Column additions (payment_history.plan_id, transaction_id) are handled
     // by scripts/migrate.js which runs in docker-entrypoint.sh before the
@@ -174,7 +185,7 @@ export function getPool(): Pool {
     // ACCESS EXCLUSIVE lock on the table, blocking all reads/writes.
 
     // Pool-level error listener — prevents unhandled errors from crashing the process
-    pool.on('error', (err) => {
+    if (!cached) pool.on('error', (err) => {
       logger.error('[db] Unexpected pool error:', { error: err })
     })
   }

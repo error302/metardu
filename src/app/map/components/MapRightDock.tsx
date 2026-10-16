@@ -1,13 +1,13 @@
 'use client'
 
 import { memo, useCallback } from 'react'
-import { Plus, Minus } from 'lucide-react'
+import { Plus, Minus, LocateFixed, LocateOff } from 'lucide-react'
 import { useMapContext } from '@/app/map/MapReactContext'
 import { NorthArrowOverlay } from './NorthArrowOverlay'
 import { MapPrintButton } from './MapPrintButton'
 
 export const MapRightDock = memo(function MapRightDock() {
-  const { mapInstance } = useMapContext()
+  const { mapInstance, gpsTracking, toggleGPS } = useMapContext()
   const zoom = useCallback((step: number) => {
     const view = mapInstance.current?.getView()
     if (!view) return
@@ -20,6 +20,7 @@ export const MapRightDock = memo(function MapRightDock() {
         <button type="button" onClick={() => zoom(-1)} aria-label="Zoom out" title="Zoom out"><Minus className="h-4 w-4" /></button>
       </div>
       <NorthArrowOverlay mapInstance={mapInstance} />
+      <button type="button" className="map-gps-toggle" onClick={toggleGPS} aria-pressed={gpsTracking} aria-label={gpsTracking ? 'Turn GPS off' : 'Turn GPS on'} title={gpsTracking ? 'Turn device location off' : 'Use device location'}>{gpsTracking ? <LocateFixed className="h-4 w-4" /> : <LocateOff className="h-4 w-4" />}</button>
       <MapPrintButton />
     </div>
   )

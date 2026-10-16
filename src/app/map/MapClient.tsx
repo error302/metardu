@@ -21,6 +21,7 @@ import { useSchemeLayers } from '@/app/map/hooks/useSchemeLayers'
 import { useDigitizingTools } from '@/app/map/hooks/useDigitizingTools'
 import { useTraverseParcelPreview } from '@/app/map/hooks/useTraverseParcelPreview'
 import { useGpsTracking } from '@/app/map/hooks/useGpsTracking'
+import { useMapGpsControl } from '@/app/map/hooks/useMapGpsControl'
 import { useProjectPoints } from '@/app/map/hooks/useProjectPoints'
 import { useMapPrintFlow } from '@/app/map/hooks/useMapPrintFlow'
 import { useMapSnapping } from '@/app/map/hooks/useMapSnapping'
@@ -40,7 +41,6 @@ import './map-workspace.css'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
 import { MapToolDock, ReconContent, CaptureContent, ComputeContent, SetOutContent, LayersContent, ExportContent } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
-import { OfflineDownloadButton } from '@/app/map/components/OfflineDownloadButton'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { OsmBuildingsLayer } from '@/app/map/components/OsmBuildingsLayer'
@@ -55,7 +55,7 @@ import { useMapInit } from '@/app/map/hooks/useMapInit'
 import { useMapState } from '@/app/map/hooks/useMapState'
 import { useMapInteractions } from '@/app/map/hooks/useMapInteractions'
 import { useVertexEditing } from '@/hooks/useVertexEditing'
-import { usePrint } from '@/lib/surveyMapEngine/io/printSurface'
+import type { PaperSize, Orientation } from '@/lib/surveyMapEngine/io/printSurface'
 import { SurveyMapEngineProvider } from '@/lib/surveyMapEngine/react/SurveyMapEngineContext'
 import type { MapExtent } from './MapReactContext'
 import { MapProvider, useMapContext, type MapContextValue } from '@/app/map/MapReactContext'
@@ -188,6 +188,7 @@ export default function MapClient() {
 
   // ── Map refs ──
   const mapRef = useRef<HTMLDivElement>(null)
+  const attributionTargetRef = useRef<HTMLDivElement>(null)
   const mapInstance = useRef<import('ol/Map').default | null>(null)
   const popupRef = useRef<HTMLDivElement | null>(null)
   const mouseCoordThrottleRef = useRef(0)
@@ -214,6 +215,7 @@ export default function MapClient() {
 
   // ── UI state ──
   const [mapReady, setMapReady] = useState(false)
+  const [mobileToolsExpanded, setMobileToolsExpanded] = useState(false)
   const [initError, setInitError] = useState('')
   const [projectCount, setProjectCount] = useState(0)
   const [basemap, setBasemap] = useState<BasemapMode>('osm')
@@ -273,14 +275,8 @@ export default function MapClient() {
   const [showOsmBuildings, setShowOsmBuildings] = useState(false)
   const [activeRailTool, setActiveRailTool] = useState<string | null>(null)
 
-  const {
-    print: printMap,
-    isPrinting,
-    paperSize,
-    setPaperSize,
-    orientation,
-    setOrientation,
-  } = usePrint({ printTarget: 'metardu-global-map' })
+  const [paperSize, setPaperSize] = useState<PaperSize>('a4')
+  const [orientation, setOrientation] = useState<Orientation>('landscape')
 
   // ── Map extent for offline tile dialog (async resolve) ──
   const [offlineMapExtent, setOfflineMapExtent] = useState<MapExtent | null>(null)
@@ -329,6 +325,7 @@ export default function MapClient() {
   // ── Map initialization ──
   useMapInit({
     mapRef,
+    attributionTargetRef,
     setMapReady,
     setInitError,
     setProjectCount,
@@ -503,24 +500,7 @@ export default function MapClient() {
   })
 
   // Wire GPS toggle (needs interactions reference)
-  const toggleGPS = useCallback(() => {
-    if (!mapInstance.current) return
-    if (!cleanupRef.current?.geolocation) return
-
-    if (gpsTracking) {
-      cleanupRef.current.geolocation.setTracking(false)
-      setGpsTracking(false)
-      setStakeoutActive(false)
-    } else {
-      cleanupRef.current.geolocation.setTracking(true)
-      setGpsTracking(true)
-      const mi = mapInstance.current
-      cleanupRef.current.geolocation.once('change:position', () => {
-        const pos = cleanupRef.current?.geolocation?.getPosition()
-        if (pos && mi) mi.getView().animate({ center: pos, zoom: 16, duration: 1000 })
-      })
-    }
-  }, [gpsTracking])
+  const toggleGPS = useMapGpsControl({ mapInstance, cleanupRef, mapReady, setGpsTracking, setGpsPos, setStakeoutActive, setSaveMsg })
 
   // Keep the ref up-to-date so the interactions hook can call the real function
   toggleGPSRef.current = toggleGPS
@@ -633,8 +613,8 @@ export default function MapClient() {
   }, [interactions])
 
   // ── Print/sheet-layout flow (Phase 5: extracted to useMapPrintFlow) ──
-  const { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi } =
-    useMapPrintFlow({ print: printMap, drawSourceRef, currentSurveyCrs })
+  const { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi, isPrinting } =
+    useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceRef, currentSurveyCrs, onError: setSaveMsg })
 
   // ── Offline dialog toggle (async: resolves map extent when opening) ──
   const handleToggleOfflineDialog = useCallback(async (open: boolean) => {
@@ -843,12 +823,12 @@ export default function MapClient() {
       <div
         id="metardu-global-map"
         className="map-workspace h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
-        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px' } as React.CSSProperties}
+        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': isMobile && mobileToolsExpanded ? '104px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
       >
         {/* Map container */}
-        <div className="w-full h-full relative">
+        <div className="map-canvas-area">
           <div ref={mapRef} className="w-full h-full" aria-label="Interactive survey map" />
 
           {/* ── Overlays (only when map is ready) ── */}
@@ -860,7 +840,7 @@ export default function MapClient() {
               <MapBasemapBar />
 
               {/* ── Tool Dock — MOBILE ONLY (bottom-sheet UX) ── */}
-              {isMobile && <MapToolDock />}
+              {isMobile && <MapToolDock expanded={mobileToolsExpanded} onExpandedChange={setMobileToolsExpanded} />}
 
               {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />
@@ -911,9 +891,6 @@ export default function MapClient() {
                   router.push(`/project/${targetProjectId}/reports?type=form3&parcel=${parcelParam}`)
                 }}
               />
-
-              {/* ── Offline Tile Download Button (bottom-right) ── */}
-              <OfflineDownloadButton />
 
               <MapStatusBar />
 
@@ -966,6 +943,7 @@ export default function MapClient() {
           {/* Loading / Error overlay (zero-prop, reads from context) */}
           <MapLoadingOverlay />
         </div>
+        <div ref={attributionTargetRef} className="map-attribution-footer" aria-label="Map sources and licences" />
 
         {/* Keyboard shortcuts modal (global overlay) */}
         <KeyboardShortcutsHelp />

@@ -1,91 +1,59 @@
 'use client'
 
-/**
- * useMapPrintFlow — sheet-layout + print orchestration for /map
- * (plan Phase 5: MapClient thinning).
- *
- * Loads the SheetLayout overlay chunk before showing it (without the pre-load
- * the first print can render a blank overlay), derives the plan geometry from
- * the current draw source so the sheet shows a real scale/area/perimeter,
- * then triggers the browser print and tears the overlay down on `afterprint`.
- */
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { PlanGeometry } from '@/lib/engine/planGeometry'
 import type { PrintOptions } from '@/lib/surveyMapEngine/io/printSurface'
 import { loadSheetLayout } from '@/lib/surveyMapEngine/io/printSurface'
 
 export interface UseMapPrintFlowParams {
-  print: (overrides?: Partial<PrintOptions>) => void | Promise<void>
+  mapInstance: React.RefObject<import('ol/Map').default | null>
+  attributionTargetRef: React.RefObject<HTMLDivElement | null>
   drawSourceRef: React.RefObject<import('ol/source/Vector').default | null>
   currentSurveyCrs: string | null
+  onError: (message: string) => void
 }
 
-export function useMapPrintFlow({ print, drawSourceRef, currentSurveyCrs }: UseMapPrintFlowParams) {
+export function useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceRef, currentSurveyCrs, onError }: UseMapPrintFlowParams) {
   const [showSheetLayout, setShowSheetLayout] = useState(false)
-  // Derived at print time from the largest drawn polygon so the sheet's scale,
-  // area and perimeter reflect the actual survey (not the "As Noted" fallback).
   const [printPlanGeometry, setPrintPlanGeometry] = useState<PlanGeometry | null>(null)
+  const [isPrinting, setIsPrinting] = useState(false)
+  const pending = useRef(false)
+  const handlePrintMap = useCallback(async (options?: Partial<PrintOptions>) => {
+    if (pending.current || !mapInstance.current) return
+    const map = mapInstance.current
+    pending.current = true; setIsPrinting(true); setShowSheetLayout(false)
+    try {
+      const { captureMapViewport, mapViewportPdf } = await import('@/lib/surveyMapEngine/io/mapViewportPrint')
+      const raster = await captureMapViewport(map)
+      const attribution = attributionTargetRef.current
+      const links = attribution ? [...attribution.querySelectorAll<HTMLAnchorElement>('a[href]')].map(link => link.href) : []
+      const creditList = attribution?.querySelector('ul') ?? attribution
+      const credits = [creditList?.textContent?.trim() ?? '', ...new Set(links)].filter(Boolean).join(' · ')
+      if (!credits) throw new Error('Map source credits are not ready. Wait for the map, then print again.')
+      const pdf = await mapViewportPdf({ raster, surveyCrs: currentSurveyCrs, credits, capturedAt: new Date().toISOString(), rotation: map.getView().getRotation() }, options)
+      const url = URL.createObjectURL(pdf)
+      const link = document.createElement('a'); link.href = url; link.download = 'metardu-current-map.pdf'
+      document.body.append(link); link.click(); link.remove()
+      setTimeout(() => URL.revokeObjectURL(url), 60000)
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Could not prepare the current map.'
+      onError(`Error: ${message}`)
+    } finally { pending.current = false; setIsPrinting(false) }
+  }, [mapInstance, attributionTargetRef, currentSurveyCrs, onError])
 
-  // Print handler: show sheet layout overlay then trigger browser print
-  const handlePrintMap = useCallback(
-    async (overrides?: Partial<PrintOptions>) => {
-      // Force the SheetLayout chunk to load BEFORE we show + print. Without this,
-      // the dynamic import races the 500ms delay and the first print can come out
-      // blank (overlay not yet mounted) on slow connections.
-      try {
-        await loadSheetLayout()
-      } catch {}
-      // Derive plan geometry from the largest drawn polygon so the sheet shows a
-      // real scale / area / perimeter instead of "As Noted". The state is
-      // cleared first so the sheet can never mount with a previous run's value.
-      setPrintPlanGeometry(null)
-      try {
-        if (!currentSurveyCrs) throw new Error('A survey CRS is required for measured sheet geometry.')
-        const { derivePlanGeometryFromDrawSource } = await import(
-          '@/app/map/utils/derivePlanGeometry'
-        )
-        const geom = await derivePlanGeometryFromDrawSource(
-          drawSourceRef.current,
-          currentSurveyCrs
-        )
-        setPrintPlanGeometry(geom)
-      } catch {
-        setPrintPlanGeometry(null)
-      }
-      setShowSheetLayout(true)
-      await new Promise((resolve) => setTimeout(resolve, 500))
-      await print(overrides)
-
-      // Fallback timer: clear sheet layout and plan geometry if afterprint never fires (iOS Safari / cancel path)
-      setTimeout(() => {
-        setShowSheetLayout(false)
-        setPrintPlanGeometry(null)
-      }, 10000)
-    },
-    [print, currentSurveyCrs, drawSourceRef]
-  )
-
-  // Phase 4 (plan §3.1): export/print entry points reachable from the engine
+  const openSheetLayout = useCallback(async () => {
+    await loadSheetLayout()
+    if (!currentSurveyCrs) { setPrintPlanGeometry(null); setShowSheetLayout(true); return }
+    const { derivePlanGeometryFromDrawSource } = await import('@/app/map/utils/derivePlanGeometry')
+    setPrintPlanGeometry(await derivePlanGeometryFromDrawSource(drawSourceRef.current, currentSurveyCrs))
+    setShowSheetLayout(true)
+  }, [currentSurveyCrs, drawSourceRef])
   const printApi = {
     sheetLayoutOpen: showSheetLayout,
-    openSheetLayout: () => setShowSheetLayout(true),
+    openSheetLayout: () => { void openSheetLayout().catch(error => onError(`Error: ${error instanceof Error ? error.message : 'Could not prepare survey sheet.'}`)) },
     closeSheetLayout: () => setShowSheetLayout(false),
-    toggleSheetLayout: () => setShowSheetLayout((v) => !v),
+    toggleSheetLayout: () => { if (showSheetLayout) setShowSheetLayout(false); else void openSheetLayout().catch(() => onError('Error: Could not prepare survey sheet.')) },
     print: handlePrintMap,
   }
-
-  // Hide the sheet-layout overlay when the print dialog closes. Also drop the
-  // derived geometry so a future sheet-open can never render the previous
-  // print's stale scale label — the sheet only ever shows a value derived in
-  // the same tick it was opened.
-  useEffect(() => {
-    const onAfterPrint = () => {
-      setShowSheetLayout(false)
-      setPrintPlanGeometry(null)
-    }
-    window.addEventListener('afterprint', onAfterPrint)
-    return () => window.removeEventListener('afterprint', onAfterPrint)
-  }, [])
-
-  return { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi }
+  return { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi, isPrinting }
 }

@@ -74,8 +74,12 @@ export function useGpsTracking({
     if (!cleanupRef.current?.geolocation) return
 
     const geolocation = cleanupRef.current.geolocation
+    let cancelled = false
+    let generation = 0
 
     const onPositionChange = async () => {
+      const current = ++generation
+      if (!geolocation.getTracking()) { setGpsPos(null); return }
       const pos = geolocation.getPosition()
       if (!pos || !Number.isFinite(pos[0]) || !Number.isFinite(pos[1])) {
         setGpsPos(null)
@@ -83,6 +87,7 @@ export function useGpsTracking({
       }
       try {
         const { transform } = await import('ol/proj')
+        if (cancelled || current !== generation || !geolocation.getTracking()) return
         const lonLat = transform(pos, 'EPSG:3857', SRID_4326) as [number, number]
         const accuracy = geolocation.getAccuracy()
         if (!Number.isFinite(lonLat[0]) || !Number.isFinite(lonLat[1]) || !Number.isFinite(accuracy)) {
@@ -92,17 +97,18 @@ export function useGpsTracking({
         setGpsPos({ lon: lonLat[0], lat: lonLat[1], accuracy })
       } catch {
         // Do not leave a stale location visible when the conversion fails.
-        setGpsPos(null)
+        if (!cancelled && current === generation) setGpsPos(null)
       }
     }
 
-    const onPositionError = () => setGpsPos(null)
+    const onPositionError = () => { generation++; setGpsPos(null) }
 
     geolocation.on('change:position', onPositionChange)
-    geolocation.on('change:error', onPositionError)
+    geolocation.on('error', onPositionError)
     return () => {
+      cancelled = true; generation++
       geolocation.un('change:position', onPositionChange)
-      geolocation.un('change:error', onPositionError)
+      geolocation.un('error', onPositionError)
     }
   }, [mapReady, mapInstance, cleanupRef, setGpsPos])
 

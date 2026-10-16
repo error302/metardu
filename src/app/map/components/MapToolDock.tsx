@@ -1,23 +1,5 @@
 'use client'
-/**
- * MapToolDock — redesigned around a non-overlapping stacked-panel layout.
- *
- * Desktop layout:
- *   ┌────┬─────────────────────────────┐
- *   │ [scope] │  ┌──────────────────────┐   │
- *   │ [+]  │  │  Recon (open)        │   │
- *   │ ∑  │  └──────────────────────┘   │
- *   │ ◎  │  ┌──────────────────────┐   │
- *   │ ⊞  │  │  Compute (open)      │   │
- *   │ ↓  │  └──────────────────────┘   │
- *   └────┘─────────────────────────────┘
- *
- *  - Multiple panels can be open simultaneously (they stack top-to-bottom)
- *  - Panels never overlap — each is a separate card in a flex column
- *  - Each panel has its own max-height + internal scroll
- *  - Active-tool indicator dots on icon rail buttons
- *  - Project badge in each panel header links to /project/[id]
- */
+/** Collapsible mobile tool groups with one scrollable context panel at a time. */
 
 import React, { memo, useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import {
@@ -728,7 +710,7 @@ const MetarduWatermark = memo(function MetarduWatermark() {
 // Main: MapToolDock
 // ---------------------------------------------------------------------------
 
-export const MapToolDock = memo(function MapToolDock() {
+export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpandedChange }: { expanded?: boolean; onExpandedChange?: (expanded: boolean) => void }) {
   const [openPanels, setOpenPanels] = useState<Set<DockCategory>>(new Set())
   const [dockVisible, setDockVisible] = useState(false)
 
@@ -738,6 +720,7 @@ export const MapToolDock = memo(function MapToolDock() {
   } = useMapContext()
 
   const togglePanel = useCallback((cat: DockCategory) => {
+    if (isMobile) onExpandedChange?.(true)
     setOpenPanels(prev => {
       if (isMobile) return prev.has(cat) ? new Set() : new Set([cat])
       const next = new Set(prev)
@@ -745,7 +728,7 @@ export const MapToolDock = memo(function MapToolDock() {
       else next.add(cat)
       return next
     })
-  }, [isMobile])
+  }, [isMobile, onExpandedChange])
 
   const closePanel = useCallback((cat: DockCategory) => {
     setOpenPanels(prev => {
@@ -799,8 +782,11 @@ export const MapToolDock = memo(function MapToolDock() {
       <>
         <MetarduWatermark />
 
+        <button type="button" className="map-mobile-tools-toggle" aria-expanded={expanded} aria-controls="map-mobile-tool-groups" onClick={() => { setOpenPanels(new Set()); onExpandedChange?.(!expanded) }}>
+          {expanded ? <X className="h-4 w-4" /> : <Layers className="h-4 w-4" />}{expanded ? 'Hide tools' : 'Map tools'}
+        </button>
         {/* Active panel — bottom sheet, only one at a time on mobile */}
-        {openPanels.size > 0 && (() => {
+        {expanded && openPanels.size > 0 && (() => {
           const cat = [...openPanels][openPanels.size - 1]
           const catDef = CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
           return (
@@ -830,7 +816,7 @@ export const MapToolDock = memo(function MapToolDock() {
         })()}
 
         {/* Bottom horizontal dock bar */}
-        <div className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
+        {expanded && <div id="map-mobile-tool-groups" className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
             const open = openPanels.has(cat.id)
@@ -849,7 +835,7 @@ export const MapToolDock = memo(function MapToolDock() {
               </button>
             )
           })}
-        </div>
+        </div>}
       </>
     )
   }

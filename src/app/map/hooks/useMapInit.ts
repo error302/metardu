@@ -33,6 +33,7 @@ import { reportCrs } from '@/lib/generators/reportCrs'
 
 interface UseMapInitParams {
   mapRef: React.RefObject<HTMLDivElement | null>
+  attributionTargetRef?: React.RefObject<HTMLDivElement | null>
   setMapReady: (v: boolean) => void
   setInitError: (v: string) => void
   setProjectCount: (v: number) => void
@@ -66,7 +67,7 @@ export function useMapInit(params: UseMapInitParams) {
   }, [params.currentSurveyCrs])
 
   const {
-    mapRef, setMapReady, setInitError, setProjectCount,
+    mapRef, attributionTargetRef, setMapReady, setInitError, setProjectCount,
     setMouseCoord, setFeatureCount, setImportMsg,
     setSelectedFeature, setSelectedFeatures, setFeatureName, mouseCoordThrottleRef,
     searchParams, pushHistory,
@@ -437,13 +438,12 @@ export function useMapInit(params: UseMapInitParams) {
           view: new View({
             center: proj.fromLonLat([37.91, 0.02]),
             zoom: 6,
-            minZoom: 6,
+            minZoom: 2,
             maxZoom: 20,
-            extent: [-2.2e7, -1.2e7, 2.2e7, 1.5e7],
           }),
           controls: [
             new ScaleLine({ units: 'metric' }),
-            new Attribution({ collapsible: true }),
+            new Attribution({ collapsible: false, target: attributionTargetRef?.current ?? undefined }),
             new MousePosition({
               coordinateFormat: (coord?: import('ol/coordinate').Coordinate) => {
                 if (!coord || coord[0] == null || coord[1] == null || isNaN(coord[0]) || isNaN(coord[1])) return ''

@@ -8,6 +8,7 @@ node_modules
 .aws
 .gite
 .artifacts
+artifacts
 .lhtmp
 backups
 download
