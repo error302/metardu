@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { ArrowUpRight, CheckCircle2, CreditCard, MessageSquare, ShieldCheck, Users } from 'lucide-react'
+import { ArrowUpRight, CheckCircle2, CreditCard, FolderKanban, MessageSquare, ShieldCheck, Users } from 'lucide-react'
 import type { DashboardData } from '@/lib/admin/dashboardContract'
 import { formatPaymentAmount } from '@/lib/admin/paymentCurrency'
 import { RevenueLineChart } from './charts/AdminCharts'
@@ -15,14 +15,19 @@ export function OwnerOverview({ data }: { data: DashboardData }) {
     { title: 'Customer feedback', count: ops.openFeedback, detail: 'Triage bugs, requests and customer questions.', href: '#feedback', icon: MessageSquare },
     { title: 'Ending within 7 days', count: ops.expiringSubscriptions7d, detail: 'Review active plans and trials approaching their end.', href: '#billing', icon: Users },
   ]
+  const metrics = [
+    { title: 'Customer accounts', value: ops.accounts, note: `${ops.syntheticAccounts} labelled test accounts excluded`, icon: Users },
+    { title: 'Active paid plans', value: paid, note: `${data.trialSubscriptions} trials · manual grants may be included`, icon: CreditCard },
+    { title: 'Stored projects', value: data.projects.total, note: `${data.submissionsThisMonth} submissions this month · includes test projects`, icon: FolderKanban },
+    { title: 'Completed revenue · KES', value: formatPaymentAmount(data.revenue.total, 'KES'), note: 'All time · original payment currency', icon: CheckCircle2 },
+  ]
   return <div className="space-y-6">
     <section aria-label="Business snapshot" className="admin-metric-strip">
-      {[
-        ['Customer accounts', ops.accounts, `${ops.syntheticAccounts} labelled test accounts excluded`],
-        ['Active paid plans', paid, `${data.trialSubscriptions} trials · manual grants may be included`],
-        ['Stored projects', data.projects.total, `${data.submissionsThisMonth} submissions this month · includes test projects`],
-        ['Completed revenue · KES', formatPaymentAmount(data.revenue.total, 'KES'), 'All time · original payment currency'],
-      ].map(([title, value, note]) => <div key={title} className="admin-metric"><p>{title}</p><strong>{typeof value === 'number' ? value.toLocaleString() : value}</strong><small>{note}</small></div>)}
+      {metrics.map(({ title, value, note, icon: Icon }) => <article key={title} className="admin-metric">
+        <div className="admin-metric-heading"><p>{title}</p><span><Icon className="h-4 w-4" aria-hidden="true" /></span></div>
+        <strong>{typeof value === 'number' ? value.toLocaleString('en-KE') : value}</strong>
+        <small>{note}</small>
+      </article>)}
     </section>
     <section className="admin-panel" aria-labelledby="attention-heading">
       <div className="admin-section-heading"><div><p className="admin-eyebrow">Daily priorities</p><h2 id="attention-heading">Needs your attention</h2></div><span className="admin-caption">Review before taking action</span></div>

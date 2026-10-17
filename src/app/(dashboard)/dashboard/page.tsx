@@ -17,6 +17,16 @@ import DashboardSearch from '@/components/dashboard/DashboardSearch'
 import EmailVerificationNotice from '@/components/dashboard/EmailVerificationNotice'
 import { db, setCurrentUserId } from '@/lib/db'
 import { getSubscription } from '@/lib/subscription/subscriptionEngine'
+import {
+  Activity,
+  ArrowRight,
+  ArrowUpRight,
+  ClipboardList,
+  FolderKanban,
+  MapPinned,
+  Plus,
+  Ruler,
+} from 'lucide-react'
 
 export default async function DashboardPage() {
   let t = (k: string) => k
@@ -96,6 +106,7 @@ export default async function DashboardPage() {
   const daysLeft = trialEndsAt
     ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
     : null
+  const firstName = user.name.trim().split(/\s+/)[0] || 'surveyor'
 
   /* ── Batch point/parcel counts (avoids N+1 queries) ─────────────── */
   let projectsWithCounts = projects
@@ -143,37 +154,95 @@ export default async function DashboardPage() {
     }
   }
 
+  const totalPointCount = projectCountsLoadFailed
+    ? null
+    : projectsWithCounts.reduce((total, project) => total + (project.point_count ?? 0), 0)
+  const totalParcelCount = projectCountsLoadFailed
+    ? null
+    : projectsWithCounts.reduce((total, project) => total + (project.parcel_count ?? 0), 0)
+  const formatCount = (value: number | null) => value === null ? '—' : new Intl.NumberFormat('en-KE').format(value)
+
+  const dashboardMetrics = [
+    {
+      label: 'Projects',
+      value: projectsLoadFailed ? '—' : formatCount(projects.length),
+      note: userIsAdmin ? 'Across the platform' : 'In your workspace',
+      icon: FolderKanban,
+    },
+    {
+      label: 'Field points',
+      value: formatCount(totalPointCount),
+      note: totalPointCount === null ? 'Count temporarily unavailable' : 'Saved survey observations',
+      icon: MapPinned,
+    },
+    {
+      label: 'Parcels',
+      value: formatCount(totalParcelCount),
+      note: totalParcelCount === null ? 'Count temporarily unavailable' : 'Recorded in projects',
+      icon: Ruler,
+    },
+  ]
+
+  const quickActions = [
+    { href: '/field/collect', title: 'Capture field data', detail: 'Connect an instrument or start a field session', icon: MapPinned },
+    { href: '/fieldbook', title: 'Open field book', detail: 'Review and manage survey observations', icon: ClipboardList },
+    { href: '/process', title: 'Process survey data', detail: 'Import notes and run a supported workflow', icon: Ruler },
+  ]
+
   return (
-    <div className="mx-auto max-w-7xl space-y-6 px-4 py-6 md:py-10">
+    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-5 sm:px-6 md:py-8 lg:px-8">
       <OnboardingWrapper />
-      <header className="flex flex-col gap-5 border-b border-[var(--border-color)] pb-6 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <p className="mb-2 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">METARDU workspace</p>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h1 className="text-2xl font-bold tracking-tight text-[var(--text-primary)] md:text-3xl">{t('dashboard.title')}</h1>
-            {!projectsLoadFailed && (
-              <span className="text-sm font-medium text-[var(--text-muted)]">
-                {projects.length} {projects.length === 1 ? 'project' : 'projects'}
-              </span>
-            )}
-          </div>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">
-            Keep survey projects, field observations, checks, and deliverables together.
-          </p>
+      <header className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,var(--bg-card))] px-5 py-6 sm:px-7 sm:py-7">
+        <div className="pointer-events-none absolute -right-8 -top-10 opacity-[0.045]" aria-hidden="true">
+          <Ruler className="h-56 w-56 rotate-[-24deg]" strokeWidth={0.8} />
         </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <ConnectivityIndicator />
-          {!projectsLoadFailed && (!subscriptionLoadFailed || projects.length === 0) && canCreateProject ? (
-            <Link href="/project/new" prefetch={false} className="btn btn-primary">
-              {t('dashboard.newProject')}
-            </Link>
-          ) : !projectsLoadFailed && !subscriptionLoadFailed ? (
-            <Link href="/pricing" className="btn btn-primary">
-              {t('dashboard.upgradeToCreateMore')}
-            </Link>
-          ) : null}
+        <div className="relative flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div className="max-w-3xl">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--accent)]">
+              {userIsAdmin ? 'METARDU operations' : 'METARDU survey workspace'}
+            </p>
+            <div className="flex flex-wrap items-center gap-3">
+              <h1 className="text-3xl font-semibold tracking-[-0.035em] text-[var(--text-primary)] sm:text-4xl">
+                {t('dashboard.title')}
+              </h1>
+              <ConnectivityIndicator />
+            </div>
+            <p className="mt-2 text-sm leading-6 text-[var(--text-secondary)] sm:text-base">
+              Welcome back, {firstName}. Pick up a survey, capture field observations, or move a project toward delivery.
+            </p>
+          </div>
+          <div className="relative flex shrink-0 flex-wrap items-center gap-3">
+            {!projectsLoadFailed && (!subscriptionLoadFailed || projects.length === 0) && canCreateProject ? (
+              <Link href="/project/new" prefetch={false} className="btn btn-primary inline-flex items-center gap-2">
+                <Plus className="h-4 w-4" aria-hidden="true" />
+                {t('dashboard.newProject')}
+              </Link>
+            ) : !projectsLoadFailed && !subscriptionLoadFailed ? (
+              <Link href="/pricing" className="btn btn-primary inline-flex items-center gap-2">
+                {t('dashboard.upgradeToCreateMore')}
+                <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+              </Link>
+            ) : null}
+          </div>
         </div>
       </header>
+
+      <section aria-label="Workspace totals" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        {dashboardMetrics.map(({ label, value, note, icon: Icon }) => (
+          <article key={label} className="flex min-w-0 items-center gap-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] px-4 py-4 sm:px-5">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_8%,transparent)] text-[var(--accent)]">
+              <Icon className="h-[18px] w-[18px]" aria-hidden="true" />
+            </span>
+            <div className="min-w-0">
+              <p className="text-xs font-medium text-[var(--text-muted)]">{label}</p>
+              <div className="mt-0.5 flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                <p className="font-mono text-2xl font-semibold tabular-nums leading-none text-[var(--text-primary)]">{value}</p>
+                <p className="text-xs text-[var(--text-muted)]">{note}</p>
+              </div>
+            </div>
+          </article>
+        ))}
+      </section>
       {emailVerified === false && <EmailVerificationNotice email={user.email} />}
       {!subscriptionLoadFailed && <SubscriptionStatus subscription={subscription} />}
 
@@ -213,89 +282,105 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* UI-13 (2026-07-24): DashboardSearch — 561 LOC component that was
-          built but never imported. Now wired in so surveyors can search
-          across projects, submissions, and surveyors from the dashboard. */}
-      {!projectsLoadFailed && projectsWithCounts.length > 0 && (
-        <div>
-          <DashboardSearch />
-        </div>
-      )}
-
-      <section className="flex flex-col gap-4 rounded-2xl border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] p-5 sm:flex-row sm:items-center sm:justify-between md:px-6">
-        <div>
-          <p className="mb-1 text-xs font-semibold uppercase tracking-[0.14em] text-[var(--accent)]">Field to finish</p>
-          <h2 className="font-semibold text-[var(--text-primary)] mb-1">
-            {t('dashboard.processFieldNotesTitle')}
-          </h2>
-          <p className="text-sm text-[var(--text-secondary)]">
-            {t('dashboard.processFieldNotesSubtitle')}
-          </p>
-        </div>
-        <Link href="/process" prefetch={false} className="btn btn-primary shrink-0">
-          {t('dashboard.startProcessing')}
-        </Link>
-      </section>
-
       {!projectsLoadFailed && !subscriptionLoadFailed && !canCreateProject && <UpgradePrompt type="projects" />}
 
-
-      {!projectsLoadFailed && !projectsWithCounts.length ? (
-        <section className="grid gap-8 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-6 md:p-8 lg:grid-cols-[minmax(0,1.1fr)_minmax(18rem,0.9fr)]">
-          <div className="flex flex-col items-start justify-center">
-            <p className="mb-3 text-xs font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Start your survey</p>
-            <h2 className="max-w-xl text-2xl font-bold tracking-tight text-[var(--text-primary)] md:text-3xl">One workspace from field points to finished plans.</h2>
-            <p className="mt-4 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
-              Set up the project once, then keep its observations, map, checks, and deliverables together as the work progresses.
-            </p>
-            <div className="mt-6 flex flex-wrap gap-3">
-              <Link href="/project/new" prefetch={false} className="btn btn-primary">Create your first project</Link>
-              <Link href="/fieldbook" prefetch={false} className="btn btn-secondary">Open field book</Link>
-            </div>
+      {!projectsLoadFailed && projectsWithCounts.length > 0 && (
+        <section aria-label="Search survey records" className="flex flex-col gap-3 border-y border-[var(--border-color)] py-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Find a project or record</h2>
+            <p className="mt-0.5 text-xs text-[var(--text-muted)]">Search projects, submissions, and surveyors.</p>
           </div>
+          <div className="w-full sm:max-w-md">
+            <DashboardSearch />
+          </div>
+        </section>
+      )}
 
-          <ol className="grid gap-3 sm:grid-cols-3 lg:grid-cols-1">
-            {[
-              { number: '01', title: 'Set up the project', description: 'Choose the survey type and enter its location and coordinate reference.' },
-              { number: '02', title: 'Collect field points', description: 'Record observations in the field book and keep the source attached.' },
-              { number: '03', title: 'Review and deliver', description: 'Check the map and computations before preparing project outputs.' },
-            ].map((step) => (
-              <li key={step.number} className="flex gap-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4">
-                <span className="font-mono text-sm font-semibold text-[var(--accent)]">{step.number}</span>
-                <div>
-                  <h3 className="text-sm font-semibold text-[var(--text-primary)]">{step.title}</h3>
-                  <p className="mt-1 text-sm leading-5 text-[var(--text-muted)]">{step.description}</p>
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.65fr)_minmax(19rem,0.75fr)]">
+        <div className="min-w-0">
+          {!projectsLoadFailed && !projectsWithCounts.length ? (
+            <section className="overflow-hidden rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)]">
+              <div className="grid gap-8 p-5 sm:p-7 lg:grid-cols-[minmax(0,1fr)_minmax(17rem,0.72fr)] lg:p-8">
+                <div className="flex flex-col items-start justify-center">
+                  <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Start your survey</p>
+                  <h2 className="max-w-xl text-2xl font-semibold tracking-tight text-[var(--text-primary)] md:text-3xl">One workspace from field points to reviewed plans.</h2>
+                  <p className="mt-3 max-w-xl text-sm leading-6 text-[var(--text-secondary)]">
+                    Set up the job once, then keep its observations, reference system, checks, and deliverables together as work progresses.
+                  </p>
+                  <div className="mt-6 flex flex-wrap gap-3">
+                    <Link href="/project/new" prefetch={false} className="btn btn-primary inline-flex items-center gap-2">Create your first project <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                    <Link href="/fieldbook" prefetch={false} className="btn btn-secondary">Open field book</Link>
+                  </div>
                 </div>
-              </li>
-            ))}
-          </ol>
-        </section>
-      ) : !projectsLoadFailed ? (
-        <section aria-label="Your survey projects">
-          <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-[var(--text-primary)]">Your projects</h2>
-              <p className="mt-1 text-sm text-[var(--text-muted)]">Open a survey to continue collecting, checking, or preparing its records.</p>
-            </div>
-            <Link href="/fieldbook" prefetch={false} className="btn btn-secondary shrink-0">Open field book</Link>
-          </div>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3 md:gap-5">
-            {projectsWithCounts.map((project, index) => (
-              <div
-                key={project.id}
-                className="animate-in fade-in slide-in-from-bottom-4 duration-500 fill-mode-both"
-                style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
-              >
-                <ProjectCard project={project} openLabel={t('project.open')} />
+                <ol className="grid content-center gap-2.5">
+                  {[
+                    { number: '01', title: 'Set up the project', description: 'Choose the survey type and establish its location and coordinate reference.' },
+                    { number: '02', title: 'Capture observations', description: 'Keep field measurements and their source with the project.' },
+                    { number: '03', title: 'Review and deliver', description: 'Check the map and computations before preparing outputs.' },
+                  ].map((step) => (
+                    <li key={step.number} className="flex gap-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3.5">
+                      <span className="pt-0.5 font-mono text-xs font-semibold text-[var(--accent)]">{step.number}</span>
+                      <div>
+                        <h3 className="text-sm font-semibold text-[var(--text-primary)]">{step.title}</h3>
+                        <p className="mt-1 text-xs leading-5 text-[var(--text-muted)]">{step.description}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
               </div>
-            ))}
-          </div>
-        </section>
-      ) : null}
+            </section>
+          ) : !projectsLoadFailed ? (
+            <section aria-label={userIsAdmin ? 'Survey projects' : 'Your survey projects'}>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+                <div>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Project register</p>
+                  <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">{userIsAdmin ? 'Survey projects' : 'Your projects'}</h2>
+                  <p className="mt-1 text-sm text-[var(--text-muted)]">Open a project to continue collecting, checking, or preparing its records.</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                {projectsWithCounts.map((project, index) => (
+                  <div
+                    key={project.id}
+                    className="animate-in fade-in slide-in-from-bottom-3 duration-500 fill-mode-both"
+                    style={{ animationDelay: `${Math.min(index, 8) * 60}ms` }}
+                  >
+                    <ProjectCard project={project} openLabel={t('project.open')} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
 
-      {/* Activity Feed — recent user actions */}
-      <div className="mt-8">
-        <ActivityFeed limit={10} />
+        <aside className="space-y-5" aria-label="Survey workflow and activity">
+          <section className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 sm:p-5">
+            <div className="mb-3 flex items-center gap-2.5">
+              <span className="flex h-8 w-8 items-center justify-center rounded-md bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)]">
+                <Activity className="h-4 w-4" aria-hidden="true" />
+              </span>
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--text-primary)]">Move work forward</h2>
+                <p className="text-xs text-[var(--text-muted)]">Field to office, in a few steps.</p>
+              </div>
+            </div>
+            <nav aria-label="Survey workflow shortcuts" className="divide-y divide-[var(--border-color)]">
+              {quickActions.map(({ href, title, detail, icon: Icon }) => (
+                <Link key={href} href={href} prefetch={false} className="group flex items-center gap-3 py-3 first:pt-1 last:pb-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] text-[var(--text-secondary)] transition-colors group-hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] group-hover:text-[var(--accent)]">
+                    <Icon className="h-4 w-4" aria-hidden="true" />
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-medium text-[var(--text-primary)]">{title}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-[var(--text-muted)]">{detail}</span>
+                  </span>
+                  <ArrowRight className="h-4 w-4 shrink-0 text-[var(--text-muted)] transition-transform group-hover:translate-x-0.5 group-hover:text-[var(--accent)]" aria-hidden="true" />
+                </Link>
+              ))}
+            </nav>
+          </section>
+          <ActivityFeed limit={6} />
+        </aside>
       </div>
     </div>
   )

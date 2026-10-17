@@ -50,11 +50,19 @@ const verifyIskMutationSchema = z.object({
 // ---------------------------------------------------------------------------
 
 function formatDate(dateStr: string): string {
-  return new Date(dateStr).toLocaleDateString('en-KE', {
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return 'Date unavailable'
+  return date.toLocaleDateString('en-KE', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
   })
+}
+
+function formatUpdatedAt(dateStr: string): string {
+  const date = new Date(dateStr)
+  if (Number.isNaN(date.getTime())) return 'Update time unavailable'
+  return date.toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })
 }
 
 function roleBadgeClass(role: string): string {
@@ -232,7 +240,15 @@ export default function AdminDashboardPage() {
   // Loading state
   if (sessionStatus === 'loading' || (loading && !data)) {
     return (
-      <div className="space-y-5" aria-busy="true" aria-label="Loading admin dashboard"><div className="h-28 animate-pulse rounded-xl bg-[var(--bg-secondary)]" /><div className="grid grid-cols-2 gap-4 md:grid-cols-4">{[0,1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-xl bg-[var(--bg-secondary)]" />)}</div><div className="h-72 animate-pulse rounded-xl bg-[var(--bg-secondary)]" /></div>
+      <div className="space-y-6" aria-busy="true" aria-label="Loading admin dashboard">
+        <div className="flex flex-col gap-4 border-b border-[var(--border-color)] pb-5 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-3"><div className="h-3 w-44 animate-pulse rounded bg-[var(--bg-tertiary)]" /><div className="h-10 w-64 max-w-full animate-pulse rounded bg-[var(--bg-secondary)]" /><div className="h-4 w-80 max-w-full animate-pulse rounded bg-[var(--bg-secondary)]" /></div>
+          <div className="h-10 w-28 animate-pulse rounded-lg bg-[var(--bg-secondary)]" />
+        </div>
+        <div className="flex gap-2 overflow-hidden rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2">{[0,1,2,3,4,5].map(i => <div key={i} className="h-9 min-w-24 flex-1 animate-pulse rounded-md bg-[var(--bg-tertiary)]" />)}</div>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">{[0,1,2,3].map(i => <div key={i} className="h-32 animate-pulse rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]" />)}</div>
+        <div className="h-64 animate-pulse rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)]" />
+      </div>
     )
   }
 
@@ -264,7 +280,7 @@ export default function AdminDashboardPage() {
     <div className="space-y-6">
       <header className="admin-page-heading">
         <div><p className="admin-eyebrow">The business behind the fieldwork</p><h1>Owner’s workspace</h1><p className="admin-description">A clear view of your customers, payments and the work that needs you.</p></div>
-        <div className="flex flex-wrap items-center gap-3"><span className="admin-caption">Updated {new Date(data.generatedAt).toLocaleTimeString('en-KE', { hour: '2-digit', minute: '2-digit' })}</span><button onClick={fetchDashboard} className="btn btn-secondary" disabled={loading}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />} Refresh</button></div>
+        <div className="flex flex-wrap items-center gap-3"><span className="admin-caption">Updated {formatUpdatedAt(data.generatedAt)}</span><button onClick={fetchDashboard} className="btn btn-secondary" disabled={loading} aria-label={loading ? 'Refreshing business dashboard' : 'Refresh business dashboard'}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />} Refresh</button></div>
       </header>
       <nav aria-label="Business workspace sections" className="admin-section-nav">{[['overview','Overview'],['customers','Customers'],['billing','Billing'],['communications','Communications'],['feedback','Feedback'],['system','System']].map(([id,label]) => <a key={id} href={`#${id}`} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}>{label}{id === 'feedback' && data.operations.openFeedback > 0 && <span>{data.operations.openFeedback}</span>}</a>)}</nav>
       {error && <div className="admin-error" role="alert">{error} <button onClick={fetchDashboard} className="underline ml-2">Retry</button></div>}
