@@ -108,9 +108,11 @@ aborted/stale requests and activity polling failures are surfaced correctly.
 Project/count query failure no longer appears as a zero-count empty dashboard.
 The pre-push related run additionally passed 193 tests in 30 suites, with one
 suite/test skipped. Its lint gate rejected the first push without source
-diagnostics while the build was running. The unchanged gates are retried after
-the build with a 900-second allowance instead of 300 seconds; no hook or required
-check is disabled.
+diagnostics while the build was running. The second push passed type checking,
+changed-file ESLint and the same 193 related tests after the build, with a
+900-second allowance instead of 300 seconds. No hook or required check was
+disabled. Gitleaks was not installed, so its optional local scan did not run.
+GitHub acknowledged both source and pilot/evidence commits through `15c0b680`.
 The synthetic pilot file also validates through the real JSON parser and both
 leveling engines against all four independently calculated RLs and zero closure.
 
