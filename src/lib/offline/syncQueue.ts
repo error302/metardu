@@ -23,6 +23,7 @@ interface SyncDbResult {
 interface SyncDbQuery {
   select(columns?: string, options?: { count?: string; head?: boolean }): SyncDbQuery
   insert(data: Record<string, unknown> | Record<string, unknown>[]): SyncDbQuery
+  upsert?(data: Record<string, unknown> | Record<string, unknown>[]): SyncDbQuery
   update(data: Record<string, unknown>): SyncDbQuery
   delete(): SyncDbQuery
   eq(column: string, value: unknown): SyncDbQuery
@@ -36,6 +37,7 @@ interface SyncDbQuery {
 
 interface SyncDbClient {
   from(table: string): SyncDbQuery
+  auth?: { getSession(): Promise<{ data: { session: { user?: { id?: string } } | null } }> }
 }
 
 interface METARDUDB extends DBSchema {
@@ -120,7 +122,7 @@ export async function getDB(): Promise<IDBPDatabase<METARDUDB>> {
 
 export interface SyncOperation {
   id?: number
-  type: 'INSERT' | 'UPDATE' | 'DELETE'
+  type: 'INSERT' | 'UPDATE' | 'DELETE' | 'UPSERT'
   table: string
   data: Record<string, unknown>
   timestamp: string
@@ -185,9 +187,17 @@ export async function syncPendingOperations(
 ): Promise<{ synced: number; failed: number; conflicts: number }> {
   const pending = await getPendingOperations()
   const results = { synced: 0, failed: 0, conflicts: 0 }
+  let fieldbookOwner: string | undefined
+  if (pending.some(op => op.table === 'fieldbooks')) {
+    try { fieldbookOwner = (await dbClient.auth?.getSession())?.data.session?.user?.id } catch { /* Keep owner-bound operations on this device. */ }
+  }
 
   for (const op of pending) {
     try {
+      if (op.table === 'fieldbooks' && (!fieldbookOwner || op.data.user_id !== fieldbookOwner)) {
+        results.failed++
+        continue
+      }
       if (op.retries >= MAX_RETRIES) {
         results.failed++
         continue
@@ -196,6 +206,18 @@ export async function syncPendingOperations(
       // Check for conflicts using timestamp
       const timestamp = op.data.updated_at || op.timestamp
       const existing = await checkRemoteVersion(dbClient, op.table, String(op.data.id), String(timestamp))
+      if (op.table === 'fieldbooks' && !existing.verified) {
+        results.failed++
+        continue
+      }
+
+      // Fieldbooks retain a device copy instead of silently overwriting a newer
+      // server edit when no conflict-resolution UI has been supplied.
+      if (op.table === 'fieldbooks' && existing.hasConflict && !options.onConflict) {
+        results.conflicts++
+        results.failed++
+        continue
+      }
 
       if (existing.hasConflict && options.onConflict) {
         // AUDIT FIX (H4, 2026-07-02): Retrieve the base snapshot for
@@ -267,7 +289,7 @@ export async function syncPendingOperations(
   return results
 }
 
-async function checkRemoteVersion(dbClient: SyncDbClient, table: string, id: string, localTimestamp: string): Promise<{ hasConflict: boolean; data: Record<string, unknown> | null }> {
+async function checkRemoteVersion(dbClient: SyncDbClient, table: string, id: string, localTimestamp: string): Promise<{ hasConflict: boolean; data: Record<string, unknown> | null; verified: boolean }> {
   try {
     const result = await dbClient
       .from(table)
@@ -277,7 +299,7 @@ async function checkRemoteVersion(dbClient: SyncDbClient, table: string, id: str
 
     const data = result.data ?? null
     const error = result.error
-    if (error || !data) return { hasConflict: false, data: null }
+    if (error || !data) return { hasConflict: false, data: null, verified: !error || error.code === 'PGRST116' }
 
     const remoteUpdatedAt = data.updated_at
     const remoteTime = new Date((remoteUpdatedAt as string | number) || 0).getTime()
@@ -285,15 +307,22 @@ async function checkRemoteVersion(dbClient: SyncDbClient, table: string, id: str
 
     return {
       hasConflict: remoteTime > localTime,
-      data
+      data,
+      verified: Number.isFinite(remoteTime) && Number.isFinite(localTime),
     }
   } catch {
-    return { hasConflict: false, data: null }
+    return { hasConflict: false, data: null, verified: false }
   }
 }
 
 async function attemptSync(dbClient: SyncDbClient, op: SyncOperation): Promise<boolean> {
   try {
+    if (op.type === 'UPSERT') {
+      const query = dbClient.from(op.table)
+      if (!query.upsert) return false
+      const { data, error } = await query.upsert(op.data).select('id').single()
+      return !error && data?.id === op.data.id
+    }
     if (op.type === 'INSERT') {
       const { error } = await dbClient.from(op.table).insert(op.data)
       return !error

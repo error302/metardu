@@ -85,7 +85,8 @@ class ClientQueryBuilder<T = any> {
   }
 
   select(columns: string = '*', options?: { count?: string; head?: boolean }): this {
-    this.operation = 'select'
+    // Selecting return columns must not turn a pending mutation into a read.
+    // The default operation is already select, matching the server builder.
     this.selectColumns = columns
     if (options?.count === 'exact') this.countMode = true
     if (options?.head) this.headMode = true

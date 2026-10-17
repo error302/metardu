@@ -80,11 +80,14 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
     try {
       await onSaveRef.current(dataRef.current)
       lastSavedSerializedRef.current = snapshot
-      dirtyRef.current = false
+      // Edits may arrive while the network/storage write is in flight. Only
+      // the captured snapshot was saved; keep newer edits eligible for retry.
+      const stillDirty = safeStringify(dataRef.current) !== snapshot
+      dirtyRef.current = stillDirty
       setState(s => ({
         ...s,
         saving: false,
-        hasUnsavedChanges: false,
+        hasUnsavedChanges: stillDirty,
         lastAutoSave: new Date(),
         error: null,
       }))

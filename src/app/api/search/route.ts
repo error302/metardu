@@ -4,24 +4,12 @@ import { NextResponse } from 'next/server'
 import { log } from '@/lib/logger'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { type SearchHit, type SearchResponse } from '@/lib/search/contract'
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
 type SearchType = 'projects' | 'submissions' | 'surveyors' | 'users' | 'all'
-
-interface SearchHit {
-  id: string
-  type: string
-  title: string
-  subtitle?: string
-  /** Human-readable snippet showing the matching context */
-  snippet?: string
-  /** Relevance score – higher is better. Normalised across tables for sorting. */
-  score: number
-  /** Extra columns that vary per entity type */
-  meta?: Record<string, unknown>
-}
 
 interface ProjectSearchRow {
   id: string
@@ -35,6 +23,7 @@ interface ProjectSearchRow {
 
 interface SubmissionSearchRow {
   id: string
+  project_id: string | null
   title: string | null
   status: string | null
   survey_type: string | null
@@ -59,18 +48,6 @@ interface UserSearchRow {
   full_name: string | null
   role: string | null
   score: string | number
-}
-
-interface SearchResultGroup {
-  type: string
-  total: number
-  hits: SearchHit[]
-}
-
-interface SearchResponse {
-  query: string
-  results: SearchResultGroup[]
-  total: number
 }
 
 // ---------------------------------------------------------------------------
@@ -168,6 +145,7 @@ async function searchSubmissions(
   const { rows } = await db.query<SubmissionSearchRow>(
     `SELECT
        s.id,
+       s.project_id,
        s.title,
        s.status,
        s.survey_type,
@@ -201,6 +179,7 @@ async function searchSubmissions(
     snippet: r.survey_type ?? undefined,
     score: Number(r.score),
     meta: {
+      project_id: r.project_id ?? undefined,
       survey_type: r.survey_type ?? undefined,
       status: r.status ?? undefined,
       created_at: r.created_at,
@@ -377,7 +356,7 @@ export const GET = apiHandler(
     if (searchType === 'all' || searchType === 'surveyors')   typeLabels.push('surveyors')
     if (searchType === 'all' || searchType === 'users')       typeLabels.push('users')
 
-    const results: SearchResultGroup[] = []
+    const results: SearchResponse['results'] = []
     let grandTotal = 0
 
     for (let i = 0; i < settled.length; i++) {
@@ -391,8 +370,12 @@ export const GET = apiHandler(
       } else {
         // Graceful degradation – include empty group rather than failing the whole request
         log({ level: 'error', message: `[search] ${label} search failed`, metadata: { reason: String(outcome.reason) } })
-        results.push({ type: label, total: 0, hits: [] })
+        results.push({ type: label, total: 0, hits: [], unavailable: true })
       }
+    }
+
+    if (settled.every(outcome => outcome.status === 'rejected')) {
+      return NextResponse.json({ error: 'Search is temporarily unavailable', code: 'SEARCH_UNAVAILABLE' }, { status: 503 })
     }
 
     // Sort groups by total hits descending

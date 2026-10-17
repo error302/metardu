@@ -103,14 +103,15 @@ export default async function DashboardPage() {
     userIsAdmin || (subscriptionLoadFailed ? projects.length < 1 : subscription?.plan_id !== 'free' || projects.length < 1)
   )
   const trialEndsAt = subscription?.trial_ends_at as string | null | undefined
-  const daysLeft = trialEndsAt
-    ? Math.max(0, Math.ceil((new Date(trialEndsAt).getTime() - Date.now()) / 86400000))
+  const trialEndsAtMs = trialEndsAt ? Date.parse(trialEndsAt) : Number.NaN
+  const daysLeft = Number.isFinite(trialEndsAtMs)
+    ? Math.max(0, Math.ceil((trialEndsAtMs - Date.now()) / 86400000))
     : null
   const firstName = user.name.trim().split(/\s+/)[0] || 'surveyor'
 
   /* ── Batch point/parcel counts (avoids N+1 queries) ─────────────── */
   let projectsWithCounts = projects
-  let projectCountsLoadFailed = false
+  let projectCountsLoadFailed = projectsLoadFailed
   if (projects.length > 0) {
     try {
       const dbClient = await createClient()

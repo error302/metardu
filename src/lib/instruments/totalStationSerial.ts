@@ -1,24 +1,7 @@
-/**
- * @module totalStationSerial
- *
- * Web Serial API integration for total station instruments.
- *
- * Connects directly to total stations via USB or Bluetooth (using
- * Web Serial API on Chrome/Edge). Eliminates the need for manufacturer
- * software — surveyors can stream observations directly into METARDU.
- *
- * Supported instruments (via their serial protocols):
- *   - Topcon: GSI format (raw data) + RC-100 commands
- *   - Leica: GSI-8 / GSI-16 format
- *   - Sokkia: SDR format
- *   - Trimble: RAW format
- *   - Pentax: PENTAX RAW format
- *   - South: NMEA-0183 compatible
- *
- * Browser support:
- *   - Chrome/Edge 89+ (full support)
- *   - Safari/Firefox: NOT supported (use the Capacitor mobile app
- *     which has a polyfill via @capacitor-community/serial)
+/** Serial transport and provisional instrument decoders.
+ * Transport availability is checked at runtime. A successful connection does
+ * not validate a decoder, instrument model, measurement units or survey control.
+ * Preserve raw frames and bench-check each protocol against manufacturer output.
  */
 import { logger } from '@/lib/logger'
 
@@ -75,10 +58,12 @@ export class TotalStationConnection {
   private decoder: TextDecoder
   private buffer: string = ''
   private onObservation?: (obs: RawObservation) => void
+  private onConnectionChange?: (connected: boolean) => void
 
-  constructor(config: InstrumentConfig, onObservation?: (obs: RawObservation) => void) {
+  constructor(config: InstrumentConfig, onObservation?: (obs: RawObservation) => void, onConnectionChange?: (connected: boolean) => void) {
     this.config = config
     this.onObservation = onObservation
+    this.onConnectionChange = onConnectionChange
     this.decoder = new TextDecoder()
   }
 
@@ -88,7 +73,7 @@ export class TotalStationConnection {
 
   async connect(): Promise<void> {
     if (!TotalStationConnection.isSupported()) {
-      throw new Error('Web Serial API is not supported. Use Chrome/Edge 89+ or the METARDU mobile app.')
+      throw new Error('Serial access is unavailable in this browser. Use a compatible controller/browser or transfer an exported job file.')
     }
     const port = await navigator.serial.requestPort()
     this.port = port
@@ -101,11 +86,13 @@ export class TotalStationConnection {
     this.reader = port.readable?.getReader() ?? null
     this.writer = port.writable?.getWriter() ?? null
     this.connected = true
+    this.onConnectionChange?.(true)
     this.readLoop()
   }
 
   async disconnect(): Promise<void> {
     this.connected = false
+    this.onConnectionChange?.(false)
     if (this.reader) { try { await this.reader.cancel() } catch {} try { this.reader.releaseLock() } catch {} this.reader = null }
     if (this.writer) { try { this.writer.releaseLock() } catch {} this.writer = null }
     if (this.port) { try { await this.port.close() } catch {} this.port = null }
@@ -140,6 +127,9 @@ export class TotalStationConnection {
       }
     } catch (err) {
       if (this.connected) logger.error('[TotalStation] Read error:', { error: err })
+    } finally {
+      this.connected = false
+      this.onConnectionChange?.(false)
     }
   }
 }

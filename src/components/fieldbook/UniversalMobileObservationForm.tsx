@@ -111,6 +111,7 @@ const TYPE_META: Record<MobileSurveyType, { label: string; icon: typeof Compass;
 }
 
 export interface UniversalMobileObservationFormProps {
+  initialValues?: Record<string, string>
   surveyType: MobileSurveyType
   /** station context (for control where station header exists) */
   stationName?: string
@@ -118,7 +119,7 @@ export interface UniversalMobileObservationFormProps {
    * Called when the user saves a reading. Returns the row plus any
    * captured original photos and device EXIF metadata.
    */
-  onAdd: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void
+  onAdd: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void | Promise<void>
   onClose: () => void
   /** auto-increment last station name (e.g. P1 -> P2, A -> B) */
   lastStation?: string
@@ -135,6 +136,7 @@ export interface UniversalMobileObservationFormProps {
 }
 
 export function UniversalMobileObservationForm({
+  initialValues,
   surveyType,
   stationName,
   onAdd,
@@ -156,12 +158,13 @@ export function UniversalMobileObservationForm({
       const next = suggestNextStation(lastStation)
       if (next) obj[fields[0].key] = next
     }
-    return obj
-  }, [fields, lastStation])
+    return { ...obj, ...(!forChain ? initialValues : {}), id: !forChain && initialValues?.id ? initialValues.id : crypto.randomUUID() }
+  }, [fields, lastStation, initialValues])
 
   const [form, setForm] = useState<Record<string, string>>(() => buildInitial(false))
   const [stepIndex, setStepIndex] = useState(0)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [savedShot, setSavedShot] = useState<Record<string, string> | null>(null)
   const [shotsThisSession, setShotsThisSession] = useState(0)
   const [photos, setPhotos] = useState<CapturedBeaconPhoto[]>([])
@@ -210,6 +213,7 @@ export function UniversalMobileObservationForm({
   const persist = async (): Promise<boolean> => {
     if (!isComplete || saving) return false
     setSaving(true)
+    setSaveError(null)
     try {
       await onAdd(form, photos)
       setSavedShot(form)
@@ -218,9 +222,11 @@ export function UniversalMobileObservationForm({
         try { URL.revokeObjectURL(p.previewUrl) } catch { /* ignore */ }
       }
       setPhotos([])
+      if (initialValues) onClose()
       return true
     } catch (err) {
       logger.error('Failed to store reading:', { error: err })
+      setSaveError(err instanceof Error ? err.message : 'The reading could not be saved. Keep this form open and retry.')
       return false
     } finally {
       setSaving(false)
@@ -311,7 +317,7 @@ export function UniversalMobileObservationForm({
   const ctaEnabled = !saving
 
   return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-end animate-[slideUp_0.2s_ease-out]" role="dialog" aria-modal="true" aria-label={`New ${meta.label} reading`}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-end animate-[slideUp_0.2s_ease-out]" role="dialog" aria-modal="true" aria-label={`${initialValues ? 'Edit' : 'New'} ${meta.label} reading`}>
       <div className="w-full bg-[var(--bg-primary)] border-t border-[var(--border-color)] rounded-t-2xl max-h-[92vh] overflow-hidden flex flex-col shadow-2xl">
         {/* Drag handle */}
         <div className="pt-2 pb-1 flex justify-center shrink-0">
@@ -319,6 +325,7 @@ export function UniversalMobileObservationForm({
         </div>
 
         {/* Header — survey identity + large live readout */}
+        {saveError && <p role="alert" className="px-4 py-3 text-sm text-red-400">{saveError}</p>}
         <div className="px-4 py-3 border-b border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] shrink-0">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5 min-w-0">
@@ -326,7 +333,7 @@ export function UniversalMobileObservationForm({
                 <meta.icon className={`w-5 h-5 ${meta.accent}`} />
               </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold text-[var(--text-primary)] truncate">New {meta.label} Reading</h2>
+                <h2 className="text-sm font-semibold text-[var(--text-primary)] truncate">{initialValues ? 'Edit' : 'New'} {meta.label} reading</h2>
                 {stationName && (
                   <p className="text-xs text-[var(--text-muted)] truncate">Setup: {stationName}</p>
                 )}
@@ -405,12 +412,12 @@ export function UniversalMobileObservationForm({
             >
               {online ? <CloudUpload className="w-4 h-4" /> : <CloudOff className="w-4 h-4" />}
               {online
-                ? 'Syncing to server…'
+                ? 'Stored · check the fieldbook save status'
                 : `Stored on device${unsyncedCount > 0 ? ` · ${unsyncedCount} queued` : ''}`}
             </div>
             {!online && (
               <p className="mt-2 text-xs text-[var(--text-muted)] max-w-[26ch]">
-                Safe to keep shooting — this reading will upload automatically when you reconnect.
+                Saved on this device. Reconnect and check Sync before relying on a server copy.
               </p>
             )}
           </div>

@@ -12,42 +12,16 @@ import { useRouter } from 'next/navigation';
 import { Search, X, Loader2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { logger } from '@/lib/logger'
+import { searchResponseSchema, getSearchHitHref, type SearchHit } from '@/lib/search/contract'
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-interface ProjectResult {
-  id: string;
-  name: string;
-  description: string;
-  relevance: number;
-}
-
-interface SubmissionResult {
-  id: string;
-  title: string;
-  status: string;
-  relevance: number;
-}
-
-interface SurveyorResult {
-  id: string;
-  full_name: string;
-  isk_number: string;
-  relevance: number;
-}
-
 interface SearchResults {
-  projects: ProjectResult[];
-  submissions: SubmissionResult[];
-  surveyors: SurveyorResult[];
-}
-
-interface SearchResponse {
-  results: SearchResults;
-  total: number;
-  query: string;
+  projects: SearchHit[];
+  submissions: SearchHit[];
+  surveyors: SearchHit[];
 }
 
 type ResultType = 'projects' | 'submissions' | 'surveyors';
@@ -55,7 +29,7 @@ type ResultType = 'projects' | 'submissions' | 'surveyors';
 /** Flattened item for keyboard navigation */
 interface FlatItem {
   type: ResultType;
-  data: ProjectResult | SubmissionResult | SurveyorResult;
+  data: SearchHit;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,29 +66,12 @@ const GROUP_ICONS: Record<ResultType, React.ReactNode> = {
   ),
 };
 
-function getRoute(type: ResultType, id: string): string {
-  switch (type) {
-    case 'projects':
-      return `/dashboard/projects/${id}`;
-    case 'submissions':
-      return `/dashboard/submissions/${id}`;
-    case 'surveyors':
-      return `/dashboard/surveyors/${id}`;
-  }
-}
-
 function getPrimaryLabel(item: FlatItem['data']): string {
-  if ('name' in item) return item.name;
-  if ('title' in item) return item.title;
-  if ('full_name' in item) return item.full_name;
-  return '';
+  return item.title;
 }
 
 function getSecondaryLabel(item: FlatItem['data']): string | null {
-  if ('description' in item && item.description) return item.description;
-  if ('status' in item && item.status) return item.status;
-  if ('isk_number' in item && item.isk_number) return `ISK ${item.isk_number}`;
-  return null;
+  return item.subtitle || item.snippet || null;
 }
 
 function getStatusColor(status: string): string {
@@ -134,9 +91,9 @@ function getStatusColor(status: string): string {
 function flattenResults(results: SearchResults): FlatItem[] {
   const items: FlatItem[] = [];
   // Sort each group by relevance descending
-  const sortedProjects = [...results.projects].sort((a, b) => b.relevance - a.relevance);
-  const sortedSubmissions = [...results.submissions].sort((a, b) => b.relevance - a.relevance);
-  const sortedSurveyors = [...results.surveyors].sort((a, b) => b.relevance - a.relevance);
+  const sortedProjects = [...results.projects].sort((a, b) => b.score - a.score);
+  const sortedSubmissions = [...results.submissions].sort((a, b) => b.score - a.score);
+  const sortedSurveyors = [...results.surveyors].sort((a, b) => b.score - a.score);
 
   for (const project of sortedProjects) items.push({ type: 'projects', data: project });
   for (const submission of sortedSubmissions) items.push({ type: 'submissions', data: submission });
@@ -156,6 +113,8 @@ export default function DashboardSearch() {
   const [isLoading, setIsLoading] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const [error, setError] = useState<string | null>(null);
+  const [partial, setPartial] = useState(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -198,21 +157,31 @@ export default function DashboardSearch() {
     }
 
     setIsLoading(true);
+    setError(null);
     try {
       const res = await fetch(`/api/search?q=${encodeURIComponent(q.trim())}`, {
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Search failed: ${res.status}`);
-            const data: SearchResponse = await res.json() as unknown as SearchResponse;
+      const data = searchResponseSchema.parse(await res.json());
       // Only update if this wasn't aborted
       if (!controller.signal.aborted) {
-        setResults(data.results);
+        const grouped: SearchResults = { projects: [], submissions: [], surveyors: [] };
+        for (const group of data.results) {
+          if (group.type === 'projects' || group.type === 'submissions' || group.type === 'surveyors') {
+            grouped[group.type] = group.hits.filter(hit => hit.type === group.type && getSearchHitHref(hit));
+          }
+        }
+        setResults(grouped);
+        setPartial(data.results.some(group => group.unavailable));
+        setActiveIndex(-1);
       }
     } catch (err) {
       // Ignore abort errors
-      if (err instanceof DOMException && err.name === 'AbortError') return;
+      if (controller.signal.aborted) return;
       logger.error('Search error:', { error: err });
       setResults(null);
+      setError('Search is temporarily unavailable. Try again.');
     } finally {
       if (!controller.signal.aborted) {
         setIsLoading(false);
@@ -223,7 +192,11 @@ export default function DashboardSearch() {
   // ------ Input change with debounce ------
   const handleInputChange = useCallback(
     (value: string) => {
+      abortRef.current?.abort();
       setQuery(value);
+      setResults(null);
+      setError(null);
+      setPartial(false);
       setActiveIndex(-1);
 
       if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -246,8 +219,12 @@ export default function DashboardSearch() {
 
   // ------ Clear search ------
   const handleClear = useCallback(() => {
+    abortRef.current?.abort();
+    if (debounceRef.current) clearTimeout(debounceRef.current);
     setQuery('');
     setResults(null);
+    setError(null);
+    setPartial(false);
     setIsLoading(false);
     setIsOpen(false);
     setActiveIndex(-1);
@@ -288,7 +265,8 @@ export default function DashboardSearch() {
   // ------ Navigate to result ------
   const navigateTo = useCallback(
     (item: FlatItem) => {
-      const route = getRoute(item.type, item.data.id);
+      const route = getSearchHitHref(item.data);
+      if (!route) return;
       setIsOpen(false);
       router.push(route);
     },
@@ -341,22 +319,16 @@ export default function DashboardSearch() {
     el?.scrollIntoView({ block: 'nearest' });
   }, [activeIndex, isOpen]);
 
-  // ------ Focus input on Cmd/Ctrl+K ------
-  useEffect(() => {
-    function handleGlobalShortcut(e: globalThis.KeyboardEvent) {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        inputRef.current?.focus();
-        if (query.trim()) setIsOpen(true);
-      }
-    }
-    document.addEventListener('keydown', handleGlobalShortcut);
-    return () => document.removeEventListener('keydown', handleGlobalShortcut);
-  }, [query]);
-
   // ------ Render grouped results ------
   const renderResults = () => {
     if (!isOpen) return null;
+
+    if (error) return (
+      <div role="alert" className="absolute left-0 right-0 top-full z-50 mt-2 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 text-sm text-[var(--text-secondary)]">
+        <p>{error}</p>
+        <button type="button" onClick={() => performSearch(query)} className="mt-2 text-[var(--accent)] hover:underline">Retry search</button>
+      </div>
+    );
 
     if (isLoading && !results) {
       return (
@@ -374,9 +346,9 @@ export default function DashboardSearch() {
         <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-2xl border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-card)_80%,transparent)] backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300">
           <div className="flex flex-col items-center justify-center px-4 py-8">
             <Search className="h-8 w-8 text-[var(--text-muted)] mb-2 opacity-50" />
-            <p className="text-sm text-[var(--text-secondary)]">No results found</p>
+            <p className="text-sm text-[var(--text-secondary)]">{partial ? 'Search results are incomplete' : 'No results found'}</p>
             <p className="text-xs text-[var(--text-muted)] mt-1">
-              Try a different search term
+              {partial ? 'Some records could not be searched. Please try again.' : 'Try a different search term'}
             </p>
           </div>
         </div>
@@ -390,13 +362,14 @@ export default function DashboardSearch() {
 
     return (
       <div className="absolute top-full left-0 right-0 z-50 mt-2 rounded-2xl border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-card)_80%,transparent)] backdrop-blur-2xl shadow-[0_16px_40px_rgba(0,0,0,0.5)] overflow-hidden transition-all duration-300">
+        {partial && <p role="status" className="border-b border-[var(--border-color)] px-4 py-3 text-xs text-[var(--warning)]">Some records could not be searched. These results may be incomplete.</p>}
         <div className="max-h-80 overflow-y-auto overscroll-contain">
           {order.map((type) => {
             const items = results[type];
             if (!items.length) return null;
 
             // Sort by relevance
-            const sorted = [...items].sort((a, b) => b.relevance - a.relevance);
+            const sorted = [...items].sort((a, b) => b.score - a.score);
             const startIdx = flatIdx;
 
             const group = (
@@ -457,8 +430,8 @@ export default function DashboardSearch() {
                           <p
                             className={cn(
                               'text-xs truncate mt-0.5',
-                              'status' in item
-                                ? getStatusColor(item.status as string)
+                              type === 'submissions' && item.subtitle
+                                ? getStatusColor(item.subtitle)
                                 : 'text-[var(--text-muted)]',
                             )}
                           >
@@ -467,12 +440,6 @@ export default function DashboardSearch() {
                         )}
                       </div>
 
-                      {/* Relevance indicator */}
-                      <div className="shrink-0 w-10 text-right">
-                        <span className="text-[10px] text-[var(--text-muted)] opacity-60">
-                          {Math.round(item.relevance * 100)}%
-                        </span>
-                      </div>
                     </button>
                   );
                 })}
@@ -534,6 +501,8 @@ export default function DashboardSearch() {
             if (query.trim()) setIsOpen(true);
           }}
           aria-label="Search projects, submissions, surveyors..."
+          aria-busy={isLoading}
+          placeholder="Search survey records…"
           className="flex-1 bg-transparent text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] outline-none min-w-0"
           autoComplete="off"
           spellCheck={false}
@@ -550,11 +519,6 @@ export default function DashboardSearch() {
           </button>
         )}
 
-        {!query && (
-          <kbd className="hidden sm:inline-flex items-center gap-0.5 rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--text-muted)] shrink-0">
-            <span className="text-[9px]">⌘</span>K
-          </kbd>
-        )}
       </div>
 
       {/* Results dropdown */}

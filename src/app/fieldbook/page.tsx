@@ -21,8 +21,11 @@ import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
 import { TRAVERSE_PRECISION_STANDARDS } from '@/lib/engine/traverse'
 import { bearingToString, normalizeBearing, parseFieldAngle } from '@/lib/engine/angles'
 import { polar3DWithHeights } from '@/lib/engine/polar'
-import { isOnline, queueOperation, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
-import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldbooks'
+import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
+import { getOfflineFieldbooks } from '@/lib/offline/fieldbooks'
+import { persistFieldbook } from '@/lib/offline/saveFieldbook'
+import { FieldbookProjectPanel } from '@/components/fieldbook/FieldbookProjectPanel'
+import type { FieldbookTransfer } from '@/lib/fieldbook/transfer'
 import { LevelingBook } from '@/components/fieldbook/LevelingBook'
 import { TraverseBook } from '@/components/fieldbook/TraverseBook'
 import { ControlBook } from '@/components/fieldbook/ControlBook'
@@ -37,7 +40,6 @@ import { offlineStorage } from '@/lib/mobile/offlineStorage'
 import type { FieldObservation } from '@/lib/mobile/offlineStorage'
 import { syncService } from '@/lib/mobile/syncService'
 import { prepareCapturedPhotoData } from '@/lib/mobile/capturedPhotoData'
-import { CheckCircle2 } from 'lucide-react'
 import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
 import { InstrumentStreamBar, type StreamedReading, type SurveyType as StreamSurveyType } from '@/components/fieldbook/InstrumentStreamBar'
 import { InstantClosureFeedback } from '@/components/fieldbook/InstantClosureFeedback'
@@ -66,7 +68,7 @@ function useIsMobile() {
 
 type FieldbookType = 'leveling' | 'traverse' | 'control'
 
-type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string } | { kind: 'error'; message: string }
+type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string; pending?: boolean; message?: string } | { kind: 'error'; message: string }
 
 type SavedFieldbook = {
   id: string
@@ -105,7 +107,8 @@ function downloadBlob(filename: string, blob: Blob) {
 }
 
 function asNumber(value: string): number | null {
-  const n = parseFloat(value)
+  if (!value.trim() || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(value.trim())) return null
+  const n = Number(value)
   return Number.isFinite(n) ? n : null
 }
 
@@ -241,9 +244,15 @@ export default function DigitalFieldBookPage() {
 
   const [online, setOnline] = useState(true)
   const [auditDrawerOpen, setAuditDrawerOpen] = useState(false)
+  const [entryRequest, setEntryRequest] = useState(0)
 
   const [type, setType] = useState<FieldbookType>('leveling')
   const [projectId, setProjectId] = useState('')
+  const [ownerId, setOwnerId] = useState<string | null>(null)
+  const [projectsError, setProjectsError] = useState<string | null>(null)
+  const [pendingCount, setPendingCount] = useState(0)
+  const saveInProgress = useRef(false)
+  const bookIdRef = useRef<string | null>(null)
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
 
   useEffect(() => {
@@ -270,7 +279,7 @@ export default function DigitalFieldBookPage() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: 'idle' })
   const [syncStatus, setSyncStatus] = useState<{ synced: number; failed: number } | null>(null)
 
-  const [openingRL, setOpeningRL] = useState('100.0000')
+  const [openingRL, setOpeningRL] = useState('')
   const [closingRL, setClosingRL] = useState('')
   const [distanceKm, setDistanceKm] = useState('1')
   const [levelMethod, setLevelMethod] = useState<'rise_and_fall' | 'height_of_collimation'>('rise_and_fall')
@@ -382,10 +391,14 @@ export default function DigitalFieldBookPage() {
       try {
         const session = await dbClient.auth.getSession()
         const sessUser = (session.data.session as Record<string, unknown> | null)?.user
-        if (!sessUser) return
+        if (!sessUser) { if (isMounted) setProjectsError('Sign in online to load your projects.'); return }
+        if (isMounted && typeof (sessUser as { id?: unknown }).id === 'string') setOwnerId((sessUser as { id: string }).id)
         const { data, error } = (await dbClient.from('projects').select('id, name').order('created_at', { ascending: false })) as { data: { id: string; name: string }[] | null; error: unknown }
-        if (!error && data && isMounted) setProjects(data)
-      } catch {}
+        if (isMounted) {
+          if (!error && data) setProjects(data)
+          else setProjectsError('Projects could not be loaded. Reconnect and reload before starting a new book.')
+        }
+      } catch { if (isMounted) setProjectsError('Projects could not be loaded. Reconnect and reload.') }
     })()
     return () => {
       isMounted = false
@@ -396,7 +409,7 @@ export default function DigitalFieldBookPage() {
     let isMounted = true
     ;(async () => {
       try {
-        const offline = await getOfflineFieldbooks(projectId, type)
+        const offline = ownerId ? await getOfflineFieldbooks(projectId, type, ownerId) : []
         if (isMounted) setSavedFieldbooks(offline)
       } catch {}
 
@@ -409,9 +422,15 @@ export default function DigitalFieldBookPage() {
           .eq('type', type)
           .order('updated_at', { ascending: false })) as { data: SavedFieldbook[] | null; error: unknown }
         if (!error && data && isMounted) {
+          const queued = await getPendingOperations(projectId)
+          const pendingIds = new Set(queued.filter(op => op.table === 'fieldbooks' && op.data.user_id === ownerId).map(op => String(op.data.id)))
+          if (!isMounted) return
           setSavedFieldbooks((prev) => {
             const byId = new Map(prev.map((x) => [x.id, x]))
-            for (const row of data as unknown as SavedFieldbook[]) byId.set(row.id, row)
+            for (const row of data as unknown as SavedFieldbook[]) {
+              if (byId.has(row.id) && pendingIds.has(row.id)) continue
+              byId.set(row.id, row)
+            }
             return Array.from(byId.values()).sort((a, b) => String(b.updated_at ?? b.created_at ?? '').localeCompare(String(a.updated_at ?? a.created_at ?? '')))
           })
         }
@@ -420,10 +439,10 @@ export default function DigitalFieldBookPage() {
     return () => {
       isMounted = false
     }
-  }, [projectId, type, dbClient])
+  }, [projectId, type, dbClient, ownerId])
 
   useEffect(() => {
-    setupOnlineListener(async () => {
+    return setupOnlineListener(async () => {
       try {
         const r = await syncPendingOperations(dbClient)
         setSyncStatus(r)
@@ -561,12 +580,15 @@ export default function DigitalFieldBookPage() {
     controlSetups,
   }), [type, name, projectId, openingRL, closingRL, distanceKm, levelMethod, levelRows, travMode, startStation, startE, startN, closeE, closeN, travRows, controlSetups])
 
+  const latestEditable = useRef(autoSaveData)
+  useEffect(() => { latestEditable.current = autoSaveData }, [autoSaveData])
+
   useAutoSave({
     data: autoSaveData,
     onSave: async () => {
-      if (projectId && (travRows.length > 0 || levelRows.length > 0 || controlRows.length > 0)) {
-        await handleSave()
-        notify({ title: 'Auto-saved', body: 'Field book data saved automatically.', type: 'auto_save' })
+      if (projectId) {
+        const saved = await handleSave()
+        if (!saved) throw new Error('Fieldbook could not be saved. Your current edits are still open.')
       }
     },
     interval: 30000,
@@ -600,8 +622,11 @@ export default function DigitalFieldBookPage() {
     return { activeSetupId: activeControlSetupId, setups: controlSetups }
   }
 
-  function resetForType(next: FieldbookType) {
+  async function resetForType(next: FieldbookType) {
+    if (next === type || saveInProgress.current) return
+    if (projectId && !(await saveBeforeLeaving())) return
     setType(next)
+    bookIdRef.current = null
     setFieldbookId(null)
     setName('')
     setSaveStatus({ kind: 'idle' })
@@ -609,7 +634,10 @@ export default function DigitalFieldBookPage() {
   }
 
   function loadFieldbook(entry: SavedFieldbook) {
+    bookIdRef.current = entry.id
     setFieldbookId(entry.id)
+    setType(entry.type)
+    setSaveStatus({ kind: 'idle' })
     setName(entry.name || '')
     const data: Record<string, unknown> = entry.data || {}
 
@@ -670,15 +698,32 @@ export default function DigitalFieldBookPage() {
     try {
       const r = await syncPendingOperations(dbClient)
       setSyncStatus(r)
+      await refreshPendingCount()
     } catch {
       setSyncStatus({ synced: 0, failed: 1 })
     }
   }
 
-  async function handleSave(dataOverride?: Record<string, unknown>) {
+  async function saveBeforeLeaving(): Promise<boolean> {
+    const snapshot = JSON.stringify(autoSaveData)
+    if (!(await handleSave())) return false
+    if (JSON.stringify(latestEditable.current) !== snapshot) {
+      setSaveStatus({ kind: 'error', message: 'The book changed while saving. Save the latest edits before switching.' })
+      return false
+    }
+    return true
+  }
+
+  async function refreshPendingCount() {
+    const pending = await getPendingOperations(projectId)
+    setPendingCount(pending.filter(op => op.table === 'fieldbooks' && op.data.user_id === ownerId).length)
+  }
+
+  async function handleSave(dataOverride?: Record<string, unknown>): Promise<boolean> {
+    if (saveInProgress.current) return false
     if (!projectId) {
       setSaveStatus({ kind: 'error', message: 'Select a project to save.' })
-      return
+      return false
     }
 
     setSaveStatus({ kind: 'saving' })
@@ -729,15 +774,16 @@ export default function DigitalFieldBookPage() {
       }
     }
 
-    const session = await dbClient.auth.getSession()
-    const sessData = session.data.session as Record<string, unknown> | null
-    const userId = sessData?.user ? (sessData.user as Record<string, unknown>).id : undefined
+    // Retain the signed-in owner while temporarily offline; never invent an owner.
+    const userId = ownerId
     if (!userId) {
-      setSaveStatus({ kind: 'error', message: 'You must be signed in to save.' })
-      return
+      setSaveStatus({ kind: 'error', message: 'Sign in online before saving. Export JSON to keep a copy of your open book.' })
+      return false
     }
+    saveInProgress.current = true
+    const id = bookIdRef.current ?? crypto.randomUUID()
+    bookIdRef.current = id
 
-    const id = fieldbookId ?? crypto.randomUUID()
     const record = {
       id,
       project_id: projectId,
@@ -749,44 +795,86 @@ export default function DigitalFieldBookPage() {
     }
 
     try {
-      await saveFieldbookOffline(record)
-
-      if (isOnline()) {
-        const { error } = await dbClient.from('fieldbooks').upsert({ ...record, updated_at: undefined }).select('id')
-        if (error) throw error
-      } else {
-        await queueOperation({
-          type: fieldbookId ? 'UPDATE' : 'INSERT',
-          table: 'fieldbooks',
-          data: { ...record, updated_at: undefined },
-          timestamp: now,
-          projectId,
-          priority: 'normal'
-        })
-      }
-
+      const result = await persistFieldbook(dbClient, record, isOnline())
       setFieldbookId(id)
-      setSaveStatus({ kind: 'saved', when: now })
+      setSaveStatus({ kind: 'saved', when: now, ...result })
+      setSavedFieldbooks(prev => [record, ...prev.filter(book => book.id !== id)])
+      await refreshPendingCount()
+      return true
     } catch (e: unknown) {
-      setSaveStatus({ kind: 'error', message: e instanceof Error ? (e as Error).message : 'Save failed.' })
+      setSaveStatus({ kind: 'error', message: e instanceof Error ? e.message : 'Save failed. Export JSON to keep a copy.' })
+      return false
+    } finally {
+      saveInProgress.current = false
     }
   }
 
+  useEffect(() => {
+    let active = true
+    getPendingOperations(projectId).then(operations => {
+      if (active) setPendingCount(operations.filter(op => op.table === 'fieldbooks' && op.data.user_id === ownerId).length)
+    }).catch(() => {})
+    return () => { active = false }
+  }, [projectId, ownerId, syncStatus])
+
+  async function importBook(book: FieldbookTransfer) {
+    if (!projectId) throw new Error('Choose a project before importing.')
+    if (!(await saveBeforeLeaving())) throw new Error('Save the current book before importing. It has not been replaced.')
+    // File IDs and project IDs never control database identity or ownership.
+    const id = crypto.randomUUID()
+    loadFieldbook({ id, name: book.name, type: book.type, data: book.data })
+    bookIdRef.current = id
+    setFieldbookId(null)
+    setSaveStatus({ kind: 'idle' })
+  }
+
+  function clearBook() {
+    bookIdRef.current = null
+    setFieldbookId(null)
+    setName('')
+    setLevelRows([])
+    setTravRows([])
+    setOpeningRL('')
+    setClosingRL('')
+    setStartE(''); setStartN(''); setCloseE(''); setCloseN('')
+    const setupId = crypto.randomUUID()
+    setControlSetups([{ id: setupId, station: { name: '', e: '', n: '', z: '' }, rows: [] }])
+    setActiveControlSetupId(setupId)
+    setSaveStatus({ kind: 'idle' })
+  }
+
+  async function newBook() {
+    if (await saveBeforeLeaving()) clearBook()
+  }
+
+  async function changeProject(next: string) {
+    if (next === projectId || saveInProgress.current) return
+    // The workspace asks the surveyor to save before switching; an existing
+    // book's ID must never be carried into a different project.
+    if (projectId && !(await saveBeforeLeaving())) return
+    if (projectId) clearBook()
+    setSaveStatus({ kind: 'idle' })
+    setSyncStatus(null)
+    setProjectId(next)
+  }
+
   function exportJSON() {
-    const payload = { id: fieldbookId, type, name: name.trim() || `${type.toUpperCase()} Field Book`, projectId, createdAt: new Date().toISOString(), data: currentDataPayload() }
+    const payload = { version: 1, id: fieldbookId, type, name: name.trim() || `${type.toUpperCase()} Field Book`, projectId, createdAt: new Date().toISOString(), data: currentDataPayload() }
     downloadBlob(`metardu-fieldbook-${type}.json`, new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' }))
   }
 
    async function exportCSV() {
      let rows: Array<Record<string, string>> = []
      if (type === 'leveling') {
-       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, Remarks: r.remarks }))
+       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, OpeningRL: openingRL, ClosingRL: closingRL, DistanceKm: distanceKm, Method: levelMethod, Remarks: r.remarks }))
      } else if (type === 'traverse') {
-       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, SlopeDist: r.slopeDist, Remarks: r.remarks }))
+       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, SlopeDist: r.slopeDist, FaceLeftDeg: r.hclDeg, FaceLeftMin: r.hclMin, FaceLeftSec: r.hclSec, FaceRightDeg: r.hcrDeg, FaceRightMin: r.hcrMin, FaceRightSec: r.hcrSec, VerticalDeg: r.vaDeg, VerticalMin: r.vaMin, VerticalSec: r.vaSec, IH: r.ih, TH: r.th, StartStation: startStation, StartE: startE, StartN: startN, CloseE: closeE, CloseN: closeN, Mode: travMode, Remarks: r.remarks }))
      } else if (type === 'control') {
        rows = controlSetups.flatMap((setup) =>
          setup.rows.map((r) => ({
+           SetupID: setup.id,
            Station: setup.station.name,
+           StationE: setup.station.e, StationN: setup.station.n, StationRL: setup.station.z,
            PointID: r.pointId,
            IH: r.instrumentHeight,
            TH: r.targetHeight,
@@ -798,11 +886,13 @@ export default function DigitalFieldBookPage() {
        )
      }
 
+     if (!rows.some(row => (row.Station ?? row.PointID ?? '').trim())) throw new Error('Add an observation before exporting CSV. JSON can back up an empty setup.')
      const Papa = (await import('papaparse')).default
-     downloadBlob(`metardu-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows)], { type: 'text/csv' }))
+     downloadBlob(`metardu-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows, { escapeFormulae: true })], { type: 'text/csv' }))
    }
 
   async function exportPDF() {
+    if (!currentComputed.ok) throw new Error('Complete the survey setup before exporting a calculated PDF. JSON and CSV keep your raw observations.')
     const { default: jsPDF } = await import('jspdf')
     const { default: autoTable } = await import('jspdf-autotable')
     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
@@ -953,7 +1043,7 @@ export default function DigitalFieldBookPage() {
       if (typeof navigator !== 'undefined' && navigator.onLine) await syncService.forceSync()
     }
     trackFieldbookSave(type, 1)
-    const id = crypto.randomUUID()
+    const id = row.id?.trim() || crypto.randomUUID()
     const currentPayload = currentDataPayload()
     // Store a clearly labelled reference to each field photo in the observation
     // remarks. Device EXIF is descriptive metadata, not survey control or legal proof.
@@ -979,22 +1069,24 @@ export default function DigitalFieldBookPage() {
         fs: row.fs ?? '',
         remarks: enrichedRemarks,
       }
-      setLevelRows((p) => [...p, newRow])
-      await handleSave({ ...currentPayload, rows: [...levelRows, newRow] })
+      setLevelRows((p) => p.some(item => item.id === id) ? p.map(item => item.id === id ? newRow : item) : [...p, newRow])
+      const saved = await handleSave({ ...currentPayload, rows: levelRows.some(item => item.id === id) ? levelRows.map(item => item.id === id ? newRow : item) : [...levelRows, newRow] })
+      if (!saved) throw new Error('This reading is still open but could not be saved. Retry or export a JSON backup.')
     } else if (type === 'traverse') {
       const newRow: TravRow = {
         id,
         station: row.station ?? '',
         bearing: row.bearing ?? '',
-        hclDeg: '', hclMin: '', hclSec: '',
-        hcrDeg: '', hcrMin: '', hcrSec: '',
+        hclDeg: row.hclDeg ?? '', hclMin: row.hclMin ?? '', hclSec: row.hclSec ?? '',
+        hcrDeg: row.hcrDeg ?? '', hcrMin: row.hcrMin ?? '', hcrSec: row.hcrSec ?? '',
         slopeDist: row.slopeDist ?? '',
-        vaDeg: row.vaDeg ?? '', vaMin: '', vaSec: '',
+        vaDeg: row.vaDeg ?? '', vaMin: row.vaMin ?? '', vaSec: row.vaSec ?? '',
         ih: row.ih ?? '1.5', th: row.th ?? '1.5',
         remarks: enrichedRemarks,
       }
-      setTravRows((p) => [...p, newRow])
-      await handleSave({ ...currentPayload, rows: [...travRows, newRow] })
+      setTravRows((p) => p.some(item => item.id === id) ? p.map(item => item.id === id ? newRow : item) : [...p, newRow])
+      const saved = await handleSave({ ...currentPayload, rows: travRows.some(item => item.id === id) ? travRows.map(item => item.id === id ? newRow : item) : [...travRows, newRow] })
+      if (!saved) throw new Error('This reading is still open but could not be saved. Retry or export a JSON backup.')
     } else if (type === 'control') {
       const newRow: ControlRow = {
         id,
@@ -1006,11 +1098,12 @@ export default function DigitalFieldBookPage() {
         slopeDistance: row.slopeDistance ?? '',
         remarks: enrichedRemarks,
       }
-      setControlRows((p) => [...p, newRow])
+      setControlRows((p) => p.some(item => item.id === id) ? p.map(item => item.id === id ? newRow : item) : [...p, newRow])
       const updatedSetups = controlSetups.map(setup => setup.id === activeControlSetupId
-        ? { ...setup, rows: [...setup.rows, newRow] }
+        ? { ...setup, rows: setup.rows.some(item => item.id === id) ? setup.rows.map(item => item.id === id ? newRow : item) : [...setup.rows, newRow] }
         : setup)
-      await handleSave({ ...currentPayload, setups: updatedSetups })
+      const saved = await handleSave({ ...currentPayload, setups: updatedSetups })
+      if (!saved) throw new Error('This reading is still open but could not be saved. Retry or export a JSON backup.')
     }
   }
 
@@ -1086,121 +1179,12 @@ export default function DigitalFieldBookPage() {
   }
 
   // ─── Mobile rendering: card-based shell with universal quick-add ─────
-  /**
-   * Pull the latest reading from a connected total station / GNSS via
-   * the Web Serial API. Returns a partial row keyed by the same field
-   * names used in UniversalMobileObservationForm.
-   *
-   * The full instrument connection lifecycle is managed by the
-   * InstrumentConnectionPanel on /field. To avoid duplicating that
-   * state machine here, this shim:
-   *   1. Verifies the Web Serial API is available.
-   *   2. Looks for a globally-exposed last-reading (the panel sets
-   *      `window.__metarduLastInstrumentReading` when streaming).
-   *   3. Translates the reading to the active survey type's fields.
-   *   4. If no reading is available, surfaces a clear CTA to open
-   *      /field and connect an instrument.
-   */
-  async function pullInstrumentReading(): Promise<Partial<Record<string, string>>> {
-    try {
-      if (typeof navigator === 'undefined' || !('serial' in navigator)) {
-        alert('Web Serial API is not supported in this browser. Use Chrome or Edge on desktop / Android.')
-        return {}
-      }
-
-      // The InstrumentConnectionPanel exposes the latest reading via a
-      // window global so other components can pull without remounting
-      // the connection.  See useInstrumentConnection.ts → onData.
-      const lastReading = (window as unknown as {
-        __metarduLastInstrumentReading?: {
-          easting?: number | null
-          northing?: number | null
-          elevation?: number | null
-          pointName?: string
-          timestamp?: string
-        }
-      }).__metarduLastInstrumentReading
-
-      if (!lastReading) {
-        return {}
-      }
-
-      // Translate the streamed point into the active survey type's fields
-      if (type === 'traverse' || type === 'control') {
-        const e = lastReading.easting ?? 0
-        const n = lastReading.northing ?? 0
-        return {
-          slopeDist: String(Math.sqrt(e * e + n * n)),
-          bearing: String((Math.atan2(e, n) * 180 / Math.PI + 360) % 360),
-          pointId: lastReading.pointName ?? '',
-        }
-      }
-      return {}
-    } catch (err) {
-      logger.error('pullInstrumentReading failed:', { error: err })
-      return {}
-    }
-  }
-
-  if (isMobile) {
-    return (
-      <>
-        <div className="pb-44">
-          <MobileFieldbookShell
-            surveyType={type}
-            onSurveyTypeChange={(t) => resetForType(t as FieldbookType)}
-            rows={mobileRows}
-            onAddRow={handleMobileAddRow}
-            onRemoveRow={handleMobileRemoveRow}
-            online={online}
-            lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
-            unsyncedCount={savedFieldbooks.filter((fb) => !fb.updated_at).length}
-            onSync={handleSyncNow}
-            stationName={type === 'control' ? controlStation.name : undefined}
-            onPullInstrumentReading={pullInstrumentReading}
-            onViewAuditLog={() => setAuditDrawerOpen(true)}
-            computed={currentComputed}
-            openingRL={openingRL}
-            setOpeningRL={setOpeningRL}
-            closingRL={closingRL}
-            setClosingRL={setClosingRL}
-            distanceKm={distanceKm}
-            setDistanceKm={setDistanceKm}
-            levelMethod={levelMethod}
-            setLevelMethod={setLevelMethod}
-            travMode={travMode}
-            setTravMode={setTravMode}
-            startStation={startStation}
-            setStartStation={setStartStation}
-            startE={startE}
-            setStartE={setStartE}
-            startN={startN}
-            setStartN={setStartN}
-            closeE={closeE}
-            setCloseE={setCloseE}
-            closeN={closeN}
-            setCloseN={setCloseN}
-            controlSetups={controlSetups}
-            setControlSetups={setControlSetups}
-            activeControlSetupId={activeControlSetupId}
-            setActiveControlSetupId={setActiveControlSetupId}
-            controlStation={controlStation}
-            setControlStation={setControlStation}
-          />
-        </div>
-        {/* AUDIT FIX (2026-07-05): Replaced MobileMeasurementCapture with
-            InstrumentStreamBar — provides zero-manual-entry data collection
-            via total station (Web Serial) and GNSS rover (Web Bluetooth).
-            The old MobileMeasurementCapture was manual-only. The new bar
-            auto-detects the best mode based on survey type + browser support.
-            AUDIT FIX (2026-07-10): wrapped in ErrorBoundary so a stale chunk
-            (chunk 2723 etc.) doesn't take down the whole field book page —
-            the surveyor can still manually enter readings while we recover. */}
+  const instrumentPanel = (
         <ErrorBoundary
           fallback={
             <div className="mx-3 my-4 p-3 rounded-lg border border-amber-500/30 bg-amber-500/10 text-xs">
               <p className="text-amber-300 font-semibold mb-1">Instrument connection unavailable</p>
-              <p className="text-amber-200/70 mb-2">A deferred chunk failed to load — your draft is safe. Reload to reconnect the total station / GNSS rover.</p>
+              <p className="text-amber-200/70 mb-2">The connection module could not load. Export a JSON backup of your current book before reloading.</p>
               <button onClick={() => window.location.reload()} className="px-3 py-1.5 rounded bg-amber-500/20 border border-amber-500/40 text-amber-200 hover:bg-amber-500/30">
                 Reload
               </button>
@@ -1208,6 +1192,12 @@ export default function DigitalFieldBookPage() {
           }
         >
         <InstrumentStreamBar
+          key={`${projectId}-${type}`}
+          docked={isMobile}
+          onManualEntry={() => {
+            if (isMobile) setEntryRequest(value => value + 1)
+            else document.getElementById('fieldbook-entry')?.scrollIntoView({ behavior: 'smooth' })
+          }}
           surveyType={type as StreamSurveyType}
           onReading={async (reading: StreamedReading) => {
             // Preserve hardware observations in the offline-first evidence
@@ -1254,6 +1244,7 @@ export default function DigitalFieldBookPage() {
                 })
               }
               if (reading.source === 'gnss_receiver') return
+              if (reading.bearing == null && reading.distance == null && reading.easting == null && reading.northing == null && reading.elevation == null) return
             }
 
             // Route the streamed reading into the appropriate field book rows
@@ -1266,9 +1257,9 @@ export default function DigitalFieldBookPage() {
                 hclDeg: '', hclMin: '', hclSec: '',
                 hcrDeg: '', hcrMin: '', hcrSec: '',
                 slopeDist: reading.distance?.toFixed(3) || '',
-                vaDeg: '', vaMin: '', vaSec: '',
-                ih: reading.instrumentHeight?.toFixed(3) || '1.500',
-                th: reading.targetHeight?.toFixed(3) || '1.500',
+                vaDeg: reading.verticalAngle?.toString() ?? '', vaMin: '', vaSec: '',
+                ih: reading.instrumentHeight?.toFixed(3) ?? '',
+                th: reading.targetHeight?.toFixed(3) ?? '',
                 remarks: '',
               }])
             } else if (type === 'control') {
@@ -1278,8 +1269,8 @@ export default function DigitalFieldBookPage() {
                 bearing: reading.bearing?.toString() || '',
                 verticalAngle: reading.verticalAngle?.toString() || '',
                 slopeDistance: reading.distance?.toFixed(3) || '',
-                instrumentHeight: reading.instrumentHeight?.toFixed(3) || '1.500',
-                targetHeight: reading.targetHeight?.toFixed(3) || '1.500',
+                instrumentHeight: reading.instrumentHeight?.toFixed(3) ?? '',
+                targetHeight: reading.targetHeight?.toFixed(3) ?? '',
                 remarks: '',
               }])
             } else if (type === 'leveling') {
@@ -1290,15 +1281,82 @@ export default function DigitalFieldBookPage() {
                 bs: '',
                 is: '',
                 fs: '',
-                remarks: reading.elevation ? `RL: ${reading.elevation.toFixed(3)}` : '',
+                remarks: reading.elevation != null ? `RL: ${reading.elevation.toFixed(3)}` : '',
               }])
             }
           }}
           stationName={type === 'control' ? controlStation.name : startStation}
-          instrumentHeight={1.5}
-          targetHeight={1.5}
         />
         </ErrorBoundary>
+  )
+
+  const workspace = <FieldbookProjectPanel
+    projectId={projectId} projects={projects} projectsError={projectsError}
+    name={name} onNameChange={setName} onProjectChange={changeProject}
+    saving={saveStatus.kind === 'saving'} onSave={saveBeforeLeaving} onNew={newBook}
+    status={saveStatus.kind === 'error' ? saveStatus.message : syncStatus?.failed ? `Sync needs attention: ${syncStatus.failed} operation(s) remain on this device. Export JSON for a backup and retry after checking your account and connection.` : saveStatus.kind === 'saved' ? saveStatus.message ?? 'Saved.' : null}
+    error={saveStatus.kind === 'error' || !!syncStatus?.failed}
+    savedBooks={savedFieldbooks} activeBookId={fieldbookId} onOpen={loadFieldbook}
+    onImport={importBook}
+    onExportJSON={exportJSON} onExportCSV={exportCSV} onExportPDF={exportPDF}
+  />
+
+  if (isMobile) {
+    return (
+      <>
+        <div className="pb-[26rem]">
+          {workspace}
+          <MobileFieldbookShell
+            entryRequest={entryRequest}
+            surveyType={type}
+            onSurveyTypeChange={(t) => resetForType(t as FieldbookType)}
+            rows={mobileRows}
+            onAddRow={handleMobileAddRow}
+            onRemoveRow={handleMobileRemoveRow}
+            online={online}
+            lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
+            unsyncedCount={pendingCount}
+            onSync={handleSyncNow}
+            stationName={type === 'control' ? controlStation.name : undefined}
+            onViewAuditLog={() => setAuditDrawerOpen(true)}
+            computed={currentComputed}
+            openingRL={openingRL}
+            setOpeningRL={setOpeningRL}
+            closingRL={closingRL}
+            setClosingRL={setClosingRL}
+            distanceKm={distanceKm}
+            setDistanceKm={setDistanceKm}
+            levelMethod={levelMethod}
+            setLevelMethod={setLevelMethod}
+            travMode={travMode}
+            setTravMode={setTravMode}
+            startStation={startStation}
+            setStartStation={setStartStation}
+            startE={startE}
+            setStartE={setStartE}
+            startN={startN}
+            setStartN={setStartN}
+            closeE={closeE}
+            setCloseE={setCloseE}
+            closeN={closeN}
+            setCloseN={setCloseN}
+            controlSetups={controlSetups}
+            setControlSetups={setControlSetups}
+            activeControlSetupId={activeControlSetupId}
+            setActiveControlSetupId={setActiveControlSetupId}
+            controlStation={controlStation}
+            setControlStation={setControlStation}
+          />
+        </div>
+        {/* AUDIT FIX (2026-07-05): Replaced MobileMeasurementCapture with
+            InstrumentStreamBar — provides zero-manual-entry data collection
+            via total station (Web Serial) and GNSS rover (Web Bluetooth).
+            The old MobileMeasurementCapture was manual-only. The new bar
+            auto-detects the best mode based on survey type + browser support.
+            AUDIT FIX (2026-07-10): wrapped in ErrorBoundary so a stale chunk
+            (chunk 2723 etc.) doesn't take down the whole field book page —
+            the surveyor can still manually enter readings while we recover. */}
+        {instrumentPanel}
         <FieldbookAuditDrawer
           open={auditDrawerOpen}
           onClose={() => setAuditDrawerOpen(false)}
@@ -1325,39 +1383,8 @@ export default function DigitalFieldBookPage() {
       <div className="grid lg:grid-cols-12 gap-6">
         {/* Left sidebar — organized into collapsible sections */}
         <div className="lg:col-span-3 space-y-3" ref={panelRef}>
-          {/* Project & Save — always visible */}
-          <div className="card p-4 space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">Project</span>
-              {saveStatus.kind === 'saved' && (
-                <span className="text-[9px] text-green-400 flex items-center gap-1">
-                  <CheckCircle2 className="w-2.5 h-2.5" />
-                  {new Date(saveStatus.when).toLocaleTimeString()}
-                </span>
-              )}
-            </div>
-            <select className="input" value={projectId} onChange={(e) => setProjectId(e.target.value)}>
-              <option value="">{t('projects.selectProject')}</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>{p.name}</option>
-              ))}
-            </select>
-            <input aria-label="Field book name" className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder={t('field.fieldBookNamePlaceholder')} />
-            <div className="grid grid-cols-2 gap-2">
-              <button onClick={() => handleSave()} className="btn btn-primary" disabled={saveStatus.kind === 'saving'}>
-                {saveStatus.kind === 'saving' ? t('common.saving') : t('common.save')}
-              </button>
-              <button onClick={() => { setFieldbookId(null); setName(''); setSaveStatus({ kind: 'idle' }) }} className="btn btn-secondary">
-                {t('common.new')}
-              </button>
-            </div>
-            {saveStatus.kind === 'error' && <p className="text-xs text-red-400">{saveStatus.message}</p>}
-            {syncStatus && (
-              <p className={`text-xs ${syncStatus.failed ? 'text-yellow-400' : 'text-green-400'}`}>
-                Sync: {syncStatus.synced} synced, {syncStatus.failed} failed
-              </p>
-            )}
-          </div>
+          {workspace}
+          {instrumentPanel}
 
           {/* Quick actions — export, plan, sync */}
           <div className="card p-3 space-y-2">
@@ -1370,11 +1397,7 @@ export default function DigitalFieldBookPage() {
                 Download Plan Package
               </a>
             )}
-            <div className="grid grid-cols-3 gap-1.5">
-              <button onClick={exportPDF} className="btn btn-secondary text-xs py-2">PDF</button>
-              <button onClick={exportCSV} className="btn btn-secondary text-xs py-2">CSV</button>
-              <button onClick={exportJSON} className="btn btn-secondary text-xs py-2">JSON</button>
-            </div>
+
           </div>
 
           {/* AUDIT FIX (2026-07-05): Real-Time QC Panel — live closure monitor */}
@@ -1390,29 +1413,6 @@ export default function DigitalFieldBookPage() {
               compact
             />
           </div>
-
-          {/* Saved fieldbooks — collapsible */}
-          <details className="card p-3" open>
-            <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider flex items-center justify-between">
-              <span>{t('field.savedFieldbooks')}</span>
-              <span className="text-[10px] text-[var(--text-muted)] normal-case">{isOnline() ? t('common.online') : t('common.offline')}</span>
-            </summary>
-            <div className="mt-2 space-y-1.5 max-h-[30vh] overflow-auto pr-1">
-              {savedFieldbooks.length === 0 ? (
-                <p className="text-xs text-[var(--text-muted)] py-2 text-center">No saved fieldbooks</p>
-              ) : (
-                savedFieldbooks.map((fb) => (
-                  <button key={fb.id} onClick={() => loadFieldbook(fb)}
-                    className={`w-full text-left px-2.5 py-1.5 rounded border text-xs transition-colors ${
-                      fieldbookId === fb.id ? 'border-amber-500/50 bg-amber-500/10 text-amber-300' : 'border-[var(--border-color)] hover:border-amber-500/20 text-[var(--text-secondary)]'
-                    }`}>
-                    <div className="truncate font-medium">{fb.name || fb.id}</div>
-                    <div className="text-[9px] text-[var(--text-muted)]">{fb.updated_at ?? fb.created_at ? new Date(fb.updated_at ?? fb.created_at as string).toLocaleString() : ''}</div>
-                  </button>
-                ))
-              )}
-            </div>
-          </details>
 
           {/* GNSS & NTRIP — collapsible to save space */}
           <details className="card p-3">
@@ -1452,7 +1452,7 @@ export default function DigitalFieldBookPage() {
           </details>
         </div>
 
-        <div className="lg:col-span-9 space-y-4">
+        <div id="fieldbook-entry" className="lg:col-span-9 space-y-4">
           <div className="flex gap-2 overflow-x-auto pb-1">
             <TabButton active={type === 'leveling'} onClick={() => resetForType('leveling')}>
               {t('leveling.title')}
@@ -1466,12 +1466,6 @@ export default function DigitalFieldBookPage() {
           </div>
 
           {!currentComputed.ok && (() => {
-            // UX: suppress the red "Calculation Errors" banner on initial empty
-            // render. The user hasn't entered any data yet, so the empty-field
-            // errors are noise — the engine won't actually fail until the user
-            // tries to Save or Compute without filling required fields.
-            // Only surface the banner when the user has entered at least one row
-            // (or a start coordinate for traverse) so they know *why* it failed.
             const hasUserInput =
               (type === 'leveling' && levelRows.some((r) => r.station.trim() || r.bs.trim() || r.is.trim() || r.fs.trim())) ||
               (type === 'traverse' && (travRows.length > 1 || travRows.some((r) => r.station.trim()) || !!startE.trim() || !!startN.trim())) ||

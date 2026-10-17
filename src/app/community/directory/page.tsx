@@ -1,6 +1,7 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { Search, ChevronRight, MapPin } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -18,13 +19,26 @@ interface SurveyorProfile {
 }
 
 export default function SurveyorDirectoryPage() {
+  return <Suspense fallback={<div role="status" className="p-8 text-sm text-[var(--text-muted)]">Loading surveyor directory…</div>}><SurveyorDirectory /></Suspense>
+}
+
+function SurveyorDirectory() {
+  const routeQuery = useSearchParams().get('q') || ''
   const [surveyors, setSurveyors] = useState<SurveyorProfile[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [countyFilter, setCountyFilter] = useState('')
+  const [queryReady, setQueryReady] = useState(false)
 
   useEffect(() => {
+    setSearch(routeQuery)
+    setQueryReady(true)
+  }, [routeQuery])
+
+  useEffect(() => {
+    if (!queryReady) return
     let cancelled = false
+    setLoading(true)
     const params = new URLSearchParams({ limit: '50' })
     if (search) params.set('q', search)
     if (countyFilter) params.set('county', countyFilter)
@@ -38,7 +52,7 @@ export default function SurveyorDirectoryPage() {
       .finally(() => { if (!cancelled) setLoading(false) })
 
     return () => { cancelled = true }
-  }, [search, countyFilter])
+  }, [search, countyFilter, queryReady])
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
@@ -57,6 +71,7 @@ export default function SurveyorDirectoryPage() {
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder="Search by name, firm, or ISK number..."
+            aria-label="Search surveyors"
             className="w-full pl-10 pr-4 py-2.5 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg text-sm text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]"
           />
         </div>

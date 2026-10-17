@@ -15,7 +15,7 @@
  *   • Pull-to-refresh-style sync affordance
  */
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Wifi, WifiOff, CloudUpload, Plus, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle, Clock, History, Settings, Calculator, Ruler, Compass, MapPin } from 'lucide-react'
 import type { MobileSurveyType } from './UniversalMobileObservationForm'
 import { UniversalMobileObservationForm } from './UniversalMobileObservationForm'
@@ -54,6 +54,7 @@ interface MobileComputed {
 }
 
 interface MobileFieldbookShellProps {
+  entryRequest?: number
   surveyType: MobileSurveyType
   onSurveyTypeChange: (t: MobileSurveyType) => void
   rows: Row[]
@@ -136,6 +137,7 @@ const CARD_FIELDS: Record<MobileSurveyType, { key: string; label: string; mono?:
 }
 
 export function MobileFieldbookShell({
+  entryRequest = 0,
   surveyType,
   onSurveyTypeChange,
   rows,
@@ -177,6 +179,8 @@ export function MobileFieldbookShell({
   setControlStation,
 }: MobileFieldbookShellProps) {
   const [showForm, setShowForm] = useState(false)
+  const [editingRow, setEditingRow] = useState<Row | undefined>(undefined)
+  useEffect(() => { if (entryRequest > 0) { setEditingRow(undefined); setShowForm(true) } }, [entryRequest])
   const [setupOpen, setSetupOpen] = useState(false)
   const [resultsOpen, setResultsOpen] = useState(true)
 
@@ -187,7 +191,7 @@ export function MobileFieldbookShell({
   const cardFields = CARD_FIELDS[surveyType]
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-3.5rem)] bg-[var(--bg-primary)]">
+    <div className="flex flex-col min-h-[calc(100dvh-3.5rem)] bg-[var(--bg-primary)]">
       <FieldbookInstallPrompt />
       {/* ─── Sticky status bar ─── */}
       <div className="sticky top-0 z-30 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-md border-b border-[var(--border-color)] px-4 py-2.5 flex items-center justify-between">
@@ -217,7 +221,7 @@ export function MobileFieldbookShell({
           {onViewAuditLog && (
             <button
               onClick={onViewAuditLog}
-              className="grid place-items-center w-7 h-7 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition"
+              className="grid place-items-center min-w-11 min-h-11 rounded-lg bg-[var(--bg-tertiary)] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition"
               aria-label="View audit log"
               title="Audit trail"
             >
@@ -228,7 +232,7 @@ export function MobileFieldbookShell({
             onClick={onSync}
             disabled={!online || !onSync || unsyncedCount === 0}
             className={[
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition',
+              'flex items-center gap-1.5 min-h-11 px-3 py-1.5 rounded-lg text-xs font-medium transition',
               online && onSync && unsyncedCount > 0
                 ? 'bg-[var(--accent)] text-black active:scale-95'
                 : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)] cursor-not-allowed',
@@ -241,7 +245,7 @@ export function MobileFieldbookShell({
       </div>
 
       {/* ─── Survey type chips ─── */}
-      <div className="sticky top-[44px] z-20 bg-[color-mix(in_srgb,var(--bg-primary)_95%,transparent)] backdrop-blur-sm border-b border-[var(--border-color)] px-4 py-2.5">
+      <div className="sticky top-[64px] z-20 bg-[color-mix(in_srgb,var(--bg-primary)_95%,transparent)] backdrop-blur-sm border-b border-[var(--border-color)] px-4 py-2.5">
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
           {(Object.keys(TYPE_LABELS) as MobileSurveyType[]).map((t) => {
             const meta = TYPE_LABELS[t]
@@ -315,7 +319,8 @@ export function MobileFieldbookShell({
         {/* Setup & Coordinates Panel */}
         <div className="mb-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden shadow-sm">
           <button
-            onClick={() => setSetupOpen(!setupOpen)}
+            aria-expanded={setupOpen}
+              onClick={() => setSetupOpen(!setupOpen)}
             className="w-full flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] text-sm font-semibold text-[var(--text-primary)]"
           >
             <span className="flex items-center gap-2">
@@ -352,7 +357,7 @@ export function MobileFieldbookShell({
                     <input id="mfs-opening-rl"
                       type="number"
                       inputMode="decimal"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                       value={openingRL}
                       onChange={(e) => setOpeningRL(e.target.value)}
                     />
@@ -363,7 +368,7 @@ export function MobileFieldbookShell({
                       id="mfs-closing-rl"
                       type="number"
                       inputMode="decimal"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                       value={closingRL}
                       placeholder="Optional"
                       onChange={(e) => setClosingRL(e.target.value)}
@@ -374,7 +379,7 @@ export function MobileFieldbookShell({
                     <input id="mfs-distance-km"
                       type="number"
                       inputMode="decimal"
-                      className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                       value={distanceKm}
                       onChange={(e) => setDistanceKm(e.target.value)}
                     />
@@ -402,7 +407,7 @@ export function MobileFieldbookShell({
                       <label htmlFor="mfs-start-stn" className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Start Stn</label>
                       <input id="mfs-start-stn"
                         type="text"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
                         value={startStation}
                         onChange={(e) => setStartStation(e.target.value.toUpperCase())}
                       />
@@ -412,7 +417,7 @@ export function MobileFieldbookShell({
                       <input id="mfs-start-e"
                         type="number"
                         inputMode="decimal"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                         value={startE}
                         onChange={(e) => setStartE(e.target.value)}
                       />
@@ -422,7 +427,7 @@ export function MobileFieldbookShell({
                       <input id="mfs-start-n"
                         type="number"
                         inputMode="decimal"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                         value={startN}
                         onChange={(e) => setStartN(e.target.value)}
                       />
@@ -435,7 +440,7 @@ export function MobileFieldbookShell({
                         <input id="mfs-close-e"
                           type="number"
                           inputMode="decimal"
-                          className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                          className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                           value={closeE}
                           onChange={(e) => setCloseE(e.target.value)}
                         />
@@ -445,7 +450,7 @@ export function MobileFieldbookShell({
                         <input id="mfs-close-n"
                           type="number"
                           inputMode="decimal"
-                          className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                          className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                           value={closeN}
                           onChange={(e) => setCloseN(e.target.value)}
                         />
@@ -499,7 +504,7 @@ export function MobileFieldbookShell({
                       <label htmlFor="mfs-station-name" className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">Station Name</label>
                       <input id="mfs-station-name"
                         type="text"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] uppercase focus:outline-none focus:border-[var(--accent)]"
                         value={controlStation.name}
                         onChange={(e) => setControlStation((p: ControlStation) => ({ ...p, name: e.target.value.toUpperCase() }))}
                       />
@@ -509,7 +514,7 @@ export function MobileFieldbookShell({
                       <input id="mfs-station-e"
                         type="number"
                         inputMode="decimal"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                         value={controlStation.e}
                         onChange={(e) => setControlStation((p: ControlStation) => ({ ...p, e: e.target.value }))}
                       />
@@ -519,7 +524,7 @@ export function MobileFieldbookShell({
                       <input id="mfs-station-n"
                         type="number"
                         inputMode="decimal"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                         value={controlStation.n}
                         onChange={(e) => setControlStation((p: ControlStation) => ({ ...p, n: e.target.value }))}
                       />
@@ -529,7 +534,7 @@ export function MobileFieldbookShell({
                       <input id="mfs-station-z"
                         type="number"
                         inputMode="decimal"
-                        className="w-full px-3 py-2 text-sm bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                        className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
                         value={controlStation.z}
                         onChange={(e) => setControlStation((p: ControlStation) => ({ ...p, z: e.target.value }))}
                       />
@@ -595,7 +600,7 @@ export function MobileFieldbookShell({
               <span>{rows.length} reading{rows.length !== 1 ? 's' : ''}</span>
               <span className="flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Auto-saved locally
+                {lastSaved ? `Last save ${new Date(lastSaved).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Save before leaving site'}
               </span>
             </div>
 
@@ -616,7 +621,7 @@ export function MobileFieldbookShell({
                     })
                   }}
                   onDelete={onRemoveRow}
-                  onEdit={() => {}}
+                  onEdit={() => { setEditingRow(row); setShowForm(true) }}
                 >
                 <div
                   className="relative bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all overflow-hidden"
@@ -655,6 +660,7 @@ export function MobileFieldbookShell({
                       )}
                     </div>
 
+                    <button type="button" onClick={() => { setEditingRow(row); setShowForm(true) }} aria-label={`Edit reading ${row.station || row.pointId}`} className="min-h-12 min-w-12 px-3 text-xs font-semibold text-[var(--accent)]">Edit</button>
                     {/* Hint nudge */}
                     <div className="flex flex-col items-center justify-center w-6 bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)]">
                       <span className="text-[8px] text-[var(--text-muted)] [writing-mode:vertical-lr] opacity-40">swipe</span>
@@ -670,6 +676,7 @@ export function MobileFieldbookShell({
         {computed && (
           <div className="mt-4 mb-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden shadow-sm">
             <button
+              aria-expanded={resultsOpen}
               onClick={() => setResultsOpen(!resultsOpen)}
               className="w-full flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] text-sm font-semibold text-[var(--text-primary)]"
             >
@@ -754,18 +761,19 @@ export function MobileFieldbookShell({
         )}
       </div>
 
-      {/* ─── Floating Action Button (above measurement capture bar) ─── */}
+      {/* A full-width entry action stays clear of instrument controls. */}
       <button
-        onClick={() => setShowForm(true)}
-        className="fixed bottom-24 right-5 z-40 grid place-items-center w-14 h-14 rounded-full bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] text-black shadow-2xl shadow-[color-mix(in_srgb,var(--accent)_40%,transparent)] active:scale-95 transition-all"
+        onClick={() => { setEditingRow(undefined); setShowForm(true) }}
+        className="mx-4 mb-5 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--accent)] px-4 text-sm font-semibold text-black active:scale-[0.98] transition"
         aria-label={`Add ${TYPE_LABELS[surveyType].label} reading`}
       >
         <Plus className="w-6 h-6" strokeWidth={2.5} />
-        <span className="sr-only">Add reading</span>
+        <span>Add reading</span>
       </button>
 
       {showForm && (
         <UniversalMobileObservationForm
+          initialValues={editingRow}
           surveyType={surveyType}
           stationName={stationName}
           lastStation={lastStation}
@@ -775,7 +783,7 @@ export function MobileFieldbookShell({
           onAdd={async (row, photos) => {
             await onAddRow({ ...row, _timestamp: new Date().toISOString() }, photos)
           }}
-          onClose={() => setShowForm(false)}
+          onClose={() => { setShowForm(false); setEditingRow(undefined) }}
         />
       )}
     </div>

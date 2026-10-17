@@ -1,35 +1,8 @@
 'use client'
 
-/**
- * InstrumentStreamBar — The field surveyor's primary data collection interface.
- *
- * This is the mobile-first bar that sits at the bottom of the field book
- * and provides ONE-TAP data collection from connected instruments:
- *
- *   1. TOTAL STATION mode:
- *      - "Measure" button sends command to instrument via Web Serial
- *      - Reading auto-populates the field book (zero manual entry)
- *      - Shows live connection status + last reading
- *
- *   2. GNSS ROVER mode:
- *      - Auto-receives NMEA positions via Web Bluetooth
- *      - "Collect Point" button records current position as a reading
- *      - Shows fix quality (RTK Fixed/Float/GPS) + accuracy
- *      - Auto-collect mode: records points at interval or distance
- *
- *   3. MANUAL mode (fallback):
- *      - Standard manual entry form
- *      - Voice input for remarks
- *      - Quick-actions (repeat last, GPS, timestamp)
- *
- * The bar detects what instruments are available and auto-switches
- * to the best mode. Surveyor can override manually.
- *
- * Supports all survey types:
- *   - Traverse: total station bearings + distances
- *   - Leveling: auto-level digital readings (DNA03, DiNi, Topcon DL)
- *   - Control: GNSS positions
- *   - Topographic: total station radial shots or GNSS walking
+/** Instrument capture through the available serial or Bluetooth LE transports.
+ * Protocol presets require a matching instrument configuration and a checked
+ * sample before field use. Raw records are retained even when decoding fails.
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react'
@@ -40,7 +13,7 @@ import {
 } from 'lucide-react'
 import { useHaptics } from './MobileFieldUX'
 import type { GNSSBleConnection, GNSSPosition } from '@/lib/instruments/gnssBleConnection'
-import type { TotalStationConnection } from '@/lib/instruments/totalStationSerial'
+import type { TotalStationConnection, InstrumentBrand } from '@/lib/instruments/totalStationSerial'
 
 export type CollectionMode = 'total-station' | 'gnss' | 'manual'
 export type SurveyType = 'traverse' | 'leveling' | 'control' | 'topographic'
@@ -77,6 +50,8 @@ export interface StreamedReading {
 }
 
 interface InstrumentStreamBarProps {
+  docked?: boolean
+  onManualEntry?: () => void
   surveyType: SurveyType
   /** Called when a reading is collected (from instrument or GPS) */
   onReading: (reading: StreamedReading) => void | Promise<void>
@@ -89,13 +64,22 @@ interface InstrumentStreamBarProps {
 }
 
 export function InstrumentStreamBar({
+  docked = true,
+  onManualEntry,
   surveyType,
   onReading,
   stationName = 'STN',
-  instrumentHeight = 1.5,
-  targetHeight = 1.5,
+  instrumentHeight,
+  targetHeight,
 }: InstrumentStreamBarProps) {
   const [mode, setMode] = useState<CollectionMode>('manual')
+  const [brand, setBrand] = useState<InstrumentBrand>('generic')
+  const [baudRate, setBaudRate] = useState(9600)
+  const [heightText, setHeightText] = useState(instrumentHeight?.toString() ?? '')
+  const [targetText, setTargetText] = useState(targetHeight?.toString() ?? '')
+  const [capabilities, setCapabilities] = useState({ serial: false, bluetooth: false })
+  const onReadingRef = useRef(onReading)
+  useEffect(() => { onReadingRef.current = onReading }, [onReading])
   const [connected, setConnected] = useState(false)
   const [connecting, setConnecting] = useState(false)
   const [measuring, setMeasuring] = useState(false)
@@ -121,6 +105,7 @@ export function InstrumentStreamBar({
   useEffect(() => {
     const hasSerial = typeof navigator !== 'undefined' && 'serial' in navigator
     const hasBluetooth = typeof navigator !== 'undefined' && 'bluetooth' in navigator
+    setCapabilities({ serial: hasSerial && window.isSecureContext, bluetooth: hasBluetooth && window.isSecureContext })
 
     if (hasSerial && (surveyType === 'traverse' || surveyType === 'topographic' || surveyType === 'leveling')) {
       setMode('total-station')
@@ -139,11 +124,22 @@ export function InstrumentStreamBar({
 
     try {
       if (mode === 'total-station') {
+        await totalStationRef.current?.disconnect()
         // Use the existing TotalStationConnection from src/lib/instruments/
         const { TotalStationConnection, INSTRUMENT_PRESETS } = await import('@/lib/instruments/totalStationSerial')
-        const preset = INSTRUMENT_PRESETS.topcon // default; could be user-configurable
+        const preset = { ...INSTRUMENT_PRESETS[brand], baudRate }
+        const configuredHeight = heightText.trim() && Number.isFinite(Number(heightText)) ? Number(heightText) : undefined
+        const configuredTarget = targetText.trim() && Number.isFinite(Number(targetText)) ? Number(targetText) : undefined
 
         const conn = new TotalStationConnection(preset, (obs) => {
+          if (!obs.parsed) {
+            void Promise.resolve(onReadingRef.current({ source: 'total_station', rawData: obs.raw,
+              instrumentName: preset.model || preset.brand, setupStation: stationName, timestamp: obs.timestamp,
+            })).then(() => {
+              setError('Raw record saved, but its measurement format was not recognized. Check the selected protocol.')
+            }).catch((cause: unknown) => setError(cause instanceof Error ? cause.message : 'The raw record could not be saved.'))
+            return
+          }
           if (obs.parsed) {
             const reading: StreamedReading = {
               station: obs.parsed.pointId || '',
@@ -154,14 +150,14 @@ export function InstrumentStreamBar({
               easting: obs.parsed.easting,
               northing: obs.parsed.northing,
               elevation: obs.parsed.elevation,
-              instrumentHeight: obs.parsed.instrumentHeight || instrumentHeight,
-              targetHeight: obs.parsed.targetHeight || targetHeight,
+              instrumentHeight: obs.parsed.instrumentHeight ?? configuredHeight,
+              targetHeight: obs.parsed.targetHeight ?? configuredTarget,
               source: 'total_station',
               instrumentName: preset.model || preset.brand,
               rawData: obs.raw,
               timestamp: obs.timestamp,
             }
-            void Promise.resolve(onReading(reading)).then(() => {
+            void Promise.resolve(onReadingRef.current(reading)).then(() => {
               setLastReading(reading)
               setReadingCount((count) => count + 1)
               haptics('success')
@@ -172,11 +168,10 @@ export function InstrumentStreamBar({
               measureCompletionRef.current?.reject(failure)
             })
           }
-        })
+        }, setConnected)
 
         totalStationRef.current = conn
         await conn.connect()
-        setConnected(true)
         haptics('success')
       } else if (mode === 'gnss') {
         const { GNSSBleConnection } = await import('@/lib/instruments/gnssBleConnection')
@@ -198,7 +193,6 @@ export function InstrumentStreamBar({
 
         gnssConnectionRef.current = conn
         await conn.connect()
-        setConnected(true)
         haptics('success')
       }
     } catch (err) {
@@ -214,7 +208,7 @@ export function InstrumentStreamBar({
     } finally {
       setConnecting(false)
     }
-  }, [mode, stationName, instrumentHeight, targetHeight, onReading, haptics])
+  }, [mode, stationName, heightText, targetText, brand, baudRate, haptics])
 
   const handleDisconnect = useCallback(async () => {
     const pending = measureCompletionRef.current
@@ -320,7 +314,7 @@ export function InstrumentStreamBar({
         instrumentName: receiverNameRef.current,
         timestamp: position.timestamp,
       }
-      await onReading(reading)
+      await onReadingRef.current(reading)
       setLastReading(reading)
       setReadingCount((count) => count + 1)
       haptics('success')
@@ -328,7 +322,7 @@ export function InstrumentStreamBar({
       setError(err instanceof Error ? err.message : 'GPS collection failed')
       haptics('heavy')
     }
-  }, [connected, mode, stationName, readingCount, onReading, haptics])
+  }, [connected, mode, stationName, readingCount, haptics])
 
   // Auto-collect mode (GNSS only — records points at interval)
   useEffect(() => {
@@ -353,12 +347,12 @@ export function InstrumentStreamBar({
   const ModeIcon = modeIcon
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-xl border-t border-[var(--border-color)]">
+    <div aria-label="Instrument capture" className={`${docked ? 'fixed bottom-0 left-0 right-0 z-40 max-h-[60dvh] overflow-y-auto' : 'rounded-xl border overflow-hidden'} bg-[var(--bg-secondary)] border-t border-[var(--border-color)]`}>
       {/* Error banner */}
       {error && (
         <div className="px-4 py-1.5 bg-red-500/10 border-b border-red-500/20 flex items-center gap-2 text-xs text-red-400">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-          <span className="truncate">{error}</span>
+          <span role="alert">{error}</span>
           <button onClick={() => setError(null)} className="ml-auto text-red-400/50 hover:text-red-400">
             <Circle className="w-3 h-3" />
           </button>
@@ -374,6 +368,7 @@ export function InstrumentStreamBar({
           return (
             <button
               key={m}
+              disabled={connecting}
               onClick={() => {
                 if (m !== mode) void handleDisconnect()
                 setMode(m)
@@ -393,11 +388,27 @@ export function InstrumentStreamBar({
         })}
       </div>
 
+      {mode === 'total-station' && !connected && <details className="px-4 pt-2"><summary className="min-h-11 cursor-pointer py-3 text-sm font-medium text-[var(--text-primary)]">Connection settings</summary><div className="grid grid-cols-2 gap-2 px-4 pt-3 text-xs text-[var(--text-secondary)]">
+        <label>Instrument protocol<select aria-label="Instrument protocol" value={brand} disabled={connecting} onChange={event => setBrand(event.target.value as InstrumentBrand)} className="input mt-1 min-h-11 w-full text-base">
+          {(['generic', 'leica', 'topcon', 'sokkia', 'trimble', 'pentax', 'south'] as InstrumentBrand[]).map(value => <option key={value} value={value}>{value === 'generic' ? 'Generic / receive only' : value[0].toUpperCase() + value.slice(1)}</option>)}
+        </select></label>
+        <label>Baud rate<select aria-label="Instrument baud rate" value={baudRate} disabled={connecting} onChange={event => setBaudRate(Number(event.target.value))} className="input mt-1 min-h-11 w-full text-base">
+          {[1200, 2400, 4800, 9600, 19200, 38400, 57600, 115200].map(rate => <option key={rate} value={rate}>{rate}</option>)}
+        </select></label>
+        <label>Instrument height (m)<input aria-label="Instrument height in metres" inputMode="decimal" value={heightText} disabled={connecting} onChange={event => setHeightText(event.target.value)} className="input mt-1 min-h-11 w-full text-base" placeholder="Measured height" /></label>
+        <label>Target height (m)<input aria-label="Target height in metres" inputMode="decimal" value={targetText} disabled={connecting} onChange={event => setTargetText(event.target.value)} className="input mt-1 min-h-11 w-full text-base" placeholder="Measured height" /></label>
+      </div></details>}
+      {mode !== 'manual' && !connected && <p className="px-4 pt-2 text-xs leading-relaxed text-[var(--text-muted)]">
+        {mode === 'total-station'
+          ? capabilities.serial ? 'Match the serial protocol and baud rate to your instrument. Android connections depend on controller, browser and transport support.' : 'Serial access is unavailable here. Use a compatible browser/controller, or transfer an exported job file.'
+          : capabilities.bluetooth ? 'Use a receiver that streams NMEA over a supported Bluetooth LE service. Bluetooth Classic pairing alone is insufficient.' : 'Bluetooth LE access is unavailable here. Use a compatible browser/controller or transfer a file.'}
+      </p>}
+
       {/* Main action area */}
       <div className="flex items-center gap-3 px-4 py-3" style={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}>
         {/* Connection status */}
         <div className="shrink-0">
-          {connected ? (
+          {mode === 'manual' ? null : connected ? (
             <div className="flex items-center gap-1.5 text-xs text-emerald-400">
               <div className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
               <span className="font-medium">
@@ -414,7 +425,7 @@ export function InstrumentStreamBar({
           ) : (
             <button
               onClick={handleConnect}
-              disabled={connecting}
+              disabled={connecting || (mode === 'total-station' ? !capabilities.serial : !capabilities.bluetooth)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] active:scale-95 transition"
             >
               {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ModeIcon className="w-4 h-4" />}
@@ -429,14 +440,10 @@ export function InstrumentStreamBar({
             <button
               onClick={() => {
                 haptics('medium')
-                // Trigger the existing "Add Reading" form
-                onReading({
-                  station: `${stationName}_${readingCount + 1}`,
-                  timestamp: new Date().toISOString(),
-                })
-                setReadingCount(c => c + 1)
+                onManualEntry?.()
               }}
-              className="w-full py-3 bg-[var(--accent)] text-black font-bold rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition"
+              disabled={!onManualEntry}
+              className="w-full min-h-12 py-3 bg-[var(--accent)] text-black font-bold rounded-xl flex items-center justify-center gap-2 active:scale-[0.98] transition"
             >
               <Plus className="w-5 h-5" />
               Add Reading

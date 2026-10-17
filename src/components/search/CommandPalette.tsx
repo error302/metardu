@@ -5,7 +5,7 @@
  *
  * Features:
  * - Press Cmd+K (Mac) or Ctrl+K (Windows/Linux) to open
- * - Search across: projects, parcels, beacons, tools, pages, documents
+ * - Search projects, submissions, surveyors and page/tool shortcuts
  * - Keyboard navigation (arrow keys, enter, escape)
  * - Recent items shown when query is empty
  * - Quick navigation shortcuts
@@ -24,6 +24,7 @@ import {
   BookOpen, Loader2,
 } from 'lucide-react'
 import { useDebounceValue } from '@/lib/performance'
+import { searchResponseSchema, getSearchHitHref } from '@/lib/search/contract'
 
 interface SearchResult {
   id: string
@@ -109,40 +110,45 @@ export function CommandPalette() {
 
   // Debounced query using performance utility
   const debouncedQuery = useDebounceValue(query, 200)
+  const currentQuery = useRef(query)
+  currentQuery.current = query
+  const [searchError, setSearchError] = useState<string | null>(null)
 
   // Search API when debounced query changes
   useEffect(() => {
-    if (!debouncedQuery.trim() || debouncedQuery.length < 2) {
+    if (!open || !debouncedQuery.trim() || debouncedQuery.length < 2) {
       setApiResults([])
+      setSearching(false)
+      setSearchError(null)
       return
     }
 
     setSearching(true)
+    setSearchError(null)
     let cancelled = false
+    const controller = new AbortController()
 
     async function doSearch() {
       try {
-        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=10`)
-        if (cancelled || !res.ok) return
-        const data = (await res.json()) as { data?: { groups?: Array<{ type: string; hits?: Array<{ id: string; title: string; subtitle?: string; meta?: Record<string, unknown> }> }> } }
-        if (cancelled) return
+        const res = await fetch(`/api/search?q=${encodeURIComponent(debouncedQuery)}&limit=10`, { signal: controller.signal })
+        if (!res.ok) throw new Error('Search unavailable')
+        const data = searchResponseSchema.parse(await res.json())
+        if (cancelled || currentQuery.current !== debouncedQuery) return
         const results: SearchResult[] = []
-        if (data.data?.groups) {
-          for (const group of data.data.groups) {
-            for (const hit of group.hits || []) {
-              results.push({
-                id: hit.id,
-                type: group.type,
-                title: hit.title,
-                subtitle: hit.subtitle,
-                href: getHrefForType(group.type, hit.id, hit.meta),
-              })
-            }
+        for (const group of data.results) {
+          for (const hit of group.hits) {
+            const href = getSearchHitHref(hit)
+            if (!href || hit.type !== group.type) continue
+            results.push({ id: hit.id, type: group.type, title: hit.title, subtitle: hit.subtitle, href })
           }
         }
         setApiResults(results)
+        if (data.results.some(group => group.unavailable)) setSearchError('Some records could not be searched. Results may be incomplete.')
       } catch {
-        // Silent fail
+        if (!cancelled && currentQuery.current === debouncedQuery) {
+          setApiResults([])
+          setSearchError('Record search is temporarily unavailable. You can still use page shortcuts below.')
+        }
       } finally {
         if (!cancelled) setSearching(false)
       }
@@ -150,8 +156,8 @@ export function CommandPalette() {
 
     doSearch()
 
-    return () => { cancelled = true }
-  }, [debouncedQuery])
+    return () => { cancelled = true; controller.abort() }
+  }, [debouncedQuery, open])
 
   // Filter static nav by query
   const filteredNav = useMemo(() => {
@@ -217,7 +223,7 @@ export function CommandPalette() {
       />
 
       {/* Palette */}
-      <div className="fixed top-[15vh] left-1/2 -translate-x-1/2 z-[9999] w-[640px] max-w-[calc(100vw-2rem)] bg-[#0d0d14]/95 backdrop-blur-2xl border border-white/[0.1] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="fixed top-[15vh] left-1/2 -translate-x-1/2 z-[9999] w-[640px] max-w-[calc(100vw-2rem)] bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3.5 border-b border-white/[0.06]">
           {searching ? (
@@ -229,10 +235,11 @@ export function CommandPalette() {
             ref={inputRef}
             type="text"
             value={query}
-            onChange={e => setQuery(e.target.value)}
+            onChange={e => { setQuery(e.target.value); setApiResults([]); setSearchError(null) }}
             onKeyDown={handleKeyDown}
-            aria-label="Search projects, parcels, tools, pages..."
-            className="flex-1 bg-transparent text-white text-sm placeholder-gray-600 focus:outline-none"
+            aria-label="Search METARDU records and pages"
+            placeholder="Projects, submissions, surveyors, and pages…"
+            className="flex-1 bg-transparent text-[var(--text-primary)] text-sm placeholder-[var(--text-muted)] focus:outline-none"
           />
           <kbd className="hidden sm:flex items-center gap-1 px-1.5 py-0.5 rounded bg-white/[0.06] border border-white/[0.1] text-[9px] text-gray-500 font-mono">
             ESC
@@ -241,7 +248,7 @@ export function CommandPalette() {
 
         {/* Results */}
         <div ref={listRef} className="max-h-[400px] overflow-y-auto p-2">
-          {allResults.length === 0 && query.length >= 2 && !searching && (
+          {allResults.length === 0 && query.length >= 2 && !searching && !searchError && (
             <div className="flex flex-col items-center justify-center py-12 text-center">
               <Search className="w-8 h-8 text-gray-600 mb-2" />
               <p className="text-sm text-gray-500">No results for &quot;{query}&quot;</p>
@@ -254,11 +261,12 @@ export function CommandPalette() {
               <Command className="w-8 h-8 text-gray-600 mb-2" />
               <p className="text-sm text-gray-500">Start typing to search</p>
               <p className="text-[10px] text-gray-600 mt-1">
-                Search across projects, parcels, beacons, tools, and pages
+                Search projects, submissions, surveyors, tools, and pages
               </p>
             </div>
           )}
 
+          {searchError && <p role="status" className="px-4 py-3 text-xs text-[var(--warning)]">{searchError}</p>}
           {/* API results section */}
           {apiResults.length > 0 && (
             <div className="mb-2">
@@ -343,11 +351,13 @@ function ResultRow({
   category?: string
 }) {
   return (
-    <div
+    <button
+      type="button"
       onClick={onClick}
       onMouseEnter={onHover}
-      className={`flex items-center gap-3 px-3 py-2.5 rounded-lg cursor-pointer transition-colors ${
-        selected ? 'bg-[#D17B47]/10' : 'hover:bg-white/[0.03]'
+      onFocus={onHover}
+      className={`flex w-full items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
+        selected ? 'bg-[var(--accent-subtle)]' : 'hover:bg-[var(--bg-tertiary)]'
       }`}
     >
       <div className={`shrink-0 w-8 h-8 rounded-lg flex items-center justify-center ${
@@ -356,8 +366,8 @@ function ResultRow({
         <Icon className={`w-4 h-4 ${selected ? 'text-[#D17B47]' : 'text-gray-400'}`} />
       </div>
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-white truncate">{title}</div>
-        <div className="text-[10px] text-gray-500 truncate">{subtitle}</div>
+        <div className="text-xs font-medium text-[var(--text-primary)] truncate">{title}</div>
+        <div className="text-xs text-[var(--text-muted)] truncate">{subtitle}</div>
       </div>
       {category && (
         <span className="text-[9px] text-gray-600 px-1.5 py-0.5 rounded bg-white/[0.04] shrink-0">
@@ -365,7 +375,7 @@ function ResultRow({
         </span>
       )}
       {selected && <ArrowRight className="w-3 h-3 text-[#D17B47] shrink-0" />}
-    </div>
+    </button>
   )
 }
 
@@ -375,15 +385,7 @@ function getResultIcon(type: string): typeof LayoutDashboard {
     case 'tools': return Wrench
     case 'surveyors': return Users
     case 'documents': return FileText
+    case 'submissions': return FileText
     default: return Search
-  }
-}
-
-function getHrefForType(type: string, id: string, _meta?: Record<string, unknown>): string {
-  switch (type) {
-    case 'projects': return `/project/${id}`
-    case 'surveyors': return `/community/directory?id=${id}`
-    case 'documents': return `/documents?id=${id}`
-    default: return `/search?q=${id}`
   }
 }
