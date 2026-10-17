@@ -78,7 +78,12 @@ async function main() {
     check('another account cannot read the saved synthetic fieldbook',[403,404].includes(foreignBook.response.status)||(foreignBook.response.ok&&foreignBook.data?.data===null&&foreignBook.data?.error?.code==='PGRST116'))
     const forgedBook=await foreign('/api/db',{body:{table:'fieldbooks',operation:'upsert',payload:{...book,name:'SYNTHETIC unauthorized overwrite'},columns:'id',single:true}})
     const preservedBook=(await client.query('SELECT user_id,project_id,name FROM fieldbooks WHERE id=$1',[fieldbook])).rows[0]
-    const writeRefused=[403,404].includes(forgedBook.response.status)||(forgedBook.response.ok&&forgedBook.data?.data===null&&['PGRST116','42501'].includes(forgedBook.data?.error?.code))
+    // A guarded ON CONFLICT returning zero rows is an intentional no-op in
+    // QueryBuilder: HTTP 200, data:null, error:null. Require no acknowledgement
+    // AND independently unchanged stored ownership/content, not a status alone.
+    const writeRefused=[403,404].includes(forgedBook.response.status)||(forgedBook.response.ok&&forgedBook.data?.data===null&&(forgedBook.data?.error===null||['PGRST116','42501'].includes(forgedBook.data?.error?.code)))
+    report.fieldbookOverwrite={http:forgedBook.response.status,errorCode:forgedBook.data?.error?.code??null,hasData:!!forgedBook.data?.data,ownerPreserved:preservedBook?.user_id===owner,projectPreserved:preservedBook?.project_id===project,namePreserved:preservedBook?.name===book.name}
+    save()
     check('another account cannot overwrite or take ownership of the saved fieldbook',writeRefused&&preservedBook?.user_id===owner&&preservedBook.project_id===project&&preservedBook.name===book.name)
     const path=`/api/engineering/alignment?project_id=${project}&road_name=SYNTHETIC%20release%20road`
     const read=await owned(path)

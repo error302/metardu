@@ -53,8 +53,49 @@ Only inspected, regenerable host webpack `client-production` and
 output, source, browser storage, drawings and Docker data were retained.
 The exact pre-cleanup manifest is local `.cache/host-webpack-cache-manifest.json`.
 
-Release outcomes belong below after execution. Until then, this document does
-not claim these changes are on the public website.
+## Production outcome and follow-up
+
+Application revision `603d88b89dee0daaf4150e8dfb9002b4b8eb1a73` was built from
+the pinned Git archive and promoted into the existing application service.
+Image: `sha256:b2e12ba5e0a2c41467032453b632189bc42799b6aea1e392e19398d0bccd0154`.
+The public HTTPS health endpoint reports that exact revision and HTTP 200.
+All required supporting service IDs, start times and mounts were preserved;
+exactly one application container remains. No image/volume pruning occurred.
+
+Fresh checkpoints are `/backups/db_20261017_233859.sql.gz` and
+`/backups/uploads_20261017_233859.tar.gz`, completed at 23:39:03 UTC.
+Archive/header integrity passed; this is not a new restore exercise. The normal
+migrator exited zero at 117 entries, preserving historical hashes and the
+controller's existing-record fingerprints. The previous production image is
+protected as `rollback-current`; older rollback aliases remain available.
+
+Seventeen actual HTTPS checks passed: public health, anonymous API refusal,
+two disposable credential sessions, exact fieldbook acknowledgement, idempotent
+retry and durable payload preservation, cross-account read/overwrite protection,
+alignment access/cache protection, profile authority refusal/ordinary editing,
+and empty pipeline history. QA accounts, projects and books were removed;
+no customer records or measured evidence were created/changed, and no email
+was sent. The original failed negative-test expectations are preserved locally.
+A zero-row guarded upsert intentionally returns `data:null,error:null`; the
+probe now requires both no acknowledgement and independently unchanged stored
+ownership/content, rather than assuming every denial is HTTP 403.
+
+The public map showed the new interface and the mobile attribution cleared the
+dock. Production browser inspection also exposed recoverable React #418 on
+each initial render. Origin HTML preserved the footer email anchor, while
+Cloudflare replaced it and injected its decoder. The documented per-address
+`email_off` exemption now wraps the entire fixed public anchor. It contains
+no user-controlled HTML. Reference:
+https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/
+
+The keyboard shortcut now detects Mac after mounting so Linux SSR and a Mac
+client have the same first render. Focused server-render/hydration tests and a
+follow-up pinned build/promotion must verify these final fixes on HTTPS.
+There are no pending SQL migrations for that follow-up; the controller still
+requires matching complete production/synthetic registries, rollback startup
+verification, source checks, a fresh checkpoint and supporting-service checks.
+It records forward-upgrade proof as not required when no SQL is pending,
+rather than fabricating an upgrade success.
 
 The first combined source check passed both strict type checks and 844 tests,
 but failed UUID uniqueness after the road-quantity test changed Node's shared

@@ -16,6 +16,9 @@ const legal = [
   { label: 'Data protection', href: '/docs/data-protection' },
 ]
 const linkStyle = 'inline-flex min-h-11 items-center text-sm text-[#acb6b0] transition-colors hover:text-[#d59669] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#d59669]'
+// Fixed public markup only: Cloudflare must preserve the entire anchor,
+// including href and text, for React to hydrate the server-rendered footer.
+const contactMarkup = `<!--email_off--><a href="mailto:hello@metardu.app" class="${linkStyle} mt-4">hello@metardu.app <span aria-hidden="true" class="ml-3">↗</span></a><!--/email_off-->`
 
 export default function Footer() {
   return <footer className="border-t border-white/10 bg-[#0f1513] text-[#f2f1eb]">
@@ -28,7 +31,7 @@ export default function Footer() {
           </Link>
           <p className="mt-5 max-w-md text-lg leading-relaxed">From the field record<br />to the work you deliver.</p>
           <p className="mt-3 max-w-md text-sm leading-relaxed text-[#acb6b0]">Survey calculations, drawings, and project records in one workspace. Built in Kenya.</p>
-          <a href="mailto:hello@metardu.app" className={`${linkStyle} mt-4`}>hello@metardu.app <span aria-hidden className="ml-3">↗</span></a>
+          <div dangerouslySetInnerHTML={{ __html: contactMarkup }} />
         </div>
         <nav aria-label="Footer navigation">
           <p className="mb-3 text-xs font-mono uppercase tracking-widest text-[#d59669]">Explore METARDU</p>

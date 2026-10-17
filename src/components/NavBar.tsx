@@ -167,8 +167,9 @@ type Translator = (key: string, values?: Record<string, string | number>) => str
 // just dispatches a synthetic Cmd+K to open it. Removes the duplicate
 // search index, modal, and keyboard listener that were fighting with
 // CommandPalette for the Cmd+K binding.
-function SearchTrigger({ t }: { t: Translator }) {
-  const isMac = typeof navigator !== 'undefined' ? /mac|iphone|ipad|ipod/i.test(navigator.platform) : false
+export function SearchTrigger({ t }: { t: Translator }) {
+  const [isMac, setIsMac] = useState(false)
+  useEffect(() => { setIsMac(/mac|iphone|ipad|ipod/i.test(navigator.platform)) }, [])
   const hint = isMac ? '⌘K' : 'Ctrl K'
 
   const openPalette = () => {

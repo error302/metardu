@@ -138,7 +138,11 @@ async function build() {
   assert.equal(receipt.rehearsal?.passed,true,'Pending SQL must first succeed on the existing synthetic database')
   if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'source-checks.json'),'utf8'));assert.equal(proof.revision,revision);assert.equal(proof.status,'passed');receipt.sourceChecks=proof.checks}
   if(!legacy)assert.equal(receipt.rehearsal.rollbackVerifier?.passed,true,'The current image startup verifier must accept the pinned forward registry in the existing synthetic database.')
-  if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'upgrade-checks.json'),'utf8'));assertSyntheticUpgradeProof(proof,revision);receipt.syntheticUpgrade=proof}
+  if(!legacy&&receipt.pending.length){const proof=JSON.parse(readFileSync(join(directory,'upgrade-checks.json'),'utf8'));assertSyntheticUpgradeProof(proof,revision);receipt.syntheticUpgrade=proof}
+  else if(!legacy){
+    assert.equal(receipt.rehearsal.applied,receipt.migrationBefore.length,'A no-SQL release must match the complete applied registry in both plan and rehearsal.')
+    receipt.syntheticUpgrade={notRequired:true,reason:'No pending SQL; full applied registry matched production and synthetic rehearsal.'}
+  }
   const before=inspect();assert.equal(before.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
   assertBuildSpace(hostFreeBytes())
   const priorTag=JSON.parse(docker(['image','inspect',rollbackTag]))[0].Id
