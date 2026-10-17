@@ -9,6 +9,20 @@ streams without inventing measurements, CRS, control or device compatibility.
 Preserve customer data and the existing production stack. This milestone does
 not complete the broader engineering-platform goal.
 
+## Safe pilot exercise
+
+Use `docs/fieldbook-leveling-pilot.json` in a disposable training
+project, never as a customer's measured control. Import through Files & saved
+books → Import METARDU JSON. Expected RLs are BM1 100.0000, TP1 100.2500,
+TP2 100.6500 and BM2 100.2500 m. Sum BS is 4.100 m, sum FS is 3.850 m,
+and closing misclosure is zero (within floating-point tolerance).
+
+Edit a reading on mobile, save, export JSON, reopen it in the same training
+project, and compare raw strings and row order. On an actual controller, repeat
+with a temporary loss of connectivity and reload only after a confirmed device
+save; compare the restored book and subsequent server acknowledgement. Keep the
+downloaded JSON throughout. This exercise does not validate a physical receiver.
+
 ## Source changes, October 18, 2026
 
 - Mobile and desktop share project selection, book naming, save status, saved-book
@@ -92,16 +106,41 @@ run includes 22 dashboard/search/activity tests: both search consumers now share
 the real grouped API contract and working destinations; partial failures,
 aborted/stale requests and activity polling failures are surfaced correctly.
 Project/count query failure no longer appears as a zero-count empty dashboard.
+The pre-push related run additionally passed 193 tests in 30 suites, with one
+suite/test skipped. Its lint gate rejected the first push without source
+diagnostics while the build was running. The unchanged gates are retried after
+the build with a 900-second allowance instead of 300 seconds; no hook or required
+check is disabled.
+The synthetic pilot file also validates through the real JSON parser and both
+leveling engines against all four independently calculated RLs and zero closure.
 
-The current Docker verifier reports `Docker ps failed. Check Docker access;
-permission failure does not mean Docker is stopped.` No container, image,
-volume, database, migration or production service was changed in this milestone.
-The prior production build predates this fieldbook change; current deployment
-and browser interaction evidence must be refreshed before promotion.
+The full host production build subsequently passed: optimized compilation,
+Next.js type validation, all 219 static pages, trace collection and standalone
+packaging (exit 0). The initial restricted attempt failed creating a generated
+`.next` auth directory with Windows EPERM; the same build passed with host
+execution access. Windows PWA generation is disabled in the existing config, so
+this does not verify deployed installation, service-worker or offline behavior.
+
+The restricted Docker verifier initially failed on access. Running the same
+read-only verifier with host access showed healthy existing services but a stale
+backup (last completed October 16 at 02:00:04 UTC). The existing backup sidecar
+then created `db_20261017_224837.sql.gz` (194 KiB) and
+`uploads_20261017_224837.tar.gz` (270 KiB). Integrity/header verification completed
+at October 17, 22:48:43 UTC. Retention was set to 365000 days for this one run,
+preserving the existing archives; 35 database and 35 uploads archives remain.
+The scheduling gap still needs monitoring; a manual run does not prove the next
+scheduled run or restore recovery.
+
+The subsequent Docker verifier passed production HTTP/database/Redis health and
+the single-app inventory, with no dated verification images/builders. No
+container, image, volume, customer record, migration or production service was
+created, stopped, restarted or promoted. Only new recovery archives/log entries
+were written inside the existing backup service. Browser interaction and actual
+deployment evidence for this source revision remain outstanding.
 
 Remaining acceptance work:
 
-1. Production candidate build, owned localhost CUA checks at phone/controller and
+1. Docker candidate build, owned localhost CUA checks at phone/controller and
    desktop sizes, and one planned promotion to the existing `metardu-app` stack
    after migration compatibility and backup/recovery evidence are available.
 2. Real IndexedDB quota/reload/offline/reconnect tests on the target controller;

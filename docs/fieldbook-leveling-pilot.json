@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "type": "leveling",
+  "name": "TRAINING ONLY - four-station leveling pilot",
+  "data": {
+    "method": "height_of_collimation",
+    "openingRL": "100.0000",
+    "closingRL": "100.2500",
+    "distanceKm": "0.800",
+    "rows": [
+      { "id": "training-bm1", "station": "BM1", "bs": "1.200", "is": "", "fs": "", "remarks": "Synthetic benchmark. Not field control." },
+      { "id": "training-tp1", "station": "TP1", "bs": "1.500", "is": "", "fs": "0.950", "remarks": "Synthetic turning point 1." },
+      { "id": "training-tp2", "station": "TP2", "bs": "1.400", "is": "", "fs": "1.100", "remarks": "Synthetic turning point 2." },
+      { "id": "training-bm2", "station": "BM2", "bs": "", "is": "", "fs": "1.800", "remarks": "Synthetic closing benchmark. Not field control." }
+    ]
+  }
+}
