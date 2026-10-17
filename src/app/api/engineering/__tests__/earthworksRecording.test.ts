@@ -21,6 +21,7 @@ const template={carriagewayWidth:6,shoulderWidth:0,camber:0,subgradeDepth:0,cutS
 const fixtureCrs='EPSG:32737'
 let owner='owner',records:Array<Record<string,unknown>>=[],ground=0
 const query=jest.fn(async(sql:string,params:unknown[]=[]):Promise<{rows:Array<Record<string,unknown>>}>=>{
+  if(/lock_project_for_read/.test(sql))return{rows:[{user_id:owner}]}
   if(/FROM projects/.test(sql))return{rows:[{id:project,user_id:owner,datum:'WGS84',utm_zone:37,hemisphere:'S'}]}
   if(/FROM road_alignments/.test(sql))return{rows:[{id:alignment,project_id:project,project_owner:owner,user_id:owner,road_name:'Synthetic Road',start_chainage:0,coordinate_system:fixtureCrs,cross_section_template:template}]}
   if(/FROM project_reference_systems/.test(sql))return{rows:[{project_id:project,horizontal_crs:fixtureCrs,horizontal_name:'WGS84 UTM 37S',datum_name:'WGS84',units:'metres',zone:37,hemisphere:'S',vertical_datum:'Synthetic BM',vertical_reference:'local',distance_mode:'grid',coordinate_precision:3}]}
@@ -36,7 +37,7 @@ const query=jest.fn(async(sql:string,params:unknown[]=[]):Promise<{rows:Array<Re
 const client={query,release:jest.fn()}
 type Handler=(req:NextRequest,ctx:{userId:string;body?:unknown;params:Record<string,string>})=>Promise<Response>
 const invoke=(handler:unknown,body?:unknown,suffix='')=>(handler as Handler)(new NextRequest(`http://127.0.0.1:3021/api/engineering/earthworks?alignment_id=${alignment}${suffix}`,{method:body?'POST':'GET'}),{userId:'owner',body,params:{}})
-async function preview(){const response=await invoke(GET,undefined,'&preview=1');expect(response.status).toBe(200);return(await response.json() as {data:{input_hash:string}}).data}
+async function preview(){const response=await invoke(GET,undefined,'&preview=1');if(response.status!==200)throw new Error(`Preview failed: ${response.status} ${await response.text()}`);return(await response.json() as {data:{input_hash:string}}).data}
 beforeEach(()=>{
   jest.clearAllMocks();owner='owner';records=[];ground=0
   jest.mocked(db.transaction).mockImplementation(async work=>{const saved=[...records];try{return await work(client as unknown as import('pg').PoolClient)}catch(error){records=saved;throw error}})
