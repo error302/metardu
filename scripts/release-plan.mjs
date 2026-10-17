@@ -4,11 +4,11 @@ import {computeDrift} from './verify-migrations.mjs'
 
 export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock']
 export function pinnedReleaseArguments(argv,root) {
-  assert.equal(argv.length,2,'Supply an action and the full reviewed commit SHA.')
+  assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
   assert.ok(['plan','rehearse','build','promote','status'].includes(action),'Unknown release action.')
   assert.match(revision,/^[a-f0-9]{40}$/,'Use a full immutable commit SHA, not HEAD or a branch.')
-  return {action,revision,directory:path.resolve(root,'.cache/release-verify/survey-release')}
+  return {action,revision,directory:path.resolve(root,'.cache/release-verify',argv[2]==='--unified'?'unified-release':'survey-release')}
 }
 
 export function compatibleRollbackRegistry(source,ledger) {

@@ -10,6 +10,7 @@ import {randomUUID} from 'node:crypto'
 import pg from 'pg'
 import {rehearsalDatabaseConfig} from './rehearsal-database.mjs'
 import {computeDrift,migrationChecksums} from './verify-migrations.mjs'
+import {pinnedReleaseArguments} from './release-plan.mjs'
 
 const database='metardu_survey_upgrade_verify'
 const marker='METARDU disposable source-only survey upgrade verification'
@@ -27,7 +28,7 @@ export function surveyUpgradeTarget(adminUrl) {
 async function main() {
   const revision=process.argv[2];assert.match(revision??'',/^[a-f0-9]{40}$/)
   const config=rehearsalDatabaseConfig(),url=surveyUpgradeTarget(config.adminUrl)
-  const directory=resolve('.cache/release-verify/survey-release')
+  const {directory}=pinnedReleaseArguments(['rehearse',revision,...process.argv.slice(3)],process.cwd())
   const receipt=JSON.parse(readFileSync(join(directory,'promotion.json'),'utf8'))
   assert.equal(receipt.revision,revision);assert.equal(receipt.status,'planned')
   const report={revision,customerDataCopied:false,newContainer:false,sourceBaseline:receipt.migrationBefore.length,checks:[],cleanup:{},status:'checking'}

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict'
 import { spawnSync, spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync, existsSync, createWriteStream, statfsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
+import { createHash } from 'node:crypto'
 import pg from 'pg'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
@@ -142,7 +143,9 @@ async function build() {
   assertBuildSpace(hostFreeBytes())
   const priorTag=JSON.parse(docker(['image','inspect',rollbackTag]))[0].Id
   if(priorTag!==receipt.rollbackImage){
-    const alias='metardu-metardu-app:rollback-prior-current'
+    // Preserve the previous rollback by content, without overwriting the older
+    // rollback-prior-current alias or allocating another image layer.
+    const alias=`metardu-metardu-app:rollback-${priorTag.replace('sha256:','').slice(0,16)}`
     const probe=spawnSync('docker',['image','inspect',alias,'--format','{{.Id}}'],{encoding:'utf8',windowsHide:true})
     assert.ok(probe.status!==0||probe.stdout.trim()===priorTag,'Preserve an existing prior rollback alias before reusing it.')
     docker(['image','tag',priorTag,alias]);receipt.preservedPriorRollback={image:priorTag,tag:alias}
