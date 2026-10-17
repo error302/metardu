@@ -822,7 +822,7 @@ export default function MapClient() {
       <MapOverlayProvider>
       <div
         id="metardu-global-map"
-        className="map-workspace h-[calc(100dvh-8rem)] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
+        className="map-workspace h-[calc(100dvh-9rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
         style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': isMobile && mobileToolsExpanded ? '104px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."

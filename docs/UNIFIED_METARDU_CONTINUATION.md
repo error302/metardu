@@ -63,6 +63,13 @@ restore the original property descriptor after each test. This is test isolation
 not a replacement of runtime UUID generation. The initial failed report is
 preserved in `.cache/release-verify/unified-release/source-checks.json`.
 
+The repaired combined check passed 853 tests across 140 suites (seven tests in
+two suites skipped), both strict type checks and lint on 125 changed TS/TSX
+files. Phone-width browser inspection then found a 12-pixel overlap between
+the floating navigation and map attribution. The final source reserves one
+additional rem plus the device safe-area inset below the mobile map; desktop
+height is unchanged. Final pinned checks and deployed browser evidence follow.
+
 ## Remaining platform acceptance
 
 Physical controller/rover tests and manufacturer sample audits; proprietary/CSV
