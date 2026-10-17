@@ -8,7 +8,8 @@ export function pinnedReleaseArguments(argv,root) {
   const [action,revision]=argv
   assert.ok(['plan','rehearse','build','promote','status'].includes(action),'Unknown release action.')
   assert.match(revision,/^[a-f0-9]{40}$/,'Use a full immutable commit SHA, not HEAD or a branch.')
-  return {action,revision,directory:path.resolve(root,'.cache/release-verify',argv[2]==='--unified'?'unified-release':'survey-release')}
+  const directory=path.resolve(root,'.cache/release-verify',argv[2]==='--unified'?'unified-release':'survey-release')
+  return {action,revision,directory:argv[2]==='--unified'?path.join(directory,revision):directory}
 }
 
 export function compatibleRollbackRegistry(source,ledger) {

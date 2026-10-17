@@ -11,6 +11,7 @@ let container: HTMLDivElement, root: Root
 const fixtureCrs = 'EPSG:21037'
 const firstId = 'd8aa0101-6066-4700-ae25-302c05d8bf81'
 const secondId = 'd8aa0101-6066-4700-ae25-302c05d8bf82'
+const uuidDescriptor = Object.getOwnPropertyDescriptor(crypto, 'randomUUID')
 beforeEach(() => {
   localStorage.clear()
   Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true })
@@ -22,7 +23,11 @@ beforeEach(() => {
   }) as unknown as typeof fetch
   container = document.createElement('div'); document.body.appendChild(container); root = createRoot(container)
 })
-afterEach(async () => { await act(async () => root.unmount()); container.remove(); jest.restoreAllMocks() })
+afterEach(async () => {
+  await act(async () => root.unmount()); container.remove(); jest.restoreAllMocks()
+  if (uuidDescriptor) Object.defineProperty(crypto, 'randomUUID', uuidDescriptor)
+  else Reflect.deleteProperty(crypto, 'randomUUID')
+})
 async function input(label: string, value: string) {
   const element = container.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`)
   if (!element) throw new Error(`Missing field: ${label}`)

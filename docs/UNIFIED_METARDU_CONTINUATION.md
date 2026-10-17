@@ -39,8 +39,9 @@ hashes against current source. Pending migrations are exactly
 They add request-scoped personal-member reads and a checked read-lock helper;
 they do not grant membership management or general project updates.
 
-The reusable `--unified` release namespace preserves earlier survey/auth
-receipts. It retains pinned Git builds, the 8 GiB free-space guard, real source
+The reusable `--unified` release namespace keeps evidence under the full source
+revision and preserves earlier survey/auth and failed-source receipts. It retains
+pinned Git builds, the 8 GiB free-space guard, real source
 checks, synthetic forward migration/preservation proof, actual rollback startup
 verification, fresh backup, customer-row fingerprints and supporting-service
 identity checks. Earlier rollback images retain content-based aliases without
@@ -54,6 +55,13 @@ The exact pre-cleanup manifest is local `.cache/host-webpack-cache-manifest.json
 
 Release outcomes belong below after execution. Until then, this document does
 not claim these changes are on the public website.
+
+The first combined source check passed both strict type checks and 844 tests,
+but failed UUID uniqueness after the road-quantity test changed Node's shared
+WebCrypto object without restoring it. Road-quantity and plumb fixtures now
+restore the original property descriptor after each test. This is test isolation,
+not a replacement of runtime UUID generation. The initial failed report is
+preserved in `.cache/release-verify/unified-release/source-checks.json`.
 
 ## Remaining platform acceptance
 

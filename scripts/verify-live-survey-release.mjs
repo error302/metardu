@@ -9,6 +9,7 @@ import {resolve,join} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
+import {pinnedReleaseArguments} from './release-plan.mjs'
 
 export function assertLiveSurveyRelease(receipt,app,revision) {
   assert.match(revision??'',/^[a-f0-9]{40}$/)
@@ -19,7 +20,7 @@ export function assertLiveSurveyRelease(receipt,app,revision) {
 
 async function main() {
   const revision=process.argv[2],origin='https://metardu.space'
-  const directory=resolve('.cache/release-verify/survey-release')
+  const {directory}=pinnedReleaseArguments(['status',revision,...process.argv.slice(3)],process.cwd())
   const receipt=JSON.parse(readFileSync(join(directory,'promotion.json'),'utf8'))
   const inspect=spawnSync('docker',['inspect','metardu-app','metardu-postgres'],{encoding:'utf8',windowsHide:true,timeout:10000})
   assert.equal(inspect.status,0)
@@ -51,7 +52,7 @@ async function main() {
   let created=false
   await client.connect();save()
   try {
-    assert.equal((await client.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n,115)
+    assert.equal((await client.query('SELECT count(*)::int n FROM schema_migrations')).rows[0].n,receipt.migrationAfter.length)
     const anonymous=actor()
     check('live public health responds over HTTPS',(await anonymous('/api/public/health')).response.status===200)
     for(const path of [`/api/engineering/alignment?project_id=${project}`,`/api/engineering/stations?alignment_id=${alignment}`,`/api/project/${project}/pipeline-asbuilt`])check('anonymous private API requires authentication: '+path.split('?')[0],(await anonymous(path)).response.status===401)

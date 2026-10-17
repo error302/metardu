@@ -10,6 +10,11 @@ const calculation=calculateRoadQuantityRun(data,reference),inputHash='a'.repeat(
 const archived={id:'run',revision:'R01',status:'DRAFT',created_at:'2026-10-16T00:00:00Z',created_by:'actor',quantity:{...calculation,inputHash,outputHash:'b'.repeat(64),clientRunId:'delivery'}}
 type HttpResponse={ok:boolean;json:()=>Promise<unknown>}
 const mockFetch=jest.fn<Promise<HttpResponse>,[string,RequestInit?]>()
+const uuidDescriptor=Object.getOwnPropertyDescriptor(globalThis.crypto,'randomUUID')
+afterEach(()=>{
+  if(uuidDescriptor)Object.defineProperty(globalThis.crypto,'randomUUID',uuidDescriptor)
+  else Reflect.deleteProperty(globalThis.crypto,'randomUUID')
+})
 beforeEach(()=>{
   Object.defineProperty(globalThis,'fetch',{configurable:true,value:mockFetch});mockFetch.mockReset()
   Object.defineProperty(globalThis.crypto,'randomUUID',{configurable:true,value:jest.fn(()=> '11111111-1111-4111-8111-111111111111')})
