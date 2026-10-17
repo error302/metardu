@@ -29,8 +29,6 @@ export default function GNSSPage() {
         {position && (
           <CoordinateDisplay
             position={position}
-            showKenya={true}
-            onCopy={() => {}}
           />
         )}
 

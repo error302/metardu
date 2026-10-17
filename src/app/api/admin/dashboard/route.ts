@@ -66,21 +66,16 @@ export const GET = apiHandler(
     const startTime = Date.now()
 
     // ── User stats ──
-    const [totalUsersRes, newUsersRes, activeUsersRes] = await Promise.all([
+    const [totalUsersRes, newUsersRes] = await Promise.all([
       db.query<CountRow>('SELECT COUNT(*)::int AS count FROM users'),
       db.query<CountRow>(
         `SELECT COUNT(*)::int AS count FROM users
          WHERE created_at >= date_trunc('month', CURRENT_DATE)`,
       ),
-      db.query<CountRow>(
-        `SELECT COUNT(*)::int AS count FROM users
-         WHERE updated_at >= NOW() - INTERVAL '30 days'`,
-      ),
     ])
 
     const totalUsers = totalUsersRes.rows[0]?.count ?? 0
     const newUsersThisMonth = newUsersRes.rows[0]?.count ?? 0
-    const activeUsers = activeUsersRes.rows[0]?.count ?? 0
 
     // ── Project stats ──
     const [totalProjectsRes, projectsByStatusRes] = await Promise.all([
@@ -221,7 +216,6 @@ export const GET = apiHandler(
       users: {
         total: totalUsers,
         newThisMonth: newUsersThisMonth,
-        active: activeUsers,
       },
       projects: {
         total: totalProjects,

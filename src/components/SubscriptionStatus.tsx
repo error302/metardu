@@ -4,13 +4,6 @@ import Link from 'next/link'
 export default function SubscriptionStatus({ subscription }: { subscription: Record<string, unknown> | null }) {
   const plan = (subscription?.plan_id as string | undefined) || 'free'
   const isTrialing = subscription?.status === 'trial'
-  const trialEndsAt = subscription?.trial_ends_at
-
-  const trialDaysLeft = isTrialing && typeof trialEndsAt === 'string'
-    ? Math.max(0, Math.ceil(
-        (new Date(trialEndsAt).getTime() - Date.now()) / 86400000
-      ))
-    : 0
 
   const getBadge = () => {
     if (plan === 'enterprise') {
@@ -34,17 +27,17 @@ export default function SubscriptionStatus({ subscription }: { subscription: Rec
         </span>
       )
     }
-    if (plan === 'pro') {
+    if (isTrialing) {
       return (
-        <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">
-          Pro 
+        <span className="text-xs bg-amber-900/50 text-amber-400 px-2 py-1 rounded">
+          Pro Trial
         </span>
       )
     }
-    if (isTrialing && trialDaysLeft > 0) {
+    if (plan === 'pro') {
       return (
-        <span className="text-xs bg-amber-900/50 text-amber-400 px-2 py-1 rounded">
-          Pro Trial — {trialDaysLeft} days left
+        <span className="text-xs bg-green-900/50 text-green-400 px-2 py-1 rounded">
+          Pro
         </span>
       )
     }

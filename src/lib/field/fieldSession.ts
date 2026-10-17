@@ -177,6 +177,9 @@ class FieldSession {
     let easting: number | undefined
     let northing: number | undefined
     if (latestPoint.source === 'nmea') {
+      if (typeof latestPoint.quality !== 'number'
+        || !Number.isInteger(latestPoint.quality)
+        || latestPoint.quality <= 0) return null
       const latitude = latestPoint.latitude
       const longitude = latestPoint.longitude
       if (typeof latitude !== 'number' || !Number.isFinite(latitude)

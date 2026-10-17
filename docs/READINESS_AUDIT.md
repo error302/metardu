@@ -74,8 +74,12 @@ handover demands.
 
 Competence support is **strong on calculation** (`/tools/*` suite: traverse, LSA, COGO,
 leveling, curves, resection, radiation, deformation) and **weak on instrument-to-app**:
-no shared import-adapter interface (blueprint §17.2) — each tool parses its own files, and
-`GNSSProcessingPanel` still returns a `mockResult`.
+there is no shared import-adapter interface (blueprint §17.2), so each tool parses its own
+files. The RINEX baseline panel no longer returns a mock: it submits base, rover and
+navigation files to the authenticated Python worker's RTKLIB path and displays validated
+worker measurements. Its source and boundary tests do not prove numerical RTKLIB results;
+known-control RINEX and independent coordinate checks are still required (see
+[`GNSS_RTKLIB_BASELINE_REPAIR_2026-10-12.md`](GNSS_RTKLIB_BASELINE_REPAIR_2026-10-12.md)).
 
 **Missing verticals:** bridge workspace (§10) and construction/building workspace (§11) have
 no project shell — pile grid and verticality exist only as `/tools/*` calculators.
@@ -163,8 +167,12 @@ Next, in priority order:
 5. **Background sync.** No Service-Worker sync queue; `startAutoSync(30s)` dies with the page.
 6. **Data durability for `/field` hub + walk.** Traverse/leveling/radiation still live in React
    state only.
-7. **GNSS quick actions.** `/field/gnss` `onConnect`/`onCopy` are no-ops; no big readout, no
-   capture/save; `GNSSProcessingPanel` returns `mockResult`.
+7. **GNSS field workflow.** `/field/gnss` now shows and copies the receiver's raw
+   latitude/longitude without assigning the hardcoded Kenya grid. The instrument stream
+   omits projected E/N until field capture transforms the fix using the project's declared
+   CRS. The page still has no field observation capture/save flow. The separate RINEX
+   baseline panel is worker-backed, but it still needs representative known-control
+   observations and an independent numerical check before field acceptance.
 
 ---
 

@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState, useRef, useEffect, useCallback } from 'react'
 import ProjectWorkflowBadge from '@/components/shared/ProjectWorkflowBadge'
 
@@ -147,12 +146,12 @@ export interface ProjectCardProject {
   created_at: string
   point_count?: number
   parcel_count?: number
+  countsAvailable?: boolean
   _pointCount?: number
   _parcelCount?: number
 }
 
 export default function ProjectCard({ project, openLabel }: { project: ProjectCardProject; openLabel: string }) {
-  const router = useRouter()
   const [menuOpen, setMenuOpen] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -177,6 +176,18 @@ export default function ProjectCard({ project, openLabel }: { project: ProjectCa
 
   const pointCount = project.point_count ?? project._pointCount ?? 0
   const parcelCount = project.parcel_count ?? project._parcelCount ?? 0
+  const utmReference = project.utm_zone != null && project.hemisphere
+    ? `${project.utm_zone}${project.hemisphere}`
+    : 'Not set'
+  const createdAt = new Date(project.created_at)
+  const createdLabel = Number.isNaN(createdAt.getTime())
+    ? 'Date unavailable'
+    : new Intl.DateTimeFormat('en-GB', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+        timeZone: 'UTC',
+      }).format(createdAt)
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -187,19 +198,6 @@ export default function ProjectCard({ project, openLabel }: { project: ProjectCa
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [])
-
-  const handleCardClick = (e: React.MouseEvent) => {
-    // Ignore clicks on any interactive element: menu, delete, links, buttons
-    const target = e.target as HTMLElement
-    if (
-      target.closest('.menu-trigger') ||
-      target.closest('.menu-dropdown') ||
-      target.closest('.delete-trigger') ||
-      target.closest('a') ||
-      target.closest('button')
-    ) return
-    router.push(`/project/${project.id}`)
-  }
 
   const handleDelete = useCallback(async () => {
     setIsDeleting(true)
@@ -212,8 +210,7 @@ export default function ProjectCard({ project, openLabel }: { project: ProjectCa
         setIsDeleting(false)
       } else {
         setShowDeleteModal(false)
-        // Force a full page reload to guarantee the deleted project disappears
-        // router.refresh() alone is unreliable for Server Component data
+        // Reload the server-rendered list so the deleted project disappears.
         window.location.href = window.location.pathname
       }
     } catch (err: unknown) {
@@ -233,13 +230,12 @@ export default function ProjectCard({ project, openLabel }: { project: ProjectCa
 
   return (
     <>
-      <div
-        onClick={handleCardClick}
-        className="group block h-full card p-6 hover:border-[var(--border-hover)] hover:bg-[var(--bg-tertiary)] transition-premium cursor-pointer relative"
-      >
+      <article className="group block h-full card p-6 transition-premium relative hover:border-[var(--border-hover)] hover:bg-[var(--bg-tertiary)]">
         <div className="flex items-start justify-between gap-3 mb-3">
           <h3 className="font-semibold text-[var(--text-primary)] group-hover:text-[var(--accent)] transition-colors leading-snug flex-1 truncate">
-            {project.name}
+            <Link href={`/project/${project.id}`} prefetch={false} className="rounded-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--accent)]">
+              {project.name?.trim() || 'Untitled project'}
+            </Link>
           </h3>
           <span className={`badge shrink-0 text-[10px] border ${badgeColor}`}>{surveyType}</span>
         </div>
@@ -256,27 +252,26 @@ export default function ProjectCard({ project, openLabel }: { project: ProjectCa
         <div className="grid grid-cols-3 gap-2 text-xs text-[var(--text-secondary)] mb-3">
           <div>
             <span className="text-[var(--text-muted)]">Points:</span>{' '}
-            <span className="font-mono text-[var(--text-primary)]">{pointCount}</span>
+            <span className="font-mono text-[var(--text-primary)]">{project.countsAvailable === false ? '—' : pointCount}</span>
           </div>
           <div>
             <span className="text-[var(--text-muted)]">Parcels:</span>{' '}
-            <span className="font-mono text-[var(--text-primary)]">{parcelCount}</span>
+            <span className="font-mono text-[var(--text-primary)]">{project.countsAvailable === false ? '—' : parcelCount}</span>
           </div>
           <div>
             <span className="text-[var(--text-muted)]">UTM</span>{' '}
-            <span className="font-mono text-[var(--text-primary)]">{project.utm_zone}{project.hemisphere}</span>
+            <span className="font-mono text-[var(--text-primary)]">{utmReference}</span>
           </div>
         </div>
 
         <div className="text-xs text-[var(--text-muted)] mb-4">
-          Created: {new Date(project.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+          Created: {createdLabel}
         </div>
 
         <div className="pt-3 border-t border-[var(--border-color)] flex items-center justify-between">
           <Link
             href={`/project/${project.id}`}
             prefetch={false}
-            onClick={e => e.stopPropagation()}
             className="text-xs text-[var(--accent)] font-medium hover:text-[var(--accent-dim)] transition-colors"
           >
             {openLabel} →
@@ -380,7 +375,7 @@ export default function ProjectCard({ project, openLabel }: { project: ProjectCa
             )}
           </div>
         </div>
-      </div>
+      </article>
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (

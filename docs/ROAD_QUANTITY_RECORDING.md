@@ -73,9 +73,9 @@ Production promotion and physical survey/receiver/print acceptance remain separa
   `browser-download.json`, `recorded.csv`, `recorded-quantity.jpg`.
 - Extended native checks have not passed: the first attempt failed on shared
   reference access; later attempts failed on preview or authentication. The
-  latest diagnostic shows CSRF 200, credential callback 401 and an empty session
-  200. No authentication protection was disabled or bypassed. Preserve these
-  failed receipts and diagnose before promotion; do not substitute mocked
+  16 October diagnostic showed CSRF 200, credential callback 401 and an empty
+  session 200. No authentication protection was disabled or bypassed. Preserve
+  these failed receipts and diagnose before promotion; do not substitute mocked
   authorization tests for this missing native proof.
 - Browser credentials were removed and synthetic accounts disabled after QA.
   Immutable synthetic revisions remain as verification evidence. No customer
@@ -89,3 +89,23 @@ The engineering page also now uses a stable API client, retryable load errors,
 the dedicated reference-system API and actual profile columns. These were
 necessary source repairs to exercise the real quantity UI; they are not evidence
 that OAuth or production sign-in is fully accepted.
+
+## 17 October verification addendum
+
+- The shared-project RLS regression now passes 24 checks on both the existing
+  synthetic schema and a rollback-only application of migrations 111 and 112.
+  It proves that a personal viewer can read the project and take its snapshot
+  lock, while writes, firm-scope bypass, stranger access and revoked membership
+  remain denied. The candidate transaction rolled back.
+- The road quantity HTTP verifier did not reach its source API checks. Its
+  read-only `docker inspect` ownership preflight returned non-zero in the
+  restricted shell before fixture creation. Two elevated retries were not
+  executed because the automatic approval service disconnected. The verifier's
+  exact fixture guard remains in place; no alternate database or Docker path was
+  used. Its HTTP behavior, shared-reader history path and forced-write rollback
+  therefore remain unverified.
+- The required production `npm run docker:verify` passed with approved
+  read-only Docker access: the existing application and required services were
+  healthy, with one METARDU application container. The latest backup record is
+  archive/header evidence only, not a restore test. No production migration or
+  promotion was performed.

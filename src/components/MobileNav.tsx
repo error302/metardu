@@ -7,18 +7,28 @@ import { useSession } from 'next-auth/react'
 import {
   FolderKanban, LayoutDashboard, MapPinned, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X,
-  BookOpen, Compass, MapPin, ShieldCheck
+  BookOpen, Compass, MapPin, ShieldCheck, DraftingCompass, MoreHorizontal
 } from 'lucide-react'
 import { isNavItemActive } from '@/lib/navigation-shell'
 
+/** The dock keeps the four most-used survey destinations within thumb reach. */
+const PRIMARY_MOBILE_PAGES = [
+  { href: '/map', label: 'Map', icon: MapPinned },
+  { href: '/fieldbook', label: 'Field Book', icon: BookOpen },
+  { href: '/tools/cad-editor', label: 'CAD', icon: DraftingCompass },
+  { href: '/tools', label: 'Tools', icon: Wrench },
+]
+
 /** Pages hidden from the bottom tab bar — shown in the "More" drawer */
 const MORE_PAGES = [
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-400' },
   { href: '/projects', label: 'Projects', icon: FolderKanban, color: 'text-blue-400' },
   { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
   { href: '/reports', label: 'Documents & Reports', icon: FileText, color: 'text-purple-400' },
   { href: '/field', label: 'Field Mode', icon: Compass, color: 'text-cyan-400' },
   { href: '/beacons', label: 'Beacon Registry', icon: MapPin, color: 'text-amber-400' },
   { href: '/schedule', label: 'Job Schedule', icon: CalendarDays, color: 'text-blue-400' },
+  { href: '/marketplace', label: 'Marketplace', icon: Store, color: 'text-purple-400' },
 ]
 
 export default function MobileNav() {
@@ -66,37 +76,31 @@ export default function MobileNav() {
   return (
     <>
       <nav
-        className="fixed bottom-0 left-0 right-0 bg-[var(--bg-primary)] border-t border-[var(--border-color)] md:hidden z-50"
+        className="fixed left-1/2 z-50 -translate-x-1/2 rounded-2xl border bg-[var(--bg-primary)] shadow-[0_12px_40px_rgba(0,0,0,0.36)] backdrop-blur-xl md:hidden"
         style={{
-          paddingBottom: 'env(safe-area-inset-bottom, 0px)',
-          // AUDIT FIX (2026-07-05): Use real safe-area inset instead of CSS class
-          // (the class was a no-op). On notched Android devices this prevents
-          // the nav from being obscured by the gesture bar.
+          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
+          width: 'min(26rem, calc(100vw - 1rem))',
+          backgroundColor: 'color-mix(in srgb, var(--bg-primary) 91%, transparent)',
+          borderColor: 'color-mix(in srgb, var(--accent) 20%, var(--border-color))',
         }}
         role="navigation"
         aria-label="Primary mobile navigation"
       >
-        <div className="flex justify-around items-stretch">
-          {[
-            { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-            { href: '/map', label: 'Map', icon: MapPinned },
-            { href: '/fieldbook', label: 'Field Book', icon: BookOpen },
-            { href: '/marketplace', label: 'Market', icon: Store },
-            { href: '/tools', label: 'Tools', icon: Wrench },
-          ].map((item) => {
+        <div className="flex items-center gap-1 p-1.5">
+          {PRIMARY_MOBILE_PAGES.map((item) => {
             const isActive = isNavItemActive(pathname, item.href)
             const Icon = item.icon
             return (
-            <Link
+              <Link
                 key={item.href}
                 href={item.href}
-                aria-label={item.href === '/marketplace' ? 'Marketplace' : undefined}
+                aria-label={item.href === '/tools/cad-editor' ? 'CAD editor' : undefined}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
-                  isActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
+                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
+                  isActive ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-gray-400 hover:text-[var(--text-primary)]'
                 }`}
               >
-                <Icon className={`h-5 w-5 transition-colors ${isActive ? 'text-[var(--accent)]' : 'text-gray-400'}`} strokeWidth={1.9} />
+                <Icon className={`h-5 w-5 transition-transform duration-200 motion-reduce:transition-none ${isActive ? 'text-[var(--accent)]' : ''}`} strokeWidth={1.9} />
                 <span className="truncate">{item.label}</span>
               </Link>
             )
@@ -105,19 +109,19 @@ export default function MobileNav() {
           {/* More button */}
           <button
             ref={moreButtonRef}
-            onClick={() => setShowMore(true)}
+            onClick={() => setShowMore((open) => !open)}
             aria-label="Show more navigation options"
             aria-expanded={showMore}
             aria-controls="mobile-nav-more"
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
-              isMoreActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
+            aria-haspopup="dialog"
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
+              isMoreActive ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-gray-400 hover:text-[var(--text-primary)]'
             }`}
           >
-            <div className={`h-5 w-5 flex items-center justify-center ${isMoreActive ? 'text-[var(--accent)]' : 'text-gray-400'}`}>
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.9}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25H12" />
-              </svg>
-            </div>
+            <MoreHorizontal
+              className={`h-5 w-5 transition-transform duration-200 motion-reduce:transition-none ${showMore ? 'rotate-90' : ''} ${isMoreActive ? 'text-[var(--accent)]' : ''}`}
+              strokeWidth={1.9}
+            />
             <span>More</span>
           </button>
         </div>
@@ -251,21 +255,6 @@ export default function MobileNav() {
         </div>
       )}
 
-      <style jsx global>{`
-        @keyframes slideUp {
-          from {
-            transform: translateY(100%);
-            opacity: 0;
-          }
-          to {
-            transform: translateY(0);
-            opacity: 1;
-          }
-        }
-        .animate-slide-up {
-          animation: slideUp 0.25s ease-out;
-        }
-      `}</style>
     </>
   )
 }

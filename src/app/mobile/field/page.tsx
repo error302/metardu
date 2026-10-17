@@ -256,7 +256,7 @@ function MobileFieldContent() {
         <div className="border-b border-gray-800 bg-gray-900/50 backdrop-blur-md">
           <GNSSConnectionPanel
             onPosition={handleGNSSPosition}
-            showCoordinateSystem={true}
+            showProjectCrsNote={true}
             autoReconnect={true}
             className="border-0 rounded-none shadow-none"
           />

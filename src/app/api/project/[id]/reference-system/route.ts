@@ -23,7 +23,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { requireProjectOwnership, requireProjectReadAccess } from '@/lib/auth/ownership'
-import { db } from '@/lib/db'
+import { db, setRlsContext } from '@/lib/db'
 import { CacheKeys, projectCache } from '@/lib/cache/memory-cache'
 import { CrsError, describeProjectReferenceSystem } from '@/lib/spatial/projectCrs'
 import {
@@ -201,22 +201,38 @@ export const PUT = apiHandler(
       .map((column) => `${column} = EXCLUDED.${column}`)
       .join(', ')
 
-    const { rows } = await db.query<Record<string, unknown>>(
-      `INSERT INTO project_reference_systems (${columns.join(', ')})
-       VALUES (${placeholders})
-       ON CONFLICT (project_id) DO UPDATE SET ${updates}
-       RETURNING *`,
-      columns.map((column) => row[column])
-    )
+    const client = await db.getClient()
+    let rows: Record<string, unknown>[]
+    try {
+      await client.query('BEGIN')
+      await setRlsContext(client)
+      // Share the project lock with drainage set-out generation so a CRS
+      // declaration cannot change between its source check and field-job save.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ctx.params.id])
+      const result = await client.query<Record<string, unknown>>(
+        `INSERT INTO project_reference_systems (${columns.join(', ')})
+         VALUES (${placeholders})
+         ON CONFLICT (project_id) DO UPDATE SET ${updates}
+         RETURNING *`,
+        columns.map((column) => row[column])
+      )
+      rows = result.rows
 
-    // Keep the denormalized display columns on projects in step with the
-    // declaration (reports, title blocks, and map layers read those).
-    await db.query(
-      `UPDATE projects
-          SET utm_zone = $1, hemisphere = $2, datum = $3, updated_at = NOW()
-        WHERE id = $4`,
-      [form.utmZone, form.hemisphere, normalizeDatumSelection(form.datum), ctx.params.id]
-    )
+      // Keep the denormalized display columns on projects in step with the
+      // declaration (reports, title blocks, and map layers read those).
+      await client.query(
+        `UPDATE projects
+            SET utm_zone = $1, hemisphere = $2, datum = $3, updated_at = NOW()
+          WHERE id = $4`,
+        [form.utmZone, form.hemisphere, normalizeDatumSelection(form.datum), ctx.params.id]
+      )
+      await client.query('COMMIT')
+    } catch (error) {
+      await client.query('ROLLBACK').catch(() => {})
+      throw error
+    } finally {
+      client.release()
+    }
     projectCache.invalidate(CacheKeys.project(ctx.params.id))
 
     const saved = fromReferenceSystemRow(rows[0])

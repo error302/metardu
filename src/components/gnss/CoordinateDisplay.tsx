@@ -1,39 +1,28 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
-import { type NMEAPosition } from '@/lib/gnss';
-import { wgs84ToKenya, formatCoordinate, type KenyanCoordinate } from '@/lib/gnss';
+import type { NMEAPosition } from '@/lib/gnss/nmea-parser';
 
 interface CoordinateDisplayProps {
   position: NMEAPosition | null;
-  showKenya?: boolean;
-  onCopy?: (coord: KenyanCoordinate) => void;
 }
 
-export function CoordinateDisplay({ position, showKenya = true, onCopy }: CoordinateDisplayProps) {
-  const [kenya, setKenya] = useState<KenyanCoordinate | null>(null);
+export function CoordinateDisplay({ position }: CoordinateDisplayProps) {
   const [copied, setCopied] = useState(false);
+  const [copyFailed, setCopyFailed] = useState(false);
 
-  useEffect(() => {
-    if (position && showKenya) {
-      const kenyaCoord = wgs84ToKenya({
-        latitude: position.latitude,
-        longitude: position.longitude,
-        altitude: position.altitude,
-      });
-      setKenya(kenyaCoord);
-    } else {
-      setKenya(null);
-    }
-  }, [position, showKenya]);
-
-  const handleCopy = () => {
-    if (kenya) {
-      navigator.clipboard.writeText(formatCoordinate(kenya));
+  const handleCopy = async () => {
+    if (!position) return;
+    setCopyFailed(false);
+    const coordinates = `${position.latitude.toFixed(7)}, ${position.longitude.toFixed(7)}`;
+    try {
+      if (!navigator.clipboard?.writeText) throw new Error('Clipboard is unavailable');
+      await navigator.clipboard.writeText(coordinates);
       setCopied(true);
-      onCopy?.(kenya);
-      setTimeout(() => setCopied(false), 2000);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopyFailed(true);
     }
   };
 
@@ -47,42 +36,31 @@ export function CoordinateDisplay({ position, showKenya = true, onCopy }: Coordi
 
   return (
     <div className="space-y-3">
-      <div className="p-3 bg-gray-50 rounded-lg">
-        <div className="text-xs text-gray-500 mb-1">WGS84</div>
-        <div className="grid grid-cols-2 gap-2 font-mono text-sm">
+      <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-3 text-[var(--text-primary)]">
+        <div className="mb-2 flex items-start justify-between gap-3">
           <div>
-            <span className="text-gray-500">Lat:</span>
-            <span className="ml-1">{position.latitude.toFixed(6)}°</span>
+            <div className="text-xs font-medium text-[var(--text-secondary)]">Receiver latitude / longitude</div>
+            <p className="mt-1 text-[11px] leading-4 text-[var(--text-muted)]">
+              Reference frame and height datum depend on receiver configuration. Confirm them against project control before engineering use.
+            </p>
           </div>
-          <div>
-            <span className="text-gray-500">Lon:</span>
-            <span className="ml-1">{position.longitude.toFixed(6)}°</span>
-          </div>
+          <button
+            type="button"
+            onClick={() => void handleCopy()}
+            className="rounded p-1 text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]"
+            title="Copy receiver latitude and longitude"
+            aria-label="Copy receiver latitude and longitude"
+          >
+            {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
+          </button>
         </div>
+        <div className="grid grid-cols-2 gap-2 font-mono text-sm tabular-nums">
+          <div><span className="text-[var(--text-muted)]">Lat:</span><span className="ml-1">{position.latitude.toFixed(7)}°</span></div>
+          <div><span className="text-[var(--text-muted)]">Lon:</span><span className="ml-1">{position.longitude.toFixed(7)}°</span></div>
+        </div>
+        {copied && <p role="status" className="mt-2 text-xs text-green-500">Coordinates copied.</p>}
+        {copyFailed && <p role="alert" className="mt-2 text-xs text-red-500">Clipboard access failed. Select and copy the coordinates manually.</p>}
       </div>
-
-      {kenya && (
-        <div className="p-3 bg-blue-50 rounded-lg">
-          <div className="flex items-center justify-between mb-1">
-            <div className="text-xs text-blue-700">Kenya SRID 21037</div>
-            <button
-              onClick={handleCopy}
-              className="p-1 hover:bg-blue-100 rounded"
-              title="Copy coordinates"
-            >
-              {copied ? (
-                <Check className="w-4 h-4 text-green-600" />
-              ) : (
-                <Copy className="w-4 h-4 text-blue-600" />
-              )}
-            </button>
-          </div>
-          <div className="font-mono text-sm">
-            <div>E {kenya.easting.toFixed(3)} m</div>
-            <div>N {kenya.northing.toFixed(3)} m</div>
-          </div>
-        </div>
-      )}
 
       <div className="grid grid-cols-3 gap-2 text-center">
         <div className="p-2 bg-gray-100 rounded">

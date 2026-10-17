@@ -726,9 +726,10 @@ export default function AdminUsersPage() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [search, setSearch] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('search') ?? '')
-  const [roleFilter, setRoleFilter] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('role') ?? '')
-  const [statusFilter, setStatusFilter] = useState(() => typeof window === 'undefined' ? '' : new URLSearchParams(window.location.search).get('status') ?? '')
+  const [search, setSearch] = useState('')
+  const [roleFilter, setRoleFilter] = useState('')
+  const [statusFilter, setStatusFilter] = useState('')
+  const [queryInitialized, setQueryInitialized] = useState(false)
   const [activeModal, setActiveModal] = useState<
     | { type: 'role'; user: UserRecord }
     | { type: 'suspend'; user: UserRecord }
@@ -737,6 +738,14 @@ export default function AdminUsersPage() {
   >(null)
 
   const currentRole = (session?.user as { role?: string })?.role ?? ''
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    setSearch(params.get('search') ?? '')
+    setRoleFilter(params.get('role') ?? '')
+    setStatusFilter(params.get('status') ?? '')
+    setQueryInitialized(true)
+  }, [])
 
   const fetchUsers = useCallback(
     async (page = 1) => {
@@ -784,21 +793,13 @@ export default function AdminUsersPage() {
       router.push('/login')
       return
     }
-    if (sessionStatus === 'authenticated') {
-      fetchUsers(1)
-    }
-  }, [sessionStatus, fetchUsers, router])
+    if (sessionStatus !== 'authenticated' || !queryInitialized) return
 
-  // Debounced search
-  useEffect(() => {
     const timer = setTimeout(() => {
-      if (sessionStatus === 'authenticated') {
-        fetchUsers(1)
-      }
-    }, 400)
+      fetchUsers(1)
+    }, 250)
     return () => clearTimeout(timer)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [search, roleFilter, statusFilter])
+  }, [sessionStatus, queryInitialized, search, roleFilter, statusFilter, fetchUsers, router])
 
   const handlePageChange = (newPage: number) => {
     fetchUsers(newPage)

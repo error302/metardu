@@ -16,8 +16,6 @@ const latestPoint = {
   pointName: 'GNSS-01',
   latitude: -1.2864,
   longitude: 36.8172,
-  northing: 0,
-  easting: 0,
   elevation: 1684.2,
   timestamp: new Date('2026-10-12T08:00:00.000Z'),
   source: 'nmea' as const,
@@ -91,6 +89,20 @@ describe('field session point capture persistence', () => {
     expect(saveObservationMock.mock.calls[0]?.[0]?.easting).toBeUndefined()
   })
 
+  it.each([undefined, 0, Number.NaN])('does not capture an NMEA reading with invalid fix quality (%s)', async quality => {
+    const session = getFieldSession(`gnss-no-fix-${Date.now()}`, 'engineering')
+    session.setupStation({ stationName: 'STN-01', instrumentHeight: 1.5, targetHeight: 2, isControlPoint: true })
+
+    const result = await session.captureMeasurement({
+      pointId: 'RD1',
+      projectCrs: PROJECT_CRS,
+      reading: { ...latestPoint, id: `no-fix-reading-${String(quality)}`, quality },
+    })
+
+    expect(result).toBeNull()
+    expect(saveObservationMock).not.toHaveBeenCalled()
+  })
+
   it('does not store GNSS coordinates when the project CRS is display-only', async () => {
     const session = getFieldSession(`gnss-display-crs-${Date.now()}`, 'engineering')
     session.setupStation({ stationName: 'STN-01', instrumentHeight: 1.5, targetHeight: 2, isControlPoint: true })
@@ -117,8 +129,6 @@ describe('field session point capture persistence', () => {
         timestamp: new Date('2026-10-13T08:00:00.000Z'),
         latitude: 0,
         longitude: 37,
-        easting: 0,
-        northing: 0,
         elevation: 0,
         quality: 4,
       },
@@ -180,6 +190,7 @@ describe('field session point capture persistence', () => {
       latitude: -1.2864,
       longitude: 36.8172,
       elevation: 0,
+      quality: 4,
     }
 
     const first = await session.captureMeasurement({ pointId: 'RD1', reading, projectCrs: PROJECT_CRS })

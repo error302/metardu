@@ -3,7 +3,7 @@ import { z } from 'zod'
 const count = z.number().int().nonnegative()
 const person = z.object({ id: z.string(), email: z.string(), name: z.string() })
 export const dashboardResponseSchema = z.object({
-  users: z.object({ total: count, newThisMonth: count, active: count }),
+  users: z.object({ total: count, newThisMonth: count }),
   projects: z.object({ total: count, byStatus: z.record(count) }),
   parcels: count,
   beacons: count,

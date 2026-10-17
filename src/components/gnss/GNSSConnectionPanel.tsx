@@ -10,7 +10,7 @@
  * - Multi-device scan results with RSSI signal strength bars
  * - Auto-reconnect with exponential backoff (up to 5 attempts)
  * - Live signal quality indicators (satellites, HDOP, fix type)
- * - Coordinate system display (WGS84 → UTM/Kenya grid)
+ * - Raw receiver coordinates; project CRS conversion is handled during field capture
  * - Reconnection state persistence across component unmounts
  * - Integrates with instrumentStore for cross-component access
  */
@@ -23,7 +23,6 @@ import {
 import { WebBluetoothGNSS } from '@/lib/gnss/bluetooth';
 import { CapacitorBLEGNSS, type CapacitorGNSSDevice } from '@/lib/gnss/capacitor-ble';
 import { type NMEAPosition } from '@/lib/gnss/nmea-parser';
-import { wgs84ToUTM, wgs84ToKenya } from '@/lib/gnss/coordinates';
 import {
   useInstrumentStore,
   selectIsConnected,
@@ -93,8 +92,8 @@ interface GNSSConnectionPanelProps {
   onPosition?: (position: NMEAPosition) => void;
   onConnect?: (device: InstrumentDevice) => void;
   onDisconnect?: () => void;
-  /** Show coordinate system conversion (UTM / Kenya Grid) */
-  showCoordinateSystem?: boolean;
+  /** Explain that projected coordinates are assigned at capture from project CRS. */
+  showProjectCrsNote?: boolean;
   /** Enable auto-reconnect on unexpected disconnect */
   autoReconnect?: boolean;
   className?: string;
@@ -104,7 +103,7 @@ export function GNSSConnectionPanel({
   onPosition,
   onConnect,
   onDisconnect,
-  showCoordinateSystem = true,
+  showProjectCrsNote = true,
   autoReconnect = true,
   className = '',
 }: GNSSConnectionPanelProps) {
@@ -120,8 +119,6 @@ export function GNSSConnectionPanel({
   const [isScanning, setIsScanning] = useState(false);
   const [showDeviceList, setShowDeviceList] = useState(false);
   const [position, setPosition] = useState<NMEAPosition | null>(null);
-  const [utmCoord, setUtmCoord] = useState<{ zone: string; easting: number; northing: number } | null>(null);
-  const [kenyaCoord, setKenyaCoord] = useState<{ easting: number; northing: string } | null>(null);
   const [reconnecting, setReconnecting] = useState(false);
 
   // Service refs — survive re-renders without state churn
@@ -207,27 +204,12 @@ export function GNSSConnectionPanel({
       setPosition(pos);
       onPosition?.(pos);
 
-      // Convert to UTM / Kenya Grid
-      if (showCoordinateSystem && pos.latitude && pos.longitude) {
-        try {
-          const utm = wgs84ToUTM(pos.latitude, pos.longitude);
-          setUtmCoord({ zone: `${utm.zone}${utm.hemisphere}`, easting: utm.easting, northing: utm.northing });
-        } catch { /* UTM conversion failed — out of range */ }
-
-        try {
-          const kenya = wgs84ToKenya({ latitude: pos.latitude, longitude: pos.longitude, altitude: pos.altitude });
-          setKenyaCoord({ easting: kenya.easting, northing: kenya.northing?.toFixed(3) || '0' });
-        } catch { /* Kenya grid conversion failed */ }
-      }
-
       // Push to instrumentStore
       const point: StreamedPoint = {
         id: `gnss-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         pointName: `PT${store.points.length + 1}`,
         latitude: pos.latitude,
         longitude: pos.longitude,
-        northing: 0,
-        easting: 0,
         elevation: pos.altitude,
         timestamp: pos.timestamp,
         source: 'nmea',
@@ -242,7 +224,7 @@ export function GNSSConnectionPanel({
       unsubConn();
       unsubPos();
     };
-  }, [isNative, autoReconnect, canReconnect, showCoordinateSystem, onPosition, onDisconnect, attemptReconnect, store]);
+  }, [isNative, autoReconnect, canReconnect, onPosition, onDisconnect, attemptReconnect, store]);
 
   // ─── Scan ────────────────────────────────────────────────
   const handleScan = useCallback(async () => {
@@ -341,8 +323,6 @@ export function GNSSConnectionPanel({
     store.resetReconnectAttempts();
     setReconnecting(false);
     setPosition(null);
-    setUtmCoord(null);
-    setKenyaCoord(null);
     onDisconnect?.();
   }, [isNative, onDisconnect, store]);
 
@@ -589,7 +569,7 @@ export function GNSSConnectionPanel({
                   </div>
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Alt:</span>
-                    <span className="font-mono ml-1 text-gray-800 dark:text-gray-200">{position.altitude.toFixed(3)}m</span>
+                    <span className="font-mono ml-1 text-gray-800 dark:text-gray-200">{position.altitude == null ? 'Not reported' : `${position.altitude.toFixed(3)} m`}</span>
                   </div>
                   <div>
                     <span className="text-gray-500 dark:text-gray-400">Sats:</span>
@@ -609,26 +589,10 @@ export function GNSSConnectionPanel({
                   </div>
                 </div>
 
-                {/* Coordinate system conversions */}
-                {showCoordinateSystem && (utmCoord || kenyaCoord) && (
-                  <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800 space-y-2">
-                    {utmCoord && (
-                      <div className="text-xs">
-                        <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium">UTM {utmCoord.zone}</span>
-                        <div className="font-mono text-gray-700 dark:text-gray-300 mt-0.5">
-                          E {utmCoord.easting.toFixed(3)} N {utmCoord.northing.toFixed(3)}
-                        </div>
-                      </div>
-                    )}
-                    {kenyaCoord && (
-                      <div className="text-xs">
-                        <span className="text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium">Kenya Grid</span>
-                        <div className="font-mono text-gray-700 dark:text-gray-300 mt-0.5">
-                          E {kenyaCoord.easting.toFixed(3)} N {kenyaCoord.northing}
-                        </div>
-                      </div>
-                    )}
-                  </div>
+                {showProjectCrsNote && (
+                  <p className="mt-3 border-t border-blue-200 pt-3 text-xs leading-5 text-gray-600 dark:border-blue-800 dark:text-gray-300">
+                    Coordinates remain as received from the GNSS receiver. Field capture transforms them only when the project&apos;s declared projected CRS is available; no Kenya grid or zero easting/northing is assumed here.
+                  </p>
                 )}
               </div>
             )}

@@ -25,6 +25,16 @@ const mockGetClient = db.getClient as jest.Mock
 const mockSetRlsContext = setRlsContext as jest.Mock
 const mockOwnership = requireProjectOwnership as jest.Mock
 
+const lockedSourceSnapshot = async (sql: string) => {
+  const index = sql.includes('FROM project_reference_systems') && sql.includes('FOR SHARE')
+    ? 1
+    : sql.includes('FROM projects') && sql.includes('FOR SHARE')
+      ? 0
+      : -1
+  if (index < 0) return null
+  return await mockDbQuery.mock.results[index]?.value as { rows: unknown[] } | undefined ?? { rows: [] }
+}
+
 const drainage = (setoutToleranceProfile?: Record<string, unknown>) => ({
   projectCrs: SRID_21037,
   minimumCoverM: 1.2,
@@ -69,6 +79,8 @@ test('recomputes saved drainage data into a CRS-bound revisioned field set-out',
     .mockResolvedValueOnce({ rows: [{ project_id: 'project-1', horizontal_crs: SRID_21037 }] })
 
   const clientQuery = jest.fn(async (sql: string, _values?: unknown[]) => {
+    const locked = await lockedSourceSnapshot(sql)
+    if (locked) return locked
     if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-1' }] }
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
     return { rows: [] }
@@ -101,6 +113,32 @@ test('recomputes saved drainage data into a CRS-bound revisioned field set-out',
   expect(clientQuery).toHaveBeenCalledWith('COMMIT')
 })
 
+test('refuses to save targets when the drainage design changes before the transaction locks it', async () => {
+  const original = drainage()
+  const changed = { ...original, minimumCoverM: 1.5 }
+  mockDbQuery
+    .mockResolvedValueOnce({ rows: [{ utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: original } }] })
+    .mockResolvedValueOnce({ rows: [{ project_id: 'project-1', horizontal_crs: SRID_21037 }] })
+
+  const clientQuery = jest.fn(async (sql: string, _values?: unknown[]) => {
+    if (sql.includes('FROM projects') && sql.includes('FOR SHARE')) {
+      return { rows: [{ utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: changed } }] }
+    }
+    const locked = await lockedSourceSnapshot(sql)
+    if (locked) return locked
+    return { rows: [] }
+  })
+  mockGetClient.mockResolvedValue({ query: clientQuery })
+
+  const response = await invoke()
+  const calls = clientQuery.mock.calls as Array<[string, unknown[]?]>
+  expect(response.status).toBe(409)
+  expect(await response.json()).toMatchObject({ code: 'DRAINAGE_SOURCE_CHANGED' })
+  expect(calls.some(([sql]) => sql.includes('INSERT INTO setout_definitions'))).toBe(false)
+  expect(clientQuery).toHaveBeenCalledWith('ROLLBACK')
+  expect(clientQuery).not.toHaveBeenCalledWith('COMMIT')
+})
+
 test('the v4 server field job records the external crown from actual internal and outside dimensions', async () => {
   const source = drainage()
   const design = { ...source, manholes: source.manholes.map((manhole, index) => index === 0 ? { ...manhole, pipeDiameterOut: 300 } : manhole) }
@@ -108,6 +146,8 @@ test('the v4 server field job records the external crown from actual internal an
     .mockResolvedValueOnce({ rows: [{ utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: design } }] })
     .mockResolvedValueOnce({ rows: [{ project_id: 'project-1', horizontal_crs: SRID_21037 }] })
   const query = jest.fn(async (sql: string, _values?: unknown[]) => {
+    const locked = await lockedSourceSnapshot(sql)
+    if (locked) return locked
     if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-1' }] }
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
     return { rows: [] }
@@ -149,6 +189,8 @@ test('persists routed-alignment provenance and stations a bent drainage run in t
 
   let insertedPoints: unknown[] = []
   const clientQuery = jest.fn(async (sql: string, values?: unknown[]) => {
+    const locked = await lockedSourceSnapshot(sql)
+    if (locked) return locked
     if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-bent' }] }
     if (sql.includes('INSERT INTO setout_points')) insertedPoints = values ?? []
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
@@ -215,6 +257,8 @@ test('stores a validated project tolerance profile with the drainage definition 
     .mockResolvedValueOnce({ rows: [{ project_id: 'project-1', horizontal_crs: SRID_21037 }] })
 
   const clientQuery = jest.fn(async (sql: string, _values?: unknown[]) => {
+    const locked = await lockedSourceSnapshot(sql)
+    if (locked) return locked
     if (sql.includes('INSERT INTO tolerance_profiles')) return { rows: [{ id: 'profile-1' }] }
     if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-1' }] }
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }

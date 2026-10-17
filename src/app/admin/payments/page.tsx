@@ -150,7 +150,7 @@ export default function AdminPaymentsPage() {
   const { status: sessionStatus } = useSession()
   const router = useRouter()
 
-  const [activeTab, setActiveTab] = useState<'history' | 'till-claims'>(() => typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('tab') === 'till-claims' ? 'till-claims' : 'history')
+  const [activeTab, setActiveTab] = useState<'history' | 'till-claims'>('history')
   const [payments, setPayments] = useState<PaymentRecord[]>([])
   const [tillClaims, setTillClaims] = useState<TillClaim[]>([])
   const [claimsLoading, setClaimsLoading] = useState(false)
@@ -171,6 +171,11 @@ export default function AdminPaymentsPage() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab')
+    setActiveTab(tab === 'till-claims' ? 'till-claims' : 'history')
+  }, [])
 
   const fetchPayments = useCallback(
     async (page = 1) => {

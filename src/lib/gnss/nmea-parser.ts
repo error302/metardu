@@ -8,7 +8,8 @@ import { logger } from '@/lib/logger'
 export interface NMEAPosition {
   latitude: number;
   longitude: number;
-  altitude: number;
+  /** Ellipsoidal height only when both GGA MSL height and geoid separation exist. */
+  altitude: number | null;
   hdop: number;
   satellites: number;
   fixType: 'none' | 'gps' | 'dgps' | 'pps' | 'rtk' | 'float';
@@ -49,25 +50,21 @@ export function validateChecksum(sentence: string): NMEAValidation {
   };
 }
 
-function parseNMEACoordinate(value: string, hemisphere: string): number {
-  if (!value || value === '') return 0;
-  
-  const decimalPoint = value.indexOf('.');
-  if (decimalPoint === -1) return 0;
-  
-  const degreesStr = value.substring(0, decimalPoint - 2);
-  const minutesStr = value.substring(decimalPoint - 2);
-  
-  const degrees = parseInt(degreesStr, 10) || 0;
-  const minutes = parseFloat(minutesStr) || 0;
-  
-  let coordinate = degrees + minutes / 60;
-  
-  if (hemisphere === 'S' || hemisphere === 'W') {
-    coordinate *= -1;
-  }
-  
-  return coordinate;
+function parseNMEACoordinate(value: string, hemisphere: string): number | null {
+  const degreeDigits = hemisphere === 'N' || hemisphere === 'S' ? 2
+    : hemisphere === 'E' || hemisphere === 'W' ? 3
+      : 0
+  if (!degreeDigits || !/^\d+(?:\.\d+)?$/.test(value)) return null
+
+  const degrees = Number(value.slice(0, degreeDigits))
+  const minutes = Number(value.slice(degreeDigits))
+  const maximum = degreeDigits === 2 ? 90 : 180
+  if (!Number.isFinite(degrees) || !Number.isFinite(minutes)
+    || minutes < 0 || minutes >= 60 || degrees > maximum
+    || degrees === maximum && minutes !== 0) return null
+
+  const coordinate = degrees + minutes / 60
+  return hemisphere === 'S' || hemisphere === 'W' ? -coordinate : coordinate
 }
 
 function parseNMEATime(timeStr: string): { hours: number; minutes: number; seconds: number } {
@@ -118,11 +115,15 @@ export function parseGGA(sentence: string): NMEAPosition | null {
   const timeStr = fields[1];
   const lat = parseNMEACoordinate(fields[2], fields[3]);
   const lon = parseNMEACoordinate(fields[4], fields[5]);
+  if (lat === null || lon === null) return null
   const quality = parseInt(fields[6], 10) || 0;
   const satellites = parseInt(fields[7], 10) || 0;
   const hdop = parseFloat(fields[8]) || 0;
-  const altitude = parseFloat(fields[9]) || 0;
-  const geoidSep = parseFloat(fields[11]) || 0;
+  const altitudeMsl = fields[9]?.trim() ? Number(fields[9]) : Number.NaN;
+  const geoidSep = fields[11]?.trim() ? Number(fields[11]) : Number.NaN;
+  const ellipsoidalHeight = Number.isFinite(altitudeMsl) && Number.isFinite(geoidSep)
+    ? altitudeMsl + geoidSep
+    : null;
   const age = fields[13] ? parseFloat(fields[13]) : undefined;
   const stationId = fields[14] ? parseInt(fields[14], 10) : undefined;
   
@@ -133,7 +134,7 @@ export function parseGGA(sentence: string): NMEAPosition | null {
   return {
     latitude: lat,
     longitude: lon,
-    altitude: altitude + geoidSep,
+    altitude: ellipsoidalHeight,
     hdop,
     satellites,
     fixType: getFixType(quality),
@@ -161,7 +162,7 @@ export function parseRMC(sentence: string): NMEAPosition | null {
   const course = parseFloat(fields[8]) || 0;
   const dateStr = fields[9];
   
-  if (status !== 'A') {
+  if (status !== 'A' || lat === null || lon === null) {
     return null;
   }
   
@@ -172,7 +173,7 @@ export function parseRMC(sentence: string): NMEAPosition | null {
   return {
     latitude: lat,
     longitude: lon,
-    altitude: 0,
+    altitude: null,
     hdop: 0,
     satellites: 0,
     fixType: 'gps',
@@ -196,7 +197,7 @@ export function parseGLL(sentence: string): NMEAPosition | null {
   const timeStr = fields[5];
   const status = fields[6];
   
-  if (status !== 'A') {
+  if (status !== 'A' || lat === null || lon === null) {
     return null;
   }
   
@@ -207,7 +208,7 @@ export function parseGLL(sentence: string): NMEAPosition | null {
   return {
     latitude: lat,
     longitude: lon,
-    altitude: 0,
+    altitude: null,
     hdop: 0,
     satellites: 0,
     fixType: 'gps',

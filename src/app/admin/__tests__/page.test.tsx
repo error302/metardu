@@ -11,7 +11,7 @@ jest.mock('@/components/admin/SystemHealthPanel', () => () => null)
 jest.mock('@/components/admin/charts/AdminCharts', () => ({ RevenueLineChart: () => null }))
 jest.mock('@/lib/api/client', () => ({ apiGet: (...args: unknown[]) => mockGet(...args), apiPatch: (...args: unknown[]) => mockPatch(...args), apiPost: (...args: unknown[]) => mockPost(...args), ApiError: class extends Error {} }))
 const fixture: DashboardData = {
-  users: { total: 18, newThisMonth: 12, active: 13 }, projects: { total: 16, byStatus: { active: 16 } }, parcels: 0, beacons: 0,
+  users: { total: 18, newThisMonth: 12 }, projects: { total: 16, byStatus: { active: 16 } }, parcels: 0, beacons: 0,
   revenue: { total: 100, byMonth: [], byCurrency: [{ currency: 'KES', total: 100 }, { currency: 'USD', total: 5 }] },
   recentSignups: [], iskPendingCount: 1, iskQueue: [{ id: 'u1', name: 'Amina', email: 'amina@example.com', iskNumber: 'ISK123', submittedAt: '2026-10-15', updatedAt: '2026-10-15 01:00:00.123456+00' }],
   activeSubscriptions: { pro: 1 }, trialSubscriptions: 2, submissionsThisMonth: 0,

@@ -525,6 +525,50 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       await client.query('BEGIN')
       await setRlsContext(client)
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [projectId])
+
+      // Revalidate the exact source after acquiring the save lock. The shared
+      // row locks keep both the design/legacy CRS columns and the canonical
+      // CRS declaration stable until the field job has been committed.
+      const { rows: lockedReferenceRows } = await client.query<Record<string, unknown>>(
+        'SELECT * FROM project_reference_systems WHERE project_id = $1 FOR SHARE',
+        [projectId]
+      )
+      const { rows: lockedProjectRows } = await client.query<{
+        utm_zone: number | null
+        hemisphere: string | null
+        datum: string | null
+        engineering_data: Record<string, unknown> | null
+      }>(
+        'SELECT utm_zone, hemisphere, datum, engineering_data FROM projects WHERE id = $1 FOR SHARE',
+        [projectId]
+      )
+      const lockedProject = lockedProjectRows[0]
+      if (!lockedProject) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+      }
+      const lockedReference = resolveStageReference(lockedReferenceRows[0], lockedProject)
+      const lockedEngineeringData = lockedProject.engineering_data
+      const lockedDrainage = lockedEngineeringData && typeof lockedEngineeringData === 'object'
+        ? (lockedEngineeringData as Record<string, unknown>).drainage
+        : null
+      const lockedSourceHash = lockedDrainage && typeof lockedDrainage === 'object'
+        ? createHash('sha256').update(JSON.stringify(lockedDrainage)).digest('hex')
+        : null
+      if (lockedSourceHash !== sourceHash
+        || lockedReference.code !== crs
+        || lockedReference.verticalDatum !== projectReference.verticalDatum
+        || lockedReference.distanceMode !== projectReference.distanceMode) {
+        await client.query('ROLLBACK')
+        return NextResponse.json(
+          {
+            error: 'The drainage design or project reference system changed while field targets were being prepared. Refresh the design and generate the set-out again.',
+            code: 'DRAINAGE_SOURCE_CHANGED',
+          },
+          { status: 409 }
+        )
+      }
+
       const first = result.stations[0]
       const recordedAt = new Date().toISOString()
       const toleranceRules = toleranceProfileDraft.profile
