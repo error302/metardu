@@ -7,6 +7,7 @@ import {spawnSync} from 'node:child_process'
 import {readFileSync,writeFileSync} from 'node:fs'
 import {resolve,join} from 'node:path'
 import {pathToFileURL} from 'node:url'
+import {isDeepStrictEqual} from 'node:util'
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import {pinnedReleaseArguments} from './release-plan.mjs'
@@ -30,9 +31,9 @@ async function main() {
   assert.deepEqual(postgres.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'5432'}])
   const env=Object.fromEntries(postgres.Config.Env.map(value=>{const i=value.indexOf('=');return[value.slice(0,i),value.slice(i+1)]}))
   const client=new pg.Client({host:'127.0.0.1',port:5432,database:env.POSTGRES_DB,user:env.POSTGRES_USER,password:env.POSTGRES_PASSWORD,connectionTimeoutMillis:5000})
-  const owner=randomUUID(),other=randomUUID(),project=randomUUID(),alignment=randomUUID()
+  const owner=randomUUID(),other=randomUUID(),project=randomUUID(),alignment=randomUUID(),fieldbook=randomUUID()
   const password=randomBytes(32).toString('base64url'),label='METARDU synthetic release verification',createdAt=new Date().toISOString()
-  const report={revision,origin,status:'checking',checks:[],cleanup:{},customerRecordsChanged:false,emailSent:false,fixtures:{users:[owner,other],project,alignment,createdAt}}
+  const report={revision,origin,status:'checking',checks:[],cleanup:{},customerRecordsChanged:false,emailSent:false,fixtures:{users:[owner,other],project,alignment,fieldbook,createdAt}}
   const save=()=>writeFileSync(join(directory,'live-survey.json'),JSON.stringify(report,null,2)+'\n')
   const check=(name,condition=true)=>{assert.ok(condition,name);report.checks.push({name,passed:true});save();console.log('PASS '+name)}
   const actor=()=>{
@@ -65,6 +66,20 @@ async function main() {
     await client.query('COMMIT');created=true
     const owned=await login(owner),foreign=await login(other)
     check('two exact disposable accounts obtain live HTTPS credential sessions')
+    const book={id:fieldbook,project_id:project,user_id:owner,type:'leveling',name:'SYNTHETIC empty release fieldbook',data:{rows:[],synthetic:true,note:'No field measurements'},updated_at:new Date().toISOString()}
+    const saveBook=async payload=>owned('/api/db',{body:{table:'fieldbooks',operation:'upsert',payload,columns:'id',single:true}})
+    const firstSave=await saveBook(book)
+    check('fieldbook save returns the exact live server acknowledgement',firstSave.response.ok&&firstSave.data?.data?.id===fieldbook&&!firstSave.data?.error)
+    book.data.note='SYNTHETIC retry metadata preserved'
+    const retrySave=await saveBook(book)
+    const storedBooks=(await client.query('SELECT user_id,project_id,data FROM fieldbooks WHERE id=$1',[fieldbook])).rows
+    check('repeated fieldbook save updates one durable record without duplicate delivery',retrySave.data?.data?.id===fieldbook&&storedBooks.length===1&&storedBooks[0].user_id===owner&&storedBooks[0].project_id===project&&isDeepStrictEqual(storedBooks[0].data,book.data))
+    const foreignBook=await foreign('/api/db',{body:{table:'fieldbooks',operation:'select',filters:[{column:'id',op:'eq',value:fieldbook}],single:true}})
+    check('another account cannot read the saved synthetic fieldbook',[403,404].includes(foreignBook.response.status)||(foreignBook.response.ok&&foreignBook.data?.data===null&&foreignBook.data?.error?.code==='PGRST116'))
+    const forgedBook=await foreign('/api/db',{body:{table:'fieldbooks',operation:'upsert',payload:{...book,name:'SYNTHETIC unauthorized overwrite'},columns:'id',single:true}})
+    const preservedBook=(await client.query('SELECT user_id,project_id,name FROM fieldbooks WHERE id=$1',[fieldbook])).rows[0]
+    const writeRefused=[403,404].includes(forgedBook.response.status)||(forgedBook.response.ok&&forgedBook.data?.data===null&&['PGRST116','42501'].includes(forgedBook.data?.error?.code))
+    check('another account cannot overwrite or take ownership of the saved fieldbook',writeRefused&&preservedBook?.user_id===owner&&preservedBook.project_id===project&&preservedBook.name===book.name)
     const path=`/api/engineering/alignment?project_id=${project}&road_name=SYNTHETIC%20release%20road`
     const read=await owned(path)
     check('owner can reopen the known synthetic alignment',read.response.status===200&&read.data?.data?.id===alignment)
@@ -97,6 +112,8 @@ async function main() {
         assert.equal((await client.query('SELECT count(*)::int n FROM pipeline_asbuilt_batches WHERE project_id=$1',[project])).rows[0].n,0)
         assert.equal((await client.query("DELETE FROM projects WHERE id=$1 AND user_id=$2 AND name='SYNTHETIC disposable release authorization check' RETURNING id",[project,owner])).rowCount,1)
         assert.equal((await client.query('DELETE FROM users WHERE id=ANY($1::uuid[]) AND full_name=$2 RETURNING id',[[owner,other],label])).rowCount,2)
+        assert.equal((await client.query('SELECT count(*)::int n FROM fieldbooks WHERE id=$1',[fieldbook])).rows[0].n,0)
+        report.cleanup.syntheticFieldbookRemoved=true
         report.cleanup.syntheticProjectAndAccountsRemoved=true
       }
     } catch(error) {report.status='cleanup-failed';report.cleanup.failure=error.message;throw error}
