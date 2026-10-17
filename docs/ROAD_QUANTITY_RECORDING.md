@@ -109,3 +109,6 @@ that OAuth or production sign-in is fully accepted.
   healthy, with one METARDU application container. The latest backup record is
   archive/header evidence only, not a restore test. No production migration or
   promotion was performed.
+  A later run from this restricted shell failed at `docker ps` with an access
+  error; that failure does not establish that Docker is stopped, so the current
+  production runtime state remains unverified from this session.

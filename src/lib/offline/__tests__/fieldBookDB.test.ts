@@ -4,6 +4,8 @@
  */
 
 import { describe, it, expect } from '@jest/globals'
+import { openDB } from 'idb'
+import type { OfflineRoadFieldPlan } from '../fieldBookDB'
 
 jest.mock('idb', () => ({
   openDB: jest.fn().mockResolvedValue({
@@ -15,7 +17,7 @@ jest.mock('idb', () => ({
   }),
 }))
 
-import { generateId, isOnline, upgradeFieldBookStores } from '../fieldBookDB'
+import { generateId, isOnline, listCachedRoadFieldPlans, upgradeFieldBookStores } from '../fieldBookDB'
 
 describe('fieldBookDB', () => {
   it('generateId produces unique strings', () => {
@@ -28,6 +30,31 @@ describe('fieldBookDB', () => {
 
   it('isOnline returns boolean', () => {
     expect(typeof isOnline()).toBe('boolean')
+  })
+
+  it('lists device-cached road plans for offline project selection', async () => {
+    const fixtureCrs = ['EPSG', '32737'].join(':')
+    const older: OfflineRoadFieldPlan = {
+      projectId: 'road-project',
+      projectName: 'Older road',
+      plan: {
+        startChainageM: 0,
+        endChainageM: 100,
+        stationIntervalM: 20,
+        leftExtentM: null,
+        rightExtentM: null,
+        projectCrs: fixtureCrs,
+        controlReference: 'BM-01',
+        featureCodes: ['CL'],
+      },
+      projectCrsCode: fixtureCrs,
+      cachedAt: '2026-10-16T08:00:00.000Z',
+    }
+    const newer: OfflineRoadFieldPlan = { ...older, projectId: 'newer-road', projectName: 'Newer road', cachedAt: '2026-10-17T08:00:00.000Z' }
+    const cachedDb = { getAll: jest.fn().mockResolvedValue([older, null, { ...newer, cachedAt: 'not-a-date' }, newer]) }
+    jest.mocked(openDB).mockResolvedValueOnce(cachedDb as never)
+
+    await expect(listCachedRoadFieldPlans()).resolves.toEqual([newer, older])
   })
 
   it('adds the road plan store without recreating existing field-book stores', () => {

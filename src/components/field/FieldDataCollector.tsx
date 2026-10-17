@@ -160,9 +160,9 @@ export function FieldDataCollector({
       try {
         const result = await createClient()
           .from('projects')
-          .select('engineering_data,datum,utm_zone,hemisphere')
+          .select('name,engineering_data,datum,utm_zone,hemisphere')
           .eq('id', projectId)
-          .limit(1) as unknown as { data: Array<{ engineering_data?: unknown; datum?: unknown; utm_zone?: unknown; hemisphere?: unknown }> | null; error: unknown }
+          .limit(1) as unknown as { data: Array<{ name?: unknown; engineering_data?: unknown; datum?: unknown; utm_zone?: unknown; hemisphere?: unknown }> | null; error: unknown }
         if (result.error) throw result.error
         const engineeringData = result.data?.[0]?.engineering_data
         const planValue = typeof engineeringData === 'object' && engineeringData !== null
@@ -213,7 +213,8 @@ export function FieldDataCollector({
         if (validatedProjectCrsCode) {
           try {
             const { cacheRoadFieldPlan } = await import('@/lib/offline/fieldBookDB')
-            const cached = await cacheRoadFieldPlan(projectId, plan, validatedProjectCrsCode)
+            const projectName = typeof projectRow?.name === 'string' ? projectRow.name : undefined
+            const cached = await cacheRoadFieldPlan(projectId, plan, validatedProjectCrsCode, projectName)
             cachedAt = cached.cachedAt
             source = 'server_cached'
           } catch {

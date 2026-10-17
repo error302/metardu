@@ -68,6 +68,7 @@ export interface OfflineProject {
 
 export interface OfflineRoadFieldPlan {
   projectId: string
+  projectName?: string
   plan: RoadFieldPlan
   /** Project CRS confirmed against the server reference record when this copy was cached. */
   projectCrsCode?: string
@@ -139,9 +140,16 @@ export async function deleteObservation(id: string): Promise<void> {
   await db.delete('observations', id)
 }
 
-export async function cacheRoadFieldPlan(projectId: string, plan: RoadFieldPlan, projectCrsCode: string): Promise<OfflineRoadFieldPlan> {
+export async function cacheRoadFieldPlan(projectId: string, plan: RoadFieldPlan, projectCrsCode: string, projectName?: string): Promise<OfflineRoadFieldPlan> {
   const db = await getDB()
-  const cached: OfflineRoadFieldPlan = { projectId, plan, projectCrsCode, cachedAt: new Date().toISOString() }
+  const safeProjectName = typeof projectName === 'string' ? projectName.trim().slice(0, 120) : ''
+  const cached: OfflineRoadFieldPlan = {
+    projectId,
+    ...(safeProjectName ? { projectName: safeProjectName } : {}),
+    plan,
+    projectCrsCode,
+    cachedAt: new Date().toISOString(),
+  }
   await db.put('roadFieldPlans', cached)
   return cached
 }
@@ -150,6 +158,19 @@ export async function getCachedRoadFieldPlan(projectId: string): Promise<Offline
   const db = await getDB()
   const cached = (await db.get('roadFieldPlans', projectId)) as OfflineRoadFieldPlan | undefined
   return cached ?? null
+}
+
+/** List device-cached road plans so a crew can reopen a prepared project offline. */
+export async function listCachedRoadFieldPlans(): Promise<OfflineRoadFieldPlan[]> {
+  const db = await getDB()
+  const entries = (await db.getAll('roadFieldPlans')) as unknown[]
+  return entries.filter((entry): entry is OfflineRoadFieldPlan => {
+    if (typeof entry !== 'object' || entry === null || Array.isArray(entry)) return false
+    const cached = entry as Partial<OfflineRoadFieldPlan>
+    return typeof cached.projectId === 'string'
+      && typeof cached.cachedAt === 'string'
+      && Number.isFinite(Date.parse(cached.cachedAt))
+  }).sort((left, right) => Date.parse(right.cachedAt) - Date.parse(left.cachedAt))
 }
 
 export async function deleteCachedRoadFieldPlan(projectId: string): Promise<void> {

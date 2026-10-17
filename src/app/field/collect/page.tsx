@@ -61,6 +61,7 @@ export default function FieldCollectPage() {
         subtitle={roadSurvey ? 'Opening the saved road field plan for point collection' : 'Select a project to begin collecting measurements'}
         initialProjectId={initialProjectId}
         initialSurveyType={roadSurvey ? 'engineering' : undefined}
+        allowOfflineRoadPlans={roadSurvey}
       />
     )
   }

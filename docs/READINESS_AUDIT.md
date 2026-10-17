@@ -149,8 +149,10 @@ Fixed in this pass:
 
 Next, in priority order:
 
-1. **One field app, one entry point.** Merge `/mobile/field` into `/field`; delete the dead
-   localStorage project picker (`saveProjectLocally` had no callers until this pass).
+1. **One field app, one entry point.** Merge `/mobile/field` into `/field`. `/field/walk` and
+   `/field/projects` still use a separate localStorage project shape; migrate that workflow to
+   shared project/offline storage before removing it. Road field plans now have a dedicated
+   offline IndexedDB picker, but this does not unify the remaining field entry points.
 2. **Offline basemap.** Today: MBTiles upload POSTs to a route that **does not exist**
    (`lib/field/mbtiles.ts:6` → `/api/field/mbtiles/upload`), and tiles are served from server
    `/tmp`. The OSM cache regex in `next.config.js:34` never matches OL's
@@ -162,8 +164,10 @@ Next, in priority order:
    tested: a **coarse fix can never read "on target"** (it reports INFO and cannot be
    recorded), and the move instruction is the **inverse** of the error. Remaining: auto-fill
    from the live GNSS fix, offline queueing of shots, and a per-column verticality UI.
-4. **Local-first project list.** `/field` requires live Supabase; with no signal the picker is
-   empty, so every field entry point stalls.
+4. **Local-first project list.** The road collector can now reopen device-cached plans whose
+   saved project CRS binding is valid, then requires a field-brief acknowledgement. The general
+   `/field` project list and other field types still require live Supabase, so offline support
+   remains incomplete.
 5. **Background sync.** No Service-Worker sync queue; `startAutoSync(30s)` dies with the page.
 6. **Data durability for `/field` hub + walk.** Traverse/leveling/radiation still live in React
    state only.

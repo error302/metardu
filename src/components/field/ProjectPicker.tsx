@@ -11,6 +11,8 @@ import { useState, useEffect } from 'react'
 import { FolderKanban, ChevronRight, Loader2, MapPin } from 'lucide-react'
 import { createClient } from '@/lib/api-client/client'
 import { logger } from '@/lib/logger'
+import { formatRoadChainage, parseRoadFieldPlan, roadFieldPlanCrsIsBoundToProject } from '@/lib/engineering/roadFieldPlan'
+import type { OfflineRoadFieldPlan } from '@/lib/offline/fieldBookDB'
 
 interface Project {
   id: string
@@ -26,17 +28,59 @@ interface ProjectPickerProps {
   subtitle: string
   initialProjectId?: string | null
   initialSurveyType?: string
+  allowOfflineRoadPlans?: boolean
 }
 
-export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initialSurveyType }: ProjectPickerProps) {
+export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initialSurveyType, allowOfflineRoadPlans = false }: ProjectPickerProps) {
   const [projects, setProjects] = useState<Project[]>([])
+  const [offlineRoadPlans, setOfflineRoadPlans] = useState<OfflineRoadFieldPlan[]>([])
+  const [showingOfflinePlans, setShowingOfflinePlans] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
     let current = true
     async function loadProjects() {
+      const loadOfflineRoadPlans = async (): Promise<boolean> => {
+        if (!allowOfflineRoadPlans) return false
+        try {
+          const { listCachedRoadFieldPlans } = await import('@/lib/offline/fieldBookDB')
+          const cachedPlans = await listCachedRoadFieldPlans()
+          const validPlans = cachedPlans.filter((cached) => {
+            const plan = parseRoadFieldPlan(cached.plan)
+            return !!plan
+              && Number.isFinite(Date.parse(cached.cachedAt))
+              && roadFieldPlanCrsIsBoundToProject(plan.projectCrs, cached.projectCrsCode)
+          })
+          if (!current) return true
+
+          setShowingOfflinePlans(true)
+          setError(null)
+          if (initialProjectId) {
+            const selected = validPlans.find((cached) => cached.projectId === initialProjectId)
+            if (selected) {
+              onPick(selected.projectId, initialSurveyType || 'engineering')
+            } else {
+              setError('No verified offline road plan is cached for this project. Open its field plan online before leaving for the field.')
+            }
+            return true
+          }
+
+          setOfflineRoadPlans(validPlans)
+          return true
+        } catch (err) {
+          logger.error('[project-picker] Failed to load cached road plans:', { error: err })
+          return false
+        }
+      }
+
       try {
+        if (typeof navigator !== 'undefined' && !navigator.onLine) {
+          const loadedOfflinePlans = await loadOfflineRoadPlans()
+          if (!loadedOfflinePlans && current) setError('This field project list needs a connection. Reopen a road field plan online to prepare an offline copy.')
+          return
+        }
+
         const db = createClient()
         if (initialProjectId) {
           const selected = await db
@@ -66,7 +110,10 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
         if (current) setProjects((data ?? []) as Project[])
       } catch (err) {
         logger.error('[project-picker] Failed to load projects:', { error: err })
-        if (current) setError('Failed to load projects. Check your connection.')
+        const networkFailure = typeof navigator !== 'undefined' && !navigator.onLine
+          || err instanceof TypeError && /fetch|network|load failed/i.test(err.message)
+        const loadedOfflinePlans = networkFailure ? await loadOfflineRoadPlans() : false
+        if (!loadedOfflinePlans && current) setError('Failed to load projects. Check your connection.')
       } finally {
         if (current) setLoading(false)
       }
@@ -74,7 +121,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
 
     void loadProjects()
     return () => { current = false }
-  }, [initialProjectId, initialSurveyType, onPick])
+  }, [allowOfflineRoadPlans, initialProjectId, initialSurveyType, onPick])
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
@@ -97,6 +144,44 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
           <div className="text-center py-12">
             <p className="text-sm text-[var(--error)]">{error}</p>
           </div>
+        ) : showingOfflinePlans ? (
+          offlineRoadPlans.length > 0 ? (
+            <div>
+              <p role="status" className="mb-4 rounded-lg border border-amber-500/30 bg-amber-500/5 p-3 text-sm text-[var(--text-secondary)]">
+                These are device-cached road plans. METARDU will ask you to check the selected copy against the issued field brief before capture.
+              </p>
+              <div className="space-y-2">
+                {offlineRoadPlans.map((cached) => {
+                  const plan = parseRoadFieldPlan(cached.plan)
+                  if (!plan) return null
+                  return (
+                    <button
+                      key={cached.projectId}
+                      type="button"
+                      onClick={() => onPick(cached.projectId, initialSurveyType || 'engineering')}
+                      className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[var(--bg-secondary)]"
+                    >
+                      <span className="flex items-center justify-between gap-3">
+                        <span className="font-medium text-[var(--text-primary)]">{cached.projectName || `Road project · ${cached.projectId.slice(0, 8)}`}</span>
+                        <ChevronRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" />
+                      </span>
+                      <span className="mt-1 block text-xs text-[var(--text-secondary)]">
+                        CH {formatRoadChainage(plan.startChainageM)}–{formatRoadChainage(plan.endChainageM)} · {cached.projectCrsCode}
+                      </span>
+                      <span className="mt-1 block text-xs text-[var(--text-muted)]">
+                        Cached {new Date(cached.cachedAt).toLocaleString()}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          ) : (
+            <div className="py-12 text-center">
+              <p className="text-sm text-[var(--text-muted)]">No verified road field plans are cached on this device.</p>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">Open each project’s field plan online before leaving for the field.</p>
+            </div>
+          )
         ) : projects.length === 0 ? (
           <div className="text-center py-12">
             <FolderKanban className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-3" />
