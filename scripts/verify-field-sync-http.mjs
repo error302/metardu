@@ -100,6 +100,15 @@ try{
   check('source receipt is private and cannot be share-cached',first.response.headers.get('cache-control')==='private, no-store')
   const stored=(await admin.query('SELECT * FROM survey_observations WHERE id=$1',[first.data.observationId])).rows[0]
   const batch=(await admin.query('SELECT * FROM observation_batches WHERE id=$1',[first.data.batchId])).rows[0]
+  for(const operation of ['insert','update','upsert','delete']){
+    const bypass=await owned('/api/db',{body:{table:'survey_observations',operation,filters:[{op:'eq',column:'project_id',value:project},{op:'eq',column:'id',value:first.data.observationId}],payload:{project_id:project,client_id:firstId,notes:'SYNTHETIC forbidden generic change'},onConflict:'project_id,client_id'}})
+    check(`generic ${operation} cannot bypass or remove the bound raw capture`,bypass.response.status===403&&bypass.data?.error?.code==='RAW_OBSERVATION_CAPTURE_REQUIRED')
+  }
+  assert.deepEqual((await admin.query('SELECT * FROM survey_observations WHERE id=$1',[first.data.observationId])).rows[0],stored)
+  check('all raw source fields remain unchanged after forbidden proxy writes')
+  const readable=await owned('/api/db',{body:{table:'survey_observations',operation:'select',columns:'id,project_id,client_id',filters:[{op:'eq',column:'project_id',value:project},{op:'eq',column:'id',value:first.data.observationId}],single:true}})
+  check('authorized raw project reads remain available after generic writes close',readable.response.status===200&&readable.data?.data?.id===first.data.observationId)
+  check('raw proxy reads remain private and non-cacheable',readable.response.headers.get('cache-control')==='private, no-store')
   check('actual SQL preserves zero readings and unknown CRS without creating reviewed points',stored.easting===0&&stored.elevation===0&&stored.horizontal_crs===null&&(await rows()).reviewed_points===0)
   check('the immutable archive retains fields with no observation-table column',batch.quality_metadata.raw.horizontalDistance===0&&batch.quality_metadata.raw.bearingDeg===0&&batch.quality_metadata.capturedBy===null&&batch.quality_metadata.uploadedBy===owner&&batch.point_count===0&&batch.observation_count===1)
   const sorted=value=>Array.isArray(value)?value.map(sorted):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,sorted(value[key])])):value

@@ -203,6 +203,21 @@ fixture keeps nullable caption/observation fields and JSON null/zero metadata;
 native receipts are bound to the full pinned source SHA. Retain the failed
 receipt under `.cache/release-verify/unified-release/7e0fa3a97f8d550d68b89e4c10914acb96a080dc/`.
 
+Corrected pinned `4b58a724` passed all ten normal-upgrade matrix checks across
+canonical, additional-restrictive, unknown-permissive and disabled-RLS variants.
+Both successful cases ran the real recording service with restricted roles and
+119 applied migrations. Exact database/role cleanup was independently checked.
+This proves the matrix at that source revision; it does not promote its image.
+
+The subsequent mutation-path review found that the generic database proxy still
+accepted raw-observation INSERT/UPDATE/UPSERT/DELETE outside the receipt service.
+Four route regressions reproduced with a real query builder (two read/archive
+boundary checks already passed). The proxy is now read-only for raw observations;
+recording uses the dedicated content-bound service. Existing project-scoped reads
+and photo/point workflows are preserved. New real HTTP checks must verify all
+four denials, unchanged raw values and private reads before release. The fresh
+matrix and pinned source checks must follow the final source revision.
+
 Old unreceipted server rows need an explicit reconciliation workflow; no existing
 source is overwritten or automatically adopted. Complete evidence-event timeline
 integration, owner-safe offline cold open/reopen, separate mobile queue scaling,

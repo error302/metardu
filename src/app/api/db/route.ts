@@ -196,6 +196,15 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   }
 
   // ─── Read-only shared table check ────────────────────────────
+  // Raw readings enter only through the content-bound capture transaction.
+  // Generic writes could bypass its receipt/archive or delete the bound source.
+  if (table === 'survey_observations' && operation !== 'select') {
+    return NextResponse.json(
+      { data: null, error: { message: 'Use the field capture workflow to record a new reading. Raw observations are read-only here.', code: 'RAW_OBSERVATION_CAPTURE_REQUIRED' } },
+      { status: 403 },
+    )
+  }
+
   if (READ_ONLY_SHARED_TABLES.has(table as string) && operation !== 'select') {
     return NextResponse.json(
       { data: null, error: { message: 'This table is read-only', code: 'FORBIDDEN' } },
