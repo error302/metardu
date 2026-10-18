@@ -1,5 +1,10 @@
 # Unified METARDU continuation
 
+Latest continuation: read `CONTINUATION_ACCEPTANCE_2026-10-18.md` for the resumed
+CAD/import work, reproduced project-CAD/auth repairs, synthetic-browser cleanup,
+current read-only PayPal/Resend/public evidence and separate remaining gates.
+The production outcome below remains its own pinned historical release receipt.
+
 The user requested continuation of this chat together with **Explore METARDU
 ChatGPT plugin** (`01a1081c-4e70-7750-bb05-da73c3da3b65`). That chat's recent
 failed turns ended with connection errors. Its source work is already in this

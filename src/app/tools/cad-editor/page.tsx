@@ -17,6 +17,7 @@ import { Loader2, Plus, FileText, Check, FolderOpen, X, Building } from 'lucide-
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 import { deriveBoundaryMeasurements } from '@/lib/cadGeometry'
 import { parseCadDocument } from '@/lib/cad/cadDocumentValidation'
+import workspaceStyles from '@/components/cad-editor/CadWorkspace.module.css'
 
 const projectListSchema = z.object({ data: z.array(z.object({ id: z.string().min(1), name: z.string(), lr_number: z.string().nullable().optional() })) })
 
@@ -287,7 +288,7 @@ export default function StandaloneCADEditorPage() {
   }
 
   return (
-    <div className="h-[calc(100dvh-8rem)] min-h-[480px] md:h-[calc(100dvh-4rem)] md:min-h-[620px] flex flex-col bg-gray-950 text-gray-100 overflow-hidden">
+    <div className={`${workspaceStyles.workspace} h-full min-h-0 flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden`}>
       {/* Top Breadcrumbs & Starter Actions */}
       <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between gap-3 shrink-0 flex-wrap">
         <Breadcrumb>
@@ -307,7 +308,7 @@ export default function StandaloneCADEditorPage() {
         </Breadcrumb>
 
         {/* Starter Templates */}
-        <div className="flex items-center gap-1.5">
+        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto [&>button]:min-h-11 [&>button]:shrink-0">
           <button
             onClick={() => selectTemplate(createDefaultCADDoc())}
             className="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 flex items-center gap-1 transition-colors"

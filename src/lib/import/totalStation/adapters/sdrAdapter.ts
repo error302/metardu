@@ -30,9 +30,9 @@ export function adaptSDR(content: string): UnifiedImportResult {
   const rawPoints: UnifiedRawPoint[] = parsed.records.map(function (rec) {
     return {
       id: rec.pointId,
-      easting: rec.easting ?? 0,
-      northing: rec.northing ?? 0,
-      elevation: rec.elevation ?? 0,
+      easting: rec.easting,
+      northing: rec.northing,
+      elevation: rec.elevation,
       code: '',
     }
   })

@@ -1,3 +1,6 @@
+import { XMLParser } from 'fast-xml-parser'
+import { coordinateNumber } from './coordinateNumber'
+
 export interface JobXMLRecord {
   pointId: string
   easting?: number
@@ -17,45 +20,27 @@ export function parseJobXML(content: string): {
   const records: JobXMLRecord[] = []
 
   try {
-    const parser = new DOMParser()
-    const doc = parser.parseFromString(content, 'text/xml')
-
-    const jobName = doc.querySelector('JOBFile')
-      ?.getAttribute('JobName') || undefined
-
-    const pointRecords = doc.querySelectorAll('PointRecord')
-    pointRecords.forEach((pr: Element) => {
-      const id = pr.querySelector('Name')?.textContent?.trim()
-      if (!id) return
-
-      const northing = parseFloat(
-        pr.querySelector('Grid > North')?.textContent || '0'
-      )
-      const easting = parseFloat(
-        pr.querySelector('Grid > East')?.textContent || '0'
-      )
-      const elevation = parseFloat(
-        pr.querySelector('Grid > Elev')?.textContent || '0'
-      )
-      const code = pr.querySelector('Code')?.textContent?.trim()
-
-      records.push({ 
-        pointId: id, 
-        easting, 
-        northing, 
-        elevation,
-        code
-      })
-    })
-
-    const obsRecords = doc.querySelectorAll('RawObservation')
-    obsRecords.forEach((obs: Element) => {
-      const id = obs.querySelector('TargetID')?.textContent?.trim()
-      if (!id || records.find((r) => r.pointId === id)) return
-      warnings.push(`Raw observation for ${id} — no coordinates computed`)
-    })
-
-    return { ok: true, records, warnings, jobName }
+    if (/<!DOCTYPE|<!ENTITY/i.test(content)) throw new Error('External XML declarations are not allowed')
+    const doc: unknown = new XMLParser({ ignoreAttributes: false, removeNSPrefix: true, parseTagValue: false, processEntities: true }).parse(content, true)
+    let jobName: string | undefined
+    const visit = (node: unknown) => {
+      if (!node || typeof node !== 'object') return
+      if (Array.isArray(node)) { node.forEach(visit); return }
+      const object = node as Record<string, unknown>
+      for (const [key, value] of Object.entries(object)) {
+        const items = Array.isArray(value) ? value : [value]
+        if (key === 'JOBFile' && value && typeof value === 'object') jobName = String((value as Record<string,unknown>)['@_JobName'] ?? '') || undefined
+        if (key === 'PointRecord') for (const item of items) {
+          const point = item as Record<string, unknown>
+          const grid = point.Grid && typeof point.Grid === 'object' ? point.Grid as Record<string,unknown> : {}
+          records.push({ pointId:String(point.Name ?? '').trim(), easting:coordinateNumber(grid.East), northing:coordinateNumber(grid.North), elevation:coordinateNumber(grid.Elev), code:typeof point.Code==='string'?point.Code.trim():undefined })
+        }
+        if (key === 'RawObservation') for (const item of items) warnings.push(`Raw observation for ${String((item as Record<string,unknown>).TargetID ?? 'unknown target')} — no coordinates computed`)
+        visit(value)
+      }
+    }
+    visit(doc)
+    return { ok: records.length > 0, records, warnings, jobName }
 
   } catch {
     return { 

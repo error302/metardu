@@ -2,7 +2,7 @@
 // No real customer records, measured batches, email delivery or OAuth-provider
 // flow is exercised. Credentials and cookies remain in memory.
 import assert from 'node:assert/strict'
-import {randomBytes,randomUUID} from 'node:crypto'
+import {createHash,randomBytes,randomUUID} from 'node:crypto'
 import {spawnSync} from 'node:child_process'
 import {readFileSync,writeFileSync} from 'node:fs'
 import {resolve,join} from 'node:path'
@@ -38,10 +38,10 @@ async function main() {
   const check=(name,condition=true)=>{assert.ok(condition,name);report.checks.push({name,passed:true});save();console.log('PASS '+name)}
   const actor=()=>{
     const cookies=new Map()
-    return async(path,{body,form=false,method}={})=>{
+    return async(path,{body,form=false,method,raw=false}={})=>{
       const response=await fetch(origin+path,{method:method||(body===undefined?'GET':'POST'),redirect:'manual',signal:AbortSignal.timeout(60000),headers:{Origin:origin,...(body===undefined?{}:{'Content-Type':form?'application/x-www-form-urlencoded':'application/json'}),...(cookies.size?{Cookie:[...cookies].map(([k,v])=>`${k}=${v}`).join('; ')}:{})},...(body===undefined?{}:{body:form?new URLSearchParams(body).toString():JSON.stringify(body)})})
       for(const item of response.headers.getSetCookie()){const pair=item.split(';',1)[0],i=pair.indexOf('=');cookies.set(pair.slice(0,i),pair.slice(i+1))}
-      return {response,data:await response.json().catch(()=>null)}
+      return raw?{response,bytes:new Uint8Array(await response.arrayBuffer())}:{response,data:await response.json().catch(()=>null)}
     }
   }
   const login=async id=>{
@@ -103,6 +103,30 @@ async function main() {
     check('ordinary production profile editing remains usable',edited.response.ok&&(await client.query('SELECT firm_name FROM surveyor_profiles WHERE user_id=$1',[owner])).rows[0].firm_name==='SYNTHETIC release firm')
     const history=await owned(`/api/project/${project}/pipeline-asbuilt`)
     check('owner can read an empty pipeline history without creating measured evidence',history.response.status===200&&Array.isArray(history.data?.data)&&history.data.data.length===0)
+    // Exact disposable imported points and a drawing artifact; never field evidence.
+    await client.query("INSERT INTO project_reference_systems(project_id,horizontal_crs,horizontal_name,datum_name,units,zone,hemisphere,vertical_datum,vertical_reference,distance_mode,coordinate_precision,declared_by) VALUES($1,'EPSG:32737','SYNTHETIC WGS84 UTM 37S','WGS84','metres',37,'S','SYNTHETIC BM','local','grid',3,$2)",[project,owner])
+    const importPath=`/api/project/${project}/point-imports`,context=await owned(importPath),captureId=randomUUID()
+    check('coordinate import reference and history load privately',context.response.status===200&&context.response.headers.get('cache-control')==='private, no-store'&&context.data?.data?.history.length===0)
+    const sourceText='\uFEFFid,easting,northing,elevation\nSYN-UNKNOWN,500000,9850000,\nSYN-ZERO,500010,9850010,0'
+    const sourceFileHash=createHash('sha256').update(sourceText).digest('hex')
+    const capture={requestId:captureId,fileName:'SYNTHETIC release points.csv',sourceText,fileSize:Buffer.byteLength(sourceText),sourceFileHash,selectedIndices:[0,1],options:{},sourceCrs:'EPSG:32737',coordinateUnit:'metres',heightUnit:'metres',expectedReferenceHash:context.data.data.referenceHash,confirmTransformation:false,confirmVerticalDatum:true,confirmWarnings:false}
+    check('foreign account cannot commit a coordinate capture',(await foreign(importPath,{body:capture})).response.status===404)
+    const committed=await owned(importPath,{body:capture})
+    check('live coordinate commit returns a complete durable receipt',committed.response.status===201&&committed.data?.data?.requestId===captureId&&committed.data.data.imported===2&&new Set(committed.data.data.pointIds).size===2&&committed.data.data.fieldVerified===false)
+    const retry=await owned(importPath,{body:{...capture,requestId:randomUUID()}})
+    check('live retry replays the original capture without duplicate points',retry.response.status===200&&retry.data?.data?.batchId===captureId&&retry.data.data.replayed===true)
+    const points=(await client.query('SELECT point_name,easting,northing,elevation,horizontal_crs FROM survey_points WHERE project_id=$1 ORDER BY point_name',[project])).rows
+    check('live SQL preserves unknown and zero heights with exact declared coordinates',points.length===2&&points[0].point_name==='SYN-UNKNOWN'&&points[0].elevation===null&&Number(points[1].elevation)===0&&Number(points[0].easting)===500000&&Number(points[0].northing)===9850000&&points[0].horizontal_crs==='EPSG:32737')
+    const original=await owned(importPath+`?source=${captureId}`,{raw:true})
+    check('live original-file download preserves exact SHA-256 including BOM',original.response.status===200&&createHash('sha256').update(original.bytes).digest('hex')===sourceFileHash)
+    const document={width:1122,height:794,metersPerPixel:1,originEasting:499900,originNorthing:9849306,coordinateReferenceSystem:'EPSG:32737',
+      beacons:[{id:'a',label:'SYN-UNKNOWN',x:100,y:100,easting:500000,northing:9850000},{id:'b',label:'SYN-ZERO',x:110,y:90,easting:500010,northing:9850010}],boundaries:[],annotations:[],northArrow:{x:1012,y:90,rotation:0,type:'grid',bearing:'0'},scaleBar:{x:70,y:744,scaleMeters:10},titleBlock:{projectName:'SYNTHETIC release CAD artifact',lrNumber:'',surveyor:'',regNo:'',date:'',scale:'Draft - not print verified',sheet:'1 of 1'}}
+    const cadPath=`/api/project/${project}/cad-document`
+    check('foreign account cannot save a drawing in this project',[403,404].includes((await foreign(cadPath,{method:'PUT',body:{document}})).response.status))
+    const savedCad=await owned(cadPath,{method:'PUT',body:{document}})
+    const savedBoundary=(await client.query('SELECT boundary_data FROM projects WHERE id=$1',[project])).rows[0].boundary_data
+    check('live CAD save acknowledges and preserves the exact drawing artifact',savedCad.response.status===200&&savedCad.data?.saved===true&&isDeepStrictEqual(savedBoundary.cadDocument,document))
+    check('drawing save does not replace imported survey points or observations',(await client.query('SELECT count(*)::int n FROM survey_points WHERE project_id=$1',[project])).rows[0].n===2&&isDeepStrictEqual(savedBoundary.adjustedStations??[],[]))
     report.status='passed'
   } catch(error) {report.status='failed';report.failure=error.message;throw error}
   finally {
@@ -118,6 +142,8 @@ async function main() {
         assert.equal((await client.query("DELETE FROM projects WHERE id=$1 AND user_id=$2 AND name='SYNTHETIC disposable release authorization check' RETURNING id",[project,owner])).rowCount,1)
         assert.equal((await client.query('DELETE FROM users WHERE id=ANY($1::uuid[]) AND full_name=$2 RETURNING id',[[owner,other],label])).rowCount,2)
         assert.equal((await client.query('SELECT count(*)::int n FROM fieldbooks WHERE id=$1',[fieldbook])).rows[0].n,0)
+        assert.equal((await client.query('SELECT count(*)::int n FROM survey_points WHERE project_id=$1',[project])).rows[0].n,0)
+        assert.equal((await client.query('SELECT count(*)::int n FROM observation_batches WHERE project_id=$1',[project])).rows[0].n,0)
         report.cleanup.syntheticFieldbookRemoved=true
         report.cleanup.syntheticProjectAndAccountsRemoved=true
       }

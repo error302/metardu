@@ -61,15 +61,18 @@ export interface UnifiedObservation {
 
 export interface UnifiedRawPoint {
   id: string
-  easting: number
-  northing: number
-  elevation: number
+  easting?: number
+  northing?: number
+  elevation?: number
   code: string
+  sourceRow?: number
 }
 
 // ─── Top-level import result ────────────────────────────────────────────
 
 export interface UnifiedImportResult {
+  /** True only when encoded/declarative source units were converted to metres. */
+  normalizedMetres?: boolean
   /** Detected source format key (e.g. "gsi", "sdr", "south", …) */
   format: string
   /** Instrument make / family (e.g. "Leica", "Sokkia/SDR", "South", …) */
@@ -77,7 +80,7 @@ export interface UnifiedImportResult {
   /** Station name when determinable from observations */
   stationName: string
   /** Station coordinates (first record with both angles and distances) */
-  stationCoords?: { easting: number; northing: number; elevation: number }
+  stationCoords?: { easting?: number; northing?: number; elevation?: number }
 
   /** All individual observations (one per shot) */
   observations: UnifiedObservation[]

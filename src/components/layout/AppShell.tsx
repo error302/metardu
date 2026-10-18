@@ -13,6 +13,7 @@ import { SubscriptionProvider } from '@/lib/subscription/subscriptionContext'
 import SkipToContent from '@/components/shared/SkipToContent'
 import { OfflineIndicator } from '@/components/app/OfflineIndicator'
 import { ChatGPTNoticeBanner } from '@/components/chatgpt/NoticeBanner'
+import {CadWorkspaceShell,isCadWorkspaceRoute} from '@/components/cad-editor/CadWorkspaceShell'
 
 // Heavy / route-specific overlays are code-split so their JS chunks only
 // download when the component is actually rendered (never on the landing
@@ -70,6 +71,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const mapPage = isMapRoute(pathname)
   const fieldbookPage = isFieldbookRoute(pathname)
   const marketing = isMarketingRoute(pathname)
+  const cadPage=isCadWorkspaceRoute(pathname)
   // Map and fieldbook are full-data-entry surfaces. Keep the global mobile
   // navigation on the map so surveyors can switch pages without leaving it;
   // hide the other overlays that compete with map and fieldbook controls.
@@ -185,6 +187,14 @@ export default function AppShell({ children }: { children: ReactNode }) {
         </LanguageProvider>
       </>
     )
+  }
+
+  if(cadPage) {
+    return <><SkipToContent/><OfflineIndicator/><ProjectionInit/>
+      <LanguageProvider><CountryProvider><SubscriptionProvider>
+        <CadWorkspaceShell>{children}</CadWorkspaceShell><MobileNav/><NotificationToast/>
+      </SubscriptionProvider></CountryProvider></LanguageProvider>
+    </>
   }
 
   // Default: full app shell

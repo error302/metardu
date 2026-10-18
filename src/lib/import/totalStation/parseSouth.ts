@@ -15,12 +15,13 @@
  *   South,N,Coordinate System
  */
 
+import { coordinateNumber } from './coordinateNumber'
 export interface SouthCoordinatePoint {
   pointNumber: number
   pointName: string
   easting: number
   northing: number
-  elevation: number
+  elevation?: number
   code: string
   pointType: number
 }
@@ -136,19 +137,19 @@ function parseCoordinateLine(
 
   const pointNumber = parseInt(parts[0]?.trim(), 10)
   const pointName = unquote(parts[1] ?? '')
-  const easting = parseFloat(parts[2]?.trim())
-  const northing = parseFloat(parts[3]?.trim())
-  const elevation = parseFloat(parts[4]?.trim())
+  const easting = coordinateNumber(parts[2])
+  const northing = coordinateNumber(parts[3])
+  const elevation = coordinateNumber(parts[4])
   const code = unquote(parts[5] ?? '')
   const pointType = parseInt(parts[6]?.trim(), 10) || 0
 
   if (isNaN(pointNumber)) {
     return { error: `Line ${lineNumber}: invalid point number "${parts[0]?.trim()}"` }
   }
-  if (isNaN(easting)) {
+  if (easting===undefined || !Number.isFinite(easting)) {
     return { error: `Line ${lineNumber}: invalid easting value "${parts[2]?.trim()}"` }
   }
-  if (isNaN(northing)) {
+  if (northing===undefined || !Number.isFinite(northing)) {
     return { error: `Line ${lineNumber}: invalid northing value "${parts[3]?.trim()}"` }
   }
 
@@ -158,7 +159,7 @@ function parseCoordinateLine(
       pointName,
       easting,
       northing,
-      elevation: isNaN(elevation) ? 0 : elevation,
+      elevation,
       code,
       pointType,
     },

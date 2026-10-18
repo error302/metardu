@@ -1,3 +1,4 @@
+import { coordinateNumber } from './coordinateNumber'
 export interface TopconRecord {
   pointId: string
   easting?: number
@@ -25,12 +26,12 @@ export function parseTopcon(content: string): {
     }
 
     const pointId = parts[0]?.trim()
-    const northing = parseFloat(parts[1])
-    const easting = parseFloat(parts[2])
-    const elevation = parseFloat(parts[3])
+    const northing = coordinateNumber(parts[1])
+    const easting = coordinateNumber(parts[2])
+    const elevation = coordinateNumber(parts[3])
     const code = parts[4]?.trim()
 
-    if (!pointId || isNaN(northing) || isNaN(easting)) {
+    if (!pointId || !Number.isFinite(northing) || !Number.isFinite(easting)) {
       warnings.push(`Skipped invalid row: ${line.trim()}`)
       continue
     }

@@ -7,7 +7,7 @@ import { useSession } from 'next-auth/react'
 import {
   FolderKanban, LayoutDashboard, MapPinned, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X,
-  BookOpen, Compass, MapPin, ShieldCheck, DraftingCompass, MoreHorizontal
+  BookOpen, Compass, MapPin, ShieldCheck, DraftingCompass, MoreHorizontal, Upload
 } from 'lucide-react'
 import { isNavItemActive } from '@/lib/navigation-shell'
 
@@ -19,8 +19,16 @@ const PRIMARY_MOBILE_PAGES = [
   { href: '/tools', label: 'Tools', icon: Wrench },
 ]
 
+/** Deliberate paging, never a timer: controls stay put while the user works. */
+const MOBILE_PAGE_GROUPS = [PRIMARY_MOBILE_PAGES,
+  [{href:'/projects',label:'Projects',icon:FolderKanban},{href:'/dashboard',label:'Dashboard',icon:LayoutDashboard},{href:'/import',label:'Import',icon:Upload},{href:'/reports',label:'Reports',icon:FileText}],
+  [{href:'/equipment',label:'Equipment',icon:Radar},{href:'/field',label:'Field mode',icon:Compass},{href:'/beacons',label:'Beacons',icon:MapPin},{href:'/marketplace',label:'Marketplace',icon:Store}],
+  [{href:'/schedule',label:'Schedule',icon:CalendarDays},{href:'/docs',label:'Docs',icon:BookOpen},{href:'/account',label:'Account',icon:ShieldCheck},{href:'/pricing',label:'Plans',icon:FileText}],
+]
+
 /** Pages hidden from the bottom tab bar — shown in the "More" drawer */
 const MORE_PAGES = [
+  { href: '/import', label: 'Import field data', icon: Upload, color: 'text-[var(--accent)]' },
   { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-400' },
   { href: '/projects', label: 'Projects', icon: FolderKanban, color: 'text-blue-400' },
   { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
@@ -35,6 +43,8 @@ export default function MobileNav() {
   const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
   const [showMore, setShowMore] = useState(false)
+  const [dockPage,setDockPage]=useState(0)
+  const touchStart=useRef<{x:number;y:number}|null>(null)
   const moreButtonRef = useRef<HTMLButtonElement>(null)
   const closeButtonRef = useRef<HTMLButtonElement>(null)
   const moreDialogRef = useRef<HTMLDivElement>(null)
@@ -48,6 +58,11 @@ export default function MobileNav() {
   }, [showMore])
 
   useEffect(() => { setShowMore(false) }, [pathname])
+  useEffect(()=>{
+    const page=MOBILE_PAGE_GROUPS.findIndex(group=>group.some(item=>isNavItemActive(pathname,item.href)))
+    setDockPage(page<0?0:page)
+  },[pathname])
+  const turnDock=(direction:number)=>setDockPage(page=>(page+direction+MOBILE_PAGE_GROUPS.length)%MOBILE_PAGE_GROUPS.length)
 
   // Check if current page is in the "More" drawer (for active highlighting)
   const isMoreActive = MORE_PAGES.some(p => pathname === p.href || pathname.startsWith(p.href + '/'))
@@ -87,7 +102,11 @@ export default function MobileNav() {
         aria-label="Primary mobile navigation"
       >
         <div className="flex items-center gap-1 p-1.5">
-          {PRIMARY_MOBILE_PAGES.map((item) => {
+          <div role="group" aria-label="Swipe navigation pages" className="flex min-w-0 flex-1 touch-pan-y items-center" onKeyDown={event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();turnDock(event.key==='ArrowRight'?1:-1)}}}
+            onTouchStart={event=>{const touch=event.touches[0];if(touch)touchStart.current={x:touch.clientX,y:touch.clientY}}}
+            onTouchCancel={()=>{touchStart.current=null}}
+            onTouchEnd={event=>{const start=touchStart.current,end=event.changedTouches[0];touchStart.current=null;if(!start||!end)return;const dx=end.clientX-start.x,dy=end.clientY-start.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5)turnDock(dx<0?1:-1)}}>
+          {MOBILE_PAGE_GROUPS[dockPage].map((item) => {
             const isActive = isNavItemActive(pathname, item.href)
             const Icon = item.icon
             return (
@@ -96,7 +115,7 @@ export default function MobileNav() {
                 href={item.href}
                 aria-label={item.href === '/tools/cad-editor' ? 'CAD editor' : undefined}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
+                className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
                   isActive ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-gray-400 hover:text-[var(--text-primary)]'
                 }`}
               >
@@ -105,6 +124,12 @@ export default function MobileNav() {
               </Link>
             )
           })}
+          </div>
+          <button type="button" aria-label={`Next navigation pages (${dockPage+1} of ${MOBILE_PAGE_GROUPS.length})`} title="Swipe or tap to turn navigation pages" onClick={()=>turnDock(1)} className="flex min-h-12 w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]">
+            <ChevronRight className="h-5 w-5" aria-hidden="true"/>
+            <span aria-hidden="true" className="flex gap-0.5">{MOBILE_PAGE_GROUPS.map((_,index)=><span key={index} className={`h-1 w-1 rounded-full ${index===dockPage?'bg-[var(--accent)]':'bg-[var(--text-muted)]'}`}/>)}</span>
+          </button>
+          <span className="sr-only" role="status">Navigation page {dockPage+1} of {MOBILE_PAGE_GROUPS.length}</span>
 
           {/* More button */}
           <button
@@ -114,7 +139,7 @@ export default function MobileNav() {
             aria-expanded={showMore}
             aria-controls="mobile-nav-more"
             aria-haspopup="dialog"
-            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
+            className={`flex min-h-12 w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
               isMoreActive ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-gray-400 hover:text-[var(--text-primary)]'
             }`}
           >

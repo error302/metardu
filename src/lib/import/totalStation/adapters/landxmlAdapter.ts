@@ -6,6 +6,7 @@ export function adaptLandXML(content: string): UnifiedImportResult {
 
   return {
     format: 'landxml',
+    normalizedMetres: parsed.normalizedMetres,
     instrument: 'LandXML Universal',
     stationName: '',
     observations: [],
@@ -18,6 +19,6 @@ export function adaptLandXML(content: string): UnifiedImportResult {
       code: r.code || '',
     })),
     warnings: parsed.warnings,
-    errors: [],
+    errors: parsed.errors,
   }
 }

@@ -1,5 +1,6 @@
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 import { prepareCadSurveyExport, validateCadExportDocument } from './cadExportValidation'
+import {cadDrawingBounds} from './cadDrawingBounds'
 
 /** Serialize a clean scene copy; leave the interactive DOM and draft unchanged. */
 export function generateCadDocumentSvg(source: SVGSVGElement, document: CADDocument): string {
@@ -29,7 +30,12 @@ export function generateCadDocumentSvg(source: SVGSVGElement, document: CADDocum
       if (/^(?:data-|on)/i.test(attribute.name) || ['style', 'class', 'tabindex', 'role', 'aria-label'].includes(attribute.name)) node.removeAttribute(attribute.name)
     }
   }
-  clone.setAttribute('viewBox', `0 0 ${doc.width} ${doc.height}`)
+  const bounds=cadDrawingBounds(doc)
+  clone.setAttribute('viewBox', `${bounds.x} ${bounds.y} ${bounds.width} ${bounds.height}`)
+  clone.setAttribute('preserveAspectRatio','xMidYMid meet')
+  const paper=clone.ownerDocument.createElementNS('http://www.w3.org/2000/svg','rect')
+  for(const [key,value] of Object.entries(bounds))paper.setAttribute(key,String(value))
+  paper.setAttribute('fill','#ffffff');clone.insertBefore(paper,clone.firstChild)
   clone.setAttribute('width', String(doc.width)); clone.setAttribute('height', String(doc.height))
   clone.removeAttribute('xmlns')
   clone.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns', 'http://www.w3.org/2000/svg')

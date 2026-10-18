@@ -41,6 +41,9 @@ const withPWA = require('@ducanh2912/next-pwa').default({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  // Preserve the owned loopback origin during auth redirects. Next's default
+  // normalizer rewrites 127.0.0.1 to localhost, which separates cookies/drawings.
+  skipMiddlewareUrlNormalize: true,
   // Standalone output — smaller deploy, lower RAM
   // Use 'export' for Capacitor mobile builds (set MOBILE_BUILD=true)
   output: process.env.MOBILE_BUILD === 'true' ? 'export' : 'standalone',

@@ -1,3 +1,4 @@
+import { coordinateNumber } from './coordinateNumber'
 export interface SDRRecord {
   pointId: string
   easting?: number
@@ -21,11 +22,11 @@ export function parseSDR(content: string): {
     if (parts.length < 4) continue
 
     const pointId = parts[0]?.trim()
-    const northing = parseFloat(parts[1])
-    const easting = parseFloat(parts[2])
-    const elevation = parseFloat(parts[3])
+    const northing = coordinateNumber(parts[1])
+    const easting = coordinateNumber(parts[2])
+    const elevation = coordinateNumber(parts[3])
 
-    if (!pointId || isNaN(easting) || isNaN(northing)) continue
+    if (!pointId || !Number.isFinite(easting) || !Number.isFinite(northing)) { warnings.push(`Invalid SDR coordinate record: ${line.trim()}`); continue }
 
     records.push({ pointId, easting, northing, elevation })
   }

@@ -38,7 +38,7 @@ module.exports = {
     '^@/lib/workers/tinWorkerUrl$': '<rootDir>/tests/__mocks__/tinWorkerUrl.ts',
     '^@/lib/workers/tinWorkerFactory$': '<rootDir>/tests/__mocks__/tinWorkerFactory.ts',
     '^@/workers/workerUrl$': '<rootDir>/tests/__mocks__/workerUrl.ts',
-    '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
+    '\\.(css|less|scss|sass)$': '<rootDir>/tests/__mocks__/styles.js',
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],

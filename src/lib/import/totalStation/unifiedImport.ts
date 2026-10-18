@@ -11,6 +11,8 @@
  */
 
 import { detectTotalStationFormat } from './detectFormat'
+import type { TotalStationFormat } from './detectFormat'
+import { parseCoordinateCsv, type CoordinateColumnOrder } from './parseCoordinateCsv'
 import { adaptGSI } from './adapters/gsiAdapter'
 import { adaptSDR } from './adapters/sdrAdapter'
 import { adaptSouth } from './adapters/southAdapter'
@@ -19,10 +21,7 @@ import { adaptJobXML } from './adapters/jobXmlAdapter'
 import { adaptLandXML } from './adapters/landxmlAdapter'
 import { adaptTrimbleDC } from './adapters/trimbleDcAdapter'
 import { adaptCarlsonRW5 } from './adapters/carlsonAdapter'
-import {
-  UnifiedImportResult,
-  UnifiedRawPoint,
-} from './unifiedTypes'
+import type { UnifiedImportResult } from './unifiedTypes'
 
 /**
  * Import a total station data file of any supported format.
@@ -33,13 +32,16 @@ import {
  */
 export function importTotalStation(
   content: string,
-  filename: string = 'unknown.dat'
+  filename: string = 'unknown.dat',
+  options: { format?: TotalStationFormat; csvOrder?: CoordinateColumnOrder; gsiFootUnit?: 'international' | 'USSurveyFoot' } = {},
 ): UnifiedImportResult {
-  const format = detectTotalStationFormat(content, filename)
+  const format = options.format && options.format !== 'unknown' ? options.format : detectTotalStationFormat(content, filename)
 
   switch (format) {
+    case 'csv':
+      return parseCoordinateCsv(content, options.csvOrder)
     case 'gsi':
-      return adaptGSI(content)
+      return adaptGSI(content, options.gsiFootUnit)
 
     case 'sokkia':
       return adaptSDR(content)
@@ -70,67 +72,25 @@ export function importTotalStation(
 /**
  * Fallback for unrecognised formats.
  *
- * Attempts a simple CSV-like coordinate parse so that even
- * completely unknown formats don't return a hard error if they
- * happen to be comma-delimited coordinate files.
+ * Unknown formats require an explicit supported format or controller export.
+ * Never guess a CSV axis order or synthesize a station origin.
  */
 function unknownFormatFallback(
-  content: string,
+  _content: string,
   filename: string
 ): UnifiedImportResult {
   const errors: string[] = [
     'Unrecognised total station format for file "' + filename + '"',
   ]
-  const warnings: string[] = []
-  const rawPoints: UnifiedRawPoint[] = []
-
-  // Attempt CSV coordinate extraction as a last resort
-  const lines = content.trim().split('\n')
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i].trim()
-    if (!line) continue
-    const parts = line.split(',')
-    if (parts.length >= 4) {
-      const id = parts[0] ? parts[0].trim() : ''
-      const n = parseFloat(parts[1])
-      const e = parseFloat(parts[2])
-      const el = parseFloat(parts[3])
-      if (id && !isNaN(n) && !isNaN(e)) {
-        rawPoints.push({
-          id: id,
-          easting: e,
-          northing: n,
-          elevation: isNaN(el) ? 0 : el,
-          code: parts[4] ? parts[4].trim() : '',
-        })
-      }
-    }
-  }
-
-  if (rawPoints.length > 0) {
-    warnings.push(
-      'Format was "unknown" but ' +
-        rawPoints.length +
-        ' coordinate rows were extracted by CSV fallback'
-    )
-  }
-
   return {
     format: 'unknown',
     instrument: 'Unknown',
-    stationName: rawPoints.length > 0 ? rawPoints[0].id : '',
-    stationCoords: rawPoints.length > 0
-      ? {
-          easting: rawPoints[0].easting,
-          northing: rawPoints[0].northing,
-          elevation: rawPoints[0].elevation,
-        }
-      : undefined,
+    stationName: '',
     observations: [],
     meanedObservations: [],
-    rawPoints: rawPoints,
+    rawPoints: [],
     errors: errors,
-    warnings: warnings,
+    warnings: [],
   }
 }
 

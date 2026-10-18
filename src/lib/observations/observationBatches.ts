@@ -225,7 +225,14 @@ export async function listObservationBatches(
   projectId: string,
 ): Promise<ObservationBatch[]> {
   const { rows } = await db.query<ObservationBatch>(
-    `SELECT * FROM observation_batches
+    `SELECT id,project_id,batch_number,source_type,source_file_name,source_file_hash,source_file_size,
+       operator,crew,instrument_id,instrument_name,instrument_serial,station,backsight,instrument_height,
+       target_height,prism_constant,source_crs,point_count,observation_count,notes,status,created_by,created_at,updated_at,
+       CASE WHEN quality_metadata->>'kind'='coordinate_import'
+         THEN (quality_metadata - 'sourceText' - 'points' - 'pointIds' - 'selectedIndices' - 'warnings')
+           || jsonb_build_object('summaryOnly',true,'warningCount',jsonb_array_length(COALESCE(quality_metadata->'warnings','[]'::jsonb)))
+         ELSE quality_metadata END AS quality_metadata
+     FROM observation_batches
      WHERE project_id = $1
      ORDER BY created_at DESC`,
     [projectId],

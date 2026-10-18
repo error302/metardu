@@ -37,3 +37,26 @@ it('opens the More drawer, rotates its control, and keeps secondary destinations
   expect(more).toHaveAttribute('aria-expanded', 'false')
   expect(screen.queryByRole('dialog', { name: 'More navigation options' })).not.toBeInTheDocument()
 })
+
+it('cycles the dock to the other workspace pages and wraps back to field tools',()=>{
+  render(<MobileNav />)
+  const next=screen.getByRole('button',{name:/Next navigation pages/})
+  fireEvent.click(next)
+  expect(screen.getByRole('link',{name:'Projects'})).toHaveAttribute('href','/projects')
+  expect(screen.getByRole('link',{name:'Import'})).toHaveAttribute('href','/import')
+  fireEvent.click(next);fireEvent.click(next);fireEvent.click(next)
+  expect(screen.getByRole('link',{name:'CAD editor'})).toHaveAttribute('href','/tools/cad-editor')
+})
+
+it('allows horizontal swipes without changing pages on a vertical scroll',()=>{
+  render(<MobileNav />)
+  const dock=screen.getByLabelText('Swipe navigation pages')
+  fireEvent.touchStart(dock,{touches:[{clientX:220,clientY:10}]})
+  fireEvent.touchEnd(dock,{changedTouches:[{clientX:90,clientY:20}]})
+  expect(screen.getByRole('link',{name:'Projects'})).toBeInTheDocument()
+  fireEvent.touchStart(dock,{touches:[{clientX:220,clientY:10}]})
+  fireEvent.touchEnd(dock,{changedTouches:[{clientX:190,clientY:160}]})
+  expect(screen.getByRole('link',{name:'Projects'})).toBeInTheDocument()
+  fireEvent.keyDown(dock,{key:'ArrowLeft'})
+  expect(screen.getByRole('link',{name:'CAD editor'})).toBeInTheDocument()
+})

@@ -9,6 +9,11 @@ export function detectTotalStationFormat(
   const trimmed = content.trim()
   const firstLine = trimmed.split('\n')[0]?.trim() || ''
 
+  // Generic delimited files require headers or an explicit order, not a guess
+  // based on the magnitude/sign of the first coordinate.
+  if (ext === 'csv' || ext === 'txt') return 'csv'
+  if (ext === 'gtl') return 'topcon'
+
   if (ext === 'gsi') return 'gsi'
   if (ext === 'job' || ext === 'jxl') return 'jobxml'
   if (ext === 'xml') {

@@ -1,3 +1,4 @@
+/* eslint-disable no-restricted-syntax -- Explicit synthetic CRS fixtures, never production defaults. */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import CADEditor from '@/components/cad-editor/CADEditor'
 import { exportDrawing } from './fixtures/cad-export-document'
@@ -64,7 +65,7 @@ test('near-north bearing rounding carries seconds into zero degrees instead of d
 })
 
 test('SVG export omits the active line preview and includes coordinate-derived labels and reference metadata', async () => {
-  const exported = jest.fn()
+  const exported = jest.fn((_svg:string)=>{})
   render(<CADEditor initialDocument={exportDrawing()} onExportSVG={exported} />)
   const svg = canvas()
   fireEvent.click(screen.getByRole('button', { name: 'Draw Boundary (L)' }))
@@ -103,7 +104,7 @@ test('CSV round-trips quoted point names, retains signed numbers and declares it
   render(<CADEditor initialDocument={doc} />)
   fireEvent.keyDown(screen.getByRole('button', { name: 'Export' }), { key: 'ArrowDown' })
   fireEvent.click(await screen.findByRole('menuitem', { name: 'Coordinate Schedule (.csv)' }))
-  const blob = (URL.createObjectURL as jest.Mock).mock.calls[0][0] as Blob
+  const blob = (URL.createObjectURL as jest.MockedFunction<typeof URL.createObjectURL>).mock.calls[0][0] as Blob
   const csv = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsText(blob)
   })
@@ -119,8 +120,43 @@ test('CSV neutralizes formula-like text without changing stored point identifier
   render(<CADEditor initialDocument={doc} />)
   fireEvent.keyDown(screen.getByRole('button', { name: 'Export' }), { key: 'ArrowDown' })
   fireEvent.click(await screen.findByRole('menuitem', { name: 'Coordinate Schedule (.csv)' }))
-  const blob = (URL.createObjectURL as jest.Mock).mock.calls[0][0] as Blob
+  const blob = (URL.createObjectURL as jest.MockedFunction<typeof URL.createObjectURL>).mock.calls[0][0] as Blob
   const csv = await new Promise<string>(resolve => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.readAsText(blob) })
   expect(Papa.parse<Record<string, string>>(csv, { header: true }).data[0].Beacon).toBe('\t=HYPERLINK("https://example.invalid")')
   expect(doc.beacons[0].label).toBe('=HYPERLINK("https://example.invalid")')
+})
+test('touch zoom controls are labelled and fit drawing uses the same extents operation as the command',()=>{
+  render(<CADEditor initialDocument={exportDrawing()} />)
+  fireEvent.click(screen.getByRole('button',{name:'Zoom in'}))
+  expect(screen.getByLabelText('Drawing zoom')).toHaveTextContent('110%')
+  fireEvent.click(screen.getByRole('button',{name:'Zoom out'}))
+  expect(screen.getByLabelText('Drawing zoom')).toHaveTextContent('100%')
+  fireEvent.click(screen.getByRole('button',{name:'Fit drawing'}))
+  expect(screen.getByRole('textbox',{name:'CAD command'})).toHaveAttribute('placeholder',expect.stringContaining('ZOOM EXTENTS'))
+  expect(screen.getByRole('button',{name:'Toggle object snapping'})).toHaveAttribute('aria-pressed','true')
+  fireEvent.click(screen.getByRole('button',{name:'Toggle object snapping'}))
+  expect(screen.getByRole('button',{name:'Toggle object snapping'})).toHaveAttribute('aria-pressed','false')
+})
+test('SVG export includes geometry beyond the former sheet without exporting the camera or workspace grid',async()=>{
+  const exported=jest.fn((_svg:string)=>{}),doc=exportDrawing({coordinateReferenceSystem:undefined,originEasting:undefined,originNorthing:undefined})
+  doc.beacons.push({id:'offsheet',label:'OUTSIDE',x:-1500,y:2000})
+  render(<CADEditor initialDocument={doc} onExportSVG={exported}/>)
+  fireEvent.keyDown(screen.getByRole('button',{name:'Export'}),{key:'ArrowDown'})
+  fireEvent.click(await screen.findByRole('menuitem',{name:'Vector SVG (.svg)'}))
+  const result=new DOMParser().parseFromString(exported.mock.calls[0][0] as string,'image/svg+xml')
+  const box=result.documentElement.getAttribute('viewBox');if(!box)throw new Error('Expected SVG model extents');const [x,y,w,h]=box.split(' ').map(Number)
+  expect(x).toBeLessThan(-1500);expect(y+h).toBeGreaterThan(2000);expect(x+w).toBeGreaterThanOrEqual(1122)
+  expect(result.querySelector('[fill="#ffffff"]')).not.toBeNull()
+  expect(result.querySelector('[fill="url(#cad-grid)"]')).toBeNull()
+  expect(result.documentElement.getAttribute('preserveAspectRatio')).toBe('xMidYMid meet')
+})
+test('drawing controls collapse without replacing the canvas or changing document entities',()=>{
+  const saved=jest.fn(),doc=exportDrawing()
+  render(<CADEditor initialDocument={doc} isStandalone onSave={saved}/>)
+  const drawing=screen.getByLabelText('CAD drawing canvas')
+  fireEvent.click(screen.getByRole('button',{name:'Hide drawing tools'}))
+  expect(screen.getByRole('button',{name:'Show drawing tools'})).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button',{name:'Show drawing tools'}))
+  expect(screen.getByLabelText('CAD drawing canvas')).toBe(drawing)
+  expect(saved).not.toHaveBeenCalled()
 })

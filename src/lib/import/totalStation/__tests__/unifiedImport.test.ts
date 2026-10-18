@@ -23,7 +23,7 @@ const GSI_SAMPLE = [
 
 // Minimal GSI coordinate record
 const GSI_COORD_SAMPLE = [
-  '410021+00000000 110001+00001000 81.324+01234567 82.324+09876543 83.324+01500000',
+  '410021+00000000 110001+00001000 81..00+01234567 82..00+09876543 83..00+01500000',
 ].join('\n')
 
 // SDR33 sample
@@ -280,8 +280,8 @@ describe('Unified Total Station Import', () => {
       expect(result.format).toBe('south')
     })
 
-    it('auto-detects Topcon format by CSV structure', () => {
-      const result = importTotalStation(TOPCON_SAMPLE, 'data.csv')
+    it('recognizes an explicit Topcon file instead of guessing axes for a generic CSV', () => {
+      const result = importTotalStation(TOPCON_SAMPLE, 'data.gtl')
       expect(result.format).toBe('topcon')
     })
 

@@ -1,0 +1,17 @@
+.scene { background:var(--bg-primary); }
+.scene [stroke='#0f172a'],.scene [stroke='#1e293b'],.scene [stroke='#334155'] { stroke:var(--text-primary); }
+.scene [fill='#0f172a'],.scene [fill='#1e293b'],.scene [fill='#334155'],.scene text:not([fill]) { fill:var(--text-primary); }
+.scene [fill='#ffffff'] { fill:var(--bg-secondary); }
+.scene [stroke='#ffffff'] { stroke:var(--bg-primary); }
+.scene [fill='#475569'],.scene [fill='#64748b'] { fill:var(--text-secondary); }
+.scene [stroke='#475569'],.scene [stroke='#cbd5e1'] { stroke:var(--text-secondary); }
+.scene [fill='#2563eb'],.scene [fill='#06b6d4'],.scene [fill='#0891b2'] { fill:var(--accent); }
+.scene [stroke='#2563eb'],.scene [stroke='#06b6d4'] { stroke:var(--accent); }
+.workspace {background:var(--bg-primary);color:var(--text-primary);}
+.workspace [class~='bg-gray-950'] {background-color:var(--bg-primary);}
+.workspace [class~='bg-gray-900'] {background-color:var(--bg-secondary);}
+.workspace [class~='bg-gray-800'] {background-color:var(--bg-tertiary);}
+.workspace [class~='border-gray-800'],.workspace [class~='border-gray-700'] {border-color:var(--border-color);}
+.workspace [class~='text-gray-100'],.workspace [class~='text-gray-200'],.workspace [class~='text-gray-300'] {color:var(--text-primary);}
+.workspace [class~='text-gray-400'],.workspace [class~='text-gray-500'] {color:var(--text-secondary);}
+.workspace [class~='text-cyan-400'],.workspace [class~='text-cyan-300'],.workspace [class~='text-blue-400'] {color:var(--accent);}

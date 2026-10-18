@@ -19,6 +19,7 @@
  */
 
 export interface GSIRecord {
+  coordinateRecord?: boolean
   pointId: string
   easting?: number
   northing?: number
@@ -56,7 +57,7 @@ export interface GSIParseResult {
  * Parse a GSI-8 or GSI-16 format file from a Leica total station.
  * Handles all standard Word Identifier codes.
  */
-export function parseGSI(content: string): GSIParseResult {
+export function parseGSI(content: string, options: { foot?: 'international' | 'USSurveyFoot' } = {}): GSIParseResult {
   const warnings: string[] = []
   const records: GSIRecord[] = []
   const lines = content.trim().split('\n').filter((l: string) => l.trim())
@@ -109,12 +110,25 @@ export function parseGSI(content: string): GSIParseResult {
 
       // Parse the numeric data value
       const rawNumValue = parseFloat(dataStr)
-      if (isNaN(rawNumValue) && wi !== '41' && wi !== '71' && wi !== '72') {
+      if (isNaN(rawNumValue) && !/^(?:11|4[1-9]|7[1-9])$/.test(wi)) {
         pos += wordLength
         continue
       }
 
       const numValue = signMultiplier * rawNumValue
+      const linearValue = () => {
+        if (!/^(?:\d{8}|\d{16})$/.test(dataStr)) { warnings.push(`WI ${wi}: invalid coordinate payload; no numeric prefix was used.`); return undefined }
+        const unit = word[5]
+        const factors: Record<string,number> = { '0':0.001, '6':0.0001, '8':0.00001 }
+        if (unit==='1' || unit==='7') {
+          if (options.foot) return numValue*(options.foot==='international'?0.3048:1200/3937)/(unit==='1'?1000:10000)
+          warnings.push(`WI ${wi}: confirm the GSI foot unit definition before importing coordinates.`)
+          return undefined
+        }
+        if (factors[unit]!==undefined && Number.isFinite(numValue)) return numValue*factors[unit]
+        warnings.push(`WI ${wi}: unsupported linear unit flag ${unit}; no coordinate was inferred.`)
+        return undefined
+      }
 
       switch (wi) {
         // ─── Point Identification ──────────────────────────────────────
@@ -205,22 +219,22 @@ export function parseGSI(content: string): GSIParseResult {
 
         // ─── Coordinates ───────────────────────────────────────────────
         case '81': // Easting (E) in mm
-          record.easting = numValue / 1000
+          record.coordinateRecord = true; record.easting = linearValue()
           break
         case '82': // Northing (N) in mm
-          record.northing = numValue / 1000
+          record.coordinateRecord = true; record.northing = linearValue()
           break
         case '83': // Elevation (H) in mm
-          record.elevation = numValue / 1000
+          record.coordinateRecord = true; record.elevation = linearValue()
           break
         case '84': // Easting (E) in 0.1mm
-          record.easting = numValue / 10000
+          record.coordinateRecord = true; record.easting = linearValue()
           break
         case '85': // Northing (N) in 0.1mm
-          record.northing = numValue / 10000
+          record.coordinateRecord = true; record.northing = linearValue()
           break
         case '86': // Elevation (H) in 0.1mm
-          record.elevation = numValue / 10000
+          record.coordinateRecord = true; record.elevation = linearValue()
           break
         case '87': // Reflector height (m) — stored in mm
           record.reflectorHeight = numValue / 1000

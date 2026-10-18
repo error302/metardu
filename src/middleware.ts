@@ -4,6 +4,29 @@ import { rateLimit, RATE_LIMITS, getClientIdentifier } from '@/lib/security/rate
 import type { RateLimitCategory } from '@/lib/security/rateLimit'
 import { generateNonce, getCspHeaders } from '@/lib/security/csp'
 import { corsHeaders, mcpCorsHeaders } from '@/lib/cors'
+import { safeRedirectPath } from '@/lib/auth/safeRedirect'
+
+// Next's middleware adapter requires absolute URLs. Use the configured public
+// origin in production, or the explicitly checked loopback Host in development;
+// never reflect an arbitrary Host or forwarded-host header into a redirect.
+function redirectWithinSite(request: NextRequest, path: string) {
+  let origin = new URL(request.url)
+  if (process.env.NODE_ENV === 'production' && process.env.NEXT_PUBLIC_APP_URL) {
+    origin = new URL(process.env.NEXT_PUBLIC_APP_URL)
+  } else if (process.env.NODE_ENV !== 'production') {
+    const host = request.headers.get('host')
+    const loopback = new Set(['localhost', '127.0.0.1', '[::1]'])
+    if (host && loopback.has(origin.hostname)) {
+      try {
+        const incoming = new URL(`${origin.protocol}//${host}`)
+        if (loopback.has(incoming.hostname) && incoming.host === host) origin = incoming
+      } catch { /* Keep the server origin for malformed headers. */ }
+    }
+  }
+  return NextResponse.redirect(new URL(path, origin), {
+    status: 307, headers: { 'Cache-Control': 'private, no-store' },
+  })
+}
 
 export async function middleware(request: NextRequest) {
   // AUDIT FIX (M9, 2026-07-02): Handle CORS preflight (OPTIONS) globally
@@ -74,11 +97,11 @@ export async function middleware(request: NextRequest) {
 
   // Redirect unauthenticated users from protected pages (skip public pages)
   if (isProtected && !isAuthenticated && !isPublicPage) {
-    const loginUrl = new URL('/login', request.url)
+    const loginQuery = new URLSearchParams()
     // Preserve checkout plans and provider selection across sign-in so an
     // unauthenticated customer returns to the exact flow they started.
-    loginUrl.searchParams.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`)
-    return NextResponse.redirect(loginUrl)
+    loginQuery.set('next', `${request.nextUrl.pathname}${request.nextUrl.search}`)
+    return redirectWithinSite(request, `/login?${loginQuery}`)
   }
 
   // Block non-admin users from admin-only routes
@@ -88,14 +111,16 @@ export async function middleware(request: NextRequest) {
     const adminRoles = ['super_admin', 'admin', 'org_admin']
 
     if (!userRole || !adminRoles.includes(userRole)) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      return redirectWithinSite(request, '/dashboard')
     }
   }
 
   // Redirect authenticated users away from login/register
   const isPasswordRecovery = request.nextUrl.pathname === '/login' && request.nextUrl.searchParams.get('recovery') === '1'
   if (isAuthRoute && isAuthenticated && !isPasswordRecovery) {
-    return NextResponse.redirect(new URL('/dashboard', request.url))
+    const destination = safeRedirectPath(request.nextUrl.searchParams.get('next')
+      || request.nextUrl.searchParams.get('redirectTo') || request.nextUrl.searchParams.get('callbackUrl'))
+    return redirectWithinSite(request, /^\/(login|register)(?:[/?#]|$)/.test(destination) ? '/dashboard' : destination)
   }
 
   // ─── CSRF Protection for state-changing API routes ───

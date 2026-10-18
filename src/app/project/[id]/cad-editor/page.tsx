@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import {z} from 'zod'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import { ArrowLeft, Loader2, Check, AlertCircle } from 'lucide-react'
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 import { buildProjectCadDocument, resolveProjectCadCrs, type ProjectCadStation } from '@/lib/cad/projectCadDocument'
 import { parseCadDocument } from '@/lib/cad/cadDocumentValidation'
+import workspaceStyles from '@/components/cad-editor/CadWorkspace.module.css'
 
 // Lazy-load the CAD editor
 const CADEditor = dynamic(() => import('@/components/cad-editor/CADEditor'), {
@@ -44,6 +46,9 @@ interface ProjectRow {
   } | null
 }
 
+const pointRowSchema=z.object({point_name:z.string().optional(),easting:z.union([z.number().finite(),z.string()]).nullable().optional(),northing:z.union([z.number().finite(),z.string()]).nullable().optional(),horizontal_crs:z.string().nullable().optional()})
+const pointsEnvelopeSchema=z.object({data:z.array(pointRowSchema).optional(),points:z.array(pointRowSchema).optional(),meta:z.object({project_crs:z.object({horizontal_crs:z.string().optional()}).nullable().optional()}).optional()})
+
 export default function CADEditorPage() {
   const params = useParams()
   const router = useRouter()
@@ -55,20 +60,30 @@ export default function CADEditorPage() {
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
   const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [saveNotice, setSaveNotice] = useState('')
+  const currentProject = useRef(projectId)
+  currentProject.current = projectId
+  const savingProjects = useRef(new Set<string>())
 
   // Load project data and build/restore CAD document
   useEffect(() => {
+    const controller = new AbortController()
     async function loadPlanData() {
       try {
         setLoading(true)
         setLoadError(null)
+        setDoc(null)
+        setProject(null)
+        setSaveStatus('idle')
+        setSaveNotice('')
 
         // 1. Fetch project record
-        const res = await fetch(`/api/project/${projectId}`)
+        const res = await fetch(`/api/project/${projectId}`, { signal: controller.signal, cache: 'no-store' })
         if (!res.ok) throw new Error(`Project load failed (${res.status}).`)
-        const json = await res.json()
-        const proj = (json.data || json.project || json) as ProjectRow
-        if (!proj?.id) throw new Error('The project response did not contain a project record.')
+        const json = z.object({data:z.unknown().optional(),project:z.unknown().optional()}).passthrough().parse(await res.json() as unknown)
+        const proj = z.object({id:z.string().uuid(),name:z.string()}).passthrough().parse(json.data??json.project??json) as unknown as ProjectRow
+        if (controller.signal.aborted) return
+        if (proj.id !== projectId) throw new Error('The response belongs to a different project. No drawing was loaded.')
 
         setProject(proj)
 
@@ -76,53 +91,55 @@ export default function CADEditorPage() {
         let projectPointRows: ProjectCadStation[] = []
         let pointsWarning: string | undefined
         try {
-          const ptsRes = await fetch(`/api/project/${projectId}/points`)
+          const ptsRes = await fetch(`/api/project/${projectId}/points`, { signal: controller.signal, cache: 'no-store' })
           if (!ptsRes.ok) throw new Error(`Survey point metadata could not be loaded (${ptsRes.status}).`)
-          const ptsJson = await ptsRes.json()
+          const ptsJson = pointsEnvelopeSchema.parse(await ptsRes.json() as unknown)
           const rawCrs = ptsJson.meta?.project_crs?.horizontal_crs
           if (typeof rawCrs === 'string' && rawCrs.trim()) {
             registeredProjectCrs = resolveProjectCadCrs(rawCrs)
           }
           const pointsList = ptsJson.data || ptsJson.points || []
           if (Array.isArray(pointsList)) {
-            projectPointRows = pointsList.map((point: { point_name?: string; easting?: number | string | null; northing?: number | string | null }) => ({
-              pointName: point.point_name,
-              easting: point.easting,
-              northing: point.northing,
-            }))
+            projectPointRows = pointsList.map(point => {
+              if (!registeredProjectCrs || point.horizontal_crs !== registeredProjectCrs) {
+                throw new Error(`Point ${point.point_name || '(unnamed)'} has a missing or different source grid. Review its CRS through the import workflow before drafting.`)
+              }
+              return { pointName: point.point_name, easting: point.easting, northing: point.northing }
+            })
           }
         } catch (error) {
           pointsWarning = error instanceof Error ? error.message : 'Project CRS and survey points could not be refreshed.'
+        }
+        if (controller.signal.aborted) return
+        if (pointsWarning) throw new Error(pointsWarning)
+
+        const restoreDrawing = (saved: CADDocument, recovered = false) => {
+          if (saved.coordinateReferenceSystem) {
+            const documentCrs = resolveProjectCadCrs(saved.coordinateReferenceSystem)
+            if (!registeredProjectCrs) throw new Error('The current project CRS could not be confirmed. The saved drawing is preserved; reload the project reference before drafting.')
+            if (documentCrs !== registeredProjectCrs) throw new Error('The saved drawing has a different CRS from the current project. Its coordinates were preserved. Review the reference; no automatic relabeling or transformation was performed.')
+          }
+          setDoc(saved)
+          if (recovered) setLoadError('Recovered a local CAD backup. Review it against the current project before saving or exporting.')
+          else if (!saved.coordinateReferenceSystem) setLoadError('The saved drawing has no declared CRS. Survey-coordinate export requires a reviewed drawing reference.')
         }
 
         // Case A: A CAD document was previously saved in boundary_data with actual beacons
         const savedDocument = parseCadDocument(proj.boundary_data?.cadDocument)
         if (savedDocument) {
-          let documentCrs = savedDocument.coordinateReferenceSystem
-          if (documentCrs) {
-            try { documentCrs = resolveProjectCadCrs(documentCrs) } catch { documentCrs = undefined }
-          }
-          setDoc({ ...savedDocument, ...(documentCrs ? { coordinateReferenceSystem: documentCrs } : { coordinateReferenceSystem: undefined }) })
-          if (!documentCrs) setLoadError(pointsWarning || 'No registered projected metre CRS is available. Survey-coordinate DXF export is disabled until the project CRS is registered.')
-          else if (pointsWarning) setLoadError(pointsWarning)
+          restoreDrawing(savedDocument)
           return
         }
 
         // Case B: Check localStorage backup with actual beacons
-        const cached = localStorage.getItem(`cad-doc-${projectId}`)
+        let cached: string | null = null
+        try { cached = localStorage.getItem(`cad-doc-${projectId}`) } catch { /* Server data remains available if device storage is blocked. */ }
         if (cached) {
+          let parsed: CADDocument | null = null
           try {
-            const parsed = parseCadDocument(JSON.parse(cached))
-            if (parsed) {
-              let documentCrs = parsed.coordinateReferenceSystem
-              if (documentCrs) {
-                try { documentCrs = resolveProjectCadCrs(documentCrs) } catch { documentCrs = undefined }
-              }
-              setDoc({ ...parsed, ...(documentCrs ? { coordinateReferenceSystem: documentCrs } : { coordinateReferenceSystem: undefined }) })
-              setLoadError('Recovered a local CAD backup. Review it against the current project before saving or exporting.')
-              return
-            }
-          } catch {}
+            parsed = parseCadDocument(JSON.parse(cached))
+          } catch { /* A malformed cache cannot replace authoritative project data. */ }
+          if (parsed) { restoreDrawing(parsed, true); return }
         }
 
         // Case C: Check for adjusted stations from traverse or boundary_data
@@ -152,23 +169,30 @@ export default function CADEditorPage() {
         ].filter(Boolean)
         if (warnings.length) setLoadError(warnings.join(' '))
       } catch (err) {
+        if (controller.signal.aborted) return
         setDoc(null)
         setLoadError(err instanceof Error ? err.message : 'The project CAD drawing could not be loaded.')
       } finally {
-        setLoading(false)
+        if (!controller.signal.aborted) setLoading(false)
       }
     }
 
     loadPlanData()
+    return () => controller.abort()
   }, [projectId, loadAttempt])
 
   // Save CAD Document directly into project boundary_data
   const handleSave = useCallback(async (savedDoc: CADDocument) => {
+    if (savingProjects.current.has(projectId)) return
+    savingProjects.current.add(projectId)
     setSaveStatus('saving')
+    setSaveNotice('')
+    let localBackup = false
     try {
-      // 1. Backup to localStorage
       localStorage.setItem(`cad-doc-${projectId}`, JSON.stringify(savedDoc))
-
+      localBackup = true
+    } catch { /* Device quota must not prevent an authenticated server save. */ }
+    try {
       // 2. Persist only the CAD artifact. It must not rewrite adjusted survey
       // stations, which are computation evidence owned by another workflow.
       const response = await fetch(`/api/project/${projectId}/cad-document`, {
@@ -177,11 +201,22 @@ export default function CADEditorPage() {
         body: JSON.stringify({ document: savedDoc }),
       })
       if (!response.ok) throw new Error(`CAD save failed (${response.status}).`)
+      z.object({ saved: z.literal(true), updatedAt: z.string().datetime({ offset: true }) }).parse(await response.json())
 
-      setSaveStatus('saved')
-      setTimeout(() => setSaveStatus('idle'), 2500)
+      if (currentProject.current === projectId) {
+        setSaveStatus('saved')
+        setSaveNotice(localBackup ? '' : 'Saved to project; device backup unavailable. Download a drawing backup before working offline.')
+        setTimeout(() => {
+          if (currentProject.current === projectId) setSaveStatus(status => status === 'saved' ? 'idle' : status)
+        }, 2500)
+      }
     } catch {
-      setSaveStatus('error')
+      if (currentProject.current === projectId) {
+        setSaveStatus('error')
+        setSaveNotice(localBackup ? 'Server save failed; local backup retained' : 'Server save failed; device backup unavailable. Keep this drawing open and download a backup before retrying.')
+      }
+    } finally {
+      savingProjects.current.delete(projectId)
     }
   }, [projectId])
 
@@ -215,13 +250,13 @@ export default function CADEditorPage() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-gray-950">
+    <div className={`${workspaceStyles.workspace} h-full min-h-0 flex flex-col bg-[var(--bg-primary)]`}>
       {/* Top Project Navigation Bar */}
-      <div className="flex items-center justify-between px-4 py-2 bg-gray-900 border-b border-gray-800 shrink-0">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] shrink-0">
         <div className="flex items-center gap-3">
           <button
             onClick={() => router.push(`/project/${projectId}`)}
-            className="text-gray-400 hover:text-white flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+            className="min-h-11 text-gray-400 hover:text-white flex items-center gap-1.5 text-xs font-medium px-2 py-1 rounded hover:bg-gray-800 transition-colors"
           >
             <ArrowLeft className="w-3.5 h-3.5" /> Back to Project
           </button>
@@ -245,11 +280,12 @@ export default function CADEditorPage() {
           )}
           {saveStatus === 'error' && (
             <span role="status" className="text-xs text-red-400 flex items-center gap-1 font-medium bg-red-500/10 px-2 py-0.5 rounded border border-red-500/20">
-              <AlertCircle className="w-3.5 h-3.5" /> Server save failed; local backup retained
+              <AlertCircle className="w-3.5 h-3.5" /> {saveNotice}
             </span>
           )}
         </div>
       </div>
+      {saveStatus === 'saved' && saveNotice && <p role="status" className="shrink-0 bg-[var(--bg-secondary)] px-4 py-2 text-xs text-amber-300">{saveNotice}</p>}
 
       {/* CAD Canvas Editor */}
       <div className="flex-1 overflow-hidden relative">

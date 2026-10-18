@@ -16,8 +16,8 @@ import {
 /**
  * Adapt a GSI file content string into the unified import result.
  */
-export function adaptGSI(content: string): UnifiedImportResult {
-  const parsed = parseGSI(content)
+export function adaptGSI(content: string, foot?: 'international' | 'USSurveyFoot'): UnifiedImportResult {
+  const parsed = parseGSI(content, { foot })
   const warnings = [...parsed.warnings]
   const errors: string[] = []
 
@@ -58,14 +58,13 @@ export function adaptGSI(content: string): UnifiedImportResult {
 
     // Records with coordinates go into rawPoints
     if (
-      rec.easting !== undefined &&
-      rec.northing !== undefined
+      rec.coordinateRecord || rec.easting !== undefined || rec.northing !== undefined
     ) {
       rawPoints.push({
         id: rec.pointId,
         easting: rec.easting,
         northing: rec.northing,
-        elevation: rec.elevation ?? 0,
+        elevation: rec.elevation,
         code: rec.featureCode || '',
       })
     }
@@ -124,6 +123,7 @@ export function adaptGSI(content: string): UnifiedImportResult {
 
   return {
     format: 'gsi',
+    normalizedMetres: true,
     instrument: 'Leica',
     stationName: rawPoints.length > 0 ? rawPoints[0].id : '',
     stationCoords,

@@ -12,11 +12,12 @@
  * - GPS: GNSS RTK Point (GPS,PN101,LA-1.2864,LN36.8172,EL1798.20,--GCP1)
  */
 
+import { coordinateNumber } from './coordinateNumber'
 export interface CarlsonPoint {
   pointId: string
   northing: number
   easting: number
-  elevation: number
+  elevation?: number
   code?: string
   rawType: 'SP' | 'OC' | 'GPS' | 'SS'
 }
@@ -51,7 +52,7 @@ export function parseCarlsonRW5(content: string): CarlsonRw5Parsed {
       let pointId = ''
       let northing = NaN
       let easting = NaN
-      let elevation = 0
+      let elevation: number | undefined
       let code = ''
 
       for (let j = 1; j < parts.length; j++) {
@@ -59,11 +60,11 @@ export function parseCarlsonRW5(content: string): CarlsonRw5Parsed {
         if (part.startsWith('PN') || part.startsWith('OP')) {
           pointId = part.replace(/^(PN|OP)/, '')
         } else if (part.startsWith('EL ') || part.startsWith('EL') || part.startsWith('Z ') || part.startsWith('Z')) {
-          elevation = parseFloat(part.replace(/^(EL|Z)\s*/, ''))
+          elevation = coordinateNumber(part.replace(/^(EL|Z)\s*/, ''))
         } else if (part.startsWith('N ') || /^N[\d.-]/.test(part)) {
-          northing = parseFloat(part.replace(/^N\s*/, ''))
+          northing = coordinateNumber(part.replace(/^N\s*/, '')) ?? Number.NaN
         } else if (part.startsWith('E ') || /^E[\d.-]/.test(part)) {
-          easting = parseFloat(part.replace(/^E\s*/, ''))
+          easting = coordinateNumber(part.replace(/^E\s*/, '')) ?? Number.NaN
         } else if (part.startsWith('--')) {
           code = part.replace(/^--/, '')
         }
@@ -74,29 +75,15 @@ export function parseCarlsonRW5(content: string): CarlsonRw5Parsed {
           pointId,
           northing,
           easting,
-          elevation: isNaN(elevation) ? 0 : elevation,
+          elevation,
           code: code || undefined,
           rawType: tag as 'SP' | 'OC',
         })
       }
     } else if (tag === 'GPS') {
       // GPS,PN101,LA-1.2864,LN36.8172,EL1798.20,--GCP1
-      let pointId = ''
-      let elevation = 0
-      let code = ''
-
-      for (let j = 1; j < parts.length; j++) {
-        const part = parts[j]
-        if (part.startsWith('PN')) pointId = part.replace(/^PN/, '')
-        else if (part.startsWith('EL')) elevation = parseFloat(part.replace(/^EL\s*/, ''))
-        else if (part.startsWith('--')) code = part.replace(/^--/, '')
-      }
-
-      // If followed by an SP record on subsequent line, SP will capture coordinates.
-      // If standalone GPS, we note the point ID.
-      if (pointId && !records.some((r) => r.pointId === pointId)) {
-        // Will be filled if SP is present
-      }
+      const pointId=parts.find(part=>part.startsWith('PN'))?.slice(2)||'unnamed'
+      warnings.push(`GPS record ${pointId} is not an SP/OC grid coordinate. Export stored points with a declared CRS; no geographic coordinate or zero height was inferred.`)
     }
   }
 

@@ -1,9 +1,12 @@
+/* eslint-disable no-restricted-syntax -- Explicit synthetic CRS fixtures, never production defaults. */
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import StandaloneCADEditorPage from '@/app/tools/cad-editor/page'
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
+import {parseCadDocument} from '@/lib/cad/cadDocumentValidation'
+function readDraft():CADDocument { const doc=parseCadDocument(JSON.parse(localStorage.getItem('metardu-standalone-cad')||'{}') as unknown);if(!doc)throw new Error('Expected a valid synthetic CAD draft');return doc }
 
 // Exercise the actual editor; only Next's lazy-loading boundary is synchronous.
-jest.mock('next/dynamic', () => ({ __esModule: true, default: () => require('@/components/cad-editor/CADEditor').default }))
+jest.mock('next/dynamic', () => ({ __esModule: true, default: () => jest.requireActual<typeof import('@/components/cad-editor/CADEditor')>('@/components/cad-editor/CADEditor').default }))
 
 const originalFetch = global.fetch
 let storedProject: { adjustedStations: unknown[]; cadDocument?: unknown }
@@ -14,7 +17,7 @@ beforeEach(() => {
   global.fetch = jest.fn(async (url, options) => {
     if (url === '/api/projects?limit=50') return { ok: true, status: 200, json: async () => ({ data: [{ id: 'owned-project', name: 'Real survey' }] }) } as Response
     if (url === '/api/project/owned-project/cad-document' && options?.method === 'PUT') {
-      storedProject.cadDocument = JSON.parse(options.body as string).document
+      storedProject.cadDocument = (JSON.parse(options.body as string) as {document:CADDocument}).document
       return { ok: true, status: 200, json: async () => ({ saved: true }) } as Response
     }
     throw new Error(`Unexpected network write/read: ${String(url)}`)
@@ -77,7 +80,7 @@ test('standalone edits reach the local draft instead of silently disappearing on
   const page = render(<StandaloneCADEditorPage />)
   await addExplicitBeacon()
   await waitFor(() => {
-    const saved = JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}')
+    const saved = readDraft()
     expect(saved.beacons).toEqual([expect.objectContaining({ label: 'REAL1', easting: 250010, northing: 9800100 })])
   })
   page.unmount()
@@ -130,7 +133,7 @@ test('switching ORTHO while drawing updates the active line constraint immediate
   fireEvent.click(screen.getByRole('button', { name: 'Draw Boundary (L)' }))
   fireEvent.pointerDown(canvas, { clientX: 110, clientY: 100, pointerId:1, pointerType:'mouse', isPrimary:true, button:0 })
   fireEvent.pointerUp(canvas, { pointerId:1, pointerType:'mouse', isPrimary:true })
-  fireEvent.click(screen.getByRole('button', { name: 'ORTHO' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Toggle orthogonal drawing' }))
   fireEvent.pointerMove(canvas, { clientX: 180, clientY: 120, pointerId:1, pointerType:'mouse', isPrimary:true })
   const preview = canvas.querySelector('line[stroke-dasharray="4 4"]')
   expect(preview).toHaveAttribute('x2', '180')
@@ -140,9 +143,11 @@ test('switching ORTHO while drawing updates the active line constraint immediate
 test('rejects a CAD file with broken boundary references without replacing the current draft', async () => {
   const page = render(<StandaloneCADEditorPage />)
   await addExplicitBeacon()
-  const original = localStorage.getItem('metardu-standalone-cad')!
-  const invalid = { ...JSON.parse(original), titleBlock: { ...JSON.parse(original).titleBlock, projectName: 'INVALID IMPORT' }, boundaries: [{ id: 'bad', fromId: 'missing-a', toId: 'missing-b', bearing: '0', distance: '0', type: 'standard' }] }
-  const input = page.container.querySelector('input[accept=".json,.metardu-cad"]')!
+  const original = localStorage.getItem('metardu-standalone-cad')
+  const saved=readDraft()
+  const invalid = { ...saved, titleBlock: { ...saved.titleBlock, projectName: 'INVALID IMPORT' }, boundaries: [{ id: 'bad', fromId: 'missing-a', toId: 'missing-b', bearing: '0', distance: '0', type: 'standard' }] }
+  const input = page.container.querySelector('input[accept=".json,.metardu-cad"]')
+  if(!input)throw new Error('Expected the CAD file input')
   fireEvent.change(input, { target: { files: [new File([JSON.stringify(invalid)], 'invalid.metardu-cad', { type: 'application/json' })] } })
   expect(await screen.findByRole('alert')).toHaveTextContent(/invalid/i)
   expect(localStorage.getItem('metardu-standalone-cad')).toBe(original)
@@ -168,7 +173,7 @@ test('Pan View starting over a control point moves the view without moving surve
   fireEvent.pointerMove(canvas,{clientX:140,clientY:120,pointerId:1,pointerType:'mouse',isPrimary:true})
   fireEvent.pointerUp(canvas,{clientX:140,clientY:120,pointerId:1,pointerType:'mouse',isPrimary:true})
   expect(localStorage.getItem('metardu-standalone-cad')).toBe(before)
-  expect(canvas.style.transform).toContain('translate(40px, 20px)')
+  expect(canvas).toHaveAttribute('viewBox','-40 -20 1122 794')
 })
 
 test('a touch drag commits full-precision canvas and grid coordinates only when released', async () => {
@@ -180,7 +185,7 @@ test('a touch drag commits full-precision canvas and grid coordinates only when 
   expect(localStorage.getItem('metardu-standalone-cad')).toBe(before)
   fireEvent.pointerUp(canvas,{clientX:130.031,clientY:120.027,pointerId:7,pointerType:'touch',isPrimary:true})
   await waitFor(()=>{
-    const saved=JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}')
+    const saved=readDraft()
     expect(saved.beacons[0].easting).toBeCloseTo(130.031,10)
     expect(saved.beacons[0].northing).toBeCloseTo(673.973,10)
   })
@@ -200,11 +205,11 @@ test('a cancelled drag restores the drawing and does not enter undo history',asy
 
 test('a valid CAD file imports zero grid coordinates and survives reload', async()=>{
   await gridDrawing()
-  const valid=JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}')
+  const valid=readDraft()
   valid.beacons=[{id:'zero',label:'ZERO',x:0,y:794,easting:0,northing:0}]
   fireEvent.change(screen.getByLabelText('Open CAD file'),{target:{files:[new File([JSON.stringify(valid)],'zero.metardu-cad')]}})
   await screen.findByText('ZERO', { selector: 'text' })
-  await waitFor(()=>expect(JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').beacons[0]).toMatchObject({easting:0,northing:0}))
+  await waitFor(()=>expect(readDraft().beacons[0]).toMatchObject({easting:0,northing:0}))
   cleanup()
   render(<StandaloneCADEditorPage />)
   expect(await screen.findByText('ZERO', { selector: 'text' })).toBeVisible()
@@ -229,7 +234,7 @@ test('a second touch cannot take over or finish the active drag',async()=>{
   expect(localStorage.getItem('metardu-standalone-cad')).toBe(before)
   fireEvent.pointerMove(canvas,{clientX:130,clientY:120,pointerId:7,pointerType:'touch',isPrimary:true})
   fireEvent.pointerUp(canvas,{pointerId:7,pointerType:'touch',isPrimary:true})
-  await waitFor(()=>expect(JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').beacons[0]).toMatchObject({x:130,y:120,easting:130,northing:674}))
+  await waitFor(()=>expect(readDraft().beacons[0]).toMatchObject({x:130,y:120,easting:130,northing:674}))
 })
 
 test('unexpected pointer capture loss rolls back a preview without saving it',async()=>{
@@ -250,7 +255,7 @@ test('planting a beacon keeps its drawn position consistent with its grid coordi
   fireEvent.pointerDown(canvas,{clientX:130.031,clientY:120.027,pointerId:7,pointerType:'touch',isPrimary:true,button:0})
   fireEvent.pointerUp(canvas,{pointerId:7,pointerType:'touch',isPrimary:true})
   await waitFor(()=>{
-    const point=JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').beacons[1]
+    const point=readDraft().beacons[1]
     expect(point.x).toBeCloseTo(130.031,10)
     expect(point.y).toBeCloseTo(120.027,10)
     expect(point.easting).toBeCloseTo(130.031,10)
@@ -265,7 +270,7 @@ test('editing a grid coordinate preserves its full-precision drawing position',a
   const easting=screen.getByPlaceholderText('Easting')
   fireEvent.change(easting,{target:{value:'130.031'}})
   fireEvent.blur(easting)
-  await waitFor(()=>expect(JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').beacons[0]).toMatchObject({x:130.031,easting:130.031,y:100,northing:694}))
+  await waitFor(()=>expect(readDraft().beacons[0]).toMatchObject({x:130.031,easting:130.031,y:100,northing:694}))
 })
 
 test('invalid coordinate text cannot partially overwrite an existing control point',async()=>{
@@ -285,7 +290,7 @@ test('coordinate commands accept signed scientific notation and keep zero northi
   fireEvent.change(screen.getByPlaceholderText(/Command: Type L/),{target:{value:'PT -2.0125e1 0 NEGATIVE'}})
   fireEvent.click(screen.getByRole('button',{name:'Enter'}))
   await screen.findByText('NEGATIVE', { selector: 'text' })
-  expect(JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').beacons[1]).toMatchObject({x:-20.125,y:794,easting:-20.125,northing:0})
+  expect(readDraft().beacons[1]).toMatchObject({x:-20.125,y:794,easting:-20.125,northing:0})
 })
 
 test('malformed decimal commands do not create a beacon from their numeric prefix',async()=>{
@@ -307,7 +312,7 @@ test('calibrating a raster in a referenced drawing preserves its grid frame and 
   fireEvent.change(screen.getByPlaceholderText('e.g. 50.0'),{target:{value:'50'}})
   fireEvent.click(screen.getByRole('button',{name:'Apply Scale'}))
   await waitFor(()=>{
-    const saved=JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}')
+    const saved=readDraft()
     expect(saved.metersPerPixel).toBe(1)
     expect(saved.beacons[0]).toMatchObject({x:100,y:100,easting:100,northing:694})
     expect(saved.backgroundImage).toMatchObject({x:35,y:35,width:200,height:150})
@@ -323,14 +328,14 @@ test('coordinate reference settings preserve known controls through a scale chan
   fireEvent.change(screen.getByLabelText('Metres per canvas unit'), { target: { value: '0.5' } })
   fireEvent.click(screen.getByRole('button', { name: 'Apply reference' }))
   await waitFor(() => {
-    const doc = JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}')
+    const doc = readDraft()
     expect(doc.beacons[1]).toMatchObject({ x: 300, y: 100, easting: 200, northing: 694 })
     expect(doc.metersPerPixel).toBe(0.5)
   })
   fireEvent.click(screen.getByRole('button', { name: 'Undo (Ctrl+Z)' }))
-  await waitFor(() => expect(JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').metersPerPixel).toBe(1))
+  await waitFor(() => expect(readDraft().metersPerPixel).toBe(1))
   fireEvent.click(screen.getByRole('button', { name: 'Redo (Ctrl+Y)' }))
-  await waitFor(() => expect(JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}').beacons[1].x).toBe(300))
+  await waitFor(() => expect(readDraft().beacons[1].x).toBe(300))
   expect(page.canvas).toBeInTheDocument()
   cleanup()
   render(<StandaloneCADEditorPage />)
@@ -354,7 +359,7 @@ test('a supplied standalone point can be referenced explicitly without inventing
   fireEvent.click(screen.getByText('Coordinate reference', { selector: 'summary' }))
   expect(screen.getByLabelText('Project CRS code')).toHaveValue('')
   expect(screen.getByLabelText('Anchor Easting (m)')).toHaveValue('250010')
-  const staged=JSON.parse(localStorage.getItem('metardu-standalone-cad')||'{}') as CADDocument
+  const staged=readDraft()
   expect(staged.originEasting).toBeUndefined()
   expect(staged.originNorthing).toBeUndefined()
   expect(staged.metersPerPixel).toBeUndefined()
@@ -362,7 +367,7 @@ test('a supplied standalone point can be referenced explicitly without inventing
   fireEvent.change(screen.getByLabelText('Metres per canvas unit'), { target: { value: '1' } })
   fireEvent.click(screen.getByRole('button', { name: 'Apply reference' }))
   await waitFor(() => {
-    const doc = JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}')
+    const doc = readDraft()
     expect(doc.coordinateReferenceSystem).toBe('EPSG:32636')
     expect(doc.beacons[0]).toMatchObject({ easting: 250010, northing: 9800100 })
     expect(Number.isFinite(doc.originEasting)).toBe(true)
@@ -377,7 +382,7 @@ test('dragging a saved line annotation translates both endpoints and preserves i
   fireEvent.pointerMove(canvas, { clientX: 180.031, clientY: 220.125, pointerId: 1, button: 0, isPrimary: true })
   fireEvent.pointerUp(canvas, { pointerId: 1, isPrimary: true })
   await waitFor(() => {
-    const doc = JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}') as CADDocument
+    const doc = readDraft() as CADDocument
     expect(doc.annotations[0].x).toBeCloseTo(130.031, 10)
     expect(doc.annotations[0].y).toBeCloseTo(220.125, 10)
     expect(doc.annotations[0].x2).toBeCloseTo(230.031, 10)
@@ -391,7 +396,7 @@ test('moving an unreferenced layout preserves supplied point coordinates rather 
   fireEvent.pointerMove(canvas, { clientX: 130.031, clientY: 120.125, pointerId: 1, button: 0, isPrimary: true })
   fireEvent.pointerUp(canvas, { pointerId: 1, isPrimary: true })
   await waitFor(() => {
-    const doc = JSON.parse(localStorage.getItem('metardu-standalone-cad') || '{}') as CADDocument
+    const doc = readDraft() as CADDocument
     expect(doc.beacons[0]).toMatchObject({ easting: 100, northing: 694 })
     expect(doc.beacons[0].x).toBeCloseTo(130.031, 10)
     expect(doc.coordinateReferenceSystem).toBeUndefined()

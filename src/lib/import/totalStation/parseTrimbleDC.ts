@@ -10,11 +10,12 @@
  * - Record 11: Control Point
  */
 
+import { coordinateNumber } from './coordinateNumber'
 export interface TrimbleDcPoint {
   pointId: string
   northing: number
   easting: number
-  elevation: number
+  elevation?: number
   code?: string
 }
 
@@ -46,20 +47,20 @@ export function parseTrimbleDC(content: string): TrimbleDcParsed {
     if (recordType === '10' || recordType === '11') {
       if (parts.length >= 5) {
         const pointId = parts[1]
-        const n = parseFloat(parts[2])
-        const e = parseFloat(parts[3])
-        const z = parseFloat(parts[4])
+        const n = coordinateNumber(parts[2])
+        const e = coordinateNumber(parts[3])
+        const z = coordinateNumber(parts[4])
         const code = parts[5] || ''
 
-        if (pointId && !isNaN(n) && !isNaN(e)) {
+        if (pointId && typeof n==='number' && Number.isFinite(n) && typeof e==='number' && Number.isFinite(e)) {
           records.push({
             pointId,
             northing: n,
             easting: e,
-            elevation: isNaN(z) ? 0 : z,
+            elevation: z,
             code: code || undefined,
           })
-        }
+        } else warnings.push(`Line ${i+1}: incomplete or invalid coordinate record`)
       }
     } else if (recordType === '01') {
       // Station Setup: 01,StnID,HI,...

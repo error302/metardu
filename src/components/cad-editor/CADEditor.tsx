@@ -40,6 +40,8 @@ import { measureCadCanvasSegment } from '@/lib/cadGeometry'
 import { useCadTopology } from '@/lib/cad/useCadTopology'
 import type { CadTopologyInput } from '@/lib/cad/cadTopologyProtocol'
 import { CadMeasurementsPanel } from './CadMeasurementsPanel'
+import {cadViewport,fitCadGeometry,zoomCadAt,CAD_MIN_ZOOM,CAD_MAX_ZOOM} from '@/lib/cad/cadViewport'
+import workspaceStyles from './CadWorkspace.module.css'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -265,6 +267,7 @@ export default function CADEditor({
   onAttachToProject,
 }: CADEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null)
+  const viewportRef=useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const jsonFileInputRef = useRef<HTMLInputElement>(null)
   const cadReaderRef = useRef<FileReader | null>(null)
@@ -297,11 +300,22 @@ export default function CADEditor({
   const [orthoSnap, setOrthoSnap] = useState(false)
   const [snappingEnabled, setSnappingEnabled] = useState(true)
   const [propertiesOpen, setPropertiesOpen] = useState(false)
+  const [toolsCollapsed,setToolsCollapsed]=useState(false)
   const propertiesId = React.useId()
 
   // Viewport transforms
   const [zoom, setZoom] = useState(1)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [viewportSize,setViewportSize]=useState({width:initialDocument.width,height:initialDocument.height})
+  useEffect(()=>{
+    const element=viewportRef.current
+    if(!element||typeof ResizeObserver==='undefined')return
+    const update=()=>{const rect=element.getBoundingClientRect();if(rect.width>0&&rect.height>0)setViewportSize({width:rect.width,height:rect.height})}
+    update();const observer=new ResizeObserver(update);observer.observe(element)
+    return()=>observer.disconnect()
+  },[])
+  const camera=cadViewport(viewportSize,doc,zoom,pan)
+  const gridStep=10**Math.ceil(Math.log10(24/camera.scale))
 
   // Interactive line drawing state
   const [activeLineStart, setActiveLineStart] = useState<{ id?: string; x: number; y: number } | null>(null)
@@ -430,7 +444,7 @@ export default function CADEditor({
   // ─── Snapping detection ──────────────────────────────────────────────────
   const getSnapCoords = useCallback((svgX: number, svgY: number): { x: number; y: number; beacon: CADBeacon | null } => {
     if (!snappingEnabled || doc.beacons.length === 0) return { x: svgX, y: svgY, beacon: null }
-    const SNAP_RADIUS = 16 / zoom
+    const SNAP_RADIUS = 16 / camera.scale
     let nearest: CADBeacon | null = null
     let minDist = SNAP_RADIUS
 
@@ -446,7 +460,7 @@ export default function CADEditor({
       return { x: nearest.x, y: nearest.y, beacon: nearest }
     }
     return { x: svgX, y: svgY, beacon: null }
-  }, [doc.beacons, snappingEnabled, zoom])
+  }, [doc.beacons, snappingEnabled, camera.scale])
 
   // Convert client mouse coordinates to SVG diagram space
   const clientToSvgCoords = useCallback((clientX: number, clientY: number): { x: number; y: number } => {
@@ -600,41 +614,10 @@ export default function CADEditor({
 
   const zoomExtents = useCallback(() => {
     const currentDoc = docRef.current
-    if (currentDoc.beacons.length === 0) {
-      setZoom(1)
-      setPan({ x: 0, y: 0 })
-      return
-    }
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity
-    for (const b of currentDoc.beacons) {
-      if (b.x < minX) minX = b.x
-      if (b.x > maxX) maxX = b.x
-      if (b.y < minY) minY = b.y
-      if (b.y > maxY) maxY = b.y
-    }
-    const pad = 90
-    minX = Math.max(0, minX - pad)
-    maxX = Math.min(currentDoc.width, maxX + pad)
-    minY = Math.max(0, minY - pad)
-    maxY = Math.min(currentDoc.height, maxY + pad)
-
-    const w = maxX - minX || 300
-    const h = maxY - minY || 300
-
-    const scaleX = currentDoc.width / w
-    const scaleY = currentDoc.height / h
-    const fitZoom = Math.min(Math.max(0.2, Math.min(scaleX, scaleY) * 0.9), 3.0)
-
-    const centerX = (minX + maxX) / 2
-    const centerY = (minY + maxY) / 2
-
-    setZoom(fitZoom)
-    setPan({
-      x: (currentDoc.width / 2 - centerX) * fitZoom,
-      y: (currentDoc.height / 2 - centerY) * fitZoom,
-    })
+    const camera=fitCadGeometry(viewportSize,currentDoc,[...currentDoc.beacons,...currentDoc.annotations.flatMap(annotation=>annotation.type==='line'&&annotation.x2!==undefined&&annotation.y2!==undefined?[annotation,{x:annotation.x2,y:annotation.y2}]:[annotation])])
+    setZoom(camera.zoom);setPan(camera.pan)
     setCmdLog('Command: ZOOM EXTENTS > View focused on survey boundaries')
-  }, [])
+  }, [viewportSize])
 
   // ─── Mouse Wheel Zoom with Focal Point Pinning ───────────────────────────
 
@@ -645,15 +628,9 @@ export default function CADEditor({
     // currentTarget after the handler returns, so reading it inside a state
     // updater can throw when the updater runs later.
     const container = e.currentTarget.getBoundingClientRect()
-    const mouseX = e.clientX - container.left - container.width / 2
-    const mouseY = e.clientY - container.top - container.height / 2
-    const nextZoom = Math.min(Math.max(0.15, zoom * zoomFactor), 8)
-    setZoom(nextZoom)
-    setPan(prevPan => ({
-      x: prevPan.x - (mouseX - prevPan.x) * (nextZoom / zoom - 1),
-      y: prevPan.y - (mouseY - prevPan.y) * (nextZoom / zoom - 1),
-    }))
-  }, [zoom])
+    const next=zoomCadAt(zoom,pan,zoom*zoomFactor,{x:e.clientX-container.left,y:e.clientY-container.top},viewportSize)
+    setZoom(next.zoom);setPan(next.pan)
+  }, [zoom,pan,viewportSize])
 
   // ─── Command Line (AutoCAD CLI) ──────────────────────────────────────────
 
@@ -1224,7 +1201,7 @@ export default function CADEditor({
 
   // ─── Render ──────────────────────────────────────────────────────────────
   return (
-    <div className="flex flex-col h-full min-h-0 bg-gray-950 text-gray-200 select-none overflow-hidden">
+    <div className={`${workspaceStyles.workspace} flex flex-col h-full min-h-0 bg-[var(--bg-primary)] text-[var(--text-primary)] select-none overflow-hidden`}>
       {/* Hidden File Inputs */}
       <input
         ref={fileInputRef}
@@ -1250,7 +1227,8 @@ export default function CADEditor({
       />
 
       {/* ── Top Header Toolbar ── */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-900 border-b border-gray-800 shrink-0 gap-2 flex-wrap">
+      {toolsCollapsed&&<div className="flex min-h-11 shrink-0 items-center justify-between border-b border-[var(--border-color)] px-3"><span className="text-xs text-[var(--text-secondary)]">Drawing controls hidden</span><button className="min-h-11 text-xs text-[var(--accent)]" aria-expanded="false" aria-controls="cad-editor-tools" onClick={()=>setToolsCollapsed(false)}>Show drawing tools</button></div>}
+      <div id="cad-editor-tools" className={`${toolsCollapsed?'hidden':'flex'} items-center justify-between px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] shrink-0 gap-2 flex-wrap`}>
         {/* Left: Mode Badge & Title */}
         <div className="flex items-center gap-2">
           {isStandalone ? (
@@ -1269,7 +1247,7 @@ export default function CADEditor({
         </div>
 
         {/* Center: Main Tool Palette */}
-        <div aria-label="CAD tools" className="grid grid-cols-3 gap-1 bg-gray-950/70 p-1 rounded-xl border border-gray-800">
+        <div role="group" aria-label="CAD tools" className="order-last flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] p-1 lg:order-none lg:w-auto [&>button]:shrink-0">
           <ToolButton active={tool === 'select'} onClick={() => { setTool('select'); setActiveLineStart(null) }} icon={MousePointer2} label="Select (Esc)" />
           <ToolButton active={tool === 'pan'} onClick={() => setTool('pan')} icon={Move} label="Pan View" />
           <ToolButton active={tool === 'line'} onClick={() => { setTool('line'); setActiveLineStart(null) }} icon={PenTool} label="Draw Boundary (L)" />
@@ -1281,7 +1259,8 @@ export default function CADEditor({
           {/* Ortho (90° Snap) Toggle */}
           <button
             onClick={() => setOrthoSnap(v => !v)}
-            className={`px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
+            aria-label="Toggle orthogonal drawing" aria-pressed={orthoSnap}
+            className={`min-h-11 min-w-11 px-2 py-1 rounded text-xs flex items-center gap-1 transition-colors ${
               orthoSnap
                 ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 font-bold'
                 : 'text-gray-400 hover:bg-gray-800'
@@ -1293,7 +1272,8 @@ export default function CADEditor({
           {/* Raster Image Attachment */}
           <button
             onClick={() => fileInputRef.current?.click()}
-            className={`p-1.5 rounded text-xs flex items-center gap-1 transition-colors ${
+            aria-label="Attach map image"
+            className={`min-h-11 min-w-11 p-1.5 rounded text-xs flex items-center justify-center gap-1 transition-colors ${
               doc.backgroundImage ? 'text-cyan-400 hover:bg-cyan-500/10' : 'text-gray-400 hover:bg-gray-800'
             }`}
             title="Attach Map Picture (IMG)"
@@ -1314,10 +1294,10 @@ export default function CADEditor({
           <div className="w-px h-5 bg-gray-800 mx-1 hidden sm:block" />
 
           <div className="flex items-center bg-gray-950 rounded border border-gray-800 px-1">
-            <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-1 hover:text-white text-gray-400"><Minus className="w-3 h-3" /></button>
-            <span className="text-[10px] font-mono px-1.5">{Math.round(zoom * 100)}%</span>
-            <button onClick={() => setZoom(z => Math.min(4, z + 0.1))} className="p-1 hover:text-white text-gray-400"><Plus className="w-3 h-3" /></button>
-            <button onClick={() => { setZoom(1); setPan({ x: 0, y: 0 }) }} className="p-1 hover:text-white text-gray-400" title="Zoom Extents (ZE)"><Maximize2 className="w-3 h-3" /></button>
+            <button aria-label="Zoom out" onClick={() => setZoom(z => Math.max(CAD_MIN_ZOOM, z - 0.1))} className="min-h-11 min-w-11 p-1 hover:text-white text-gray-400"><Minus className="w-4 h-4" /></button>
+            <span aria-label="Drawing zoom" className="text-[10px] font-mono px-1.5 tabular-nums">{Math.round(zoom * 100)}%</span>
+            <button aria-label="Zoom in" onClick={() => setZoom(z => Math.min(CAD_MAX_ZOOM, z + 0.1))} className="min-h-11 min-w-11 p-1 hover:text-white text-gray-400"><Plus className="w-4 h-4" /></button>
+            <button aria-label="Fit drawing" onClick={zoomExtents} className="min-h-11 min-w-11 p-1 hover:text-white text-gray-400" title="Zoom Extents (ZE)"><Maximize2 className="w-4 h-4" /></button>
           </div>
 
           {/* Save / Export buttons */}
@@ -1325,7 +1305,7 @@ export default function CADEditor({
             <Button
               size="sm"
               onClick={() => onSave(doc)}
-              className="bg-blue-600 hover:bg-blue-500 text-white text-xs h-7 px-2.5 flex items-center gap-1"
+              className="min-h-11 bg-[var(--accent)] hover:opacity-90 text-[var(--bg-primary)] text-xs px-3 flex items-center gap-1"
             >
               <Check className="w-3.5 h-3.5" />
               Save to Project
@@ -1337,7 +1317,7 @@ export default function CADEditor({
               size="sm"
               variant="outline"
               onClick={onAttachToProject}
-              className="text-xs h-7 px-2.5 border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10"
+              className="min-h-11 text-xs px-3 border-[var(--accent)] text-[var(--accent)] hover:bg-[var(--bg-tertiary)]"
             >
               <FolderOpen className="w-3 h-3 mr-1" />
               Save to Project
@@ -1345,7 +1325,7 @@ export default function CADEditor({
           )}
 
           <DropdownMenu>
-            <DropdownMenuTrigger asChild><button type="button" className={buttonVariants({ size: 'sm', variant: 'outline', className: 'text-xs h-auto lg:h-7 min-h-11 lg:min-h-7 px-2 border-gray-700' })}>
+            <DropdownMenuTrigger asChild><button type="button" className={buttonVariants({ size: 'sm', variant: 'outline', className: 'text-xs h-auto min-h-11 px-3 border-gray-700' })}>
               <Download className="w-3.5 h-3.5 mr-1" />
               Export
             </button></DropdownMenuTrigger>
@@ -1370,10 +1350,16 @@ export default function CADEditor({
           </DropdownMenu>
           <button type="button" aria-controls={propertiesId} aria-expanded={propertiesOpen}
             onClick={() => setPropertiesOpen(open => !open)}
-            className="min-h-11 rounded-lg border border-gray-700 px-3 text-xs text-gray-200 lg:hidden">
+            className="min-h-11 rounded-lg border border-gray-700 px-3 text-xs text-gray-200">
             Properties
           </button>
+          <button type="button" aria-expanded="true" aria-controls="cad-editor-tools" onClick={()=>setToolsCollapsed(true)} className="min-h-11 rounded-lg px-3 text-xs text-[var(--text-secondary)]">Hide drawing tools</button>
         </div>
+      </div>
+
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-gray-800 bg-gray-950 px-3 py-2 text-[11px] leading-5">
+        <span className="text-gray-300"><span className="font-medium text-[var(--accent)]">{({select:'Select & edit',pan:'Pan drawing',line:'Connect boundaries',beacon:'Place beacon','annotate-text':'Add annotation',measure:'Measure distance',calibrate:'Calibrate image'})[tool]}</span> · {doc.beacons.length} points / {doc.boundaries.length} edges</span>
+        <span className={hasCadReferenceFrame(doc)?'text-gray-400':'text-amber-300'}>{hasCadReferenceFrame(doc)?`${doc.coordinateReferenceSystem} · grid metres`:'Drawing reference not set'} · Draft, requires survey QA</span>
       </div>
 
       {fileError && <p role="alert" className="shrink-0 bg-amber-950 px-3 py-2 text-xs text-amber-200">{fileError}</p>}
@@ -1385,7 +1371,8 @@ export default function CADEditor({
       <div className="flex flex-1 min-h-0 min-w-0 overflow-hidden relative">
         {/* SVG Drawing Canvas */}
         <div
-          className="flex-1 min-w-0 overflow-hidden bg-[#0c0f17] relative flex items-center justify-center"
+          ref={viewportRef}
+          className="flex-1 min-w-0 overflow-hidden bg-[var(--bg-primary)] relative flex items-center justify-center"
           onWheel={handleWheel}
         >
           <svg
@@ -1393,13 +1380,13 @@ export default function CADEditor({
             aria-label="CAD drawing canvas"
             width="100%"
             height="100%"
-            viewBox={`0 0 ${doc.width} ${doc.height}`}
+            viewBox={`${camera.x} ${camera.y} ${camera.width} ${camera.height}`}
+            preserveAspectRatio="none"
             style={{
-              transform: `scale(${zoom}) translate(${pan.x / zoom}px, ${pan.y / zoom}px)`,
               touchAction: 'none',
               cursor: (tool === 'pan' || isSpacePressed) ? 'grab' : tool === 'line' || tool === 'beacon' || tool === 'measure' || tool === 'calibrate' ? 'crosshair' : 'default',
             }}
-            className="w-full h-full"
+            className={`${workspaceStyles.scene} w-full h-full`}
             onPointerDownCapture={beginPointerGesture}
             onPointerMove={handleCanvasPointerMove}
             onPointerDown={handleCanvasPointerDown}
@@ -1407,16 +1394,13 @@ export default function CADEditor({
             onPointerCancel={handlePointerCancel}
             onLostPointerCapture={handlePointerCancel}
           >
-            {/* Sheet White Background */}
-            <rect width={doc.width} height={doc.height} fill="#ffffff" rx={2} />
-
-            {/* Grid Pattern (Optional reference) */}
-            <defs>
-              <pattern data-cad-editor-only="grid" id="cad-grid" width="40" height="40" patternUnits="userSpaceOnUse">
-                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#f1f5f9" strokeWidth="1" />
+            {/* The grid follows the view, including negative model coordinates. */}
+            <defs data-cad-editor-only="grid">
+              <pattern id="cad-grid" width={gridStep} height={gridStep} patternUnits="userSpaceOnUse">
+                <path d={`M ${gridStep} 0 L 0 0 0 ${gridStep}`} fill="none" stroke="var(--border-color)" strokeWidth={1/camera.scale} />
               </pattern>
             </defs>
-            <rect data-cad-editor-only="grid" width={doc.width} height={doc.height} fill="url(#cad-grid)" />
+            <rect data-cad-editor-only="grid" x={camera.x} y={camera.y} width={camera.width} height={camera.height} fill="url(#cad-grid)" pointerEvents="none" />
 
             {/* ── Background Map Image Layer ── */}
             {doc.backgroundImage && doc.backgroundImage.visible && (() => {
@@ -1792,6 +1776,8 @@ export default function CADEditor({
             </g>
           </svg>
 
+          <p className="pointer-events-none absolute bottom-2 left-3 rounded bg-[var(--bg-primary)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)]">Continuous canvas · Pan tool / Space + drag · Zoom + / −</p>
+
           {/* Measure Result Banner */}
           {measureResult && (
             <div className="absolute top-4 left-4 bg-gray-900/90 border border-cyan-500/40 backdrop-blur px-3 py-2 rounded-lg text-xs font-mono flex items-center gap-3 text-cyan-300">
@@ -1804,8 +1790,8 @@ export default function CADEditor({
         </div>
 
         {/* ── Right Properties & Controls Sidebar ── */}
-        <div id={propertiesId} className={`${propertiesOpen ? 'block' : 'hidden'} absolute inset-y-0 right-0 z-20 w-72 max-w-full bg-gray-900 border-l border-gray-800 p-3 overflow-y-auto text-xs space-y-4 lg:static lg:block lg:shrink-0`}>
-          <button type="button" onClick={() => setPropertiesOpen(false)} className="flex min-h-11 w-full items-center justify-between rounded-lg border border-gray-700 px-3 text-gray-200 lg:hidden">
+        <div id={propertiesId} className={`${propertiesOpen ? 'block' : 'hidden'} absolute inset-y-0 right-0 z-20 w-72 max-w-full bg-gray-900 border-l border-gray-800 p-3 overflow-y-auto text-xs space-y-4 lg:static lg:shrink-0`}>
+          <button type="button" onClick={() => setPropertiesOpen(false)} className="flex min-h-11 w-full items-center justify-between rounded-lg border border-gray-700 px-3 text-gray-200">
             Close properties <X className="h-4 w-4" aria-hidden="true" />
           </button>
           <CadMeasurementsPanel result={topology.result} loading={topology.loading} error={topology.error}
@@ -2080,7 +2066,7 @@ export default function CADEditor({
 
       {/* ── Bottom AutoCAD CLI Bar ── */}
       <div className="bg-gray-900 border-t border-gray-800 px-3 py-1.5 shrink-0 flex items-center gap-2">
-        <form onSubmit={handleCommandSubmit} className="flex-1 flex items-center gap-2">
+        <form onSubmit={handleCommandSubmit} className="flex-1 min-w-0 flex items-center gap-2">
           <span className="font-mono text-cyan-400 font-bold text-xs uppercase shrink-0">Command:</span>
           <input
             type="text"
@@ -2088,22 +2074,23 @@ export default function CADEditor({
             aria-label="CAD command"
             onChange={e => setCmdInput(e.target.value)}
             placeholder={cmdLog}
-            className="flex-1 bg-gray-950 border border-gray-800 rounded px-2.5 py-1 text-xs font-mono text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-cyan-500"
+            className="min-h-11 min-w-0 flex-1 bg-gray-950 border border-gray-800 rounded px-2.5 py-1 text-base sm:text-xs font-mono text-gray-200 placeholder:text-gray-500 focus:outline-none focus:border-cyan-500"
           />
           <button
             type="submit"
-            className="px-2.5 py-1 bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-xs rounded"
+            className="min-h-11 px-3 py-1 bg-[var(--accent)] hover:opacity-90 text-[var(--bg-primary)] font-medium text-xs rounded"
           >
             Enter
           </button>
         </form>
 
-        <div className="text-[10px] font-mono text-gray-400 hidden lg:flex items-center gap-3">
-          <span>X: {mousePos.x.toFixed(1)}</span>
-          <span>Y: {mousePos.y.toFixed(1)}</span>
+        <div className="text-[10px] font-mono text-gray-400 flex items-center gap-3">
+          <span className="hidden lg:inline">X: {mousePos.x.toFixed(1)}</span>
+          <span className="hidden lg:inline">Y: {mousePos.y.toFixed(1)}</span>
           <button
+            aria-label="Toggle object snapping" aria-pressed={snappingEnabled}
             onClick={() => setSnappingEnabled(v => !v)}
-            className={`px-1.5 py-0.5 rounded border text-[10px] ${snappingEnabled ? 'border-cyan-500 text-cyan-400 bg-cyan-500/10' : 'border-gray-700 text-gray-500'}`}
+            className={`min-h-11 px-2 py-0.5 rounded border text-[10px] ${snappingEnabled ? 'border-cyan-500 text-cyan-400 bg-cyan-500/10' : 'border-gray-700 text-gray-500'}`}
           >
             SNAP {snappingEnabled ? 'ON' : 'OFF'}
           </button>
@@ -2264,7 +2251,7 @@ function ToolButton({
       title={label}
       aria-label={label}
       aria-pressed={active}
-      className={`min-h-11 min-w-11 lg:min-h-8 lg:min-w-8 p-1.5 rounded-lg text-xs flex items-center justify-center transition-all ${
+      className={`min-h-11 min-w-11 p-1.5 rounded-lg text-xs flex items-center justify-center transition-colors ${
         active
           ? 'bg-cyan-500/20 border border-cyan-500/40 text-cyan-400 shadow-[0_0_10px_rgba(6,182,212,0.2)]'
           : 'text-gray-400 hover:bg-gray-800 hover:text-gray-200 border border-transparent'
