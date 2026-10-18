@@ -169,6 +169,18 @@ not a disconnected production browser or instrument. The separate mobile queue
 still needs bounded large-queue/provider-backoff acceptance. Existing SQL 114
 and its applied synthetic checksum were not modified.
 
+Pinned source `d1bb179aec2abe08b72f6d0571295999de53d674` subsequently passed all
+**24 signed-in HTTP/PostgreSQL checks** on the existing marked preview database.
+No migration was needed: its 119-entry ledger and original checked rows/hashes
+were unchanged. Exact fixtures and three fault-injection objects were removed,
+then independently checked absent. The refreshed independent report still finds
+production `80940bf7` at 118 entries with 114 unapplied. Runtime verification
+passes for the one production app and all required supporting services.
+Receipts: `.cache/field-sync/http-attempt-2.json`, `independent-post-check.json`,
+and `runtime-after-recovery.log`. The owned source preview was temporarily
+paused for memory during final checks, then restored in place on 127.0.0.1:3021;
+its public health check returned 200/healthy. Production was never paused.
+
 ## Outstanding functional acceptance
 
 Old unreceipted server rows need an explicit reconciliation workflow; no existing
