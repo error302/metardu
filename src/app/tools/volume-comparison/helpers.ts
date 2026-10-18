@@ -161,8 +161,13 @@ export function computeBalancePoint(surface1: TINSurface, surface2: TINSurface, 
     ...surface1.points.map(p => p.elevation),
     ...surface2.points.map(p => p.elevation),
   ];
-  const minZ = Math.min(...allElevs);
-  const maxZ = Math.max(...allElevs);
+  const { minZ, maxZ } = allElevs.reduce(
+    (acc, z) => ({
+      minZ: Math.min(acc.minZ, z),
+      maxZ: Math.max(acc.maxZ, z),
+    }),
+    { minZ: Infinity, maxZ: -Infinity }
+  );
   const padding = (maxZ - minZ) * 0.1;
   let lo = minZ - padding;
   let hi = maxZ + padding;

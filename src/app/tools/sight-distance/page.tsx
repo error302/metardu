@@ -68,7 +68,7 @@ export default function SightDistancePage() {
                 value={designSpeed}
                 onChange={e => setDesignSpeed(Number(e.target.value))}
                 onKeyDown={e => { if (e.key === 'Enter') compute() }}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-4 text-white"
                 min={20}
                 max={120}
               />
@@ -80,7 +80,7 @@ export default function SightDistancePage() {
                 value={gradient}
                 onChange={e => setGradient(Number(e.target.value))}
                 onKeyDown={e => { if (e.key === 'Enter') compute() }}
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+                className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-4 text-white"
                 step="0.5"
                 min="-15"
                 max="15"
@@ -93,7 +93,7 @@ export default function SightDistancePage() {
             <select id="terrain"
               value={terrain}
               onChange={e => setTerrain(e.target.value as 'flat' | 'rolling' | 'mountainous')}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-4 text-white"
             >
               <option value="flat">Flat</option>
               <option value="rolling">Rolling</option>
@@ -109,7 +109,7 @@ export default function SightDistancePage() {
               value={curveRadius}
               onChange={e => setCurveRadius(Number(e.target.value))}
               onKeyDown={e => { if (e.key === 'Enter') compute() }}
-              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-3 text-white"
+              className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-4 text-white"
               min={30}
               max={5000}
             />
@@ -118,7 +118,7 @@ export default function SightDistancePage() {
           {/* AUDIT FIX (2026-07-05): Explicit Compute button */}
           <button
             onClick={compute}
-            className="w-full py-3 bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] text-black font-semibold rounded-lg transition-colors"
+            className="w-full py-4 bg-[var(--accent)] hover:bg-[color-mix(in_srgb,var(--accent)_90%,transparent)] text-black font-semibold rounded-lg transition-colors"
           >
             Compute Sight Distance
           </button>
@@ -130,10 +130,10 @@ export default function SightDistancePage() {
                 <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
                   <div className="text-sm text-zinc-400 mb-1">Stopping Sight Distance</div>
                   <div className="text-2xl font-bold text-amber-400">{result.ssdComputed.toFixed(1)}m</div>
-                  <div className="text-xs text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     SSD = V²/254(f+g) + Vt/3.6
                   </div>
-                  <div className="text-xs text-zinc-600 mt-0.5">
+                  <div className="text-xs text-zinc-400 mt-0.5">
                     f={result.frictionFactor.toFixed(4)}, g={computed.gradient}%, t=2.5s
                   </div>
                   {Math.abs(result.ssdGradeCorrection) > 0.1 && (
@@ -146,7 +146,7 @@ export default function SightDistancePage() {
                 <div className="p-4 bg-zinc-900 rounded-lg border border-zinc-700">
                   <div className="text-sm text-zinc-400 mb-1">Min SSD (RDM 1.3)</div>
                   <div className="text-2xl font-bold text-green-400">{result.ssdMin}m</div>
-                  <div className="text-xs text-zinc-500 mt-1">
+                  <div className="text-xs text-zinc-400 mt-1">
                     Terrain: {computed.terrain}
                   </div>
                   <div className={`text-xs mt-1 ${result.isSSDCompliant ? 'text-green-400' : 'text-red-400'}`}>

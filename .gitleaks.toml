@@ -3182,4 +3182,14 @@ regexes = [
   '\\$\\{[A-Z][A-Z_0-9]+:\\?[^}]*\\}',
   '\\bDUMMY[A-Z0-9_]*\\b',
   '\\b(sk|pk|rk)_(test|dummy|example)_[A-Za-z0-9]{4,}\\b',
+  'abc123def456',
+  'clarke1880_modified',
+]
+
+[[allowlists]]
+id = "metardu-specific-false-positives-paths"
+description = "Files known to trigger false positive generic-api-key"
+paths = [
+  'scripts/test-email-templates.ts',
+  'src/lib/engine/geodeticReduction.ts'
 ]
