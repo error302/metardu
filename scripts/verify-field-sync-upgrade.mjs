@@ -23,7 +23,7 @@ const database='metardu_field_sync_upgrade_verify',marker='METARDU disposable fi
 const targetUrl=new URL(bootstrap);targetUrl.pathname='/'+database
 const runtimeRole='field_upgrade_'+randomBytes(6).toString('hex'),runtimePassword=randomBytes(24).toString('hex')
 const variants=['canonical','restrictive','unknown_permissive','disabled_rls']
-const report={revision,status:'checking',sourceBaseline:118,pending:receipt.pending,variants:[],checks:[],customerDataCopied:false,newContainer:false,cleanup:{}}
+const report={revision,status:'checking',sourceBaseline:118,syntheticDatabase:database,syntheticRuntimeRole:runtimeRole,pending:receipt.pending,variants:[],checks:[],customerDataCopied:false,newContainer:false,cleanup:{}}
 const save=()=>writeFileSync(join(directory,'upgrade-checks.json'),JSON.stringify(report,null,2)+'\n')
 const check=name=>{report.checks.push({name,passed:true});save();console.log('PASS '+name)}
 const git=args=>{const r=spawnSync('git',['-c','core.fsmonitor=false',...args],{encoding:'utf8',windowsHide:true});assert.equal(r.status,0);return r.stdout}
@@ -72,7 +72,7 @@ try{
     await target.query("INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,'unusable-synthetic-hash','SYNTHETIC field upgrade')",[owner,`${owner}@example.invalid`])
     await target.query("INSERT INTO projects(id,user_id,name,survey_type) VALUES($1,$2,'SYNTHETIC field upgrade - NOT FIELD EVIDENCE','engineering')",[project,owner])
     await target.query("INSERT INTO survey_observations(project_id,client_id,point_name,observation_type,easting,northing,elevation,notes,observed_at) VALUES($1,'historical-zero','SYNTHETIC zero','manual',0,0,0,'café historical raw','2020-01-02T03:04:05Z'),($1,'historical-null','SYNTHETIC unknown','manual',NULL,NULL,NULL,NULL,NULL)",[project])
-    await target.query("INSERT INTO field_photos(project_id,client_id,storage_path,metadata) VALUES($1,'historical-photo','synthetic-no-file/retained',NULL)",[project])
+    await target.query("INSERT INTO field_photos(project_id,client_id,storage_path,caption,metadata) VALUES($1,'historical-photo','synthetic-no-file/retained',NULL,'{\"unknown\":null,\"zero\":0}'::jsonb)",[project])
     if(variant==='restrictive')await target.query('CREATE POLICY qa_extra_field_restriction ON survey_observations AS RESTRICTIVE FOR ALL USING(true) WITH CHECK(true)')
     if(variant==='unknown_permissive')await target.query('CREATE POLICY qa_unreviewed_field_access ON survey_observations FOR ALL USING(true) WITH CHECK(true)')
     if(variant==='disabled_rls')await target.query('ALTER TABLE survey_observations DISABLE ROW LEVEL SECURITY')
@@ -98,9 +98,10 @@ try{
       assert.deepEqual(after.filter(row=>previous.has(row.version)),before)
       const next=assertFieldObservationContract(await readFieldObservationContract(target,runtimeRole))
       assert.equal(next.restrictivePolicyHash,prior.restrictivePolicyHash)
-      const native=spawnSync(process.execPath,['node_modules/jest/bin/jest.js','--runInBand','--runTestsByPath','tests/field-sync.rollback.native.test.ts'],{cwd:process.cwd(),env:{...cleanEnv,NODE_ENV:'test',DATABASE_URL:targetUrl.toString(),TEST_ADMIN_DATABASE_URL:targetUrl.toString(),AUTH_SECRET:'synthetic-field-upgrade-only',METARDU_FIELD_SYNC_ROLLBACK:'normal-upgrade',QA_FIELD_RUNTIME:runtimeRole,QA_FIELD_VARIANT:variant},encoding:'utf8',windowsHide:true,timeout:120000,maxBuffer:4*1024*1024})
+      const native=spawnSync(process.execPath,['node_modules/jest/bin/jest.js','--runInBand','--runTestsByPath','tests/field-sync.rollback.native.test.ts'],{cwd:process.cwd(),env:{...cleanEnv,NODE_ENV:'test',DATABASE_URL:targetUrl.toString(),TEST_ADMIN_DATABASE_URL:targetUrl.toString(),AUTH_SECRET:'synthetic-field-upgrade-only',METARDU_FIELD_SYNC_ROLLBACK:'normal-upgrade',QA_FIELD_RUNTIME:runtimeRole,QA_FIELD_VARIANT:variant,QA_FIELD_REVISION:revision},encoding:'utf8',windowsHide:true,timeout:120000,maxBuffer:4*1024*1024})
       writeFileSync(join(directory,`field-${variant}-native.log`),(native.stdout??'')+(native.stderr??''));assert.equal(native.status,0,`Native ${variant} verification failed; inspect its log.`)
-      const nativeReport=JSON.parse(readFileSync(`.cache/field-sync/upgrade-native-${variant}.json`,'utf8'));assert.equal(nativeReport.status,'passed');assert.equal(nativeReport.cleanup,true);assert.ok(nativeReport.checks.length>=10)
+      const nativeReport=JSON.parse(readFileSync(`.cache/field-sync/upgrade-native-${revision}-${variant}.json`,'utf8'));assert.equal(nativeReport.revision,revision);assert.equal(nativeReport.status,'passed');assert.equal(nativeReport.cleanup,true);assert.ok(nativeReport.checks.length>=10)
+      writeFileSync(join(directory,`field-${variant}-native.json`),JSON.stringify(nativeReport,null,2)+'\n')
       report.restrictivePoliciesPreserved=true;report.nativeServiceVerified=true;report.rawSchemaContractVerified=true;report.targetLedgerCount=after.length
       check(`${variant}: normal 118-to-119 upgrade preserves all historical hashes and restrictive policies`)
       check(`${variant}: real restricted-role raw delivery, replay, personal/firm roles, revocation and immutability pass`)

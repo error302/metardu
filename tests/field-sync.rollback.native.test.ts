@@ -14,12 +14,13 @@ run('native raw capture, role enforcement and rollback preserve existing field e
   const address=new URL(process.env.TEST_ADMIN_DATABASE_URL??'')
   assert.equal(address.hostname,'127.0.0.1');assert.equal(address.port,'55433');assert.equal(address.pathname,fresh?'/metardu_field_sync_upgrade_verify':'/metardu_runtime_verify')
   const runtime=fresh?process.env.QA_FIELD_RUNTIME??'':'release_beacon_app'
-  if(fresh){assert.match(runtime,/^field_upgrade_[a-f0-9]{12}$/);assert.ok(['canonical','restrictive'].includes(process.env.QA_FIELD_VARIANT??''))}
+  const nativeRevision=process.env.QA_FIELD_REVISION??''
+  if(fresh){assert.match(runtime,/^field_upgrade_[a-f0-9]{12}$/);assert.match(nativeRevision,/^[a-f0-9]{40}$/);assert.ok(['canonical','restrictive'].includes(process.env.QA_FIELD_VARIANT??''))}
   const client=new Client({connectionString:address.toString(),connectionTimeoutMillis:5000})
   const query=(sql:string,values?:unknown[])=>client.query<Record<string,unknown>>(sql,values)
   const owner=randomUUID(),crew=randomUUID(),viewer=randomUUID(),stranger=randomUUID(),project=randomUUID(),firm=randomUUID(),firmProject=randomUUID()
-  const report:{status:string;checks:string[];cleanup?:boolean;failure?:string}={status:'checking',checks:[]}
-  const save=()=>writeFileSync(fresh?`.cache/field-sync/upgrade-native-${process.env.QA_FIELD_VARIANT}.json`:'.cache/field-sync/rollback-native.json',JSON.stringify(report,null,2)+'\n')
+  const report:{status:string;checks:string[];cleanup?:boolean;failure?:string;revision?:string}={status:'checking',checks:[],...(fresh?{revision:nativeRevision}:{})}
+  const save=()=>writeFileSync(fresh?`.cache/field-sync/upgrade-native-${nativeRevision}-${process.env.QA_FIELD_VARIANT}.json`:'.cache/field-sync/rollback-native.json',JSON.stringify(report,null,2)+'\n')
   const check=(name:string)=>{report.checks.push(name);save()}
   let before:unknown,countsBefore:unknown
   await client.connect()

@@ -195,6 +195,14 @@ database/runtime role. Applied 114 is unchanged. Execution of this new matrix,
 pinned source checks, generated-worker acceptance and consolidated promotion
 remain required; supporting guard/contract unit tests alone are not that proof.
 
+The first fresh run at `7e0fa3a9` stopped before forward migration because its
+synthetic photo supplied SQL NULL for required metadata. This was a fixture
+error, not evidence of a production migration failure. Its exact temporary
+database/role were removed, then independently checked absent. The corrected
+fixture keeps nullable caption/observation fields and JSON null/zero metadata;
+native receipts are bound to the full pinned source SHA. Retain the failed
+receipt under `.cache/release-verify/unified-release/7e0fa3a97f8d550d68b89e4c10914acb96a080dc/`.
+
 Old unreceipted server rows need an explicit reconciliation workflow; no existing
 source is overwritten or automatically adopted. Complete evidence-event timeline
 integration, owner-safe offline cold open/reopen, separate mobile queue scaling,
