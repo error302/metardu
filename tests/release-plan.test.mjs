@@ -66,3 +66,9 @@ test('a no-op rehearsal cannot replace a completed forward upgrade with cleanup'
   assertSyntheticUpgradeProof(proof,sha)
   for(const changed of [{revision:'a'.repeat(40)},{status:'failed'},{customerDataCopied:true},{newContainer:true},{cleanup:{}},{checks:[]},{checks:[{passed:false}]}])assert.throws(()=>assertSyntheticUpgradeProof({...proof,...changed},sha))
 })
+
+test('118-ledger field-role upgrade requires preserved policies, rejection cases and native role proof',()=>{
+  const proof={revision:sha,status:'passed',sourceBaseline:118,targetLedgerCount:119,pending:['114_field_observation_roles'],variants:['canonical','restrictive','unknown_permissive','disabled_rls'],originalValuesPreserved:true,historicalHashesPreserved:true,restrictivePoliciesPreserved:true,unsafePoliciesRejected:true,disabledRlsRejected:true,normalRuntimeProvisioning:true,nativeServiceVerified:true,rawSchemaContractVerified:true,customerDataCopied:false,newContainer:false,cleanup:{syntheticDatabaseRemoved:true,syntheticRoleRemoved:true},checks:Array.from({length:8},()=>({passed:true}))}
+  assertSyntheticUpgradeProof(proof,sha)
+  for(const change of [{variants:['canonical']},{unsafePoliciesRejected:false},{disabledRlsRejected:false},{restrictivePoliciesPreserved:false},{nativeServiceVerified:false},{pending:[]},{cleanup:{syntheticDatabaseRemoved:true}}])assert.throws(()=>assertSyntheticUpgradeProof({...proof,...change},sha))
+})

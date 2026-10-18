@@ -8,15 +8,18 @@ import { Client,type PoolClient } from 'pg'
 import { db } from '@/lib/db'
 import { recordOfflineObservation } from '@/lib/field/observationCaptureServer'
 
-const run=process.env.METARDU_FIELD_SYNC_ROLLBACK==='synthetic-only'?test:test.skip
+const fresh=process.env.METARDU_FIELD_SYNC_ROLLBACK==='normal-upgrade'
+const run=process.env.METARDU_FIELD_SYNC_ROLLBACK==='synthetic-only'||fresh?test:test.skip
 run('native raw capture, role enforcement and rollback preserve existing field evidence',async()=>{
   const address=new URL(process.env.TEST_ADMIN_DATABASE_URL??'')
-  assert.equal(address.hostname,'127.0.0.1');assert.equal(address.port,'55433');assert.equal(address.pathname,'/metardu_runtime_verify')
-  const runtime='release_beacon_app',client=new Client({connectionString:address.toString(),connectionTimeoutMillis:5000})
+  assert.equal(address.hostname,'127.0.0.1');assert.equal(address.port,'55433');assert.equal(address.pathname,fresh?'/metardu_field_sync_upgrade_verify':'/metardu_runtime_verify')
+  const runtime=fresh?process.env.QA_FIELD_RUNTIME??'':'release_beacon_app'
+  if(fresh){assert.match(runtime,/^field_upgrade_[a-f0-9]{12}$/);assert.ok(['canonical','restrictive'].includes(process.env.QA_FIELD_VARIANT??''))}
+  const client=new Client({connectionString:address.toString(),connectionTimeoutMillis:5000})
   const query=(sql:string,values?:unknown[])=>client.query<Record<string,unknown>>(sql,values)
   const owner=randomUUID(),crew=randomUUID(),viewer=randomUUID(),stranger=randomUUID(),project=randomUUID(),firm=randomUUID(),firmProject=randomUUID()
   const report:{status:string;checks:string[];cleanup?:boolean;failure?:string}={status:'checking',checks:[]}
-  const save=()=>writeFileSync('.cache/field-sync/rollback-native.json',JSON.stringify(report,null,2)+'\n')
+  const save=()=>writeFileSync(fresh?`.cache/field-sync/upgrade-native-${process.env.QA_FIELD_VARIANT}.json`:'.cache/field-sync/rollback-native.json',JSON.stringify(report,null,2)+'\n')
   const check=(name:string)=>{report.checks.push(name);save()}
   let before:unknown,countsBefore:unknown
   await client.connect()
@@ -38,9 +41,9 @@ run('native raw capture, role enforcement and rollback preserve existing field e
   const input=(id:string,projectId=project)=>({id,projectId,surveyType:'traverse',station:'STN-1',pointId:'RD1',easting:0,northing:10,elevation:0,horizontalDistance:0,bearingDeg:0,bearingMin:0,bearingSec:0,notes:'SYNTHETIC raw capture',createdAt:'2026-10-18T08:00:00.000Z',syncedAt:null})
   const deliver=async(id:string,value:unknown,org='')=>{await actor(id,org);return recordOfflineObservation(id,value)}
   try{
-    assert.equal((await query("SELECT shobj_description(oid,'pg_database') marker FROM pg_database WHERE datname=current_database()")).rows[0].marker,'METARDU synthetic beacon verification only 2026-10-08')
+    assert.equal((await query("SELECT shobj_description(oid,'pg_database') marker FROM pg_database WHERE datname=current_database()")).rows[0].marker,fresh?'METARDU disposable field role upgrade verification':'METARDU synthetic beacon verification only 2026-10-08')
     before=(await query('SELECT version,checksum FROM schema_migrations ORDER BY version')).rows
-    assert.equal((before as unknown[]).length,118)
+    assert.equal((before as unknown[]).length,fresh?119:118)
     const role=(await query('SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=$1',[runtime])).rows[0]
     assert.ok(role&&!role.rolsuper&&!role.rolbypassrls)
     countsBefore=await fingerprint();await query('BEGIN');save()
@@ -53,10 +56,9 @@ run('native raw capture, role enforcement and rollback preserve existing field e
     const legacy=randomUUID()
     await query("INSERT INTO survey_observations(id,project_id,client_id,point_name,observation_type,easting,northing,elevation) VALUES($1,$2,'legacy-unreceipted','SYNTHETIC legacy','manual',0,0,NULL)",[legacy,project])
     const original=(await query('SELECT to_jsonb(t) value FROM survey_observations t WHERE id=$1',[legacy])).rows[0].value
-    const up=readFileSync('src/lib/db/migrations/114_field_observation_roles.sql','utf8').split(/^\s*--\s*DOWN\b/m)[0]
-    await query(up)
+    if(!fresh){const up=readFileSync('src/lib/db/migrations/114_field_observation_roles.sql','utf8').split(/^\s*--\s*DOWN\b/m)[0];await query(up)}
     expect((await query('SELECT to_jsonb(t) value FROM survey_observations t WHERE id=$1',[legacy])).rows[0].value).toEqual(original)
-    check('pending authorization SQL preserves legacy NULL/zero observations without altering the 118-entry ledger')
+    check(fresh?'normally applied authorization SQL retains legacy NULL/zero observations and the 119-entry ledger':'pending authorization SQL preserves legacy NULL/zero observations without altering the 118-entry ledger')
 
     const first=await deliver(owner,input('first'))
     expect(first).toMatchObject({ok:true,id:'first',replayed:false,fieldVerified:false})
@@ -121,7 +123,8 @@ run('native raw capture, role enforcement and rollback preserve existing field e
     expect(await fingerprint()).toEqual(countsBefore)
     expect((await query('SELECT id FROM projects WHERE id=ANY($1::uuid[])',[[project,firmProject]])).rowCount).toBe(0)
     expect((await query('SELECT id FROM users WHERE id=ANY($1::uuid[])',[[owner,crew,viewer,stranger]])).rowCount).toBe(0)
-    expect((await query("SELECT to_regprocedure('public.field_observation_project_access(uuid,boolean)') value")).rows[0].value).toBeNull()
+    const helper=(await query("SELECT to_regprocedure('public.field_observation_project_access(uuid,boolean)') value")).rows[0].value
+    if(fresh)expect(helper).not.toBeNull();else expect(helper).toBeNull()
     report.cleanup=true;await client.end();save()
   }
 },90000)

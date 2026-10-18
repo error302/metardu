@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import {computeDrift} from './verify-migrations.mjs'
 
-export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility']
+export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles']
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
@@ -75,7 +75,14 @@ export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
 export function assertSyntheticUpgradeProof(proof,revision) {
   assert.equal(proof.revision,revision)
   assert.equal(proof.status,'passed')
-  assert.ok([112,115,117].includes(proof.sourceBaseline))
+  assert.ok([112,115,117,118].includes(proof.sourceBaseline))
+  if(proof.sourceBaseline===118){
+    assert.deepEqual(proof.pending,['114_field_observation_roles'])
+    assert.equal(proof.targetLedgerCount,119)
+    assert.deepEqual(proof.variants,['canonical','restrictive','unknown_permissive','disabled_rls'])
+    for(const key of ['originalValuesPreserved','historicalHashesPreserved','restrictivePoliciesPreserved','unsafePoliciesRejected','disabledRlsRejected','normalRuntimeProvisioning','nativeServiceVerified','rawSchemaContractVerified'])assert.equal(proof[key],true)
+    assert.equal(proof.cleanup?.syntheticRoleRemoved,true)
+  }
   if(proof.sourceBaseline===117){
     assert.deepEqual(proof.pending,['113_observation_batch_compatibility'])
     assert.deepEqual(proof.variants,['legacy','canonical','hybrid','incompatible'])

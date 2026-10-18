@@ -183,6 +183,18 @@ its public health check returned 200/healthy. Production was never paused.
 
 ## Outstanding functional acceptance
 
+The release path now includes a strict pre/post raw-field schema/privilege/RLS
+contract, a restrictive-policy digest comparison, and observation/photo row
+fingerprints. Planning can recognize reviewed 114, but a build still requires a
+pinned, normal 118-to-119 synthetic upgrade matrix: canonical and additional
+restrictive policies must pass native recording/replay/revocation/immutability
+checks; unknown permissive policies and disabled RLS must reject atomically.
+The new `scripts/verify-field-sync-upgrade.mjs` uses only a fresh, exactly marked
+temporary database in the existing rehearsal service and removes its exact
+database/runtime role. Applied 114 is unchanged. Execution of this new matrix,
+pinned source checks, generated-worker acceptance and consolidated promotion
+remain required; supporting guard/contract unit tests alone are not that proof.
+
 Old unreceipted server rows need an explicit reconciliation workflow; no existing
 source is overwritten or automatically adopted. Complete evidence-event timeline
 integration, owner-safe offline cold open/reopen, separate mobile queue scaling,
