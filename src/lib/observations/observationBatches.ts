@@ -33,6 +33,7 @@ export type BatchStatus =
   | 'adjusted'
   | 'superseded'
   | 'quarantined'
+  | 'RECORDED' // Historical status is retained without inferring processing.
 
 export interface ObservationBatch {
   id: string
@@ -54,8 +55,8 @@ export interface ObservationBatch {
   prism_constant: number | null
   source_crs: string | null
   quality_metadata: Record<string, unknown>
-  point_count: number
-  observation_count: number
+  point_count: number | null
+  observation_count: number | null
   notes: string | null
   status: BatchStatus
   created_by: string | null
@@ -97,6 +98,16 @@ export function computeSha256(content: Buffer | string): string {
 }
 
 // ─── Observation Batches CRUD ──────────────────────────────────────────────
+
+// Read recorded legacy names without backfilling rows (which could also fire
+// historical updated_at triggers). New coordinate captures never need the
+// legacy fallback, so their potentially large source JSON is not expanded.
+const compatibleBatchMetadata = ['source_file_name', 'operator', 'instrument_name']
+  .map((column, index) => {
+    const legacy = ['source_file', 'operator_name', 'instrument'][index]
+    return `COALESCE(${column}, CASE WHEN quality_metadata->>'kind' IS DISTINCT FROM 'coordinate_import'
+      THEN to_jsonb(observation_batches)->>'${legacy}' END) AS ${column}`
+  }).join(', ')
 
 export interface CreateBatchInput {
   projectId: string
@@ -162,11 +173,12 @@ export async function createObservationBatch(
       point_count,
       observation_count,
       notes,
-      created_by
+      created_by,
+      status
     ) VALUES (
       $1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
       $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-      $21, $22
+      $21, $22, 'raw'
     )
     RETURNING *
   `
@@ -190,8 +202,8 @@ export async function createObservationBatch(
     input.prismConstant ?? null,
     input.sourceCrs || null,
     JSON.stringify(input.qualityMetadata || {}),
-    input.pointCount || 0,
-    input.observationCount || 0,
+    input.pointCount ?? null,
+    input.observationCount ?? null,
     input.notes || null,
     input.userId || null,
   ]
@@ -225,8 +237,8 @@ export async function listObservationBatches(
   projectId: string,
 ): Promise<ObservationBatch[]> {
   const { rows } = await db.query<ObservationBatch>(
-    `SELECT id,project_id,batch_number,source_type,source_file_name,source_file_hash,source_file_size,
-       operator,crew,instrument_id,instrument_name,instrument_serial,station,backsight,instrument_height,
+    `SELECT id,project_id,batch_number,source_type,${compatibleBatchMetadata},source_file_hash,source_file_size,
+       crew,instrument_id,instrument_serial,station,backsight,instrument_height,
        target_height,prism_constant,source_crs,point_count,observation_count,notes,status,created_by,created_at,updated_at,
        CASE WHEN quality_metadata->>'kind'='coordinate_import'
          THEN (quality_metadata - 'sourceText' - 'points' - 'pointIds' - 'selectedIndices' - 'warnings')
@@ -248,7 +260,7 @@ export async function getObservationBatch(
   projectId: string,
 ): Promise<ObservationBatch | null> {
   const { rows } = await db.query<ObservationBatch>(
-    `SELECT * FROM observation_batches
+    `SELECT *, ${compatibleBatchMetadata} FROM observation_batches
      WHERE id = $1 AND project_id = $2
      LIMIT 1`,
     [batchId, projectId],

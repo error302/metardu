@@ -31,7 +31,7 @@ async function main() {
   assert.deepEqual(postgres.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'5432'}])
   const env=Object.fromEntries(postgres.Config.Env.map(value=>{const i=value.indexOf('=');return[value.slice(0,i),value.slice(i+1)]}))
   const client=new pg.Client({host:'127.0.0.1',port:5432,database:env.POSTGRES_DB,user:env.POSTGRES_USER,password:env.POSTGRES_PASSWORD,connectionTimeoutMillis:5000})
-  const owner=randomUUID(),other=randomUUID(),project=randomUUID(),alignment=randomUUID(),fieldbook=randomUUID()
+  const owner=randomUUID(),other=randomUUID(),project=randomUUID(),alignment=randomUUID(),fieldbook=randomUUID(),captureId=randomUUID()
   const password=randomBytes(32).toString('base64url'),label='METARDU synthetic release verification',createdAt=new Date().toISOString()
   const report={revision,origin,status:'checking',checks:[],cleanup:{},customerRecordsChanged:false,emailSent:false,fixtures:{users:[owner,other],project,alignment,fieldbook,createdAt}}
   const save=()=>writeFileSync(join(directory,'live-survey.json'),JSON.stringify(report,null,2)+'\n')
@@ -105,7 +105,7 @@ async function main() {
     check('owner can read an empty pipeline history without creating measured evidence',history.response.status===200&&Array.isArray(history.data?.data)&&history.data.data.length===0)
     // Exact disposable imported points and a drawing artifact; never field evidence.
     await client.query("INSERT INTO project_reference_systems(project_id,horizontal_crs,horizontal_name,datum_name,units,zone,hemisphere,vertical_datum,vertical_reference,distance_mode,coordinate_precision,declared_by) VALUES($1,'EPSG:32737','SYNTHETIC WGS84 UTM 37S','WGS84','metres',37,'S','SYNTHETIC BM','local','grid',3,$2)",[project,owner])
-    const importPath=`/api/project/${project}/point-imports`,context=await owned(importPath),captureId=randomUUID()
+    const importPath=`/api/project/${project}/point-imports`,context=await owned(importPath)
     check('coordinate import reference and history load privately',context.response.status===200&&context.response.headers.get('cache-control')==='private, no-store'&&context.data?.data?.history.length===0)
     const sourceText='\uFEFFid,easting,northing,elevation\nSYN-UNKNOWN,500000,9850000,\nSYN-ZERO,500010,9850010,0'
     const sourceFileHash=createHash('sha256').update(sourceText).digest('hex')
@@ -139,6 +139,11 @@ async function main() {
         // Revoke these disposable credentials first, even if later cleanup fails.
         await client.query('UPDATE surveyor_profiles SET is_suspended=true WHERE user_id=ANY($1::uuid[])',[[owner,other]])
         assert.equal((await client.query('SELECT count(*)::int n FROM pipeline_asbuilt_batches WHERE project_id=$1',[project])).rows[0].n,0)
+        // Legacy capture tables have no project cascade. Delete only the exact
+        // source capture created by these marked disposable identities.
+        const captureRows=(await client.query('SELECT id,created_by,quality_metadata FROM observation_batches WHERE project_id=$1',[project])).rows
+        assert.ok(captureRows.every(row=>row.id===captureId&&row.created_by===owner&&row.quality_metadata?.kind==='coordinate_import'))
+        await client.query("DELETE FROM observation_batches WHERE id=$1 AND project_id=$2 AND created_by=$3 AND quality_metadata->>'kind'='coordinate_import'",[captureId,project,owner])
         assert.equal((await client.query("DELETE FROM projects WHERE id=$1 AND user_id=$2 AND name='SYNTHETIC disposable release authorization check' RETURNING id",[project,owner])).rowCount,1)
         assert.equal((await client.query('DELETE FROM users WHERE id=ANY($1::uuid[]) AND full_name=$2 RETURNING id',[[owner,other],label])).rowCount,2)
         assert.equal((await client.query('SELECT count(*)::int n FROM fieldbooks WHERE id=$1',[fieldbook])).rows[0].n,0)

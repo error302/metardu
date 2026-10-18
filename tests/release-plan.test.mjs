@@ -46,10 +46,19 @@ test('ordinary promotion adds no registry mount',()=>{
   const app=restoredApp();app.Mounts=app.Mounts.slice(0,1);app.Config.Env=[]
   assert.deepEqual(forwardPromotionService('metardu-metardu-app:candidate',sha,app),{image:'metardu-metardu-app:candidate',environment:{METARDU_BUILD_SHA:sha}})
 })
+test('subsequent promotion retains a protected historical bind while using its packaged registry',()=>{
+  const app=restoredApp();app.Config.Env=[]
+  assert.equal(forwardPromotionService('metardu-metardu-app:candidate',sha,app).volumes[0].source,app.Mounts[1].Source)
+})
 test('a changed registry, missing bind or unrelated app cannot pass the promotion guard',()=>{
-  const mutations=[a=>a.Mounts[1].RW=true,a=>a.Mounts[1].Type='volume',a=>a.Mounts[1].Source='relative',a=>a.Mounts.push({...a.Mounts[1]}),a=>a.Config.Env=[],a=>a.Mounts.pop(),a=>a.Name='/other-app',a=>a.Config.Labels['com.docker.compose.service']='other']
+  const mutations=[a=>a.Mounts[1].RW=true,a=>a.Mounts[1].Type='volume',a=>a.Mounts[1].Source='relative',a=>a.Mounts.push({...a.Mounts[1]}),a=>a.Config.Env=['MIGRATIONS_DIR=/unexpected'],a=>a.Mounts.pop(),a=>a.Name='/other-app',a=>a.Config.Labels['com.docker.compose.service']='other']
   for(const mutate of mutations){const app=restoredApp();mutate(app);assert.throws(()=>forwardPromotionService('metardu-metardu-app:candidate',sha,app))}
   assert.throws(()=>forwardPromotionService('other-image',sha,restoredApp()))
+})
+test('117-ledger repair needs the full legacy compatibility and native-service matrix',()=>{
+  const proof={revision:sha,status:'passed',sourceBaseline:117,pending:['113_observation_batch_compatibility'],variants:['legacy','canonical','hybrid','incompatible'],originalValuesPreserved:true,historicalHashesPreserved:true,incompatibleRejected:true,normalRuntimeProvisioning:true,nativeServiceVerified:true,customerDataCopied:false,newContainer:false,cleanup:{syntheticDatabaseRemoved:true},checks:Array.from({length:5},()=>({passed:true}))}
+  assertSyntheticUpgradeProof(proof,sha)
+  for(const change of [{variants:['canonical']},{nativeServiceVerified:false},{incompatibleRejected:false},{pending:[]},{originalValuesPreserved:false},{sourceBaseline:118}])assert.throws(()=>assertSyntheticUpgradeProof({...proof,...change},sha))
 })
 
 test('a no-op rehearsal cannot replace a completed forward upgrade with cleanup',()=>{

@@ -17,6 +17,7 @@ const query=jest.fn(async(sql:string)=>{
   if(sql.includes('FROM project_reference_systems'))return {rows:[reference]}
   if(sql.includes('FROM survey_points'))return {rows:existingNames?[{point_name:'P1'}]:[]}
   if(sql.includes('INSERT INTO survey_points'))return {rows:[{id:'44444444-4444-4444-8444-444444444444',point_name:'P1'}],rowCount:1}
+  if(sql.includes('INSERT INTO import_sessions')||sql.includes('INSERT INTO observation_batches'))return {rows:[{id:requestId}],rowCount:1}
   return {rows:[],rowCount:1}
 })
 beforeEach(()=>{
@@ -57,4 +58,15 @@ test('an incomplete database acknowledgement cannot be reported as success',asyn
   query.mockImplementation(async sql=>sql.includes('INSERT INTO survey_points')?{rows:[],rowCount:0}:normal(sql))
   await expect(commitPointImport(project,actor,request())).rejects.toThrow(/acknowledge/i)
   query.mockImplementation(normal)
+})
+test.each(['import_sessions','observation_batches'])('a missing %s acknowledgement cannot produce a receipt',async table=>{
+  const normal=query.getMockImplementation()!
+  query.mockImplementation(async sql=>sql.includes(`INSERT INTO ${table}`)?{rows:[],rowCount:0}:normal(sql))
+  try {await expect(commitPointImport(project,actor,request())).rejects.toMatchObject({code:'POINT_IMPORT_ACKNOWLEDGEMENT'})}
+  finally {query.mockImplementation(normal)}
+  expect(logAuditEvent).not.toHaveBeenCalled()
+})
+test('a legacy receipt with unknown metadata refuses an ID collision cleanly',async()=>{
+  receipt={id:requestId,created_by:actor,point_count:null,quality_metadata:null}
+  await expect(commitPointImport(project,actor,request())).rejects.toMatchObject({statusCode:409})
 })

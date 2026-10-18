@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import {computeDrift} from './verify-migrations.mjs'
 
-export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock']
+export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility']
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
@@ -60,7 +60,7 @@ export function forwardPromotionService(image,revision,app) {
     return service
   }
   const registry=registries[0]
-  assert.equal(environment.MIGRATIONS_DIR,target,'Inspect an unexpected registry mount before promotion.')
+  assert.ok(environment.MIGRATIONS_DIR===undefined||environment.MIGRATIONS_DIR===target,'Inspect an unexpected registry configuration before promotion.')
   assert.equal(registry.Type,'bind')
   assert.equal(registry.RW,false,'The retained registry must remain read-only.')
   assert.ok(path.isAbsolute(registry.Source),'The retained registry must have an absolute source.')
@@ -75,7 +75,12 @@ export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
 export function assertSyntheticUpgradeProof(proof,revision) {
   assert.equal(proof.revision,revision)
   assert.equal(proof.status,'passed')
-  assert.ok(proof.sourceBaseline===112||proof.sourceBaseline===115)
+  assert.ok([112,115,117].includes(proof.sourceBaseline))
+  if(proof.sourceBaseline===117){
+    assert.deepEqual(proof.pending,['113_observation_batch_compatibility'])
+    assert.deepEqual(proof.variants,['legacy','canonical','hybrid','incompatible'])
+    for(const key of ['originalValuesPreserved','historicalHashesPreserved','incompatibleRejected','normalRuntimeProvisioning','nativeServiceVerified'])assert.equal(proof[key],true)
+  }
   assert.equal(proof.customerDataCopied,false)
   assert.equal(proof.newContainer,false)
   assert.equal(proof.cleanup?.syntheticDatabaseRemoved,true)

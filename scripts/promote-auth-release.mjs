@@ -11,6 +11,7 @@ import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
 import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
+import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
 
 const legacy = process.argv.length === 3
 const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
@@ -67,14 +68,14 @@ async function withAdmin(containers,work) {
 async function snapshotExistingRows(client, catalog) {
   const tables=catalog || (await client.query(`SELECT table_name AS name,array_agg(column_name::text ORDER BY ordinal_position) AS columns
     FROM information_schema.columns WHERE table_schema='public'
-    AND table_name IN ('setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations')
+    AND table_name IN ('setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations','observation_batches','survey_points','import_sessions')
     GROUP BY table_name ORDER BY table_name`)).rows
   const rows=[]
   const literal=value=>`'${value.replaceAll("'","''")}'`
   await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
   try {
     for(const table of tables) {
-      assert.ok(['setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations'].includes(table.name))
+      assert.ok(['setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations','observation_batches','survey_points','import_sessions'].includes(table.name))
       const result=await client.query(`SELECT count(*)::integer AS rows,
         md5(COALESCE(string_agg(md5(payload::text),'' ORDER BY md5(payload::text)),'')) AS fingerprint
         FROM (SELECT (SELECT jsonb_object_agg(j.key,CASE ${table.name==='road_alignments' ? "WHEN j.key='cross_section_template' THEN t.cross_section_template::text::jsonb" : ''} WHEN jsonb_typeof(j.value)='number'
@@ -125,6 +126,7 @@ async function plan() {
       return rows.length
     })
     result.compatibility={existingTemplatesParseAsJson:true,templateRows:parsed,reviewedPendingVersions:drift.missing}
+    result.compatibility.importContract=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{allowPendingObservationExtension:drift.missing.includes(OBSERVATION_COMPATIBILITY_VERSION)}))
     result.hostFreeBytes=hostFreeBytes()
   }
   save(result)
@@ -208,6 +210,7 @@ async function rehearse() {
       save(receipt);throw new Error(`Synthetic migration rehearsal failed: ${receipt.rehearsal.failedAt}`)
     }
     const after=await ledger(client);assert.ok(computeDrift(files,after).ok)
+    receipt.rehearsal.importContract=assertImportSchemaContract(await readImportSchemaContract(client,rehearsalDatabaseConfig().runtimeRole))
     await client.query('SELECT capture_snapshot,client_reading_id FROM verticality_readings WHERE false')
     const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE conname IN ('setout_capture_snapshot_shape','verticality_capture_snapshot_shape') ORDER BY conname")
     assert.equal(constraints.rows.length,2);assert.ok(constraints.rows.every(row=>row.convalidated))
@@ -229,6 +232,7 @@ async function migrateAndPromote() {
   const applied=await withAdmin(before,ledger)
   if(!legacy)assertSurveyReleaseDrift(files,applied)
   assert.deepEqual(applied,receipt.migrationBefore)
+  receipt.importContractBefore=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER),{allowPendingObservationExtension:receipt.pending.includes(OBSERVATION_COMPATIBILITY_VERSION)}))
   const jobs=await withAdmin(before,async client=>(await client.query(`SELECT
     (SELECT count(*)::integer FROM background_jobs WHERE status='running') AS background,
     (SELECT count(*)::integer FROM render_jobs WHERE status='running') AS render,
@@ -263,6 +267,7 @@ async function migrateAndPromote() {
     const recordsAfter=await withAdmin(before,client=>snapshotExistingRows(client,receipt.existingRecordsBefore.catalog))
     assert.deepEqual(recordsAfter.rows,receipt.existingRecordsBefore.rows,'Original recorded values must survive migration unchanged')
     receipt.existingRecordsPreserved=true
+    receipt.importContractAfter=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER)))
     const access=await withAdmin(before,async client=>(await client.query(`SELECT
       has_table_privilege($1,$2,'SELECT') AS can_read,
       has_table_privilege($1,$2,'INSERT') AS can_insert`,[oldEnv.DB_USER,legacy?'public.marketing_email_deliveries':'public.pipeline_asbuilt_batches'])).rows[0])

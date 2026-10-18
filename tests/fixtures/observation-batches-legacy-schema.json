@@ -1,0 +1,141 @@
+{
+  "scope": "Schema-only regression fixture. Contains no customer records.",
+  "columns": [
+    {
+      "column_name": "id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": "uuid_generate_v4()"
+    },
+    {
+      "column_name": "project_id",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "is_nullable": "NO",
+      "column_default": null
+    },
+    {
+      "column_name": "batch_number",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 100,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "source_type",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 40,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "source_file",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 255,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "source_file_hash",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 64,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "operator_name",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 150,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "crew",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 150,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "instrument",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 150,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "instrument_serial",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 100,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "observed_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "source_crs",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 32,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "notes",
+      "data_type": "text",
+      "udt_name": "text",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "status",
+      "data_type": "character varying",
+      "udt_name": "varchar",
+      "character_maximum_length": 20,
+      "is_nullable": "NO",
+      "column_default": "'RECORDED'::character varying"
+    },
+    {
+      "column_name": "created_by",
+      "data_type": "uuid",
+      "udt_name": "uuid",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": null
+    },
+    {
+      "column_name": "created_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": "now()"
+    },
+    {
+      "column_name": "updated_at",
+      "data_type": "timestamp with time zone",
+      "udt_name": "timestamptz",
+      "character_maximum_length": null,
+      "is_nullable": "YES",
+      "column_default": "now()"
+    }
+  ]
+}

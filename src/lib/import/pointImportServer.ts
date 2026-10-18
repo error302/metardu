@@ -13,8 +13,8 @@ export const pointImportReferenceHash=(row:Record<string,unknown>|null|undefined
 interface StoredReceipt {
   id:string
   created_by:string|null
-  point_count:number
-  quality_metadata:{kind?:string;inputHash?:string;pointIds?:string[]}
+  point_count:number|null
+  quality_metadata:{kind?:string;inputHash?:string;pointIds?:string[]}|null
 }
 export async function commitPointImport(projectId:string,actorId:string,input:unknown) {
   const request=pointImportSchema.parse(input)
@@ -31,7 +31,7 @@ export async function commitPointImport(projectId:string,actorId:string,input:un
       WHERE project_id=$1 AND (id=$2 OR (source_type='import' AND quality_metadata->>'kind'='coordinate_import' AND quality_metadata->>'inputHash'=$3))
       ORDER BY (id=$2) DESC,created_at,id LIMIT 1`,[projectId,requestId,inputHash])).rows[0]
     if(previous) {
-      const metadata=previous.quality_metadata
+      const metadata=previous.quality_metadata??{}
       if(previous.created_by!==actorId||metadata.kind!=='coordinate_import'||metadata.inputHash!==inputHash||!Array.isArray(metadata.pointIds))throw new AppError('This request ID already belongs to a different capture. Review the import before retrying.',409,'POINT_IMPORT_CONFLICT')
       const recordedIds=metadata.pointIds
       const stored=(await client.query<{id:string}>('SELECT id FROM survey_points WHERE project_id=$1 AND import_session_id=$2 AND deleted_at IS NULL',[projectId,previous.id])).rows.map(point=>point.id)
@@ -44,7 +44,8 @@ export async function commitPointImport(projectId:string,actorId:string,input:un
     const prepared=preparePointImport(request,reference)
     const existing=(await client.query<{point_name:string}>(`SELECT point_name FROM survey_points WHERE project_id=$1 AND deleted_at IS NULL AND point_name=ANY($2::text[])`,[projectId,prepared.points.map(point=>point.pointName)])).rows
     if(existing.length)throw new AppError(`Existing point names would be overwritten: ${existing.slice(0,5).map(row=>row.point_name).join(', ')}. No points were imported.`,409,'POINT_IMPORT_DUPLICATE')
-    await client.query(`INSERT INTO import_sessions(id,project_id,file_name,format,row_count,status) VALUES($1,$2,$3,$4,$5,'committed')`,[requestId,projectId,request.fileName,prepared.format,prepared.points.length])
+    const session=await client.query<{id:string}>(`INSERT INTO import_sessions(id,project_id,file_name,format,row_count,status) VALUES($1,$2,$3,$4,$5,'committed') RETURNING id`,[requestId,projectId,request.fileName,prepared.format,prepared.points.length])
+    if(session.rows.length!==1||session.rows[0].id!==requestId)throw new AppError('The database did not acknowledge the import session. The complete import was rolled back.',500,'POINT_IMPORT_ACKNOWLEDGEMENT')
     const info=resolveEpsg(prepared.projectCrs),pointIds:string[]=[]
     for(let offset=0;offset<prepared.points.length;offset+=500) {
       const chunk=prepared.points.slice(offset,offset+500),values:unknown[]=[],tuples:string[]=[]
@@ -66,8 +67,9 @@ export async function commitPointImport(projectId:string,actorId:string,input:un
       coordinateUnit:request.coordinateUnit,heightUnit:request.heightUnit,projectReference:referenceRow,expectedReferenceHash:request.expectedReferenceHash,
       confirmTransformation:request.confirmTransformation,confirmVerticalDatum:request.confirmVerticalDatum,confirmWarnings:request.confirmWarnings,
       excludedCount:prepared.excludedCount,warnings:prepared.warnings,points:prepared.points,pointIds,fieldVerified:false}
-    await client.query(`INSERT INTO observation_batches(id,project_id,batch_number,source_type,source_file_name,source_file_hash,source_file_size,instrument_name,source_crs,quality_metadata,point_count,status,created_by)
-      VALUES($1,$2,$3,'import',$4,$5,$6,$7,$8,$9,$10,'raw',$11)`,[requestId,projectId,`coordinate-${requestId}`,request.fileName,request.sourceFileHash,bytes,prepared.instrument,prepared.sourceCrs,JSON.stringify(qualityMetadata),pointIds.length,actorId])
+    const batch=await client.query<{id:string}>(`INSERT INTO observation_batches(id,project_id,batch_number,source_type,source_file_name,source_file_hash,source_file_size,instrument_name,source_crs,quality_metadata,point_count,status,created_by)
+      VALUES($1,$2,$3,'import',$4,$5,$6,$7,$8,$9,$10,'raw',$11) RETURNING id`,[requestId,projectId,`coordinate-${requestId}`,request.fileName,request.sourceFileHash,bytes,prepared.instrument,prepared.sourceCrs,JSON.stringify(qualityMetadata),pointIds.length,actorId])
+    if(batch.rows.length!==1||batch.rows[0].id!==requestId)throw new AppError('The database did not acknowledge the source capture. The complete import was rolled back.',500,'POINT_IMPORT_ACKNOWLEDGEMENT')
     await logAuditEvent({userId:actorId,action:'import',resourceType:'observation_batches',resourceId:requestId,timestamp:new Date(),
       details:{inputHash,sourceFileHash:request.sourceFileHash,pointCount:pointIds.length,excludedCount:prepared.excludedCount,referenceHash:request.expectedReferenceHash,fieldVerified:false}},client)
     return {requestId,batchId:requestId,sourceFileHash:request.sourceFileHash,inputHash,imported:pointIds.length,pointIds,replayed:false,fieldVerified:false}

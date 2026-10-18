@@ -1,20 +1,29 @@
 # METARDU continuation acceptance — 18 October 2026
 
+**Latest live status (06:53 UTC):** revision
+`2e89e143b359297b693ffb8612b359e961d4a50f` promoted successfully and is healthy.
+Its typography, pricing copy, CAD, navigation and authentication repairs are live.
+Private HTTPS acceptance passed 17 checks, then exposed an older observation
+table missing 13 import metadata fields (PostgreSQL 42703). Coordinate import
+is not accepted yet. Exact disposable fixtures were removed; independent counts
+are zero. Additive migration 113 and legacy-schema regression checks are being
+prepared; no applied SQL hash or customer record has been changed for this repair.
+
 **Continuing goal:** the later typography/map-readability increment is documented
 in `TYPOGRAPHY_READINESS.md`. It unifies the shared font stacks and repairs
 reproduced COGO clipping/contrast in source. Computer-browser checks remain
-separate from physical-phone/field acceptance. This is not a new promotion;
-the failed cutover and healthy rollback described below remain the live status.
+separate from physical-phone/field acceptance. The failed cutover below is
+historical; the latest live status above supersedes it.
 
 This resumes the interrupted CAD/import increment in the same checkout. It does
 not repeat earlier pricing, auth, road preparation, drainage or map milestones,
 and does not declare the whole engineering platform accepted.
 
-**Final outcome:** source candidate `830df65310524f667026120d7647441aeea509ca`
+**Earlier attempt:** source candidate `830df65310524f667026120d7647441aeea509ca`
 passed its complete build and source gates, but its production cutover did not
 complete successfully. The controller restored the previous healthy
 `4fa998fcf597c63a0cebd83685e233865d61b616` release. The new CAD/import/auth repairs
-are **not live**. The precise candidate-startup failure remains unresolved; read
+were not live after that attempt. The precise candidate-startup failure remains unresolved; read
 the failure and recovery evidence below before another promotion.
 
 ## Source work closed in this continuation
