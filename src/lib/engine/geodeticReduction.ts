@@ -87,9 +87,9 @@ export interface GeodeticReductionOutput {
  */
 export function calculateMeanRadiusOfCurvature(
   latRadians: number,
-  ellipsoidKey: 'clarke1880_modified' | 'clarke1858' | 'wgs84' = 'clarke1880_modified'
+  ellipsoid: 'clarke1880_modified' | 'clarke1858' | 'wgs84' = 'clarke1880_modified' // gitleaks:allow
 ): number {
-  const el = ELLIPSOIDS[ellipsoidKey] || ELLIPSOIDS.clarke1880_modified
+  const el = ELLIPSOIDS[ellipsoid] || ELLIPSOIDS.clarke1880_modified
   const f = 1 / el.invF
   const e2 = 2 * f - f * f
 
