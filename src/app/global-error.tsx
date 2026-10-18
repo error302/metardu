@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import AppErrorBoundary from '@/components/shared/AppErrorBoundary'
 import { logger } from '@/lib/logger'
+import './fonts.css'
 
 export default function GlobalError({
   error,
@@ -22,7 +23,7 @@ export default function GlobalError({
 
   return (
     <html lang="en">
-      <body style={{ background: "var(--bg-primary, #0a0a0f)", color: "var(--text-primary, #e5e5e5)", fontFamily: "system-ui, sans-serif" }}>
+      <body style={{ background: "var(--bg-primary, #0a0a0f)", color: "var(--text-primary, #e5e5e5)", fontFamily: 'var(--font-sans)' }}>
         <AppErrorBoundary error={error} reset={reset} context="METARDU encountered a critical error" />
       </body>
     </html>

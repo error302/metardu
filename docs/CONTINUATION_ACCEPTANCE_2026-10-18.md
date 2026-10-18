@@ -1,5 +1,11 @@
 # METARDU continuation acceptance — 18 October 2026
 
+**Continuing goal:** the later typography/map-readability increment is documented
+in `TYPOGRAPHY_READINESS.md`. It unifies the shared font stacks and repairs
+reproduced COGO clipping/contrast in source. Computer-browser checks remain
+separate from physical-phone/field acceptance. This is not a new promotion;
+the failed cutover and healthy rollback described below remain the live status.
+
 This resumes the interrupted CAD/import increment in the same checkout. It does
 not repeat earlier pricing, auth, road preparation, drainage or map milestones,
 and does not declare the whole engineering platform accepted.

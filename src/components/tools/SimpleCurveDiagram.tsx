@@ -191,35 +191,35 @@ export function SimpleCurveDiagram({
           <circle cx={cX} cy={cY} r="4" fill="#3b82f6" stroke="#fff" strokeWidth="1" />
 
           {/* Labels */}
-          <text x={piX + 8} y={piY - 8} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="sans-serif">PI</text>
-          <text x={pcX - 8} y={pcY - 8} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="sans-serif" textAnchor="end">PC</text>
-          <text x={ptX + 8} y={ptY + 16} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="sans-serif">PT</text>
-          <text x={cX + 10} y={cY + 16} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="sans-serif">O</text>
+          <text x={piX + 8} y={piY - 8} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">PI</text>
+          <text x={pcX - 8} y={pcY - 8} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="Geist, system-ui, sans-serif" textAnchor="end">PC</text>
+          <text x={ptX + 8} y={ptY + 16} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">PT</text>
+          <text x={cX + 10} y={cY + 16} fill={LABEL} fontSize="12" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">O</text>
 
           {/* Radius label */}
-          <text x={radiusLabelX} y={radiusLabelY} fill={RADIUS} fontSize="11" fontFamily="monospace">R = {R.toFixed(1)} m</text>
+          <text x={radiusLabelX} y={radiusLabelY} fill={RADIUS} fontSize="11" fontFamily="JetBrains Mono, monospace">R = {R.toFixed(1)} m</text>
 
           {/* Arc label */}
-          <text x={arcLabelX} y={arcLabelY} fill={ARC} fontSize="11" fontFamily="monospace">L = {lLength.toFixed(1)} m</text>
+          <text x={arcLabelX} y={arcLabelY} fill={ARC} fontSize="11" fontFamily="JetBrains Mono, monospace">L = {lLength.toFixed(1)} m</text>
 
           {/* Chord label */}
-          <text x={chordLabelX} y={chordLabelY} fill={CHORD} fontSize="11" fontFamily="monospace" textAnchor="end">C = {cChord.toFixed(1)} m</text>
+          <text x={chordLabelX} y={chordLabelY} fill={CHORD} fontSize="11" fontFamily="JetBrains Mono, monospace" textAnchor="end">C = {cChord.toFixed(1)} m</text>
 
           {/* Tangent label */}
-          <text x={tangentMidX} y={tangentMidY} fill={TANGENT} fontSize="11" fontFamily="monospace" textAnchor="middle">T = {tLength.toFixed(1)} m</text>
+          <text x={tangentMidX} y={tangentMidY} fill={TANGENT} fontSize="11" fontFamily="JetBrains Mono, monospace" textAnchor="middle">T = {tLength.toFixed(1)} m</text>
 
           {/* External distance / mid-ordinate */}
-          <text x={extX} y={extY} fill="#f472b6" fontSize="10" fontFamily="monospace" textAnchor="middle">E = {externalDistance.toFixed(2)} m</text>
-          <text x={chordMidX + 6} y={chordMidY + 4} fill={DIM} fontSize="9" fontFamily="monospace" textAnchor="middle">M = {midOrdinate.toFixed(2)} m</text>
+          <text x={extX} y={extY} fill="#f472b6" fontSize="10" fontFamily="JetBrains Mono, monospace" textAnchor="middle">E = {externalDistance.toFixed(2)} m</text>
+          <text x={chordMidX + 6} y={chordMidY + 4} fill={DIM} fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="middle">M = {midOrdinate.toFixed(2)} m</text>
 
           {/* Δ label near PI */}
-          <text x={piX + 16} y={piY - 26} fill="#f472b6" fontSize="11" fontWeight="600" fontFamily="sans-serif">Δ = {deflectionDeg.toFixed(2)}°</text>
+          <text x={piX + 16} y={piY - 26} fill="#f472b6" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">Δ = {deflectionDeg.toFixed(2)}°</text>
 
           {/* North arrow */}
           <g transform={`translate(${W - 34}, 26)`}>
             <line x1="0" y1="16" x2="0" y2="0" stroke="#aaa" strokeWidth="1.5" />
             <polygon points="0,0 -4,7 4,7" fill="#aaa" />
-            <text x="0" y="26" fill="#aaa" fontSize="10" textAnchor="middle" fontFamily="sans-serif">N</text>
+            <text x="0" y="26" fill="#aaa" fontSize="10" textAnchor="middle" fontFamily="Geist, system-ui, sans-serif">N</text>
           </g>
         </svg>
 

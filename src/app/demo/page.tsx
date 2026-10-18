@@ -694,7 +694,7 @@ export default function DemoPage() {
                         y={pt.y + pt.dy}
                         fill="#ffffff"
                         fontSize="11"
-                        fontFamily="monospace"
+                        fontFamily="JetBrains Mono, monospace"
                         fontWeight="bold"
                       >
                         {pt.name}
@@ -703,13 +703,13 @@ export default function DemoPage() {
                   ))}
 
                   {/* Parcel Area & Info in Center */}
-                  <text x="310" y="210" fill="#D17B47" fontSize="13" fontFamily="sans-serif" fontWeight="bold">
+                  <text x="310" y="210" fill="#D17B47" fontSize="13" fontFamily="Geist, system-ui, sans-serif" fontWeight="bold">
                     SAMPLE PARCEL 01
                   </text>
-                  <text x="310" y="230" fill="#a1a1aa" fontSize="11" fontFamily="monospace">
+                  <text x="310" y="230" fill="#a1a1aa" fontSize="11" fontFamily="JetBrains Mono, monospace">
                     Area: 3.1852 Ha
                   </text>
-                  <text x="310" y="248" fill="#71717a" fontSize="10" fontFamily="monospace">
+                  <text x="310" y="248" fill="#71717a" fontSize="10" fontFamily="JetBrains Mono, monospace">
                     Perimeter: 686.45 m
                   </text>
 
@@ -717,17 +717,17 @@ export default function DemoPage() {
                   <g transform="translate(625, 60)">
                     <line x1="0" y1="20" x2="0" y2="-20" stroke="#ffffff" strokeWidth="1.5" />
                     <polygon points="0,-20 -5,-5 0,-10 5,-5" fill="#D17B47" />
-                    <text x="-4" y="-24" fill="#ffffff" fontSize="10" fontFamily="monospace" fontWeight="bold">N</text>
+                    <text x="-4" y="-24" fill="#ffffff" fontSize="10" fontFamily="JetBrains Mono, monospace" fontWeight="bold">N</text>
                   </g>
 
                   {/* Title Block in Bottom Right */}
                   <g transform="translate(420, 340)">
                     <rect x="0" y="0" width="245" height="80" fill="rgba(24, 24, 27, 0.9)" stroke="#52525b" strokeWidth="1" />
-                    <text x="10" y="18" fill="#ffffff" fontSize="9" fontFamily="sans-serif" fontWeight="bold">REPUBLIC OF KENYA</text>
-                    <text x="10" y="32" fill="#D17B47" fontSize="10" fontFamily="sans-serif" fontWeight="bold">SAMPLE SURVEY PLAN — SYNTHETIC DATA</text>
-                    <text x="10" y="47" fill="#a1a1aa" fontSize="8" fontFamily="monospace">Locality: Upper Hill, Nairobi</text>
-                    <text x="10" y="60" fill="#a1a1aa" fontSize="8" fontFamily="monospace">Scale: 1:2,500 · Datum: Arc 1960</text>
-                    <text x="10" y="72" fill="#71717a" fontSize="7" fontFamily="monospace">METARDU Field-to-Finish Suite</text>
+                    <text x="10" y="18" fill="#ffffff" fontSize="9" fontFamily="Geist, system-ui, sans-serif" fontWeight="bold">REPUBLIC OF KENYA</text>
+                    <text x="10" y="32" fill="#D17B47" fontSize="10" fontFamily="Geist, system-ui, sans-serif" fontWeight="bold">SAMPLE SURVEY PLAN — SYNTHETIC DATA</text>
+                    <text x="10" y="47" fill="#a1a1aa" fontSize="8" fontFamily="JetBrains Mono, monospace">Locality: Upper Hill, Nairobi</text>
+                    <text x="10" y="60" fill="#a1a1aa" fontSize="8" fontFamily="JetBrains Mono, monospace">Scale: 1:2,500 · Datum: Arc 1960</text>
+                    <text x="10" y="72" fill="#71717a" fontSize="7" fontFamily="JetBrains Mono, monospace">METARDU Field-to-Finish Suite</text>
                   </g>
                 </svg>
               </div>

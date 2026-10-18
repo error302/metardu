@@ -132,7 +132,7 @@ export async function createDrawAnnotationLayer(
       text: new Text({
         text,
         rotation,
-        font: '11px Calibri, sans-serif',
+        font: '11px Geist, system-ui, sans-serif',
         fill: new Fill({ color: '#D17B47' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
         textAlign: 'center',

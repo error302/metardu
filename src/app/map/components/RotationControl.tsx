@@ -73,7 +73,6 @@ function RotationControlInner() {
       ].join(' ')}
       title={isRotated ? `Reset North (rotated ${rotationDeg}°)` : 'North (0°)'}
       disabled={!isRotated}
-      style={{ fontFamily: 'Calibri, sans-serif' }}
     >
       {/* Compass needle — rotates with map */}
       <svg

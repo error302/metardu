@@ -263,7 +263,7 @@ export default function WorkspaceMap({ projectId, projectName, boundaryData, eps
               }),
               text: new Text({
                 text: name,
-                font: 'bold 11px sans-serif',
+                font: 'bold 11px Geist, system-ui, sans-serif',
                 fill: new Fill({ color: '#fff' }),
                 stroke: new Stroke({ color: 'rgba(0,0,0,0.7)', width: 3 }),
                 offsetY: -16,

@@ -228,7 +228,7 @@ export default function RegisterPage() {
                 </div>
 
                 <label className="flex items-start gap-3 cursor-pointer">
-                  <input aria-label="Agreeterms"
+                  <input
                     type="checkbox"
                     checked={agreeTerms}
                     onChange={e => setAgreeTerms(e.target.checked)}

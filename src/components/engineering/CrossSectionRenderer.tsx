@@ -125,7 +125,7 @@ function DimensionLine({
         fontSize="7"
         fill={COLORS.dimensionArrow}
         textAnchor="middle"
-        fontFamily="monospace"
+        fontFamily="JetBrains Mono, monospace"
       >
         {label}
       </text>
@@ -441,7 +441,7 @@ function CrossSectionDrawingBody({
                       fontSize="5"
                       fill={COLORS.labelSecondary}
                       textAnchor="middle"
-                      fontFamily="monospace"
+                      fontFamily="JetBrains Mono, monospace"
                     >
                       {offset}
                     </text>
@@ -463,7 +463,7 @@ function CrossSectionDrawingBody({
                       fontSize="5"
                       fill={COLORS.labelSecondary}
                       textAnchor="middle"
-                      fontFamily="monospace"
+                      fontFamily="JetBrains Mono, monospace"
                     >
                       {offset}
                     </text>
@@ -650,7 +650,7 @@ function CrossSectionDrawingBody({
                 y={(toSvgY(centreGroundLevel) + formSvgY) / 2 + 2.5}
                 fontSize="7"
                 fill={centreDepth > 0 ? COLORS.cutLabel : COLORS.fillLabel}
-                fontFamily="monospace"
+                fontFamily="JetBrains Mono, monospace"
               >
                 {Math.abs(centreDepth).toFixed(3)}m
               </text>
@@ -680,7 +680,7 @@ function CrossSectionDrawingBody({
               y={21}
               fontSize="9"
               fill={COLORS.labelPrimary}
-              fontFamily="monospace"
+              fontFamily="JetBrains Mono, monospace"
               fontWeight="600"
             >
               CH {formatChainage(chainage)}
@@ -705,7 +705,7 @@ function CrossSectionDrawingBody({
               y={21}
               fontSize="9"
               fill={sectionLabelColor}
-              fontFamily="monospace"
+              fontFamily="JetBrains Mono, monospace"
               fontWeight="600"
             >
               {sectionLabel}{' '}
@@ -723,7 +723,7 @@ function CrossSectionDrawingBody({
             y={formSvgY - 4}
             fontSize="6"
             fill={COLORS.labelSecondary}
-            fontFamily="monospace"
+            fontFamily="JetBrains Mono, monospace"
           >
             FL {computedFormationLevel.toFixed(3)}
           </text>
@@ -735,7 +735,7 @@ function CrossSectionDrawingBody({
               y={subgradeSvgY + 3}
               fontSize="6"
               fill={COLORS.labelSecondary}
-              fontFamily="monospace"
+              fontFamily="JetBrains Mono, monospace"
             >
               SG {subgradeLevel.toFixed(3)}
             </text>
@@ -749,7 +749,7 @@ function CrossSectionDrawingBody({
               fontSize="6"
               fill={COLORS.labelSecondary}
               textAnchor="middle"
-              fontFamily="monospace"
+              fontFamily="JetBrains Mono, monospace"
             >
               {activeSlopeStr}
             </text>
@@ -761,7 +761,7 @@ function CrossSectionDrawingBody({
               fontSize="6"
               fill={COLORS.labelSecondary}
               textAnchor="middle"
-              fontFamily="monospace"
+              fontFamily="JetBrains Mono, monospace"
             >
               {activeSlopeStr}
             </text>
@@ -774,7 +774,7 @@ function CrossSectionDrawingBody({
             fontSize="6"
             fill={COLORS.labelSecondary}
             textAnchor="middle"
-            fontFamily="monospace"
+            fontFamily="JetBrains Mono, monospace"
           >
             {template.camber}% camber
           </text>
@@ -787,7 +787,7 @@ function CrossSectionDrawingBody({
               fontSize="6"
               fill={COLORS.groundLine}
               textAnchor="end"
-              fontFamily="monospace"
+              fontFamily="JetBrains Mono, monospace"
             >
               GL {centreGroundLevel.toFixed(3)}
             </text>
@@ -800,7 +800,7 @@ function CrossSectionDrawingBody({
             fontSize="6"
             fill={COLORS.labelSecondary}
             textAnchor="middle"
-            fontFamily="monospace"
+            fontFamily="JetBrains Mono, monospace"
             fontWeight="500"
           >
             CL

@@ -235,7 +235,7 @@ export function useVertexEditing({
           offsetY: -16,
           fill: new FillCls({ color: '#1B3A5C' }),
           stroke: new StrokeCls({ color: '#FFFFFF', width: 3 }),
-          font: 'bold 11px Calibri, sans-serif',
+          font: 'bold 11px Geist, system-ui, sans-serif',
         }),
       });
 

@@ -173,7 +173,7 @@ export function CutFillHeatMap({ cells, gridSpacing, bounds: boundsProp }: CutFi
             const x = toSvgX(e)
             return (
               <g key={`tx${i}`}>
-                <text x={x.toFixed(2)} y={SVG_HEIGHT - MARGIN / 3} fill="#888" fontSize="9" fontFamily="monospace" textAnchor="middle">
+                <text x={x.toFixed(2)} y={SVG_HEIGHT - MARGIN / 3} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="middle">
                   {e.toFixed(1)}
                 </text>
                 <line x1={x} y1={MARGIN + usableH} x2={x} y2={MARGIN + usableH + 5} stroke="#555" strokeWidth="0.5" />
@@ -186,7 +186,7 @@ export function CutFillHeatMap({ cells, gridSpacing, bounds: boundsProp }: CutFi
             const y = toSvgY(n)
             return (
               <g key={`ty${i}`}>
-                <text x={MARGIN / 2} y={(y + 3).toFixed(2)} fill="#888" fontSize="9" fontFamily="monospace" textAnchor="middle">
+                <text x={MARGIN / 2} y={(y + 3).toFixed(2)} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="middle">
                   {n.toFixed(1)}
                 </text>
                 <line x1={MARGIN - 5} y1={y} x2={MARGIN} y2={y} stroke="#555" strokeWidth="0.5" />
@@ -195,13 +195,13 @@ export function CutFillHeatMap({ cells, gridSpacing, bounds: boundsProp }: CutFi
           })}
 
           {/* Axis labels */}
-          <text x={MARGIN + usableW / 2} y={SVG_HEIGHT - 5} fill="#888" fontSize="11" fontFamily="sans-serif" textAnchor="middle">Easting (m)</text>
+          <text x={MARGIN + usableW / 2} y={SVG_HEIGHT - 5} fill="#888" fontSize="11" fontFamily="Geist, system-ui, sans-serif" textAnchor="middle">Easting (m)</text>
           <text
             x={10}
             y={MARGIN + usableH / 2}
             fill="#888"
             fontSize="11"
-            fontFamily="sans-serif"
+            fontFamily="Geist, system-ui, sans-serif"
             textAnchor="middle"
             transform={`rotate(-90, 10, ${MARGIN + usableH / 2})`}
           >
@@ -209,7 +209,7 @@ export function CutFillHeatMap({ cells, gridSpacing, bounds: boundsProp }: CutFi
           </text>
 
           {/* Corner coordinates */}
-          <g fill="#666" fontSize="8" fontFamily="monospace">
+          <g fill="#666" fontSize="8" fontFamily="JetBrains Mono, monospace">
             <text x={MARGIN + 3} y={MARGIN + 11} textAnchor="start">N {bounds.minY.toFixed(1)}  E {bounds.minX.toFixed(1)}</text>
             <text x={MARGIN + usableW - 3} y={MARGIN + 11} textAnchor="end">N {bounds.minY.toFixed(1)}  E {bounds.maxX.toFixed(1)}</text>
             <text x={MARGIN + 3} y={MARGIN + usableH - 4} textAnchor="start">N {bounds.maxY.toFixed(1)}  E {bounds.minX.toFixed(1)}</text>
@@ -217,13 +217,13 @@ export function CutFillHeatMap({ cells, gridSpacing, bounds: boundsProp }: CutFi
           </g>
 
           {/* Title block (top-right) */}
-          <text x={MARGIN + usableW - 4} y={MARGIN + 24} fill="#ccc" fontSize="12" fontFamily="sans-serif" fontWeight="600" textAnchor="end">CUT / FILL HEAT MAP</text>
+          <text x={MARGIN + usableW - 4} y={MARGIN + 24} fill="#ccc" fontSize="12" fontFamily="Geist, system-ui, sans-serif" fontWeight="600" textAnchor="end">CUT / FILL HEAT MAP</text>
 
           {/* North arrow */}
           <g transform={`translate(${SVG_WIDTH - 40}, ${MARGIN + 30})`}>
             <line x1="0" y1="20" x2="0" y2="0" stroke="#aaa" strokeWidth="1.5" />
             <polygon points="0,0 -4,8 4,8" fill="#aaa" />
-            <text x="0" y="32" fill="#aaa" fontSize="10" textAnchor="middle" fontFamily="sans-serif">N</text>
+            <text x="0" y="32" fill="#aaa" fontSize="10" textAnchor="middle" fontFamily="Geist, system-ui, sans-serif">N</text>
           </g>
 
           {/* Scale bar */}
@@ -236,7 +236,7 @@ export function CutFillHeatMap({ cells, gridSpacing, bounds: boundsProp }: CutFi
               <g>
                 <rect x={sbX} y={sbY - 4} width={scaleBarSvgLen} height={8} fill="none" stroke="#aaa" strokeWidth="1" />
                 <rect x={sbX} y={sbY - 4} width={scaleBarSvgLen / 2} height={8} fill="#aaa" />
-                <text x={(sbX + scaleBarSvgLen / 2).toFixed(2)} y={(sbY - 8).toFixed(2)} fill="#aaa" fontSize="9" textAnchor="middle" fontFamily="monospace">
+                <text x={(sbX + scaleBarSvgLen / 2).toFixed(2)} y={(sbY - 8).toFixed(2)} fill="#aaa" fontSize="9" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
                   {scaleBarWorldLen.toFixed(1)} m
                 </text>
               </g>

@@ -64,7 +64,7 @@ export default function SchemeMapCanvas({ projectId, onReady, onError }: SchemeM
                 stroke: new Stroke({ color, width: 2.5 }),
                 text: new Text({
                   text: String(props.parcel_number || ''),
-                  font: 'bold 12px sans-serif',
+                  font: 'bold 12px Geist, system-ui, sans-serif',
                   fill: new Fill({ color: '#ffffff' }),
                   stroke: new Stroke({ color: '#000000', width: 3 }),
                 }),
@@ -75,7 +75,7 @@ export default function SchemeMapCanvas({ projectId, onReady, onError }: SchemeM
               return new Style({
                 text: new Text({
                   text: `Block ${String(props.block_number ?? '')}\n(${String(props.parcel_count ?? '')} parcels)`,
-                  font: 'bold 14px sans-serif',
+                  font: 'bold 14px Geist, system-ui, sans-serif',
                   fill: new Fill({ color: '#1e40af' }),
                   stroke: new Stroke({ color: '#ffffff', width: 4 }),
                   textAlign: 'center',

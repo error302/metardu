@@ -116,7 +116,7 @@ export async function createSubdivisionLayer(
     labelFeature.setStyle(new Style({
       text: new Text({
         text: `LOT ${lot.lotNumber}\n${lot.areaHa.toFixed(4)} ha`,
-        font: 'bold 12px Calibri, sans-serif',
+        font: 'bold 12px Geist, system-ui, sans-serif',
         fill: new Fill({ color: '#1B3A5C' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 4 }),
         textAlign: 'center',
@@ -166,7 +166,7 @@ export async function createSubdivisionLayer(
     rrLabelFeature.setStyle(new Style({
       text: new Text({
         text: `ROAD RESERVE\n${rr.width}m`,
-        font: 'bold 11px Calibri, sans-serif',
+        font: 'bold 11px Geist, system-ui, sans-serif',
         fill: new Fill({ color: '#9A3412' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 4 }),
         textAlign: 'center',
@@ -293,7 +293,7 @@ export async function createRoadReservePreviewLayer(
   labelFeature.setStyle(new Style({
     text: new Text({
       text: `ROAD RESERVE\n${roadReserve.width}m`,
-      font: 'bold 11px Calibri, sans-serif',
+      font: 'bold 11px Geist, system-ui, sans-serif',
       fill: new Fill({ color: '#9A3412' }),
       stroke: new Stroke({ color: '#FFFFFF', width: 4 }),
       textAlign: 'center',

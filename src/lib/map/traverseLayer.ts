@@ -275,7 +275,7 @@ export async function createTraverseLayer(
         new Style({
           text: new Text({
             text: `${dist.toFixed(2)} m`,
-            font: '11px Calibri, sans-serif',
+            font: '11px Geist, system-ui, sans-serif',
             fill: new Fill({ color }),
             stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
             textAlign: 'center',
@@ -313,7 +313,7 @@ export async function createTraverseLayer(
       new Style({
         text: new Text({
           text: name,
-          font: 'bold 13px Calibri, sans-serif',
+          font: 'bold 13px Geist, system-ui, sans-serif',
           fill: new Fill({ color: '#1a1a2e' }),
           stroke: new Stroke({ color: '#FFFFFF', width: 4 }),
           textAlign: 'center',

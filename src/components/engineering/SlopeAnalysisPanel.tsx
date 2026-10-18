@@ -441,18 +441,18 @@ export default function SlopeAnalysisPanel({ projectId }: SlopeAnalysisPanelProp
 
         {/* Legend */}
         <g transform={`translate(${svgW - 160}, ${svgH - 30})`}>
-          <text x="0" y="0" fill="#aaa" fontSize="10" fontFamily="monospace">0%</text>
+          <text x="0" y="0" fill="#aaa" fontSize="10" fontFamily="JetBrains Mono, monospace">0%</text>
           <rect x="25" y="-8" width="20" height="10" fill={SLOPE_CLASS_COLORS.flat.fill} />
           <rect x="45" y="-8" width="20" height="10" fill={SLOPE_CLASS_COLORS.gentle.fill} />
           <rect x="65" y="-8" width="20" height="10" fill={SLOPE_CLASS_COLORS.moderate.fill} />
           <rect x="85" y="-8" width="20" height="10" fill={SLOPE_CLASS_COLORS.steep.fill} />
           <rect x="105" y="-8" width="20" height="10" fill={SLOPE_CLASS_COLORS.very_steep.fill} />
           <rect x="125" y="-8" width="20" height="10" fill={SLOPE_CLASS_COLORS.cliff.fill} />
-          <text x="148" y="0" fill="#aaa" fontSize="10" fontFamily="monospace">&gt;60%</text>
+          <text x="148" y="0" fill="#aaa" fontSize="10" fontFamily="JetBrains Mono, monospace">&gt;60%</text>
         </g>
 
         {/* Grid resolution label */}
-        <text x="pad" y={svgH - 8} fill="#666" fontSize="9" fontFamily="monospace">
+        <text x="pad" y={svgH - 8} fill="#666" fontSize="9" fontFamily="JetBrains Mono, monospace">
           Grid: {slopeResult.gridResolution.toFixed(1)} m
         </text>
       </svg>

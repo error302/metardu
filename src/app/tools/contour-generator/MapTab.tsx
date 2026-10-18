@@ -69,8 +69,8 @@ export function MapTab({ contours, bounds, points, contourInterval, svgElements,
               <g key={`grid-${i}`}>
                 <line x1={x} y1={MARGIN} x2={x} y2={MARGIN + svgElements.usableH} stroke="#e1e5e8" strokeWidth="0.6" />
                 <line x1={MARGIN} y1={y} x2={MARGIN + svgElements.usableW} y2={y} stroke="#e1e5e8" strokeWidth="0.6" />
-                <text x={x} y={SVG_HEIGHT - 21} textAnchor="middle" fontFamily="monospace" fontSize="9" fill="#425466">{easting.toFixed(0)}</text>
-                <text x={MARGIN - 6} y={y + 3} textAnchor="end" fontFamily="monospace" fontSize="9" fill="#425466">{northing.toFixed(0)}</text>
+                <text x={x} y={SVG_HEIGHT - 21} textAnchor="middle" fontFamily="JetBrains Mono, monospace" fontSize="9" fill="#425466">{easting.toFixed(0)}</text>
+                <text x={MARGIN - 6} y={y + 3} textAnchor="end" fontFamily="JetBrains Mono, monospace" fontSize="9" fill="#425466">{northing.toFixed(0)}</text>
               </g>
             )
           })}
@@ -97,8 +97,8 @@ export function MapTab({ contours, bounds, points, contourInterval, svgElements,
             return <g key={`spot-${index}`}><circle cx={x} cy={y} r="1.8" fill="#25313d" /><text x={x + 4} y={y - 3} fontSize="7" fill="#25313d">{point.elevation.toFixed(2)}</text></g>
           })}
 
-          <text x={MARGIN + 6} y={MARGIN + 18} fontSize="9" fontFamily="Arial,sans-serif" fill="#334155">E {bounds.minE.toFixed(0)}–{bounds.maxE.toFixed(0)} {units}</text>
-          <text x={MARGIN + 6} y={MARGIN + 31} fontSize="9" fontFamily="Arial,sans-serif" fill="#334155">N {bounds.minN.toFixed(0)}–{bounds.maxN.toFixed(0)} {units}</text>
+          <text x={MARGIN + 6} y={MARGIN + 18} fontSize="9" fontFamily="Geist, system-ui, sans-serif" fill="#334155">E {bounds.minE.toFixed(0)}–{bounds.maxE.toFixed(0)} {units}</text>
+          <text x={MARGIN + 6} y={MARGIN + 31} fontSize="9" fontFamily="Geist, system-ui, sans-serif" fill="#334155">N {bounds.minN.toFixed(0)}–{bounds.maxN.toFixed(0)} {units}</text>
           <g transform={`translate(${SVG_WIDTH - 34}, ${MARGIN + 36})`} fill="#25313d" stroke="#25313d">
             <text x="0" y="-14" textAnchor="middle" fontSize="10" fontWeight="700" stroke="none">{metricReference ? 'GRID N' : 'N +'}</text>
             <line x1="0" y1="8" x2="0" y2="-8" strokeWidth="1.5" />

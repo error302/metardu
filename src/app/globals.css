@@ -637,7 +637,7 @@ html.field-mode small {
 @layer base {
   body {
     @apply bg-[var(--bg-primary)] text-[var(--text-primary)];
-    font-family: "Geist", system-ui, -apple-system, sans-serif;
+    font-family: var(--font-sans);
     max-width: 100%;
     overflow-x: clip;
     overflow-y: auto;
@@ -645,7 +645,7 @@ html.field-mode small {
 
   /* Editorial serif for display headings — applied via .font-display utility or h1.display */
   h1.display, .font-display, .font-serif {
-    font-family: var(--font-instrument), var(--font-newsreader), Georgia, serif;
+    font-family: var(--font-display);
     letter-spacing: -0.025em;
     line-height: 1.05;
     font-weight: 400;
@@ -653,7 +653,7 @@ html.field-mode small {
 
   /* Monospace for coordinates, bearings, tabular data */
   .font-mono, code, kbd, pre, .font-tabular {
-    font-family: var(--font-jetbrains), "Geist Mono", monospace;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
 
@@ -1351,7 +1351,7 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   overflow: hidden;
   opacity: 0.22;
   pointer-events: none;
-  font: 500 clamp(0.85rem, 1.3vw, 1.1rem) / 1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  font: 500 clamp(0.85rem, 1.3vw, 1.1rem) / 1 var(--font-mono);
   letter-spacing: 0.28em;
   text-shadow: 0 0 16px rgba(209, 123, 71, 0.18);
   mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);

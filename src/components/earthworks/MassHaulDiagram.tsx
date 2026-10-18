@@ -113,13 +113,13 @@ export default function MassHaulDiagram({ result }: Props) {
 
           {/* Peak annotation */}
           <circle cx={toSvgX(peakOrd.chainage)} cy={toSvgY(peakOrd.ordinate)} r="4" fill="#ff6600" />
-          <text x={toSvgX(peakOrd.chainage) + 5} y={toSvgY(peakOrd.ordinate) - 5} fontSize="9" fill="#ff6600" fontFamily="monospace">
+          <text x={toSvgX(peakOrd.chainage) + 5} y={toSvgY(peakOrd.ordinate) - 5} fontSize="9" fill="#ff6600" fontFamily="JetBrains Mono, monospace">
             Max: {peakOrd.ordinate.toFixed(1)} m&sup3;
           </text>
 
           {/* Trough annotation */}
           <circle cx={toSvgX(troughOrd.chainage)} cy={toSvgY(troughOrd.ordinate)} r="4" fill="#0066ff" />
-          <text x={toSvgX(troughOrd.chainage) + 5} y={toSvgY(troughOrd.ordinate) + 14} fontSize="9" fill="#0066ff" fontFamily="monospace">
+          <text x={toSvgX(troughOrd.chainage) + 5} y={toSvgY(troughOrd.ordinate) + 14} fontSize="9" fill="#0066ff" fontFamily="JetBrains Mono, monospace">
             Min: {troughOrd.ordinate.toFixed(1)} m&sup3;
           </text>
 
@@ -127,7 +127,7 @@ export default function MassHaulDiagram({ result }: Props) {
           {xTicks.map((ch, i) => (
             <g key={`${ch}-${i}`}>
               <line x1={toSvgX(ch)} y1={svgH - padY} x2={toSvgX(ch)} y2={svgH - padY + 5} stroke="#333" strokeWidth="0.5" />
-              <text x={toSvgX(ch)} y={svgH - padY + 15} fontSize="8" fill="#666" textAnchor="middle" fontFamily="monospace">
+              <text x={toSvgX(ch)} y={svgH - padY + 15} fontSize="8" fill="#666" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
                 {fmtCh(ch)}
               </text>
             </g>
@@ -137,17 +137,17 @@ export default function MassHaulDiagram({ result }: Props) {
           {yTicks.map((ord, i) => (
             <g key={`${ord}-${i}`}>
               <line x1={padX - 5} y1={toSvgY(ord)} x2={padX} y2={toSvgY(ord)} stroke="#333" strokeWidth="0.5" />
-              <text x={padX - 8} y={toSvgY(ord) + 3} fontSize="8" fill="#666" textAnchor="end" fontFamily="monospace">
+              <text x={padX - 8} y={toSvgY(ord) + 3} fontSize="8" fill="#666" textAnchor="end" fontFamily="JetBrains Mono, monospace">
                 {ord >= 1000 ? `${(ord / 1000).toFixed(1)}k` : ord.toFixed(0)}
               </text>
             </g>
           ))}
 
           {/* Axis labels */}
-          <text x={svgW / 2} y={svgH - 2} fontSize="9" fill="#333" textAnchor="middle" fontFamily="monospace">
+          <text x={svgW / 2} y={svgH - 2} fontSize="9" fill="#333" textAnchor="middle" fontFamily="JetBrains Mono, monospace">
             Chainage
           </text>
-          <text x={12} y={svgH / 2} fontSize="9" fill="#333" textAnchor="middle" fontFamily="monospace" transform={`rotate(-90, 12, ${svgH / 2})`}>
+          <text x={12} y={svgH / 2} fontSize="9" fill="#333" textAnchor="middle" fontFamily="JetBrains Mono, monospace" transform={`rotate(-90, 12, ${svgH / 2})`}>
             Mass Ordinate (m&sup3;)
           </text>
         </svg>

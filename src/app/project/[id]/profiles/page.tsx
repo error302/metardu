@@ -9,10 +9,6 @@ import { generateLongitudinalProfileSvg } from '@/lib/reports/profileSvg'
 import { logger } from '@/lib/logger'
 import type { SurveyPoint } from '@/types/surveyPoint'
 
-interface PageProps {
-  params: { id: string }
-}
-
 interface Project {
   id: string;
   name: string;
@@ -574,7 +570,7 @@ function ProfileChart({ points }: { points: ChainagePoint[] }) {
       id="profile-svg"
       viewBox={`0 0 ${width} ${height}`}
       preserveAspectRatio="xMidYMid meet"
-      fontFamily={'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace'}
+      fontFamily="JetBrains Mono, monospace"
       className="bg-[var(--bg-secondary)] rounded border border-amber-500/30 w-full"
     >
       <defs>

@@ -1,0 +1,81 @@
+# METARDU typography acceptance
+
+The shared page typography uses the existing locally served brand fonts. No new
+font, external font request, package or production data change is part of this
+increment.
+
+## Roles across the site
+
+| Role | Family | Use |
+| --- | --- | --- |
+| Interface | Geist | Body copy, navigation, forms, buttons, working headings and map controls |
+| Display | Instrument Serif | Deliberate editorial headings using `font-display` or `font-serif` |
+| Data | JetBrains Mono | Coordinates, bearings, tables, code and numerical chart labels |
+
+`src/app/fonts.css` owns the CSS family stacks. Root body styles and Tailwind's
+`sans`, `display`, `serif` and `mono` utilities now use these same stacks, including
+responsive variants. Previously, the utility layer replaced body Geist and the
+custom monospace with Tailwind's system defaults. Browser inspection reproduced
+that mismatch on pricing descriptions, calls to action and the payment reference.
+
+Map controls no longer force Calibri. Canvas-based map annotations use explicit
+Geist stacks because canvas font strings cannot resolve CSS custom properties.
+Numerical chart labels use explicit JetBrains Mono stacks. SVG chart labels keep
+portable fallbacks rather than requiring a CSS variable in a standalone SVG.
+The loading background, 404 and root error boundary share the same font roles;
+the root error page imports the local font stylesheet independently of a failed
+root layout.
+
+The rendered map audit also reproduced clipped COGO controls: its 300 px child
+was wider than the dock, and navy text was nearly invisible on dark surfaces.
+The COGO cards now fit their container, inputs may shrink, all four labelled tabs
+use a two-column grid, and action/foreground colours use the shared theme pair.
+The traverse table keeps its own scroll area. Survey calculations are unchanged.
+Registration's agreement checkbox now derives its accessible name from the
+visible label instead of the compressed `Agreeterms` override.
+
+Generated legal documents, spreadsheet templates, PDF engine fonts and an
+operator's saved CAD text style retain their document-specific fonts. They are
+separate output contracts, not interface overrides. No stored drawing font or
+geometry has been rewritten.
+
+## Evidence and acceptance limits
+
+- Both strict TypeScript projects passed on 18 October 2026.
+- Focused map regressions passed **27 tests across four suites**. The initial
+  lint run found an existing unused profile interface and the root Tailwind
+  configuration outside the typed projects. The interface was removed, and the
+  Tailwind configuration is now included in strict application type/lint checks.
+  Final lint passed all **30 modified TypeScript/TSX files**, including the root
+  configuration, with zero errors or warnings. Both strict TypeScript projects
+  passed again after the repairs. Receipts are under `.cache/typography/`.
+- Normal CUA checks covered pricing at desktop/mobile widths, registration,
+  login, import and the survey-map COGO panel at 1280×900 and 390×844, including
+  field mode. Measured page/panel overflow checks passed; COGO inputs and buttons
+  fit their panel. The original theme and viewport were restored. Local receipts
+  and screenshots are in `.cache/typography/`.
+- A normal synthetic UI radiation from E 0 / N 0, bearing 90°, distance 100 m
+  produced E 100.000 / N 0.000. No point was added to the map. This is one planar
+  arithmetic/UI check, not CRS, datum, scale or field acceptance.
+- All 18 local font binaries match their recorded lengths and SHA-256 hashes;
+  every font stylesheet URL is present in the local manifest. The source route
+  inventory contains 236 page files and 19 layouts sharing the root styles.
+- All application routes inherit the root stylesheet. Route-specific source
+  overrides were inspected, but authenticated business/project states still need
+  their own rendered acceptance evidence. A source inventory is not proof that
+  every private page has been exercised in a browser.
+- The existing owned host preview uses the isolated synthetic database at
+  `127.0.0.1:3021`. It was restarted in place after stalled recompilation. No
+  production or supporting container was restarted for typography work.
+- The Samsung SM-S901U phone became available to Android debugging (Android 15,
+  1080×2340, no installed METARDU package). A USB-only preview mapping was prepared.
+  The user then requested continued testing in the computer browser and the
+  device disconnected. No phone UI, offline or receiver acceptance is claimed;
+  no app was installed and no device data was reset.
+- The previous application promotion remains rolled back. Production is the
+  healthy `4fa998fc` release, not the CAD/import candidate or these font repairs.
+  See `CONTINUATION_ACCEPTANCE_2026-10-18.md` before planning another cutover.
+
+Resend/domain verification, PayPal transaction acceptance, receiver/field
+validation and ChatGPT notice/deployment/consent gates remain separate from this
+typography increment and the continuing platform goal.

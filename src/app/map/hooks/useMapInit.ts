@@ -273,7 +273,7 @@ export function useMapInit(params: UseMapInitParams) {
               }),
               text: new Text({
                 text: size > 1 ? String(size) : '',
-                font: 'bold 12px sans-serif',
+                font: 'bold 12px Geist, system-ui, sans-serif',
                 fill: new Fill({ color: '#fff' }),
               }),
             })

@@ -240,4 +240,11 @@
   unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
 }
 
-:root { --font-instrument: "Instrument Serif", "Instrument Serif Fallback"; --font-jetbrains: "JetBrains Mono", "JetBrains Mono Fallback"; --font-newsreader: "Newsreader"; }
+:root {
+  --font-instrument: "Instrument Serif", "Instrument Serif Fallback";
+  --font-jetbrains: "JetBrains Mono", "JetBrains Mono Fallback";
+  --font-newsreader: "Newsreader";
+  --font-sans: "Geist", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: var(--font-instrument), var(--font-newsreader), Georgia, serif;
+  --font-mono: var(--font-jetbrains), ui-monospace, SFMono-Regular, Consolas, monospace;
+}

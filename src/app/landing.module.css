@@ -78,7 +78,7 @@
   display: block;
   margin-top: .12em;
   color: var(--landing-copper);
-  font-family: var(--font-instrument), Georgia, serif;
+  font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: -.035em;
 }

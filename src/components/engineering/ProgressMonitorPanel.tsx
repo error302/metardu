@@ -612,7 +612,7 @@ function SCurveChart({ chart }: { chart: ProgressChart }) {
       {[0, 25, 50, 75, 100].map(pct => (
         <g key={pct}>
           <line x1={margin.left} y1={scaleY(pct)} x2={width - margin.right} y2={scaleY(pct)} stroke="#27272a" strokeWidth={1} />
-          <text x={margin.left - 8} y={scaleY(pct) + 4} textAnchor="end" fill="#71717a" fontSize="10" fontFamily="monospace">
+          <text x={margin.left - 8} y={scaleY(pct) + 4} textAnchor="end" fill="#71717a" fontSize="10" fontFamily="JetBrains Mono, monospace">
             {pct}%
           </text>
         </g>
@@ -647,7 +647,7 @@ function SCurveChart({ chart }: { chart: ProgressChart }) {
         const parts = d.split('-')
         const label = `${parts[1]}/${parts[0]?.slice(2)}`
         return (
-          <text key={`${d}-${i}`} x={scaleX(i)} y={height - 10} textAnchor="middle" fill="#71717a" fontSize="10" fontFamily="monospace">
+          <text key={`${d}-${i}`} x={scaleX(i)} y={height - 10} textAnchor="middle" fill="#71717a" fontSize="10" fontFamily="JetBrains Mono, monospace">
             {label}
           </text>
         )

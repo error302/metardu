@@ -14,6 +14,14 @@ const config: Config = {
   ],
   theme: {
         extend: {
+                // Match inherited text and every font utility, including responsive
+                // variants. The local font stylesheet owns the family stacks.
+                fontFamily: {
+                        sans: ['var(--font-sans)'],
+                        display: ['var(--font-display)'],
+                        serif: ['var(--font-display)'],
+                        mono: ['var(--font-mono)'],
+                },
                 colors: {
                         background: 'hsl(var(--shadcn-background))',
                         foreground: 'hsl(var(--shadcn-foreground))',

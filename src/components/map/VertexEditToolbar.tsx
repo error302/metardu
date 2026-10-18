@@ -46,7 +46,7 @@ function VertexEditToolbarInner({
   return (
     <div
       className="bg-white rounded-lg shadow-lg border border-gray-200 select-none"
-      style={{ fontFamily: 'Calibri, sans-serif', minWidth: 240 }}
+      style={{ minWidth: 240 }}
     >
       {/* ── Header row ─────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-gray-100">

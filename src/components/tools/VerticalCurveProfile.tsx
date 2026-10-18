@@ -114,7 +114,7 @@ export function VerticalCurveProfile({
             return (
               <g key={`tx${i}`}>
                 <line x1={x} y1={MT} x2={x} y2={MT + plotH} stroke="#1a2233" strokeWidth="0.5" />
-                <text x={x.toFixed(1)} y={H - MB + 16} fill="#888" fontSize="9" fontFamily="monospace" textAnchor="middle">
+                <text x={x.toFixed(1)} y={H - MB + 16} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="middle">
                   {ch.toFixed(0)}
                 </text>
               </g>
@@ -125,7 +125,7 @@ export function VerticalCurveProfile({
             return (
               <g key={`ty${i}`}>
                 <line x1={ML} y1={y.toFixed(1)} x2={ML + plotW} y2={y.toFixed(1)} stroke="#1a2233" strokeWidth="0.5" />
-                <text x={ML - 8} y={(y + 3).toFixed(1)} fill="#888" fontSize="9" fontFamily="monospace" textAnchor="end">
+                <text x={ML - 8} y={(y + 3).toFixed(1)} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="end">
                   {rl.toFixed(1)}
                 </text>
               </g>
@@ -135,13 +135,13 @@ export function VerticalCurveProfile({
           <line x1={ML} y1={MT + plotH} x2={ML + plotW} y2={MT + plotH} stroke="#30363d" strokeWidth="1" />
 
           {/* Axis labels */}
-          <text x={ML + plotW / 2} y={H - 8} fill="#888" fontSize="11" fontFamily="sans-serif" textAnchor="middle">Chainage (m)</text>
+          <text x={ML + plotW / 2} y={H - 8} fill="#888" fontSize="11" fontFamily="Geist, system-ui, sans-serif" textAnchor="middle">Chainage (m)</text>
           <text
             x={16}
             y={MT + plotH / 2}
             fill="#888"
             fontSize="11"
-            fontFamily="sans-serif"
+            fontFamily="Geist, system-ui, sans-serif"
             textAnchor="middle"
             transform={`rotate(-90, 16, ${MT + plotH / 2})`}
           >
@@ -162,21 +162,21 @@ export function VerticalCurveProfile({
           {peakPoint && <circle cx={peakX} cy={peakY} r="5" fill="#a855f7" stroke="#fff" strokeWidth="1" />}
 
           {/* Labels */}
-          <text x={px(bvcChainage) - 6} y={py(bvcRL) + 20} fill="#22c55e" fontSize="11" fontWeight="600" fontFamily="sans-serif" textAnchor="middle">BVC</text>
-          <text x={px(evcChainage) - 6} y={py(evcRL) + 20} fill="#22c55e" fontSize="11" fontWeight="600" fontFamily="sans-serif" textAnchor="middle">EVC</text>
-          <text x={px(vpiChainage) + 8} y={py(vpiRL) + 18} fill="#ef4444" fontSize="11" fontWeight="600" fontFamily="sans-serif">VPI</text>
+          <text x={px(bvcChainage) - 6} y={py(bvcRL) + 20} fill="#22c55e" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif" textAnchor="middle">BVC</text>
+          <text x={px(evcChainage) - 6} y={py(evcRL) + 20} fill="#22c55e" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif" textAnchor="middle">EVC</text>
+          <text x={px(vpiChainage) + 8} y={py(vpiRL) + 18} fill="#ef4444" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">VPI</text>
           {peakPoint && (
-            <text x={peakX + 8} y={peakY - 8} fill="#a855f7" fontSize="11" fontWeight="600" fontFamily="sans-serif">
+            <text x={peakX + 8} y={peakY - 8} fill="#a855f7" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">
               {isCrest ? 'Peak' : 'Low Pt'}
             </text>
           )}
 
           {/* Grade labels */}
-          <text x={(px(bvcChainage) + px(vpiChainage)) / 2} y={py(bvcRL) - 10} fill="#f472b6" fontSize="10" fontFamily="monospace" textAnchor="middle">G1 = {g1.toFixed(2)}%</text>
-          <text x={(px(vpiChainage) + px(evcChainage)) / 2} y={py(evcRL) + 30} fill="#f472b6" fontSize="10" fontFamily="monospace" textAnchor="middle">G2 = {g2.toFixed(2)}%</text>
+          <text x={(px(bvcChainage) + px(vpiChainage)) / 2} y={py(bvcRL) - 10} fill="#f472b6" fontSize="10" fontFamily="JetBrains Mono, monospace" textAnchor="middle">G1 = {g1.toFixed(2)}%</text>
+          <text x={(px(vpiChainage) + px(evcChainage)) / 2} y={py(evcRL) + 30} fill="#f472b6" fontSize="10" fontFamily="JetBrains Mono, monospace" textAnchor="middle">G2 = {g2.toFixed(2)}%</text>
 
           {/* Key dimensions */}
-          <text x={px(bvcChainage)} y={H - MB - 6} fill="#888" fontSize="9" fontFamily="monospace" textAnchor="start">L = {((rows[rows.length - 1]?.chainage ?? evcChainage) - bvcChainage).toFixed(1)} m</text>
+          <text x={px(bvcChainage)} y={H - MB - 6} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="start">L = {((rows[rows.length - 1]?.chainage ?? evcChainage) - bvcChainage).toFixed(1)} m</text>
         </svg>
       </div>
     </div>

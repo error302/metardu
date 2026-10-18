@@ -266,7 +266,7 @@ export async function createParcelTileLayer(options: ParcelTileOptions) {
         text: parcelNumber
           ? new Text({
               text: String(parcelNumber),
-              font: '11px Calibri, sans-serif',
+              font: '11px Geist, system-ui, sans-serif',
               fill: new Fill({ color: '#1B3A5C' }),
               stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
             })
@@ -347,7 +347,7 @@ export async function createBeaconTileLayer(options: BeaconTileOptions) {
         text: beaconId
           ? new Text({
               text: String(beaconId),
-              font: 'bold 11px Calibri, sans-serif',
+              font: 'bold 11px Geist, system-ui, sans-serif',
               fill: new Fill({ color: '#1B3A5C' }),
               stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
               offsetY: -12,

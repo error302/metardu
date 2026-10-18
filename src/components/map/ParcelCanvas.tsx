@@ -320,7 +320,7 @@ export default function ParcelCanvas({
           text: labelText,
           fontSize: 9,
           fill: '#555',
-          fontFamily: 'monospace',
+          fontFamily: 'JetBrains Mono, monospace',
           align: 'center',
         })
         label.offsetX(label.width() / 2)
@@ -357,7 +357,7 @@ export default function ParcelCanvas({
         text: areaText,
         fontSize: 12,
         fill: AREA_TEXT_COLOR,
-        fontFamily: 'Calibri, sans-serif',
+        fontFamily: 'Geist, system-ui, sans-serif',
         fontStyle: 'bold',
         align: 'center',
       })
@@ -404,7 +404,7 @@ export default function ParcelCanvas({
             text: v.label,
             fontSize: 10,
             fill: '#333',
-            fontFamily: 'monospace',
+            fontFamily: 'JetBrains Mono, monospace',
           })
         )
       }

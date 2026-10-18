@@ -233,7 +233,7 @@ export async function updateGridOverlay(
     labelBottom.setStyle(new Style({
       text: new Text({
         text: `E ${formatCoord(e, resolvedInterval)}`,
-        font: '10px Calibri, sans-serif',
+        font: '10px Geist, system-ui, sans-serif',
         fill: new Fill({ color: '#1B3A5C' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
         offsetY: 14,
@@ -290,7 +290,7 @@ export async function updateGridOverlay(
     labelLeft.setStyle(new Style({
       text: new Text({
         text: `N ${formatCoord(n, resolvedInterval)}`,
-        font: '10px Calibri, sans-serif',
+        font: '10px Geist, system-ui, sans-serif',
         fill: new Fill({ color: '#1B3A5C' }),
         stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
         offsetX: -10,

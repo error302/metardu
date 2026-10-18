@@ -104,13 +104,12 @@ function CogoInfoPanelInner() {
   if (vertexEditingVertices.length === 0) {
     return (
       <div
-        className="bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
-        style={{ fontFamily: 'Calibri, sans-serif', minWidth: 260 }}
+        className="min-w-0 w-full bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
       >
         <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
           <div className="flex items-center gap-2">
-            <Ruler className="w-4 h-4 text-[#1B3A5C]" />
-            <span className="text-sm font-semibold text-[#1B3A5C]">
+            <Ruler className="w-4 h-4 text-[var(--text-primary)]" />
+            <span className="text-sm font-semibold text-[var(--text-primary)]">
               COGO Traverse
             </span>
           </div>
@@ -124,14 +123,13 @@ function CogoInfoPanelInner() {
 
   return (
     <div
-      className="bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
-      style={{ fontFamily: 'Calibri, sans-serif', minWidth: 300, maxWidth: 400 }}
+      className="min-w-0 w-full bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
-          <Ruler className="w-4 h-4 text-[#1B3A5C]" />
-          <span className="text-sm font-semibold text-[#1B3A5C]">
+          <Ruler className="w-4 h-4 text-[var(--text-primary)]" />
+          <span className="text-sm font-semibold text-[var(--text-primary)]">
             COGO Traverse
           </span>
           <span className="text-[10px] text-[var(--text-secondary)] ml-1">
@@ -156,7 +154,7 @@ function CogoInfoPanelInner() {
       {expanded && (
         <>
           {/* ── Traverse legs table ── */}
-          <div className="max-h-64 overflow-y-auto">
+          <div className="max-h-64 overflow-auto">
             <table className="w-full text-[11px]">
               <thead className="bg-[var(--bg-secondary)] sticky top-0">
                 <tr className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
@@ -174,7 +172,7 @@ function CogoInfoPanelInner() {
                     <td className="px-2 py-1 text-[var(--text-muted)] font-mono">
                       V{leg.fromIndex + 1}&rarr;V{leg.toIndex + 1}
                     </td>
-                    <td className="px-2 py-1 font-mono text-[#1B3A5C]">
+                    <td className="px-2 py-1 font-mono text-[var(--text-primary)]">
                       {leg.bearingDMS}
                     </td>
                     <td className="px-2 py-1 text-right font-mono text-[var(--text-secondary)]">
@@ -190,7 +188,7 @@ function CogoInfoPanelInner() {
           <div className="px-3 py-2 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--primary-blue)_10%,transparent)]/60">
             <div className="flex items-center justify-between text-xs">
               <span className="text-[var(--text-muted)] font-semibold">Perimeter</span>
-              <span className="font-mono text-[#1B3A5C]">
+              <span className="font-mono text-[var(--text-primary)]">
                 {totalDistance.toFixed(3)} m
               </span>
             </div>
@@ -198,7 +196,7 @@ function CogoInfoPanelInner() {
               <>
                 <div className="flex items-center justify-between text-xs mt-1">
                   <span className="text-[var(--text-muted)] font-semibold">Area</span>
-                  <span className="font-mono text-[#1B3A5C]">
+                  <span className="font-mono text-[var(--text-primary)]">
                     {areaInfo.areaSqm.toFixed(1)} m&sup2;
                   </span>
                 </div>
@@ -216,7 +214,7 @@ function CogoInfoPanelInner() {
           <div className="px-3 py-1.5 border-t border-[var(--border-color)]">
             <button
               onClick={() => setShowDetails(v => !v)}
-              className="w-full flex items-center justify-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[#1B3A5C] transition-colors"
+              className="w-full flex items-center justify-center gap-1 text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors"
             >
               {showDetails ? 'Hide' : 'Show'} Delta E / N
               {showDetails ? (
@@ -267,7 +265,7 @@ function CogoInfoPanelInner() {
           {vertexEditingVertices.length >= 3 && showDetails && (
             <div className="px-3 py-2 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)]">
               <div className="flex items-center gap-1 mb-1">
-                <MapPin className="w-3 h-3 text-[#1B3A5C]" />
+                <MapPin className="w-3 h-3 text-[var(--text-primary)]" />
                 <span className="text-[10px] text-[var(--text-muted)] font-semibold uppercase tracking-wider">
                   Centroid
                 </span>

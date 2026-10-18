@@ -59,8 +59,8 @@ function Field({ label, value, onChange, placeholder, type = 'text' }: {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
-        className="flex-1 px-2 py-1 text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-color)] rounded
-                   focus:border-[#1B3A5C] focus:outline-none focus:ring-1 focus:ring-[#1B3A5C]/30
+        className="min-w-0 w-full flex-1 px-2 py-1 text-xs font-mono bg-[var(--bg-card)] border border-[var(--border-color)] rounded
+                   focus:border-[var(--accent)] focus:outline-none focus:ring-1 focus:ring-[var(--accent)]
                    transition-colors"
       />
     </div>
@@ -74,8 +74,8 @@ function ComputeButton({ onClick, disabled }: { onClick: () => void; disabled?: 
       onClick={onClick}
       disabled={disabled}
       className="w-full py-1.5 text-xs font-semibold rounded-lg transition-colors
-                 bg-[#1B3A5C] text-[var(--text-primary)] hover:bg-[#142d49]
-                 disabled:bg-gray-300 disabled:text-[var(--text-muted)] disabled:cursor-not-allowed"
+                 bg-primary text-primary-foreground hover:opacity-90
+                 disabled:bg-[var(--bg-secondary)] disabled:text-[var(--text-muted)] disabled:cursor-not-allowed"
     >
       Compute
     </button>
@@ -146,14 +146,14 @@ function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
       {result && (
         <ResultDisplay>
           <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Computed Point</div>
-          <div className="text-xs font-mono text-[#1B3A5C]">{formatPoint(result.point)}</div>
+          <div className="text-xs font-mono text-[var(--text-primary)]">{formatPoint(result.point)}</div>
           <div className="text-[10px] text-[var(--text-muted)]">
             Bearing: {bearingToString(result.bearing)} &middot; Dist: {result.distance.toFixed(3)} m
           </div>
           <button
             onClick={() => onAddPoint(result.point, 'Rad')}
             className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                       bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
+                       bg-primary text-primary-foreground rounded hover:opacity-90 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add to Map
           </button>
@@ -212,14 +212,14 @@ function BearingIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, lab
       {result && (
         <ResultDisplay>
           <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Intersection</div>
-          <div className="text-xs font-mono text-[#1B3A5C]">{formatPoint(result.point)}</div>
+          <div className="text-xs font-mono text-[var(--text-primary)]">{formatPoint(result.point)}</div>
           <div className="text-[10px] text-[var(--text-muted)]">
             Dist from A: {result.distA.toFixed(3)} m &middot; Dist from B: {result.distB.toFixed(3)} m
           </div>
           <button
             onClick={() => onAddPoint(result.point, 'Int')}
             className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                       bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
+                       bg-primary text-primary-foreground rounded hover:opacity-90 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add to Map
           </button>
@@ -288,7 +288,7 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
                 onClick={() => setSelectedIdx(idx)}
                 className={`flex-1 px-2 py-1 text-[10px] font-mono rounded border transition-colors ${
                   selectedIdx === idx
-                    ? 'border-[#1B3A5C] bg-[#1B3A5C] text-[var(--text-primary)]'
+                    ? 'border-primary bg-primary text-primary-foreground'
                     : 'border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-muted)] hover:border-gray-300'
                 }`}
               >
@@ -300,7 +300,7 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
             <button
               onClick={() => onAddPoint(selected, 'DistInt')}
               className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                         bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
+                         bg-primary text-primary-foreground rounded hover:opacity-90 transition-colors"
             >
               <Plus className="w-3 h-3" /> Add P{selectedIdx + 1} to Map
             </button>
@@ -370,7 +370,7 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
       {result && (
         <ResultDisplay>
           <div className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider font-semibold">Resection Point</div>
-          <div className="text-xs font-mono text-[#1B3A5C]">{formatPoint(result.point)}</div>
+          <div className="text-xs font-mono text-[var(--text-primary)]">{formatPoint(result.point)}</div>
           <div className="text-[10px] text-[var(--text-muted)] space-y-0.5">
             <div>Dist to P1: {result.d1.toFixed(3)} m</div>
             <div>Dist to P2: {result.d2.toFixed(3)} m</div>
@@ -379,7 +379,7 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
           <button
             onClick={() => onAddPoint(result.point, 'Res')}
             className="flex items-center gap-1 mt-1 px-2 py-0.5 text-[10px] font-semibold
-                       bg-[#1B3A5C] text-[var(--text-primary)] rounded hover:bg-[#142d49] transition-colors"
+                       bg-primary text-primary-foreground rounded hover:opacity-90 transition-colors"
           >
             <Plus className="w-3 h-3" /> Add to Map
           </button>
@@ -460,14 +460,13 @@ function CogoToolsPanelInner() {
 
   return (
     <div
-      className="bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
-      style={{ fontFamily: 'Calibri, sans-serif', width: 300 }}
+      className="min-w-0 w-full bg-[var(--bg-card)] rounded-lg shadow-lg border border-[var(--border-color)] select-none"
     >
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-3 py-2 border-b border-[var(--border-color)]">
         <div className="flex items-center gap-2">
-          <Crosshair className="w-4 h-4 text-[#1B3A5C]" />
-          <span className="text-sm font-semibold text-[#1B3A5C]">
+          <Crosshair className="w-4 h-4 text-[var(--text-primary)]" />
+          <span className="text-sm font-semibold text-[var(--text-primary)]">
             COGO Tools
           </span>
         </div>
@@ -483,21 +482,21 @@ function CogoToolsPanelInner() {
       {expanded && (
         <>
           {/* ── Tab bar ── */}
-          <div className="flex border-b border-[var(--border-color)]">
+          <div className="grid grid-cols-2 border-b border-[var(--border-color)]">
             {TABS.map((tab) => (
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex items-center justify-center gap-1 px-1 py-1.5 text-[9px] font-semibold
+                className={`min-h-10 min-w-0 flex items-center justify-center gap-1 px-1 py-1.5 text-[11px] font-semibold
                            transition-colors border-b-2 ${
                              activeTab === tab.id
-                               ? 'text-[#1B3A5C] border-[#1B3A5C] bg-[color-mix(in_srgb,var(--primary-blue)_10%,transparent)]/50'
+                               ? 'text-[var(--text-primary)] border-[var(--accent)] bg-[var(--accent-subtle)]'
                                : 'text-[var(--text-secondary)] border-transparent hover:text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]'
                            }`}
                 title={tab.label}
               >
                 {tab.icon}
-                <span className="hidden sm:inline">{tab.label}</span>
+                <span>{tab.label}</span>
               </button>
             ))}
           </div>
