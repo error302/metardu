@@ -4,6 +4,13 @@ This resumes the interrupted CAD/import increment in the same checkout. It does
 not repeat earlier pricing, auth, road preparation, drainage or map milestones,
 and does not declare the whole engineering platform accepted.
 
+**Final outcome:** source candidate `830df65310524f667026120d7647441aeea509ca`
+passed its complete build and source gates, but its production cutover did not
+complete successfully. The controller restored the previous healthy
+`4fa998fcf597c63a0cebd83685e233865d61b616` release. The new CAD/import/auth repairs
+are **not live**. The precise candidate-startup failure remains unresolved; read
+the failure and recovery evidence below before another promotion.
+
 ## Source work closed in this continuation
 
 - Coordinate imports retain original UTF-8 bytes, SHA-256, explicit CRS/unit and
@@ -117,3 +124,64 @@ Provider API references: [PayPal subscriptions](https://developer.paypal.com/api
 [Resend domain API specification](https://github.com/resend/resend-openapi/blob/main/resend.yaml).
 Read-only receipts are under `.cache/provider-readiness/` and `.cache/point-import/`;
 they are summarized here without publishing private runtime metadata.
+
+## Pinned build, failed cutover and independently checked recovery
+
+The pinned source checks passed app/test types, **290 tests / 34 suites**, and lint
+on all 49 changed TS/TSX files. The Linux candidate build passed compilation,
+production type validation, all **219 static pages**, standalone packaging and
+native dependency checks. The existing 6.02 MB precache omission remains, and is
+not full offline acceptance. No dependency installation or extra builder/app
+container was introduced for source QA.
+
+The existing synthetic schema rehearsal matched all **117** migration entries,
+with no pending or altered hashes. The actual existing production image passed
+its strict startup verifier against that schema. The candidate image is retained
+as `metardu-metardu-app:candidate`, image
+`sha256:dfb499ec916e8a2cab77af90d3c03d7a7ecca1445655ad6475e6636886f77352`.
+
+The guarded cutover took fresh checkpoints
+`/backups/db_20261018_050557.sql.gz` and
+`/backups/uploads_20261018_050557.tar.gz`, completed at 05:06:02 UTC. Their
+integrity and the existing-record fingerprint gate passed. The unchanged ledger
+remained at 117. The Compose command did not complete normally (null exit status);
+the controller restored the protected prior image. No failure type/code or failed
+candidate startup log was saved before that container was replaced. Lifecycle
+events show no candidate healthy event; its forced exit during rollback does not
+establish an out-of-memory cause. Do not infer a root cause or silently mark this
+receipt built/promoted and rerun it.
+
+Current production is healthy revision `4fa998fcf597c63a0cebd83685e233865d61b616`,
+image `sha256:af17d7af4559e416e60be3956e89d62238e4d4aefc653782a9f0e4d3fff75dbe`.
+A fresh Docker verifier and HTTPS health/pricing/import/notice checks pass.
+Independent comparison confirms every original data mount and all six supporting
+service IDs/start times/mounts were preserved. The reviewed rollback also adds
+its **read-only migration-registry mount**; this is intentional, not a missing
+data volume. The current source directory
+`.cache/release-verify/unified-release/830df65310524f667026120d7647441aeea509ca/rollback-registry/f49b4385c6989239`
+is now a live runtime dependency and must be retained. Original archives,
+candidate and older protected images remain; no prune, VHDX operation, customer
+clone, applied-hash rewrite or database restore occurred.
+
+The host promotion controller now retains safe command failure code/signal/timeout
+metadata and bounded credential-redacted candidate health/startup logs **before**
+rollback removes it. Diagnostic failures do not prevent rollback. Four new tests
+and ten existing release-boundary tests pass (14/14), and the controller parses
+successfully. This is a host-tooling repair for a later reviewed attempt, not an
+explanation of this failure or proof the candidate is safe to retry. No further
+production restart was attempted. Normal-account acceptance against the new
+production candidate could not run because its promoted-release gate was not met.
+
+## Live map print follow-up
+
+The live current-view print downloaded
+`C:\Users\user\Downloads\metardu-current-map (3).pdf` without replacing earlier
+downloads. Independent native parsing confirms PDF-1.3, one A4 landscape page,
+3,206,203 bytes, captured-at/source-credit metadata and the uncertified-scale
+notice. Its capture timestamp is `2026-10-18T04:50:51.902Z`.
+
+The browser/tool operation took **208.6 seconds**, despite a requested 30-second
+tool timeout. This does not isolate browser preflight, page capture or download
+time. PDF-content proof passes; normal foreground responsiveness and physical
+scale remain unaccepted. Preserve this finding for a controlled, instrumented
+foreground test instead of treating a valid download as latency acceptance.

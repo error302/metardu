@@ -4,6 +4,9 @@ Latest continuation: read `CONTINUATION_ACCEPTANCE_2026-10-18.md` for the resume
 CAD/import work, reproduced project-CAD/auth repairs, synthetic-browser cleanup,
 current read-only PayPal/Resend/public evidence and separate remaining gates.
 The production outcome below remains its own pinned historical release receipt.
+The October 18 CAD/import candidate built successfully but its cutover rolled
+back. Current production remains healthy `4fa998fc`; the new source is not live.
+Preserve the current read-only rollback-registry mount documented in that report.
 
 The user requested continuation of this chat together with **Explore METARDU
 ChatGPT plugin** (`01a1081c-4e70-7750-bb05-da73c3da3b65`). That chat's recent

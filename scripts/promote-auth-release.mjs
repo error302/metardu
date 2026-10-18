@@ -10,6 +10,7 @@ import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRo
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
 import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
+import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 
 const legacy = process.argv.length === 3
 const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
@@ -24,7 +25,11 @@ mkdirSync(directory, { recursive: true })
 function command(binary,args,options={}) {
   const { rawOutput = false, ...spawnOptions } = options
   const result = spawnSync(binary,args,{encoding:'utf8',windowsHide:true,timeout:30_000,maxBuffer:16*1024*1024,...spawnOptions})
-  if(result.error || result.status!==0) throw new Error(`${binary} ${args[0]} failed (exit ${result.status}); credential-bearing diagnostics suppressed`)
+  if(result.error || result.status!==0) {
+    const error=new Error(`${binary} ${args[0]} failed (exit ${result.status}); credential-bearing diagnostics suppressed`)
+    error.commandFailure=commandFailureDetails(binary,args[0],result,spawnOptions.timeout??30000)
+    throw error
+  }
   return rawOutput ? result.stdout : result.stdout.trim()
 }
 const docker = (args,options) => command('docker',args,options)
@@ -281,7 +286,12 @@ async function migrateAndPromote() {
     receipt.after=after.map(describe);receipt.status='promoted';save(receipt)
     console.log(JSON.stringify({status:receipt.status,revision,image:updated.Image,migrations:afterLedger.length,requiredServicesPreserved:true,uploadsPreserved:true}))
   }catch(error){
-    receipt.status='failed';receipt.failure=error.message;save(receipt)
+    receipt.status='failed';receipt.failure=error.message
+    if(error.commandFailure)receipt.commandFailure=error.commandFailure
+    // Capture the failed candidate before Compose removes it for rollback.
+    // Only bounded, credential-redacted evidence is retained locally.
+    receipt.failedStartup=collectFailedAppDiagnostics(receipt.candidateImage,oldEnv)
+    save(receipt)
     // Do not restore database archives over customer data or reverse forward-only migrations.
     // Keep the original app available when migration failed before replacement.
     try{
