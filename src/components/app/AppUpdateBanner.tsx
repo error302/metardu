@@ -1,111 +1,52 @@
-'use client';
+'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { reloadCurrentDocument } from '@/lib/app/documentRecovery'
+import { requestServiceWorkerActivation, watchServiceWorkerUpdates } from '@/lib/app/serviceWorkerUpdates'
 
 export function AppUpdateBanner() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
-  const [showBanner, setShowBanner] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const [updating, setUpdating] = useState(false)
+  const [failure, setFailure] = useState<string | null>(null)
+  const pending = useRef<AbortController | null>(null)
 
   useEffect(() => {
-    if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
-
-    // Register SW update detection on mount so the banner actually fires
-    registerServiceWorkerUpdateDetector()
-
-    const handler = (event: Event) => {
-      setWaitingWorker((event as ServiceWorkerEvent).detail)
-      setShowBanner(true)
-    }
-
-    window.addEventListener('sw-update-available', handler)
-    return () => window.removeEventListener('sw-update-available', handler)
+    if (!('serviceWorker' in navigator)) return
+    const stop = watchServiceWorkerUpdates(navigator.serviceWorker, worker => {
+      setWaitingWorker(worker)
+      setDismissed(false)
+      setFailure(null)
+    })
+    return () => { stop(); pending.current?.abort() }
   }, [])
 
-  const updateApp = useCallback(() => {
-    if (!waitingWorker) return
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' })
+  const update = async () => {
+    if (!waitingWorker || pending.current || !('serviceWorker' in navigator)) return
+    const controller = new AbortController()
+    pending.current = controller
+    setUpdating(true)
+    setFailure(null)
+    try {
+      await requestServiceWorkerActivation(navigator.serviceWorker, waitingWorker, { signal: controller.signal })
+      if (!controller.signal.aborted) reloadCurrentDocument()
+    } catch (error) {
+      if (!controller.signal.aborted) setFailure(error instanceof Error ? error.message : 'Update unavailable. Your page has not reloaded.')
+    } finally {
+      if (!controller.signal.aborted) setUpdating(false)
+      pending.current = null
+    }
+  }
 
-    // Wait for the new service worker to take control
-    waitingWorker.addEventListener('controllerchange', () => {
-      window.location.reload()
-    })
-
-    // Fallback: reload after 2 seconds regardless
-    setTimeout(() => window.location.reload(), 2000)
-  }, [waitingWorker])
-
-  if (!showBanner) return null
-
+  if (!waitingWorker || dismissed) return null
   return (
-    <div className="fixed top-0 left-0 right-0 z-[210] bg-[var(--accent)] text-black text-center text-sm font-semibold py-2.5 px-4 flex items-center justify-center gap-3">
-      <svg
-        className="w-4 h-4 flex-shrink-0"
-        fill="none"
-        stroke="currentColor"
-        viewBox="0 0 24 24"
-        strokeWidth={2}
-        aria-hidden="true"
-      >
-        <path
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
-        />
-      </svg>
-      <span>A new version of METARDU is available</span>
-      <button
-        onClick={updateApp}
-        className="bg-black text-[var(--accent)] px-3 py-1 rounded font-bold text-xs hover:bg-gray-900 transition-colors"
-      >
-        Update Now
+    <div role="status" className="fixed top-0 left-0 right-0 z-[210] bg-[var(--accent)] text-black text-center text-sm font-semibold py-2.5 px-4 flex flex-wrap items-center justify-center gap-3">
+      <span>A new version is ready. Save your work in all open METARDU tabs before reloading.</span>
+      <button onClick={update} disabled={updating} className="bg-black text-[var(--accent)] px-3 py-2 rounded font-semibold text-sm disabled:opacity-60">
+        {updating ? 'Preparing update…' : 'Reload when ready'}
       </button>
-      <button
-        onClick={() => setShowBanner(false)}
-        className="ml-1 hover:bg-black/10 rounded p-0.5 transition-colors"
-        aria-label="Dismiss update banner"
-      >
-        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
+      <button onClick={() => setDismissed(true)} disabled={updating} className="rounded px-3 py-2 underline disabled:opacity-60" aria-label="Dismiss update banner">Later</button>
+      {failure && <p role="alert" className="basis-full">{failure}</p>}
     </div>
   )
-}
-
-/** Custom event for service worker updates */
-interface ServiceWorkerEvent extends Event {
-  detail: ServiceWorker
-}
-
-// Register SW update detection — call this once from layout or a provider
-let swDetectorRegistered = false
-
-export function registerServiceWorkerUpdateDetector() {
-  if (typeof window === 'undefined' || !('serviceWorker' in navigator)) return
-  if (swDetectorRegistered) return
-  swDetectorRegistered = true
-
-  navigator.serviceWorker?.getRegistration().then((registration) => {
-    if (!registration) return
-
-    let stateChangeHandler: (() => void) | null = null
-
-    const updatefoundHandler = () => {
-      const newWorker = registration.installing
-      if (!newWorker) return
-
-      stateChangeHandler = () => {
-        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-          window.dispatchEvent(
-            new CustomEvent('sw-update-available', {
-              detail: newWorker,
-            }) as ServiceWorkerEvent
-          )
-        }
-      }
-      newWorker.addEventListener('statechange', stateChangeHandler)
-    }
-
-    registration.addEventListener('updatefound', updatefoundHandler)
-  })
 }

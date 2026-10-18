@@ -3,6 +3,7 @@
 import { useEffect } from 'react'
 import Link from 'next/link'
 import { logger } from '@/lib/logger'
+import { isAssetLoadError, reloadCurrentDocument } from '@/lib/app/documentRecovery'
 
 interface AppErrorBoundaryProps {
   /** The error object from Next.js error boundary */
@@ -25,6 +26,7 @@ interface AppErrorBoundaryProps {
  * - Supports a context prop for area-specific messages
  */
 export default function AppErrorBoundary({ error, reset, context }: AppErrorBoundaryProps) {
+  const assetFailed = isAssetLoadError(error)
   useEffect(() => {
     // Report to Sentry via dynamic import
     import('@/lib/monitoring/sentry').then(({ captureError }) => {
@@ -64,17 +66,18 @@ export default function AppErrorBoundary({ error, reset, context }: AppErrorBoun
           {context || 'Something went wrong'}
         </h2>
 
-        <p className="text-sm mb-6" style={{ color: 'var(--text-muted)' }}>
+        <p className="text-sm mb-6 break-words [overflow-wrap:anywhere]" style={{ color: 'var(--text-muted)' }}>
           {error.message || 'An unexpected error occurred. This is usually a temporary issue.'}
         </p>
+        {assetFailed && <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>Part of the page could not load. Save any work you can access in other tabs before reloading this page.</p>}
 
         <div className="flex gap-3 justify-center flex-wrap">
           <button
-            onClick={reset}
+            onClick={assetFailed ? reloadCurrentDocument : reset}
             className="px-5 py-2.5 rounded-lg font-semibold text-sm transition-colors"
             style={{ background: 'var(--accent)', color: '#000' }}
           >
-            Try again
+            {assetFailed ? 'Reload page' : 'Try again'}
           </button>
           <Link
             href="/dashboard"

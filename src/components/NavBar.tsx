@@ -241,6 +241,7 @@ export default function NavBar() {
 
   // Resolve dynamic sub-page titles using searchablePages definitions
   const pageTitle = useMemo(() => {
+    if (pathname === '/offline') return 'Connection help'
     const matchedPage = searchablePages.find(p => p.href === pathname)
     if (matchedPage) return t(matchedPage.labelKey)
 

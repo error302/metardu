@@ -101,12 +101,80 @@ promotion and live field-delivery acceptance before claiming this repair live.
 The user's training drawing/storage and the one existing app/required services
 remain protected. Physical-phone testing was not resumed.
 
-## Remaining functional acceptance
+## Recovery source checkpoint
+
+Items 4–6 now have source repairs. Asset-load errors offer a deliberate full
+document reload; ordinary errors retain React retry. Neither path clears the
+device database, cache or drawing. The original production-loopback chunk-error
+cause is still unresolved.
+
+Update observation now includes an already-waiting worker and late registration,
+cleans up listeners, and waits for the requested worker's activation. Timeout,
+redundancy, cancellation and messaging failure leave the document open with
+feedback. No timer forces a reload. The prompt asks the operator to save work in
+all open METARDU tabs. PWA options now disable reconnect reload, default start-URL
+caching, automatic skip-waiting and client claiming in the actual supported
+option locations. Navigation uses NetworkOnly with an explicit public `/offline`
+fallback; it must never cache private HTML or APIs. The generated worker and
+multi-tab/offline behavior still require candidate-build/browser acceptance.
+
+Connection help checks uncached, credential-free `/api/public/health`, validates
+the health result, times out, coalesces requests and cancels on unmount. Online
+events check service without navigating. Help opens in a new tab from the offline
+indicator. Unsupported promises of automatic delivery and universal offline
+availability were removed; complete owner-safe offline reopening remains work.
+
+Computer-browser source checks at 1280px and 390px verified Geist body typography,
+no horizontal overflow, observable failure while the preview compiled, then
+successful service recovery without navigation. Screenshots are
+`.cache/field-sync/recovery-desktop.png` and `recovery-narrow.png`.
+The mobile page header says Connection help rather than asserting Offline.
+The preview has PWA disabled: these are source layout/HTTP checks, not a
+disconnected production browser or field test.
+
+Behavioral regressions reproduced before repair (five failures plus an ordinary
+error-retry pass, and a separate existing-waiting-worker failure). The combined
+source suite passes **64 tests in ten suites**, including 20 recovery tests.
+Application and test typing pass. Focused lint identified one prefer-const warning
+which was corrected; no production change is implied by these source results.
+Receipt: `.cache/field-sync/recovery-and-delivery-tests.log`.
+
+## Bounded fieldbook delivery source checkpoint
+
+The legacy IndexedDB fieldbook queue now sends at most 20 readings per pass.
+Transient delivery failures use persisted exponential delays (30 seconds up to
+15 minutes); valid server Retry-After dates/seconds can require longer. A 429
+pause applies across queued projects and cannot be bypassed by a manual click.
+Connection failure or server overload ends that pass, retaining later records.
+HTTP validation, access and conflict errors pause that record for explicit
+review/retry; an invalid receipt also stays pending. Successful acknowledgement
+clears only transport retry metadata. Its exclusion from both client/server
+raw hashes is checked independently; original readings and their IDs remain.
+
+The road/field collector now uses one stable initial/30-second schedule instead
+of scheduling another two-second attempt whenever syncing state changes. Timer
+tests verify that failed completion does not re-arm the loop, busy/empty sessions
+do not send, later captures join a pass, and cleanup removes both timers. Manual
+Sync remains available, and the sync panel displays rejection/deferred feedback.
+The legacy hook's manual action also explicitly retries reviewed blocked rows.
+
+Three queue regressions reproduced against the preceding source (uncapped pass,
+immediate retry and repeated conflict delivery). Final checks pass **81 tests in
+12 suites**, plus strict application/test typing. Recovery lint is clean; final
+retry-source lint is recorded separately in `.cache/field-sync/retry-policy-lint.log`.
+Receipts: `retry-policy-red.log`, `retry-policy-green.log`, and
+`recovery-and-delivery-final-tests.log` under `.cache/field-sync/`.
+These new timing/batch checks use the source queue with simulated HTTP responses,
+not a disconnected production browser or instrument. The separate mobile queue
+still needs bounded large-queue/provider-backoff acceptance. Existing SQL 114
+and its applied synthetic checksum were not modified.
+
+## Outstanding functional acceptance
 
 Old unreceipted server rows need an explicit reconciliation workflow; no existing
 source is overwritten or automatically adopted. Complete evidence-event timeline
-integration, owner-safe offline cold open/reopen, batch delivery/backoff for large
-or rejected queues, field UI/browser acceptance and physical field proof remain
-open. An old rejected capture must not drive a continuous two-second retry loop.
+integration, owner-safe offline cold open/reopen, separate mobile queue scaling,
+final field UI/browser acceptance and physical field proof remain open. The
+fieldbook rejection loop is repaired in source and still needs release acceptance.
 These are internal work items, distinct from payment, email-provider, receiver,
 design-approval and ChatGPT notice/deployment/consent gates.

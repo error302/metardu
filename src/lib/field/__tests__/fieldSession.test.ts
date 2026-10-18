@@ -266,7 +266,7 @@ describe('field session point capture persistence', () => {
     getObservationsMock.mockResolvedValueOnce([{...first,syncedAt:'2026-10-18T09:00:00Z',deliveryReceipt:await receiptFor(first)},second,{...foreign,syncedAt:'2026-10-18T09:00:00Z',deliveryReceipt:await receiptFor(foreign)}])
     jest.mocked(syncObservations).mockResolvedValueOnce({synced:5,failed:1,errors:[],acknowledgedIds:['unrelated']})
     await session.syncNow()
-    expect(syncObservations).toHaveBeenCalledWith(projectId)
+    expect(syncObservations).toHaveBeenCalledWith(projectId,{retryBlocked:true})
     expect(session.getSnapshot().measurements.map(row=>row.synced)).toEqual([true,false])
     expect(session.getSnapshot().pendingSyncCount).toBe(1)
   })
@@ -274,6 +274,15 @@ describe('field session point capture persistence', () => {
     getObservationsMock.mockResolvedValueOnce([{id:'legacy',projectId:'legacy-project',surveyType:'traverse',station:'STN',pointId:'P0',easting:0,northing:0,createdAt:'2026-10-18T08:00:00Z',syncedAt:'2026-10-18T09:00:00Z'}])
     const session=getFieldSession('legacy-project','engineering');await session.loadMeasurements()
     expect(session.getSnapshot().measurements[0]).toMatchObject({pointId:'P0',synced:false,instrumentType:null,easting:0,northing:0})
+  })
+  it('keeps automatic delivery distinct from an explicit retry and exposes a rejection',async()=>{
+    const projectId='automatic-delivery-test'
+    const session=getFieldSession(projectId,'engineering')
+    getObservationsMock.mockResolvedValueOnce([])
+    jest.mocked(syncObservations).mockResolvedValueOnce({synced:0,failed:1,errors:['Reading needs review'],acknowledgedIds:[]})
+    await session.syncNow({automatic:true})
+    expect(syncObservations).toHaveBeenLastCalledWith(projectId)
+    expect(session.getSnapshot().syncMessage).toBe('Reading needs review')
   })
   it('retains an unclassified receiver code instead of labelling it a single-position fix',async()=>{
     const session=getFieldSession(`raw-quality-${Date.now()}`,'engineering')

@@ -34,6 +34,7 @@ import { useFieldSessionState, useFieldSession } from '@/hooks/useFieldSessionSt
 import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
 import type { FieldInstrumentReading, FieldSessionState, SurveyType } from '@/lib/field/fieldSession'
+import { startFieldAutoDelivery } from '@/lib/field/autoDelivery'
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, resolveRoadFieldPlanCrsCode, roadFieldPlanCrsIsBoundToProject, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
@@ -277,13 +278,12 @@ export function FieldDataCollector({
     void loadMeasurements()
   }, [loadMeasurements])
 
-  // Auto-sync when online
+  // Use a stable cadence. Sync completion must not schedule a failing record
+  // again every two seconds; permanent failures need an explicit operator retry.
   useEffect(() => {
-    if (sessionState.isOnline && sessionState.pendingSyncCount > 0 && !sessionState.isSyncing) {
-      const timer = setTimeout(() => session.syncNow(), 2000)
-      return () => clearTimeout(timer)
-    }
-  }, [sessionState.isOnline, sessionState.pendingSyncCount, sessionState.isSyncing, session])
+    if(!sessionState.isOnline)return
+    return startFieldAutoDelivery(session)
+  }, [sessionState.isOnline, session])
 
   const handleCapture = useCallback(async (pointId: string, code?: string): Promise<boolean> => {
     if (sessionState.measurements.some(measurement => measurement.pointId === pointId)) return false
@@ -975,9 +975,11 @@ function SyncPanel({
         {sessionState.isSyncing ? 'Syncing…' : `Sync ${sessionState.pendingSyncCount} Pending`}
       </button>
 
+      {sessionState.syncMessage&&<p role="status" className="text-sm text-[var(--text-secondary)] break-words">{sessionState.syncMessage}</p>}
       <p className="text-xs text-[var(--text-muted)]">
-        Tip: Measurements are saved locally first (IndexedDB), then synced to the cloud
-        when online. You can work offline indefinitely — sync happens automatically.
+        Keep this working tab open and save a device export before leaving it.
+        Delivery needs a matching server receipt. Rejected readings stay on this
+        device for review; use Sync to retry after resolving the reported issue.
       </p>
     </div>
   )

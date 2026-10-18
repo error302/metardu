@@ -19,6 +19,7 @@ import { logger } from '@/lib/logger'
 import { openDB, type IDBPDatabase } from 'idb'
 import type { RoadFieldPlan } from '@/types/engineering'
 import { acknowledgeFieldObservation,observationDeliveryHash,hasAcknowledgedFieldObservation,type FieldObservationDeliveryReceipt } from '@/lib/field/observationReceipt'
+import { fieldDeliveryFailure, mayRetryFieldDelivery, type FieldDeliveryRetry } from '@/lib/field/deliveryRetry'
 
 const DB_NAME = 'metardu-fieldbook'
 const DB_VERSION = 2
@@ -72,6 +73,7 @@ export interface OfflineObservation {
   syncedAt: string | null     // null = not yet synced
   deliveryReceipt?:FieldObservationDeliveryReceipt
   syncError?: string          // last sync error message
+  deliveryRetry?: FieldDeliveryRetry
 }
 
 export interface OfflineProject {
@@ -219,25 +221,35 @@ export async function getPhoto(id: string): Promise<Blob | null> {
 
 // ─── Sync ──────────────────────────────────────────────────────────────────
 
-export interface FieldObservationSyncResult {synced:number;failed:number;errors:string[];acknowledgedIds:string[]}
+export interface FieldObservationSyncResult {synced:number;failed:number;errors:string[];acknowledgedIds:string[];deferred?:number}
 let syncTail:Promise<unknown>=Promise.resolve()
-export function syncObservations(projectId?:string):Promise<FieldObservationSyncResult>{
+export function syncObservations(projectId?:string, options:{retryBlocked?:boolean}={}):Promise<FieldObservationSyncResult>{
   // Read a fresh queue after the preceding run. Timer, hook and manual sync
   // cannot race and restore an older pending copy over an acknowledged record.
-  const work=syncTail.catch(()=>undefined).then(()=>syncPendingObservations(projectId))
+  const work=syncTail.catch(()=>undefined).then(()=>syncPendingObservations(projectId,options.retryBlocked===true))
   syncTail=work
   return work
 }
-async function syncPendingObservations(projectId?:string):Promise<FieldObservationSyncResult>{
-  const unsynced = (await getUnsyncedObservations()).filter(obs=>!projectId||obs.projectId===projectId)
-  if (unsynced.length === 0) return { synced: 0, failed: 0, errors: [],acknowledgedIds:[] }
+async function syncPendingObservations(projectId:string|undefined,explicitRetry:boolean):Promise<FieldObservationSyncResult>{
+  const pending=await getUnsyncedObservations()
+  const unsynced = pending.filter(obs=>!projectId||obs.projectId===projectId)
+  if (unsynced.length === 0) return { synced: 0, failed: 0, errors: [],acknowledgedIds:[],deferred:0 }
+  // Throttling applies to the account, not just one project or one reading.
+  if(pending.some(obs=>obs.deliveryRetry?.httpStatus===429&&obs.deliveryRetry.nextAttemptAt>Date.now()))return{synced:0,failed:0,errors:['The server requested a retry delay. Your device readings are retained.'],acknowledgedIds:[],deferred:unsynced.length}
 
   let synced = 0
   let failed = 0
   const errors: string[] = []
   const acknowledgedIds:string[]=[]
+  let attempted=0
 
   for (const obs of unsynced) {
+    if(attempted>=20)break
+    if(!mayRetryFieldDelivery(obs.deliveryRetry,explicitRetry))continue
+    attempted++
+    let status:number|undefined
+    let retryAfter:string|null=null
+    let halt=false
     try {
       const inputHash=await observationDeliveryHash(obs as unknown as Record<string,unknown>)
       const res = await fetch('/api/fieldbook/sync', {
@@ -246,32 +258,42 @@ async function syncPendingObservations(projectId?:string):Promise<FieldObservati
         body: JSON.stringify(obs),
         signal:AbortSignal.timeout(15000),
       })
+      status=res.status
+      retryAfter=res.headers.get('Retry-After')
 
       if (res.ok) {
-        const receipt=acknowledgeFieldObservation(await res.json(),obs.id,inputHash)
+        let receipt:FieldObservationDeliveryReceipt
+        try{receipt=acknowledgeFieldObservation(await res.json(),obs.id,inputHash)}
+        catch(error){status=409;throw error}
         obs.syncedAt = new Date().toISOString()
         obs.deliveryReceipt=receipt
         obs.syncError = undefined
+        obs.deliveryRetry=undefined
         await saveObservation(obs)
         synced++
         acknowledgedIds.push(receipt.id)
       } else {
         const err = (await res.json().catch(() => ({ error: 'Unknown error' }))) as { error?: string }
         obs.syncError = err.error || `HTTP ${res.status}`
+        obs.deliveryRetry=fieldDeliveryFailure(obs.deliveryRetry,status,retryAfter)
         await saveObservation(obs)
         failed++
         errors.push(`${obs.station}: ${obs.syncError}`)
+        halt=res.status===401||res.status===429||res.status>=500
       }
     } catch (err) {
       // Network error — will retry on next sync cycle
       obs.syncError = err instanceof Error ? err.message : 'Network error'
+      obs.deliveryRetry=fieldDeliveryFailure(obs.deliveryRetry,status,retryAfter)
       await saveObservation(obs)
       failed++
       errors.push(`${obs.station}: ${obs.syncError}`)
+      halt=status===undefined||status===429||status>=500
     }
+    if(halt)break
   }
 
-  return { synced, failed, errors,acknowledgedIds }
+  return { synced, failed, errors,acknowledgedIds,deferred:unsynced.length-synced-failed }
 }
 
 // ─── Connectivity ──────────────────────────────────────────────────────────

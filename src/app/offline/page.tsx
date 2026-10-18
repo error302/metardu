@@ -1,28 +1,42 @@
 'use client';
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 
 export default function OfflinePage() {
   const [retrying, setRetrying] = useState(false)
+  const [status, setStatus] = useState<string | null>(null)
+  const pending = useRef<AbortController | null>(null)
+  const mounted = useRef(false)
 
-  const handleRetry = async () => {
+  const handleRetry = useCallback(async () => {
+    if (pending.current) return
+    const controller = new AbortController()
+    pending.current = controller
+    const timeout = setTimeout(() => controller.abort(), 10000)
     setRetrying(true)
+    setStatus(null)
     try {
-      const res = await fetch('/api/compute', { method: 'GET' })
-      if (res.ok) window.location.href = '/'
+      const res = await fetch('/api/public/health', { cache: 'no-store', credentials: 'omit', redirect: 'error', signal: controller.signal })
+      const health: unknown = await res.json()
+      const healthy = res.ok && typeof health === 'object' && health !== null && 'status' in health && health.status === 'healthy'
+      if (mounted.current && pending.current === controller) setStatus(healthy ? 'Connection restored. You can return to your working tab or open the dashboard when ready.' : 'METARDU is not ready yet. Keep your working tab open and try again later.')
     } catch {
-      // still offline
+      if (mounted.current && pending.current === controller) setStatus('Could not reach METARDU. Check your connection and try again; keep your working tab open.')
     } finally {
-      setRetrying(false)
+      clearTimeout(timeout)
+      if (pending.current === controller) {
+        pending.current = null
+        if (mounted.current) setRetrying(false)
+      }
     }
-  }
-
-  // Auto-redirect when connection restores
-  useEffect(() => {
-    const onOnline = () => { window.location.href = '/' }
-    window.addEventListener('online', onOnline)
-    return () => window.removeEventListener('online', onOnline)
   }, [])
+
+  useEffect(() => {
+    mounted.current = true
+    const onOnline = () => { void handleRetry() }
+    window.addEventListener('online', onOnline)
+    return () => { mounted.current = false; pending.current?.abort(); pending.current = null; window.removeEventListener('online', onOnline) }
+  }, [handleRetry])
 
   return (
     <div className="min-h-[80vh] flex items-center justify-center px-4">
@@ -33,12 +47,12 @@ export default function OfflinePage() {
           </svg>
         </div>
 
-        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">You're offline</h1>
+        <h1 className="text-2xl font-bold text-[var(--text-primary)] mb-2">Connection help</h1>
         <p className="text-[var(--text-secondary)] mb-2">
-          No internet connection. Your saved projects and calculations are still available.
+          Keep your working tab open. Save a device copy of your work before reloading or leaving it.
         </p>
         <p className="text-[var(--text-muted)] text-sm mb-8">
-          Changes will sync automatically when you reconnect.
+          A restored connection does not confirm that observations reached the server. Check the delivery status in your field book.
         </p>
 
         <div className="flex flex-col sm:flex-row gap-3 justify-center mb-6">
@@ -49,15 +63,16 @@ export default function OfflinePage() {
           >
             {retrying ? (
               <><svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/></svg>Checking…</>
-            ) : 'Try again'}
+            ) : 'Check connection'}
           </button>
-          <Link href="/tools" className="btn btn-secondary">
-            Offline tools
+          <Link href="/dashboard" prefetch={false} className="btn btn-secondary">
+            Open dashboard
           </Link>
         </div>
+        {status && <p role="status" className="text-sm text-[var(--text-secondary)] mb-6">{status}</p>}
 
         <div className="text-xs text-[var(--text-muted)] bg-[var(--bg-tertiary)] rounded-lg px-4 py-3 border border-[var(--border-color)]">
-          All 15 calculation tools work fully offline — no connection needed for traverse, leveling, COGO, curves, and more.
+          Pages and projects may need a connection to open. Keep essential tools open and export the information you need before going into the field.
         </div>
       </div>
     </div>

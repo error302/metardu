@@ -99,6 +99,7 @@ export interface FieldSessionState {
   isSyncing: boolean
   pendingSyncCount: number
   lastSyncAt: number | null
+  syncMessage?: string | null
 }
 
 // ─── Field Session Class ────────────────────────────────────────────────────
@@ -328,14 +329,14 @@ class FieldSession {
 
   // ─── Sync ─────────────────────────────────────────────────────────────────
 
-  async syncNow(): Promise<{ synced: number; failed: number }> {
+  async syncNow(options:{automatic?:boolean}={}): Promise<{ synced: number; failed: number }> {
     if (this.state.isSyncing) return { synced: 0, failed: 0 }
 
     this.setState({ isSyncing: true })
 
     try {
       const { syncObservations,getObservations } = await import('@/lib/offline/fieldBookDB')
-      const result = await syncObservations(this.state.projectId)
+      const result = options.automatic ? await syncObservations(this.state.projectId) : await syncObservations(this.state.projectId,{retryBlocked:true})
 
       const syncedCount = result.synced || 0
       const failedCount = result.failed || 0
@@ -355,12 +356,13 @@ class FieldSession {
         measurements,
         pendingSyncCount: measurements.filter(m=>!m.synced).length,
         lastSyncAt: syncedCount>0?Date.now():this.state.lastSyncAt,
+        syncMessage:result.errors?.[0]??(result.deferred?'Some device records are waiting for retry or review. Original readings remain on this device.':null),
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
       })
 
       return { synced: syncedCount, failed: failedCount }
     } catch {
-      this.setState({ isSyncing: false })
+      this.setState({ isSyncing: false,syncMessage:'Delivery could not complete. Keep this working tab open and retain your device copy.' })
       return { synced: 0, failed: this.state.pendingSyncCount }
     }
   }

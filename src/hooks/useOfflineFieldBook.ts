@@ -96,7 +96,7 @@ export function useOfflineFieldBook(projectId: string, surveyType?: ObservationT
   const syncNow = useCallback(async () => {
     setSyncing(true)
     try {
-      const result = await syncObservations(projectId)
+      const result = await syncObservations(projectId,{retryBlocked:true})
       await loadObservations() // reload to get updated syncedAt
       return result
     } finally {

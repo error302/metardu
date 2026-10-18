@@ -27,14 +27,23 @@ try {
 const withPWA = require('@ducanh2912/next-pwa').default({
   dest: 'public',
   register: true,
-  skipWaiting: true,
+  // Reconnection and installation must not reload an active field workspace.
+  reloadOnOnline: false,
+  cacheStartUrl: false,
+  dynamicStartUrl: false,
+  cacheOnFrontEndNav: false,
+  fallbacks: { document: '/offline' },
     disable:
       process.env.NODE_ENV !== 'production' ||
       process.env.DISABLE_PWA === 'true' ||
       (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
     workboxOptions: {
       disableDevLogs: true,
+      skipWaiting: false,
+      clientsClaim: false,
       runtimeCaching: [
+        // Failed navigation shows public recovery, never cached private HTML.
+        { urlPattern: ({ request }) => request.mode === 'navigate', handler: 'NetworkOnly', options: {} },
       ]
     },
 })

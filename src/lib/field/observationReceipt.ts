@@ -16,7 +16,7 @@ export function acknowledgeFieldObservation(value:unknown,clientId:string,expect
 }
 
 export function offlineObservationSource(input:Record<string,unknown>):Record<string,unknown>{
-  return Object.fromEntries(Object.entries(input).filter(([key])=>!['syncedAt','synced','syncError','updated_at','deliveryReceipt'].includes(key)))
+  return Object.fromEntries(Object.entries(input).filter(([key])=>!['syncedAt','synced','syncError','updated_at','deliveryReceipt','deliveryRetry'].includes(key)))
 }
 export async function hasAcknowledgedFieldObservation(input:{id:string;syncedAt?:string|null;deliveryReceipt?:unknown}):Promise<boolean>{
   if(!input.syncedAt||!Number.isFinite(Date.parse(input.syncedAt)))return false

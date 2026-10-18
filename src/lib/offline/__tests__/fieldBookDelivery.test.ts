@@ -47,3 +47,76 @@ test('a historical timestamp without a receipt is retained as unconfirmed; a cha
   records.set(first.id,{...records.get(first.id),elevation:undefined} as OfflineObservation)
   await expect(getSyncStatus(first.projectId)).resolves.toEqual({total:1,synced:0,unsynced:1})
 })
+
+test('a rejected capture is retained without repeated automatic HTTP requests',async()=>{
+  jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({error:'Retain both copies for review'}),{status:409}))
+  await expect(syncObservations(first.projectId)).resolves.toMatchObject({failed:1})
+  await expect(syncObservations(first.projectId)).resolves.toMatchObject({synced:0,failed:0,deferred:1})
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(records.get(first.id)?.syncedAt).toBeNull()
+  expect(records.get(first.id)?.easting).toBe(0)
+})
+
+test('transient failures wait before automatic retries rather than immediately resending',async()=>{
+  const clock=jest.spyOn(Date,'now').mockReturnValue(1000000)
+  try{
+    jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({error:'Try later'}),{status:503}))
+    await syncObservations(first.projectId)
+    await syncObservations(first.projectId)
+    expect(fetch).toHaveBeenCalledTimes(1)
+    clock.mockReturnValue(1030001)
+    await syncObservations(first.projectId)
+    expect(fetch).toHaveBeenCalledTimes(2)
+    clock.mockReturnValue(1060001)
+    await syncObservations(first.projectId)
+    expect(fetch).toHaveBeenCalledTimes(2)
+  }finally{clock.mockRestore()}
+})
+
+test('a large queue sends at most twenty records per pass and preserves the rest',async()=>{
+  records.clear()
+  for(let index=0;index<25;index++){const row={...first,id:`device-${index}`};records.set(row.id,row)}
+  jest.mocked(fetch).mockImplementation(async(_url,init)=>{
+    const row=JSON.parse(String(init?.body)) as OfflineObservation
+    return new Response(JSON.stringify(await ack(row)),{status:201})
+  })
+  await expect(syncObservations(first.projectId)).resolves.toMatchObject({synced:20,failed:0,deferred:5})
+  expect(fetch).toHaveBeenCalledTimes(20)
+  expect(records.size).toBe(25)
+  await expect(getSyncStatus(first.projectId)).resolves.toEqual({total:25,synced:20,unsynced:5})
+})
+
+test('manual retry preserves raw hashes and does not remove a rejected device record',async()=>{
+  const originalHash=await observationDeliveryHash(first as unknown as Record<string,unknown>)
+  jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({error:'Review conflict'}),{status:409}))
+  await syncObservations(first.projectId)
+  const pending=records.get(first.id) as OfflineObservation
+  expect(pending.deliveryRetry?.blocked).toBe(true)
+  expect(await observationDeliveryHash(pending as unknown as Record<string,unknown>)).toBe(originalHash)
+  expect(offlineObservationInputHash(pending as unknown as Record<string,unknown>)).toBe(originalHash)
+  await syncObservations(first.projectId,{retryBlocked:true})
+  expect(fetch).toHaveBeenCalledTimes(2)
+  expect(records.get(first.id)?.syncedAt).toBeNull()
+})
+
+test('a throttling delay pauses later projects and survives another sync pass',async()=>{
+  const clock=jest.spyOn(Date,'now').mockReturnValue(1000000)
+  try{
+    jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({error:'Rate limit'}),{status:429,headers:{'Retry-After':'90'}}))
+    await syncObservations(first.projectId)
+    await expect(syncObservations(other.projectId,{retryBlocked:true})).resolves.toMatchObject({deferred:1,failed:0})
+    expect(fetch).toHaveBeenCalledTimes(1)
+    clock.mockReturnValue(1090001)
+    jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(await ack(other)),{status:201}))
+    await expect(syncObservations(other.projectId)).resolves.toMatchObject({synced:1})
+  }finally{clock.mockRestore()}
+})
+
+test('a failed connection stops the pass and retains the remaining queue',async()=>{
+  const second={...first,id:'second-reading'}
+  records.set(second.id,second)
+  jest.mocked(fetch).mockRejectedValue(new Error('Network interrupted'))
+  await expect(syncObservations(first.projectId)).resolves.toMatchObject({failed:1,deferred:1})
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(records.get(second.id)?.syncedAt).toBeNull()
+})
