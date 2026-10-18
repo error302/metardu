@@ -1,12 +1,13 @@
 # METARDU requirement readiness — updated 16 October 2026
 
-Latest outcome (18 October): see `CONTINUATION_ACCEPTANCE_2026-10-18.md`.
-The resumed CAD/import and project-CAD/auth repairs pass source/browser/synthetic
-checks and the full candidate build, but the attempted promotion rolled back.
-Production is healthy `4fa998fc`, with 117 unchanged applied entries; these new
-repairs are not live. Current PayPal read checks and preserved email receipts,
-the unresolved cutover/print findings and remaining source/field/external gates
-are separated in the newer report. Older checkpoints below remain historical.
+Latest outcome (18 October): see `OBSERVATION_IMPORT_RELEASE_VERIFICATION.md`.
+Production is healthy `80940bf7`, with all 118 applied entries and original
+hashes/checked records preserved. Typography, pricing-copy, CAD/import and auth
+repairs are live; 26 private HTTPS and 20 public checks pass. The legacy import
+schema failure is repaired by additive migration 113. The road-quantity source
+HTTP run now passes 25 checks. Browser recovery, full offline/field acceptance,
+provider transactions/delivery and consent gates remain separately documented.
+Older failed cutover and source-only statements below are historical checkpoints.
 
 Latest release update: pinned application source `eac2835e` is now deployed with
 all 115 migrations, unchanged historical hashes and checked customer-record

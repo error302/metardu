@@ -1,5 +1,13 @@
 # METARDU typography acceptance
 
+Latest deployment, 18 October: these changes are live in healthy `80940bf7`.
+Public HTTPS browser checks confirm hydrated desktop pricing and phone-width
+import with Geist body text, Instrument Serif display headings and no measured
+horizontal overflow. The shared deployed font utilities/binary pass public HTTP
+checks. See `OBSERVATION_IMPORT_RELEASE_VERIFICATION.md` for precise release,
+loopback browser-recovery, offline and physical-field limits. Screenshots are
+`.cache/typography/pricing-public-desktop.png` and `import-live-mobile.png`.
+
 The shared page typography uses the existing locally served brand fonts. No new
 font, external font request, package or production data change is part of this
 increment.

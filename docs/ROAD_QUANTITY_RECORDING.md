@@ -1,13 +1,20 @@
 # Road quantity recording contract
 
-Source implementation checkpoint, 16 October 2026. This is not a production or
-field acceptance claim; the extended native verification is not yet green.
+Latest checkpoint, 18 October: the extended native source run now passes all
+25 checks, including shared readers and forced-write rollback. Exact accounts
+are suspended, fault-injection objects removed, and immutable synthetic evidence
+retained. The implementation is included in deployed `80940bf7`; a live quantity
+recording/approval workflow is still unverified. See
+`OBSERVATION_IMPORT_RELEASE_VERIFICATION.md`. Earlier failures below are history.
 
-The production `/api/engineering/earthworks` save handler trusts supplied
+Source implementation checkpoint, 16 October 2026. This is not a production or
+field acceptance claim; at that checkpoint extended native verification was not green.
+
+The earlier production `/api/engineering/earthworks` save handler trusted supplied
 reductions and names nonexistent columns. The source replacement calculates from
 stored alignment inputs using the workspace's profile/vertical/average-end-area
 engine. Legacy `earthworks_results` rows remain unchanged and are not adopted
-as authority. The replacement has not been promoted to production.
+as authority. The latest checkpoint above supersedes the earlier unpromoted status.
 
 ## Data and authority
 

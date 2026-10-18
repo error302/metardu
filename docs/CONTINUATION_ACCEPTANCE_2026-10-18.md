@@ -1,13 +1,14 @@
 # METARDU continuation acceptance — 18 October 2026
 
-**Latest live status (06:53 UTC):** revision
-`2e89e143b359297b693ffb8612b359e961d4a50f` promoted successfully and is healthy.
-Its typography, pricing copy, CAD, navigation and authentication repairs are live.
-Private HTTPS acceptance passed 17 checks, then exposed an older observation
-table missing 13 import metadata fields (PostgreSQL 42703). Coordinate import
-is not accepted yet. Exact disposable fixtures were removed; independent counts
-are zero. Additive migration 113 and legacy-schema regression checks are being
-prepared; no applied SQL hash or customer record has been changed for this repair.
+**Latest live status:** revision
+`80940bf7537c116621eba76e42e1831cf4def1d6` is deployed and healthy with all 118
+ledger entries. Additive migration 113 repairs the older observation-table gap
+exposed by the earlier `2e89e143` live test. All 26 private HTTPS checks now pass,
+including imports, source download and CAD save. Original hashes/checked values
+and supporting services were preserved; exact disposable records independently
+count zero. See `OBSERVATION_IMPORT_RELEASE_VERIFICATION.md` for current source,
+live, browser/recovery, offline, provider and field boundaries. The dated failed
+cutover below is historical, not the current deployed state.
 
 **Continuing goal:** the later typography/map-readability increment is documented
 in `TYPOGRAPHY_READINESS.md`. It unifies the shared font stacks and repairs
