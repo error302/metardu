@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
+import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
 const source=[{version:'107_existing',path:'src/lib/db/migrations/107_existing.sql',checksum:'old',equivalentChecksums:[]},{version:'108_pipeline_asbuilt_history',path:'src/lib/db/migrations/108_pipeline_asbuilt_history.sql',checksum:'new',equivalentChecksums:[]}]
 test('release commands require a pinned commit and stay in one reusable namespace',()=>{
@@ -29,6 +29,27 @@ test('rollback retains strict verification through a read-only registry mount',(
 test('builds fail closed on insufficient or unknown host free space',()=>{
   assertBuildSpace(16*1024**3)
   for(const free of [0,7*1024**3,NaN,Infinity])assert.throws(()=>assertBuildSpace(free))
+})
+
+const registryTarget='/app/rollback-migration-registry'
+function restoredApp(){return {Name:'/metardu-app',Config:{Labels:{'com.docker.compose.service':'metardu-app'},Env:[`MIGRATIONS_DIR=${registryTarget}`]},Mounts:[
+  {Type:'volume',Source:'/var/lib/docker/volumes/metardu_uploads_data/_data',Destination:'/app/upload',RW:true},
+  {Type:'bind',Source:path.resolve('.cache/release-verify/previous/rollback-registry/verified'),Destination:registryTarget,RW:false},
+]}}
+test('promotion preserves the exact inspected registry without inheriting rollback environment',()=>{
+  const app=restoredApp(),service=forwardPromotionService('metardu-metardu-app:candidate',sha,app)
+  assert.deepEqual(service.volumes,[{type:'bind',source:app.Mounts[1].Source,target:registryTarget,read_only:true}])
+  assert.deepEqual(service.environment,{METARDU_BUILD_SHA:sha})
+  assert.equal(app.Mounts[0].Destination,'/app/upload')
+})
+test('ordinary promotion adds no registry mount',()=>{
+  const app=restoredApp();app.Mounts=app.Mounts.slice(0,1);app.Config.Env=[]
+  assert.deepEqual(forwardPromotionService('metardu-metardu-app:candidate',sha,app),{image:'metardu-metardu-app:candidate',environment:{METARDU_BUILD_SHA:sha}})
+})
+test('a changed registry, missing bind or unrelated app cannot pass the promotion guard',()=>{
+  const mutations=[a=>a.Mounts[1].RW=true,a=>a.Mounts[1].Type='volume',a=>a.Mounts[1].Source='relative',a=>a.Mounts.push({...a.Mounts[1]}),a=>a.Config.Env=[],a=>a.Mounts.pop(),a=>a.Name='/other-app',a=>a.Config.Labels['com.docker.compose.service']='other']
+  for(const mutate of mutations){const app=restoredApp();mutate(app);assert.throws(()=>forwardPromotionService('metardu-metardu-app:candidate',sha,app))}
+  assert.throws(()=>forwardPromotionService('other-image',sha,restoredApp()))
 })
 
 test('a no-op rehearsal cannot replace a completed forward upgrade with cleanup',()=>{

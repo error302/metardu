@@ -40,6 +40,34 @@ export function rollbackService(image,revision,registryDirectory) {
     volumes:[{type:'bind',source:registryDirectory,target:'/app/rollback-migration-registry',read_only:true}]}
 }
 
+// A restored production app can depend on a strict forward migration registry.
+// Preserve that exact read-only bind during the next promotion. The candidate
+// still verifies its own packaged registry; no old MIGRATIONS_DIR is inherited.
+export function forwardPromotionService(image,revision,app) {
+  assert.equal(image,'metardu-metardu-app:candidate')
+  assert.match(revision,/^[a-f0-9]{40}$/)
+  assert.equal(app.Name,'/metardu-app')
+  assert.equal(app.Config.Labels['com.docker.compose.service'],'metardu-app')
+  const target='/app/rollback-migration-registry'
+  const registries=app.Mounts.filter(m=>m.Destination===target)
+  assert.ok(registries.length<=1,'An ambiguous rollback registry blocks promotion.')
+  const environment=Object.fromEntries(app.Config.Env.map(value=>{
+    const i=value.indexOf('=');return [value.slice(0,i),value.slice(i+1)]
+  }))
+  const service={image,environment:{METARDU_BUILD_SHA:revision}}
+  if(!registries.length){
+    assert.notEqual(environment.MIGRATIONS_DIR,target,'The configured rollback registry must be mounted.')
+    return service
+  }
+  const registry=registries[0]
+  assert.equal(environment.MIGRATIONS_DIR,target,'Inspect an unexpected registry mount before promotion.')
+  assert.equal(registry.Type,'bind')
+  assert.equal(registry.RW,false,'The retained registry must remain read-only.')
+  assert.ok(path.isAbsolute(registry.Source),'The retained registry must have an absolute source.')
+  service.volumes=[{type:'bind',source:registry.Source,target,read_only:true}]
+  return service
+}
+
 export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
   assert.ok(Number.isFinite(freeBytes)&&freeBytes>=reserveBytes,'Host free space is below the 8 GiB build reserve.')
 }

@@ -79,3 +79,23 @@ geometry has been rewritten.
 Resend/domain verification, PayPal transaction acceptance, receiver/field
 validation and ChatGPT notice/deployment/consent gates remain separate from this
 typography increment and the continuing platform goal.
+
+## Release preflight repair
+
+The restored application has a live read-only `/app/rollback-migration-registry`
+bind. The previous forward controller would omit that bind, then reject its own
+mount-preservation check after cutover. This is a separately reproduced source
+blocker, not the established cause of the earlier failed startup.
+
+The controller now carries that exact inspected bind into the forward override,
+with its read-only flag intact. It does not inherit the rollback `MIGRATIONS_DIR`:
+the candidate verifies its packaged registry normally. Other volumes still need
+to match exactly, and the supporting service identities/start times are still
+protected. The historical cache directory remains a live mounted dependency;
+do not delete it after promotion just because it is no longer the verifier's
+selected registry.
+
+The guard rejects a writable/non-bind/relative/ambiguous/missing registry or a
+different application. Seventeen focused release/diagnostic/cleanup tests and
+the promotion controller syntax check passed. No notice or migration integrity
+gate was relaxed, and no production service was restarted by this source repair.

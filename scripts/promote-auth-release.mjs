@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto'
 import pg from 'pg'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 
@@ -236,7 +236,7 @@ async function migrateAndPromote() {
   assert.ok(Object.values(jobs).every(value=>value===0),'Wait for active jobs before maintenance')
   const staging=stageMigrations(files)
   const override=join(directory,'promotion.override.yml')
-  writeFileSync(override,`services:\n  metardu-app:\n    image: ${candidateTag}\n    environment:\n      METARDU_BUILD_SHA: ${revision}\n`)
+  writeFileSync(override,JSON.stringify({services:{'metardu-app':forwardPromotionService(candidateTag,revision,app)}},null,2))
   receipt.status='maintenance';save(receipt)
   docker(['stop','--timeout','20','metardu-app'],{timeout:40_000})
   try {
