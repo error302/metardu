@@ -60,8 +60,53 @@ point metadata need matching returned rows before queue removal. Unknown queue
 types/actions are retained for recovery. Five real regressions reproduce against
 the previous queue implementation without replacing the source checkout.
 
-Pinned normal migration/HTTP proof is the next gate. Old unreceipted server rows
-are retained for explicit reconciliation; no existing source is overwritten or
-automatically adopted. A reviewed reconciliation workflow, complete evidence-event
-timeline integration, owner-safe offline reopen and full field acceptance remain
-open; successful raw delivery does not approve points or measurements.
+Pinned source `9deb15a6ce14e00207c3237263190aaeea66fb6f` now passes **24 real
+HTTP/PostgreSQL checks** against the existing preview, including normal sign-in,
+private receipts, NULL/zero measurements, independently calculated content hash,
+concurrent replay, content/uploader conflicts, viewer denial, surveyor delivery,
+project-scoped keys, old-row preservation and actual rollback after silently
+skipped observation/capture/audit writes. This is source evidence only.
+
+Migration 114 applied through the normal runner **only to the marked synthetic
+database**. It now has 119 matching ledger entries; all prior hashes and checked
+original row fingerprints were preserved. Its recorded checksum is
+`b6af0035a6d81ca9f5dd14b667b711d4b24ac81465de148f009ac8416b25b50d`.
+Do not edit this applied migration. The preliminary rollback-only native test
+requires a 118-entry baseline and must not be rerun unchanged on the now-119-entry
+database. A fresh pinned temporary synthetic upgrade remains a release gate.
+
+Independent post-checks confirm zero exact QA users, projects, raw observations,
+captures and points; all three exact fault-injection triggers/functions are absent.
+The source checkout was preserved during the previous-version regression run.
+Strict application/test typing, focused lint and **44 tests in six suites** pass.
+Receipts: `.cache/field-sync/http-attempt-1.json`, `independent-post-check.json`,
+`queue-red-proof.json`, `queue-before-repair.log` and `rollback-native.json`.
+
+The archive is the complete normalized JSON record delivered by the client, not
+an original NMEA/serial transcript or certified field evidence. Receipts and raw
+row immutability do not approve project points, instrument quality or geometry.
+
+## Current live and release boundary
+
+Read-only production inspection confirms healthy release `80940bf7` still has
+**118 entries**, with 114 unapplied. Its legacy fieldbook-sync endpoint remains
+the verified blocker until the source repair is built, reviewed and promoted.
+No production migration, image replacement or customer-data change was made in
+this continuation. The production release guard intentionally still rejects
+unreviewed pending 114; do not waive that gate to deploy this checkpoint.
+
+Finish the remaining recovery/offline source work, actual schema/privilege and
+fresh upgrade proof, pinned checks, backup/recovery review, consolidated build,
+promotion and live field-delivery acceptance before claiming this repair live.
+The user's training drawing/storage and the one existing app/required services
+remain protected. Physical-phone testing was not resumed.
+
+## Remaining functional acceptance
+
+Old unreceipted server rows need an explicit reconciliation workflow; no existing
+source is overwritten or automatically adopted. Complete evidence-event timeline
+integration, owner-safe offline cold open/reopen, batch delivery/backoff for large
+or rejected queues, field UI/browser acceptance and physical field proof remain
+open. An old rejected capture must not drive a continuous two-second retry loop.
+These are internal work items, distinct from payment, email-provider, receiver,
+design-approval and ChatGPT notice/deployment/consent gates.
