@@ -86,16 +86,65 @@ each initial render. Origin HTML preserved the footer email anchor, while
 Cloudflare replaced it and injected its decoder. The documented per-address
 `email_off` exemption now wraps the entire fixed public anchor. It contains
 no user-controlled HTML. Reference:
-https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/
+[Cloudflare Email Address Obfuscation](https://developers.cloudflare.com/waf/tools/scrape-shield/email-address-obfuscation/).
 
 The keyboard shortcut now detects Mac after mounting so Linux SSR and a Mac
-client have the same first render. Focused server-render/hydration tests and a
-follow-up pinned build/promotion must verify these final fixes on HTTPS.
-There are no pending SQL migrations for that follow-up; the controller still
+client have the same first render. Focused server-render/hydration tests passed.
+There were no pending SQL migrations for that follow-up; the controller still
 requires matching complete production/synthetic registries, rollback startup
 verification, source checks, a fresh checkpoint and supporting-service checks.
 It records forward-upgrade proof as not required when no SQL is pending,
 rather than fabricating an upgrade success.
+
+### Final deployed revision
+
+`4fa998fcf597c63a0cebd83685e233865d61b616` is now deployed, image
+`sha256:af17d7af4559e416e60be3956e89d62238e4d4aefc653782a9f0e4d3fff75dbe`.
+The pinned Linux build passed compilation, strict type validation, all 219 pages,
+standalone packaging and native dependency checks. Both source/test type checks,
+the two focused hydration tests, scoped lint and ten release/probe boundary tests
+passed. GitHub gitleaks run `39080843590` passed for this exact revision.
+The preceding combined application checkpoint passed 853 tests in 140 suites;
+seven tests in two suites were skipped. These are separate source checkpoints.
+
+The final promotion took fresh checkpoints
+`/backups/db_20261018_001422.sql.gz` and
+`/backups/uploads_20261018_001422.tar.gz`, completed at 00:15:01 UTC.
+The ledger remains 117, every historical hash and checked existing record was
+preserved, and all supporting service IDs/start times/mounts remained unchanged.
+The preceding deployed image `b2e12ba5...` is protected as `rollback-current`;
+older protected images retain their aliases. The final Docker verifier passes
+with exactly one application container. Scheduled backup execution and a new
+restore exercise remain separate acceptance work; manual backups do not prove
+the scheduler.
+
+All 17 HTTPS checks passed again on the final release. An independent read-only
+query across all four probe receipts confirmed zero remaining QA users,
+projects, alignments and fieldbooks. Public HTTPS reports the exact release ID;
+origin and Cloudflare footer anchors match, with zero email rewrite/decoder
+injections. Fresh 390x844 and 1280x900 map loads captured no browser errors.
+The mobile tools expand, map attribution is visible above the dock, and the
+temporary viewport override was reset. The user's original tab and localhost
+CAD drawing were preserved. The local screenshot is
+`.cache/metardu-released-map-mobile.jpg`.
+
+The live desktop print action downloaded
+`C:\Users\user\Downloads\metardu-current-map (2).pdf` without overwriting prior
+downloads. Independent PDF parsing confirms a valid PDF-1.3, one A4 landscape
+page, two image objects and 3,892,002 bytes. This is a current-view reference,
+not certified survey/physical-print evidence. The browser download tool call
+reported about 97 minutes before returning; app versus browser/tool delay was
+not isolated. PDF structure passed, but normal print latency is not accepted
+on this evidence and needs a controlled foreground check.
+
+Final local receipts are in
+`.cache/release-verify/unified-release/4fa998fcf597c63a0cebd83685e233865d61b616/`
+(`promotion.json`, `source-checks.json`, `live-survey.json`, `public-render.json`,
+`browser-checks.json`, `build-1.log`), with independent cleanup evidence at
+`.cache/release-verify/unified-release/qa-cleanup.json`. These ignored files can
+contain internal release metadata and are summarized here instead of uploaded.
+The 6.02 MB offline-precache omission remains unchanged and is not full offline
+acceptance. The broader goal stays active.
 
 The first combined source check passed both strict type checks and 844 tests,
 but failed UUID uniqueness after the road-quantity test changed Node's shared
