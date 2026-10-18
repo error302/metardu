@@ -106,6 +106,7 @@ const compatibleBatchMetadata = ['source_file_name', 'operator', 'instrument_nam
   .map((column, index) => {
     const legacy = ['source_file', 'operator_name', 'instrument'][index]
     return `COALESCE(${column}, CASE WHEN quality_metadata->>'kind' IS DISTINCT FROM 'coordinate_import'
+      AND quality_metadata->>'kind' IS DISTINCT FROM 'offline_field_observation'
       THEN to_jsonb(observation_batches)->>'${legacy}' END) AS ${column}`
   }).join(', ')
 
@@ -240,7 +241,9 @@ export async function listObservationBatches(
     `SELECT id,project_id,batch_number,source_type,${compatibleBatchMetadata},source_file_hash,source_file_size,
        crew,instrument_id,instrument_serial,station,backsight,instrument_height,
        target_height,prism_constant,source_crs,point_count,observation_count,notes,status,created_by,created_at,updated_at,
-       CASE WHEN quality_metadata->>'kind'='coordinate_import'
+       CASE WHEN quality_metadata->>'kind'='offline_field_observation'
+         THEN (quality_metadata - 'raw' - 'projectReference') || jsonb_build_object('summaryOnly',true)
+       WHEN quality_metadata->>'kind'='coordinate_import'
          THEN (quality_metadata - 'sourceText' - 'points' - 'pointIds' - 'selectedIndices' - 'warnings')
            || jsonb_build_object('summaryOnly',true,'warningCount',jsonb_array_length(COALESCE(quality_metadata->'warnings','[]'::jsonb)))
          ELSE quality_metadata END AS quality_metadata

@@ -45,7 +45,7 @@ export function useOfflineFieldBook(projectId: string, surveyType?: ObservationT
       const obs = await getObservations(projectId, surveyType)
       if (mountedRef.current) {
         setObservations(obs.sort((a, b) => a.createdAt.localeCompare(b.createdAt)))
-        const status = await getSyncStatus()
+        const status = await getSyncStatus(projectId)
         if (mountedRef.current) setSyncStatus(status)
       }
     } catch (err) {
@@ -73,8 +73,8 @@ export function useOfflineFieldBook(projectId: string, surveyType?: ObservationT
     if (isOnline()) {
       setSyncing(true)
       try {
-        await syncObservations()
-        const status = await getSyncStatus()
+        await syncObservations(projectId)
+        const status = await getSyncStatus(projectId)
         if (mountedRef.current) setSyncStatus(status)
       } finally {
         if (mountedRef.current) setSyncing(false)
@@ -96,13 +96,13 @@ export function useOfflineFieldBook(projectId: string, surveyType?: ObservationT
   const syncNow = useCallback(async () => {
     setSyncing(true)
     try {
-      const result = await syncObservations()
+      const result = await syncObservations(projectId)
       await loadObservations() // reload to get updated syncedAt
       return result
     } finally {
       if (mountedRef.current) setSyncing(false)
     }
-  }, [loadObservations])
+  }, [loadObservations,projectId])
 
   // Initialize on mount
   useEffect(() => {

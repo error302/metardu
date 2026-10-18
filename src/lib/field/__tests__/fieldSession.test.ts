@@ -1,6 +1,7 @@
 import { getFieldSession } from '../fieldSession'
 import { useInstrumentStore } from '@/stores/instrumentStore'
-import { getObservations, saveObservation } from '@/lib/offline/fieldBookDB'
+import { getObservations, saveObservation,syncObservations,type OfflineObservation } from '@/lib/offline/fieldBookDB'
+import { observationDeliveryHash,type FieldObservationDeliveryReceipt } from '../observationReceipt'
 
 jest.mock('@/lib/offline/fieldBookDB', () => ({
   saveObservation: jest.fn(),
@@ -253,5 +254,33 @@ describe('field session point capture persistence', () => {
     const session = getFieldSession(`load-failure-${Date.now()}`, 'engineering')
 
     await expect(session.loadMeasurements()).resolves.toBe(false)
+  })
+  it('uses exact durable project receipts rather than a global sync count',async()=>{
+    const projectId=`sync-receipt-${Date.now()}`
+    const first:OfflineObservation={id:'first-local',projectId,surveyType:'traverse',station:'STN',pointId:'P1',easting:0,northing:10,elevation:0,createdAt:'2026-10-18T08:00:00Z',syncedAt:null}
+    const second:OfflineObservation={...first,id:'second-local',pointId:'P2'}
+    const receiptFor=async(row:OfflineObservation):Promise<FieldObservationDeliveryReceipt>=>({ok:true,id:row.id,observationId:'11111111-1111-4111-8111-111111111111',batchId:'22222222-2222-4222-8222-222222222222',inputHash:await observationDeliveryHash(row as unknown as Record<string,unknown>),replayed:false,fieldVerified:false})
+    getObservationsMock.mockResolvedValueOnce([first,second])
+    const session=getFieldSession(projectId,'engineering');await session.loadMeasurements()
+    const foreign={...second,projectId:'different-project'}
+    getObservationsMock.mockResolvedValueOnce([{...first,syncedAt:'2026-10-18T09:00:00Z',deliveryReceipt:await receiptFor(first)},second,{...foreign,syncedAt:'2026-10-18T09:00:00Z',deliveryReceipt:await receiptFor(foreign)}])
+    jest.mocked(syncObservations).mockResolvedValueOnce({synced:5,failed:1,errors:[],acknowledgedIds:['unrelated']})
+    await session.syncNow()
+    expect(syncObservations).toHaveBeenCalledWith(projectId)
+    expect(session.getSnapshot().measurements.map(row=>row.synced)).toEqual([true,false])
+    expect(session.getSnapshot().pendingSyncCount).toBe(1)
+  })
+  it('does not invent delivery or an instrument identity for a legacy stored observation',async()=>{
+    getObservationsMock.mockResolvedValueOnce([{id:'legacy',projectId:'legacy-project',surveyType:'traverse',station:'STN',pointId:'P0',easting:0,northing:0,createdAt:'2026-10-18T08:00:00Z',syncedAt:'2026-10-18T09:00:00Z'}])
+    const session=getFieldSession('legacy-project','engineering');await session.loadMeasurements()
+    expect(session.getSnapshot().measurements[0]).toMatchObject({pointId:'P0',synced:false,instrumentType:null,easting:0,northing:0})
+  })
+  it('retains an unclassified receiver code instead of labelling it a single-position fix',async()=>{
+    const session=getFieldSession(`raw-quality-${Date.now()}`,'engineering')
+    session.setupStation({stationName:'STN',instrumentHeight:1.5,targetHeight:2,isControlPoint:false})
+    const reading={...latestPoint,id:'quality-code-six',quality:6}
+    const measurement=await session.captureMeasurement({pointId:'P1',reading})
+    expect(measurement?.fixQuality).toBe('code 6')
+    expect(saveObservationMock.mock.calls.at(-1)?.[0].fixQuality).toBe(6)
   })
 })

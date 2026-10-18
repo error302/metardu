@@ -69,7 +69,8 @@ function ObservationRow({
     second: '2-digit',
   })
 
-  const isGNSS = measurement.instrumentType === 'gnss_rover'
+  const isGNSS = measurement.instrumentType === 'gnss_rover'||measurement.instrumentType==='gnss_static'
+  const geographicOnly=measurement.easting==null&&measurement.northing==null&&measurement.latitude!=null&&measurement.longitude!=null
 
   return (
     <div className="flex items-start gap-3 px-4 py-2.5 hover:bg-[var(--bg-secondary)] transition-colors">
@@ -93,7 +94,7 @@ function ObservationRow({
 
         {/* Coordinates */}
         <div className="mt-0.5 text-xs font-mono text-[var(--text-secondary)]">
-          {isGNSS ? (
+          {isGNSS||geographicOnly ? (
             <>
               {measurement.latitude?.toFixed(7)}, {measurement.longitude?.toFixed(7)}
               {measurement.fixQuality && (
@@ -117,6 +118,10 @@ function ObservationRow({
             </>
           )}
         </div>
+        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
+          {geographicOnly||isGNSS?measurement.geographicCrs??'Geographic CRS not recorded':measurement.horizontalCrs??'Grid CRS not recorded'}
+          {measurement.instrumentType===null?' · Instrument not recorded':''}
+        </p>
 
         {/* Measurement details */}
         {!isGNSS && measurement.slopeDistance != null && (

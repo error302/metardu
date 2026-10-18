@@ -206,9 +206,9 @@ export default function ObserveStagePanel({ projectId, surveyType = 'cadastral' 
                   className="p-3.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] space-y-2 hover:border-[var(--accent)]/50 transition-colors"
                 >
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-[var(--text-primary)]">
+                    <div className="min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="min-w-0 break-all font-mono text-xs font-bold text-[var(--text-primary)]">
                           {batch.batch_number}
                         </span>
                         <span className="text-[10px] px-2 py-0.5 rounded-full uppercase font-bold bg-white/5 text-[var(--text-secondary)] border border-[var(--border-color)]">

@@ -18,6 +18,7 @@
 import { logger } from '@/lib/logger'
 import { openDB, type IDBPDatabase } from 'idb'
 import type { RoadFieldPlan } from '@/types/engineering'
+import { acknowledgeFieldObservation,observationDeliveryHash,hasAcknowledgedFieldObservation,type FieldObservationDeliveryReceipt } from '@/lib/field/observationReceipt'
 
 const DB_NAME = 'metardu-fieldbook'
 const DB_VERSION = 2
@@ -29,6 +30,8 @@ export type ObservationType = 'traverse' | 'leveling' | 'topo' | 'gnss' | 'hydro
 export interface OfflineObservation {
   id: string                  // UUID generated client-side
   projectId: string
+  /** Recorded account when known. Legacy captures remain unattributed. */
+  ownerId?: string
   surveyType: ObservationType
   station: string             // Station name/number
   backsight?: string          // BS station
@@ -50,11 +53,24 @@ export interface OfflineObservation {
   // GNSS fields
   latitude?: number
   longitude?: number
+  pointId?: string
+  horizontalCrs?: string
+  geographicCrs?: string
+  verticalDatum?: string
+  instrumentType?: 'total_station' | 'gnss_rover' | 'gnss_static' | 'level'
+  instrumentName?: string
+  observationSource?: 'gnss_receiver' | 'total_station' | 'manual'
+  instrumentHeight?: number
+  targetHeight?: number
+  fixQuality?: number
+  satellites?: number
+  hdop?: number
   // Metadata
   notes?: string
   photoUrl?: string           // local blob URL (stored separately in IndexedDB)
   createdAt: string           // ISO timestamp
   syncedAt: string | null     // null = not yet synced
+  deliveryReceipt?:FieldObservationDeliveryReceipt
   syncError?: string          // last sync error message
 }
 
@@ -184,7 +200,8 @@ export async function getUnsyncedObservations(): Promise<OfflineObservation[]> {
   // for null values directly. Get all and filter. For a few hundred observations
   // this is fine; for thousands, add a separate 'unsynced' store.
   const all = (await db.getAll('observations')) as OfflineObservation[]
-  return all.filter(o => o.syncedAt === null)
+  const acknowledged=await Promise.all(all.map(hasAcknowledgedFieldObservation))
+  return all.filter((_,index)=>!acknowledged[index])
 }
 
 // ─── Photo Storage ─────────────────────────────────────────────────────────
@@ -202,27 +219,42 @@ export async function getPhoto(id: string): Promise<Blob | null> {
 
 // ─── Sync ──────────────────────────────────────────────────────────────────
 
-export async function syncObservations(): Promise<{ synced: number; failed: number; errors: string[] }> {
-  const unsynced = await getUnsyncedObservations()
-  if (unsynced.length === 0) return { synced: 0, failed: 0, errors: [] }
+export interface FieldObservationSyncResult {synced:number;failed:number;errors:string[];acknowledgedIds:string[]}
+let syncTail:Promise<unknown>=Promise.resolve()
+export function syncObservations(projectId?:string):Promise<FieldObservationSyncResult>{
+  // Read a fresh queue after the preceding run. Timer, hook and manual sync
+  // cannot race and restore an older pending copy over an acknowledged record.
+  const work=syncTail.catch(()=>undefined).then(()=>syncPendingObservations(projectId))
+  syncTail=work
+  return work
+}
+async function syncPendingObservations(projectId?:string):Promise<FieldObservationSyncResult>{
+  const unsynced = (await getUnsyncedObservations()).filter(obs=>!projectId||obs.projectId===projectId)
+  if (unsynced.length === 0) return { synced: 0, failed: 0, errors: [],acknowledgedIds:[] }
 
   let synced = 0
   let failed = 0
   const errors: string[] = []
+  const acknowledgedIds:string[]=[]
 
   for (const obs of unsynced) {
     try {
+      const inputHash=await observationDeliveryHash(obs as unknown as Record<string,unknown>)
       const res = await fetch('/api/fieldbook/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(obs),
+        signal:AbortSignal.timeout(15000),
       })
 
       if (res.ok) {
+        const receipt=acknowledgeFieldObservation(await res.json(),obs.id,inputHash)
         obs.syncedAt = new Date().toISOString()
+        obs.deliveryReceipt=receipt
         obs.syncError = undefined
         await saveObservation(obs)
         synced++
+        acknowledgedIds.push(receipt.id)
       } else {
         const err = (await res.json().catch(() => ({ error: 'Unknown error' }))) as { error?: string }
         obs.syncError = err.error || `HTTP ${res.status}`
@@ -239,7 +271,7 @@ export async function syncObservations(): Promise<{ synced: number; failed: numb
     }
   }
 
-  return { synced, failed, errors }
+  return { synced, failed, errors,acknowledgedIds }
 }
 
 // ─── Connectivity ──────────────────────────────────────────────────────────
@@ -306,10 +338,11 @@ export function generateId(): string {
   return `obs-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
 }
 
-export async function getSyncStatus(): Promise<{ total: number; unsynced: number; synced: number }> {
+export async function getSyncStatus(projectId?:string): Promise<{ total: number; unsynced: number; synced: number }> {
   const db = await getDB()
-  const all = (await db.getAll('observations')) as OfflineObservation[]
-  const unsynced = all.filter(o => o.syncedAt === null)
+  const all = ((await db.getAll('observations')) as OfflineObservation[]).filter(obs=>!projectId||obs.projectId===projectId)
+  const acknowledged=await Promise.all(all.map(hasAcknowledgedFieldObservation))
+  const unsynced = all.filter((_,index)=>!acknowledged[index])
   return {
     total: all.length,
     unsynced: unsynced.length,

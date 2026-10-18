@@ -12,6 +12,7 @@ import { type ToleranceCheckResult } from '@/lib/survey/liveToleranceChecker'
 import { logger } from '@/lib/logger'
 import { readFieldPointId } from '@/lib/field/pointIds'
 import { assertProjectedCrs, transformPoint, WGS84_CRS } from '@/lib/spatial/projectCrs'
+import { hasAcknowledgedFieldObservation } from './observationReceipt'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
@@ -53,6 +54,10 @@ function readInstrumentReadingId(notes?: string): string | null {
   const match = /(?:^|;\s*)INSTRUMENT_READING_ID=([^;]*)/.exec(notes ?? '')
   return match?.[1]?.trim() || null
 }
+function receiverFixLabel(quality:number|undefined):string|undefined{
+  if(quality===undefined)return undefined
+  return ({1:'single',2:'dgps',4:'fixed',5:'float'} as Record<number,string>)[quality]??`code ${quality}`
+}
 
 export interface FieldMeasurement {
   id: string
@@ -75,7 +80,9 @@ export interface FieldMeasurement {
   easting?: number
   northing?: number
   // Metadata
-  instrumentType: InstrumentType
+  instrumentType: InstrumentType | null
+  horizontalCrs?:string
+  geographicCrs?:string
   mode: MeasurementMode
   notes?: string
   synced: boolean
@@ -214,11 +221,11 @@ class FieldSession {
     }
 
     // Determine instrument type from the reading source
-    const instrumentType: InstrumentType = latestPoint.source === 'nmea'
+    const instrumentType: InstrumentType | null = latestPoint.source === 'nmea'
       ? 'gnss_rover'
       : latestPoint.source === 'gsi'
         ? 'total_station'
-        : 'gnss_rover'
+        : null
 
     // Build the measurement from the StreamedPoint
     const readingTimestamp = latestPoint.timestamp instanceof Date && Number.isFinite(latestPoint.timestamp.getTime())
@@ -238,9 +245,7 @@ class FieldSession {
       latitude: latestPoint.source === 'nmea' ? latestPoint.latitude : undefined,
       longitude: latestPoint.source === 'nmea' ? latestPoint.longitude : undefined,
       elevation: latestPoint.elevation ?? undefined,
-      fixQuality: latestPoint.quality != null
-        ? (latestPoint.quality === 4 ? 'fixed' : latestPoint.quality === 5 ? 'float' : latestPoint.quality === 2 ? 'dgps' : 'single')
-        : undefined,
+      fixQuality: latestPoint.source==='nmea'?receiverFixLabel(latestPoint.quality):undefined,
       satellites: latestPoint.satellites,
       hdop: latestPoint.hdop,
       // Reduced coordinates (StreamedPoint has easting/northing)
@@ -248,6 +253,8 @@ class FieldSession {
       northing,
       // Metadata
       instrumentType,
+      horizontalCrs:easting!=null&&northing!=null?params.projectCrs??params.coordinateCrs:undefined,
+      geographicCrs:latestPoint.source==='nmea'?WGS84_CRS:undefined,
       mode: this.state.surveyType === 'leveling' ? 'leveling' : 'traverse',
       notes: savedNotes,
       synced: false,
@@ -259,6 +266,7 @@ class FieldSession {
       await saveObservation({
         id: measurement.id,
         projectId: this.state.projectId,
+        pointId: measurement.pointId,
         surveyType: measurement.mode as 'traverse' | 'leveling' | 'topo' | 'gnss' | 'hydro' | 'mining',
         station: measurement.stationFrom,
         backsight: this.state.setup.backsightStation,
@@ -270,6 +278,15 @@ class FieldSession {
         easting: measurement.easting,
         northing: measurement.northing,
         elevation: measurement.elevation,
+        horizontalCrs: easting!=null&&northing!=null ? params.projectCrs??params.coordinateCrs : undefined,
+        geographicCrs:latestPoint.source==='nmea'?WGS84_CRS:undefined,
+        instrumentType:instrumentType??undefined,
+        observationSource: latestPoint.source==='nmea'?'gnss_receiver':latestPoint.source==='gsi'?'total_station':'manual',
+        instrumentHeight:this.state.setup.instrumentHeight,
+        targetHeight:params.targetHeight??this.state.setup.targetHeight,
+        fixQuality:latestPoint.source==='nmea'?latestPoint.quality:undefined,
+        satellites:latestPoint.satellites,
+        hdop:latestPoint.hdop,
         // Metadata
         notes: measurement.notes,
         createdAt: new Date(measurement.timestamp).toISOString(),
@@ -317,23 +334,27 @@ class FieldSession {
     this.setState({ isSyncing: true })
 
     try {
-      const { syncObservations } = await import('@/lib/offline/fieldBookDB')
-      const result = await syncObservations()
+      const { syncObservations,getObservations } = await import('@/lib/offline/fieldBookDB')
+      const result = await syncObservations(this.state.projectId)
 
       const syncedCount = result.synced || 0
       const failedCount = result.failed || 0
 
-      // Mark synced measurements
+      const recorded=await getObservations(this.state.projectId)
+      const receiptIds=await Promise.all(recorded.filter(obs=>obs.projectId===this.state.projectId).map(async obs=>await hasAcknowledgedFieldObservation(obs)?obs.id:null))
+      const acknowledged=new Set(receiptIds.filter((id):id is string=>id!==null))
+      // Read exact durable acknowledgements for this project. A global count
+      // cannot label another capture or a newly collected point delivered.
       const measurements = this.state.measurements.map(m => ({
         ...m,
-        synced: m.synced || (syncedCount > 0 && !this.state.measurements.find(x => x.id === m.id && !x.synced)),
+        synced: m.synced || acknowledged.has(m.id),
       }))
 
       this.setState({
         isSyncing: false,
         measurements,
-        pendingSyncCount: Math.max(0, this.state.pendingSyncCount - syncedCount),
-        lastSyncAt: Date.now(),
+        pendingSyncCount: measurements.filter(m=>!m.synced).length,
+        lastSyncAt: syncedCount>0?Date.now():this.state.lastSyncAt,
         isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
       })
 
@@ -351,10 +372,10 @@ class FieldSession {
     try {
       const { getObservations } = await import('@/lib/offline/fieldBookDB')
       const observations = await getObservations(this.state.projectId)
-      const measurements: FieldMeasurement[] = observations.map((obs) => ({
+      const measurements: FieldMeasurement[] = await Promise.all(observations.map(async(obs) => ({
         id: obs.id,
         timestamp: new Date(obs.createdAt).getTime(),
-        pointId: readFieldPointId(obs.notes),
+        pointId: obs.pointId??readFieldPointId(obs.notes),
         stationFrom: obs.station || '',
         stationTo: obs.foresight || undefined,
         latitude: obs.latitude,
@@ -362,11 +383,16 @@ class FieldSession {
         elevation: obs.elevation ?? undefined,
         easting: obs.easting,
         northing: obs.northing,
-        instrumentType: obs.latitude != null || obs.longitude != null ? 'gnss_rover' : 'total_station',
+        instrumentType: obs.instrumentType??null,
+        horizontalCrs:obs.horizontalCrs,
+        geographicCrs:obs.geographicCrs,
+        satellites:obs.satellites,
+        hdop:obs.hdop,
+        fixQuality:receiverFixLabel(obs.fixQuality),
         mode: (obs.surveyType as MeasurementMode) || 'traverse',
         notes: obs.notes,
-        synced: obs.syncedAt != null,
-      }))
+        synced: await hasAcknowledgedFieldObservation(obs),
+      })))
       this.setState({
         measurements,
         pendingSyncCount: measurements.filter(m => !m.synced).length,

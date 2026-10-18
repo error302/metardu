@@ -4,9 +4,10 @@
  */
 
 import { offlineStorage, SyncQueueItem, type FieldObservation, type PhotoData } from './offlineStorage'
-import type { BrowserClient } from '@/lib/api-client/client'
+import type { BrowserClient,QueryResult } from '@/lib/api-client/client'
 import { createClient } from '@/lib/api-client/client'
 import { uploadFieldPhoto } from './photoUpload'
+import { acknowledgeFieldObservation,observationDeliveryHash,hasStoredFieldAcknowledgement } from '@/lib/field/observationReceipt'
 
 // The sync queue stores the same records offlineStorage persists, with the
 // generated id and a server-side timestamp guaranteed by addToSyncQueue.
@@ -117,13 +118,14 @@ class SyncService {
 
   private async syncItem(item: SyncQueueItem): Promise<void> {
     if (!item.id) throw new Error('Sync item missing id')
+    if(!['create','update'].includes(item.action))throw new Error('This queued action needs a reviewed removal/recovery workflow. The device record was retained.')
     const dbClient = createClient()
 
     await offlineStorage.updateSyncStatus(item.id, 'syncing')
 
     switch (item.type) {
       case 'field_observation':
-        await this.syncObservation(dbClient, item.data as ObservationPayload)
+        await this.syncObservation(item.data as ObservationPayload)
         break
       case 'photo':
         await this.syncPhoto(dbClient, item.data as PhotoPayload)
@@ -131,53 +133,27 @@ class SyncService {
       case 'survey_point':
         await this.syncSurveyPoint(dbClient, item.data as SurveyPointPayload)
         break
+      default:
+        throw new Error('Unsupported queued field record. The device copy was retained for recovery.')
     }
 
     await offlineStorage.updateSyncStatus(item.id, 'synced')
     await offlineStorage.removeFromSyncQueue(item.id)
   }
 
-  private async syncObservation(dbClient: BrowserClient, payload: ObservationPayload): Promise<void> {
-    const { error } = await dbClient.from('survey_observations').upsert({
-      client_id: payload.id,
-      project_id: payload.projectId,
-      point_name: payload.pointName,
-      point_id: payload.pointId,
-      observation_type: payload.observationType,
-      northing: payload.northing,
-      easting: payload.easting,
-      elevation: payload.elevation,
-      latitude: payload.latitude,
-      longitude: payload.longitude,
-      accuracy: payload.accuracy,
-      accuracy_source: payload.accuracySource,
-      satellites: payload.satellites,
-      solution_type: payload.solutionType,
-      fix_quality: payload.fixQuality,
-      hdop: payload.hdop,
-      vdop: payload.vdop,
-      pdop: payload.pdop,
-      instrument_height: payload.instrumentHeight,
-      rod_height: payload.rodHeight,
-      backsight: payload.backsight,
-      foresight: payload.foresight,
-      horizontal_angle: payload.horizontalAngle,
-      vertical_angle: payload.verticalAngle,
-      slope_distance: payload.slopeDistance,
-      temperature: payload.temperature,
-      pressure: payload.pressure,
-      humidity: payload.humidity,
-      weather: payload.weather,
-      notes: payload.notes,
-      horizontal_crs: payload.horizontalCrs,
-      vertical_datum: payload.verticalDatum,
-      instrument_name: payload.instrumentName,
-      observation_source: payload.observationSource,
-      observed_at: new Date(payload.timestamp).toISOString(),
-      synced_at: new Date().toISOString(),
-    }, { onConflict: 'project_id,client_id' })
-
-    if (error) throw error
+  private async syncObservation(payload: ObservationPayload): Promise<void> {
+    const capture={...payload,
+      // Retain the complete original payload, including fields with no table
+      // column. Unspecified survey type is explicit rather than inferred.
+      surveyType:payload.observationType==='level'?'leveling':payload.observationType==='gps'?'gnss':'unspecified',
+      station:payload.pointName,pointId:payload.pointId??payload.pointName,
+      targetHeight:payload.rodHeight,createdAt:new Date(payload.timestamp).toISOString(),
+    }
+    const inputHash=await observationDeliveryHash(capture)
+    const response=await fetch('/api/fieldbook/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(capture),signal:AbortSignal.timeout(15000)})
+    const data:unknown=await response.json()
+    if(!response.ok)throw new Error(data&&typeof data==='object'&&'error'in data?String(data.error):'Raw observation delivery failed. The device copy was retained.')
+    acknowledgeFieldObservation(data,payload.id,inputHash)
 
     // Mark observation as synced
     await offlineStorage.update('field_observations', payload.id, { synced: true })
@@ -196,7 +172,7 @@ class SyncService {
 
     // The project/client unique key makes a retry safe after any interrupted
     // response. Keep the original local image until both writes succeed.
-    const { error } = await dbClient.from('field_photos').upsert({
+    const { data,error } = await dbClient.from('field_photos').upsert({
       client_id: payload.id,
       project_id: payload.projectId,
       observation_client_id: payload.observationClientId,
@@ -210,19 +186,20 @@ class SyncService {
       captured_at: payload.capturedAt ?? null,
       metadata: payload.metadata ?? {},
       synced_at: new Date().toISOString(),
-    }, { onConflict: 'project_id,client_id' })
+    }, { onConflict: 'project_id,client_id' }).select('id,client_id,project_id,storage_path').single() as QueryResult<unknown>
 
     if (error) {
       // Leave the stable uploaded path intact: a later retry will upsert its
       // metadata. Deleting here could destroy a previous successful upload.
       throw error
     }
+    if(!hasStoredFieldAcknowledgement(data,{client_id:payload.id,project_id:payload.projectId,storage_path:storagePath}))throw new Error('Photo metadata acknowledgement is missing or does not match. The original device photo was retained.')
 
     await offlineStorage.update('photos', payload.id, { synced: true, storagePath })
   }
 
   private async syncSurveyPoint(dbClient: BrowserClient, payload: SurveyPointPayload): Promise<void> {
-    const { error } = await dbClient.from('survey_points').upsert({
+    const { data,error } = await dbClient.from('survey_points').upsert({
       id: payload.id,
       project_id: payload.projectId,
       point_name: payload.name,
@@ -232,9 +209,10 @@ class SyncService {
       is_control: payload.isControl,
       description: payload.description,
       observation_date: new Date(payload.timestamp).toISOString().slice(0, 10),
-    })
+    }).select('id,project_id').single() as QueryResult<unknown>
 
     if (error) throw error
+    if(!hasStoredFieldAcknowledgement(data,{id:payload.id,project_id:payload.projectId}))throw new Error('The server did not acknowledge this exact survey point. The device copy was retained.')
   }
 
   async forceSync(): Promise<{ synced: number; failed: number }> {
