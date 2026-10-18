@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import {NextRequest,type NextResponse} from 'next/server'
-const mockQuery=jest.fn().mockResolvedValue({rows:[{id:'raw-reading'}],rowCount:1})
+const mockQuery=jest.fn<Promise<{rows:{id:string}[];rowCount:number}>,unknown[]>().mockResolvedValue({rows:[{id:'raw-reading'}],rowCount:1})
 jest.mock('@/lib/db',()=>({db:{query:(...args:unknown[])=>mockQuery(...args)},setCurrentRlsServiceRole:jest.fn(),setCurrentTillClaimCode:jest.fn()}))
 jest.mock('next-auth',()=>({getServerSession:jest.fn(async()=>({user:{id:'11111111-1111-4111-8111-111111111111',email:'synthetic@example.invalid'}}))}))
 jest.mock('@/lib/auth',()=>({authOptions:{}}))

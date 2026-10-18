@@ -4,7 +4,7 @@ import OfflinePage from '@/app/offline/page'
 import { isAssetLoadError, reloadCurrentDocument } from '@/lib/app/documentRecovery'
 
 jest.mock('@/lib/monitoring/sentry', () => ({ captureError: jest.fn() }))
-jest.mock('@/lib/app/documentRecovery', () => ({ ...jest.requireActual('@/lib/app/documentRecovery'), reloadCurrentDocument: jest.fn() }))
+jest.mock('@/lib/app/documentRecovery', () => ({ ...jest.requireActual<typeof import('@/lib/app/documentRecovery')>('@/lib/app/documentRecovery'), reloadCurrentDocument: jest.fn() }))
 
 describe('document recovery', () => {
   it('offers a deliberate full reload for a failed asset rather than repeating a render reset', () => {
@@ -62,16 +62,17 @@ describe('offline recovery', () => {
   })
 
   it('coalesces repeated reconnects and cancels a pending health check on unmount', async () => {
-    global.fetch = jest.fn().mockImplementation((_url, init: RequestInit) => new Promise((_resolve, reject) => {
-      init.signal?.addEventListener('abort', () => reject(new Error('Aborted')))
+    const fetchMock = jest.fn<Promise<Response>,[RequestInfo|URL,RequestInit?]>().mockImplementation((_url, init) => new Promise<Response>((_resolve, reject) => {
+      init?.signal?.addEventListener('abort', () => reject(new Error('Aborted')))
     }))
+    global.fetch = fetchMock
     const view = render(<OfflinePage />)
     fireEvent(window, new Event('online'))
     fireEvent(window, new Event('online'))
     expect(global.fetch).toHaveBeenCalledTimes(1)
-    const signal = (global.fetch as jest.Mock).mock.calls[0][1].signal as AbortSignal
+    const signal = fetchMock.mock.calls[0][1]?.signal
     view.unmount()
-    expect(signal.aborted).toBe(true)
+    expect(signal?.aborted).toBe(true)
     await Promise.resolve()
   })
 

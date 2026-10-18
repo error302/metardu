@@ -3,8 +3,20 @@ import fs from 'node:fs'
 import path from 'node:path'
 import vm from 'node:vm'
 
+interface RecoveryPwaOptions {
+  reloadOnOnline?:boolean
+  cacheStartUrl?:boolean
+  dynamicStartUrl?:boolean
+  fallbacks?:{document?:string}
+  workboxOptions?:{
+    skipWaiting?:boolean
+    clientsClaim?:boolean
+    runtimeCaching?:Array<{handler:string;options?:Record<string,unknown>;urlPattern:(context:{request:{mode:string}})=>boolean}>
+  }
+}
+
 it('keeps updates and navigation under operator control without caching private documents', () => {
-  let options: Record<string, any> = {}
+  let options: RecoveryPwaOptions = {}
   const identity = (config: unknown) => config
   vm.runInNewContext(fs.readFileSync(path.join(process.cwd(), 'next.config.js'), 'utf8'), {
     module: { exports: {} },
@@ -20,11 +32,12 @@ it('keeps updates and navigation under operator control without caching private 
   expect(options.reloadOnOnline).toBe(false)
   expect(options.cacheStartUrl).toBe(false)
   expect(options.dynamicStartUrl).toBe(false)
-  expect(options.workboxOptions.skipWaiting).toBe(false)
-  expect(options.workboxOptions.clientsClaim).toBe(false)
-  expect(options.fallbacks.document).toBe('/offline')
-  expect(options.workboxOptions.runtimeCaching).toHaveLength(1)
-  const navigation = options.workboxOptions.runtimeCaching[0]
+  expect(options.workboxOptions?.skipWaiting).toBe(false)
+  expect(options.workboxOptions?.clientsClaim).toBe(false)
+  expect(options.fallbacks?.document).toBe('/offline')
+  expect(options.workboxOptions?.runtimeCaching).toHaveLength(1)
+  const navigation = options.workboxOptions?.runtimeCaching?.[0]
+  if(!navigation)throw new Error('The public navigation recovery rule is missing')
   expect(navigation.handler).toBe('NetworkOnly')
   // next-pwa attaches handlerDidError only to entries with an options object.
   expect(navigation.options).toEqual({})
