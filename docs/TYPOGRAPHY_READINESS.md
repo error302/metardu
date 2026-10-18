@@ -99,3 +99,43 @@ The guard rejects a writable/non-bind/relative/ambiguous/missing registry or a
 different application. Seventeen focused release/diagnostic/cleanup tests and
 the promotion controller syntax check passed. No notice or migration integrity
 gate was relaxed, and no production service was restarted by this source repair.
+
+The pinned `d4d5742d` preflight passed both strict type checks, 406 tests across
+46 suites and lint for all 79 changed TypeScript files against production's
+baseline. The existing synthetic rehearsal and current image's strict rollback
+verifier accepted all 117 migrations, with no pending SQL or customer clone.
+This preflight did not build or promote an application.
+
+## Pricing claim repair and current external checks
+
+The read-only provider receipt at `.cache/provider-readiness/current.json`
+was refreshed at 2026-10-18T06:12:19.505Z. Public metardu.space health, notice,
+payment availability and the email logo returned 200. All 12 live PayPal plans
+matched the catalog. The Resend key returned `restricted_api_key` for domain
+listing, so provider domain status cannot be verified with this send-only key.
+No email, order, subscription or charge was created by this diagnostic.
+
+The configured PayPal plans have only regular billing cycles, and the subscription
+request does not add a trial/start delay. Paid pricing-card links nevertheless
+advertised “Start Free Trial” before directing the user into that paid checkout.
+They now say “Choose Pro/Team/Firm”. The free-account link remains separate.
+Payment copy distinguishes manual M-Pesa receipt review from recurring PayPal
+approval, avoids an unproven “Verified Payments” badge and does not promise
+unavailable standalone card checkout. Existing billing and approval guards are
+unchanged. The root error page also imports the shared styles independently so
+the font and control styles survive a root-layout failure.
+
+The notice remains waiting/ineligible and linking is unconfigured. Its recorded
+eligibility time is 2026-11-10T17:56:45.516Z; deployment and actual user consent
+remain required. Historical inbox delivery receipts are not a fresh inbox test.
+This later pricing/error-style increment requires a new pinned source check
+before the single planned candidate build and promotion.
+
+Its focused pricing/landing regressions passed six tests; both strict type
+projects and all three modified pricing/error TypeScript files passed lint.
+Normal browser clicks confirmed the three paid choices and zero checkout links
+advertising a free trial, with no page overflow. “Choose Pro” reached sign-in
+while retaining `/checkout?plan=pro&currency=USD&seats=1` as the return destination.
+No account or payment was submitted. The new receipt/screenshot are
+`.cache/typography/pricing-copy-browser.json` and
+`.cache/typography/pricing-corrected-desktop.png`.

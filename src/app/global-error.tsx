@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import AppErrorBoundary from '@/components/shared/AppErrorBoundary'
 import { logger } from '@/lib/logger'
+import './globals.css'
 import './fonts.css'
 
 export default function GlobalError({

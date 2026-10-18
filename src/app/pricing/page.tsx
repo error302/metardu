@@ -114,7 +114,7 @@ export default function PricingPage() {
         ? 'Contact Sales'
         : plan.id === 'free'
           ? 'Get Started Free'
-          : 'Start Free Trial',
+          : `Choose ${plan.name}`,
       buttonVariant: plan.id === 'free' ? 'secondary' as const : 'primary' as const,
       isPopular: plan.id === 'pro',
     }
@@ -128,18 +128,18 @@ export default function PricingPage() {
             Simple, <span className="text-[var(--accent)]">Transparent</span> Pricing
           </>
         }
-        subtitle="Start free, upgrade when you need more. Two trusted payment options: M-Pesa Buy Goods Till & PayPal."
+        subtitle="Start with a free account. Review monthly prices and payment options before you upgrade."
         plans={plans}
       >
         {/* Payment Methods Section */}
         <div className="w-full max-w-4xl mx-auto mt-16 mb-12 p-8 rounded-2xl bg-[var(--bg-card)] border border-[var(--border-color)] shadow-2xl">
           <div className="text-center mb-8">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 text-xs font-semibold uppercase tracking-wider mb-3 border border-emerald-500/20">
-              🔒 Verified Payments
+              Payment options
             </div>
-            <h3 className="text-2xl font-bold text-[var(--text-primary)]">Choose Your Payment Method</h3>
+            <h3 className="text-2xl font-bold text-[var(--text-primary)]">Choose your payment method</h3>
             <p className="text-[var(--text-secondary)] text-sm mt-1">
-              Pay by M-Pesa in Kenya or use PayPal and card checkout internationally.
+              M-Pesa Till receipts are reviewed manually. PayPal shows the recurring amount and payment currency for your approval.
             </p>
 
             <label className="mt-5 inline-flex items-center gap-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2.5 text-left">
@@ -186,7 +186,7 @@ export default function PricingPage() {
                 }`}
               >
                 <CreditCard className="w-4 h-4 text-blue-400" />
-                <span>PayPal / International Card</span>
+                <span>PayPal subscription</span>
               </button>
             </div>
           </div>
@@ -289,7 +289,7 @@ export default function PricingPage() {
                 <p className="text-sm font-semibold text-[var(--text-primary)]">PayPal checkout</p>
                 <p className="mt-1 text-xs leading-5 text-[var(--text-secondary)]">Continue to secure checkout. Your selected plan, currency, and seat count carry through to the order.</p>
                 {selectedPlan.isPerSeat && seatCount > selectedPlan.includedSeats && (
-                  <p className="mt-2 text-xs leading-5 text-amber-300">PayPal supports included seats on its configured recurring plan. Choose card, or select Kenya/KES in checkout to use M-Pesa for extra seats.</p>
+                  <p className="mt-2 text-xs leading-5 text-amber-300">PayPal supports included seats on its configured recurring plan. Additional seats need another supported payment method; review the available options in checkout.</p>
                 )}
               </div>
               <button
@@ -299,7 +299,7 @@ export default function PricingPage() {
               >
                 Continue with PayPal →
               </button>
-              <p className="text-xs text-[var(--text-muted)]">Supports PayPal balances and cards where PayPal is available.</p>
+              <p className="text-xs text-[var(--text-muted)]">PayPal shows the payment options available to your account and region.</p>
             </div>
           )}
         </div>

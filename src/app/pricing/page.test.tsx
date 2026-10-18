@@ -37,7 +37,7 @@ describe('pricing plan seat prices', () => {
   it('exposes a selected state and a checkout action in the PayPal payment tab', () => {
     render(<PricingPage />)
 
-    const paypalTab = screen.getByRole('button', { name: 'PayPal / International Card' })
+    const paypalTab = screen.getByRole('button', { name: 'PayPal subscription' })
     fireEvent.click(paypalTab)
 
     expect(paypalTab).toHaveAttribute('aria-pressed', 'true')
@@ -53,5 +53,15 @@ describe('pricing plan seat prices', () => {
 
     await waitFor(() => expect(screen.getByRole('combobox', { name: 'Pricing currency' })).toHaveValue('GBP'))
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('labels paid checkout choices without promising a free billing trial', () => {
+    render(<PricingPage />)
+    for (const [name, id, seats] of [['Pro', 'pro', 1], ['Team', 'team', 3], ['Firm', 'firm', 5]]) {
+      expect(screen.getByRole('link', { name: `Choose ${name}` })).toHaveAttribute('href', `/checkout?plan=${id}&currency=KES&seats=${seats}`)
+    }
+    expect(screen.queryByRole('link', { name: /free trial/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Get Started Free' })).toHaveAttribute('href', '/register')
+    expect(screen.getByText(/M-Pesa Till receipts are reviewed manually/)).toBeInTheDocument()
   })
 })
