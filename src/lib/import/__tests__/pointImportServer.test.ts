@@ -60,7 +60,8 @@ test('an incomplete database acknowledgement cannot be reported as success',asyn
   query.mockImplementation(normal)
 })
 test.each(['import_sessions','observation_batches'])('a missing %s acknowledgement cannot produce a receipt',async table=>{
-  const normal=query.getMockImplementation()!
+  const normal=query.getMockImplementation()
+  if(!normal)throw new Error('Expected the synthetic query implementation')
   query.mockImplementation(async sql=>sql.includes(`INSERT INTO ${table}`)?{rows:[],rowCount:0}:normal(sql))
   try {await expect(commitPointImport(project,actor,request())).rejects.toMatchObject({code:'POINT_IMPORT_ACKNOWLEDGEMENT'})}
   finally {query.mockImplementation(normal)}
