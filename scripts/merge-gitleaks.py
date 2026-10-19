@@ -13,7 +13,7 @@ import re
 import sys
 
 DEFAULT = "/tmp/gitleaks-default.toml"
-OUT = "/home/z/my-project/metardu/.gitleaks.toml"
+OUT = ".gitleaks.toml"
 
 with open(DEFAULT) as f:
     default = f.read()
