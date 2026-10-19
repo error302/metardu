@@ -42,7 +42,7 @@ function computeMeanAngleDMS(obs: RawObservation): string {
   return sharedMeanAngleDMS(obs.hclDeg, obs.hclMin, obs.hclSec, obs.hcrDeg, obs.hcrMin, obs.hcrSec)
 }
 
-export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) {
+export function TraverseFieldBookInner({ onImport }: TraverseFieldBookProps) {
   const [observations, setObservations] = useState<RawObservation[]>([
     { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' },
   ])
@@ -894,5 +894,14 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
         </div>
       )}
     </div>
+  )
+}
+
+import { Suspense } from 'react'
+export default function TraverseFieldBook(props: TraverseFieldBookProps) {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-muted)]">Loading Field Book…</div>}>
+      <TraverseFieldBookInner {...props} />
+    </Suspense>
   )
 }

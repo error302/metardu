@@ -13,7 +13,7 @@ import {
 import { PageHeader } from '@/components/shared/PageHeader'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
-export default function USSurveyReferencePage() {
+function USSurveyReferencePageInner() {
   const { t } = useLanguage()
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] p-8">
@@ -230,5 +230,14 @@ export default function USSurveyReferencePage() {
         </section>
       </div>
     </div>
+  )
+}
+
+import { Suspense } from 'react'
+export default function USSurveyReferencePage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-muted)]">Loading…</div>}>
+      <USSurveyReferencePageInner />
+    </Suspense>
   )
 }

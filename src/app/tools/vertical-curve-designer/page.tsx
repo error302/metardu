@@ -63,7 +63,7 @@ const DEFAULT_VIPS: VIPInput[] = [
 
 // ─── Page ────────────────────────────────────────────────────────────────────
 
-export default function VerticalCurveDesignerPage() {
+function VerticalCurveDesignerPageInner() {
   const [vips, setVips] = useState<VIPInput[]>(DEFAULT_VIPS);
   const [designSpeed, setDesignSpeed] = useState(80);
   const [showStations, setShowStations] = useState(true);
@@ -843,4 +843,13 @@ function StationTable({
   function vips_label(idx: number) {
     return `#${idx}`;
   }
+}
+
+import { Suspense } from 'react'
+export default function VerticalCurveDesignerPage() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-muted)]">Loading…</div>}>
+      <VerticalCurveDesignerPageInner />
+    </Suspense>
+  )
 }

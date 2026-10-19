@@ -9,7 +9,7 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
-export default function TwoPegTestCalculator() {
+function TwoPegTestCalculatorInner() {
   const { t } = useLanguage()
   const [inputs, setInputs] = useState({
     a1: '',  // Staff at A from position 1
@@ -145,4 +145,13 @@ export default function TwoPegTestCalculator() {
       </div>
     </div>
   );
+}
+
+import { Suspense } from 'react'
+export default function TwoPegTestCalculator() {
+  return (
+    <Suspense fallback={<div className="p-8 text-center text-[var(--text-muted)]">Loading…</div>}>
+      <TwoPegTestCalculatorInner />
+    </Suspense>
+  )
 }
