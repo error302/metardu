@@ -1,0 +1,56 @@
+# ──────────────────────────────────────────────────────────────────────────────
+# METARDU CodeQL SAST & Deep Vulnerability Analysis
+#
+# Performs semantic data-flow analysis (XSS, SQL injection, SSRF, path traversal,
+# command injection, prototype pollution) across TypeScript/JavaScript and the
+# Python GNSS/LAS worker on pushes, PRs, and weekly schedules.
+# ──────────────────────────────────────────────────────────────────────────────
+
+name: CodeQL Security Analysis
+
+on:
+  push:
+    branches: [main, 'codex/**']
+  pull_request:
+    branches: [main, 'codex/**']
+  schedule:
+    - cron: '30 5 * * 1'  # Mondays at 05:30 UTC
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: CodeQL (${{ matrix.language }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - language: javascript-typescript
+            build-mode: none
+          - language: python
+            build-mode: none
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          build-mode: ${{ matrix.build-mode }}
+          queries: security-extended
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:${{ matrix.language }}"

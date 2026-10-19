@@ -67,13 +67,24 @@ if [[ "${#PUSH_TARGETS[@]}" -eq 0 ]]; then
 fi
 
 BASE_REF="${PUSH_BASES[0]}"
+fail() { REASON="$1"; }
+trap 'if [[ -n "$REASON" ]]; then echo "pre-push: BLOCKED — $REASON" >&2; echo "(fix and re-push, or SKIP_PRE_PUSH=1 in a genuine emergency)" >&2; exit 1; fi' EXIT
+
+# --- 0. Security, Migration Immutability & Schema Drift Gates ----------------
+echo "pre-push: security & bug invariant gate ..."
+if ! timeout "$TIMEBOX" node scripts/security-and-bug-gate.mjs; then
+  fail "security-and-bug-gate failed"
+fi
+
+echo "pre-push: schema-drift gate ..."
+if ! timeout "$TIMEBOX" node scripts/schema-drift-gate.mjs; then
+  fail "schema-drift-gate failed"
+fi
+
 if [[ -z "$CHANGED_FILES" ]]; then
   echo "pre-push: no TS/TSX changes in push range ($BASE_REF..HEAD) — done."
   exit 0
 fi
-
-fail() { REASON="$1"; }
-trap 'if [[ -n "$REASON" ]]; then echo "pre-push: BLOCKED — $REASON" >&2; echo "(fix and re-push, or SKIP_PRE_PUSH=1 in a genuine emergency)" >&2; exit 1; fi' EXIT
 
 run_jest_batches() {
   local -a batch=()
@@ -92,12 +103,20 @@ run_jest_batches() {
   fi
 }
 
-# --- 1. Types ----------------------------------------------------------------
+# --- 1. Types (App + Tests) & API Row-Typing ---------------------------------
 if [[ -f tsconfig.json ]]; then
-  echo "pre-push: tsc --noEmit ..."
+  echo "pre-push: tsc --noEmit (app + tests) ..."
   if ! timeout "$TIMEBOX" npx tsc --noEmit; then
-    fail "typecheck failed (an interim commit shipped 5 of these to main once — never again)"
+    fail "app typecheck failed (an interim commit shipped 5 of these to main once — never again)"
   fi
+  if [[ -f tsconfig.tests.json ]] && ! timeout "$TIMEBOX" npx tsc --noEmit --project tsconfig.tests.json; then
+    fail "test typecheck (tsconfig.tests.json) failed"
+  fi
+fi
+
+echo "pre-push: api-row-sweep on changed routes ..."
+if ! timeout "$TIMEBOX" node scripts/api-row-sweep.mjs --check --paths-from-changed; then
+  fail "api-row-sweep failed on changed routes"
 fi
 
 # --- 2. Lint (changed files only — fast enough to always run) ----------------

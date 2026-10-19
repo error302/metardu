@@ -11,9 +11,9 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'codex/**']
   pull_request:
-    branches: [main]
+    branches: [main, 'codex/**']
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -562,6 +562,10 @@ jobs:
       # Runtime high/critical advisories and all critical build/test
       # advisories block CI. Retain both complete reports for review.
       - run: node scripts/dependency-audit.mjs
+      - name: Security, migration immutability & bug invariant gate
+        run: node scripts/security-and-bug-gate.mjs
+      - name: Release plan & migration drift unit gates
+        run: node --test tests/release-plan.test.mjs tests/survey-upgrade.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

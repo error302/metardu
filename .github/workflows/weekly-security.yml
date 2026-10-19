@@ -7,27 +7,23 @@ on:
 
 jobs:
   audit:
-    name: npm audit
+    name: Dependency & Invariant Security Audit
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@v4
-      # AUDIT FIX (2026-07-05): Removed `|| true` from the high-severity
-      # audit. Previously the weekly audit ALWAYS "succeeded" — even when
-      # there were known high-severity vulnerabilities — so the results
-      # were ignored. Now: the workflow fails on high+ vulns, which will
-      # trigger GitHub's failure notification to watchers.
-      #
-      # Critical-level audit also runs and uploads the full report as an
-      # artifact for triage.
-      - run: npm audit --audit-level=high --production
-        continue-on-error: true  # Don't block — just notify. Critical-level below is the gate.
-      - run: npm audit --audit-level=critical --production
-      - run: npm audit --audit-level=critical 2>&1 | tee audit-report.txt
-        if: always()
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Fail-closed runtime high/critical & build critical dependency audit
+        run: node scripts/dependency-audit.mjs
+      - name: Security, migration immutability & bug invariant gate
+        run: node scripts/security-and-bug-gate.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: npm-audit-report
-          path: audit-report.txt
+          path: test-results/dependency-security/*-audit.json
           retention-days: 30

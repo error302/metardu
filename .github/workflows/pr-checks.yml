@@ -93,6 +93,12 @@ jobs:
         # they silently render nothing. Pure-node regex scan over src/.
         run: node scripts/tailwind-var-opacity-gate.mjs
 
+      - name: Schema-drift gate (blocking, code columns vs migrations)
+        run: node scripts/schema-drift-gate.mjs
+
+      - name: Security, migration immutability & bug invariant gate
+        run: node scripts/security-and-bug-gate.mjs
+
       - name: i18n integrity check
         run: node scripts/i18n-sync.mjs --check
 

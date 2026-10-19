@@ -52,6 +52,7 @@
     "analyze:report": "node scripts/analyze-build.mjs --report",
     "test:emails": "npx tsx scripts/test-email-templates.ts",
     "prepare": "git config core.hooksPath .gite/hooks || true",
+    "security:gate": "node scripts/security-and-bug-gate.mjs",
     "security:gitleaks": "gitleaks git --config .gitleaks.toml --baseline-path .gitleaks-baseline.json --redact",
     "security:gitleaks-local": "gitleaks dir --config .gitleaks.toml --redact src/ scripts/"
   },
