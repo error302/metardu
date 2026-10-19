@@ -37,7 +37,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
     await page.setJavaScriptEnabled(false)
     await page.setRequestInterception(true)
     let blockedResource = false
-    page.on('request', request => {
+    page.on('request', (request: { url: () => string; continue: () => Promise<void>; abort: () => Promise<void> }) => {
       if (request.url().startsWith('data:') || request.url() === 'about:blank') {
         void request.continue()
       } else {

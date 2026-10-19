@@ -308,7 +308,7 @@ export default function OrganizationWorkspace() {
       {notice ? <div role="status" className="mb-5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-300">{notice}</div> : null}
 
       {inviteUrl ? (
-        <section className="mb-6 rounded-xl border border-[var(--accent)]/40 bg-[var(--bg-secondary)] p-5">
+        <section className="mb-6 rounded-xl border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[var(--bg-secondary)] p-5">
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div><h2 className="font-semibold text-[var(--text-primary)]">One-time invitation link</h2><p className="mt-1 text-sm text-[var(--text-secondary)]">This link expires in seven days and can be used once by the invited email address.</p></div>
             <button type="button" onClick={() => void copyInviteLink()} className={secondaryButton}>Copy link</button>

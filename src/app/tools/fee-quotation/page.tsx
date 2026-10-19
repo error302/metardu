@@ -234,10 +234,10 @@ export default function FeeQuotationPage() {
 
         {/* Header Banner */}
         <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-2xl p-6 sm:p-8 relative overflow-hidden shadow-xl">
-          <div className="absolute top-0 right-0 w-96 h-96 bg-[var(--accent)]/5 rounded-full blur-3xl pointer-events-none" />
+          <div className="absolute top-0 right-0 w-96 h-96 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] rounded-full blur-3xl pointer-events-none" />
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-2">
-              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[var(--accent)]/10 text-[var(--accent)] text-xs font-semibold uppercase tracking-wider">
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-xs font-semibold uppercase tracking-wider">
                 <ShieldCheck className="w-3.5 h-3.5" />
                 Survey Act Cap 299 & SRB Gazetted Scale
               </div>
@@ -273,7 +273,7 @@ export default function FeeQuotationPage() {
               <button
                 onClick={handleDownloadPdf}
                 disabled={downloadingPdf}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-black font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity shadow-lg shadow-[var(--accent)]/20 disabled:opacity-50"
+                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-[var(--accent)] text-black font-semibold text-xs sm:text-sm hover:opacity-90 transition-opacity shadow-lg shadow-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
               >
                 <Download className="w-4 h-4" />
                 <span>{downloadingPdf ? 'Generating PDF...' : 'Download Official PDF'}</span>
@@ -292,7 +292,7 @@ export default function FeeQuotationPage() {
                 onClick={() => setCategory(cat.id)}
                 className={`text-left p-4 rounded-xl border transition-all ${
                   isSelected
-                    ? 'border-[var(--accent)] bg-[var(--accent)]/10 shadow-md ring-1 ring-[var(--accent)]/40'
+                    ? 'border-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] shadow-md ring-1 ring-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
                     : 'border-[var(--border-color)] bg-[var(--bg-secondary)] hover:border-white/20'
                 }`}
               >
@@ -710,7 +710,7 @@ export default function FeeQuotationPage() {
                       >
                         <div className="flex justify-between items-center">
                           <div className="flex items-center gap-2">
-                            <span className="w-5 h-5 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] text-xs font-bold flex items-center justify-center">
+                            <span className="w-5 h-5 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] text-xs font-bold flex items-center justify-center">
                               {idx + 1}
                             </span>
                             <span className="text-xs font-bold">{m.phase}</span>
@@ -742,7 +742,7 @@ export default function FeeQuotationPage() {
                 <button
                   onClick={handleDownloadPdf}
                   disabled={downloadingPdf}
-                  className="w-full py-3 rounded-xl bg-[var(--accent)] text-black font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-[var(--accent)]/20 disabled:opacity-50"
+                  className="w-full py-3 rounded-xl bg-[var(--accent)] text-black font-bold text-sm hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-lg shadow-[color-mix(in_srgb,var(--accent)_20%,transparent)] disabled:opacity-50"
                 >
                   <Download className="w-4 h-4" />
                   <span>{downloadingPdf ? 'Compiling Official Proposal...' : 'Download Sealed PDF Proposal'}</span>

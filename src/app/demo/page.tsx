@@ -324,7 +324,7 @@ export default function DemoPage() {
                 className={cn(
                   'flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all whitespace-nowrap cursor-pointer',
                   step === s
-                    ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] border border-[var(--accent)]/30 font-bold'
+                    ? 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] font-bold'
                     : 'text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/5'
                 )}
               >
@@ -475,7 +475,7 @@ export default function DemoPage() {
                 </div>
                 <button
                   onClick={() => setShowMathModal(true)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[var(--accent)]/40 bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-xs font-semibold hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition-all cursor-pointer"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-[color-mix(in_srgb,var(--accent)_40%,transparent)] bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] text-[var(--accent)] text-xs font-semibold hover:bg-[var(--accent)] hover:text-[var(--bg-primary)] transition-all cursor-pointer"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>View Calculation Formulae</span>
@@ -792,7 +792,7 @@ export default function DemoPage() {
                   </div>
                   <button
                     onClick={downloadSampleDxf}
-                    className="mt-4 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30 text-xs font-mono font-bold transition-all cursor-pointer"
+                    className="mt-4 flex items-center justify-center gap-2 w-full py-2 rounded-lg bg-[var(--bg-tertiary)] hover:bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-xs font-mono font-bold transition-all cursor-pointer"
                   >
                     <Download className="w-3.5 h-3.5" />
                     <span>Download DXF</span>
@@ -818,7 +818,7 @@ export default function DemoPage() {
               </div>
 
               {/* Call to Action Banner */}
-              <div className="p-6 rounded-xl bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-[var(--bg-secondary)] border border-[var(--accent)]/30 flex flex-wrap items-center justify-between gap-4">
+              <div className="p-6 rounded-xl bg-gradient-to-r from-[color-mix(in_srgb,var(--accent)_20%,transparent)] to-[var(--bg-secondary)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <h3 className="text-base font-bold text-[var(--text-primary)]">Ready to streamline your field surveys?</h3>
                   <p className="text-xs text-[var(--text-secondary)] mt-1">

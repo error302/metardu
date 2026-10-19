@@ -934,7 +934,7 @@ export default function PipeNetworkPage() {
               onClick={handleAutoSize}
               disabled={!canAutoSize}
               title="Selects the smallest listed hydraulic diameter meeting full-pipe Manning capacity using the displayed material roughness preset."
-              className="py-2 px-3.5 rounded-xl bg-[var(--accent)] text-black font-bold text-xs flex items-center gap-1.5 hover:opacity-90 transition-opacity shadow-md shadow-[var(--accent)]/15 disabled:opacity-40"
+              className="py-2 px-3.5 rounded-xl bg-[var(--accent)] text-black font-bold text-xs flex items-center gap-1.5 hover:opacity-90 transition-opacity shadow-md shadow-[color-mix(in_srgb,var(--accent)_15%,transparent)] disabled:opacity-40"
             >
               <Wand2 className="w-3.5 h-3.5" /> Size by full-flow capacity
             </button>
@@ -1649,7 +1649,7 @@ export default function PipeNetworkPage() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-[var(--border-color)]/40">
+                    <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-[color-mix(in_srgb,var(--border-color)_40%,transparent)]">
                       <div>
                         <span className="text-zinc-500">Ground (GL):</span>
                         <input
@@ -1925,7 +1925,7 @@ export default function PipeNetworkPage() {
                     </div>
                   </div>
 
-                  <div className="flex flex-wrap items-center justify-between text-[10px] text-zinc-400 pt-1 border-t border-[var(--border-color)]/50 font-mono">
+                  <div className="flex flex-wrap items-center justify-between text-[10px] text-zinc-400 pt-1 border-t border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] font-mono">
                     <span>Plan length: {p.horizontalLengthM.toFixed(1)}m</span>
                     <span>Slope: {p.slopePercent.toFixed(2)}% ({p.slope.toFixed(4)} m/m)</span>
                     <span>Manning n={p.manningN ?? MANNING_N[p.material]} (verify against product/design)</span>

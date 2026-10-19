@@ -39,7 +39,7 @@ export function RoadFieldCodeSelector({
           type="button"
           onClick={() => { if (nextUncapturedCode) onChange(nextUncapturedCode) }}
           disabled={!nextUncapturedCode}
-          className="min-h-11 rounded-md border border-[var(--accent)]/50 px-3 text-sm font-semibold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
+          className="min-h-11 rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] px-3 text-sm font-semibold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {nextUncapturedCode ? `Next uncaptured code: ${nextUncapturedCode}` : 'No next uncaptured code'}
         </button>

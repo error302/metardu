@@ -548,7 +548,7 @@ export function FieldDataCollector({
                   type="button"
                   onClick={() => { if (nextUncapturedRoadStationIndex !== null) setActiveRoadStationIndex(nextUncapturedRoadStationIndex) }}
                   disabled={nextUncapturedRoadStationIndex === null}
-                  className="min-h-11 rounded-md border border-[var(--accent)]/50 px-3 text-sm font-semibold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
+                  className="min-h-11 rounded-md border border-[color-mix(in_srgb,var(--accent)_50%,transparent)] px-3 text-sm font-semibold text-[var(--accent)] disabled:cursor-not-allowed disabled:opacity-40"
                 >
                   Next station with no recorded points
                 </button>
@@ -596,7 +596,7 @@ export function FieldDataCollector({
             {/* Measure Button */}
             {isLoadingMeasurements && <p role="status" className="mb-4 text-sm text-[var(--text-muted)]">Loading saved points before capture…</p>}
             {measurementsLoadFailed && (
-              <div role="alert" className="mb-4 max-w-md rounded-lg border border-[var(--error)]/40 bg-[var(--error)]/10 p-3 text-center text-sm text-[var(--error)]">
+              <div role="alert" className="mb-4 max-w-md rounded-lg border border-[color-mix(in_srgb,var(--error)_40%,transparent)] bg-[color-mix(in_srgb,var(--error)_10%,transparent)] p-3 text-center text-sm text-[var(--error)]">
                 Saved points could not be loaded, so capture is paused to prevent duplicate point IDs.
                 <button type="button" onClick={() => void loadMeasurements()} className="ml-2 font-semibold underline underline-offset-2">Retry</button>
               </div>

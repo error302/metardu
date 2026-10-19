@@ -245,7 +245,7 @@ export function InputForm(props: InputFormProps) {
           </div>
 
           {!useCustomParams && !hasSubSheets && (
-            <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)]/40 p-3">
+            <div className="rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-tertiary)_40%,transparent)] p-3">
               <p className="text-[10px] text-[var(--text-muted)]">
                 {subSheetDataLoadedFor === selectedSheetId
                   ? 'No detailed sub-sheet corner control is published for this sheet; conversions use the selected sheet parameters.'

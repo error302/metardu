@@ -282,7 +282,19 @@ export default function AdminDashboardPage() {
         <div><p className="admin-eyebrow">The business behind the fieldwork</p><h1>Owner’s workspace</h1><p className="admin-description">A clear view of your customers, payments and the work that needs you.</p></div>
         <div className="flex flex-wrap items-center gap-3"><span className="admin-caption">Updated {formatUpdatedAt(data.generatedAt)}</span><button onClick={fetchDashboard} className="btn btn-secondary" disabled={loading} aria-label={loading ? 'Refreshing business dashboard' : 'Refresh business dashboard'}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />} Refresh</button></div>
       </header>
-      <nav aria-label="Business workspace sections" className="admin-section-nav">{[['overview','Overview'],['customers','Customers'],['billing','Billing'],['communications','Communications'],['feedback','Feedback'],['system','System']].map(([id,label]) => <a key={id} href={`#${id}`} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id)}>{label}{id === 'feedback' && data.operations.openFeedback > 0 && <span>{data.operations.openFeedback}</span>}</a>)}</nav>
+      <nav aria-label="Business workspace sections" className="admin-section-nav">{[
+        ['overview', 'Overview', null],
+        ['customers', 'Customers', data.iskPendingCount > 0 ? data.iskPendingCount : null],
+        ['billing', 'Billing', data.operations.pendingClaims > 0 ? data.operations.pendingClaims : null],
+        ['communications', 'Communications', null],
+        ['feedback', 'Feedback', data.operations.openFeedback > 0 ? data.operations.openFeedback : null],
+        ['system', 'System', null],
+      ].map(([id, label, badge]) => (
+        <a key={id} href={`#${id}`} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id as string)}>
+          {label}
+          {badge !== null && <span aria-hidden="true">{badge}</span>}
+        </a>
+      ))}</nav>
       {error && <div className="admin-error" role="alert">{error} <button onClick={fetchDashboard} className="underline ml-2">Retry</button></div>}
       {section === 'overview' && <OwnerOverview data={data} />}
       {section === 'customers' && <div className="space-y-5"><div className="admin-section-heading"><div><h2>Customer accounts & verification</h2><p className="admin-caption">Recent customers exclude explicitly labelled verification fixtures. All accounts remain in the directory.</p></div><Link href="/admin/users" className="btn btn-primary">Manage customers <ArrowUpRight className="h-4 w-4" /></Link></div><div className="admin-split">{/* Recent Signups */}

@@ -23,7 +23,7 @@ export default function ComputeStagePanel({ projectId, projectName }: Props) {
   return (
     <div className="space-y-5">
       {/* 1-Click Field-to-Finish Banner */}
-      <div className="p-4 rounded-xl border border-[var(--accent)]/30 bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] space-y-3">
+      <div className="p-4 rounded-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] space-y-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-[var(--accent)]" />
@@ -31,7 +31,7 @@ export default function ComputeStagePanel({ projectId, projectName }: Props) {
               Deterministic Field-to-Finish
             </h3>
           </div>
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--accent)]/20 text-[var(--accent)] border border-[var(--accent)]/30">
+          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
             AUTONOMOUS ENGINE
           </span>
         </div>

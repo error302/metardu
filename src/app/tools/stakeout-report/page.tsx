@@ -546,7 +546,7 @@ export default function StakeoutReportPage() {
                     {points.slice(visiblePage * pageSize, (visiblePage + 1) * pageSize).map((point, rowIndex) => {
                       const idx = visiblePage * pageSize + rowIndex
                       return (
-                      <React.Fragment key={idx}><tr className="border-b border-[var(--border-color)]/50 hover:bg-white/5 transition-colors">
+                      <React.Fragment key={idx}><tr className="border-b border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] hover:bg-white/5 transition-colors">
                         <td className="py-1.5 px-2">
                           <input
                             className="w-16 bg-transparent font-mono font-bold text-[var(--accent)] focus:outline-none"

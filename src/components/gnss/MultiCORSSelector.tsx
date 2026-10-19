@@ -327,7 +327,7 @@ SendNMEA=1
             </button>
 
             {locationMsg && (
-              <div className="p-2.5 rounded-lg bg-[var(--accent)]/10 border border-[var(--accent)]/30 text-xs text-[var(--text-primary)]">
+              <div className="p-2.5 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-xs text-[var(--text-primary)]">
                 {locationMsg}
               </div>
             )}
@@ -509,9 +509,9 @@ SendNMEA=1
                 return (
                   <tr
                     key={res.station.id}
-                    className={`border-b border-[var(--border-color)]/50 transition-colors ${
+                    className={`border-b border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] transition-colors ${
                       isSelected
-                        ? 'bg-[var(--accent)]/10 font-semibold'
+                        ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] font-semibold'
                         : 'hover:bg-white/5'
                     }`}
                   >

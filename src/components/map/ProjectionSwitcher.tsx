@@ -93,7 +93,7 @@ export const ProjectionSwitcher = memo(function ProjectionSwitcher({ compact = f
                   }}
                   className={`w-full text-left px-3 py-2 text-xs transition-colors flex items-center justify-between ${
                     isSelected
-                      ? 'bg-[var(--accent)]/15 text-[var(--accent)] font-semibold border-l-2 border-[var(--accent)]'
+                      ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] font-semibold border-l-2 border-[var(--accent)]'
                       : 'text-zinc-200 hover:bg-white/5 hover:text-white'
                   }`}
                 >

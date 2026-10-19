@@ -629,7 +629,7 @@ export default function LegalDescriptionPage() {
               <div className="pt-2">
                 <button
                   onClick={handleDownloadWordDoc}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[var(--accent)] text-black font-bold text-xs hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-md shadow-[var(--accent)]/15"
+                  className="w-full py-2.5 px-4 rounded-xl bg-[var(--accent)] text-black font-bold text-xs hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-md shadow-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
                 >
                   <Download className="w-4 h-4" /> Download Formatted Word Document (.doc)
                 </button>

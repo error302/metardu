@@ -842,7 +842,7 @@ function PointSetOutCollector() {
                       {verdict.dZ == null ? '—' : `${verdict.dZ >= 0 ? '+' : ''}${(verdict.dZ * 1000).toFixed(0)} mm`}
                     </div>
                   </div>
-                  <div className="mt-3 border-t border-[var(--border-color)]/60 pt-2">
+                  <div className="mt-3 border-t border-[color-mix(in_srgb,var(--border-color)_60%,transparent)] pt-2">
                     <p className="text-[11px] font-semibold">Correction to design (project grid)</p>
                     <p className="mt-1 text-[10px] font-normal text-[var(--text-muted)]">
                       Add these signed corrections to the observed coordinates. E/N follow the project CRS grid axes; they are not compass directions.
