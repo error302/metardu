@@ -110,11 +110,13 @@ try{
   const readable=await owned('/api/db',{body:{table:'survey_observations',operation:'select',columns:'id,project_id,client_id',filters:[{op:'eq',column:'project_id',value:project},{op:'eq',column:'id',value:first.data.observationId}],single:true}})
   check('authorized raw project reads remain available after generic writes close',readable.response.status===200&&readable.data?.data?.id===first.data.observationId)
   check('raw proxy reads remain private and non-cacheable',readable.response.headers.get('cache-control')==='private, no-store')
-  const guardedRead={table:'survey_observations',operation:'select',columns:'id',filters:[{op:'eq',column:'id',value:first.data.observationId}],single:true}
+  const guardedRead={table:'survey_observations',operation:'select',columns:'id',filters:[{op:'eq',column:'project_id',value:project},{op:'eq',column:'id',value:first.data.observationId}],single:true}
   const switched=await owned('/api/db',{body:guardedRead,expectedUser:other})
   check('a queued database request refuses a switched account before reading',switched.response.status===403&&switched.data?.error?.code==='CAPTURE_OWNER_CHANGED')
   check('an expected-account header never authenticates an anonymous database request',(await actor()('/api/db',{body:guardedRead,expectedUser:owner})).response.status===401)
-  check('a matching expected-account header preserves authorized database reads',(await owned('/api/db',{body:guardedRead,expectedUser:owner})).data?.data?.id===first.data.observationId)
+  const matchingRead=await owned('/api/db',{body:guardedRead,expectedUser:owner})
+  assert.equal(matchingRead.response.status,200,JSON.stringify(matchingRead.data))
+  check('a matching expected-account header preserves authorized database reads',matchingRead.data?.data?.id===first.data.observationId)
   check('a queued file request refuses a switched account before parsing or writing a file',(await owned('/api/storage',{body:{},expectedUser:other})).response.status===403)
   check('actual SQL preserves zero readings and unknown CRS without creating reviewed points',stored.easting===0&&stored.elevation===0&&stored.horizontal_crs===null&&(await rows()).reviewed_points===0)
   check('the immutable archive retains fields with no observation-table column',batch.quality_metadata.raw.horizontalDistance===0&&batch.quality_metadata.raw.bearingDeg===0&&batch.quality_metadata.capturedBy===null&&batch.quality_metadata.uploadedBy===owner&&batch.point_count===0&&batch.observation_count===1)
