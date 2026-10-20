@@ -224,12 +224,12 @@ try{
   for(const [index,table]of ['fieldbooks','audit_logs'].entries()){
     const failedRequest=bookRequest(),name=triggerPrefix+'_book_'+index
     bookIds.push(failedRequest.bookId);save()
-    const condition=table==='fieldbooks'?`NEW.id='${failedRequest.bookId}'::uuid AND NEW.project_id='${project}'::uuid`:`NEW.table_name='fieldbooks' AND NEW.record_id='${failedRequest.bookId}'::uuid`
+    const condition=table==='fieldbooks'?`NEW.id='${failedRequest.bookId}'::uuid AND NEW.project_id='${project}'::uuid`:`NEW.table_name='fieldbooks' AND NEW.record_id='${failedRequest.bookId}'`
     await admin.query(`CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF ${condition} THEN RETURN NULL; END IF; RETURN NEW; END $$`)
     await admin.query(`CREATE TRIGGER ${name} BEFORE INSERT ON ${table} FOR EACH ROW EXECUTE FUNCTION ${name}()`)
     const identity=(await admin.query('SELECT oid,tgfoid FROM pg_trigger WHERE tgname=$1 AND tgrelid=$2::regclass',[name,table])).rows[0];triggers.push({name,table,identity})
     const failed=await owned(books,{body:failedRequest,expectedUser:owner})
-    check(`silent ${table} insert cannot acknowledge or leave a partial source-linked book`,!failed.response.ok&&(await admin.query('SELECT count(*)::int n FROM fieldbooks WHERE id=$1',[failedRequest.bookId])).rows[0].n===0)
+    check(`silent ${table} insert cannot acknowledge or leave a partial source-linked book`,failed.response.status===500&&(await admin.query('SELECT count(*)::int n FROM fieldbooks WHERE id=$1',[failedRequest.bookId])).rows[0].n===0)
   }
   assert.deepEqual((await admin.query('SELECT * FROM survey_observations WHERE id=$1',[first.data.observationId])).rows[0],stored)
   assert.deepEqual((await admin.query('SELECT * FROM observation_batches WHERE id=$1',[first.data.batchId])).rows[0],batch)
