@@ -72,3 +72,40 @@ preview; preserve the owner's CAD training drawing.
 Seven local one-off helper scripts are excluded by exact `.gitignore` paths.
 They include private fixtures, disabled fabricated-session helpers and source
 rewrite scripts. They remain on disk and are not product tests or release proof.
+
+## 21 October native HTTP and PostgreSQL acceptance
+
+Pinned source `ccfd0ad5c8f095a122964f0ec7dcc4aab70f57fd` passed **53 real
+HTTP/PostgreSQL checks** on the existing `127.0.0.1:3021` source preview and marked
+`metardu_runtime_verify` database. Disposable accounts used ordinary credential
+sign-in; no fabricated session, customer clone, new container or production write
+was involved. The existing 119-entry migration registry matched without applying
+a migration or granting additional privileges.
+
+The native run verifies account-switch preconditions for database/file requests,
+authenticated project recording access, unknown-author review/hash rejection,
+retained original text/zero values/unknown height and CRS, durable reviewer audit,
+stable replay, preservation of old unreceipted SQL rows, viewer denial and refusal
+after previously granted membership is revoked. Existing raw-delivery tests also
+exercise rollback after failed observation, capture and audit writes.
+
+Evidence: `.cache/field-sync/http-attempt-5.json` and
+`legacy-recovery-native-http-2.log`. Exact fixtures and fault-injection objects
+were removed; whole-source fingerprints and all applied migration hashes matched
+the pre-run values. A separate read-only check in
+`legacy-native-independent-cleanup.json` confirmed zero exact fixture users,
+profiles, projects, raw observations, capture batches, reviewed points, triggers
+and functions remaining.
+
+Retain failed attempt 4 at `1344d7cf`: its verifier read omitted the mandatory
+project filter. The product correctly refused it. Its report confirms exact
+cleanup and unchanged source/migration fingerprints; the fixture was corrected
+without weakening the tenancy guard.
+
+This is native source/API evidence. It does not prove a browser download,
+IndexedDB recovery, private offline reopening, real-device reconnect or deployed
+behavior. Later mobile project-entry and client timeout feedback work leaves the
+verified server API/recording source unchanged; final release acceptance must
+still bind the entire candidate. CUA has now verified project selection and
+collector entry, but a real recovery inventory request timed out. Its feedback
+and retry follow-up is recorded in `MOBILE_FIELD_ENTRY.md`.

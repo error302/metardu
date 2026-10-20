@@ -4,12 +4,16 @@ import { syncService } from './syncService'
 export interface LegacySelection { item: SyncQueueItem; sourceHash: string }
 
 async function authorize(actorId: string, projectId: string): Promise<void> {
-  const response = await fetch(`/api/fieldbook/recovery?projectId=${encodeURIComponent(projectId)}`, { cache: 'no-store',
-    headers: { 'X-Metardu-Expected-User': actorId }, signal: AbortSignal.timeout(15_000) })
+  const guidance = 'Could not verify current field-recording access to this project. Check your connection and signed-in account, then retry recovery. Device records were retained.'
+  let response: Response
+  try {
+    response = await fetch(`/api/fieldbook/recovery?projectId=${encodeURIComponent(projectId)}`, { cache: 'no-store',
+      headers: { 'X-Metardu-Expected-User': actorId }, signal: AbortSignal.timeout(15_000) })
+  } catch { throw new Error(guidance) }
   const body: unknown = await response.json().catch(() => null)
   if (!response.ok || !body || typeof body !== 'object' || !('actorId' in body) || body.actorId !== actorId
     || !('projectId' in body) || body.projectId !== projectId || !('canReview' in body) || body.canReview !== true) {
-    throw new Error('Connect and sign in with current field-recording access to this project before reviewing older device work.')
+    throw new Error(guidance)
   }
 }
 export async function listLegacyWork(actor: string, project: string, after?: string): Promise<{items:LegacyQueueSummary[];next:string|null}> {

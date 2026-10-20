@@ -219,6 +219,7 @@ export default function NavBar() {
 
   // Helper to determine the logical parent path for back button fallback
   const getParentPath = (path: string) => {
+    if (path.startsWith('/mobile/')) return '/dashboard'
     if (path.startsWith('/tools/')) return '/tools'
     if (path.startsWith('/fieldbook/')) return '/fieldbook'
     if (path.startsWith('/reports/')) return '/reports'

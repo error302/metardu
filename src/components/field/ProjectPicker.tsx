@@ -37,6 +37,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
   const [showingOfflinePlans, setShowingOfflinePlans] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [attempt, setAttempt] = useState(0)
 
   useEffect(() => {
     let current = true
@@ -77,10 +78,13 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
       try {
         if (typeof navigator !== 'undefined' && !navigator.onLine) {
           const loadedOfflinePlans = await loadOfflineRoadPlans()
-          if (!loadedOfflinePlans && current) setError('This field project list needs a connection. Reopen a road field plan online to prepare an offline copy.')
+          if (!loadedOfflinePlans && current) setError(allowOfflineRoadPlans
+            ? 'This field project list needs a connection. Reopen a road field plan online to prepare an offline copy.'
+            : 'Connect to load your projects. Your existing device records are retained.')
           return
         }
 
+        setShowingOfflinePlans(false)
         const db = createClient()
         if (initialProjectId) {
           const selected = await db
@@ -121,7 +125,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
 
     void loadProjects()
     return () => { current = false }
-  }, [allowOfflineRoadPlans, initialProjectId, initialSurveyType, onPick])
+  }, [allowOfflineRoadPlans, initialProjectId, initialSurveyType, onPick, attempt])
 
   return (
     <div className="min-h-screen bg-[var(--bg-primary)] flex flex-col">
@@ -142,7 +146,14 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
           </div>
         ) : error ? (
           <div className="text-center py-12">
-            <p className="text-sm text-[var(--error)]">{error}</p>
+            <p role="alert" className="text-sm text-[var(--error)]">{error}</p>
+            <button type="button" onClick={() => {
+              setLoading(true)
+              setError(null)
+              setAttempt(value => value + 1)
+            }} className="mt-4 rounded-lg border border-[var(--border-color)] px-4 py-2 text-sm text-[var(--text-primary)] hover:bg-[var(--bg-secondary)]">
+              Retry project list
+            </button>
           </div>
         ) : showingOfflinePlans ? (
           offlineRoadPlans.length > 0 ? (

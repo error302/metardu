@@ -61,3 +61,18 @@ individual source inspection/export and reviewed raw delivery with unknown
 authorship retained. The follow-up adds atomic primary-device-source consistency
 and protects receipt attachment/queue removal from changed sources. Server
 reconciliation, browser/device and final release acceptance remain open.
+
+## 21 October continuation checkpoint
+
+The required read-only production runtime check passed with host access: one
+application, required supporting services and HTTP/database/Redis health. Backup
+completion remains `2026-10-20T02:00:03Z`, archive/header evidence only; no restore
+or production promotion was performed. The existing host preview's process chain
+and loopback listener were inspected and reused without a restart.
+
+`LEGACY_DEVICE_RECOVERY.md` now records 53 native HTTP/PostgreSQL checks at pinned
+`ccfd0ad5`, ordinary synthetic sign-in, original-source/migration preservation and
+independently checked exact cleanup. `MOBILE_FIELD_ENTRY.md` records the observed
+unbound collector entry defect and its project-selection/retry source fix.
+Native browser recovery, private offline reopening, device/field, security,
+payment, engineering/deliverable and final candidate acceptance remain open.

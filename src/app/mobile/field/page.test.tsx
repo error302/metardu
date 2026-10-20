@@ -4,9 +4,14 @@ import { syncService } from '@/lib/mobile/syncService'
 import { offlineStorage } from '@/lib/mobile/offlineStorage'
 import { useInstrumentStore } from '@/stores/instrumentStore'
 let mockOwner: string | null = '11111111-1111-4111-8111-111111111111'
+let mockQuery = 'project=synthetic-project'
+const mockReplace = jest.fn()
 jest.mock('next-auth/react', () => ({ useSession: () => ({ status: mockOwner ? 'authenticated' : 'unauthenticated', data: mockOwner ? { user: { id: mockOwner } } : null }) }))
 
-jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams('project=synthetic-project') }))
+jest.mock('next/navigation', () => ({ useSearchParams: () => new URLSearchParams(mockQuery), useRouter: () => ({ replace: mockReplace }) }))
+jest.mock('@/components/field/ProjectPicker', () => ({ ProjectPicker: ({ onPick, title }: { onPick: (id: string) => void; title: string }) => <>
+  <h1>{title}</h1><button onClick={() => onPick('chosen-project')}>Choose synthetic project</button>
+</> }))
 jest.mock('@/lib/mobile/syncService', () => ({ syncService: {
   startAutoSync: jest.fn(), stopAutoSync: jest.fn(), syncPending: jest.fn(), forceSync: jest.fn(), getSyncStatus: jest.fn(),
 } }))
@@ -30,6 +35,7 @@ jest.mock('@/components/fieldbook/UniversalMobileObservationForm', () => ({ Univ
 beforeEach(() => {
   jest.clearAllMocks()
   mockOwner = '11111111-1111-4111-8111-111111111111'
+  mockQuery = 'project=synthetic-project'
   mockRow = { station: 'P1', easting: '0', northing: '10' }
   mockPulledReading = undefined
   useInstrumentStore.setState({ status: 'disconnected', latestPoint: null })
@@ -41,6 +47,18 @@ beforeEach(() => {
   jest.spyOn(window, 'alert').mockImplementation(() => undefined)
 })
 afterEach(() => jest.restoreAllMocks())
+
+test('opening the collector without a project selects one before starting local reads or delivery', async () => {
+  mockQuery = 'survey=traverse'
+  render(<MobileFieldPage />)
+  expect(screen.getByRole('heading', { name: 'Choose a field project' })).toBeInTheDocument()
+  expect(screen.queryByRole('button', { name: 'New Traverse Reading' })).not.toBeInTheDocument()
+  expect(offlineStorage.getFieldObservations).not.toHaveBeenCalled()
+  expect(offlineStorage.getStorageStats).not.toHaveBeenCalled()
+  expect(syncService.startAutoSync).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button', { name: 'Choose synthetic project' }))
+  expect(mockReplace).toHaveBeenCalledWith('/mobile/field?survey=traverse&project=chosen-project')
+})
 
 test('a paused attempt explains retained records and never labels the attempt as a completed sync', async () => {
   jest.mocked(syncService.getSyncStatus).mockReturnValue({ isOnline: true, isSyncing: false, message: 'Delivery is paused until the retry time. Your device records are retained.', retryAt: Date.now() + 60_000 })

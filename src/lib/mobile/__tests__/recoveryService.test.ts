@@ -14,6 +14,13 @@ beforeEach(()=>{
   jest.mocked(offlineStorage.get).mockResolvedValue(item)
 })
 afterAll(()=>{global.fetch=originalFetch})
+test('a transport timeout gives actionable authorization guidance without reading device sources',async()=>{
+  jest.mocked(fetch).mockRejectedValueOnce(new DOMException('signal timed out','TimeoutError'))
+  await expect(listLegacyWork(actor,project)).rejects.toThrow('Could not verify current field-recording access')
+  expect(offlineStorage.getLegacyQueuePage).not.toHaveBeenCalled()
+  expect(offlineStorage.get).not.toHaveBeenCalled()
+  expect(offlineStorage.queueLegacyReview).not.toHaveBeenCalled()
+})
 test('failed or mismatched project authorization never inspects local legacy payloads',async()=>{
   jest.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({error:'Denied'}),{status:403}))
   await expect(listLegacyWork(actor,project)).rejects.toThrow()

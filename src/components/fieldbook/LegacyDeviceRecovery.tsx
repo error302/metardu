@@ -69,7 +69,10 @@ function RecoveryPanel({ actorId, projectId, onRefresh }: Props) {
     {open && <div className="mt-3 space-y-3">
       <p className="text-sm">Review retained work for this project. Capture authorship is unknown. Recovery does not verify measurements or approve survey points.</p>
       {busy && <p role="status" className="text-sm">Checking recovery…</p>}
-      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {error && <div className="space-y-2">
+        <p role="alert" className="text-sm text-red-500">{error}</p>
+        <button type="button" className={button} disabled={busy} onClick={() => { void run(() => load()) }}>Retry recovery</button>
+      </div>}
       {message && <p role="status" className="text-sm">{message}</p>}
       {page && page.items.length === 0 && <p className="text-sm">No older unattributed queue entries were found for this project.</p>}
       {page && page.items.length > 0 && <ul className="space-y-2">{page.items.map(item => <li key={item.id} className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-color)] pb-2">

@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ProjectPicker } from '../ProjectPicker'
 import { listCachedRoadFieldPlans } from '@/lib/offline/fieldBookDB'
 import type { OfflineRoadFieldPlan } from '@/lib/offline/fieldBookDB'
+import { createClient } from '@/lib/api-client/client'
 
 jest.mock('@/lib/api-client/client', () => ({ createClient: jest.fn() }))
 jest.mock('@/lib/offline/fieldBookDB', () => ({ listCachedRoadFieldPlans: jest.fn() }))
@@ -37,6 +38,25 @@ beforeEach(() => {
 afterEach(() => setOnline(true))
 
 describe('ProjectPicker offline road plans', () => {
+  it('gives ordinary field collection a connection message without suggesting a road-only recovery path', async () => {
+    render(<ProjectPicker onPick={jest.fn()} title="Choose a field project" subtitle="Select your field project" />)
+    expect(await screen.findByText('Connect to load your projects. Your existing device records are retained.')).toBeInTheDocument()
+    expect(screen.queryByText(/Reopen a road field plan/i)).not.toBeInTheDocument()
+  })
+
+  it('lets a field operator retry project selection when the connection returns', async () => {
+    const onPick = jest.fn()
+    jest.mocked(createClient).mockReturnValue({ from: () => ({ select: () => ({ order: () => ({ limit: async () => ({
+      data: [{ id: projectId, name: 'Synthetic level run', survey_type: 'leveling' }], error: null,
+    }) }) }) }) } as unknown as ReturnType<typeof createClient>)
+    render(<ProjectPicker onPick={onPick} title="Choose a field project" subtitle="Select your field project" />)
+    await screen.findByText('Connect to load your projects. Your existing device records are retained.')
+    setOnline(true)
+    fireEvent.click(screen.getByRole('button', { name: 'Retry project list' }))
+    fireEvent.click(await screen.findByRole('button', { name: /Synthetic level run/i }))
+    expect(onPick).toHaveBeenCalledWith(projectId, 'leveling')
+  })
+
   it('offers a verified device-cached plan and opens it for engineering collection', async () => {
     const onPick = jest.fn()
     render(

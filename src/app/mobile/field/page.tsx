@@ -17,7 +17,7 @@
 
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import {
@@ -38,6 +38,7 @@ import { useInstrumentStore } from '@/stores/instrumentStore'
 import type { NMEAPosition } from '@/lib/gnss/nmea-parser'
 import { logger } from '@/lib/logger'
 import { LegacyDeviceRecovery } from '@/components/fieldbook/LegacyDeviceRecovery'
+import { ProjectPicker } from '@/components/field/ProjectPicker'
 
 // ─── Survey type metadata ───────────────────────────────────────
 
@@ -445,9 +446,17 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
 function MobileFieldSession() {
   const session = useSession()
   const searchParams = useSearchParams()
+  const router = useRouter()
+  const chooseProject = useCallback((projectId: string) => {
+    const query = new URLSearchParams(searchParams.toString())
+    query.set('project', projectId)
+    router.replace(`/mobile/field?${query.toString()}`)
+  }, [router, searchParams])
   const ownerId = session.data?.user.id
   if (session.status === 'loading') return <p role="status" className="p-4">Checking your account…</p>
   if (session.status !== 'authenticated' || !ownerId) return <p className="p-4">Sign in to access this account’s device readings. <Link href="/login?next=%2Fmobile%2Ffield">Sign in</Link></p>
+  if (!searchParams.get('project')?.trim()) return <ProjectPicker key={ownerId} title="Choose a field project"
+    subtitle="Select the project that will retain your original readings and photos." onPick={chooseProject} />
   return <MobileFieldContent key={`${ownerId}:${searchParams.get('project') ?? ''}`} ownerId={ownerId} />
 }
 

@@ -11,6 +11,11 @@ The following source checkpoint is `MOBILE_FIELD_OWNERSHIP.md`: account-scoped
 capture, local lists and queue operations, plus server account-switch guards.
 Its legacy reconciliation and offline/browser/release boundaries remain explicit.
 
+The 21 October source continuation adds native recovery API acceptance in
+`LEGACY_DEVICE_RECOVERY.md` and the browser-observed project-entry fix in
+`MOBILE_FIELD_ENTRY.md`. Its pinned synthetic results do not promote production
+or complete browser/device recovery acceptance.
+
 ## Verified production checkpoint — 20 October 2026
 
 Production is healthy at `08fae42763aae6d6c4fa24e7f32ec359bf41ddc7`, image
