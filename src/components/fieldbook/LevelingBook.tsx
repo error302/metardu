@@ -120,11 +120,11 @@ export function LevelingBook({
             </div>
             <div className="p-3 bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('leveling.misclosure')}</div>
-              <div className="font-mono">{Number(computed.calc.misclosure).toFixed(4)} m</div>
+              <div className="font-mono">{computed.calc.closingRLProvided ? `${Number(computed.calc.misclosure).toFixed(4)} m` : 'Closing RL required'}</div>
             </div>
             <div className="p-3 bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('leveling.allowable')}</div>
-              <div className="font-mono">±{Number(computed.calc.allowableMisclosure).toFixed(4)} m</div>
+              <div className="font-mono">{computed.calc.allowableMisclosure === undefined ? 'Run length required' : `±${Number(computed.calc.allowableMisclosure).toFixed(4)} m`}</div>
             </div>
           </div>
         )}

@@ -708,11 +708,11 @@ export function MobileFieldbookShell({
                         </div>
                         <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
                           <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Misclosure</div>
-                          <div className="font-mono text-sm text-[var(--text-primary)]">{Number(computed.calc?.misclosure ?? 0).toFixed(4)} m</div>
+                          <div className="font-mono text-sm text-[var(--text-primary)]">{closingRL.trim() ? `${Number(computed.calc?.misclosure ?? 0).toFixed(4)} m` : 'Closing RL required'}</div>
                         </div>
                         <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
                           <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Allowable</div>
-                          <div className="font-mono text-sm text-[var(--text-primary)]">±{Number(computed.calc?.allowableMisclosure ?? 0).toFixed(4)} m</div>
+                          <div className="font-mono text-sm text-[var(--text-primary)]">{computed.calc?.allowableMisclosure === undefined ? 'Run length required' : `±${Number(computed.calc.allowableMisclosure).toFixed(4)} m`}</div>
                         </div>
                       </div>
                     )}

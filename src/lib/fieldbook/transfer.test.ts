@@ -1,4 +1,5 @@
 import { parseFieldbookTransfer } from './transfer'
+import { createCaptureDraftData } from './captureDraft'
 
 const books = [
   { type: 'leveling', name: 'Road km 2', data: { method: 'rise_and_fall', openingRL: '102.4500', closingRL: '', distanceKm: '0.8', rows: [{ station: 'TP 1', bs: '1.010', is: '', fs: '', remarks: 'rained, check again' }] } },
@@ -10,6 +11,13 @@ it.each(books)('round trips every raw string for $type without inventing missing
 })
 it('rejects malformed JSON with an actionable error', () => {
   expect(() => parseFieldbookTransfer('{')).toThrow('not valid JSON')
+})
+it('retains source snapshots and unknown authorship through JSON export/import',()=>{
+  const project='22222222-2222-4222-8222-222222222222'
+  const data=createCaptureDraftData('leveling',[{batchId:'33333333-3333-4333-8333-333333333333',observationId:'44444444-4444-4444-8444-444444444444',projectId:project,clientId:'device-1',inputHash:'a'.repeat(64),capturedBy:null,projectReference:null,
+    raw:{id:'device-1',station:'TP1',surveyType:'leveling',rawForm:{station:'TP1',bs:'0.000',is:'',fs:'',remarks:'Original',futureField:'retain too'}}}],
+  {actorId:'11111111-1111-4111-8111-111111111111',reviewedAt:'2026-10-21T08:00:00.000Z',requestHash:'b'.repeat(64),bearingEncoding:'uninterpreted'})
+  expect(parseFieldbookTransfer(JSON.stringify({version:1,type:'leveling',name:'Source-linked draft',projectId:project,data})).data).toEqual(data)
 })
 it.each([
   { ...books[0], version: 2 },

@@ -1,13 +1,16 @@
 import { z } from 'zod'
+import { sourceImportSchema } from './captureDraft'
 
 const text = z.string().max(10000)
 const row = z.object({ id: text.optional(), remarks: text.default('') })
 const leveling = z.object({
+  sourceImport: sourceImportSchema.optional(),
   method: z.enum(['rise_and_fall', 'height_of_collimation']), openingRL: text,
   closingRL: text, distanceKm: text,
   rows: z.array(row.extend({ station: text, bs: text, is: text, fs: text })).max(100000),
 })
 const traverse = z.object({
+  sourceImport: sourceImportSchema.optional(),
   mode: z.enum(['open', 'closed', 'link']), startStation: text, startE: text, startN: text, closeE: text, closeN: text,
   rows: z.array(row.extend({ station: text, bearing: text, slopeDist: text,
     hclDeg: text, hclMin: text, hclSec: text, hcrDeg: text, hcrMin: text, hcrSec: text,
@@ -15,7 +18,7 @@ const traverse = z.object({
 })
 const controlRow = row.extend({ pointId: text, instrumentHeight: text, targetHeight: text,
   bearing: text, verticalAngle: text, slopeDistance: text })
-const control = z.object({ activeSetupId: text, setups: z.array(z.object({ id: text,
+const control = z.object({ sourceImport: sourceImportSchema.optional(), activeSetupId: text, setups: z.array(z.object({ id: text,
   station: z.object({ name: text, e: text, n: text, z: text }), rows: z.array(controlRow).max(100000),
 })).min(1).max(10000) })
 const base = z.object({ name: text, projectId: text.optional(), version: z.literal(1).optional() })

@@ -325,7 +325,11 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
-        {projectId && <div className="px-4 pt-4"><LegacyDeviceRecovery actorId={ownerId} projectId={projectId} onRefresh={async () => { await loadObservations(); await loadStats() }} /></div>}
+        {projectId && <div className="px-4 pt-4 space-y-3">
+          <Link href={`/fieldbook?project=${encodeURIComponent(projectId)}`} className="inline-flex min-h-11 items-center rounded-lg border border-gray-700 px-3 text-sm text-gray-200">Review delivered readings in Fieldbook →</Link>
+          <p className="text-xs text-gray-400">Sync readings first, then inspect and select their original sources to create a new draft book.</p>
+          <LegacyDeviceRecovery actorId={ownerId} projectId={projectId} onRefresh={async () => { await loadObservations(); await loadStats() }} />
+        </div>}
         {/* Survey Type Selector */}
         <div className="p-4">
           <div className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Survey Type</div>

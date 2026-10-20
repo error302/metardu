@@ -22,9 +22,14 @@ import { TRAVERSE_PRECISION_STANDARDS } from '@/lib/engine/traverse'
 import { bearingToString, normalizeBearing, parseFieldAngle } from '@/lib/engine/angles'
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
-import { getOfflineFieldbooks } from '@/lib/offline/fieldbooks'
+import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { persistFieldbook } from '@/lib/offline/saveFieldbook'
 import { FieldbookProjectPanel } from '@/components/fieldbook/FieldbookProjectPanel'
+import { FieldbookCaptureImport } from '@/components/fieldbook/FieldbookCaptureImport'
+import { FieldbookSourceReferences } from '@/components/fieldbook/FieldbookSourceReferences'
+import { readCaptureReferences, captureReferenceColumns } from '@/lib/fieldbook/captureReferences'
+import type { SourceImport } from '@/lib/fieldbook/captureDraft'
+import type { CapturedBook } from '@/lib/fieldbook/captureBookClient'
 import type { FieldbookTransfer } from '@/lib/fieldbook/transfer'
 import { LevelingBook } from '@/components/fieldbook/LevelingBook'
 import { TraverseBook } from '@/components/fieldbook/TraverseBook'
@@ -249,7 +254,12 @@ export default function DigitalFieldBookPage() {
   const [type, setType] = useState<FieldbookType>('leveling')
   const [projectId, setProjectId] = useState('')
   const [ownerId, setOwnerId] = useState<string | null>(null)
+  const [sourceImport, setSourceImport] = useState<SourceImport | undefined>()
+  const activeScope = useRef({ ownerId, projectId })
+  activeScope.current = { ownerId, projectId }
+  const preparedCapture = useRef<{ ownerId: string | null; projectId: string; bookId: string | null; snapshot: string } | null>(null)
   const [projectsError, setProjectsError] = useState<string | null>(null)
+  const [projectLoadAttempt, setProjectLoadAttempt] = useState(0)
   const [pendingCount, setPendingCount] = useState(0)
   const saveInProgress = useRef(false)
   const bookIdRef = useRef<string | null>(null)
@@ -281,7 +291,7 @@ export default function DigitalFieldBookPage() {
 
   const [openingRL, setOpeningRL] = useState('')
   const [closingRL, setClosingRL] = useState('')
-  const [distanceKm, setDistanceKm] = useState('1')
+  const [distanceKm, setDistanceKm] = useState('')
   const [levelMethod, setLevelMethod] = useState<'rise_and_fall' | 'height_of_collimation'>('rise_and_fall')
   const [levelRows, setLevelRows] = useState<LevelRow[]>([
     { id: crypto.randomUUID(), station: '', bs: '', is: '', fs: '', remarks: '' },
@@ -388,22 +398,31 @@ export default function DigitalFieldBookPage() {
   useEffect(() => {
     let isMounted = true
     ;(async () => {
+      setProjectsError(null)
       try {
         const session = await dbClient.auth.getSession()
+        if (session.error) throw new Error('Session check could not be confirmed.')
         const sessUser = (session.data.session as Record<string, unknown> | null)?.user
         if (!sessUser) { if (isMounted) setProjectsError('Sign in online to load your projects.'); return }
-        if (isMounted && typeof (sessUser as { id?: unknown }).id === 'string') setOwnerId((sessUser as { id: string }).id)
+        if (isMounted && typeof (sessUser as { id?: unknown }).id === 'string') {
+          const checkedOwner = (sessUser as { id: string }).id
+          if (activeScope.current.ownerId && activeScope.current.ownerId !== checkedOwner) {
+            setProjectsError('Your account changed. Your open book remains with its original owner. Export JSON before reloading under another account.')
+            return
+          }
+          setOwnerId(checkedOwner)
+        }
         const { data, error } = (await dbClient.from('projects').select('id, name').order('created_at', { ascending: false })) as { data: { id: string; name: string }[] | null; error: unknown }
         if (isMounted) {
           if (!error && data) setProjects(data)
           else setProjectsError('Projects could not be loaded. Reconnect and reload before starting a new book.')
         }
-      } catch { if (isMounted) setProjectsError('Projects could not be loaded. Reconnect and reload.') }
+      } catch { if (isMounted) setProjectsError('The account or project request could not be confirmed. Check your connection and retry. Your open book is retained.') }
     })()
     return () => {
       isMounted = false
     }
-  }, [dbClient])
+  }, [dbClient, projectLoadAttempt])
 
   useEffect(() => {
     let isMounted = true
@@ -459,7 +478,8 @@ export default function DigitalFieldBookPage() {
       if (closingRL.trim() && close === null) return { ok: false as const, errors: ['Closing RL must be a number.'] }
       // Help TypeScript narrow the type: close should be number | undefined after validation
       const closingRLValue: number | undefined = close === null ? undefined : close
-      const k = asNumber(distanceKm) ?? 1
+      const k = distanceKm.trim() ? asNumber(distanceKm) : undefined
+      if (k === null || k !== undefined && k <= 0) return { ok: false as const, errors: ['Run length must be a positive number, or blank if unknown.'] }
 
       const readings = levelRows.map((r) => ({
         station: r.station.trim(),
@@ -574,14 +594,14 @@ export default function DigitalFieldBookPage() {
   // Content-based snapshot: include the actual editable state (not just row
   // counts) so edits *inside* a row trigger auto-save, not only add/remove.
   const autoSaveData = useMemo(() => ({
-    type, name, projectId,
+    type, name, projectId, sourceImport,
     openingRL, closingRL, distanceKm, levelMethod, levelRows,
     travMode, startStation, startE, startN, closeE, closeN, travRows,
     controlSetups,
-  }), [type, name, projectId, openingRL, closingRL, distanceKm, levelMethod, levelRows, travMode, startStation, startE, startN, closeE, closeN, travRows, controlSetups])
+  }), [type, name, projectId, sourceImport, openingRL, closingRL, distanceKm, levelMethod, levelRows, travMode, startStation, startE, startN, closeE, closeN, travRows, controlSetups])
 
   const latestEditable = useRef(autoSaveData)
-  useEffect(() => { latestEditable.current = autoSaveData }, [autoSaveData])
+  latestEditable.current = autoSaveData
 
   useAutoSave({
     data: autoSaveData,
@@ -617,14 +637,16 @@ export default function DigitalFieldBookPage() {
   }, [traverseComputed, type, notify])
 
   function currentDataPayload() {
-    if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, rows: levelRows }
-    if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows }
-    return { activeSetupId: activeControlSetupId, setups: controlSetups }
+    const references = sourceImport ? { sourceImport } : {}
+    if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, rows: levelRows, ...references }
+    if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows, ...references }
+    return { activeSetupId: activeControlSetupId, setups: controlSetups, ...references }
   }
 
   async function resetForType(next: FieldbookType) {
     if (next === type || saveInProgress.current) return
     if (projectId && !(await saveBeforeLeaving())) return
+    clearBook()
     setType(next)
     bookIdRef.current = null
     setFieldbookId(null)
@@ -634,6 +656,8 @@ export default function DigitalFieldBookPage() {
   }
 
   function loadFieldbook(entry: SavedFieldbook) {
+    const references = readCaptureReferences(entry.data || {}, projectId)
+    setSourceImport(references)
     bookIdRef.current = entry.id
     setFieldbookId(entry.id)
     setType(entry.type)
@@ -649,20 +673,20 @@ export default function DigitalFieldBookPage() {
 
     if (entry.type === 'leveling') {
       setLevelMethod(data.method === 'height_of_collimation' ? 'height_of_collimation' : 'rise_and_fall')
-      setOpeningRL(String(data.openingRL ?? openingRL))
+      setOpeningRL(String(data.openingRL ?? ''))
       setClosingRL(data.closingRL !== undefined && data.closingRL !== null ? String(data.closingRL) : '')
-      setDistanceKm(String(data.distanceKm ?? distanceKm))
-      const rowsSource = Array.isArray(data.rows) ? (data.rows as LevelRow[]) : levelRows
+      setDistanceKm(String(data.distanceKm ?? ''))
+      const rowsSource = Array.isArray(data.rows) ? (data.rows as LevelRow[]) : []
       setLevelRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'traverse') {
       const mode = data.mode === 'open' ? 'open' : data.mode === 'link' ? 'link' : 'closed'
       setTravMode(mode)
-      setStartStation(String(data.startStation ?? startStation))
-      setStartE(String(data.startE ?? startE))
-      setStartN(String(data.startN ?? startN))
+      setStartStation(String(data.startStation ?? ''))
+      setStartE(String(data.startE ?? ''))
+      setStartN(String(data.startN ?? ''))
       setCloseE(String(data.closeE ?? ''))
       setCloseN(String(data.closeN ?? ''))
-      const rowsSource = Array.isArray(data.rows) ? (data.rows as TravRow[]) : travRows
+      const rowsSource = Array.isArray(data.rows) ? (data.rows as TravRow[]) : []
       setTravRows(rowsSource.map((r) => ({ ...r, id: r.id || crypto.randomUUID() })))
     } else if (entry.type === 'control') {
       const setupsRaw = Array.isArray(data.setups) ? (data.setups as ControlSetup[]) : null
@@ -819,6 +843,7 @@ export default function DigitalFieldBookPage() {
 
   async function importBook(book: FieldbookTransfer) {
     if (!projectId) throw new Error('Choose a project before importing.')
+    readCaptureReferences(book.data, projectId)
     if (!(await saveBeforeLeaving())) throw new Error('Save the current book before importing. It has not been replaced.')
     // File IDs and project IDs never control database identity or ownership.
     const id = crypto.randomUUID()
@@ -829,6 +854,7 @@ export default function DigitalFieldBookPage() {
   }
 
   function clearBook() {
+    setSourceImport(undefined)
     bookIdRef.current = null
     setFieldbookId(null)
     setName('')
@@ -836,6 +862,7 @@ export default function DigitalFieldBookPage() {
     setTravRows([])
     setOpeningRL('')
     setClosingRL('')
+    setDistanceKm(''); setStartStation('')
     setStartE(''); setStartN(''); setCloseE(''); setCloseN('')
     const setupId = crypto.randomUUID()
     setControlSetups([{ id: setupId, station: { name: '', e: '', n: '', z: '' }, rows: [] }])
@@ -866,9 +893,9 @@ export default function DigitalFieldBookPage() {
    async function exportCSV() {
      let rows: Array<Record<string, string>> = []
      if (type === 'leveling') {
-       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, OpeningRL: openingRL, ClosingRL: closingRL, DistanceKm: distanceKm, Method: levelMethod, Remarks: r.remarks }))
+       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, OpeningRL: openingRL, ClosingRL: closingRL, DistanceKm: distanceKm, Method: levelMethod, Remarks: r.remarks, ...captureReferenceColumns(sourceImport, r) }))
      } else if (type === 'traverse') {
-       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, SlopeDist: r.slopeDist, FaceLeftDeg: r.hclDeg, FaceLeftMin: r.hclMin, FaceLeftSec: r.hclSec, FaceRightDeg: r.hcrDeg, FaceRightMin: r.hcrMin, FaceRightSec: r.hcrSec, VerticalDeg: r.vaDeg, VerticalMin: r.vaMin, VerticalSec: r.vaSec, IH: r.ih, TH: r.th, StartStation: startStation, StartE: startE, StartN: startN, CloseE: closeE, CloseN: closeN, Mode: travMode, Remarks: r.remarks }))
+       rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, SlopeDist: r.slopeDist, FaceLeftDeg: r.hclDeg, FaceLeftMin: r.hclMin, FaceLeftSec: r.hclSec, FaceRightDeg: r.hcrDeg, FaceRightMin: r.hcrMin, FaceRightSec: r.hcrSec, VerticalDeg: r.vaDeg, VerticalMin: r.vaMin, VerticalSec: r.vaSec, IH: r.ih, TH: r.th, StartStation: startStation, StartE: startE, StartN: startN, CloseE: closeE, CloseN: closeN, Mode: travMode, Remarks: r.remarks, ...captureReferenceColumns(sourceImport, r) }))
      } else if (type === 'control') {
        rows = controlSetups.flatMap((setup) =>
          setup.rows.map((r) => ({
@@ -882,13 +909,15 @@ export default function DigitalFieldBookPage() {
            VAngle: r.verticalAngle,
            SlopeDist: r.slopeDistance,
            Remarks: r.remarks,
+           ...captureReferenceColumns(sourceImport, r),
          }))
        )
      }
 
      if (!rows.some(row => (row.Station ?? row.PointID ?? '').trim())) throw new Error('Add an observation before exporting CSV. JSON can back up an empty setup.')
      const Papa = (await import('papaparse')).default
-     downloadBlob(`metardu-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows, { escapeFormulae: true })], { type: 'text/csv' }))
+     const columns = Array.from(new Set(rows.flatMap(row => Object.keys(row))))
+     downloadBlob(`metardu-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows, { columns, escapeFormulae: true })], { type: 'text/csv' }))
    }
 
   async function exportPDF() {
@@ -983,6 +1012,16 @@ export default function DigitalFieldBookPage() {
       }
     }
 
+    if (sourceImport) {
+      doc.addPage()
+      doc.setFontSize(11)
+      doc.text('Raw capture references - draft, not field verification', 14, 18)
+      doc.setFontSize(9)
+      doc.text('Full original snapshots are retained in the JSON backup. Book edits do not change the archive.', 14, 25, { maxWidth: 180 })
+      autoTable(doc, { startY: 36, head: [['Capture / batch', 'Input hash', 'Capture author']],
+        body: sourceImport.sources.map(source => [`${source.clientId}\n${source.batchId}`, source.inputHash, source.capturedBy ?? 'unknown']),
+        styles: { fontSize: 7, overflow: 'linebreak' }, columnStyles: { 0: { cellWidth: 65 }, 1: { cellWidth: 75 } } })
+    }
     downloadBlob(`metardu-fieldbook-${type}.pdf`, doc.output('blob'))
   }
 
@@ -1294,8 +1333,29 @@ export default function DigitalFieldBookPage() {
         </ErrorBoundary>
   )
 
-  const workspace = <FieldbookProjectPanel
+  async function prepareCaptureImport() {
+    if (!(await saveBeforeLeaving())) return false
+    preparedCapture.current = { ownerId, projectId, bookId: bookIdRef.current, snapshot: JSON.stringify(latestEditable.current) }
+    return true
+  }
+
+  async function openCapturedBook(book: CapturedBook) {
+    const prepared = preparedCapture.current
+    if (!prepared || activeScope.current.ownerId !== book.user_id || activeScope.current.projectId !== book.project_id) return false
+    // Creation is already acknowledged. A cache failure must never imply that
+    // the server draft was absent or cause the caller to create another book.
+    setSavedFieldbooks(previous => [book, ...previous.filter(item => item.id !== book.id)])
+    try { await saveFieldbookOffline({ ...book }) }
+    catch { setSaveStatus({ kind: 'error', message: 'The new draft is saved on the server, but its device copy could not be retained. Your current book remains open; reconnect and open the draft from saved books.' }); return false }
+    if (activeScope.current.ownerId !== prepared.ownerId || activeScope.current.projectId !== prepared.projectId
+      || bookIdRef.current !== prepared.bookId || JSON.stringify(latestEditable.current) !== prepared.snapshot) return false
+    loadFieldbook(book)
+    return true
+  }
+
+  const workspace = <><FieldbookProjectPanel
     projectId={projectId} projects={projects} projectsError={projectsError}
+    onRetryProjects={() => setProjectLoadAttempt(value => value + 1)}
     name={name} onNameChange={setName} onProjectChange={changeProject}
     saving={saveStatus.kind === 'saving'} onSave={saveBeforeLeaving} onNew={newBook}
     status={saveStatus.kind === 'error' ? saveStatus.message : syncStatus?.failed ? `Sync needs attention: ${syncStatus.failed} operation(s) remain on this device. Export JSON for a backup and retry after checking your account and connection.` : saveStatus.kind === 'saved' ? saveStatus.message ?? 'Saved.' : null}
@@ -1304,6 +1364,10 @@ export default function DigitalFieldBookPage() {
     onImport={importBook}
     onExportJSON={exportJSON} onExportCSV={exportCSV} onExportPDF={exportPDF}
   />
+    {ownerId && projectId && <FieldbookCaptureImport actorId={ownerId} projectId={projectId} onPrepare={prepareCaptureImport} onCreated={openCapturedBook} />}
+    {sourceImport && <FieldbookSourceReferences key={`${projectId}:${fieldbookId}:${sourceImport.requestHash}`} imported={sourceImport}
+      rows={type === 'leveling' ? levelRows : type === 'traverse' ? travRows : controlSetups.flatMap(setup => setup.rows)} />}
+  </>
 
   if (isMobile) {
     return (

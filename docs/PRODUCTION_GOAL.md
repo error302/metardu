@@ -76,3 +76,11 @@ independently checked exact cleanup. `MOBILE_FIELD_ENTRY.md` records the observe
 unbound collector entry defect and its project-selection/retry source fix.
 Native browser recovery, private offline reopening, device/field, security,
 payment, engineering/deliverable and final candidate acceptance remain open.
+
+`CAPTURE_TO_FIELDBOOK.md` records the next connected-workflow source checkpoint:
+delivered raw captures can be reviewed and used to create a new named draft,
+with original snapshots and unknown authorship retained. Source changes preserve
+the current book during concurrent edits, include source references in transfers
+and exports, and remove the guessed 1 km leveling run length. Pinned native,
+authenticated browser, durable interrupted-creation recovery and release/device
+acceptance are still required; this is not a completed field-to-finish platform.

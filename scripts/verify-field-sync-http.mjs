@@ -29,9 +29,9 @@ assert.deepEqual(fixture.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',
 const files=git(['ls-tree','-r','--name-only',revision,'src/lib/db/migrations']).trim().split('\n').filter(path=>path.endsWith('.sql')).sort().map(path=>{const content=git(['show',`${revision}:${path}`]);return{path,content,version:path.split('/').at(-1).slice(0,-4),...migrationChecksums(Buffer.from(content))}})
 const admin=new pg.Client({connectionString:config.adminUrl,connectionTimeoutMillis:5000})
 const owner=randomUUID(),other=randomUUID(),project=randomUUID(),secondProject=randomUUID(),password=randomBytes(32).toString('base64url')
-const label='SYNTHETIC raw field HTTP acceptance',captureIds=[],triggers=[]
+const label='SYNTHETIC raw field HTTP acceptance',captureIds=[],bookIds=[],triggers=[]
 const triggerPrefix='qa_field_'+randomUUID().replaceAll('-','')
-report.fixtures={users:[owner,other],projects:[project,secondProject],captureIds}
+report.fixtures={users:[owner,other],projects:[project,secondProject],captureIds,bookIds}
 report.faultInjectionPrefix=triggerPrefix
 const actor=()=>{
   const cookies=new Map()
@@ -53,7 +53,7 @@ const rows=async(id=project)=>(await admin.query(`SELECT
   (SELECT count(*)::int FROM survey_points WHERE project_id=$1) reviewed_points`,[id])).rows[0]
 const sourceFingerprints=async()=>{
   const records=[]
-  for(const table of ['survey_observations','field_photos','observation_batches'])records.push((await admin.query(`SELECT '${table}' name,count(*)::int n,md5(COALESCE(string_agg(md5(to_jsonb(t)::text),'' ORDER BY md5(to_jsonb(t)::text)),'')) hash FROM ${table} t`)).rows[0])
+  for(const table of ['survey_observations','field_photos','observation_batches','fieldbooks'])records.push((await admin.query(`SELECT '${table}' name,count(*)::int n,md5(COALESCE(string_agg(md5(to_jsonb(t)::text),'' ORDER BY md5(to_jsonb(t)::text)),'')) hash FROM ${table} t`)).rows[0])
   return records
 }
 const failedRows=async id=>(await admin.query("SELECT (SELECT count(*)::int FROM survey_observations WHERE project_id=$1 AND client_id=$2) observations,(SELECT count(*)::int FROM observation_batches WHERE project_id=$1 AND quality_metadata->'raw'->>'id'=$2) captures",[project,id])).rows[0]
@@ -192,6 +192,49 @@ try{
   await admin.query('DELETE FROM project_members WHERE project_id=$1 AND user_id=$2',[project,other])
   check('revoked membership invalidates a previously obtained recovery permission',[403,404].includes((await foreign(recovery,{body:recover({...recoverySource,id:'revoked-review'}),expectedUser:other})).response.status))
 
+  const books='/api/fieldbook/captures',inventoryPath=`${books}?projectId=${project}`
+  check('capture inventory requires ordinary authentication',(await actor()(inventoryPath,{expectedUser:owner})).response.status===401)
+  check('capture inventory refuses an account switch',(await owned(inventoryPath,{expectedUser:other})).response.status===403)
+  const inventory=await owned(inventoryPath,{expectedUser:owner})
+  assert.equal(inventory.response.status,200,JSON.stringify(inventory.data))
+  check('native capture inventory is project-scoped, bounded and private',inventory.data.items.length<=50&&inventory.data.items.some(item=>item.batchId===first.data.batchId)&&!inventory.data.items.some(item=>item.batchId===repeated.data.batchId)&&inventory.response.headers.get('cache-control')==='private, no-store')
+  const inspected=await owned(`${inventoryPath}&batchId=${delivered.data.batchId}`,{expectedUser:owner})
+  assert.equal(inspected.response.status,200,JSON.stringify(inspected.data))
+  check('native source inspection verifies and returns the exact unknown-author original',inspected.data.source.capturedBy===null&&inspected.data.source.inputHash===hashSource(recoverySource)&&inspected.data.source.raw.rawForm.bearing==='045.5056')
+  const bookRequest=(bookId=randomUUID())=>({bookId,projectId:project,name:label,type:'traverse',bearingEncoding:'separated_dms',acknowledgement:'create-draft-from-raw-v1',sources:[{batchId:first.data.batchId,inputHash:first.data.inputHash}]})
+  const request=bookRequest();bookIds.push(request.bookId);save()
+  check('source-linked creation requires the current-account precondition',(await owned(books,{body:request})).response.status===403)
+  check('source-linked creation rejects altered raw identity',(await owned(books,{body:{...request,sources:[{batchId:first.data.batchId,inputHash:'0'.repeat(64)}]},expectedUser:owner})).response.status===409)
+  const createdBook=await owned(books,{body:request,expectedUser:owner})
+  assert.equal(createdBook.response.status,201,JSON.stringify(createdBook.data))
+  const nativeBook=(await admin.query('SELECT * FROM fieldbooks WHERE id=$1',[request.bookId])).rows[0]
+  assert.deepEqual(createdBook.data.book.data,nativeBook.data)
+  check('native source-linked book acknowledges a new editable raw draft with unknown setup',createdBook.data.replayed===false&&nativeBook.project_id===project&&nativeBook.user_id===owner&&nativeBook.data.rows[0].bearing==='0'&&nativeBook.data.rows[0].slopeDist===''&&nativeBook.data.startE===''&&nativeBook.data.sourceImport.fieldVerified===false&&nativeBook.data.sourceImport.sources[0].capturedBy===null)
+  assert.deepEqual(nativeBook.data.sourceImport.sources[0].raw,batch.quality_metadata.raw)
+  check('the full original archive is retained in the native book without inventing authorship')
+  const bookAudit=(await admin.query("SELECT user_id,details FROM audit_logs WHERE table_name='fieldbooks' AND record_id=$1",[request.bookId])).rows
+  check('native book creation records its exact source identities in the audit transaction',bookAudit.some(item=>item.user_id===owner&&item.details.requestHash===nativeBook.data.sourceImport.requestHash&&item.details.sourceBatchIds[0]===first.data.batchId))
+  await admin.query("UPDATE fieldbooks SET name=$2,data=jsonb_set(data,'{rows,0,remarks}',to_jsonb($3::text)) WHERE id=$1 AND project_id=$4 AND user_id=$5",[request.bookId,label+' edited','SYNTHETIC later book edit',project,owner])
+  const replayBook=await owned(books,{body:request,expectedUser:owner})
+  check('exact creation replay preserves later book edits without overwriting',replayBook.response.status===200&&replayBook.data.replayed===true&&replayBook.data.book.name===label+' edited'&&replayBook.data.book.data.rows[0].remarks==='SYNTHETIC later book edit')
+  check('another creation request cannot reuse and overwrite a book ID',(await owned(books,{body:{...request,name:'Different request'},expectedUser:owner})).response.status===409)
+  await admin.query("INSERT INTO project_members(project_id,user_id,role) VALUES($1,$2,'viewer')",[project,other])
+  check('a viewer cannot inspect capture sources or create a draft',(await foreign(inventoryPath,{expectedUser:other})).response.status===403&&(await foreign(books,{body:request,expectedUser:other})).response.status===403)
+  await admin.query('DELETE FROM project_members WHERE project_id=$1 AND user_id=$2',[project,other])
+  for(const [index,table]of ['fieldbooks','audit_logs'].entries()){
+    const failedRequest=bookRequest(),name=triggerPrefix+'_book_'+index
+    bookIds.push(failedRequest.bookId);save()
+    const condition=table==='fieldbooks'?`NEW.id='${failedRequest.bookId}'::uuid AND NEW.project_id='${project}'::uuid`:`NEW.table_name='fieldbooks' AND NEW.record_id='${failedRequest.bookId}'::uuid`
+    await admin.query(`CREATE FUNCTION ${name}() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF ${condition} THEN RETURN NULL; END IF; RETURN NEW; END $$`)
+    await admin.query(`CREATE TRIGGER ${name} BEFORE INSERT ON ${table} FOR EACH ROW EXECUTE FUNCTION ${name}()`)
+    const identity=(await admin.query('SELECT oid,tgfoid FROM pg_trigger WHERE tgname=$1 AND tgrelid=$2::regclass',[name,table])).rows[0];triggers.push({name,table,identity})
+    const failed=await owned(books,{body:failedRequest,expectedUser:owner})
+    check(`silent ${table} insert cannot acknowledge or leave a partial source-linked book`,!failed.response.ok&&(await admin.query('SELECT count(*)::int n FROM fieldbooks WHERE id=$1',[failedRequest.bookId])).rows[0].n===0)
+  }
+  assert.deepEqual((await admin.query('SELECT * FROM survey_observations WHERE id=$1',[first.data.observationId])).rows[0],stored)
+  assert.deepEqual((await admin.query('SELECT * FROM observation_batches WHERE id=$1',[first.data.batchId])).rows[0],batch)
+  check('draft creation, replay and rollback preserve the exact original raw source and archive')
+
   for(const [index,table]of ['survey_observations','observation_batches','audit_logs'].entries()){
     const id='failure-'+randomUUID(),name=triggerPrefix+'_'+index
     captureIds.push(id);save()
@@ -228,6 +271,9 @@ finally{
       assert.equal(projects.length,2);assert.ok(projects.every(r=>r.user_id===owner&&r.name===label))
       const captures=(await admin.query('SELECT id,created_by,quality_metadata FROM observation_batches WHERE project_id=ANY($1::uuid[])',[[project,secondProject]])).rows
       assert.ok(captures.every(r=>[owner,other].includes(r.created_by)&&r.quality_metadata?.kind==='offline_field_observation'&&captureIds.includes(r.quality_metadata.raw?.id)))
+      const books=(await admin.query('SELECT id,user_id,project_id FROM fieldbooks WHERE project_id=ANY($1::uuid[])',[[project,secondProject]])).rows
+      assert.ok(books.every(row=>bookIds.includes(row.id)&&row.user_id===owner&&row.project_id===project))
+      await admin.query('DELETE FROM fieldbooks WHERE id=ANY($1::uuid[]) AND user_id=$2 AND project_id=$3',[bookIds,owner,project])
       await admin.query("DELETE FROM observation_batches WHERE project_id=ANY($1::uuid[]) AND created_by=ANY($2::uuid[]) AND quality_metadata->>'kind'='offline_field_observation'",[[project,secondProject],[owner,other]])
       assert.equal((await admin.query('DELETE FROM projects WHERE id=ANY($1::uuid[]) AND user_id=$2 AND name=$3 RETURNING id',[[project,secondProject],owner,label])).rowCount,2)
       assert.equal((await admin.query('DELETE FROM users WHERE id=ANY($1::uuid[]) AND full_name=$2 RETURNING id',[[owner,other],label])).rowCount,2)

@@ -9,6 +9,7 @@ interface Props {
   projectId: string
   projects: { id: string; name: string }[]
   projectsError: string | null
+  onRetryProjects?: () => void
   name: string
   onNameChange: (name: string) => void
   onProjectChange: (id: string) => Promise<void>
@@ -57,6 +58,7 @@ export function FieldbookProjectPanel(props: Props) {
       </label>
       <p className="mt-2 text-xs leading-relaxed text-[var(--text-muted)]">Your current book is saved before switching projects. New project books start with a blank setup.</p>
       {props.projectsError && <p role="alert" className="mt-2 text-sm text-red-400">{props.projectsError}</p>}
+      {props.projectsError && props.onRetryProjects && <button type="button" className="btn btn-secondary mt-2 min-h-11 text-sm" disabled={disabled} onClick={props.onRetryProjects}>Retry account & projects</button>}
       {!props.projectId && <p className="mt-3 rounded-lg bg-[var(--bg-primary)] p-3 text-sm text-[var(--text-secondary)]">Choose a project before collecting or saving observations.</p>}
       <label className="mt-4 block text-sm font-medium text-[var(--text-secondary)]">
         Book name

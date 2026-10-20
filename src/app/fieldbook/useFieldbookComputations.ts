@@ -49,7 +49,8 @@ export function useFieldbookComputations(input: FieldbookComputationsInput) {
     if (closingRL.trim() && close === null) return { ok: false as const, errors: ['Closing RL must be a number.'] }
     // Help TypeScript narrow the type: close should be number | undefined after validation
     const closingRLValue: number | undefined = close === null ? undefined : close
-    const k = asNumber(distanceKm) ?? 1
+    const k = distanceKm.trim() ? asNumber(distanceKm) : undefined
+    if (k === null || k !== undefined && k <= 0) return { ok: false as const, errors: ['Run length must be a positive number, or blank if unknown.'] }
 
     const readings = levelRows.map((r) => ({
       station: r.station.trim(),
