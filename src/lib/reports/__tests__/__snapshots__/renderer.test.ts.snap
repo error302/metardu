@@ -19,7 +19,7 @@ exports[`SurveyPlanRenderer renders a valid SVG that matches the snapshot 1`] = 
 <text x="617.1968503937007" y="478.1102362204724" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="28" font-weight="bold" fill="#000000" opacity="0.12">TEST PROJECT</text>
 
 
-<text x="250025" y="9945000.4" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="11" fill="#000000">2500.00 m²</text><text x="250025" y="9945004.9" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#000000">0.2500 ha</text>
+<text x="617.1968503937007" y="500.78740157480314" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="11" fill="#000000">2500.00 m²</text><text x="617.1968503937007" y="515.9055118110236" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#000000">0.2500 ha</text>
 
 
 

@@ -245,9 +245,11 @@ in both SVG and PDF; scale-bar labels were enlarged. Printed planar area reuses
 the translated-origin coordinate engine to avoid cancellation at large eastings
 and northings. No field observations, legal corners, heights or approvals were added.
 
-Source evidence: 156 focused print/export/renderer/geometry checks and the reviewed
-layout snapshot passed. App and test TypeScript passed; final focused test lint
-is recorded separately in the working verification log. Browser evidence: the ordinary synthetic account opened
+Source evidence: 157 focused print/export/renderer/geometry checks and the reviewed
+layout snapshot passed. App and test TypeScript plus focused lint passed. The
+standard-layout area label also used raw grid coordinates as page coordinates;
+a regression reproduced an x position of 500010 before it was mapped to the
+drawing centroid in paper units. Browser evidence: the ordinary synthetic account opened
 the dedicated owned print sheet; DOM/CSS confirmed one A3 sheet with no navigation
 or transform. Its actual unsigned PDF download was parsed and raster-reviewed:
 one 420 × 297 mm page, all four simulation station labels, Helvetica/Helvetica-Bold

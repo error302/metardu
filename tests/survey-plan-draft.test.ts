@@ -32,6 +32,16 @@ test('printed area is stable for a small parcel in large projected coordinates',
   expect(shoelaceArea(points.map(point => ({ easting: point.easting + 500000, northing: point.northing + 9900000 })))).toBe(shoelaceArea(points))
 })
 
+test('standard-layout area annotations use paper coordinates', async () => {
+  const xml = new DOMParser().parseFromString(await render('standard'), 'image/svg+xml')
+  const label = Array.from(xml.querySelectorAll('text')).find(node => node.textContent === '800.00 m²')
+  if (!label) throw new Error('The parcel area label is missing')
+  expect(Number(label.getAttribute('x'))).toBeGreaterThan(mmToPx(10))
+  expect(Number(label.getAttribute('x'))).toBeLessThan(mmToPx(310))
+  expect(Number(label.getAttribute('y'))).toBeGreaterThan(mmToPx(10))
+  expect(Number(label.getAttribute('y'))).toBeLessThan(mmToPx(240))
+})
+
 test.each(['standard', 'form4'])('%s preserves unverified provenance even on a paid plan, without fabricated certification or road facts', async layout => {
   const svg = await render(layout)
   expect(svg).toContain('UNVERIFIED DRAFT')

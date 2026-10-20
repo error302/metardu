@@ -306,12 +306,13 @@ export class SurveyPlanRenderer {
 
   private drawAreaLabel(): string {
     const pts = this.rotatedPoints
-    const [ax, ay] = offsetFromMidpoint(pts[0].easting, pts[0].northing, pts[1].easting, pts[1].northing, 0.4)
+    const [ce, cn] = centroid(pts)
+    const ax = this.toSvgX(ce), ay = this.toSvgY(cn) + mmToPx(6)
     const area = this.data.parcel.area_sqm
     const ha = area / 10000
     return [
       `<text x="${ax}" y="${ay}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="11" fill="${C_BLACK}">${area.toFixed(2)} m\u00B2</text>`,
-      `<text x="${ax}" y="${ay + 4.5}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${ha.toFixed(4)} ha</text>`,
+      `<text x="${ax}" y="${ay + mmToPx(4)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${ha.toFixed(4)} ha</text>`,
     ].join('')
   }
 
