@@ -190,9 +190,74 @@ connection disconnected. This was an approval-review failure, not a finding
 that the page was unsafe. No credentials were entered, no browser storage was
 seeded, and no alternate browser/CLI page observation was used to bypass the
 rejection. The owner then explicitly authorized retrying Chrome approval; the
-same tab's origin approval succeeded and the ordinary synthetic login was
-submitted. Further browser creation/reload/export acceptance remains to be
-observed rather than inferred from that access recovery.
+same tab's origin approval succeeded and ordinary synthetic sign-in completed.
+The acceptance below used that approved tab; no browser storage was seeded or
+changed through automation internals.
+
+## Ordinary browser recovery and export acceptance
+
+At source checkpoint `c07e76b9`, Chrome CUA captured two explicitly synthetic
+leveling readings in the retained fixture through the normal collector forms:
+QA-BM backsight `1.5000` and QA-TP1 foresight `1.2500`. Both reached Synced with
+Pending 0. The project-scoped collector link opened Fieldbook; source inspection
+and ordered selection retained both exact form strings. Idle project entry
+created no empty book. The existing user's in-app session and CAD drawing were
+left alone.
+
+To exercise a genuinely uncertain creation acknowledgement, a guarded helper
+held only this marked fixture project's row lock, without writing data. After
+the UI durably retained creation request `f5cd0427-c8b0-4d21-baf0-ff31a7cdbabb`,
+the tab was reloaded before acknowledgement. The helper released its lock and
+read-only SQL confirmed that exact book had committed. Reopening the import
+panel recovered the same request and ordered sources from real browser storage.
+An explicit Retry draft creation opened that book, without a second book or
+source reselection. The helper was released and stopped; no lock remains.
+`.cache/field-sync/capture-browser-post-reload-before-retry.log` and
+`capture-browser-after-recovery-save.log` confirm one exact book, two raw rows,
+two archives, zero survey points, and unchanged originals against the retained
+pre-creation snapshot. This proves this browser reload/lost-acknowledgement
+scenario, not operating-system crash, power-loss, quota or competing-tab proof.
+
+Ordinary edits supplied opening RL `100.0000`, closing RL `100.2500` and run length
+`0.125` km. Before the latter two were supplied, their checks showed unevaluated.
+The synthetic computed final RL was `100.2500`. The second book remark was
+changed, saved and reopened through the saved-book selector. Source inspection
+flagged the changed book row and retained its different original remark.
+
+JSON, CSV and PDF were exported by normal buttons. The download-event listener
+missed the first blob download; freshly timestamped files were independently
+matched to the exact fixture identity/content instead. JSON retains the complete
+raw snapshots, blank unknown CRS reference and `fieldVerified:false`. CSV retains
+source IDs/hashes/author and `no`/`yes` book-row-change flags. The first PDF
+exposed blank leveling remarks and a station-name filter that could drop a real
+BM station and shift displayed computed rows. Three regressions reproduced the
+PDF/table defects. Export and table mapping now skip only the engine's initial
+synthetic benchmark, retain raw precision/remarks and wrap the remarks column.
+Twenty focused checks across three suites passed, including both leveling
+methods and the engine suite (`.cache/fieldbook-report-green.log`).
+The final rerun also passed twenty checks (`.cache/fieldbook-report-final-tests.log`).
+Application/test typing passed in `.cache/fieldbook-report-types.log`, with final
+test typing in `fieldbook-report-final-test-types.log`. The first lint pass found
+two untyped PDF test-mock accesses; the mock was typed without weakening rules.
+Final scoped lint exited zero (`.cache/fieldbook-report-final-lint.log`), and
+`fieldbook-report-security.log` passed with all 119 applied migrations pinned.
+
+The corrected PDF was re-exported from the browser. Two pages were text-checked
+and visually inspected: both notes/readings and the draft source-reference
+appendix fit without clipping in this fixture. Full SHA-256 artifact evidence is
+`.cache/fieldbook-browser-qa/export-verification.json`; retained review copies
+are `export.json`, `export.csv`, `report.pdf`, `report-1.png` and `report-2.png`
+in that directory. This is a small synthetic report, not long-report or field
+acceptance. The fixture is intentionally retained, not claimed as cleaned up.
+The native saved book data also matches the exported JSON data exactly.
+
+Source-preview follow-ups remain: cold loading and intermittent account/source
+request timeouts are slow, though open work is retained; a manual sync round
+showed "0 records delivered" while the final pending count was zero; the general
+QC sidebar shows a zero misclosure independently of the active leveling setup.
+These are observed credibility/performance gaps, not production measurements or
+resolved findings. The older alternate workspace/report paths also need a
+separate acceptance pass beyond the active Fieldbook route exercised here.
 
 ## Still required
 
@@ -200,11 +265,9 @@ observed rather than inferred from that access recovery.
   boundaries, concurrent creation and all compatible book types. The current
   native creation exercises a traverse draft; focused mappings cover leveling
   and polar control, but those are not native/browser acceptance for each type.
-- Ordinary authenticated CUA selection/creation, editable save/reopen, complete
-  JSON/CSV/PDF inspection, and responsive/keyboard acceptance.
-- Verify the retained-key workflow using ordinary browser creation/reload with
-  an unacknowledged server commit, competing tabs and actual storage failure.
-  The new source mechanism is not browser/device interruption proof yet.
+- Responsive/keyboard acceptance, long reports and other book-type reports.
+- Broaden retained-key acceptance to competing tabs and actual storage failure.
+  The observed browser reload recovery is not device interruption proof.
 - Private offline reopen, multi-tab coordination, quota/reconnect/device/field
   acceptance; source references are snapshots, not fresh archive verification.
 - The production goal's engineering chain, signing-key, payment, recovery,

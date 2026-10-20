@@ -70,7 +70,8 @@ export async function exportPDFFn(p: ExportParams) {
   const { levelingComputed, traverseComputed } = p.computations
 
   if (p.type === 'leveling') {
-    autoTable(doc, { startY: 32, head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']], body: levelingComputed.ok ? levelingComputed.calc.readings.filter((r) => r.station !== 'BM').map((r) => [r.station, r.bs ?? '', r.is ?? '', r.fs ?? '', r.rise ?? '', r.fall ?? '', r.reducedLevel ?? '', '']) : [], styles: { fontSize: 8 } })
+    // Only the first result is the engine's opening benchmark, independent of station names.
+    autoTable(doc, { startY: 32, head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']], body: levelingComputed.ok ? levelingComputed.calc.readings.slice(1).map((r, index) => [r.station, p.levelRows[index].bs, p.levelRows[index].is, p.levelRows[index].fs, r.rise ?? '', r.fall ?? '', r.reducedLevel ?? '', p.levelRows[index].remarks]) : [], styles: { fontSize: 8 }, columnStyles: { 7: { cellWidth: 65 } } })
   } else if (p.type === 'traverse') {
     autoTable(doc, {
       startY: 32,

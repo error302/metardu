@@ -10,6 +10,11 @@ import { createCaptureDraftData, type SourceImport } from '@/lib/fieldbook/captu
 import { fieldbookTransferSchema } from '@/lib/fieldbook/transfer'
 import { useAutoSave } from '@/hooks/useAutoSave'
 
+const mockPdf = { setFontSize: jest.fn(), text: jest.fn(), addPage: jest.fn(), output: jest.fn(() => new Blob(['pdf'])) }
+const mockPdfTable = jest.fn<void, [unknown, { body: unknown }]>()
+jest.mock('jspdf', () => ({ __esModule: true, default: jest.fn(() => mockPdf) }))
+jest.mock('jspdf-autotable', () => ({ __esModule: true, default: (doc: unknown, options: { body: unknown }): void => { mockPdfTable(doc, options) } }))
+
 const actor='11111111-1111-4111-8111-111111111111', project='22222222-2222-4222-8222-222222222222'
 const mockQuery={select:jest.fn().mockReturnThis(),eq:jest.fn().mockReturnThis(),order:jest.fn().mockResolvedValue({data:[],error:null})}
 const mockClient={auth:{getSession:jest.fn().mockResolvedValue({data:{session:{user:{id:actor}}}})},from:jest.fn(()=>mockQuery)}
@@ -115,4 +120,26 @@ test('opening an untouched project does not autosave an empty book; real setup e
   expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(false)
   act(()=>level().setOpeningRL('0'))
   expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(true)
+})
+
+test.each(['rise_and_fall', 'height_of_collimation'] as const)('leveling PDF retains real BM station, raw precision and edited remarks (%s)', async method => {
+  await openPage()
+  act(() => {
+    level().setOpeningRL('100.0000')
+    level().setLevelMethod(method)
+    level().setLevelRows([
+      { id: 'bm', station: 'BM', bs: '1.5000', is: '', fs: '', remarks: 'Synthetic benchmark note' },
+      { id: 'tp', station: 'TP1', bs: '', is: '', fs: '1.2500', remarks: 'Edited review note' },
+    ])
+  })
+  URL.createObjectURL = jest.fn(() => 'blob:synthetic-report')
+  URL.revokeObjectURL = jest.fn()
+  const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  try {
+    await act(async () => { await workspace().onExportPDF() })
+    expect(mockPdfTable.mock.calls[0][1].body).toEqual([
+      ['BM', '1.5000', '', '', '', '', 100, 'Synthetic benchmark note'],
+      ['TP1', '', '', '1.2500', method === 'rise_and_fall' ? 0.25 : '', method === 'rise_and_fall' ? 0 : '', 100.25, 'Edited review note'],
+    ])
+  } finally { click.mockRestore() }
 })

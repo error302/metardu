@@ -34,7 +34,8 @@ export function LevelingBook({
   setLevelRows: Dispatch<SetStateAction<LevelRow[]>>
   computed: { ok: true; calc: LevelingResult } | { ok: false; errors: string[] }
 }) {
-  const outRows = computed.ok ? computed.calc.readings.filter((r) => r.station !== 'BM') : []
+  // Both leveling methods prepend one opening benchmark, then one result per input row.
+  const outRows = computed.ok ? computed.calc.readings.slice(1) : []
 
   return (
     <div className="card">

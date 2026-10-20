@@ -940,7 +940,8 @@ export default function DigitalFieldBookPage() {
     doc.text(`Type: ${type}   Project: ${projectId || '—'}   Generated: ${new Date().toLocaleString()}`, 14, 28)
 
     if (type === 'leveling') {
-      autoTable(doc, { startY: 32, head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']], body: levelingComputed.ok ? levelingComputed.calc.readings.filter((r) => r.station !== 'BM').map((r) => [r.station, r.bs ?? '', r.is ?? '', r.fs ?? '', r.rise ?? '', r.fall ?? '', r.reducedLevel ?? '', '']) : [], styles: { fontSize: 8 } })
+      // The engine prepends one opening benchmark; an actual input station may also be named BM.
+      autoTable(doc, { startY: 32, head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']], body: levelingComputed.ok ? levelingComputed.calc.readings.slice(1).map((r, index) => [r.station, levelRows[index].bs, levelRows[index].is, levelRows[index].fs, r.rise ?? '', r.fall ?? '', r.reducedLevel ?? '', levelRows[index].remarks]) : [], styles: { fontSize: 8 }, columnStyles: { 7: { cellWidth: 65 } } })
     } else if (type === 'traverse') {
       autoTable(doc, {
         startY: 32,

@@ -101,3 +101,16 @@ completion. The marked synthetic browser fixture is retained for follow-up;
 production and the existing simulation session are preserved. Browser/device,
 source-chain, engineering, paid lifecycle, security and promotion gates remain
 open, and the goal stays active.
+
+The owner-authorized Chrome approval retry subsequently succeeded. Ordinary
+synthetic collector capture, ordered source selection, one-book creation after
+reload/lost acknowledgement, editable save/reopen and JSON/CSV/PDF inspection
+are now recorded in `CAPTURE_TO_FIELDBOOK.md`. Independent SQL confirms two
+unchanged originals, one recovered book and no fabricated survey points. PDF
+inspection exposed omitted remarks and BM station/result misalignment; the
+active report/table mappings were corrected with three reproduced regressions
+and twenty passing focused checks. Actual competing-tab/quota/device/field,
+other type/long-report/responsive acceptance remain open. Source-preview
+timeouts, misleading zero-delivery copy and an unrelated zero-misclosure QC
+sidebar are retained findings. This source/browser milestone does not promote
+production, prove recovery from backup, or complete the paid engineering chain.
