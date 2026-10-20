@@ -24,7 +24,20 @@ test('raw mobile observations use the bound receipt path and retain zero reading
   expect(upsert).not.toHaveBeenCalled()
   const request:unknown=JSON.parse(String(jest.mocked(fetch).mock.calls[0][1]?.body))
   expect(request).toMatchObject({easting:0,elevation:0,pointName:'P1',station:'P1'})
-  expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledWith('queued-01')
+  expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledWith('queued-01',pending('field_observation'))
+  expect(offlineStorage.update).toHaveBeenCalledWith('field_observations', payload.id,
+    { synced: true, deliveryReceipt: receipt }, payload)
+})
+
+test('an acknowledged delivery with a failed device commit keeps the queue for review',async()=>{
+  const capture={...payload,surveyType:'unspecified',station:payload.pointName,pointId:payload.pointName,createdAt:new Date(payload.timestamp).toISOString()}
+  jest.mocked(fetch).mockResolvedValue({ok:true,json:async()=>({ok:true,id:payload.id,observationId:rowId,
+    batchId:'33333333-3333-4333-8333-333333333333',inputHash:await observationDeliveryHash(capture),fieldVerified:false,replayed:false})} as Response)
+  jest.mocked(offlineStorage.update).mockRejectedValueOnce(new Error('Source changed during HTTP'))
+  await expect(syncService.syncPending()).resolves.toEqual({synced:0,failed:1})
+  expect(offlineStorage.removeFromSyncQueue).not.toHaveBeenCalled()
+  expect(offlineStorage.updateSyncStatus).toHaveBeenCalledWith('queued-01','failed',expect.stringMatching(/exact device source/i),1,
+    expect.objectContaining({blocked:true}))
 })
 test('explicit survey mode and complete form readings survive the content-bound delivery request',async()=>{
   const original={...payload,surveyType:'traverse',surveyMode:'traverse',captureFormVersion:1,

@@ -222,7 +222,9 @@ Mobile continuation checkpoints are documented in `MOBILE_SYNC_PACING.md`,
 `MOBILE_FIELD_OWNERSHIP.md` and `LEGACY_DEVICE_RECOVERY.md`. The latter adds an
 authorized, individually acknowledged path for selected unattributed device
 sources; it does not reconcile existing unreceipted server rows or prove browser,
-device or production acceptance. Retain its primary-device-source integrity gate.
+device or production acceptance. Its follow-up now guards primary-device-source
+consistency, receipt attachment and exact-source queue removal; native browser,
+device and release acceptance remain required.
 
 The release path now includes a strict pre/post raw-field schema/privilege/RLS
 contract, a restrictive-policy digest comparison, and observation/photo row

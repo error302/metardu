@@ -151,8 +151,11 @@ class SyncService {
         throw new SyncDeliveryError('Unsupported queued field record. The device copy was retained for recovery.', 422)
     }
 
-    await offlineStorage.updateSyncStatus(item.id, 'synced')
-    await offlineStorage.removeFromSyncQueue(item.id)
+    try {
+      await offlineStorage.removeFromSyncQueue(item.id, item)
+    } catch {
+      throw new SyncDeliveryError('Delivery was acknowledged, but the pending queue source changed or its removal could not be committed. Retained records need review.', 409)
+    }
   }
 
   private async syncObservation(payload: ObservationPayload, review?: LegacyRecoveryReview, actorId?: string): Promise<void> {
@@ -169,8 +172,13 @@ class SyncService {
       throw new SyncDeliveryError('The server did not confirm this legacy recovery review. The device source was retained.', 422)
     }
 
-    // Mark observation as synced
-    await offlineStorage.update('field_observations', payload.id, { synced: true, deliveryReceipt: receipt })
+    // A different tab can edit/remove the local source while HTTP is pending.
+    // Only the exact retained source may receive this acknowledgement.
+    try {
+      await offlineStorage.update('field_observations', payload.id, { synced: true, deliveryReceipt: receipt }, payload)
+    } catch {
+      throw new SyncDeliveryError('The server acknowledged delivery, but its receipt could not be committed to the exact device source. The pending queue was retained for review.', 409)
+    }
   }
 
   private async syncPhoto(dbClient: BrowserClient, payload: PhotoPayload): Promise<void> {

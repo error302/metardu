@@ -105,7 +105,7 @@ test('project device reads return only the active owner’s records and never ad
 })
 
 test('review queues the exact unattributed source only after its transaction commits', async () => {
-  const { tx, store, getRequest } = database()
+  const { tx, queueStore: store, queueRead: getRequest, sourceRead, sourceStore } = recoveryDatabase()
   const row: SyncQueueItem = { id: 'legacy', recordId: 'old-source', type: 'field_observation', action: 'create', status: 'failed',
     data: { id: 'old-source', projectId: 'project', pointName: 'P0', observationType: 'manual', timestamp: Date.parse('2026-10-20T08:00:00Z'), easting: 0, northing: 10 } }
   jest.spyOn(offlineStorage, 'get').mockResolvedValue(row)
@@ -115,6 +115,7 @@ test('review queues the exact unattributed source only after its transaction com
   // Hashing completes outside the native transaction; wait for its queued read.
   for (let i = 0; i < 20 && !getRequest.onsuccess; i++) await new Promise(resolve => setTimeout(resolve, 0))
   success(getRequest, row)
+  success(sourceRead, { ...(row.data as Record<string, unknown>), synced: false })
   tx.oncomplete?.(new Event('complete'))
   await assertion
   const saved = store.put.mock.calls[0][0] as SyncQueueItem
@@ -122,6 +123,7 @@ test('review queues the exact unattributed source only after its transaction com
   expect(saved.data).toEqual(row.data)
   expect(saved.recoveryReview).toMatchObject({ sourceHash: hash, actorId: 'reviewer', capturedBy: null })
   expect(row.data).not.toHaveProperty('ownerId')
+  expect(sourceStore.add).not.toHaveBeenCalled()
 })
 
 test('legacy inventory skips attributed and unrelated projects and returns a bounded metadata page', async () => {
@@ -141,4 +143,122 @@ test('legacy inventory skips attributed and unrelated projects and returns a bou
   expect(result.next).toBe('q-9')
   expect(result.items[0]).not.toHaveProperty('data')
   expect(store.put).not.toHaveBeenCalled()
+})
+
+function recoveryDatabase() {
+  const queueRead = {} as IDBRequest
+  const sourceRead = {} as IDBRequest
+  const queueStore = { get: jest.fn(() => queueRead), put: jest.fn((_value: unknown) => ({} as IDBRequest)) }
+  const sourceStore = { get: jest.fn(() => sourceRead), add: jest.fn((_value: unknown) => ({} as IDBRequest)) }
+  const tx = { objectStore: jest.fn((name: string) => name === 'sync_queue' ? queueStore : sourceStore), abort: jest.fn(), error: null } as unknown as IDBTransaction
+  const transaction = jest.fn(() => tx)
+  Object.defineProperty(offlineStorage, 'db', { configurable: true, writable: true, value: { transaction } })
+  return { tx, transaction, queueRead, sourceRead, queueStore, sourceStore }
+}
+const legacyRow: SyncQueueItem = { id: 'retained-queue', recordId: 'retained-source', type: 'field_observation', action: 'create', status: 'failed',
+  data: { id: 'retained-source', projectId: 'project', pointName: 'P0', observationType: 'manual', timestamp: Date.parse('2026-10-20T08:00:00Z'),
+    easting: 0, northing: 10, rawForm: { bearing: '045.0000', futureField: 'retain exactly' } } }
+
+async function beginLegacyReview() {
+  const db = recoveryDatabase()
+  jest.spyOn(offlineStorage, 'get').mockResolvedValue(legacyRow)
+  const hash = await legacySourceHash(legacyRow)
+  const promise = offlineStorage.queueLegacyReview('retained-queue', 'reviewer', 'project', hash)
+  // Hashing must finish before opening the native transaction.
+  for (let i = 0; i < 20 && !db.queueRead.onsuccess; i++) await new Promise(resolve => setTimeout(resolve, 0))
+  success(db.queueRead, legacyRow)
+  return { ...db, promise }
+}
+
+test('review restores a missing primary device source from the exact queued payload in the same transaction', async () => {
+  const db = await beginLegacyReview()
+  success(db.sourceRead, undefined)
+  expect(db.transaction).toHaveBeenCalledWith(['sync_queue', 'field_observations'], 'readwrite')
+  expect(db.sourceStore.add).toHaveBeenCalledWith(legacyRow.data)
+  expect(db.queueStore.put).toHaveBeenCalledTimes(1)
+  db.tx.oncomplete?.(new Event('complete'))
+  await db.promise
+})
+
+test.each([
+  { easting: 99 }, { ownerId: 'another-owner' }, { rawForm: { bearing: 'different original text' } }, { projectId: 'other-project' },
+])('review preserves conflicting queue and primary sources: %j', async changed => {
+  const db = await beginLegacyReview()
+  const assertion = expect(db.promise).rejects.toThrow(/conflict|differ/i)
+  success(db.sourceRead, { ...(legacyRow.data as Record<string, unknown>), ...changed })
+  // Completing a read-only rejection must never acknowledge the review.
+  db.tx.oncomplete?.(new Event('complete'))
+  await assertion
+  expect(db.queueStore.put).not.toHaveBeenCalled()
+  expect(db.sourceStore.add).not.toHaveBeenCalled()
+})
+
+test('an aborted recovery transaction never reports a saved review or reconstructed source', async () => {
+  const db = await beginLegacyReview()
+  const assertion = expect(db.promise).rejects.toThrow(/cancelled|aborted/i)
+  success(db.sourceRead, undefined)
+  db.tx.onabort?.(new Event('abort'))
+  await assertion
+})
+
+test('a delivery receipt cannot mark a changed device source as synced', async () => {
+  const { tx, store, getRequest } = database()
+  const expected = legacyRow.data as FieldObservation & { id: string; timestamp: number }
+  const result = offlineStorage.update('field_observations', expected.id, { synced: true }, expected)
+  const assertion = expect(result).rejects.toThrow(/changed|differ|conflict/i)
+  success(getRequest, { ...expected, easting: 99 })
+  tx.oncomplete?.(new Event('complete'))
+  await assertion
+  expect(store.put).not.toHaveBeenCalled()
+})
+
+test.each(['complete', 'abort'] as const)('matching source acknowledgement waits for transaction %s', async outcome => {
+  const { tx, store, getRequest } = database()
+  const expected = legacyRow.data as FieldObservation & { id: string; timestamp: number }
+  let settled = false
+  const result = offlineStorage.update('field_observations', expected.id, { synced: true }, expected)
+  void result.then(() => { settled = true }, () => { settled = true })
+  // Delivery metadata does not alter the retained raw-source identity.
+  success(getRequest, { ...expected, synced: false, deliveryReceipt: { previous: 'metadata only' } })
+  await Promise.resolve()
+  expect(settled).toBe(false)
+  const saved = store.put.mock.calls[0][0] as FieldObservation
+  expect(saved.rawForm).toEqual(expected.rawForm)
+  expect(saved.easting).toBe(0)
+  expect(saved.synced).toBe(true)
+  if (outcome === 'complete') {
+    tx.oncomplete?.(new Event('complete'))
+    await result
+  } else {
+    const assertion = expect(result).rejects.toThrow(/aborted/i)
+    tx.onabort?.(new Event('abort'))
+    await assertion
+  }
+})
+
+test.each([
+  { data: { ...(legacyRow.data as Record<string, unknown>), northing: 999 } },
+  { recordId: 'replacement-record' }, { ownerId: 'different-owner' },
+])('a late response cannot remove a changed queue source: %j', async changed => {
+  const { tx, store, getRequest } = database()
+  const result = Reflect.apply(offlineStorage.removeFromSyncQueue, offlineStorage, [legacyRow.id, legacyRow]) as Promise<void>
+  const assertion = expect(result).rejects.toThrow(/changed|differ|conflict/i)
+  success(getRequest, { ...legacyRow, ...changed, status: 'syncing' })
+  tx.oncomplete?.(new Event('complete'))
+  await assertion
+  expect(store.delete).not.toHaveBeenCalled()
+})
+
+test('matching queue removal ignores transport state but waits for transaction commit', async () => {
+  const { tx, store, getRequest, putRequest } = database()
+  let settled = false
+  const result = Reflect.apply(offlineStorage.removeFromSyncQueue, offlineStorage, [legacyRow.id, legacyRow]) as Promise<void>
+  void result.then(() => { settled = true })
+  success(getRequest, { ...legacyRow, status: 'syncing', lastAttempt: Date.now(), retryCount: 3 })
+  success(putRequest)
+  await Promise.resolve()
+  expect(settled).toBe(false)
+  tx.oncomplete?.(new Event('complete'))
+  await result
+  expect(store.delete).toHaveBeenCalledWith(legacyRow.id)
 })

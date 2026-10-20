@@ -6,7 +6,13 @@
 import { mayRetryFieldDelivery, type FieldDeliveryRetry } from '@/lib/field/deliveryRetry'
 import { canReviewLegacyItem, isLegacyReviewQueuedFor, isMobileRecordVisibleTo, isUnattributedItem, legacySourceHash, LEGACY_REVIEW_VERSION, type LegacyRecoveryReview } from './legacyReview'
 import { canonicalJson } from '@/lib/provenance/canonicalJson'
-import type { FieldObservationDeliveryReceipt } from '@/lib/field/observationReceipt'
+import { offlineObservationSource, type FieldObservationDeliveryReceipt } from '@/lib/field/observationReceipt'
+import { mobileObservationCapture } from './observationCapture'
+
+type ObservationSource = FieldObservation & { id: string; timestamp: number }
+function observationSnapshot(source: ObservationSource): string {
+  return canonicalJson(offlineObservationSource(mobileObservationCapture(source)))
+}
 
 const DB_NAME = 'MetarduFieldDB'
 const DB_VERSION = 1
@@ -183,7 +189,8 @@ class OfflineStorage {
     })
   }
 
-  async update<T>(storeName: string, id: string, data: Partial<T>): Promise<void> {
+  async update<T>(storeName: string, id: string, data: Partial<T>, expectedSource?: ObservationSource): Promise<void> {
+    const expectedSnapshot = expectedSource ? observationSnapshot(expectedSource) : undefined
     if (!this.db) await this.init()
 
     return new Promise((resolve, reject) => {
@@ -197,6 +204,18 @@ class OfflineStorage {
         if (!existing) {
           reject(new Error('Record not found'))
           return
+        }
+
+        if (expectedSnapshot !== undefined) {
+          try {
+            if (storeName !== STORES.FIELD_OBSERVATIONS || id !== expectedSource?.id
+              || observationSnapshot(existing as unknown as ObservationSource) !== expectedSnapshot) {
+              throw new Error('The device observation changed during delivery. Its source and pending queue were retained for review.')
+            }
+          } catch (error) {
+            reject(error)
+            return
+          }
         }
 
         const updated = { ...existing, ...data }
@@ -483,8 +502,29 @@ class OfflineStorage {
     }
   }
 
-  async removeFromSyncQueue(id: string): Promise<void> {
-    await this.delete(STORES.SYNC_QUEUE, id)
+  async removeFromSyncQueue(id: string, delivered: SyncQueueItem): Promise<void> {
+    const identity = (item: SyncQueueItem) => canonicalJson({ id: item.id, ownerId: item.ownerId,
+      type: item.type, recordId: item.recordId, action: item.action, data: item.data, recoveryReview: item.recoveryReview })
+    const snapshot = identity(delivered)
+    if (delivered.id !== id) throw new Error('The delivered queue identity differs. No source was removed.')
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readwrite')
+      const store = transaction.objectStore(STORES.SYNC_QUEUE)
+      const request = store.get(id)
+      request.onsuccess = () => {
+        try {
+          const current = request.result as SyncQueueItem | undefined
+          if (!current || current.status !== 'syncing' || identity(current) !== snapshot) {
+            throw new Error('The queue source or review changed during delivery. No source was removed.')
+          }
+          store.delete(id)
+        } catch (error) { reject(error) }
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not commit delivery queue removal.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Delivery queue removal was aborted.'))
+    })
   }
 
   async getLegacyQueuePage(projectId: string, actorId: string, after?: string): Promise<{ items: LegacyQueueSummary[]; next: string | null }> {
@@ -522,10 +562,16 @@ class OfflineStorage {
     }
     if (await legacySourceHash(item) !== sourceHash) throw new Error('The source changed after selection. Review the retained source again.')
     const snapshot = canonicalJson(item.data)
+    const sourceSnapshot = observationSnapshot(item.data as ObservationSource)
     if (!this.db) await this.init()
     return new Promise((resolve, reject) => {
-      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readwrite')
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE, STORES.FIELD_OBSERVATIONS], 'readwrite')
       const store = transaction.objectStore(STORES.SYNC_QUEUE)
+      const sources = transaction.objectStore(STORES.FIELD_OBSERVATIONS)
+      const fail = (error: unknown) => {
+        reject(error)
+        transaction.abort()
+      }
       const request = store.get(queueId)
       request.onsuccess = () => {
         const current = request.result as SyncQueueItem | undefined
@@ -533,14 +579,27 @@ class OfflineStorage {
           || current.type !== item.type || current.action !== item.action || current.recordId !== item.recordId
           || (current.recoveryReview && current.recoveryReview.actorId !== actorId)
           || (current.status === 'syncing' && !isSyncQueueItemRecoveryExpired(current))) {
-          reject(new Error('The source, review or delivery state changed. No new review was queued.'))
+          fail(new Error('The source, review or delivery state changed. No new review was queued.'))
           return
         }
-        store.put({ ...current, status: 'pending', error: undefined,
-          ...(current.deliveryRetry ? { deliveryRetry: { ...current.deliveryRetry, blocked: false } } : {}),
-          recoveryReview: { version: LEGACY_REVIEW_VERSION, actorId, projectId, sourceHash,
-            reviewedAt: new Date().toISOString(), capturedBy: null } satisfies LegacyRecoveryReview,
-        })
+        const sourceRequest = sources.get(current.recordId)
+        sourceRequest.onsuccess = () => {
+          try {
+            const source = sourceRequest.result as ObservationSource | undefined
+            if (source && (source.ownerId !== undefined || source.id !== current.recordId
+              || observationSnapshot(source) !== sourceSnapshot)) {
+              throw new Error('The queued and primary device sources conflict. Both were retained unchanged for manual reconciliation.')
+            }
+            // Recover only an absent copy, using the exact retained source.
+            // A conflicting record is never overwritten or given a new owner.
+            if (!source) sources.add(current.data)
+            store.put({ ...current, status: 'pending', error: undefined,
+              ...(current.deliveryRetry ? { deliveryRetry: { ...current.deliveryRetry, blocked: false } } : {}),
+              recoveryReview: { version: LEGACY_REVIEW_VERSION, actorId, projectId, sourceHash,
+                reviewedAt: new Date().toISOString(), capturedBy: null } satisfies LegacyRecoveryReview,
+            })
+          } catch (error) { fail(error) }
+        }
       }
       transaction.oncomplete = () => resolve()
       transaction.onerror = () => reject(transaction.error ?? new Error('Could not retain the recovery review.'))

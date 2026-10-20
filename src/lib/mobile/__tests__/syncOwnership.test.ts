@@ -45,7 +45,7 @@ test('another account cannot drain or alter previous-owner and unattributed devi
   expect(deliveries).toHaveLength(1)
   expect(JSON.parse(String(deliveries[0][1]?.body))).toMatchObject({ id: 'bob-reading', ownerId: bob })
   expect(offlineStorage.claimSyncItem).toHaveBeenCalledTimes(1)
-  expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledWith('bob-reading')
+  expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledWith('bob-reading',row('bob-reading',bob))
   expect(offlineStorage.retryFailedSyncItems).toHaveBeenCalledWith(bob)
 })
 
@@ -64,7 +64,7 @@ test('each pass uses the current authenticated account rather than remembering t
   jest.mocked(offlineStorage.removeFromSyncQueue).mockClear()
   await service.syncPending()
   expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledTimes(1)
-  expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledWith('alice-reading')
+  expect(offlineStorage.removeFromSyncQueue).toHaveBeenCalledWith('alice-reading',row('alice-reading',alice))
 })
 
 test('explicit legacy review can deliver without inventing a capture owner or changing raw input identity', async () => {

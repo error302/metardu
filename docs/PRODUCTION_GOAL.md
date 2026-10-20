@@ -58,5 +58,6 @@ private offline reopening remain open; it does not promote these source edits.
 
 `LEGACY_DEVICE_RECOVERY.md` records the next source checkpoint: authorized,
 individual source inspection/export and reviewed raw delivery with unknown
-authorship retained. Primary-device-source consistency, server reconciliation,
-browser/device and final release acceptance remain open.
+authorship retained. The follow-up adds atomic primary-device-source consistency
+and protects receipt attachment/queue removal from changed sources. Server
+reconciliation, browser/device and final release acceptance remain open.
