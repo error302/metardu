@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler, AppError } from '@/lib/api/handler'
 import { db } from '@/lib/db'
 import { checkProjectLimit } from '@/lib/subscription/subscriptionEngine'
-import { z } from 'zod'
+import { createProjectSchema } from '@/lib/validation/projectCreation'
 import { logger } from '@/lib/logger'
 
 interface ProjectRow {
@@ -21,25 +21,6 @@ interface ProjectRow {
   datum: string | null
   created_at: string | Date
 }
-
-const createProjectSchema = z.object({
-  name: z.string().min(1, 'Project name is required'),
-  survey_type: z.string().min(1, 'Survey type is required'),
-  location: z.string().optional().default(''),
-  utm_zone: z.number().int().min(1).max(60).optional().default(37),
-  hemisphere: z.enum(['N', 'S']).optional().default('S'),
-  project_type: z.enum(['small', 'scheme']).optional().default('small'),
-  client_name: z.string().optional(),
-  surveyor_name: z.string().optional(),
-  country: z.string().optional(),
-  datum: z.string().optional(),
-  scheme_number: z.string().optional(),
-  county: z.string().optional(),
-  sub_county: z.string().optional(),
-  ward: z.string().optional(),
-  planned_parcels: z.number().int().nonnegative().optional(),
-  adjudication_section: z.string().optional(),
-})
 
 export const POST = apiHandler({
   requireAuth: true,
@@ -66,7 +47,7 @@ export const POST = apiHandler({
        RETURNING id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at`,
       [
         ctx.userId, validated.name, validated.survey_type, validated.location,
-        validated.utm_zone, validated.hemisphere, validated.project_type,
+        validated.utm_zone ?? null, validated.hemisphere ?? null, validated.project_type,
         validated.client_name ?? null, validated.surveyor_name ?? null,
         validated.country ?? null, validated.datum ?? null,
       ]

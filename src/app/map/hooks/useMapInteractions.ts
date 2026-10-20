@@ -651,9 +651,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (format === 'GeoJSON') {
       const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
       const fmt = new GeoJSONFormat()
-      output = JSON.stringify(fmt.writeFeatures(drawSourceRef.current.getFeatures(), {
+      output = fmt.writeFeatures(drawSourceRef.current.getFeatures(), {
         featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326',
-      }), null, 2)
+      })
       filename = 'metardu-export.geojson'
       mimeType = 'application/geo+json'
     } else if (format === 'KML') {

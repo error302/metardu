@@ -82,7 +82,9 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
   // Get all blocks for the project
   const { rows: blocks } = await db.query<BlockRow>(
-    'SELECT id, block_number, block_name, description FROM blocks WHERE project_id = $1 ORDER BY block_number',
+    // Historical schemas have no optional block_name column. Read it only when
+    // present so an empty or legacy project can still open its capture map.
+    "SELECT id, block_number, to_jsonb(b)->>'block_name' AS block_name, description FROM blocks b WHERE project_id = $1 ORDER BY block_number",
     [projectId]
   )
 
@@ -96,7 +98,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
      JOIN blocks b ON b.id = p.block_id
      LEFT JOIN traverse_coordinates tc ON tc.traverse_id = (
        SELECT id FROM parcel_traverses WHERE parcel_id = p.id AND status IN ('computed', 'approved')
-       ORDER BY computed_at DESC LIMIT 1
+       ORDER BY updated_at DESC, id DESC LIMIT 1
      )
      WHERE b.project_id = $1
      ORDER BY b.block_number, p.parcel_number, tc.station_name`,

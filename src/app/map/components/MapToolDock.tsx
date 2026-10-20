@@ -121,6 +121,7 @@ function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
   return (
     <button
       onClick={onClick}
+        aria-pressed={isActive}
       title={shortcut ? `${label} (${shortcut})` : label}
       className={`
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150

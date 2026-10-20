@@ -10,6 +10,7 @@ import type { SurveyingCountry } from '@/lib/country'
 import { SURVEY_TYPE_LABELS, SurveyType } from '@/types/project'
 import type { ProjectType } from '@/types/scheme'
 import { Landmark, Route, Mountain } from 'lucide-react'
+import { createProjectSchema } from '@/lib/validation/projectCreation'
 import { markOnboardingStepComplete } from '@/components/shared/OnboardingChecklist'
 
 export default function NewProjectPage() {
@@ -19,11 +20,10 @@ export default function NewProjectPage() {
   const [name, setName] = useState('')
   const [location, setLocation] = useState('')
   const [selectedCountry, setSelectedCountry] = useState<SurveyingCountry>(defaultCountry)
-  const [utmZone, setUtmZone] = useState(() => {
-    const c = ALL_COUNTRIES.find((c) => c.id === defaultCountry)
-    return c?.id === 'us' ? '17' : c?.id === 'uk' ? '30' : c?.id === 'australia' ? '51' : '37'
-  })
-  const [hemisphere, setHemisphere] = useState<'N' | 'S'>('S')
+  const [datum, setDatum] = useState('')
+  const [utmZone, setUtmZone] = useState('')
+  const [hemisphere, setHemisphere] = useState<'N' | 'S' | ''>('')
+  const [zoneSuggestion, setZoneSuggestion] = useState('')
   const [surveyType, setSurveyType] = useState<SurveyType>('topographic')
   const [clientName, setClientName] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
@@ -43,20 +43,7 @@ export default function NewProjectPage() {
   const [plannedParcels, setPlannedParcels] = useState('')
   const [adjudicationSection, setAdjudicationSection] = useState('')
 
-  const handleCountryChange = (newCountry: SurveyingCountry) => {
-    setSelectedCountry(newCountry)
-    const zoneMap: Partial<Record<SurveyingCountry, [string, 'N' | 'S']>> = {
-      us: ['17', 'N'], uk: ['30', 'N'], australia: ['51', 'S'],
-      new_zealand: ['59', 'S'], south_africa: ['35', 'S'],
-      bahrain: ['39', 'N'], nigeria: ['31', 'N'], ghana: ['30', 'N'],
-      tanzania: ['37', 'S'], uganda: ['36', 'N'], india: ['44', 'N'],
-      indonesia: ['48', 'S'], brazil: ['23', 'S'],
-      saudi_arabia: ['39', 'N'], oman: ['40', 'N'], uae: ['40', 'N'],
-    }
-    const [zone, hemi] = zoneMap[newCountry] || ['37', 'S']
-    setUtmZone(zone)
-    setHemisphere(hemi)
-  }
+  const handleCountryChange = (newCountry: SurveyingCountry) => { setSelectedCountry(newCountry) }
 
   const detectZoneFromGPS = () => {
     if (!navigator.geolocation) { setError('GPS not supported'); return }
@@ -73,16 +60,6 @@ export default function NewProjectPage() {
     )
   }
 
-  const datumLabels: Record<SurveyingCountry, string> = {
-    kenya: 'ARC1960', uganda: 'ARC1960', tanzania: 'ARC1960',
-    nigeria: 'Minna', ghana: 'Gold Coast 1920', south_africa: 'Hartebeesthoek94',
-    bahrain: 'Ain Al-Abd 1970', saudi_arabia: 'IGM 1969', oman: 'OTM / GRS80',
-    uae: 'NAD83(CSRS)', new_zealand: 'NZGD2000', us: 'NAD83(2011)',
-    uk: 'OSGB36', australia: 'GDA2020', india: 'WGS84', indonesia: 'WGS84',
-    brazil: 'WGS84', rwanda: 'ARC1960', burundi: 'ARC1960',
-    south_sudan: 'ARC1960', zambia: 'ARC1960', other: 'WGS84',
-  }
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
@@ -93,13 +70,13 @@ export default function NewProjectPage() {
         name,
         survey_type: surveyType,
         location,
-        utm_zone: parseInt(utmZone) || 37,
-        hemisphere,
+        utm_zone: datum ? Number(utmZone) : null,
+        hemisphere: datum ? hemisphere || null : null,
         project_type: projectType,
         client_name: clientName || undefined,
         surveyor_name: surveyorName || undefined,
         country: selectedCountry,
-        datum: datumLabels[selectedCountry],
+        datum: datum || null,
         boundary: polygonCoordinates.length > 0 ? { type: 'Polygon', coordinates: [polygonCoordinates] } : undefined,
         area_sqm: estimatedArea || undefined,
       }
@@ -114,6 +91,9 @@ export default function NewProjectPage() {
           adjudication_section: adjudicationSection || undefined,
         })
       }
+
+      const declaration = createProjectSchema.safeParse(payload)
+      if (!declaration.success) throw new Error(declaration.error.issues[0]?.message || 'Review the project reference')
 
       const res = await fetch('/api/projects', {
         method: 'POST',
@@ -151,7 +131,6 @@ export default function NewProjectPage() {
     }
   }
 
-  const currentCountry = ALL_COUNTRIES.find((c) => c.id === selectedCountry)
   const inputClass = 'w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:ring-1 focus:ring-[var(--accent)] focus:outline-none transition-colors text-sm'
   const labelClass = 'block text-sm font-medium text-[var(--text-secondary)] mb-1.5'
 
@@ -296,8 +275,7 @@ export default function NewProjectPage() {
                 setEstimatedArea(area)
                 // Auto-detect UTM zone from drawn center
                 const { zone, hemisphere: hem } = getUTMZoneFromLatLng(center[1], center[0])
-                setUtmZone(String(zone))
-                setHemisphere(hem as 'N' | 'S')
+                setZoneSuggestion(`The location suggests UTM ${zone}${hem}; this does not establish the survey datum or control.`)
               }}
             />
             {estimatedArea && (
@@ -358,15 +336,24 @@ export default function NewProjectPage() {
             </div>
           )}
 
+          <div>
+            <label htmlFor="project-datum" className={labelClass}>Horizontal reference</label>
+            <select id="project-datum" value={datum} onChange={event => setDatum(event.target.value)} className={inputClass}>
+              <option value="">Not established — prepare project only</option>
+              <option value="WGS84">WGS 84 / UTM — choose declared zone and hemisphere</option>
+              <option value="ARC1960">Arc 1960 / UTM — choose declared zone and hemisphere</option>
+            </select>
+            <p className="mt-2 text-xs text-[var(--text-secondary)]">Choose from your source records. Country, satellite imagery and browser GPS do not establish the parcel datum. Other grids can be declared in project settings.</p>
+          </div>
           {/* UTM Zone */}
           <div>
             <label htmlFor="utm-zone" className={labelClass}>UTM Zone (1–60)</label>
             <div className="grid grid-cols-2 gap-4">
               <input id="utm-zone" type="number" value={utmZone} onChange={e => setUtmZone(e.target.value)}
-                className={inputClass} min={1} max={60} required />
+                className={inputClass} min={1} max={60} required={Boolean(datum)} placeholder="Enter declared zone" />
               <div className="flex rounded-lg border border-[var(--border-color)] overflow-hidden">
                 {(['N', 'S'] as const).map(h => (
-                  <button key={h} type="button" onClick={() => setHemisphere(h)}
+                  <button key={h} type="button" aria-pressed={hemisphere === h} onClick={() => setHemisphere(h)}
                     className={`flex-1 py-3 text-sm font-medium transition-colors ${
                       hemisphere === h ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:text-[var(--text-primary)]'
                     }`}>
@@ -393,9 +380,9 @@ export default function NewProjectPage() {
                 <option key={c.id} value={c.id}>{c.flag} {c.name}</option>
               ))}
             </select>
-            {currentCountry && (
+            {zoneSuggestion && (
               <div className="mt-2 p-3 bg-[var(--bg-tertiary)] rounded-lg border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] text-xs text-[var(--text-secondary)]">
-                Datum: <span className="text-[var(--text-primary)]">{datumLabels[selectedCountry]}</span>
+                {zoneSuggestion}
               </div>
             )}
           </div>

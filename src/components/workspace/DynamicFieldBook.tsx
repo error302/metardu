@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
-import { createClient } from '@/lib/api-client/client';
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 import { SurveyType } from '@/types/project';
 import { FieldBookColumn, FieldBookRow } from '@/types/fieldbook';
@@ -9,7 +8,6 @@ import { getFieldBookTemplate } from '@/lib/workflows/fieldBookTemplates';
 import { applyAutoCalculations, validateFieldBook, FieldBookWarning } from '@/lib/workflows/autoCalculate';
 import { runLevelingComputation, getLevelingClosureStatus } from '@/lib/compute/levelingRunner';
 import { runBowditchAdjustment, getTraversePrecisionStatus } from '@/lib/compute/traverseRunner';
-import { computeCutFillVolume, getCutFillSummary } from '@/lib/compute/volumeRunner';
 
 interface Props {
   projectId: string;
@@ -20,53 +18,12 @@ interface Props {
   startPoint?: { name: string; easting: number; northing: number };
 }
 
-const FIXED_COLUMNS = new Set([
-  'station', 'bs', 'is', 'fs', 'rl', 'instrument_height', 'remark',
-]);
-
 function emptyRow(columns: FieldBookColumn[]): FieldBookRow {
   return Object.fromEntries(columns.map((c) => [c.key, '']));
 }
 
-function rowToDbRecord(
-  row: FieldBookRow,
-  rowIndex: number,
-  projectId: string,
-  surveyType: string,
-  columns: FieldBookColumn[]
-) {
-  const fixed: Record<string, unknown> = {
-    project_id: projectId,
-    row_index: rowIndex,
-    survey_type: surveyType,
-    updated_at: new Date().toISOString(),
-  };
-
-  const rawData: Record<string, unknown> = {};
-
-  for (const col of columns) {
-    const value = row[col.key] ?? null;
-    const targetColumn = col.fixedColumn ?? (FIXED_COLUMNS.has(col.key) ? col.key : null);
-
-    if (targetColumn) {
-      if (['bs', 'is', 'fs', 'rl', 'instrument_height'].includes(targetColumn)) {
-        fixed[targetColumn] = value !== '' && value !== null ? Number(value) : null;
-      } else {
-        fixed[targetColumn] = value !== '' ? value : null;
-      }
-    } else {
-      rawData[col.key] = value !== '' ? value : null;
-    }
-  }
-
-  fixed['raw_data'] = rawData;
-  return fixed;
-}
-
 export default function DynamicFieldBook({ projectId, surveyType, initialRows = [], openingRL, closingRL, startPoint }: Props) {
   const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Field Book' });
-  // AUDIT FIX (H-007, 2026-07-27): useMemo prevents infinite loop.
-  const dbClient = useMemo(() => createClient(), []);
   const template = getFieldBookTemplate(surveyType);
 
   const [rows, setRows] = useState<FieldBookRow[]>(
@@ -75,6 +32,12 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lastSaved, setLastSaved] = useState<Date | null>(null);
+  const [loadedProject, setLoadedProject] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const revisionRef = useRef<string | null>(null);
+  const initialRowsRef = useRef(initialRows);
+  const saveInFlight = useRef(false);
   const [computeResult, setComputeResult] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<FieldBookWarning[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -89,7 +52,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const OVERSCAN = 8;
   const isVirtualized = rows.length > 50 && !isPrinting;
 
-  const { startIndex, endIndex, topSpacerHeight, bottomSpacerHeight, visibleRows } = useMemo(() => {
+  const { startIndex, topSpacerHeight, bottomSpacerHeight, visibleRows } = useMemo(() => {
     if (!isVirtualized) {
       return {
         startIndex: 0,
@@ -117,12 +80,42 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     }
   }, [surveyType, rows, engOpeningRL]);
 
-  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const rowsRef = useRef(rows);
-  rowsRef.current = rows;
+  useEffect(() => {
+    let cancelled = false;
+    setLoadedProject(null);
+    setLoadError(null);
+    setLastSaved(null);
+    revisionRef.current = null;
+    async function load() {
+      try {
+        const response = await fetch(`/api/project/${projectId}/fieldbook`);
+        if (!response.ok) throw new Error('Saved field-book rows could not be loaded. Editing is disabled to preserve existing data.');
+        const json = await response.json() as { data?: Record<string, unknown>[]; revision?: string };
+        if (!Array.isArray(json.data) || typeof json.revision !== 'string' || !/^[a-f0-9]{64}$/.test(json.revision)) throw new Error('Field-book response is incomplete. Editing is disabled.');
+        const restored = json.data.map(record => {
+          const raw = record.raw_data && typeof record.raw_data === 'object' && !Array.isArray(record.raw_data)
+            ? record.raw_data as Record<string, unknown> : {};
+          const row: FieldBookRow = { ...raw };
+          for (const column of template.columns) {
+            row[column.key] = raw[column.key] ?? record[column.fixedColumn ?? column.key] ?? '';
+          }
+          return row;
+        });
+        if (cancelled) return;
+        setRows(restored.length ? restored : initialRowsRef.current.length ? initialRowsRef.current : [emptyRow(template.columns)]);
+        revisionRef.current = json.revision;
+        setLoadedProject(projectId);
+      } catch (cause) {
+        if (!cancelled) setLoadError(cause instanceof Error ? cause.message : 'Field book could not be loaded.');
+      }
+    }
+    void load();
+    return () => { cancelled = true; };
+  }, [projectId, template, loadAttempt]);
 
   const addRow = () => {
     setRows((prev) => [...prev, emptyRow(template.columns)]);
+    setLastSaved(null);
     if (rows.length >= 50 && containerRef.current) {
       setTimeout(() => {
         if (containerRef.current) {
@@ -135,6 +128,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const removeRow = (idx: number) => {
     if (deleteConfirm === idx) {
       setRows((prev) => prev.filter((_, i) => i !== idx));
+      setLastSaved(null);
       setDeleteConfirm(null);
     } else {
       setDeleteConfirm(idx);
@@ -151,20 +145,8 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       return recalculated;
     });
 
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(async () => {
-      setSaving(true);
-      const records = rowsRef.current.map((row: FieldBookRow, idx: number) =>
-        rowToDbRecord(row, idx, projectId, surveyType, template.columns)
-      );
-      const { error: dbError } = await dbClient
-        .from('project_fieldbook_entries')
-        .upsert(records, { onConflict: 'project_id,row_index' });
-      if (!dbError) setLastSaved(new Date());
-      setSaving(false);
-    }, 500);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [surveyType, projectId, template.columns, dbClient]);
+    setLastSaved(null);
+  }, [surveyType]);
 
   const handleCompute = useCallback(() => {
     try {
@@ -218,7 +200,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       } else if (surveyType === 'drone') {
         setComputeResult('Drone survey processing — import ground control points and process aerial imagery');
       } else if (surveyType === 'deformation') {
-        const epochs = new Set(rows.map((r) => r.epoch).filter(Boolean));
+        const epochs = new Set(rows.map((r) => typeof r.epoch === 'string' || typeof r.epoch === 'number' ? String(r.epoch) : '').filter(Boolean));
         if (epochs.size < 2) {
           setComputeResult('Minimum 2 epochs required for comparison');
         } else {
@@ -231,23 +213,25 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   }, [rows, surveyType, openingRL, closingRL, startPoint, engOpeningRL, engClosingRL, engDistanceKm]);
 
   const handleSave = async () => {
+    if (saveInFlight.current || loadedProject !== projectId || !revisionRef.current) return;
+    saveInFlight.current = true;
     setSaving(true);
     setError(null);
-
-    const records = rows.map((row: FieldBookRow, idx: number) =>
-      rowToDbRecord(row, idx, projectId, surveyType, template.columns)
-    );
-
-    const { error: dbError } = await dbClient
-      .from('project_fieldbook_entries')
-      .upsert(records, { onConflict: 'project_id,row_index' });
-
-    if (dbError) {
-      setError('Save failed: ' + dbError.message);
-    } else {
+    try {
+      const response = await fetch(`/api/project/${projectId}/fieldbook`, {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rows, revision: revisionRef.current, ...(startPoint ? { startPoint } : {}) }),
+      });
+      const json = await response.json() as { saved?: boolean; revision?: string; error?: string };
+      if (!response.ok || !json.saved || typeof json.revision !== 'string' || !/^[a-f0-9]{64}$/.test(json.revision)) throw new Error(json.error || 'Save was not confirmed. Your edits remain on screen.');
+      revisionRef.current = json.revision;
       setLastSaved(new Date());
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Save failed. Your edits remain on screen.');
+    } finally {
+      saveInFlight.current = false;
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const renderCell = (col: FieldBookColumn, row: FieldBookRow, rowIdx: number) => {
@@ -296,13 +280,20 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     }
   };
 
+  if (loadedProject !== projectId) return (
+    <div role={loadError ? 'alert' : 'status'} className="p-4 text-sm text-[var(--text-secondary)]">
+      {loadError || 'Loading saved field-book rows…'}
+      {loadError && <button type="button" onClick={() => setLoadAttempt(value => value + 1)} className="ml-3 underline">Retry loading</button>}
+    </div>
+  );
+
   return (
     <div className="rounded-lg border border-gray-200 bg-white overflow-hidden">
       <PrintHeader title="Field Book" />
       <div className="px-4 py-3 border-b border-gray-100 flex items-start justify-between gap-4">
         <div>
           <h3 className="font-semibold text-gray-900 text-sm">{template.title}</h3>
-          <p className="text-xs text-gray-500 mt-0.5">{template.description}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{template.description} Save records your edits; drafts are not saved automatically.</p>
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 no-print print-hide">
           {lastSaved && <span className="text-xs text-green-600">Saved {lastSaved.toLocaleTimeString()}</span>}
@@ -368,6 +359,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         </div>
       )}
 
+      <fieldset disabled={saving} className="min-w-0 border-0 p-0 m-0">
       <div
         ref={containerRef}
         onScroll={(e) => {
@@ -427,9 +419,9 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           </tbody>
         </table>
       </div>
-
+      </fieldset>
       <div className="px-4 py-2 border-t border-gray-100 flex items-center justify-between">
-        <button onClick={addRow} className="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add Row</button>
+        <button onClick={addRow} disabled={saving} className="text-xs text-blue-600 hover:text-blue-800 font-medium">+ Add Row</button>
         <div className="flex items-center gap-3">
           {isVirtualized && (
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">

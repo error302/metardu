@@ -68,3 +68,73 @@ shared floating map-control layout as the cross-device reference. Browser contro
 was recovered by opening a fresh allowed HTTP preview tab. The simulation uses a
 labelled ordinary-credentials account in the already-marked synthetic database;
 no production login, signing key or customer record is altered by that setup.
+
+## Visible source simulation: follow-up repairs
+
+The fresh in-app browser reached the source preview with an ordinary synthetic
+sign-in. A project was created through the UI, with WGS 84 / UTM 37S explicitly
+declared as a simulation working grid; heights, survey control, field accuracy,
+legal boundary and professional acceptance remain unknown. A four-corner outline
+of the owner-indicated compound was traced, labelled as an unverified simulation,
+saved to that synthetic project and downloaded. Native PostGIS checked the
+projected outline and its planar leg values. These checks do not measure the
+parcel or establish independent traverse closure.
+
+The first GeoJSON download was double-encoded. The browser exporter now writes
+the formatter's JSON string directly; a normal GeoJSON reader parses the file
+once. A repeat browser download verified the object contract. A current-map PDF
+was downloaded and rendered for review; it retains the simulation feature label,
+source credit, working CRS and non-certified current-view disclaimer. Private
+geometry and artifacts stay under `.cache/survey-simulation/`, outside Git.
+
+Additional verified source defects and repairs:
+
+- New-project country selection silently guessed datum, zone and hemisphere.
+  Both UI and create API now allow an honestly absent reference or require a
+  complete supported explicit metre grid. Sketches suggest a zone without
+  overwriting the user's chosen reference. No migration is required.
+- The project map refused to open before survey points existed. Its route now
+  opens the shared capture map with the linked project's declared CRS; the old
+  coordinate review remains at `/project/[id]/map/review`.
+- The scheme overlay queried two columns absent from the applied canonical
+  schema: optional `blocks.block_name` and `parcel_traverses.computed_at`.
+  The read query tolerates absent optional names and orders eligible traverse
+  records by their existing update timestamp. Both query shapes ran against the
+  marked synthetic schema. This is not a full scheme boundary-ordering audit.
+- Map drawing controls expose pressed state. COGO now has an explicit decimal
+  degree / DDD.MMSS selector, clears old inputs/results on notation changes, and
+  rejects malformed coordinates and invalid minute/second fields. Resection
+  angle examples agree with the selected notation. Claims of automatic SoK
+  compliance were removed; calculations remain planar project-grid results.
+- Observation batches saved successfully but were invisible because the panel
+  expected a nested response while its API returns top-level `batches`. The
+  panel now consumes the actual contract, reports malformed responses, and
+  exposes source/observation notes. The saved simulation batch became visible.
+- The legacy dynamic field book started empty and could upsert over saved rows.
+  It now loads the canonical project field-book endpoint before enabling edits,
+  preserves existing raw metadata and fixed-column values, and uses an explicit
+  save through its transaction. Load failure disables editing. A content-bound
+  revision is required on replacement; stale revisions are rejected before
+  mutation. Changes remain on screen after save failure. Deletion uses the
+  existing route's soft-delete/version history rather than a blind proxy write.
+
+The simulation has not established field observations or legal acceptance. The
+legacy field-book proxy writers and navigation with unsaved drafts still need a
+broader concurrency/recovery audit. Initial new-project location sketches are
+currently submitted by the UI but not persisted by its create API; that separate
+gap must not be described as a saved boundary. Native projection in the existing
+Python worker is unavailable because `pyproj` is missing; the marked synthetic
+PostGIS check is a separate source-test capability. Final responsive checks,
+complete project computations, draft document issuance and a consolidated
+production promotion remain outstanding. No customer database was modified and
+the owner's signing-key rotation deferral remains in force.
+
+Verification checkpoint: the nine focused suites passed all 22 checks, and both
+application and test TypeScript checks passed. Browser save/reopen retained all
+four labelled simulation legs. The inline traverse action correctly withheld a
+result without a starting coordinate, but directed the user to settings that do
+not expose that input. The project computation route also needs review of its
+legacy observation-table contract and fallback starting coordinates before this
+simulation can claim a complete compute-to-draft path. These are remaining source
+blockers, separate from the already exported reconnaissance map. No production
+promotion of this follow-up has occurred.

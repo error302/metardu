@@ -47,8 +47,10 @@ export default function ObserveStagePanel({ projectId, surveyType = 'cadastral' 
       setLoading(true)
       const res = await fetch(`/api/project/${projectId}/batches`)
       if (!res.ok) throw new Error('Failed to load observation batches')
-      const json = (await res.json()) as { data?: { batches?: ObservationBatch[] } }
-      setBatches(json.data?.batches || [])
+      const json = (await res.json()) as { batches?: ObservationBatch[] }
+      if (!Array.isArray(json.batches)) throw new Error('Observation batch response is invalid. Refresh to retry.')
+      setBatches(json.batches)
+      setError(null)
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Error loading batches')
     } finally {
@@ -421,6 +423,12 @@ export default function ObserveStagePanel({ projectId, surveyType = 'cadastral' 
                 </p>
               </div>
 
+              <label className="block text-[11px] font-semibold text-[var(--text-secondary)]">
+                Source and observation notes
+                <textarea aria-label="Source and observation notes" value={notes} onChange={event => setNotes(event.target.value)}
+                  placeholder="Record source limitations, simulation status, and any unknown instrument or reference details."
+                  className="mt-1 min-h-20 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2 text-xs" />
+              </label>
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-[var(--border-color)]">
                 <button
                   type="button"

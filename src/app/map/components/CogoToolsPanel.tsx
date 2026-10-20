@@ -2,7 +2,7 @@
 /**
  * CogoToolsPanel — Interactive COGO computation tools for surveyors
  *
- * Provides four SoK-compliant computation methods:
+ * Provides four planar computation methods in the declared project grid:
  * 1. Radiation — compute point from station + bearing + distance
  * 2. Bearing Intersection — intersect two rays from known stations
  * 3. Distance Intersection — intersect two circles (trilateration)
@@ -22,17 +22,18 @@ import { radiation } from '@/lib/engine/cogo'
 import { bearingIntersection } from '@/lib/engine/cogo'
 import { distanceIntersection } from '@/lib/engine/cogo'
 import { tienstraResection } from '@/lib/engine/cogo'
-import { bearingToString, parseFieldAngle } from '@/lib/engine/angles'
+import { bearingToString } from '@/lib/engine/angles'
+import { parseCogoBearing, type CogoBearingFormat } from '@/lib/engine/cogoBearingInput'
 import type { Point2D } from '@/lib/engine/types'
 import { logger } from '@/lib/logger'
 
 // ─── Shared Helpers ──────────────────────────────────────────────────────
 
-/** Parse bearing input — accepts DDD.MMSS, decimal degrees, or DMS string */
-function parseBearing(input: string): number | null {
-  const trimmed = input.trim()
-  if (!trimmed) return null
-  return parseFieldAngle(trimmed)
+const BearingFormatContext = React.createContext<CogoBearingFormat>('decimal')
+
+function parseFiniteInput(input: string): number {
+  const value = input.trim() ? Number(input) : NaN
+  return Number.isFinite(value) ? value : NaN
 }
 
 /** Format a computed point for display */
@@ -105,6 +106,7 @@ const TABS: { id: TabId; label: string; icon: React.ReactNode }[] = [
 // ─── Radiation Panel ─────────────────────────────────────────────────────
 
 function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string) => void }) {
+  const bearingFormat = React.useContext(BearingFormatContext)
   const [easting, setEasting] = useState('')
   const [northing, setNorthing] = useState('')
   const [bearing, setBearing] = useState('')
@@ -115,18 +117,18 @@ function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
   const compute = useCallback(() => {
     setError('')
     setResult(null)
-    const e = parseFloat(easting)
-    const n = parseFloat(northing)
-    const b = parseBearing(bearing)
-    const d = parseFloat(distance)
+    const e = parseFiniteInput(easting)
+    const n = parseFiniteInput(northing)
+    const b = parseCogoBearing(bearing, bearingFormat)
+    const d = parseFiniteInput(distance)
 
     if (isNaN(e) || isNaN(n)) { setError('Invalid station coordinates'); return }
-    if (b === null) { setError('Invalid bearing (use DDD.MMSS or decimal)'); return }
+    if (b === null) { setError('Enter a valid bearing in the selected angle format.'); return }
     if (isNaN(d) || d <= 0) { setError('Distance must be positive'); return }
 
     const res = radiation({ easting: e, northing: n }, b, d)
     setResult({ point: res.point, bearing: res.bearing, distance: res.distance })
-  }, [easting, northing, bearing, distance])
+  }, [easting, northing, bearing, distance, bearingFormat])
 
   return (
     <div className="space-y-2.5">
@@ -138,7 +140,7 @@ function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
         <Field label="E" value={easting} onChange={setEasting} placeholder="e.g. 512345.678" />
         <Field label="N" value={northing} onChange={setNorthing} placeholder="e.g. 9834567.890" />
         <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Observation</div>
-        <Field label="Brg" value={bearing} onChange={setBearing} placeholder="e.g. 47.2314 or 47.3861" />
+        <Field label="Brg" value={bearing} onChange={setBearing} placeholder={bearingFormat === 'decimal' ? 'e.g. 47.3861' : 'e.g. 47.2314'} />
         <Field label="Dist" value={distance} onChange={setDistance} placeholder="e.g. 125.450" type="number" />
       </div>
       <ComputeButton onClick={compute} />
@@ -166,6 +168,7 @@ function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
 // ─── Bearing Intersection Panel ──────────────────────────────────────────
 
 function BearingIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string) => void }) {
+  const bearingFormat = React.useContext(BearingFormatContext)
   const [eA, setEA] = useState('')
   const [nA, setNA] = useState('')
   const [brgA, setBrgA] = useState('')
@@ -178,11 +181,11 @@ function BearingIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, lab
   const compute = useCallback(() => {
     setError('')
     setResult(null)
-    const ea = parseFloat(eA), na = parseFloat(nA), ba = parseBearing(brgA)
-    const eb = parseFloat(eB), nb = parseFloat(nB), bb = parseBearing(brgB)
+    const ea = parseFiniteInput(eA), na = parseFiniteInput(nA), ba = parseCogoBearing(brgA, bearingFormat)
+    const eb = parseFiniteInput(eB), nb = parseFiniteInput(nB), bb = parseCogoBearing(brgB, bearingFormat)
 
     if ([ea, na, eb, nb].some(isNaN)) { setError('Invalid station coordinates'); return }
-    if (ba === null || bb === null) { setError('Invalid bearing (use DDD.MMSS or decimal)'); return }
+    if (ba === null || bb === null) { setError('Enter valid bearings in the selected angle format.'); return }
 
     const res = bearingIntersection(
       { easting: ea, northing: na }, ba,
@@ -190,7 +193,7 @@ function BearingIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, lab
     )
     if (!res) { setError('Bearings are parallel — no intersection'); return }
     setResult({ point: res.point, distA: res.distanceFromA, distB: res.distanceFromB })
-  }, [eA, nA, brgA, eB, nB, brgB])
+  }, [eA, nA, brgA, eB, nB, brgB, bearingFormat])
 
   return (
     <div className="space-y-2.5">
@@ -245,8 +248,8 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
   const compute = useCallback(() => {
     setError('')
     setResult(null)
-    const ea = parseFloat(eA), na = parseFloat(nA), da = parseFloat(distA)
-    const eb = parseFloat(eB), nb = parseFloat(nB), db = parseFloat(distB)
+    const ea = parseFiniteInput(eA), na = parseFiniteInput(nA), da = parseFiniteInput(distA)
+    const eb = parseFiniteInput(eB), nb = parseFiniteInput(nB), db = parseFiniteInput(distB)
 
     if ([ea, na, da, eb, nb, db].some(isNaN)) { setError('Invalid inputs'); return }
     if (da <= 0 || db <= 0) { setError('Distances must be positive'); return }
@@ -314,6 +317,7 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
 // ─── Resection Panel ─────────────────────────────────────────────────────
 
 function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string) => void }) {
+  const bearingFormat = React.useContext(BearingFormatContext)
   const [e1, setE1] = useState(''), [n1, setN1] = useState('')
   const [e2, setE2] = useState(''), [n2, setN2] = useState('')
   const [e3, setE3] = useState(''), [n3, setN3] = useState('')
@@ -324,12 +328,12 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
   const compute = useCallback(() => {
     setError('')
     setResult(null)
-    const pe1 = parseFloat(e1), pn1 = parseFloat(n1)
-    const pe2 = parseFloat(e2), pn2 = parseFloat(n2)
-    const pe3 = parseFloat(e3), pn3 = parseFloat(n3)
-    const ang12 = parseFloat(a12), ang23 = parseFloat(a23)
+    const pe1 = parseFiniteInput(e1), pn1 = parseFiniteInput(n1)
+    const pe2 = parseFiniteInput(e2), pn2 = parseFiniteInput(n2)
+    const pe3 = parseFiniteInput(e3), pn3 = parseFiniteInput(n3)
+    const ang12 = parseCogoBearing(a12, bearingFormat), ang23 = parseCogoBearing(a23, bearingFormat)
 
-    if ([pe1, pn1, pe2, pn2, pe3, pn3, ang12, ang23].some(isNaN)) {
+    if (ang12 === null || ang23 === null || [pe1, pn1, pe2, pn2, pe3, pn3].some(isNaN)) {
       setError('Invalid inputs'); return
     }
     if (ang12 <= 0 || ang23 <= 0 || (ang12 + ang23) >= 360) {
@@ -344,7 +348,7 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
     )
     if (!res) { setError('Resection failed — check geometry'); return }
     setResult({ point: res.point, d1: res.distanceToP1, d2: res.distanceToP2, d3: res.distanceToP3 })
-  }, [e1, n1, e2, n2, e3, n3, a12, a23])
+  }, [e1, n1, e2, n2, e3, n3, a12, a23, bearingFormat])
 
   return (
     <div className="space-y-2.5">
@@ -362,8 +366,8 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
         <Field label="E" value={e3} onChange={setE3} placeholder="512600.000" />
         <Field label="N" value={n3} onChange={setN3} placeholder="9834700.000" />
         <div className="text-[9px] text-[var(--text-secondary)] uppercase tracking-wider font-semibold pt-1">Observed Angles</div>
-        <Field label="∠12" value={a12} onChange={setA12} placeholder="e.g. 45.5000 (45°30')" />
-        <Field label="∠23" value={a23} onChange={setA23} placeholder="e.g. 52.1500 (52°15')" />
+        <Field label="∠12" value={a12} onChange={setA12} placeholder={bearingFormat === 'decimal' ? '45.5 = 45°30′' : '45.3000 = 45°30′'} />
+        <Field label="∠23" value={a23} onChange={setA23} placeholder={bearingFormat === 'decimal' ? '52.25 = 52°15′' : '52.1500 = 52°15′'} />
       </div>
       <ComputeButton onClick={compute} />
       {error && <div className="text-[10px] text-[var(--error)]">{error}</div>}
@@ -395,6 +399,7 @@ function CogoToolsPanelInner() {
   const { mapInstance, currentSurveyCrs, setSaveMsg } = useMapContext()
   const [activeTab, setActiveTab] = useState<TabId>('radiation')
   const [expanded, setExpanded] = useState(true)
+  const [bearingFormat, setBearingFormat] = useState<CogoBearingFormat>('decimal')
 
   // ── Add computed point to map as a vector feature ──
   const handleAddPoint = useCallback(async (point: Point2D, labelPrefix: string) => {
@@ -501,6 +506,17 @@ function CogoToolsPanelInner() {
             ))}
           </div>
 
+          <label className="block px-3 pt-2 text-xs text-[var(--text-secondary)]">
+            Angle format
+            <select aria-label="Angle format" value={bearingFormat}
+              onChange={event => setBearingFormat(event.target.value as CogoBearingFormat)}
+              className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--bg-card)] p-2 text-xs">
+              <option value="decimal">Decimal degrees</option>
+              <option value="packed-dms">Field book DDD.MMSS</option>
+            </select>
+          </label>
+          {/* Changing notation clears inputs/results so old values cannot be reinterpreted. */}
+          <BearingFormatContext.Provider value={bearingFormat} key={bearingFormat}>
           {/* ── Tab content ── */}
           <div className="px-3 py-2.5 max-h-[60vh] overflow-y-auto">
             {activeTab === 'radiation' && <RadiationPanel onAddPoint={handleAddPoint} />}
@@ -512,9 +528,10 @@ function CogoToolsPanelInner() {
           {/* ── Footer hint ── */}
           <div className="px-3 py-1.5 border-t border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)]">
             <div className="text-[9px] text-[var(--text-secondary)]">
-              Bearings: DDD.MMSS (e.g. 47.2314 = 47° 23' 14") or decimal degrees
+              Grid bearings and planar distances. {bearingFormat === 'packed-dms' ? '47.2314 = 47° 23′ 14″.' : '47.5 = 47° 30′.'} Field accuracy and ground scale require separate evidence.
             </div>
           </div>
+          </BearingFormatContext.Provider>
         </>
       )}
     </div>
