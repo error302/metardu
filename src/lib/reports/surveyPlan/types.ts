@@ -60,6 +60,8 @@ export interface SurveyPlanData {
     street?: string
     roadEdge?: string
     road_class?: string
+    /** Explicit recorded/design width; a road class alone is not width evidence. */
+    roadReserveWidthMetres?: number
     roadCenterLine?: Array<{ easting: number; northing: number }>
     startChainage?: number
     roadName?: string
@@ -181,7 +183,7 @@ export interface CoordinateScheduleEntry {
   northing: number
   easting: number
   height?: number
-  beaconClass: 'new' | 'old' | 'theoretical' | 'IPCU'
+  beaconClass: 'new' | 'old' | 'theoretical' | 'IPCU' | 'unverified'
   description?: string
 }
 

@@ -51,3 +51,25 @@ test('precision denominator is not inverted', () => {
   expect(html).toContain('1 : 10,000')
   expect(html).not.toContain('1 : 0')
 })
+
+const crs = 'EPSG:' + (32700 + 37)
+const revision = 'a'.repeat(64)
+const gridSaved = { ...saved, boundary_data: { ...saved.boundary_data, computation: {
+  source: 'recorded-grid-traverse', crs, source_revision: revision, acceptance_status: 'draft_unverified', field_verified: false,
+} } }
+
+test('grid draft documents require the current revision and never turn a typed start coordinate into verified control', () => {
+  const evidence = resolveDocumentEvidence(gridSaved, [], { projectCrs: crs, fieldBookRevision: revision })
+  expect(evidence.boundaryPoints).toHaveLength(4)
+  expect(evidence.points.every(point => !point.is_control)).toBe(true)
+  expect(evidence.traverse?.precisionGrade).toBe('Unverified')
+})
+
+test.each([
+  undefined,
+  { projectCrs: null, fieldBookRevision: revision },
+  { projectCrs: 'EPSG:' + (32700 + 36), fieldBookRevision: revision },
+  { projectCrs: crs, fieldBookRevision: 'b'.repeat(64) },
+])('stale or unbound grid drafts cannot generate a document (%j)', current => {
+  expect(() => resolveDocumentEvidence(gridSaved, [], current)).toThrow(/recompute/i)
+})

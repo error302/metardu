@@ -144,14 +144,14 @@ export function FieldToFinishButton({ projectId, disabled }: FieldToFinishButton
         ) : (
           <>
             <Zap className="w-4 h-4" />
-            Field to Finish — One Click
+            Compute saved grid traverse
           </>
         )}
       </button>
 
       {/* Error */}
       {error && (
-        <div className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
+        <div role="alert" className="flex items-start gap-2 p-3 rounded-lg bg-red-500/10 border border-red-500/30 text-red-400 text-sm">
           <XCircle className="w-4 h-4 shrink-0 mt-0.5" />
           <span>{error}</span>
         </div>
@@ -179,13 +179,15 @@ export function FieldToFinishButton({ projectId, disabled }: FieldToFinishButton
                 result.status === 'warning' ? 'text-yellow-400' :
                 'text-red-400'
               }`}>
-                {result.status === 'ready' ? 'Ready for Submission' :
-                 result.status === 'warning' ? 'Ready with Warnings' :
+                {result.status === 'ready' ? 'Computed draft — review required' :
+                 result.status === 'warning' ? 'Computed draft — review warnings' :
                  'Issues Found'}
               </span>
             </div>
             <span className="text-xs text-[var(--text-muted)]">{result.processingTimeMs}ms</span>
           </div>
+
+          <p className="p-3 text-sm">Field evidence, boundary correctness and professional acceptance are unverified. Numerical closure does not certify this survey.</p>
 
           {/* Quick Stats */}
           <div className="grid grid-cols-3 gap-2 p-3 bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)]">
@@ -212,6 +214,7 @@ export function FieldToFinishButton({ projectId, disabled }: FieldToFinishButton
           {/* Expandable Details */}
           <button
             onClick={() => setExpanded(!expanded)}
+            aria-expanded={expanded}
             className="w-full flex items-center justify-between px-3 py-2 text-xs text-[var(--text-muted)] hover:bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] transition-colors border-t border-[var(--border-color)]"
           >
             <span>Details & Pre-Submission Check</span>
@@ -241,9 +244,9 @@ export function FieldToFinishButton({ projectId, disabled }: FieldToFinishButton
               {/* EDM Corrections Summary */}
               {result.corrections.length > 0 && (
                 <div className="text-xs">
-                  <div className="font-medium text-[var(--text-secondary)] mb-1">EDM Corrections Applied</div>
+                  <div className="font-medium text-[var(--text-secondary)] mb-1">Recorded grid distances</div>
                   <div className="text-muted-foreground">
-                    {result.corrections.length} observation(s) corrected — atmospheric, C&R, grid scale factor
+                    {result.corrections.length} entered grid distance(s) used. No instrument or atmospheric correction is established by this workflow.
                   </div>
                 </div>
               )}
@@ -281,7 +284,7 @@ export function FieldToFinishButton({ projectId, disabled }: FieldToFinishButton
                 <div className="text-xs">
                   <div className="flex items-center gap-1.5 mb-1">
                     <FileText className="w-3 h-3 text-muted-foreground" />
-                    <span className="font-medium text-[var(--text-secondary)]">Deed Plan Data Ready</span>
+                    <span className="font-medium text-[var(--text-secondary)]">Draft boundary geometry</span>
                   </div>
                   <div className="text-muted-foreground ml-5">
                     {result.deedPlanData.boundaryLegs.length} boundary legs, area: {(result.deedPlanData.area / 10000).toFixed(4)} ha

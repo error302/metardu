@@ -153,3 +153,75 @@ filter `none`, with a rendered tablet check). A narrow-tablet scale/dock overlap
 was also found and its clearance adjusted. These are browser-emulated viewport
 checks, not physical-device or offline acceptance. Final tablet-clearance and
 short-phone checks remain to be recorded.
+
+
+### Saved field-book computation and draft-renderer follow-up
+
+The synthetic parcel-workflow simulation now has four explicitly labelled grid-distance
+legs and a user-entered, CRS-bound starting coordinate saved through the visible
+browser. The computed boundary was saved as design revision R01 with one
+computation run and mandatory QA records. A read-only transaction against the
+marked synthetic database compared all four adjusted positions, area and
+perimeter with the independent native PostGIS outline: agreement within 1e-6 m
+for coordinates and 1e-6 m² for area. These are imagery-simulation results,
+not measured parcel dimensions. Private dimensions are retained only in the
+local verification artifacts. Closure is constructed, not independent field evidence.
+Private source observations, geometry and rendered artifacts remain outside Git.
+
+Source repairs in this follow-up:
+
+- Starting coordinates have an explicit project-grid confirmation and source /
+  limitations note; blanks stay unknown. Row and control edits save together.
+  Omitted control metadata is retained. Revision tokens include the starting
+  coordinate, and concurrent ownership/input changes reject before mutation.
+- The compute route reads canonical project_fieldbook_entries, validates closed
+  station order and explicit grid-distance basis, and requires the declared
+  project CRS. Missing control, un-oriented circle readings and unsupported
+  slope reductions cannot turn into a default origin, bearing or EDM model.
+- The transaction writes existing applied-schema fields and persists adjusted
+  and original coordinates alongside the source revision. Boundary sketches
+  remain intact. Mandatory design/computation/QA failures roll back the save.
+  Input provenance now identifies the field-book content revision separately
+  from the previous design revision. That last metadata change has focused
+  source-test proof; the existing R01 browser run predates that refinement.
+- Closure feedback reports original leg residuals, not the zero residual of the
+  forced adjusted polygon. No monument type, height, instrument correction or
+  professional acceptance is manufactured. Every result remains draft_unverified.
+- Documents reject a saved grid computation when its declared CRS or current
+  field-book revision differs. The entered starting coordinate does not become
+  verified control. The server deed-plan draft no longer inserts certification.
+- Visible Form No. 4 preview exposed false compliance/certification wording,
+  guessed 12 m road widths, truncation claims and issued revisions. Both layout
+  paths are being changed to explicit review drafts without automatic approval
+  or seals. Explicit recorded road width is distinct from road classification.
+- The scale bar previously labelled a 40 mm bar at 1:200 as 800 m. Its corrected
+  physical relationship is 8 m. The PDF exporter used a nonexistent addSvg API;
+  the installed library exposes svg. PDF and preview must use the same selected
+  layout. Downloaded SVG review also exposed raw-coordinate label placement and
+  rotation-dependent grid bearings; regression checks and repairs are ongoing.
+
+Verification remains split: 80 focused field-book/geometry/atomicity tests passed,
+then the added document-evidence suite and geometry suite passed 43 checks. App
+and test TypeScript passed before the later renderer work; final renderer checks,
+updated layout evidence, PDF download and the combined push gate are outstanding.
+The first broader renderer run passed 140/143; its remaining expectations were
+old certification copy and the changed layout snapshot. No production promotion
+or production signing-key rotation has occurred. Physical field accuracy,
+professional acceptance, private offline-device evidence, legacy proxy-writer
+concurrency and unsaved-navigation recovery remain separate unfinished work.
+
+
+The corrected form layout was subsequently downloaded as an unsigned PDF through
+the normal browser control. The one-page file was parsed and rendered locally:
+four named simulation stations, unknown heights, visible leg labels, declared
+grid, physical scale bar and unverified-draft notices are retained; automatic
+certification, seals, default road widths and fabricated revision issuance are
+absent. Raster review found off-sheet leg labels (grid metres used as SVG pixels)
+and display rotation changing printed grid bearings. New regression checks
+reproduced both defects before their repair. The corrected renderer maps label
+positions into the page viewport and retains bearings from original grid points.
+DMS display also carries rounded seconds correctly across minute/degree limits.
+All 144 targeted renderer/geometry/draft checks passed. The existing standard
+layout snapshot is being refreshed for the reviewed draft/scale/layout changes.
+Final combined gates and a repeat PDF check after legend/footer refinements are
+still required. The unsigned draft is not a certified deed plan or field survey.

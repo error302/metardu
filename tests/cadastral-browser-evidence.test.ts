@@ -12,7 +12,27 @@ test('the browser grid-distance rectangle produces 8000 m² without an extra EDM
   expect(result.area.squareMetres).toBeCloseTo(8000, 5)
   expect(result.instantFeedback.perimeter).toBeCloseTo(360, 8)
   expect(result.adjustedPoints.map(p=>p.name)).toEqual(['A1','A2','A10','A3','A1'])
-  expect(result.corrections.every(c=>c.atmosphericPPM===0 && c.scaleFactor===1)).toBe(true)
+  expect(result.corrections).toEqual([])
+  expect(result.adjustedPoints[1]).toMatchObject({ originalEasting: 500000, originalNorthing: 9900080 })
+})
+
+test('closure reports the original leg residual rather than a forced adjusted polygon', async () => {
+  const changed = entries.map((entry, index) => index === 3 ? { ...entry, raw_data: { ...entry.raw_data, distance: 99.99 } } : entry)
+  const result = await fieldToFinish(prepareCadastralInput(project, changed, []))
+  expect(result.status).not.toBe('failed')
+  expect(result.closureCheck.closingErrorE).toBeCloseTo(result.instantFeedback.closingErrorE, 10)
+  expect(Math.abs(result.closureCheck.closingErrorE)).toBeCloseTo(0.01, 7)
+  expect(result.adjustedPoints.at(-1)?.originalEasting).toBeCloseTo(500000.01, 6)
+})
+
+test('the calculation library cannot invent an oriented bearing or reduce a slope using defaults', async () => {
+  const input = prepareCadastralInput(project, entries, [])
+  for (const observation of [{ ...input.observations[0], bearing: undefined }, { ...input.observations[0], distanceType: 'slope' as const }]) {
+    const result = await fieldToFinish({ ...input, observations: [observation, ...input.observations.slice(1)] })
+    expect(result.status).toBe('failed')
+    expect(result.adjustedPoints).toEqual([])
+    expect(result.errors.join(' ')).toMatch(/grid|oriented|reduction/i)
+  }
 })
 test('missing control is rejected instead of placing the survey at a sample location', () => {
   expect(()=>prepareCadastralInput({},entries,[])).toThrow(/control/i)

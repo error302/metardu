@@ -28,8 +28,10 @@ export function calcScaleLabel(scale: number): string {
   return `1:${scale.toLocaleString()}`
 }
 
-export function calcScaleBarMetres(scale: number): number {
-  return scale >= 1000 ? 500 : 200
+/** Ground metres per segment for a bar printed at the declared ratio. */
+export function calcScaleBarMetres(scale: number, barLengthMm = 40, segments = 4): number {
+  if (!Number.isFinite(scale) || scale <= 0 || !Number.isFinite(barLengthMm) || barLengthMm <= 0 || !Number.isInteger(segments) || segments <= 0) throw new Error('A positive scale, bar length and segment count are required.')
+  return barLengthMm * scale / (1000 * segments)
 }
 
 export function bearingFromDelta(dE: number, dN: number): number {
@@ -101,10 +103,11 @@ export function boundingBox(points: Array<{ easting: number; northing: number }>
 }
 
 export function formatBearingDegMinSec(deg: number): string {
-  const d = Math.floor(deg)
-  const mFloat = (deg - d) * 60
-  const m = Math.floor(mFloat)
-  const s = (mFloat - m) * 60
+  if (!Number.isFinite(deg) || deg < 0 || deg > 360) throw new Error('Bearing must be finite and within 0–360 degrees.')
+  const ticks = Math.round(deg * 36000) % (360 * 36000)
+  const d = Math.floor(ticks / 36000)
+  const m = Math.floor((ticks % 36000) / 600)
+  const s = (ticks % 600) / 10
   return `${String(d).padStart(3,'0')}°${String(m).padStart(2,'0')}'${s.toFixed(1).padStart(4,'0')}"`
 }
 

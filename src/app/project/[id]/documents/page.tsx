@@ -5,6 +5,8 @@ import { useState, useEffect, useCallback } from 'react'
 import { resolveDocumentEvidence, type DocumentProject } from '@/lib/reports/documentEvidence'
 import { createClient } from '@/lib/api-client/client'
 import { reportCrs } from '@/lib/generators/reportCrs'
+import { resolveEpsg } from '@/lib/spatial/projectCrs'
+import { z } from 'zod'
 import { ProfessionalDisclaimer } from '@/components/shared/ProfessionalDisclaimer'
 import dynamic from 'next/dynamic'
 import {
@@ -344,6 +346,7 @@ export default function DocumentsPage() {
   const [prs, setPrs]           = useState<PrsRow | null>(null)
   const [surveyorDetails, setSurveyorDetails] = useState<Record<string,string>>({})
   const [activeTab, setActiveTab] = useState<'docs' | 'plan'>('docs')
+  const [planLayout, setPlanLayout] = useState<'standard' | 'form4'>('form4')
   const [activeDoc, setActiveDoc] = useState<SurveyDocType | null>(null)
   const [extraFields, setExtraFields] = useState<Record<string,Record<string,string>>>({})
   const [submissionNumber, setSubmissionNumber] = useState<string>('')
@@ -367,7 +370,7 @@ export default function DocumentsPage() {
     const projRes = await dbClient.from('projects').select('*').eq('id', params.id).single()
     const ptsRes = await dbClient.from('survey_points').select('*').eq('project_id', params.id).order('created_at')
     if (projRes.error || ptsRes.error) throw new Error('Saved project evidence could not be loaded. Reload before generating documents.')
-    const proj = (projRes as { data: DocumentProject | null }).data
+    let proj = (projRes as { data: DocumentProject | null }).data
     const pts = (ptsRes as { data: SurveyPoint[] | null }).data
 
     // Declared vertical datum (if any) — carried into the plan title block.
@@ -380,11 +383,23 @@ export default function DocumentsPage() {
     setPrs(prsRows?.[0] ?? null)
 
     if (proj) {
-      setProject(proj)
+      let current: { projectCrs: string | null; fieldBookRevision: string } | undefined
+      if (proj.boundary_data?.computation?.source === 'recorded-grid-traverse') {
+        const response = await fetch(`/api/project/${params.id}/fieldbook`)
+        const payload: unknown = await response.json()
+        const book = z.object({ projectCrs: z.string().nullable(), revision: z.string().regex(/^[a-f0-9]{64}$/) }).safeParse(payload)
+        if (!response.ok || !book.success || !book.data.projectCrs) throw new Error('Current field-book reference could not be verified. Reload before generating documents.')
+        current = { projectCrs: book.data.projectCrs, fieldBookRevision: book.data.revision }
+        const info = resolveEpsg(book.data.projectCrs)
+        if (!info.zone || !info.hemisphere) throw new Error('This document layout requires a declared supported UTM grid. The computation remains saved; choose a compatible document layout before export.')
+        const datumKey = info.datum.replace(/[\s_-]/g, '').toUpperCase()
+        proj = { ...proj, datum: datumKey === 'WGS84' ? 'WGS84' : datumKey === 'ARC1960' ? 'ARC1960' : info.datum, utm_zone: info.zone, hemisphere: info.hemisphere }
+      }
       const evidence = resolveDocumentEvidence(proj, (pts ?? []).map((p) => ({
        name: p.name, easting: p.easting, northing: p.northing,
        elevation: p.elevation ?? undefined, is_control: p.is_control ?? false,
-      })))
+      })), current)
+      setProject(proj)
       setPoints(evidence.points); setBoundaryPoints(evidence.boundaryPoints)
       setTraverse(evidence.traverse); setArea(evidence.area)
     }
@@ -770,6 +785,7 @@ export default function DocumentsPage() {
 <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden" style={{ height: '70vh' }}>
           {planData ? (
             <SurveyPlanViewer 
+              onLayoutChange={setPlanLayout}
               data={planData} 
               className="h-full" 
               submissionNumber={submissionNumber}
@@ -821,7 +837,7 @@ export default function DocumentsPage() {
                 }}
                 projectName={project?.name || 'survey'}
               />
-              <SurveyPlanExport data={planData} projectId={params.id} plan={plan} />
+              <SurveyPlanExport data={planData} projectId={params.id} plan={plan} layout={planLayout} />
             </>
           )}
         </div>

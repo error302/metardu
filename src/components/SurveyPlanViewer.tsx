@@ -15,11 +15,12 @@ interface SurveyPlanViewerProps {
   options?: PlanOptions
   className?: string
   submissionNumber?: string // For Form No. 4
+  onLayoutChange?: (layout: 'standard' | 'form4') => void
 }
 
 const ZOOM_LEVELS = [0.25, 0.5, 0.75, 1.0, 1.5, 2.0, 4.0]
 
-export default function SurveyPlanViewer({ data, options, className = '', submissionNumber }: SurveyPlanViewerProps) {
+export default function SurveyPlanViewer({ data, options, className = '', submissionNumber, onLayoutChange }: SurveyPlanViewerProps) {
   const [scale, setScale] = useState(1.0)
   const [currentSheet, setCurrentSheet] = useState(0)
   const [svgContent, setSvgContent] = useState('')
@@ -29,19 +30,21 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
   const [useFormNo4, setUseFormNo4] = useState(true) // Default to Form No. 4 for Kenya
   const containerRef = useRef<HTMLDivElement>(null)
   const rendererRef = useRef<SurveyPlanRenderer | FormNo4Renderer | null>(null)
+  const changeLayout = (form4: boolean) => { setUseFormNo4(form4); onLayoutChange?.(form4 ? 'form4' : 'standard') }
 
   useEffect(() => {
     let cancelled = false
     const renderPlan = async () => {
     setLoading(true)
     setError(null)
+    setSvgContent('')
 
     try {
       // Quality Hardening: Validate data before rendering
       const validation = SurveyPlanDataSchema.safeParse(data)
       if (!validation.success) {
         logger.error('Survey plan data validation failed:', { error: validation.error })
-        setError(validation.error.errors[0].message)
+        if (!cancelled) setError(validation.error.errors[0].message)
         return
       }
 
@@ -61,14 +64,17 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
         content = await renderer.render()
       }
       
+      if (cancelled) return
       rendererRef.current = renderer
       setSvgContent(content)
     } catch (e) {
       logger.error('Survey plan render error:', { error: e })
-      setError(e instanceof Error ? e.message : 'Unknown rendering error')
-      setSvgContent('')
+      if (!cancelled) {
+        setError(e instanceof Error ? e.message : 'Unknown rendering error')
+        setSvgContent('')
+      }
     } finally {
-      setLoading(false)
+      if (!cancelled) setLoading(false)
     }
     }
     void renderPlan()
@@ -151,7 +157,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
         {/* Form No. 4 Toggle */}
         {hasFormNo4Data && (
           <button
-            onClick={() => setUseFormNo4(!useFormNo4)}
+            onClick={() => changeLayout(!useFormNo4)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg font-medium transition-colors ${
               useFormNo4 
                 ? 'bg-green-600 text-white hover:bg-green-700' 
@@ -191,7 +197,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
         <div className="px-3 py-1.5 bg-green-50 border-b border-green-200 flex items-center gap-2">
           <FileCheck className="w-4 h-4 text-green-600" />
           <span className="text-xs text-green-700">
-            Kenya Form No. 4 Survey Plan — Compliant with Survey Act Cap. 299 and Survey Regulations 1994
+            Form No. 4 review layout — unverified draft; field evidence and professional acceptance required
           </span>
           {submissionNumber && (
             <span className="ml-auto text-xs font-mono text-green-600">
@@ -236,7 +242,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
             </div>
             <button
               onClick={() => {
-                setUseFormNo4(false)
+                changeLayout(false)
                 setError(null)
               }}
               className="px-4 py-2 bg-[var(--bg-secondary)] border border-[var(--border)] rounded-lg text-xs font-semibold hover:bg-[var(--bg-tertiary)]"

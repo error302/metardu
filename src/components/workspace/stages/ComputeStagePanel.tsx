@@ -12,7 +12,6 @@ import React from 'react'
 import { Calculator, ArrowRight, Compass, Ruler } from 'lucide-react'
 import Link from 'next/link'
 import CadastralComputeIntegration from '@/components/workspace/CadastralComputeIntegration'
-import { FieldToFinishButton } from '@/components/workspace/FieldToFinishButton'
 
 interface Props {
   projectId: string
@@ -28,24 +27,19 @@ export default function ComputeStagePanel({ projectId, projectName: _projectName
           <div className="flex items-center gap-2">
             <Calculator className="w-5 h-5 text-[var(--accent)]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
-              Deterministic Field-to-Finish
+              Closed grid traverse
             </h3>
           </div>
           <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[color-mix(in_srgb,var(--accent)_20%,transparent)] text-[var(--accent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)]">
-            AUTONOMOUS ENGINE
+            REVIEW REQUIRED
           </span>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">
-          Runs Kenya Survey Regulations Bowditch traverse adjustment, closes boundary polygon, checks misclosure against statutory tolerance, computes coordinate schedule, and generates CAD boundaries in one deterministic pass.
+          Computes a Bowditch adjustment and coordinate schedule from saved grid bearings, grid distances and an explicit starting coordinate. Numerical checks use an engine preset; field evidence and professional acceptance remain unverified.
         </p>
         <div className="pt-1">
-          <FieldToFinishButton projectId={projectId} />
+          <CadastralComputeIntegration projectId={projectId} />
         </div>
-      </div>
-
-      {/* Manual Compute Runner */}
-      <div className="space-y-3">
-        <CadastralComputeIntegration projectId={projectId} />
       </div>
 
       {/* Advanced Engineering Math Surfaces */}

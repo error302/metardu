@@ -84,15 +84,12 @@ describe('calcScaleLabel', () => {
 })
 
 describe('calcScaleBarMetres', () => {
-  it('returns 200 for scales < 1000', () => {
-    expect(calcScaleBarMetres(100)).toBe(200)
-    expect(calcScaleBarMetres(500)).toBe(200)
-    expect(calcScaleBarMetres(999)).toBe(200)
+  it.each([[100, 1], [200, 2], [500, 5], [1000, 10], [5000, 50], [50000, 500]])('a 40 mm, four-segment bar at 1:%s has %s ground metres per segment', (scale, segment) => {
+    expect(calcScaleBarMetres(scale)).toBe(segment)
+    expect(calcScaleBarMetres(scale) * 4 / scale * 1000).toBeCloseTo(40, 10)
   })
-  it('returns 500 for scales >= 1000', () => {
-    expect(calcScaleBarMetres(1000)).toBe(500)
-    expect(calcScaleBarMetres(5000)).toBe(500)
-    expect(calcScaleBarMetres(50000)).toBe(500)
+  it.each([0, -1, NaN, Infinity])('rejects invalid scale %s', scale => {
+    expect(() => calcScaleBarMetres(scale)).toThrow()
   })
 })
 
@@ -258,6 +255,11 @@ describe('boundingBox', () => {
 })
 
 describe('formatBearingDegMinSec', () => {
+  it('carries rounded seconds into minutes/degrees, including the north wrap', () => {
+    expect(formatBearingDegMinSec(44.999999999999)).toBe('045°00\'00.0"')
+    expect(formatBearingDegMinSec(359.99999999999)).toBe('000°00\'00.0"')
+    expect(formatBearingDegMinSec(360)).toBe('000°00\'00.0"')
+  })
   it('pads degrees to 3 digits and minutes/seconds to 2', () => {
     expect(formatBearingDegMinSec(0)).toBe('000°00\'00.0"')
     expect(formatBearingDegMinSec(85.15)).toBe('085°09\'00.0"')

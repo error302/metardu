@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useCallback, useRef, useMemo, useEffect } from 'react';
+import Link from 'next/link';
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint';
 import { SurveyType } from '@/types/project';
 import { FieldBookColumn, FieldBookRow } from '@/types/fieldbook';
 import { getFieldBookTemplate } from '@/lib/workflows/fieldBookTemplates';
 import { applyAutoCalculations, validateFieldBook, FieldBookWarning } from '@/lib/workflows/autoCalculate';
 import { runLevelingComputation, getLevelingClosureStatus } from '@/lib/compute/levelingRunner';
-import { runBowditchAdjustment, getTraversePrecisionStatus } from '@/lib/compute/traverseRunner';
+import { controlDraft, parseControlDraft } from '@/lib/survey/fieldBookControlDraft';
 
 interface Props {
   projectId: string;
@@ -37,7 +38,12 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
   const [loadAttempt, setLoadAttempt] = useState(0);
   const revisionRef = useRef<string | null>(null);
   const initialRowsRef = useRef(initialRows);
+  const initialStartPointRef = useRef(startPoint);
   const saveInFlight = useRef(false);
+  const [projectCrs, setProjectCrs] = useState<string | null>(null);
+  const [startingDraft, setStartingDraft] = useState(() => controlDraft(startPoint, null));
+  const initialControlRef = useRef(JSON.stringify(startingDraft));
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [computeResult, setComputeResult] = useState<string | null>(null);
   const [warnings, setWarnings] = useState<FieldBookWarning[]>([]);
   const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
@@ -90,7 +96,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
       try {
         const response = await fetch(`/api/project/${projectId}/fieldbook`);
         if (!response.ok) throw new Error('Saved field-book rows could not be loaded. Editing is disabled to preserve existing data.');
-        const json = await response.json() as { data?: Record<string, unknown>[]; revision?: string };
+        const json = await response.json() as { data?: Record<string, unknown>[]; revision?: string; startPoint?: unknown; projectCrs?: string | null };
         if (!Array.isArray(json.data) || typeof json.revision !== 'string' || !/^[a-f0-9]{64}$/.test(json.revision)) throw new Error('Field-book response is incomplete. Editing is disabled.');
         const restored = json.data.map(record => {
           const raw = record.raw_data && typeof record.raw_data === 'object' && !Array.isArray(record.raw_data)
@@ -102,6 +108,12 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           return row;
         });
         if (cancelled) return;
+        const declaredCrs = typeof json.projectCrs === 'string' ? json.projectCrs : null;
+        const starting = controlDraft(json.startPoint === undefined ? initialStartPointRef.current : json.startPoint, declaredCrs);
+        setProjectCrs(declaredCrs);
+        setStartingDraft(starting);
+        initialControlRef.current = JSON.stringify(starting);
+        setHasUnsavedChanges(false);
         setRows(restored.length ? restored : initialRowsRef.current.length ? initialRowsRef.current : [emptyRow(template.columns)]);
         revisionRef.current = json.revision;
         setLoadedProject(projectId);
@@ -113,9 +125,17 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     return () => { cancelled = true; };
   }, [projectId, template, loadAttempt]);
 
+  useEffect(() => {
+    if (!hasUnsavedChanges) return;
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [hasUnsavedChanges]);
+
   const addRow = () => {
     setRows((prev) => [...prev, emptyRow(template.columns)]);
     setLastSaved(null);
+    setHasUnsavedChanges(true);
     if (rows.length >= 50 && containerRef.current) {
       setTimeout(() => {
         if (containerRef.current) {
@@ -129,6 +149,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     if (deleteConfirm === idx) {
       setRows((prev) => prev.filter((_, i) => i !== idx));
       setLastSaved(null);
+      setHasUnsavedChanges(true);
       setDeleteConfirm(null);
     } else {
       setDeleteConfirm(idx);
@@ -146,6 +167,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     });
 
     setLastSaved(null);
+    setHasUnsavedChanges(true);
   }, [surveyType]);
 
   const handleCompute = useCallback(() => {
@@ -175,17 +197,6 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         } else {
           setComputeResult('Please provide Opening Benchmark RL (m) to reduce levels');
         }
-      } else if (surveyType === 'cadastral') {
-        if (startPoint) {
-          const result = runBowditchAdjustment({
-            rows,
-            startPoint,
-          });
-          const status = getTraversePrecisionStatus(result);
-          setComputeResult(status.message);
-        } else {
-          setComputeResult('Please provide start point coordinates in project settings');
-        }
       } else if (surveyType === 'topographic') {
         const radialRows = rows.filter((r) => r.point_no && (r.hd || r.distance) && r.bearing);
         if (radialRows.length > 0) {
@@ -210,7 +221,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     } catch (e) {
       setComputeResult(`Error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     }
-  }, [rows, surveyType, openingRL, closingRL, startPoint, engOpeningRL, engClosingRL, engDistanceKm]);
+  }, [rows, surveyType, openingRL, closingRL, engOpeningRL, engClosingRL, engDistanceKm]);
 
   const handleSave = async () => {
     if (saveInFlight.current || loadedProject !== projectId || !revisionRef.current) return;
@@ -218,13 +229,17 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
     setSaving(true);
     setError(null);
     try {
+      const controlChanged = JSON.stringify(startingDraft) !== initialControlRef.current;
+      const controlChange = controlChanged ? { startPoint: parseControlDraft(startingDraft, projectCrs) } : {};
       const response = await fetch(`/api/project/${projectId}/fieldbook`, {
         method: 'PUT', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ rows, revision: revisionRef.current, ...(startPoint ? { startPoint } : {}) }),
+        body: JSON.stringify({ rows, revision: revisionRef.current, ...controlChange }),
       });
       const json = await response.json() as { saved?: boolean; revision?: string; error?: string };
       if (!response.ok || !json.saved || typeof json.revision !== 'string' || !/^[a-f0-9]{64}$/.test(json.revision)) throw new Error(json.error || 'Save was not confirmed. Your edits remain on screen.');
       revisionRef.current = json.revision;
+      initialControlRef.current = JSON.stringify(startingDraft);
+      setHasUnsavedChanges(false);
       setLastSaved(new Date());
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Save failed. Your edits remain on screen.');
@@ -240,7 +255,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
 
     if (col.type === 'select' && col.options) {
       return (
-        <select
+        <select aria-label={col.label}
           value={value}
           onChange={(e) => updateCell(rowIdx, col.key, e.target.value)}
           className={base}
@@ -297,9 +312,12 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         </div>
         <div className="flex items-center gap-2 flex-shrink-0 no-print print-hide">
           {lastSaved && <span className="text-xs text-green-600">Saved {lastSaved.toLocaleTimeString()}</span>}
-          <button onClick={handleCompute} disabled={saving} className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
+          {surveyType === 'cadastral' ? <Link href={`/project/${projectId}/compute`}
+            aria-disabled={saving || hasUnsavedChanges}
+            onClick={event => { if (saving || hasUnsavedChanges) { event.preventDefault(); setError('Save the field book and starting coordinate before opening Compute.'); } }}
+            className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700">Compute saved traverse</Link> : <button onClick={handleCompute} disabled={saving} className="px-3 py-1.5 text-xs bg-green-600 text-white rounded hover:bg-green-700 disabled:opacity-50">
             {getComputeButtonLabel()}
-          </button>
+          </button>}
           <button onClick={handleSave} disabled={saving} className="px-3 py-1.5 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">
             {saving ? 'Saving…' : 'Save'}
           </button>
@@ -315,6 +333,30 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
           />
         </div>
       </div>
+      {surveyType === 'cadastral' && <fieldset disabled={saving} className="m-3 min-w-0 rounded border border-gray-200 p-3 text-xs text-gray-800 space-y-2">
+        <legend className="px-1 font-semibold">Starting coordinate — project grid, review required</legend>
+        <p>Project grid: {projectCrs || 'Declare the project reference in settings first.'} A coordinate entry does not verify a control mark.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+          {(['name', 'easting', 'northing'] as const).map(key => <label key={key} className="block">
+            {key === 'name' ? 'Starting station name' : key === 'easting' ? 'Control easting (m)' : 'Control northing (m)'}
+            <input aria-label={key === 'name' ? 'Starting station name' : key === 'easting' ? 'Control easting (m)' : 'Control northing (m)'}
+              type={key === 'name' ? 'text' : 'number'} step="any" value={startingDraft[key]}
+              onChange={event => { setStartingDraft(value => ({ ...value, [key]: event.target.value })); setHasUnsavedChanges(true); setLastSaved(null); }}
+              className="mt-1 w-full rounded border border-gray-300 bg-white p-2 text-sm" />
+          </label>)}
+        </div>
+        <label className="block">Starting coordinate source / limitations
+          <input aria-label="Starting coordinate source / limitations" value={startingDraft.notes}
+            onChange={event => { setStartingDraft(value => ({ ...value, notes: event.target.value })); setHasUnsavedChanges(true); setLastSaved(null); }}
+            className="mt-1 w-full rounded border border-gray-300 bg-white p-2" />
+        </label>
+        <label className="flex items-start gap-2">
+          <input type="checkbox" checked={startingDraft.confirmed} disabled={!projectCrs}
+            onChange={event => { setStartingDraft(value => ({ ...value, confirmed: event.target.checked })); setHasUnsavedChanges(true); setLastSaved(null); }} />
+          I confirm this starting coordinate uses the declared project grid.
+        </label>
+        <p>Choose each distance basis below. Use grid only for distances already reduced to this grid; slope observations need an explicit reduction workflow.</p>
+      </fieldset>}
       {surveyType === 'engineering' && (
         <div className="p-3 border-b border-gray-100 bg-gray-50/50">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -449,7 +491,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         </div>
       )}
 
-      {error && <div className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-600">{error}</div>}
+      {error && <div role="alert" className="px-4 py-2 bg-red-50 border-t border-red-100 text-xs text-red-600">{error}</div>}
       {computeResult && (
         <div className={`px-4 py-2 border-t text-xs ${computeResult.startsWith('Error') ? 'bg-red-50 border-red-100 text-red-600' : 'bg-green-50 border-green-100 text-green-700'}`}>
           {computeResult}

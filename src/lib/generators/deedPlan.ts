@@ -1,9 +1,10 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import db from '@/lib/db';
-import { computeDeedPlanGeometry, loadPreAdjustedFromDB } from './deedPlanGeometry';
+import { computeDeedPlanGeometry } from './deedPlanGeometry';
 import { renderBoundaryPlan, drawRevisionHistory, type RoadSegment } from './deedPlanRenderer';
 import { addPageFooter } from './pdfTitleBlock';
+import { resolveStageReference } from '@/lib/workspaces/stageReference';
 
 interface ProjectRow {
   name: string | null
@@ -29,17 +30,6 @@ interface ProjectRow {
   surveyor_name: string | null
   surveyor_license: string | null
   firm_name: string | null
-}
-
-interface ProfileRow {
-  full_name: string | null
-  isk_number: string | null
-  firm_name: string | null
-}
-
-interface RoadRow {
-  road_class: string | null
-  street: string | null
 }
 
 interface RevisionsRow {
@@ -106,6 +96,9 @@ export async function generateDeedPlan(
   const project = projectRes.rows[0];
 
   if (!project) throw new Error('Project not found');
+  const references = await db.query<Record<string, unknown>>('SELECT * FROM project_reference_systems WHERE project_id=$1', [projectId]);
+  const reference = resolveStageReference(references.rows[0], project);
+  const referenceLabel = reference.code ? `${reference.name} (${reference.code}; ${reference.source})` : 'UNVERIFIED — no valid project reference';
 
   const { fetchSurveyorProfile } = await import('../survey/fetchSurveyorProfile');
   const savedProfile = await fetchSurveyorProfile(projectId);
@@ -120,20 +113,12 @@ export async function generateDeedPlan(
   // This guarantees 100% consistency with the traverse computation sheet,
   // Form C22, area computation, and all other output documents.
   // Source: Ghilani & Wolf Ch.12 — Bowditch (Compass) Rule
-  const preAdjusted = await loadPreAdjustedFromDB(projectId);
-  const geom = await computeDeedPlanGeometry(projectId, {
-    preAdjustedCoordinates: preAdjusted?.stations,
-    preAdjustedClosure: preAdjusted?.closure,
-  });
+  const geom = await computeDeedPlanGeometry(projectId);
 
   const doc = new jsPDF({
     orientation: 'landscape',
     unit: 'mm',
     format: 'a3',
-  });
-
-  const today = new Date().toLocaleDateString('en-KE', {
-    day: '2-digit', month: 'long', year: 'numeric',
   });
 
   const surveyDate = project.survey_date
@@ -167,11 +152,11 @@ export async function generateDeedPlan(
   doc.setFontSize(9);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text('DEED PLAN', SCHEDULE_X + SCHEDULE_W / 2, ry + 4, { align: 'center' });
+  doc.text('DEED PLAN — UNVERIFIED DRAFT', SCHEDULE_X + SCHEDULE_W / 2, ry + 4, { align: 'center' });
   doc.setFontSize(7);
   doc.setFont('helvetica', 'normal');
   doc.setTextColor(60, 60, 60);
-  doc.text('(Form No. 4 — Survey Act Cap 299)', SCHEDULE_X + SCHEDULE_W / 2, ry + 9, { align: 'center' });
+  doc.text('Boundary geometry for independent review', SCHEDULE_X + SCHEDULE_W / 2, ry + 9, { align: 'center' });
   ry += 13;
 
   doc.setDrawColor(180);
@@ -358,24 +343,24 @@ export async function generateDeedPlan(
   doc.setFontSize(7);
   doc.setFont('helvetica', 'bold');
   doc.setTextColor(0, 0, 0);
-  doc.text("SURVEYOR'S CERTIFICATE", SCHEDULE_X + SCHEDULE_W / 2, certY + 4, { align: 'center' });
+  doc.text('DRAFT REVIEW RECORD', SCHEDULE_X + SCHEDULE_W / 2, certY + 4, { align: 'center' });
 
   const iskNo = profile?.isk_number ?? '___________';
   const survName = profile?.full_name ?? '___________________________';
   const firm = profile?.firm_name ?? '___________________________';
 
   const certText = [
-    `I, ${survName},`,
-    `Licensed Surveyor No. ${iskNo},`,
-    `${firm},`,
-    'hereby certify that this plan was prepared',
-    'by me and that the survey was carried out',
-    'in accordance with the Survey Act Cap 299',
-    'and Kenya Survey Regulations 1994.',
+    `Recorded preparer: ${survName}`,
+    `Recorded registration: ${iskNo} (not verified)`,
+    `Recorded firm: ${firm}`,
+    'Field control, monuments, legal boundary and',
+    'professional acceptance remain unverified.',
+    'This draft is not certification or authority',
+    'to register a parcel or carry out construction.',
     '',
     `Survey date: ${surveyDate}`,
     `Scale: 1:${scaleRatio.toLocaleString()}`,
-    `Datum: ${project.datum || 'UNVERIFIED'} / UTM Zone ${project.utm_zone ?? 'UNVERIFIED'}${project.hemisphere ?? ''}`,
+    ...doc.splitTextToSize(`Project grid: ${referenceLabel}`, SCHEDULE_W - 6) as string[],
   ];
 
   doc.setFontSize(6.5);
@@ -394,7 +379,7 @@ export async function generateDeedPlan(
   doc.line(SCHEDULE_X + 3, sigY, SCHEDULE_X + SCHEDULE_W - 3, sigY);
   doc.setFontSize(6);
   doc.setTextColor(80);
-  doc.text('Signature / Date', SCHEDULE_X + 3, sigY + 3.5);
+  doc.text('Independent reviewer / Date (unsigned draft)', SCHEDULE_X + 3, sigY + 3.5);
 
   addPageFooter(doc, 1, 1, project.name ?? '');
 

@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { computeDeedPlanGeometry, loadPreAdjustedFromDB } from '@/lib/generators/deedPlanGeometry'
 import db from '@/lib/db'
+import { fieldBookRevision } from '@/lib/survey/fieldBookRevision'
 jest.mock('@/lib/db', () => ({ __esModule: true, default: { query: jest.fn() } }))
 const coords = [
   { station: 'A', easting: 500000, northing: 9900000 },
@@ -61,8 +62,8 @@ test.each([
   expect(result.projection).toBe(metadata.expected)
   if (metadata.expected) {
     expect(result.lineScaleFactors).toHaveLength(3)
-    expect(result.lineScaleFactors![0].scaleFactor).toBeCloseTo(0.9996, 6)
-    expect(result.lineScaleFactors![0].gridDistance).toBeCloseTo(100, 6)
+    expect(result.lineScaleFactors?.[0].scaleFactor).toBeCloseTo(0.9996, 6)
+    expect(result.lineScaleFactors?.[0].gridDistance).toBeCloseTo(100, 6)
   } else expect(result.lineScaleFactors).toBeUndefined()
 })
 
@@ -93,9 +94,9 @@ function savedBoundary(links = [
 test('saved coordinates use canonical columns and observation order, preserving elevations', async () => {
   savedBoundary()
   const saved = await loadPreAdjustedFromDB('p')
-  expect(saved!.stations.map(station => station.station)).toEqual(['A1', 'A2', 'A10'])
-  expect(saved!.stations.map(station => station.elevation)).toEqual([0, 12.345, undefined])
-  expect(saved!.closure).toBeUndefined()
+  expect(saved?.stations.map(station => station.station)).toEqual(['A1', 'A2', 'A10'])
+  expect(saved?.stations.map(station => station.elevation)).toEqual([0, 12.345, undefined])
+  expect(saved?.closure).toBeUndefined()
   const result = await computeDeedPlanGeometry('p')
   expect(result.bearingSchedule.map(leg => [leg.from, leg.to])).toEqual([
     ['A1', 'A2'], ['A2', 'A10'], ['A10', 'A1'],
@@ -121,6 +122,39 @@ test('does not disguise missing beacon evidence after a database failure', async
 test('propagates database failures instead of substituting other coordinate evidence', async () => {
   ;(db.query as jest.Mock).mockRejectedValue(new Error('database unavailable'))
   await expect(computeDeedPlanGeometry('p')).rejects.toThrow('database unavailable')
+})
+
+function gridDraft(change: 'none' | 'reference' | 'rows' | 'coordinates' = 'none') {
+  const crs = 'EPSG:' + (32700 + 36)
+  const startControl = { name: 'A', easting: 500000, northing: 9900000, crs, notes: 'Imagery simulation' }
+  const rows = coords.map((point, index) => ({ id: `row-${index}`, station: point.station, row_index: index, raw_data: { remark: 'Unverified' } }))
+  const boundary_data = {
+    startControl, adjustedStations: coords.map(point => ({ pointName: point.station, adjustedEasting: point.easting, adjustedNorthing: point.northing })),
+    precision_ratio: '1:∞', linear_misclosure: 0,
+    computation: { source: 'recorded-grid-traverse', crs, source_revision: fieldBookRevision(rows, startControl), acceptance_status: 'draft_unverified', field_verified: false },
+  }
+  if (change === 'coordinates') boundary_data.adjustedStations[0].adjustedEasting = NaN
+  ;(db.query as jest.Mock).mockImplementation(async (sql: string) => {
+    if (sql.includes('FROM project_reference_systems')) return { rows: [{ horizontal_crs: change === 'reference' ? 'EPSG:' + (32700 + 37) : crs, datum_name: 'WGS 84', distance_mode: 'grid', coordinate_precision: 3 }] }
+    if (sql.includes('FROM project_fieldbook_entries')) return { rows: change === 'rows' ? rows.slice(1) : rows }
+    if (sql.includes('FROM projects')) return { rows: [{ boundary_data, utm_zone: 37, hemisphere: 'S', datum: 'WGS84' }] }
+    throw new Error('Unexpected fallback: ' + sql)
+  })
+}
+
+test('an imagery/grid computation retains coordinates and declared CRS without becoming measured closure', async () => {
+  gridDraft()
+  const result = await computeDeedPlanGeometry('p')
+  expect(result.stations.map(({ station, easting, northing }) => ({ station, easting, northing }))).toEqual(coords)
+  expect(result.stations.every(point => point.monument === '' && point.beaconNo === '')).toBe(true)
+  expect(result.closureStatus).toBe('UNVERIFIED')
+  expect(result.precisionRatio).toBe('Unverified')
+  expect(result.projection).toBe('UTM36S')
+})
+
+test.each(['reference', 'rows', 'coordinates'] as const)('rejects a grid draft after invalid %s without substituting another boundary', async change => {
+  gridDraft(change)
+  await expect(computeDeedPlanGeometry('p')).rejects.toThrow(/recompute/i)
 })
 
 function fieldBook(raw: Record<string, unknown>, boundary_data: unknown = { startE: 0, startN: 0 }) {

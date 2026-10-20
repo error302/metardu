@@ -201,10 +201,10 @@ describe('SurveyPlanRenderer', () => {
       expect(svg).toContain('m\u00B2')
     })
 
-    it('contains north arrow', async () => {
+    it('labels the arrow as grid north', async () => {
       const renderer = new SurveyPlanRenderer(BASE_DATA)
       const svg = await renderer.render()
-      expect(svg).toContain('>N<')
+      expect(svg).toContain('>GN<')
     })
 
     it('contains scale bar', async () => {
@@ -232,10 +232,10 @@ describe('SurveyPlanRenderer', () => {
       expect(svg).toContain('WARNING')
     })
 
-    it('contains certificate when panel enabled', async () => {
+    it('contains an unverified review record when panel enabled', async () => {
       const renderer = new SurveyPlanRenderer(BASE_DATA, { includePanel: true })
       const svg = await renderer.render()
-      expect(svg).toContain('CERTIFICATE')
+      expect(svg).toContain('UNVERIFIED DRAFT — REVIEW REQUIRED')
     })
 
     it('contains surveyor name in certificate', async () => {
@@ -385,13 +385,13 @@ describe('SurveyPlanRenderer', () => {
       expect(svg).toContain('REVISIONS')
     })
 
-    it('contains Cap. 299 surveyor certificate with authentication block', async () => {
+    it('does not fabricate professional certification or authority authentication', async () => {
       const renderer = new SurveyPlanRenderer(BASE_DATA)
       const svg = await renderer.render()
-      expect(svg).toContain('CERTIFICATE')
-      expect(svg).toContain('Cap. 299')
-      expect(svg).toContain('AUTHENTICATION')
-      expect(svg).toContain('Director of Surveys')
+      expect(svg).toContain('No authority approval or professional seal is')
+      expect(svg).not.toContain('hereby certify')
+      expect(svg).not.toContain('OFFICIAL SEAL')
+      expect(svg).not.toContain('AUTHENTICATION — FOR DIRECTOR OF SURVEYS')
     })
 
     it('contains metric note', async () => {

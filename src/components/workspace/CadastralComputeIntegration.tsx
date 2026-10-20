@@ -1,11 +1,16 @@
  'use client';
 
-import { flushFieldBook } from '@/lib/survey/fieldBookSaveQueue';
-
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { z } from 'zod';
 
-import type { FieldToFinishResult } from '@/lib/survey/field-to-finish';
+const resultSchema = z.object({
+  status: z.enum(['ready', 'warning', 'failed']), acceptanceStatus: z.literal('draft_unverified'),
+  area: z.object({ squareMetres: z.number().finite(), hectares: z.number().finite() }),
+  instantFeedback: z.object({ perimeter: z.number().finite(), linearMisclosure: z.number().finite(), precisionFormatted: z.string(), passes: z.boolean() }),
+  adjustedPoints: z.array(z.object({ name: z.string(), easting: z.number().finite(), northing: z.number().finite() })),
+  warnings: z.array(z.string()), errors: z.array(z.string()),
+});
 
 export default function CadastralComputeIntegration({ projectId }: { projectId: string }) {
 
@@ -14,7 +19,7 @@ export default function CadastralComputeIntegration({ projectId }: { projectId: 
 
   const [error,setError]=useState<string|null>(null);
 
-  const [result,setResult]=useState<FieldToFinishResult|null>(null);
+  const [result,setResult]=useState<z.infer<typeof resultSchema>|null>(null);
 
   async function compute() {
 
@@ -22,13 +27,17 @@ export default function CadastralComputeIntegration({ projectId }: { projectId: 
 
     try {
 
-      if(!await flushFieldBook(projectId)) throw new Error('Field book save failed. Return to Field and save before computing.');
-
       const response=await fetch(`/api/project/${projectId}/field-to-finish`,{method:'POST'});
 
-      const data=await response.json();
+      const payload: unknown=await response.json();
 
-      if(!response.ok) throw new Error(data.error || 'Computation failed');
+      if(!response.ok) {
+        const errorBody = z.object({error:z.string()}).safeParse(payload);
+        throw new Error(errorBody.success ? errorBody.data.error : 'Computation failed');
+      }
+      const parsed = resultSchema.safeParse(payload);
+      if (!parsed.success) throw new Error('The server returned an incomplete computation result. Reopen the project before using its outputs.');
+      const data = parsed.data;
 
       if(data.status==='failed') throw new Error(data.errors?.join('; ') || 'Traverse could not be computed');
 
@@ -53,7 +62,7 @@ export default function CadastralComputeIntegration({ projectId }: { projectId: 
 
     {result && <div aria-live="polite" className="space-y-3">
 
-      <p>Computed results saved. Review the original observations and control evidence before using the plan.</p>
+      <p>Unverified computation draft saved. Review the original observations, control evidence and project tolerances before using the plan.</p>
 
       <dl><dt>Area</dt><dd>{result.area.squareMetres.toFixed(3)} m² ({result.area.hectares.toFixed(4)} ha)</dd>
 

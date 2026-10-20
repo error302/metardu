@@ -4,6 +4,11 @@ import { bowditchAdjustment } from '@/lib/engine/traverse';
 import { bearingToString } from '@/lib/engine/angles';
 import type { NamedPoint2D } from '@/lib/engine/types';
 import { computeLineScaleFactor } from '@/lib/survey/adapter';
+import { z } from 'zod';
+import { resolveStageReference } from '@/lib/workspaces/stageReference';
+import { resolveEpsg } from '@/lib/spatial/projectCrs';
+import { fieldBookRevision } from '@/lib/survey/fieldBookRevision';
+import { startingControlFromBoundary } from '@/lib/validation/fieldBookControl';
 
 export interface TraverseStation {
   station: string;
@@ -169,6 +174,12 @@ export async function computeDeedPlanGeometry(
   // traverse_coordinates table, use those instead of recomputing.
   const savedCoords = await loadPreAdjustedFromDB(projectId);
   if (savedCoords) {
+    if (savedCoords.referenceCrs) {
+      const info = resolveEpsg(savedCoords.referenceCrs);
+      return buildFromPreAdjusted(savedCoords.stations, undefined, supportedProjection({
+        datum: info.datum, utm_zone: info.zone ?? null, hemisphere: info.hemisphere ?? null,
+      }));
+    }
     const project = await db.query<ProjectGeometryMetadata>('SELECT utm_zone, hemisphere, datum FROM projects WHERE id = $1', [projectId]);
     return buildFromPreAdjusted(savedCoords.stations, savedCoords.closure, supportedProjection(project.rows[0]));
   }
@@ -228,8 +239,8 @@ function buildFromPreAdjusted(
   const hasClosure = !!closure && Number.isFinite(closure.misclosureMm) && closure.misclosureMm >= 0
     && (Number.isFinite(closure.precisionRatio) && closure.precisionRatio >= 0
       || closure.precisionRatio === Infinity && closure.misclosureMm === 0);
-  const misclosureMm = hasClosure ? closure!.misclosureMm : NaN;
-  const ratio = hasClosure ? closure!.precisionRatio : NaN;
+  const misclosureMm = hasClosure && closure ? closure.misclosureMm : NaN;
+  const ratio = hasClosure && closure ? closure.precisionRatio : NaN;
   const precisionRatio = !hasClosure ? 'Unverified' : ratio === Infinity ? '1:∞' : `1:${Math.round(ratio).toLocaleString()}`;
   const closureStatus: 'PASS' | 'FAIL' | 'UNVERIFIED' =
     !hasClosure ? 'UNVERIFIED' : ratio >= 5000 ? 'PASS' : 'FAIL';
@@ -264,22 +275,35 @@ function buildFromPreAdjusted(
  */
 export async function loadPreAdjustedFromDB(
   projectId: string
-): Promise<{ stations: PreAdjustedCoordinate[]; closure?: PreAdjustedClosure } | null> {
+): Promise<{ stations: PreAdjustedCoordinate[]; closure?: PreAdjustedClosure; referenceCrs?: string } | null> {
   try {
-    const current = await db.query<{ boundary_data: Record<string, any> | null }>(
+    const current = await db.query<{ boundary_data: Record<string, unknown> | null }>(
       'SELECT boundary_data FROM projects WHERE id = $1', [projectId]);
     const boundary=current.rows[0]?.boundary_data;
-    if(boundary?.computation?.source==='field-observations' && Array.isArray(boundary.adjustedStations)) {
-      const beacons=await db.query<{station:string;raw_data:Record<string,any>}>(
-        'SELECT station, raw_data FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',[projectId]);
-      const stations=boundary.adjustedStations.map((point:any)=>{
+    const computation = z.object({ source: z.string() }).passthrough().safeParse(boundary?.computation);
+    const source = computation.success ? computation.data.source : null;
+    if (source === 'recorded-grid-traverse' || source === 'field-observations') {
+      const coordinates = z.array(z.object({ pointName: z.string().trim().min(1), adjustedEasting: z.number().finite(), adjustedNorthing: z.number().finite() })).min(3).safeParse(boundary?.adjustedStations);
+      if (!coordinates.success) throw new Error('Saved boundary coordinates are incomplete or invalid. Recompute from the field book.');
+      const beacons=await db.query<{station:string;raw_data:Record<string,unknown> | null}>(
+        'SELECT * FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC',[projectId]);
+      const stations=coordinates.data.map(point=>{
         const raw=beacons.rows.find(row=>row.station===point.pointName)?.raw_data;
-        return {station:point.pointName,easting:Number(point.adjustedEasting),northing:Number(point.adjustedNorthing),beaconNo:raw?.beacon_no || '',monument:raw?.monument_type || '',markStatus:raw?.mark_status || ''};
+        return {station:point.pointName,easting:point.adjustedEasting,northing:point.adjustedNorthing,beaconNo:String(raw?.beacon_no ?? ''),monument:String(raw?.monument_type ?? ''),markStatus:String(raw?.mark_status ?? '')};
       });
       validateCoordinates(stations);
-      const ratioText=String(boundary.precision_ratio ?? '').replace(/,/g,'').replace(/^1\s*:\s*/,'').trim();
+      if (source === 'recorded-grid-traverse') {
+        const provenance = z.object({ crs: z.string(), source_revision: z.string(), acceptance_status: z.literal('draft_unverified'), field_verified: z.literal(false) }).safeParse(boundary?.computation);
+        const referenceRows = await db.query<Record<string, unknown>>('SELECT * FROM project_reference_systems WHERE project_id=$1', [projectId]);
+        const reference = resolveStageReference(referenceRows.rows[0], {});
+        if (!provenance.success || reference.source !== 'declared' || reference.code !== provenance.data.crs) throw new Error('The saved boundary does not match the declared project grid. Recompute before exporting.');
+        if (fieldBookRevision(beacons.rows, startingControlFromBoundary(boundary)) !== provenance.data.source_revision) throw new Error('Field-book inputs changed after this boundary was computed. Recompute before exporting.');
+        // Numerical closure of entered/modelled legs is not field verification.
+        return { stations, referenceCrs: reference.code };
+      }
+      const ratioText=String(boundary?.precision_ratio ?? '').replace(/,/g,'').replace(/^1\s*:\s*/,'').trim();
       const ratio=ratioText==='∞' ? Infinity : Number(ratioText);
-      return {stations,closure:{misclosureMm:Number(boundary.linear_misclosure)*1000,precisionRatio:ratio}};
+      return {stations,closure:{misclosureMm:boundary?.linear_misclosure == null ? NaN : Number(boundary.linear_misclosure)*1000,precisionRatio:ratio}};
     }
     // Find the most recent traverse for this project via parcels
     const traverseRes = await db.query<{ id: string }>(
@@ -297,7 +321,7 @@ export async function loadPreAdjustedFromDB(
     const traverse = traverseRes.rows[0];
     const traverseId = traverse.id;
 
-    const coordsRes = await db.query(
+    const coordsRes = await db.query<Record<string, unknown>>(
       `SELECT station_name AS station, easting, northing, elevation AS rl
        FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY created_at, id`,
       [traverseId]
@@ -317,14 +341,14 @@ export async function loadPreAdjustedFromDB(
       links.set(observation.station_from, observation.station_to);
     }
     const ordered: typeof coordsRes.rows = [];
-    let station = observations.rows[0]?.station_from;
+    let station: string | undefined = observations.rows[0]?.station_from;
     const visited = new Set<string>();
     while (station && !visited.has(station)) {
       visited.add(station);
       const coordinate = coordsRes.rows.find((row: Record<string, unknown>) => row.station === station);
       if (!coordinate) break;
       ordered.push(coordinate);
-      station = links.get(station)!;
+      station = links.get(station);
     }
     if (ordered.length !== coordsRes.rows.length || station !== observations.rows[0]?.station_from) {
       throw new Error('A complete ordered boundary is required for coordinate export. Review traverse observations.');
@@ -410,8 +434,8 @@ async function computeFromFieldBook(projectId: string): Promise<DeedPlanGeometry
   if (!Number.isFinite(seed?.startE) || !Number.isFinite(seed?.startN)) {
     throw new Error('Starting easting and northing are required before generating survey documents.');
   }
-  const startE = seed!.startE!;
-  const startN = seed!.startN!;
+  const startE = Number(seed?.startE);
+  const startN = Number(seed?.startN);
 
   // Build the traverse input for the engine's Bowditch adjustment
   // This ensures the deed plan uses the SAME adjusted coordinates as the

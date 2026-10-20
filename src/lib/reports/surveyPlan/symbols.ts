@@ -78,10 +78,10 @@ export function svgScaleBar(
       segments.push(`<rect x="${sx}" y="${y}" width="${segmentW}" height="${barH}" fill="white" stroke="${C_BLACK}" stroke-width="0.8"/>`)
     }
     if (i < numSegments) {
-      labels.push(`<text x="${sx}" y="${y - labelGap}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${i * segmentMetres}</text>`)
+      labels.push(`<text x="${sx}" y="${y - labelGap}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${Number((i * segmentMetres).toPrecision(12))}</text>`)
     }
   }
-  labels.push(`<text x="${x + barLengthPx}" y="${y - labelGap}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${numSegments * segmentMetres}</text>`)
+  labels.push(`<text x="${x + barLengthPx}" y="${y - labelGap}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${Number((numSegments * segmentMetres).toPrecision(12))}</text>`)
   const scaleLabel = `<text x="${x}" y="${y + barH + 8}" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">SCALE</text>`
   const metresLabel = `<text x="${x}" y="${y + barH + 14}" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">METRES</text>`
   return segments.join('') + labels.join('') + scaleLabel + metresLabel

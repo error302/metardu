@@ -1,6 +1,12 @@
 /** @jest-environment node */
 import { NextRequest, NextResponse } from 'next/server'
+import { fieldBookRevision } from '@/lib/survey/fieldBookRevision'
 const declaredWgs84Crs = 'EPSG:' + (32700 + 36)
+const startControl = { name: 'A', easting: 500000, northing: 9860000, crs: declaredWgs84Crs }
+const fieldRows = [['A', 'B', 0], ['B', 'C', 90], ['C', 'D', 180], ['D', 'A', 270]].map(([station, target, bearing], index) => ({
+  id: `row-${index}`, project_id: 'project-1', row_index: index, station,
+  raw_data: { station, target, bearing, distance: 100, distanceType: 'grid' },
+}))
 
 const mockQuery = jest.fn<Promise<{ rows: unknown[]; rowCount?: number }>, [string, ...unknown[]]>()
 const mockClient = { query: mockQuery }
@@ -44,7 +50,7 @@ jest.mock('@/lib/submission/pre-submit-check', () => ({
 }))
 jest.mock('@/lib/survey/field-to-finish', () => ({
   fieldToFinish: async () => ({
-    status: 'warning', adjustedPoints: [{ name: 'A', easting: 500000, northing: 9860000 }],
+    status: 'warning', adjustedPoints: [['A', 500000, 9860000], ['B', 500000, 9860100], ['C', 500100, 9860100], ['D', 500100, 9860000], ['A', 500000, 9860000]].map(([name, easting, northing]) => ({ name, easting, northing, originalEasting: easting, originalNorthing: northing })),
     instantFeedback: { precisionFormatted: '1:1000', precisionRatio: 1000, linearMisclosure: 0.1, closingErrorE: 0.1, closingErrorN: 0, perimeter: 100, passes: false },
     area: { squareMetres: 1000, hectares: 0.1 }, closureCheck: { perimeter: 100 },
   }),
@@ -62,9 +68,9 @@ beforeEach(() => {
       return { rows: [{ id: 'alignment-1', project_id: 'project-1' }], rowCount: 1 }
     }
     if (sql.includes('FROM survey_points')) return { rows: [{ name: 'A', easting: 500000, northing: 9860000 }] }
-    if (sql.includes('FROM field_book_entries')) return { rows: [] }
-    if (sql.includes('FROM project_reference_systems')) return { rows: [] }
-    return { rows: [{ id: 'project-1', user_id: 'user-1', revision: '2026-10-08', datum: 'Arc1960', utm_zone: 37, hemisphere: 'S', survey_type: 'cadastral' }] }
+    if (sql.includes('FROM project_fieldbook_entries')) return { rows: fieldRows }
+    if (sql.includes('FROM project_reference_systems')) return { rows: [{ horizontal_crs: declaredWgs84Crs, datum_name: 'WGS 84', distance_mode: 'grid', coordinate_precision: 3 }] }
+    return { rows: [{ id: 'project-1', user_id: 'user-1', revision: '2026-10-08', boundary_data: { startControl }, datum: 'Arc1960', utm_zone: 37, hemisphere: 'S', survey_type: 'cadastral' }] }
   })
   mockTransaction.mockImplementation(async (work: (client: typeof mockClient) => Promise<unknown>) => {
     const before = saved
@@ -116,17 +122,42 @@ test.each(['revision', 'computation', 'QA'])('pipeline %s failure cannot confirm
   expect(saved).toBe(false)
 })
 test('pipeline persists results and all mandatory provenance on one transaction client', async () => {
-  expect((await pipelineRequest()).status).toBe(200)
+  const response = await pipelineRequest()
+  expect(response.status).toBe(200)
+  expect(await response.json()).toMatchObject({ acceptanceStatus: 'draft_unverified', preSubmit: { ready: false } })
   expect(mockTransaction).toHaveBeenCalledTimes(1)
   expect(mockRevision.mock.calls[0][1]).toBe(mockClient)
   expect(mockComputation.mock.calls[0][1]).toBe(mockClient)
   expect(mockQa.mock.calls[0][1]).toBe(mockClient)
-  expect(mockComputation.mock.calls[0][0]).toEqual(expect.objectContaining({ inputVersion: 'R03' }))
+  expect(mockComputation.mock.calls[0][0]).toHaveProperty('inputVersion', `fieldbook:${fieldBookRevision(fieldRows, startControl)}`)
+  expect(mockComputation.mock.calls[0][0]).toHaveProperty('parameters.previous_design_revision', 'R03')
   expect(mockQa.mock.calls[0][0]).toEqual(expect.objectContaining({ designRevision: 'R04' }))
   expect(mockQa.mock.calls[0][0]).toHaveProperty('toleranceProfile', null)
   expect(mockQa.mock.calls[0][0]).toHaveProperty('results.0.checkType', 'traverse.linear_misclosure')
   expect(mockQa.mock.calls[0][0]).toHaveProperty('results.0.result', 'INFO')
   expect(mockQa.mock.calls[0][0]).toHaveProperty('results.0.thresholdValue', null)
+  expect(mockQa.mock.calls[0][0]).toHaveProperty('results.1.result', 'INFO')
+  const update = mockQuery.mock.calls.find(([sql]) => sql.includes('UPDATE projects'))
+  expect(update?.[0]).toContain('area_sqm = $1')
+  expect(update?.[0]).not.toContain('precision_ratio =')
+  const params = update?.[1] as unknown[]
+  const boundary: unknown = JSON.parse(params[2] as string)
+  expect(boundary).toHaveProperty('adjustedStations', expect.any(Array))
+  expect(boundary).toMatchObject({ computation: { source: 'recorded-grid-traverse', crs: declaredWgs84Crs, acceptance_status: 'draft_unverified', field_verified: false } })
+})
+
+test.each(['owner', 'control', 'observation'])('a concurrent %s change prevents a computation revision', async changed => {
+  const previous = mockQuery.getMockImplementation()
+  mockQuery.mockImplementation(async (sql: string, ...args: unknown[]) => {
+    if (!previous) throw new Error('Missing fixture')
+    const result = await previous(sql, ...args)
+    if (sql.includes('FROM projects') && sql.includes('FOR UPDATE')) return { rows: [{ ...(result.rows[0] as object), ...(changed === 'owner' ? { user_id: 'another-owner' } : changed === 'control' ? { boundary_data: { startControl: { ...startControl, easting: 500001 } } } : {}) }] }
+    if (changed === 'observation' && sql.includes('project_fieldbook_entries') && sql.includes('FOR SHARE')) return { rows: fieldRows.slice(1) }
+    return result
+  })
+  expect((await pipelineRequest()).status).toBe(500)
+  expect(saved).toBe(false)
+  expect(mockRevision).not.toHaveBeenCalled()
 })
 
 function useStoredReference(reference: Record<string, unknown>) {

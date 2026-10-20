@@ -1,16 +1,8 @@
-/**
- * @deprecated Canonical deed plan renderer is now src/lib/compute/deedPlanRenderer.ts
- * This file remains for reference only — production is wired to deedPlanRenderer (see src/app/deed-plan/page.tsx).
- * Do not patch both; retire this after the base SurveyPlanRenderer is consolidated.
- * Form No. 4 Survey Plan Renderer Extension
- * Kenya Land Office compliant survey plan rendering
- * Extends base SurveyPlanRenderer with Form No. 4 specific features
- */
+/** Form No. 4 inspired review layout. Output remains an unverified draft. */
 
 import { sha256Hex } from '@/lib/crypto/sha256'
 import { SurveyPlanRenderer } from './renderer'
 import type { SurveyPlanData, PlanOptions, CoordinateScheduleEntry } from './types'
-import { getRoadReserveWidth } from './types'
 import { mmToPx } from './geometry'
 import {
   escapeXml,
@@ -18,7 +10,7 @@ import {
 } from './symbols'
 
 /**
- * Extended SurveyPlanRenderer that produces Form No. 4 compliant output
+ * Form No. 4 inspired layout for unverified review drafts.
  */
 export class FormNo4Renderer extends SurveyPlanRenderer {
   private formNo4Data: FormNo4Data
@@ -44,7 +36,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
       fieldBookNo: p.fieldBookNo || '',
       dateReceived: p.dateReceived || '',
       fileReference: p.fileReference || '',
-      scale: p.scale || `1:${this.getScale()}`,
+      scale: `1:${this.getScale()}`,
       firNumber: p.firNumber || '',
       submissionNumber: submissionNumber || '',
       // Authentication block
@@ -54,8 +46,8 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
       approvedDate: '',
       authenticatedBy: '',
       authenticatedDate: '',
-      // Surveyor declaration — per Survey Act Cap. 299, Form No. 4
-      declarationText: `I, ${p.surveyor_name || '[SURVEYOR NAME]'}, a Licensed Surveyor ${p.surveyor_licence ? '(LS/' + p.surveyor_licence + ')' : '(LS/_______________)'}, ${p.iskRegNo ? 'ISK Reg. No. ' + p.iskRegNo + ',' : ''} hereby certify that this survey was carried out under my direct supervision in accordance with the Survey Act Cap. 299 and the Survey Regulations 1994, and that all measurements, computations and beacon placements are correct.`,
+      // Review limitations; no declaration is made on the surveyor's behalf.
+      declarationText: 'Unverified draft for independent review. No certification, boundary acceptance or authority approval is established.',
       declarationDate: new Date().toLocaleDateString('en-GB'),
       letterNo: '',
       // Surveyor credentials for stamp area
@@ -67,9 +59,10 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
   }
 
   /**
-   * Render Form No. 4 compliant survey plan
+   * Render the Form No. 4 review layout.
    */
   async renderFormNo4(): Promise<string> {
+    this.validateBoundary();
     const layers: string[] = []
     
     // Base layers
@@ -78,6 +71,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawPanelDivider())
     layers.push(this.drawGrid())
     layers.push(this.drawLotFill())
+    layers.push(this.drawWatermark())
     
     // Form No. 4 specific layers
     layers.push(this.drawCoordinateTables())
@@ -109,28 +103,27 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
    * Split into left and right tables
    */
   private drawCoordinateTables(): string {
-    const controlPts = this.getControlPoints()
+    const controls = this.getControlPoints()
+    const controlPts: CoordinateScheduleEntry[] = this.data.parcel.boundaryPoints.map(point => controls.find(control => control.station === point.name)
+      ?? { station: point.name, easting: point.easting, northing: point.northing, beaconClass: 'unverified' })
     if (controlPts.length === 0) return ''
 
     // Split beacons: P/K-series on left, N/D-series on right
-const leftSideBeacons = controlPts.filter(p =>
-  p.station.startsWith('P') || p.station.startsWith('K')
-)
-const rightSideBeacons = controlPts.filter(p =>
-  p.station.startsWith('N') || p.station.startsWith('D')
-)
+const middle = Math.ceil(controlPts.length / 2)
+const leftSideBeacons = controlPts.slice(0, middle)
+const rightSideBeacons = controlPts.slice(middle)
 
     let svg = ''
     
     // Left table
     if (leftSideBeacons.length > 0) {
-      svg += this.drawCoordinateTable(leftSideBeacons, 'left', mmToPx(15), mmToPx(25))
+      svg += this.drawCoordinateTable(leftSideBeacons, 'left', mmToPx(30), mmToPx(20))
     }
     
     // Right table
     if (rightSideBeacons.length > 0) {
 svg += this.drawCoordinateTable(rightSideBeacons, 'right',
-      this.pageW - mmToPx(15) - mmToPx(65), mmToPx(25))
+      this.drawingX + this.drawingAreaW - mmToPx(96), mmToPx(20))
     }
 
     return svg
@@ -142,7 +135,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
     x: number,
     y: number
   ): string {
-    const colWidths = [mmToPx(15), mmToPx(18), mmToPx(18), mmToPx(12), mmToPx(12)]
+    const colWidths = [mmToPx(15), mmToPx(22), mmToPx(22), mmToPx(14), mmToPx(18)]
     const rowHeight = mmToPx(6)
     const tableWidth = colWidths.reduce((a, b) => a + b, 0)
     const tableHeight = rowHeight * (beacons.length + 1)
@@ -157,7 +150,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
     let hx = x
     headers.forEach((h, i) => {
       svg += `<rect x="${hx}" y="${y}" width="${colWidths[i]}" height="${rowHeight}" fill="#f0f0f0" stroke="${C_BLACK}" stroke-width="0.3"/>`
-      svg += `<text x="${hx + colWidths[i]/2}" y="${y + rowHeight/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">${h}</text>`
+      svg += `<text x="${hx + colWidths[i]/2}" y="${y + rowHeight/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${h}</text>`
       hx += colWidths[i]
     })
 
@@ -176,7 +169,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
       
       cells.forEach((cell, i) => {
         svg += `<rect x="${hx}" y="${rowY}" width="${colWidths[i]}" height="${rowHeight}" fill="white" stroke="${C_BLACK}" stroke-width="0.3"/>`
-        svg += `<text x="${hx + (i < 1 ? 2 : colWidths[i]/2)}" y="${rowY + rowHeight/2 + 2}" text-anchor="${i < 1 ? 'start' : 'middle'}" font-family="JetBrains Mono, Courier New" font-size="5.5" fill="${C_BLACK}">${escapeXml(cell)}</text>`
+        svg += `<text x="${hx + (i < 1 ? 2 : colWidths[i]/2)}" y="${rowY + rowHeight/2 + 2}" text-anchor="${i < 1 ? 'start' : 'middle'}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
         hx += colWidths[i]
       })
     })
@@ -219,11 +212,11 @@ private drawLRNumbersOnParcels(): string {
     svg += `<text x="${cx}" y="${cy - 10}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">LR No. ${escapeXml(p.lrNumber)}</text>`
     
     // Area label
-    svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="9" fill="${C_BLACK}">A=co=${areaHa} Ha</text>`
+    svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">A=co=${areaHa} Ha</text>`
     
     // DP Number if available
     if (p.plotParcelNumber) {
-      svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" fill="${C_BLACK}">D.P No. ${escapeXml(p.plotParcelNumber)}</text>`
+      svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">D.P No. ${escapeXml(p.plotParcelNumber)}</text>`
     }
 
     return svg
@@ -236,36 +229,18 @@ private drawLRNumbersOnParcels(): string {
    * the actual tick marks along road boundaries.
    */
   private drawRoadAnnotations(): string {
-  const p = this.data.project
-
-  const minE = Math.min(...this.rotatedPoints.map(pt => pt.easting))
-  const maxE = Math.max(...this.rotatedPoints.map(pt => pt.easting))
-  const minN = Math.min(...this.rotatedPoints.map(pt => pt.northing))
-    
-    const cx = this.toSvgX((minE + maxE) / 2)
-    const cy = this.toSvgY(minN) + mmToPx(15)
-
-    let svg = ''
-
-    // Compute actual road reserve width from project road_class
-    const roadClass = p.road_class
-    const roadWidth = roadClass ? getRoadReserveWidth(roadClass) : 0
-    const widthText = roadWidth > 0 ? `All new roads are ${roadWidth.toFixed(2)}m Wide` : 'All new roads are 12.00m Wide'
-    
-    // Road width note with actual width value
-    svg += `<text x="${cx}" y="${cy}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">${widthText}</text>`
-    
-    // Road truncation note
-    svg += `<text x="${cx}" y="${cy + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" fill="${C_BLACK}">All road truncations ±6mm</text>`
-
-    return svg
+    const width = this.data.project.roadReserveWidthMetres;
+    if (width === undefined) return '';
+    if (!Number.isFinite(width) || width <= 0) throw new Error('Recorded road reserve width must be positive and finite.');
+    const x = this.drawingX + mmToPx(8);
+    const y = this.drawingY + mmToPx(8);
+    return `<text x="${x}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="10">Recorded road reserve width: ${width.toFixed(2)} m (review required)</text>`;
   }
 
   /**
    * Draw Form No. 4 right panel
    */
 private drawFormNo4RightPanel(): string {
-  const p = this.data.project
   const d = this.formNo4Data
   const panelX = this.panelX
   const panelW = this.panelW
@@ -275,24 +250,24 @@ private drawFormNo4RightPanel(): string {
     let svg = `<g class="form-no-4-panel">`
 
     // Title
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">SURVEYOR'S PLAN</text>`
+    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">UNVERIFIED DRAFT PLAN</text>`
     y += mmToPx(6)
     
     // Form number
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="9" fill="${C_BLACK}">${d.formNumber}</text>`
+    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${escapeXml(d.formNumber)} — review layout</text>`
     y += mmToPx(8)
 
     // Plan info box
     const infoFields = [
-      ['Registration District', d.registrationDistrict || p.location?.split(',')[0] || ''],
-      ['Locality', d.locality || p.location || ''],
+      ['Registration District', d.registrationDistrict || 'Not supplied'],
+      ['Locality', d.locality || 'Not supplied'],
       ['LR Number', d.lrNumber],
       ['Folio Number', d.folioNumber],
       ['Register Number', d.registerNumber],
       ['FIR Number', d.firNumber],
       ['Scale', d.scale],
-      ['Datum', p.datum || 'ARC1960'],
-      ['UTM Zone', `${p.utm_zone || 37}${p.hemisphere || 'S'}`],
+      ['Datum', this.crs.datum],
+      ['UTM Zone', this.crs.verified ? `${this.crs.zone}${this.crs.hemi}` : 'UNVERIFIED'],
     ]
 
     svg += `<rect x="${panelX + margin/2}" y="${y}" width="${panelW - margin}" height="${mmToPx(50)}" fill="#f9f9f9" stroke="${C_BLACK}" stroke-width="0.5"/>`
@@ -300,8 +275,8 @@ private drawFormNo4RightPanel(): string {
     let fieldY = y + mmToPx(5)
     infoFields.forEach(([label, value]) => {
       if (value) {
-        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="JetBrains Mono, Courier New" font-size="6" fill="#555">${escapeXml(label)}:</text>`
-        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
+        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="#555">${escapeXml(label)}:</text>`
+        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
         fieldY += mmToPx(5)
       }
     })
@@ -325,19 +300,19 @@ private drawFormNo4RightPanel(): string {
 
   private drawFormNo4Legend(x: number, y: number, w: number): string {
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${mmToPx(35)}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
     
     const items = [
-      { symbol: '■', color: C_GREEN, label: 'Found Monument' },
-      { symbol: '○', color: C_GREEN, label: 'Set Monument' },
-      { symbol: '●', color: C_RED, label: 'Masonry Nail' },
-      { symbol: '---', color: C_BLACK, label: 'Boundary Line' },
+      { symbol: `<rect x="-3" y="-6" width="6" height="6" fill="${C_GREEN}"/>`, label: 'Found Monument' },
+      { symbol: `<circle cx="0" cy="-3" r="3" fill="none" stroke="${C_GREEN}"/>`, label: 'Set Monument' },
+      { symbol: `<circle cx="0" cy="-3" r="2.5" fill="${C_RED}"/>`, label: 'Masonry Nail' },
+      { symbol: `<line x1="-4" y1="-3" x2="4" y2="-3" stroke="${C_BLACK}"/>`, label: 'Boundary Line' },
     ]
     
     let itemY = y + mmToPx(10)
     items.forEach(item => {
-      svg += `<text x="${x + mmToPx(3)}" y="${itemY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${item.color}">${item.symbol}</text>`
-      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="JetBrains Mono, Courier New" font-size="6" fill="${C_BLACK}">${item.label}</text>`
+      svg += `<g transform="translate(${x + mmToPx(3)},${itemY})">${item.symbol}</g>`
+      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${item.label}</text>`
       itemY += mmToPx(6)
     })
     
@@ -356,7 +331,7 @@ private drawFormNo4RightPanel(): string {
     const h = mmToPx(20)
 
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="6" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
     svg += `<line x1="${x}" y1="${y + mmToPx(5.5)}" x2="${x + w}" y2="${y + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
     // Column headers
@@ -364,7 +339,7 @@ private drawFormNo4RightPanel(): string {
     const headers = ['Rev', 'Date', 'Description', 'By']
     let hx = x
     headers.forEach((h, i) => {
-      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="#555">${h}</text>`
       hx += colWidths[i]
     })
 
@@ -372,7 +347,7 @@ private drawFormNo4RightPanel(): string {
 
     // Revision rows — if none, show "Initial Issue"
     const rows = revisions.length > 0 ? revisions.slice(0, 3) : [
-      { rev: 'A', date: new Date().toLocaleDateString('en-GB'), description: 'Initial issue', by: p.surveyor_name || '' }
+      { rev: '—', date: '', description: 'No issued revision recorded', by: '' }
     ]
 
     let rowY = y + mmToPx(11.5)
@@ -380,7 +355,7 @@ private drawFormNo4RightPanel(): string {
       hx = x
       const cells = [row.rev, row.date, row.description.length > 25 ? row.description.slice(0, 23) + '..' : row.description, row.by]
       cells.forEach((cell, ci) => {
-        svg += `<text x="${hx + 1}" y="${rowY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="${C_BLACK}">${escapeXml(cell)}</text>`
+        svg += `<text x="${hx + 1}" y="${rowY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
         hx += colWidths[ci]
       })
       rowY += mmToPx(3)
@@ -390,142 +365,13 @@ private drawFormNo4RightPanel(): string {
   }
 
   private drawSurveyorCertificateInternal(x: number, y: number, w: number): string {
-    const d = this.formNo4Data
-    const h = mmToPx(105) // Expanded to accommodate declaration + enhanced auth block
-
-    let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-
-    // ── DECLARATION ──
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="7" font-weight="bold" fill="${C_BLACK}">DECLARATION</text>`
-    svg += `<line x1="${x}" y1="${y + mmToPx(6.5)}" x2="${x + w}" y2="${y + mmToPx(6.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
-
-    // Declaration text (wrapped at ~48 chars per line)
-    const words = d.declarationText.split(' ')
-    const lines: string[] = []
-    let currentLine = ''
-
-    words.forEach(word => {
-      if ((currentLine + word).length > 48) {
-        lines.push(currentLine.trim())
-        currentLine = word + ' '
-      } else {
-        currentLine += word + ' '
-      }
-    })
-    if (currentLine) lines.push(currentLine.trim())
-
-    let textY = y + mmToPx(12)
-    lines.slice(0, 6).forEach(line => {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">${escapeXml(line)}</text>`
-      textY += mmToPx(4)
-    })
-
-    // Surveyor signature line with name and licence
-    textY += mmToPx(2)
-    svg += `<line x1="${x + mmToPx(2)}" y1="${textY}" x2="${x + w * 0.55}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + mmToPx(2)}" y="${textY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Signature of Licensed Surveyor</text>`
-
-    // Date on the right side of signature line
-    svg += `<line x1="${x + w * 0.6}" y1="${textY}" x2="${x + w - mmToPx(2)}" y2="${textY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w * 0.6}" y="${textY + mmToPx(3.5)}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ${escapeXml(d.declarationDate)}</text>`
-
-    // Surveyor credentials below signature
-    textY += mmToPx(6)
-    if (d.surveyorName) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4.5" font-weight="bold" fill="${C_BLACK}">${escapeXml(d.surveyorName)}</text>`
-      textY += mmToPx(3.5)
-    }
-    if (d.surveyorLicence) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">LS/${escapeXml(d.surveyorLicence)}</text>`
-      textY += mmToPx(3.5)
-    }
-    if (d.iskRegNo) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">ISK Reg. ${escapeXml(d.iskRegNo)}</text>`
-      textY += mmToPx(3.5)
-    }
-    if (d.firmName) {
-      svg += `<text x="${x + mmToPx(2)}" y="${textY}" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">${escapeXml(d.firmName)}</text>`
-      textY += mmToPx(3.5)
-    }
-
-    // ── Surveyor Stamp & Seal Area ──
-    // Two areas: ISK rubber stamp (left) and Surveyor's seal (right)
-    // Per ISK practice, the surveyor applies their rubber stamp next to the
-    // signature. The seal circle represents the surveyor's corporate seal.
-    const stampRowY = textY - mmToPx(14)
-    
-    // ISK Association Stamp area
-    const iskStampX = x + mmToPx(2)
-    const iskStampW = mmToPx(28)
-    const iskStampH = mmToPx(12)
-    svg += `<rect x="${iskStampX}" y="${stampRowY}" width="${iskStampW}" height="${iskStampH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
-    svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">ISK ASSOCIATION</text>`
-    svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(7)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">RUBBER STAMP</text>`
-    if (d.firmName) {
-      svg += `<text x="${iskStampX + iskStampW/2}" y="${stampRowY + mmToPx(10)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="2.5" fill="#bbb">${escapeXml(d.firmName)}</text>`
-    }
-
-    // Surveyor's Corporate Seal area
-    const sealX = x + w - mmToPx(22)
-    const sealW = mmToPx(18)
-    const sealH = mmToPx(12)
-    svg += `<rect x="${sealX}" y="${stampRowY}" width="${sealW}" height="${sealH}" fill="none" stroke="#999" stroke-width="0.3" stroke-dasharray="2,1"/>`
-    svg += `<circle cx="${sealX + sealW/2}" cy="${stampRowY + sealH/2}" r="${mmToPx(4)}" fill="none" stroke="#ccc" stroke-width="0.3" stroke-dasharray="1.5,1"/>`
-    svg += `<text x="${sealX + sealW/2}" y="${stampRowY + sealH/2 - 1}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">SURVEYOR</text>`
-    svg += `<text x="${sealX + sealW/2}" y="${stampRowY + sealH/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#aaa">SEAL</text>`
-
-    textY += mmToPx(2)
-
-    // ── SoK AUTHENTICATION BLOCK ──
-    // Per Survey Act Cap. 299, Form No. 4 — this block is completed by the
-    // Director of Surveys office after the plan is submitted for authentication.
-    // The three signature lines correspond to: examination (checking computations),
-    // approval (verifying compliance), and authentication (official SoK seal).
-    const authY = textY + mmToPx(1)
-    const authH = mmToPx(36)
-    svg += `<rect x="${x}" y="${authY}" width="${w}" height="${authH}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
-
-    // Header
-    svg += `<text x="${x + w/2}" y="${authY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">FOR DIRECTOR OF SURVEYS</text>`
-    svg += `<line x1="${x}" y1="${authY + mmToPx(5.5)}" x2="${x + w}" y2="${authY + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
-
-    // Letter No. — reference number for the Director of Surveys' covering letter
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(9)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Letter No.: ${d.letterNo || '________________________'}</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(9)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Ref: ${d.firNumber || '___________'}</text>`
-
-    // Examined by — checks computations and field work
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(14)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Examined by: ________________________</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(14)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
-
-    // Approved by — verifies compliance with Survey Act Cap. 299
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(19)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Approved by: ________________________</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(19)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
-
-    // Authenticated by — applies the official Survey of Kenya seal
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(24)}" font-family="JetBrains Mono, Courier New" font-size="4.5" fill="${C_BLACK}">Authenticated by: ____________________</text>`
-    svg += `<text x="${x + w - mmToPx(2)}" y="${authY + mmToPx(24)}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="4" fill="#555">Date: ___________</text>`
-
-    // Official SoK Seal area — circle with proper label
-    const sealCx = x + w - mmToPx(11)
-    const sealCy = authY + mmToPx(30)
-    const sealR = mmToPx(5)
-    svg += `<circle cx="${sealCx}" cy="${sealCy}" r="${sealR}" fill="none" stroke="${C_BLACK}" stroke-width="0.4" stroke-dasharray="1.5,1"/>`
-    svg += `<text x="${sealCx}" y="${sealCy - 1}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#888">OFFICIAL SEAL</text>`
-    svg += `<text x="${sealCx}" y="${sealCy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#888">SURVEY OF KENYA</text>`
-
-    // Legal reference note at bottom of auth block
-    svg += `<text x="${x + mmToPx(2)}" y="${authY + mmToPx(33)}" font-family="JetBrains Mono, Courier New" font-size="3" fill="#999">Per Survey Act Cap. 299, Sec. 22 — Authentication by Director of Surveys</text>`
-
-    return svg
+    return this.drawReviewRecord(x, y, w, mmToPx(105));
   }
 
-  /**
-   * Draw Form No. 4 title block at bottom
-   */
   private drawFormNo4TitleBlock(): string {
     const d = this.formNo4Data
   const footerY = this.pageH - mmToPx(50)
-  const footerH = mmToPx(44)
+  const footerH = mmToPx(36)
   const margin = mmToPx(10)
   const cols = 6
   const colW = (this.pageW - margin * 2) / cols
@@ -538,7 +384,7 @@ private drawFormNo4RightPanel(): string {
     
     headers.forEach((header) => {
       svg += `<rect x="${x}" y="${footerY}" width="${colW}" height="${footerH}" fill="#f8f8f8" stroke="${C_BLACK}" stroke-width="0.5"/>`
-      svg += `<text x="${x + colW/2}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="5" font-weight="bold" fill="${C_BLACK}">${header}</text>`
+      svg += `<text x="${x + colW/2}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${header}</text>`
       x += colW
     })
 
@@ -571,7 +417,7 @@ private drawFormNo4RightPanel(): string {
   const y = mmToPx(8)
   const cx = this.pageW / 2
 
-    return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="8" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
+    return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
   }
 
   // drawRoadTruncationLines() — inherited from SurveyPlanRenderer base class
@@ -601,12 +447,12 @@ private drawFormNo4RightPanel(): string {
     const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${folio}|${register}|${surveyorLicence}|${revisionsCount}`
     const verCode = (await sha256Hex(rawString)).toUpperCase().slice(0, 16)
 
-    const y = this.pageH - mmToPx(3)
+    const y = this.pageH - mmToPx(7)
     const cx = this.pageW / 2
 
     let svg = ''
-    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="4" fill="#999">Verification: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
-    svg += `<text x="${cx}" y="${y + mmToPx(2)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="3" fill="#bbb">Alteration of this plan invalidates verification — Per Survey Act Cap. 299, Sec. 23</text>`
+    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="#999">Content fingerprint: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
+    svg += `<text x="${cx}" y="${y + mmToPx(3.5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="#555">Selected plan data only; not certification, a signature or authority approval.</text>`
 
     return svg
   }

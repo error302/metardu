@@ -49,6 +49,7 @@ export const SurveyPlanDataSchema = z.object({
     parcel_id: z.string().optional(),
     street: z.string().optional(),
     road_class: z.string().optional(),
+    roadReserveWidthMetres: z.number().finite().positive().optional(),
     northRotationDeg: z.number().optional(),
     sheetNo: z.string().optional(),
     totalSheets: z.string().optional(),

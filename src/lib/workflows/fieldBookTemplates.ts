@@ -11,6 +11,7 @@ const TEMPLATES: Record<SurveyType, FieldBookTemplate> = {
       { key: 'target', label: 'Target', type: 'text', width: '24', placeholder: 'B' },
       { key: 'bearing', label: 'Bearing (°\'")', type: 'bearing', width: '32', required: true, placeholder: '045°30\'20"' },
       { key: 'distance', label: 'Distance (m)', type: 'number', width: '28', required: true, placeholder: '100.000' },
+      { key: 'distanceType', label: 'Distance basis', type: 'select', width: '28', options: ['grid', 'slope', 'unknown'] },
       { key: 'beacon_no', label: 'Beacon No.', type: 'text', width: '24', placeholder: 'BM01' },
       { key: 'monument_type', label: 'Monument', type: 'select', width: '28',
         options: ['PSC Found', 'PSC Set', 'SSC', 'Masonry Nail', 'Indicatory', 'BM', 'None'] },

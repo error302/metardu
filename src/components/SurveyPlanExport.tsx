@@ -3,26 +3,23 @@
 import { useState } from 'react'
 import type { SurveyPlanData, PlanOptions } from '@/lib/reports/surveyPlan/types'
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
+import { FormNo4Renderer } from '@/lib/reports/surveyPlan/formNo4Renderer'
 import type { PlanId } from '@/lib/subscription/catalog'
-
-type JsPdf = import('jspdf').jsPDF
-
-interface JsPdfWithSvg extends JsPdf {
-  addSvg(element: SVGElement, x: number, y: number, options: { width: number; height: number }): Promise<void>
-}
 
 interface SurveyPlanExportProps {
   data: SurveyPlanData
   options?: PlanOptions
   projectId?: string
   plan?: PlanId
+  layout?: 'standard' | 'form4'
 }
 
-export default function SurveyPlanExport({ data, options, projectId, plan = 'free' }: SurveyPlanExportProps) {
+export default function SurveyPlanExport({ data, options, projectId, plan = 'free', layout = 'standard' }: SurveyPlanExportProps) {
   const [exporting, setExporting] = useState(false)
   const [signing, setSigning] = useState(false)
 
   const buildSvgString = async () => {
+    if (layout === 'form4') return new FormNo4Renderer(data, { ...options, watermarkPlan: plan }).renderFormNo4()
     const renderer = new SurveyPlanRenderer(data, { ...options, watermarkPlan: plan })
     return renderer.render()
   }
@@ -42,11 +39,11 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
         import('jspdf'),
       ])
 
-      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' }) as JsPdfWithSvg
-      await pdf.addSvg(svgEl, 0, 0, { width: 420, height: 297 })
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
+      await pdf.svg(svgEl, { x: 0, y: 0, width: 420, height: 297 })
 
       const date = new Date().toISOString().slice(0, 10)
-      const filename = `${data.project.name.replace(/\s+/g, '_')}_Survey_Plan_${date}.pdf`
+      const filename = `${data.project.name.replace(/\s+/g, '_')}_DRAFT_Survey_Plan_${date}.pdf`
       pdf.save(filename)
     } catch (err) {
       // AUDIT FIX (M15, 2026-07-02): Actionable error message.

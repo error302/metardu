@@ -1,39 +1,17 @@
-// ──────────────────────────────────────────────────────────────────────────
-// METARDU — Field-to-Finish API Route
-// ──────────────────────────────────────────────────────────────────────────
-// POST /api/project/[id]/field-to-finish
-//
-// The ONE endpoint a surveyor needs after fieldwork.
-//
-// Takes the project's raw observations → runs the full pipeline:
-//   1. EDM corrections
-//   2. Traverse adjustment
-//   3. Closure check
-//   4. Area computation
-//   5. Pre-submission validation
-//
-// Returns everything the surveyor needs to know:
-//   - Did the traverse close?
-//   - What's the area?
-//   - Is it ready for submission?
-//   - What's blocking submission?
-//
-// Usage:
-//   const res = await fetch(`/api/project/${id}/field-to-finish`, { method: 'POST' });
-//   const result = await res.json();
-//   // result.instantFeedback.passes → true/false
-//   // result.area.hectares → 0.4523
-//   // result.preSubmit.ready → true/false
-//   // result.preSubmit.issues → [...]
-// ──────────────────────────────────────────────────────────────────────────
+// POST computes a saved, explicitly reduced cadastral grid traverse.
+// Source revision, derived geometry and mandatory provenance commit together.
+// Numerical output remains an unverified draft until independent acceptance.
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
 import { db, setCurrentUserId } from '@/lib/db';
 import { checkProjectAccess } from '@/lib/security/projectAccess';
-import { fieldToFinish, type FieldObservation, type FieldToFinishInput } from '@/lib/survey/field-to-finish';
-import { TRAVERSE_PRECISION_STANDARDS, type SurveyTypeKey } from '@/lib/engine/traverse';
+import { fieldToFinish, type FieldToFinishInput } from '@/lib/survey/field-to-finish';
+import { TRAVERSE_PRECISION_STANDARDS } from '@/lib/engine/traverse';
+import { prepareCadastralInput } from '@/lib/survey/cadastralInput';
+import { fieldBookControlSchema, startingControlFromBoundary } from '@/lib/validation/fieldBookControl';
+import { fieldBookRevision } from '@/lib/survey/fieldBookRevision';
 import { preSubmitCheck } from '@/lib/submission/pre-submit-check';
 import { recordComputationRun, recordQaRun } from '@/lib/provenance/computationAndQa';
 import { currentDesignRevision, recordDesignRevision } from '@/lib/engineering/designRevisions';
@@ -41,29 +19,22 @@ import { hashDeliverableContent } from '@/lib/deliverables/deliverableRegister';
 import { resolveStageReference } from '@/lib/workspaces/stageReference';
 import { logger } from '@/lib/logger'
 import { recordEvidenceEvent } from '@/lib/observations/observationBatches';
+import { CacheKeys, projectCache } from '@/lib/cache/memory-cache';
 
 interface FieldBookEntryRow {
   id: string
   project_id: string
-  from_station: string | null
-  to_station: string | null
-  station_from: string | null
-  station_to: string | null
+  row_index: number
+  station: string | null
   bearing: number | null
-  slope_distance: number | null
-  slope_distance_m: number | null
-  vertical_angle: number | null
-  instrument_height: number | null
-  target_height: number | null
-  temperature: number | null
-  pressure: number | null
-  humidity: number | null
-  created_at: Date
+  distance: number | null
+  raw_data: unknown
 }
 
 interface FieldToFinishProjectRow {
   /** Optimistic-concurrency token: the row's updated_at as text. */
   revision: string;
+  boundary_data?: unknown;
   close_easting?: string;
   close_northing?: string;
   survey_type?: string;
@@ -88,6 +59,7 @@ interface FieldToFinishProjectRow {
 
 interface SurveyPointRow {
   name?: string;
+  point_name?: string;
   easting?: number;
   northing?: number;
   type?: string;
@@ -106,7 +78,7 @@ export async function POST(
 
   const { id: projectId } = await props.params;
   const access = await checkProjectAccess(session.user.id, projectId);
-  if (!access.allowed) {
+  if (!access.allowed || !access.isOwner) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 });
   }
   // The authenticated account, never a client-provided identity, owns the
@@ -131,7 +103,7 @@ export async function POST(
     // legacy optimistic-concurrency token, clearly labelled as such — a
     // timestamp is not a revision.
     const liveRevision = await currentDesignRevision(projectId, 'boundary', null, 'cadastral');
-    const dataRevision =
+    const previousDesignRevision =
       liveRevision?.revision ??
       (project.revision ? `legacy:${project.revision}` : null);
 
@@ -141,8 +113,11 @@ export async function POST(
     const { rows: referenceRows } = await db.query<Record<string, unknown>>(
       'SELECT * FROM project_reference_systems WHERE project_id = $1', [projectId]);
     const reference = resolveStageReference(referenceRows[0], project);
-    if (!reference.code) return NextResponse.json({ error: 'Declare a valid projected project CRS before computing.', code: 'CRS_UNDECLARED' }, { status: 400 });
+    if (!reference.code || reference.source !== 'declared') return NextResponse.json({ error: 'Declare a valid projected project CRS before computing.', code: 'CRS_UNDECLARED' }, { status: 400 });
     const projectCrs = reference.code;
+    if (project.survey_type !== 'cadastral') return NextResponse.json({ error: 'This action computes a closed cadastral grid traverse. Use the project’s discipline-specific computation tools for other survey types.', code: 'WORKFLOW_MISMATCH' }, { status: 400 });
+    const starting = fieldBookControlSchema.safeParse(startingControlFromBoundary(project.boundary_data));
+    if (!starting.success || starting.data.crs !== projectCrs) return NextResponse.json({ error: 'Enter and confirm the starting coordinate in the field book using this project’s declared grid.', code: 'STARTING_COORDINATE_REQUIRED' }, { status: 400 });
 
     // ── Load survey points ──
     const pointsResult = await db.query<SurveyPointRow>(
@@ -156,59 +131,40 @@ export async function POST(
 
     // ── Load field book observations ──
     const obsResult = await db.query<FieldBookEntryRow>(
-      `SELECT * FROM field_book_entries
-       WHERE project_id = $1
-       ORDER BY created_at`,
+      `SELECT * FROM project_fieldbook_entries
+       WHERE project_id = $1 AND deleted_at IS NULL
+       ORDER BY row_index ASC`,
       [projectId],
     );
 
-    const fieldObs: FieldObservation[] = obsResult.rows.map((row) => ({
-      fromStation: String(row.from_station || row.station_from || ''),
-      toStation: String(row.to_station || row.station_to || ''),
-      bearing: row.bearing != null ? parseFloat(String(row.bearing)) : undefined,
-      slopeDistance: parseFloat(String(row.slope_distance || row.slope_distance_m || 0)),
-      verticalAngle: row.vertical_angle != null ? parseFloat(String(row.vertical_angle)) : undefined,
-      ih: row.instrument_height != null ? parseFloat(String(row.instrument_height)) : undefined,
-      th: row.target_height != null ? parseFloat(String(row.target_height)) : undefined,
-      temperature: row.temperature != null ? parseFloat(String(row.temperature)) : undefined,
-      pressure: row.pressure != null ? parseFloat(String(row.pressure)) : undefined,
-      humidity: row.humidity != null ? parseFloat(String(row.humidity)) : undefined,
-    }));
-
-    // ── Run field-to-finish pipeline ──
-    const input: FieldToFinishInput = {
-      observations: fieldObs,
-      startStation: {
-        name: surveyPoints[0]?.name || 'P1',
-        easting: parseFloat(String(surveyPoints[0]?.easting ?? 0)),
-        northing: parseFloat(String(surveyPoints[0]?.northing ?? 0)),
-      },
-      closeStation: project.close_easting ? {
-        name: 'CLOSE',
-        easting: parseFloat(project.close_easting),
-        northing: parseFloat(project.close_northing ?? ''),
-      } : undefined,
-      mode: project.close_easting ? 'link' : 'closed',
-      surveyType: (project.survey_type || 'cadastral') as SurveyTypeKey,
-      adjustmentMethod: 'bowditch',
-      lrNumber: project.lr_number,
-    };
+    let input: FieldToFinishInput;
+    try {
+      input = prepareCadastralInput(project, obsResult.rows, []);
+    } catch (error) {
+      return NextResponse.json({ error: error instanceof Error ? error.message : 'Review the saved field-book observations.', code: 'CADASTRAL_INPUT_INVALID' }, { status: 400 });
+    }
+    const sourceRevision = fieldBookRevision(obsResult.rows, startingControlFromBoundary(project.boundary_data));
+    const dataRevision = `fieldbook:${sourceRevision}`;
 
     const startedAt = Date.now();
     const pipelineResult = await fieldToFinish(input);
 
     // ── Run pre-submission check ──
-    const preSubmit = preSubmitCheck(
+    const finiteCoordinate = (value: unknown) => value == null || String(value).trim() === '' ? NaN : Number(value);
+    const checklist = preSubmitCheck(
       {
         ...project,
+        area_m2: pipelineResult.status === 'failed' ? undefined : pipelineResult.area.squareMetres,
+        precision_ratio: pipelineResult.status === 'failed' ? undefined : pipelineResult.instantFeedback.precisionFormatted,
+        linear_misclosure: pipelineResult.status === 'failed' ? undefined : pipelineResult.instantFeedback.linearMisclosure,
         survey_points: surveyPoints,
       },
       surveyPoints.map((p) => ({
-        name: String(p.name ?? ''),
-        easting: parseFloat(String(p.easting ?? 0)),
-        northing: parseFloat(String(p.northing ?? 0)),
+        name: String(p.point_name ?? p.name ?? ''),
+        easting: finiteCoordinate(p.easting),
+        northing: finiteCoordinate(p.northing),
         type: p.type,
-      })),
+      })).filter(p => p.name && Number.isFinite(p.easting) && Number.isFinite(p.northing)),
       pipelineResult.status !== 'failed'
         ? {
             precisionRatio: pipelineResult.instantFeedback.precisionRatio,
@@ -218,31 +174,56 @@ export async function POST(
           }
         : undefined,
     );
+    const acceptance = {
+      name: 'Field and professional acceptance', icon: 'REVIEW', passed: 0, total: 1,
+      items: [{ label: 'Accepted survey evidence', status: 'fail' as const, blocking: true,
+        detail: 'Entered coordinates and numerical closure do not establish measured control, legal corners or professional acceptance. This computation remains an unverified draft.' }],
+    };
+    const categories = [...checklist.categories, acceptance];
+    const itemCount = categories.reduce((count, category) => count + category.total, 0);
+    const passedCount = categories.reduce((count, category) => count + category.passed, 0);
+    const preSubmit = { ...checklist, ready: false, categories, blockers: checklist.blockers + 1,
+      score: itemCount ? Math.round(100 * passedCount / itemCount) : 0,
+      summary: 'Unverified computation draft. Resolve the checklist and obtain field and professional acceptance before submission.' };
 
     // ── Save computed results back to project ──
     let provenance: { designRevision: string; designRevisionId: string; computationRunId: string; qaRunId: string } | null = null;
     if (pipelineResult.status !== 'failed') {
+      const boundaryStations = pipelineResult.adjustedPoints.slice(0, -1).map(point => ({
+        pointName: point.name, adjustedEasting: point.easting, adjustedNorthing: point.northing,
+        originalEasting: point.originalEasting, originalNorthing: point.originalNorthing,
+      }));
+      if (boundaryStations.length < 3 || boundaryStations.some(point => !Number.isFinite(point.originalEasting) || !Number.isFinite(point.originalNorthing))) throw new Error('The engine returned incomplete coordinate provenance.');
+      const boundaryResult = {
+        adjustedStations: boundaryStations,
+        precision_ratio: pipelineResult.instantFeedback.precisionFormatted,
+        linear_misclosure: pipelineResult.instantFeedback.linearMisclosure,
+        closing_error_e: pipelineResult.instantFeedback.closingErrorE,
+        closing_error_n: pipelineResult.instantFeedback.closingErrorN,
+        perimeter_m: pipelineResult.instantFeedback.perimeter,
+        computation: { source: 'recorded-grid-traverse', crs: projectCrs, acceptance_status: 'draft_unverified', field_verified: false, source_revision: sourceRevision, algorithm_id: 'field-to-finish.pipeline', algorithm_version: '1.1' },
+      };
       const committed = await db.transaction(async (client) => {
+        await client.query<never>('SELECT pg_advisory_xact_lock(hashtext($1))', [projectId]);
+        const locked = await client.query<{ id: string; user_id: string; boundary_data: unknown }>('SELECT id,user_id,boundary_data FROM projects WHERE id=$1 FOR UPDATE', [projectId]);
+        if (locked.rows[0]?.user_id !== actorId) throw new Error('Project ownership changed.');
+        const currentRows = await client.query<FieldBookEntryRow>('SELECT * FROM project_fieldbook_entries WHERE project_id=$1 AND deleted_at IS NULL ORDER BY row_index ASC FOR SHARE', [projectId]);
+        if (fieldBookRevision(currentRows.rows, startingControlFromBoundary(locked.rows[0].boundary_data)) !== sourceRevision) throw new Error('Field-book inputs changed during computation.');
         const updated = await client.query<{ id: string }>(
           `UPDATE projects SET
-             precision_ratio = $1,
-             linear_misclosure = $2,
-             closing_error_e = $3,
-             closing_error_n = $4,
-             area_m2 = $5,
-             perimeter_m = $6,
+             area_sqm = $1,
+             area_ha = $2,
+             boundary_data = COALESCE(boundary_data,'{}'::jsonb) || $3::jsonb,
              updated_at = NOW()
-           WHERE id = $7 AND updated_at::text = $8
+           WHERE id = $4 AND updated_at::text = $5 AND user_id=$6
            RETURNING id`,
           [
-            pipelineResult.instantFeedback.precisionFormatted,
-            pipelineResult.instantFeedback.linearMisclosure,
-            pipelineResult.instantFeedback.closingErrorE,
-            pipelineResult.instantFeedback.closingErrorN,
             pipelineResult.area.squareMetres,
-            pipelineResult.closureCheck.perimeter,
+            pipelineResult.area.squareMetres / 10000,
+            JSON.stringify(boundaryResult),
             projectId,
             project.revision,
+            actorId,
           ],
         );
         if (updated.rows.length !== 1) throw new Error('Project changed or is no longer writable; refresh before computing again.');
@@ -274,12 +255,16 @@ export async function POST(
         const computation = await recordComputationRun({
           projectId,
           algorithmId: 'field-to-finish.pipeline',
-          algorithmVersion: '1.0',
+          algorithmVersion: '1.1',
           inputVersion: dataRevision,
           parameters: {
+            fieldbook_revision: sourceRevision,
+            previous_design_revision: previousDesignRevision,
+            starting_coordinate: starting.data,
             distance_type: 'grid',
-            observation_count: fieldObs.length,
+            observation_count: input.observations.length,
             survey_type: project.survey_type ?? 'cadastral',
+            acceptance_status: 'draft_unverified',
           },
           inputHash: hashDeliverableContent(JSON.stringify({ input, projectCrs })),
           outputHash: hashDeliverableContent(
@@ -325,13 +310,13 @@ export async function POST(
             },
             {
               checkType: 'traverse.precision_ratio',
-              result: pipelineResult.instantFeedback.passes ? 'PASS' : 'FAIL',
+              result: 'INFO',
               measuredValue: pipelineResult.instantFeedback.linearMisclosure > 0
                 ? pipelineResult.instantFeedback.perimeter / pipelineResult.instantFeedback.linearMisclosure : null,
               thresholdValue: TRAVERSE_PRECISION_STANDARDS[input.surveyType],
               unit: '1:x',
-              message: `Precision ratio against the engine preset for ${input.surveyType}; project and jurisdiction review required.`,
-              details: { survey_type: input.surveyType, zero_misclosure: pipelineResult.instantFeedback.linearMisclosure === 0 },
+              message: `Numerical ratio against the ${input.surveyType} engine preset. Field evidence, project tolerance and professional acceptance remain unverified.`,
+              details: { numerical_passes: pipelineResult.instantFeedback.passes, acceptance_status: 'draft_unverified', survey_type: input.surveyType, zero_misclosure: pipelineResult.instantFeedback.linearMisclosure === 0 },
             },
             {
               checkType: 'document.pre_submit',
@@ -352,6 +337,7 @@ export async function POST(
         computationRunId: committed.computation.id,
         qaRunId: committed.qa.runId,
       };
+      projectCache.invalidate(CacheKeys.project(projectId));
       // Additive timeline events are emitted only after all mandatory records
       // commit. A rolled-back computation must never appear as a saved design.
       for (const event of [
@@ -361,7 +347,7 @@ export async function POST(
       ]) {
         await recordEvidenceEvent({ projectId, userId: actorId, ...event, details: {
           input_revision: dataRevision, design_revision: provenance.designRevision,
-          algorithm_id: 'field-to-finish.pipeline', algorithm_version: '1.0',
+          algorithm_id: 'field-to-finish.pipeline', algorithm_version: '1.1', acceptance_status: 'draft_unverified',
         } }).catch((error) => logger.error('[field-to-finish] additive evidence event failed', { error }));
       }
     }
@@ -369,6 +355,7 @@ export async function POST(
     // ── Return everything ──
     return NextResponse.json({
       ...pipelineResult,
+      acceptanceStatus: 'draft_unverified',
       provenance,
       preSubmit: {
         ready: preSubmit.ready,

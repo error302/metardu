@@ -1,41 +1,10 @@
-// ──────────────────────────────────────────────────────────────────────────
-// METARDU — Field-to-Finish Pipeline
-// ──────────────────────────────────────────────────────────────────────────
-// The ONE function a surveyor actually needs.
-//
-// Takes raw field observations → produces a complete submission package.
-//
-// Steps (all automatic):
-//   1. Apply EDM corrections (atmospheric, C&R, grid scale, sea level, slope)
-//   2. Run traverse adjustment (Bowditch or Transit)
-//   3. Check closure against Kenya standards
-//   4. Compute area (Shoelace formula)
-//   5. Generate deed plan coordinates
-//   6. Validate for NLIMS submission
-//   7. Assemble submission ZIP
-//
-// Usage:
-//   const result = await fieldToFinish({
-//     observations: fieldBookRows,
-//     startStation: { name: 'A', easting: 300000, northing: 9800000 },
-//     closeStation: { name: 'A', easting: 300000, northing: 9800000 },
-//     lrNumber: 'LR 12345/6',
-//     surveyType: 'cadastral',
-//     surveyorName: 'John Kamau',
-//     surveyorLicense: 'LSK/2024/1234',
-//   });
-//
-//   // result.status === 'ready' → submission package is ready
-//   // result.status === 'failed' → result.errors tells you what's wrong
-//   // result.instantFeedback → closure check (available BEFORE full pipeline)
-// ──────────────────────────────────────────────────────────────────────────
+// Planar traverse computation from explicitly reduced grid bearings/distances.
+// Results are numerical drafts; field and professional acceptance are separate.
 
 import { bowditchAdjustment, transitAdjustment, type TraverseInput, type SurveyTypeKey, evaluateTraverseClosure } from '@/lib/engine/traverse';
 import { hasCrossingBoundary } from './boundaryValidity';
 import { toRadians } from '@/lib/engine/angles';
-import { reduceEDMObservation } from './adapter';
-import { computeArea, computeClosureCheck } from '@/lib/compute/deedPlan';
-import type { BoundaryPoint } from '@/types/deedPlan';
+import { coordinateArea } from '@/lib/engine/area';
 
 // ─── Types ───────────────────────────────────────────────────────────────
 
@@ -80,7 +49,7 @@ export interface FieldToFinishInput {
   /** Surveyor info */
   surveyorName?: string;
   surveyorLicense?: string;
-  /** UTM zone (default: 37S for Kenya) */
+  /** Declared UTM zone metadata; this planar calculation applies no projection reduction. */
   utmZone?: number;
 }
 
@@ -107,9 +76,12 @@ export interface FieldToFinishResult {
     name: string;
     easting: number;
     northing: number;
+    /** Unadjusted planar coordinates derived from the retained leg readings. */
+    originalEasting?: number;
+    originalNorthing?: number;
     elevation?: number;
   }>;
-  /** EDM corrections applied to each leg */
+  /** Instrument corrections, absent for already reduced grid distances. */
   corrections: Array<{
     from: string;
     to: string;
@@ -135,7 +107,7 @@ export interface FieldToFinishResult {
     precisionRatio: string;
     passes: boolean;
   };
-  /** Deed plan boundary data (ready for PDF/DXF generation) */
+  /** Draft boundary geometry; not accepted field evidence. */
   deedPlanData: {
     boundaryPoints: Array<{ id: string; easting: number; northing: number }>;
     boundaryLegs: Array<{ from: string; to: string; bearing: string; distance: number }>;
@@ -160,72 +132,22 @@ export async function fieldToFinish(input: FieldToFinishInput): Promise<FieldToF
   if (input.observations.length < 2) {
     return failResult('At least 2 observations required', startTime);
   }
-  if (!input.startStation) {
+  if (!input.startStation || !input.startStation.name.trim() || !Number.isFinite(input.startStation.easting) || !Number.isFinite(input.startStation.northing)) {
     return failResult('Start station is required', startTime);
   }
-
-  // ── Step 1: Compute bearings from FL/FR if not pre-computed ──
-  const processedObs = input.observations.map((obs) => {
-    if (obs.bearing !== undefined) {
-      return { ...obs, bearing: obs.bearing };
-    }
-
-    // Compute mean from Face Left / Face Right
-    const hasHCL = obs.hclDeg !== undefined || obs.hclMin !== undefined || obs.hclSec !== undefined;
-    const hasHCR = obs.hcrDeg !== undefined || obs.hcrMin !== undefined || obs.hcrSec !== undefined;
-
-    if (hasHCL && hasHCR) {
-      const hcl = (obs.hclDeg || 0) + (obs.hclMin || 0) / 60 + (obs.hclSec || 0) / 3600;
-      const hcr = (obs.hcrDeg || 0) + (obs.hcrMin || 0) / 60 + (obs.hcrSec || 0) / 3600;
-      // Mean of FL and FR (handle 180° difference)
-      let mean = (hcl + hcr) / 2;
-      if (Math.abs(hcl - hcr) > 90) {
-        mean = (hcl + (hcr + 180)) / 2;
-      }
-      return { ...obs, bearing: ((mean % 360) + 360) % 360 };
-    }
-
-    warnings.push(`No bearing computed for ${obs.fromStation} → ${obs.toStation}`);
-    return { ...obs, bearing: 0 };
-  });
-
-  // ── Step 2: Apply EDM corrections ──
-  const corrections: FieldToFinishResult['corrections'] = [];
-  const correctedBearings: number[] = [];
-  const correctedDistances: number[] = [];
-
-  for (const obs of processedObs) {
-    if (obs.distanceType === 'grid') {
-      corrections.push({from:obs.fromStation,to:obs.toStation,rawSlopeDistance:obs.slopeDistance,correctedDistance:obs.slopeDistance,horizontalDistance:obs.slopeDistance,gridDistance:obs.slopeDistance,atmosphericPPM:0,curvatureRefractionMM:0,scaleFactor:1});
-      correctedBearings.push(obs.bearing);
-      correctedDistances.push(obs.slopeDistance);
-      continue;
-    }
-    const edmResult = reduceEDMObservation({
-      slopeDistance: obs.slopeDistance,
-      verticalAngle: obs.verticalAngle || 0,
-      temperature: obs.temperature,
-      pressure: obs.pressure,
-      humidity: obs.humidity,
-      fromEasting: input.startStation.easting,
-      fromNorthing: input.startStation.northing,
-    });
-
-    corrections.push({
-      from: obs.fromStation,
-      to: obs.toStation,
-      rawSlopeDistance: obs.slopeDistance,
-      correctedDistance: edmResult.gridDistance,
-      horizontalDistance: edmResult.horizontalDistance,
-      gridDistance: edmResult.gridDistance,
-      atmosphericPPM: edmResult.atmosphericPPM,
-      curvatureRefractionMM: edmResult.crCorrection * 1000,
-      scaleFactor: edmResult.lineScaleFactor,
-    });
-
-    correctedBearings.push(obs.bearing ?? 0);
-    correctedDistances.push(edmResult.gridDistance); // Use grid distance for traverse computation
+  if (input.observations.some(observation => !Number.isFinite(observation.slopeDistance) || observation.slopeDistance <= 0 || (observation.bearing !== undefined && (!Number.isFinite(observation.bearing) || observation.bearing < 0 || observation.bearing >= 360)))) {
+    return failResult('Every leg needs a positive finite distance and a valid bearing.', startTime);
   }
+
+  // Horizontal circle readings need orientation evidence; slope observations
+  // need an explicit reduction model. Neither may become a default bearing/grid.
+  if (input.observations.some(obs => obs.bearing === undefined || obs.distanceType !== 'grid')) {
+    return failResult('Supply oriented grid bearings and explicitly reduced grid distances. Use the reduction workflow for instrument observations.', startTime);
+  }
+  const processedObs = input.observations;
+  const corrections: FieldToFinishResult['corrections'] = [];
+  const correctedBearings = processedObs.map(obs => Number(obs.bearing));
+  const correctedDistances = processedObs.map(obs => obs.slopeDistance);
 
   // ── Step 3: Build traverse input ──
   const points = [{ ...input.startStation }];
@@ -268,31 +190,33 @@ export async function fieldToFinish(input: FieldToFinishInput): Promise<FieldToF
     standard: `1:${closureEval.minimum.toLocaleString()} (${input.surveyType})`,
     grade: getGrade(closureEval.ratio),
     message: closureEval.passes
-      ? `✓ Traverse closes at 1:${closureEval.ratio.toLocaleString()} — meets ${input.surveyType} standard (1:${closureEval.minimum.toLocaleString()})`
-      : `✗ Traverse DOES NOT close at 1:${closureEval.ratio.toLocaleString()} — ${input.surveyType} requires 1:${closureEval.minimum.toLocaleString()}. Check field observations.`,
+      ? `✓ Traverse closes at 1:${closureEval.ratio.toLocaleString()} — meets the ${input.surveyType} numerical engine preset (1:${closureEval.minimum.toLocaleString()})`
+      : `✗ Traverse DOES NOT close at 1:${closureEval.ratio.toLocaleString()} — the ${input.surveyType} numerical engine preset is 1:${closureEval.minimum.toLocaleString()}. Check field observations.`,
   };
 
   // ── Step 6: Build adjusted points ──
-  const adjustedPoints = adjusted.legs.map((leg) => ({
-    name: leg.to,
-    easting: leg.adjEasting,
-    northing: leg.adjNorthing,
-  }));
+  let originalEasting = input.startStation.easting;
+  let originalNorthing = input.startStation.northing;
+  const adjustedPoints = adjusted.legs.map((leg) => {
+    originalEasting += leg.rawDeltaE;
+    originalNorthing += leg.rawDeltaN;
+    return { name: leg.to, easting: leg.adjEasting, northing: leg.adjNorthing, originalEasting, originalNorthing };
+  });
   // Add start point
   adjustedPoints.unshift({
     name: input.startStation.name,
     easting: input.startStation.easting,
     northing: input.startStation.northing,
+    originalEasting: input.startStation.easting,
+    originalNorthing: input.startStation.northing,
   });
 
   // ── Step 7: Compute area ──
   const polygonPoints = input.mode === 'closed' ? adjustedPoints.slice(0,-1) : adjustedPoints;
-  const boundaryPoints: BoundaryPoint[] = polygonPoints.map((p, i) => ({
+  const boundaryPoints = polygonPoints.map((p, i) => ({
     id: p.name || `P${i}`,
     easting: p.easting,
     northing: p.northing,
-    markType: 'IRON_PIN',
-    markStatus: 'SET',
   }));
 
   let areaResult = { squareMetres: 0, hectares: 0, acres: 0 };
@@ -303,14 +227,19 @@ export async function fieldToFinish(input: FieldToFinishInput): Promise<FieldToF
   let deedPlanData: FieldToFinishResult['deedPlanData'] = null;
 
   if (input.mode !== 'open' && boundaryPoints.length >= 3) {
-    const areaM2 = computeArea(boundaryPoints);
+    const areaM2 = coordinateArea(boundaryPoints).areaSqm;
     areaResult = {
       squareMetres: areaM2,
       hectares: Math.round(areaM2 / 10000 * 10000) / 10000,
       acres: Math.round(areaM2 / 4046.8564224 * 10000) / 10000,
     };
 
-    closureCheckResult = computeClosureCheck(boundaryPoints);
+    // Report pre-adjustment closure, not the zero residual of a forced polygon.
+    closureCheckResult = {
+      closingErrorE: adjusted.closingErrorE, closingErrorN: adjusted.closingErrorN,
+      perimeter: adjusted.totalDistance, precisionRatio: instantFeedback.precisionFormatted,
+      passes: closureEval.passes,
+    };
 
     // Build deed plan data
     const closedPoints = [...boundaryPoints, boundaryPoints[0]];

@@ -6,7 +6,7 @@ export interface DocumentProject extends ProjectData {
   boundary_data?: {
     adjustedStations?: ComputedStation[]
     startControl?: { name?: string }
-    computation?: { source?: string; computedAt?: string; passes?: boolean }
+    computation?: { source?: string; computedAt?: string; passes?: boolean; crs?: string; source_revision?: string; acceptance_status?: string; field_verified?: boolean }
     perimeter_m?: unknown
     linear_misclosure?: unknown
     closing_error_e?: unknown
@@ -22,7 +22,7 @@ function finite(value: unknown, label: string): number {
 }
 
 /** Use the saved computation revision, never a sample polygon or a name-sorted point list. */
-export function resolveDocumentEvidence(project: DocumentProject, surveyPoints: PointData[]) {
+export function resolveDocumentEvidence(project: DocumentProject, surveyPoints: PointData[], current?: { projectCrs: string | null; fieldBookRevision: string }) {
   const points = surveyPoints.map(p => ({ ...p,
     easting: finite(p.easting, 'easting'), northing: finite(p.northing, 'northing'),
     elevation: p.elevation == null ? undefined : finite(p.elevation, 'elevation'),
@@ -31,11 +31,17 @@ export function resolveDocumentEvidence(project: DocumentProject, surveyPoints: 
   if (!boundary?.computation || !boundary.adjustedStations?.length) {
     return { points, boundaryPoints: [] as PointData[], area: undefined as AreaData | undefined, traverse: undefined as TraverseData | undefined }
   }
+  const gridDraft = boundary.computation.source === 'recorded-grid-traverse'
+  if (gridDraft && (!current?.projectCrs || current.projectCrs !== boundary.computation.crs
+    || current.fieldBookRevision !== boundary.computation.source_revision
+    || boundary.computation.acceptance_status !== 'draft_unverified' || boundary.computation.field_verified !== false)) {
+    throw new Error('Saved computation does not match the current field-book revision and declared grid. Recompute before generating documents.')
+  }
   const boundaryPoints: PointData[] = boundary.adjustedStations.map(p => {
     if (!p.pointName?.trim()) throw new Error('Saved boundary station name is missing. Recompute the field book.')
     return { name: p.pointName, easting: finite(p.adjustedEasting, 'boundary easting'), northing: finite(p.adjustedNorthing, 'boundary northing'),
       // No vertical observation is persisted by the horizontal traverse solver.
-      is_control: p.pointName === boundary.startControl?.name, is_boundary: true } satisfies PointData
+      is_control: !gridDraft && p.pointName === boundary.startControl?.name, is_boundary: true } satisfies PointData
   })
   if (boundaryPoints.length < 3 || new Set(boundaryPoints.map(p => p.name)).size !== boundaryPoints.length) {
     throw new Error('Saved boundary needs at least three distinct stations. Recompute the field book.')
