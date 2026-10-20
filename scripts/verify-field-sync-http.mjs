@@ -35,8 +35,8 @@ report.fixtures={users:[owner,other],projects:[project,secondProject],captureIds
 report.faultInjectionPrefix=triggerPrefix
 const actor=()=>{
   const cookies=new Map()
-  return async(path,{body,form=false}={})=>{
-    const response=await fetch(base+path,{method:body===undefined?'GET':'POST',redirect:'manual',signal:AbortSignal.timeout(60000),headers:{Origin:base,...(body===undefined?{}:{'Content-Type':form?'application/x-www-form-urlencoded':'application/json'}),...(cookies.size?{Cookie:[...cookies].map(([k,v])=>`${k}=${v}`).join('; ')}:{})},...(body===undefined?{}:{body:form?new URLSearchParams(body).toString():JSON.stringify(body)})})
+  return async(path,{body,form=false,expectedUser}={})=>{
+    const response=await fetch(base+path,{method:body===undefined?'GET':'POST',redirect:'manual',signal:AbortSignal.timeout(60000),headers:{Origin:base,...(body===undefined?{}:{'Content-Type':form?'application/x-www-form-urlencoded':'application/json'}),...(expectedUser?{'X-Metardu-Expected-User':expectedUser}:{}),...(cookies.size?{Cookie:[...cookies].map(([k,v])=>`${k}=${v}`).join('; ')}:{})},...(body===undefined?{}:{body:form?new URLSearchParams(body).toString():JSON.stringify(body)})})
     for(const item of response.headers.getSetCookie()){const pair=item.split(';',1)[0],i=pair.indexOf('=');cookies.set(pair.slice(0,i),pair.slice(i+1))}
     return {response,data:await response.json().catch(()=>null)}
   }
@@ -57,14 +57,14 @@ const sourceFingerprints=async()=>{
   return records
 }
 const failedRows=async id=>(await admin.query("SELECT (SELECT count(*)::int FROM survey_observations WHERE project_id=$1 AND client_id=$2) observations,(SELECT count(*)::int FROM observation_batches WHERE project_id=$1 AND quality_metadata->'raw'->>'id'=$2) captures",[project,id])).rows[0]
-let created=false
+let created=false,sourceRecordsBefore,migrationLedger
 await admin.connect();save()
 try{
   assert.equal((await admin.query("SELECT shobj_description(oid,'pg_database') marker FROM pg_database WHERE datname=current_database()")).rows[0].marker,'METARDU synthetic beacon verification only 2026-10-08')
   const role=(await admin.query('SELECT rolsuper,rolbypassrls FROM pg_roles WHERE rolname=$1',[config.runtimeRole])).rows[0]
   assert.ok(role&&!role.rolsuper&&!role.rolbypassrls)
   const before=(await admin.query('SELECT version,checksum FROM schema_migrations ORDER BY version')).rows
-  const sourceRecordsBefore=await sourceFingerprints()
+  sourceRecordsBefore=await sourceFingerprints()
   const drift=computeDrift(files,before);assert.equal(drift.mutated.length,0);assert.equal(drift.ghost.length,0)
   assert.ok(drift.missing.length===0||(drift.missing.length===1&&drift.missing[0]==='114_field_observation_roles'))
   if(drift.missing.length){
@@ -77,6 +77,7 @@ try{
     writeFileSync(join(directory,`migration-${revision}.log`),(migration.stdout??'')+(migration.stderr??''));assert.equal(migration.status,0,'Normal synthetic migration failed; inspect its log.')
   }
   const ledger=(await admin.query('SELECT version,checksum FROM schema_migrations ORDER BY version')).rows
+  migrationLedger=ledger
   assert.ok(computeDrift(files,ledger).ok);assert.ok(before.every(row=>ledger.some(after=>after.version===row.version&&after.checksum===row.checksum)))
   assert.deepEqual(await sourceFingerprints(),sourceRecordsBefore)
   report.syntheticMigration={normalRunner:drift.missing.length>0,sourceRegistryMatches:true,manualPrivilegeGrants:false,applied:ledger.length,priorHashesPreserved:true,originalRecordsPreserved:true,pendingBefore:drift.missing}
@@ -109,6 +110,12 @@ try{
   const readable=await owned('/api/db',{body:{table:'survey_observations',operation:'select',columns:'id,project_id,client_id',filters:[{op:'eq',column:'project_id',value:project},{op:'eq',column:'id',value:first.data.observationId}],single:true}})
   check('authorized raw project reads remain available after generic writes close',readable.response.status===200&&readable.data?.data?.id===first.data.observationId)
   check('raw proxy reads remain private and non-cacheable',readable.response.headers.get('cache-control')==='private, no-store')
+  const guardedRead={table:'survey_observations',operation:'select',columns:'id',filters:[{op:'eq',column:'id',value:first.data.observationId}],single:true}
+  const switched=await owned('/api/db',{body:guardedRead,expectedUser:other})
+  check('a queued database request refuses a switched account before reading',switched.response.status===403&&switched.data?.error?.code==='CAPTURE_OWNER_CHANGED')
+  check('an expected-account header never authenticates an anonymous database request',(await actor()('/api/db',{body:guardedRead,expectedUser:owner})).response.status===401)
+  check('a matching expected-account header preserves authorized database reads',(await owned('/api/db',{body:guardedRead,expectedUser:owner})).data?.data?.id===first.data.observationId)
+  check('a queued file request refuses a switched account before parsing or writing a file',(await owned('/api/storage',{body:{},expectedUser:other})).response.status===403)
   check('actual SQL preserves zero readings and unknown CRS without creating reviewed points',stored.easting===0&&stored.elevation===0&&stored.horizontal_crs===null&&(await rows()).reviewed_points===0)
   check('the immutable archive retains fields with no observation-table column',batch.quality_metadata.raw.horizontalDistance===0&&batch.quality_metadata.raw.bearingDeg===0&&batch.quality_metadata.capturedBy===null&&batch.quality_metadata.uploadedBy===owner&&batch.point_count===0&&batch.observation_count===1)
   const sorted=value=>Array.isArray(value)?value.map(sorted):value&&typeof value==='object'?Object.fromEntries(Object.keys(value).sort().map(key=>[key,sorted(value[key])])):value
@@ -137,6 +144,51 @@ try{
   check('an old unreceipted record is retained for review',(await owned(path,{body:input(legacyId)})).response.status===409)
   assert.deepEqual((await admin.query('SELECT to_jsonb(t) value FROM survey_observations t WHERE project_id=$1 AND client_id=$2',[project,legacyId])).rows[0].value,legacyBefore)
   check('legacy source values stay byte-for-byte equivalent after refusal')
+
+  // These are unknown-author device sources, not reconciliation of old SQL rows.
+  const recovery='/api/fieldbook/recovery',reviewVersion='unknown-author-v1'
+  const hashSource=value=>createHash('sha256').update(JSON.stringify(sorted(Object.fromEntries(Object.entries(value).filter(([key])=>!['syncedAt','synced','syncError','updated_at','deliveryReceipt','deliveryRetry'].includes(key)))))).digest('hex')
+  const recover=(capture,sourceHash=hashSource(capture))=>({capture,sourceHash,acknowledgement:reviewVersion})
+  const recoveryGet=`${recovery}?projectId=${project}`
+  check('anonymous legacy inspection requires ordinary sign-in',(await actor()(recoveryGet,{expectedUser:owner})).response.status===401)
+  const permission=await owned(recoveryGet,{expectedUser:owner})
+  check('legacy inspection returns current authenticated project recording access',permission.response.status===200&&permission.data?.actorId===owner&&permission.data?.projectId===project&&permission.data?.canReview===true&&permission.response.headers.get('cache-control')==='private, no-store')
+  check('legacy inspection refuses a switched account',(await owned(recoveryGet,{expectedUser:other})).response.status===403)
+  const recoveryId='review-'+randomUUID();captureIds.push(recoveryId);save()
+  const recoverySource={...input(recoveryId),elevation:undefined,instrumentHeight:0,
+    rawForm:{station:'SYN-STN',bearing:'045.5056',ih:'0.000',futureField:'Original unknown-author source; retain exactly'}}
+  const recoveryBefore=await rows()
+  check('legacy delivery requires the reviewing-account precondition',(await owned(recovery,{body:recover(recoverySource)})).response.status===403)
+  check('legacy delivery refuses a switched reviewing account',(await owned(recovery,{body:recover(recoverySource),expectedUser:other})).response.status===403)
+  check('legacy review cannot relabel an unknown capture with a claimed author',(await owned(recovery,{body:recover({...recoverySource,ownerId:owner}),expectedUser:owner})).response.status===409)
+  check('legacy review must match the exact independently hashed source',(await owned(recovery,{body:recover(recoverySource,'0'.repeat(64)),expectedUser:owner})).response.status===409)
+  assert.deepEqual(await rows(),recoveryBefore)
+  check('rejected legacy reviews leave no raw observation, capture or reviewed point')
+  const delivered=await owned(recovery,{body:recover(recoverySource),expectedUser:owner})
+  assert.equal(delivered.response.status,201,JSON.stringify(delivered.data))
+  const recoveryRaw=(await admin.query('SELECT * FROM survey_observations WHERE id=$1',[delivered.data.observationId])).rows[0]
+  const recoveryBatch=(await admin.query('SELECT * FROM observation_batches WHERE id=$1',[delivered.data.batchId])).rows[0]
+  const review=delivered.data.legacyRecoveryReview
+  check('legacy receipt identifies the authenticated reviewer separately from unknown capture authorship',delivered.data.id===recoveryId&&delivered.data.inputHash===hashSource(recoverySource)&&delivered.data.fieldVerified===false&&review?.version===reviewVersion&&review.reviewedBy===owner&&review.capturedBy===null&&review.sourceHash===hashSource(recoverySource)&&Number.isFinite(Date.parse(review.reviewedAt)))
+  const retained={...recoverySource};delete retained.syncedAt
+  assert.deepEqual(recoveryBatch.quality_metadata.raw,JSON.parse(JSON.stringify(retained)))
+  check('native legacy capture retains exact raw text, zero values and unknown height/CRS',recoveryRaw.easting===0&&recoveryRaw.instrument_height===0&&recoveryRaw.elevation===null&&recoveryRaw.horizontal_crs===null&&recoveryBatch.quality_metadata.capturedBy===null&&recoveryBatch.quality_metadata.uploadedBy===owner&&recoveryBatch.quality_metadata.legacyRecoveryReview.reviewedBy===owner&&(await rows()).reviewed_points===0)
+  const reviewAudit=(await admin.query("SELECT user_id,details FROM audit_logs WHERE table_name='survey_observations' AND record_id=$1 AND details->>'clientId'=$2",[delivered.data.observationId,recoveryId])).rows
+  check('native legacy review is recorded in the same durable audit chain',reviewAudit.some(row=>row.user_id===owner&&row.details.legacyRecoveryReview?.capturedBy===null&&row.details.legacyRecoveryReview?.sourceHash===hashSource(recoverySource)))
+  const replayReview=await owned(recovery,{body:recover(recoverySource),expectedUser:owner})
+  check('a reviewed retry replays the original raw capture without replacing it',replayReview.response.status===200&&replayReview.data.replayed===true&&replayReview.data.observationId===delivered.data.observationId&&replayReview.data.batchId===delivered.data.batchId&&replayReview.data.legacyRecoveryReview?.reviewedBy===owner)
+  assert.deepEqual((await admin.query('SELECT * FROM survey_observations WHERE id=$1',[delivered.data.observationId])).rows[0],recoveryRaw)
+  assert.deepEqual((await admin.query('SELECT * FROM observation_batches WHERE id=$1',[delivered.data.batchId])).rows[0],recoveryBatch)
+  check('changed legacy raw text cannot reuse an existing delivery identity',(await owned(recovery,{body:recover({...recoverySource,rawForm:{...recoverySource.rawForm,bearing:'045.5057'}}),expectedUser:owner})).response.status===409)
+  check('review does not bypass an existing unreceipted SQL row',(await owned(recovery,{body:recover(input(legacyId)),expectedUser:owner})).response.status===409)
+  assert.deepEqual((await admin.query('SELECT to_jsonb(t) value FROM survey_observations t WHERE project_id=$1 AND client_id=$2',[project,legacyId])).rows[0].value,legacyBefore)
+  await admin.query("UPDATE project_members SET role='viewer' WHERE project_id=$1 AND user_id=$2",[project,other])
+  check('a viewer cannot inspect legacy project sources for recovery',(await foreign(recoveryGet,{expectedUser:other})).response.status===403)
+  check('a viewer cannot submit a legacy review',(await foreign(recovery,{body:recover({...recoverySource,id:'viewer-review'}),expectedUser:other})).response.status===403)
+  await admin.query("UPDATE project_members SET role='surveyor' WHERE project_id=$1 AND user_id=$2",[project,other])
+  check('an active project surveyor can obtain recovery permission',(await foreign(recoveryGet,{expectedUser:other})).data?.canReview===true)
+  await admin.query('DELETE FROM project_members WHERE project_id=$1 AND user_id=$2',[project,other])
+  check('revoked membership invalidates a previously obtained recovery permission',[403,404].includes((await foreign(recovery,{body:recover({...recoverySource,id:'revoked-review'}),expectedUser:other})).response.status))
 
   for(const [index,table]of ['survey_observations','observation_batches','audit_logs'].entries()){
     const id='failure-'+randomUUID(),name=triggerPrefix+'_'+index
@@ -179,6 +231,14 @@ finally{
       assert.equal((await admin.query('DELETE FROM users WHERE id=ANY($1::uuid[]) AND full_name=$2 RETURNING id',[[owner,other],label])).rowCount,2)
       assert.deepEqual(await rows(),{observations:0,captures:0,reviewed_points:0});assert.deepEqual(await rows(secondProject),{observations:0,captures:0,reviewed_points:0})
       report.cleanup.exactFixturesRemoved=true
+    }
+    if(sourceRecordsBefore){
+      assert.deepEqual(await sourceFingerprints(),sourceRecordsBefore)
+      report.cleanup.originalRecordsPreserved=true
+    }
+    if(migrationLedger){
+      assert.deepEqual((await admin.query('SELECT version,checksum FROM schema_migrations ORDER BY version')).rows,migrationLedger)
+      report.cleanup.appliedMigrationHashesPreserved=true
     }
   }catch(error){report.status='cleanup-failed';report.cleanup.failure=error.message;throw error}
   finally{await admin.end();save()}
