@@ -26,3 +26,8 @@ test('interrupted creation never claims the new draft was absent or the original
   jest.mocked(fetch).mockRejectedValueOnce(new DOMException('signal timed out','TimeoutError'))
   await expect(createCaptureBook(actor,input)).rejects.toThrow(/confirm|interrupted/i)
 })
+
+test('a rejected mapping preserves the server code needed to release only a proven absent draft',async()=>{
+  jest.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({error:'Incompatible capture mode',code:'FIELD_CAPTURE_MAPPING'}),{status:422}))
+  await expect(createCaptureBook(actor,input)).rejects.toMatchObject({status:422,code:'FIELD_CAPTURE_MAPPING'})
+})

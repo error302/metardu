@@ -3,6 +3,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useSession } from 'next-auth/react'
 import { createCaptureBook, inspectCaptureSource, listCaptureSources, type CapturedBook, type CaptureInventoryItem } from '@/lib/fieldbook/captureBookClient'
 import type { BookCaptureSource, CaptureBearingEncoding, CaptureBookRequest, CaptureBookType } from '@/lib/fieldbook/captureDraft'
+import { getPendingCaptureDraft, reserveCaptureDraft, completeCaptureDraft } from '@/lib/offline/captureDraftIntent'
+import { canonicalJson } from '@/lib/provenance/canonicalJson'
 interface Props { actorId: string; projectId: string; onPrepare: () => Promise<boolean>; onCreated: (book: CapturedBook) => Promise<boolean> | boolean }
 export function FieldbookCaptureImport(props: Props) {
   const session = useSession()
@@ -37,22 +39,42 @@ function CaptureReview({ actorId, projectId, onPrepare, onCreated }: Props) {
     const result = await inspectCaptureSource(actorId, projectId, batchId)
     if (active.current) setInspected(result)
   }
+  async function restoreOrLoad() {
+    const retained = await getPendingCaptureDraft(actorId, projectId)
+    if (!active.current) return
+    if (retained) { setPendingRequest(retained); return }
+    if (!pendingRequest) await load()
+  }
   async function create() {
-    if (!acknowledged || !selected.length) return
+    if (!pendingRequest && (!acknowledged || !selected.length)) return
     if (!await onPrepare()) throw new Error('The current book could not be preserved. Save or export it before creating a source-linked draft.')
     if (!active.current) return
-    const request = pendingRequest ?? { bookId: crypto.randomUUID(), projectId, name: name.trim(), type, bearingEncoding: encoding,
+    const proposed = pendingRequest ?? { bookId: crypto.randomUUID(), projectId, name: name.trim(), type, bearingEncoding: encoding,
       acknowledgement: 'create-draft-from-raw-v1', sources: selected.map(source => ({ batchId: source.batchId, inputHash: source.inputHash })) } satisfies CaptureBookRequest
+    const request = await reserveCaptureDraft(actorId, proposed)
+    if (!active.current) return
     setPendingRequest(request)
+    if (canonicalJson(request) !== canonicalJson(proposed)) {
+      setMessage('Another tab already retained a draft request for this project. Review its details and retry that exact request before starting another draft.')
+      return
+    }
     let book: CapturedBook
     try { book = await createCaptureBook(actorId, request) }
     catch (cause) {
-      if (active.current && cause instanceof Error && 'status' in cause && typeof cause.status === 'number'
-        && cause.status >= 400 && cause.status < 500 && ![408, 429].includes(cause.status)) setPendingRequest(null)
+      // These codes occur only after the server checked this book ID was absent
+      // and rolled the mapping transaction back. Access/schema/transport errors
+      // cannot disprove an earlier commit whose acknowledgement was lost.
+      if (cause instanceof Error && 'status' in cause && cause.status === 422 && 'code' in cause
+        && ['FIELD_CAPTURE_MAPPING', 'FIELD_CAPTURE_SIZE'].includes(String(cause.code))) {
+        await completeCaptureDraft(actorId, request)
+        if (active.current) setPendingRequest(null)
+      }
       throw cause
     }
     if (!active.current) return
     const opened = await onCreated(book)
+    if (!active.current) return
+    await completeCaptureDraft(actorId, request)
     if (!active.current) return
     setMessage(opened ? 'Source-linked draft created and opened. Original observations remain retained; complete and review the book setup before calculation.'
       : 'The source-linked draft was saved to the project. Your current edits were kept; open it from saved books when ready.')
@@ -67,13 +89,21 @@ function CaptureReview({ actorId, projectId, onPrepare, onCreated }: Props) {
   return <section aria-label="Captured readings to Fieldbook" className="my-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-3 text-[var(--text-primary)]">
     <button type="button" className={button} aria-expanded={open} disabled={busy} onClick={() => {
       if (open) { setOpen(false); return }
-      setOpen(true); void run(() => load())
+      setOpen(true); void run(restoreOrLoad)
     }}>{open ? 'Hide captured readings' : 'Review captured readings'}</button>
     {open && <div className="mt-3 space-y-3">
       <p className="text-sm">Delivered raw captures can form a new editable book. Inspect each source and confirm the reading order. Device-only captures appear after delivery; originals are never replaced or marked field verified.</p>
       {busy && <p role="status" className="text-sm">Checking captured sources…</p>}
-      {error && <div className="space-y-2"><p role="alert" className="text-sm text-red-500">{error}</p>{!pendingRequest && <button type="button" className={button} disabled={busy} onClick={() => { void run(() => load()) }}>Retry source list</button>}</div>}
+      {error && <div className="space-y-2"><p role="alert" className="text-sm text-red-500">{error}</p>{!pendingRequest && <button type="button" className={button} disabled={busy} onClick={() => { void run(restoreOrLoad) }}>Retry source list</button>}</div>}
       {message && <p role="status" className="text-sm">{message}</p>}
+      {pendingRequest && <div className="space-y-2 rounded-lg border border-[var(--border-color)] p-3">
+        <p className="text-sm font-medium">Retained draft request: {pendingRequest.name}</p>
+        <p className="break-all text-xs">Book ID: {pendingRequest.bookId}</p>
+        <p className="text-xs">{pendingRequest.type} · bearing format: {pendingRequest.bearingEncoding}</p>
+        <ol className="space-y-1 break-all font-mono text-xs">{pendingRequest.sources.map(source => <li key={source.batchId}>{source.batchId} · {source.inputHash}</li>)}</ol>
+        <p className="text-sm">Creation is unconfirmed. This reviewed request is retained on this device for this account and project. Retry it to recover the same draft; do not start another copy.</p>
+        <button type="button" className={button} disabled={busy} onClick={() => { void run(create) }}>Retry draft creation</button>
+      </div>}
       {!pendingRequest && <>
         {page?.items.length === 0 && <p className="text-sm">No delivered raw captures are available for this project. Sync your collector readings first.</p>}
         {page && <ul className="space-y-2">{page.items.map(source => <li key={source.batchId} className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--border-color)] pb-2">
@@ -91,7 +121,7 @@ function CaptureReview({ actorId, projectId, onPrepare, onCreated }: Props) {
           }}>Use this source</button>
         </div>}
       </>}
-      {selected.length > 0 && <div className="space-y-3 border-t border-[var(--border-color)] pt-3">
+      {selected.length > 0 && !pendingRequest && <div className="space-y-3 border-t border-[var(--border-color)] pt-3">
         <p className="text-sm font-medium">Selected order ({selected.length})</p>
         <ol className="space-y-1">{selected.map((source, index) => <li key={source.batchId} className="flex flex-wrap items-center gap-2 text-sm"><span>{index + 1}. {String(source.raw.pointName ?? source.raw.station ?? source.clientId)}</span>
           <button type="button" className={button} disabled={frozen || index === 0} aria-label={`Move source ${index + 1} up`} onClick={() => move(index, -1)}>↑</button>
@@ -107,8 +137,7 @@ function CaptureReview({ actorId, projectId, onPrepare, onCreated }: Props) {
         </select></label>
         <p className="text-xs">Setup coordinates, opening levels and missing heights remain blank. GNSS coordinate-only sources are not polar shots. Original text remains attached even when an adopted bearing is converted for the book.</p>
         <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={acknowledged} disabled={frozen} onChange={event => setAcknowledged(event.target.checked)} />I reviewed the selected source order and adopted bearing format. Create a draft; this does not verify measurements or approve survey points.</label>
-        <button type="button" className={button} disabled={busy || !acknowledged || !name.trim()} onClick={() => { void run(create) }}>{pendingRequest ? 'Retry draft creation' : 'Create source-linked draft'}</button>
-        {pendingRequest && <p className="text-sm">Creation is unconfirmed. Retry this same request to recover its acknowledgement before starting another draft.</p>}
+        <button type="button" className={button} disabled={busy || !acknowledged || !name.trim()} onClick={() => { void run(create) }}>Create source-linked draft</button>
       </div>}
     </div>}
   </section>

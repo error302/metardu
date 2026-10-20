@@ -89,3 +89,15 @@ inventory recovered through ordinary retries. Full browser selection/creation/
 export, native type/pagination/concurrency coverage, durable interrupted-creation
 recovery and release/device acceptance remain open; this is not a completed
 field-to-finish platform.
+
+The next source checkpoint in `CAPTURE_TO_FIELDBOOK.md` adds scoped, checksum-bound
+creation intents before HTTP mutation, explicit same-key recovery after remount,
+transactional reservation across tabs, safe acknowledgement cleanup and retention
+after access/transport uncertainty. Untouched project entry no longer autosaves
+an empty book. Sixty-eight focused source checks passed; mocked storage/remount
+tests remain separate from actual interruption acceptance. Chrome browser QA
+could not obtain origin approval because automatic review disconnected before
+completion. The marked synthetic browser fixture is retained for follow-up;
+production and the existing simulation session are preserved. Browser/device,
+source-chain, engineering, paid lifecycle, security and promotion gates remain
+open, and the goal stays active.

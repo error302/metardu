@@ -8,6 +8,7 @@ import { persistFieldbook } from '@/lib/offline/saveFieldbook'
 import { saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { createCaptureDraftData, type SourceImport } from '@/lib/fieldbook/captureDraft'
 import { fieldbookTransferSchema } from '@/lib/fieldbook/transfer'
+import { useAutoSave } from '@/hooks/useAutoSave'
 
 const actor='11111111-1111-4111-8111-111111111111', project='22222222-2222-4222-8222-222222222222'
 const mockQuery={select:jest.fn().mockReturnThis(),eq:jest.fn().mockReturnThis(),order:jest.fn().mockResolvedValue({data:[],error:null})}
@@ -103,4 +104,15 @@ test('retrying a transient session check preserves current edits and recovers pr
   await act(async()=>{retry()})
   await waitFor(()=>expect(FieldbookCaptureImport).toHaveBeenCalled())
   expect(screen.getByLabelText('Book name')).toHaveValue('Keep through timeout')
+})
+
+test('opening an untouched project does not autosave an empty book; real setup edits enable saving',async()=>{
+  await openPage()
+  expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(false)
+  await act(async()=>{expect(await capture().onPrepare()).toBe(true)})
+  expect(persistFieldbook).not.toHaveBeenCalled()
+  act(()=>level().setLevelRows(previous=>previous.map(row=>({...row,retainedExtension:{marker:'original metadata'}}))))
+  expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(false)
+  act(()=>level().setOpeningRL('0'))
+  expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(true)
 })

@@ -5,7 +5,7 @@ import { observationDeliveryHash } from '@/lib/field/observationReceipt'
 export interface CaptureInventoryItem { batchId: string; clientId: string; station: string | null; mode: string | null; capturedBy: string | null; recordedAt: string | null }
 export interface CapturedBook { id: string; user_id: string; project_id: string; name: string; type: 'leveling' | 'traverse' | 'control'; data: Record<string, unknown> }
 export class CaptureRequestError extends Error {
-  constructor(message: string, readonly status: number) { super(message); this.name = 'CaptureRequestError' }
+  constructor(message: string, readonly status: number, readonly code?: string) { super(message); this.name = 'CaptureRequestError' }
 }
 const inventory = z.object({ items: z.array(z.object({ batchId: z.string().uuid(), clientId: z.string(), station: z.string().nullable(), mode: z.string().nullable(),
   capturedBy: z.string().uuid().nullable(), recordedAt: z.string().datetime({ offset: true }).nullable() })).max(50), next: z.string().nullable() })
@@ -20,7 +20,8 @@ async function requestCaptureApi(actor: string, path: string, body?: CaptureBook
   if (!response.ok) {
     const problem = data && typeof data === 'object' && 'error' in data ? data.error : null
     const message = typeof problem === 'string' ? problem : problem && typeof problem === 'object' && 'message' in problem ? String(problem.message) : 'The source request was refused. Retained sources and your current book were preserved.'
-    throw new CaptureRequestError(message, response.status)
+    const code = data && typeof data === 'object' && 'code' in data && typeof data.code === 'string' ? data.code : undefined
+    throw new CaptureRequestError(message, response.status, code)
   }
   return data
 }

@@ -123,6 +123,77 @@ selection/creation, file download or field acceptance is inferred from that
 empty-state observation. Production, customer data, applied migrations,
 required services and the localhost CAD drawing were not promoted or modified.
 
+## Interrupted creation source checkpoint
+
+The client now retains the fully reviewed creation request before any creation
+HTTP mutation. A separate `metardu-capture-book-intents` IndexedDB store holds
+only the account/project scope, exact request and checksum, not copied raw
+observations. Its read/write transaction requests strict durability and chooses
+one retained key for simultaneous reservations. Opening the review panel after
+a remount restores that request and offers an explicit retry with the same book
+ID, source order and hashes. It never dispatches automatically.
+
+An unreadable/checksum-mismatched intent is retained and refuses a new request.
+Storage failure stops the HTTP mutation. Completion compares the entire request
+before removing the recovery key; a different retained request cannot be erased.
+A competing tab's different request is displayed for review before retrying it.
+Only the server's specific post-lookup mapping/size rejection codes allow
+correction of a proven absent draft. Access, schema, timeout and other failures
+retain the key because they do not disprove a previous unacknowledged commit.
+
+Untouched project entry no longer enables autosave merely because a project ID
+loaded. Actual named/setup/reading edits and existing books enable saving, and
+preserving an untouched book before source import no longer creates an empty
+book. Initial traverse station and instrument/target heights are blank rather
+than assumed values. Existing saved books, including the prior empty Pungu book,
+are retained.
+
+Regression evidence: `.cache/capture-intent-red.log` reproduced four UI/page
+failures and `.cache/capture-intent-storage-red.log` five storage failures before
+implementation. `.cache/capture-intent-final-tests.log` passed 68 checks across
+13 suites. The storage tests use a serialized IDB transaction model; component
+tests simulate remount and uncertain acknowledgements. These tests do not prove
+real browser storage, process interruption, physical power loss or multi-tab
+behavior. Final typing/lint/security logs are `.cache/capture-intent-final-types.log`,
+`.cache/capture-intent-final-lint.log` and `.cache/capture-intent-security.log`;
+each exited zero. The initial lint pass found a test-only untyped JSON clone
+return, corrected with an explicit generic return type without relaxing lint.
+No dependency, customer SQL migration, production promotion or new container is
+required by this client change. Fresh read-only production verification passed
+in `.cache/capture-book-resilience-runtime.log`, with the same backup boundary.
+Final review also reproduced a render failure when a retained row included an
+extra non-text metadata field (`.cache/capture-intent-extra-metadata-red.log`).
+The content check now ignores such extensions without deleting them or treating
+them as measurements. The same 68 checks passed again in
+`.cache/capture-intent-verified-tests.log`; final typing, page lint and security
+evidence are `.cache/capture-intent-verified-types.log`,
+`.cache/capture-intent-metadata-lint.log` and
+`.cache/capture-intent-verified-security.log`.
+
+For ordinary browser acceptance, one explicitly synthetic account/project was
+prepared on the existing marked source-test database. IDs and ownership are in
+`.cache/field-sync/capture-browser-fixture.json`; user
+`a3604630-e646-4efa-a3d9-eba6abbb2b4f`, project
+`3801daa3-b41f-41be-9a85-1b8c71b531cf`. It has no customer data and was retained
+for follow-up acceptance, not claimed as cleaned up. Its first creation attempt
+used an unsupported optional project column and rolled back; the retry verified
+both planned IDs absent and reused those exact IDs with the established schema.
+The existing simulation account was not signed out or given extra entitlements.
+Read-only `.cache/field-sync/capture-browser-fixture-inspection.json` confirmed
+the exact fixture owner/label, one project and zero books, observations,
+captures or points after browser access was blocked.
+
+A separate Chrome login tab was opened so its test account would not replace
+the existing in-app session. Before page content could be observed, automatic
+approval review failed to grant `http://127.0.0.1:3021` access because its review
+connection disconnected. This was an approval-review failure, not a finding
+that the page was unsafe. No credentials were entered, no browser storage was
+seeded, and no alternate browser/CLI page observation was used to bypass the
+rejection. The owner then explicitly authorized retrying Chrome approval; the
+same tab's origin approval succeeded and the ordinary synthetic login was
+submitted. Further browser creation/reload/export acceptance remains to be
+observed rather than inferred from that access recovery.
+
 ## Still required
 
 - Broaden native inventory acceptance to multi-page/equal-timestamp/null-time
@@ -131,9 +202,9 @@ required services and the localhost CAD drawing were not promoted or modified.
   and polar control, but those are not native/browser acceptance for each type.
 - Ordinary authenticated CUA selection/creation, editable save/reopen, complete
   JSON/CSV/PDF inspection, and responsive/keyboard acceptance.
-- Persist creation intent safely across reloads/device interruption. The current
-  panel retries the same key while mounted; its in-memory pending key is not a
-  durable crash-recovery receipt. Do not claim reload-safe creation yet.
+- Verify the retained-key workflow using ordinary browser creation/reload with
+  an unacknowledged server commit, competing tabs and actual storage failure.
+  The new source mechanism is not browser/device interruption proof yet.
 - Private offline reopen, multi-tab coordination, quota/reconnect/device/field
   acceptance; source references are snapshots, not fresh archive verification.
 - The production goal's engineering chain, signing-key, payment, recovery,

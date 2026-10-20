@@ -298,13 +298,13 @@ export default function DigitalFieldBookPage() {
   ])
 
   const [travMode, setTravMode] = useState<'open' | 'closed' | 'link'>('closed')
-  const [startStation, setStartStation] = useState('A')
+  const [startStation, setStartStation] = useState('')
   const [startE, setStartE] = useState('')
   const [startN, setStartN] = useState('')
   const [closeE, setCloseE] = useState('')
   const [closeN, setCloseN] = useState('')
   const [travRows, setTravRows] = useState<TravRow[]>([
-    { id: crypto.randomUUID(), station: '', bearing: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5', remarks: '' },
+    { id: crypto.randomUUID(), station: '', bearing: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '', th: '', remarks: '' },
   ])
 
   const initialControlSetupId = useRef<string>(crypto.randomUUID()).current
@@ -603,6 +603,12 @@ export default function DigitalFieldBookPage() {
   const latestEditable = useRef(autoSaveData)
   latestEditable.current = autoSaveData
 
+  const rowHasContent = (row: Record<string, string>) => Object.entries(row).some(([key, value]) => key !== 'id' && typeof value === 'string' && value.trim())
+  const hasBookContent = !!fieldbookId || !!name.trim() || !!sourceImport || (type === 'leveling'
+    ? [openingRL, closingRL, distanceKm].some(value => value.trim()) || levelRows.some(rowHasContent)
+    : type === 'traverse' ? [startStation, startE, startN, closeE, closeN].some(value => value.trim()) || travRows.some(rowHasContent)
+      : controlSetups.some(setup => Object.values(setup.station).some(value => value.trim()) || setup.rows.some(rowHasContent)))
+
   useAutoSave({
     data: autoSaveData,
     onSave: async () => {
@@ -612,7 +618,7 @@ export default function DigitalFieldBookPage() {
       }
     },
     interval: 30000,
-    enabled: !!projectId,
+    enabled: !!projectId && !!ownerId && hasBookContent,
   })
 
   // Fire notification when QC fails — don't wait for surveyor to scroll
@@ -1334,7 +1340,7 @@ export default function DigitalFieldBookPage() {
   )
 
   async function prepareCaptureImport() {
-    if (!(await saveBeforeLeaving())) return false
+    if (hasBookContent && !(await saveBeforeLeaving())) return false
     preparedCapture.current = { ownerId, projectId, bookId: bookIdRef.current, snapshot: JSON.stringify(latestEditable.current) }
     return true
   }

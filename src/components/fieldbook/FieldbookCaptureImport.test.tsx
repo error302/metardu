@@ -1,12 +1,17 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FieldbookCaptureImport } from './FieldbookCaptureImport'
 import { createCaptureBook, inspectCaptureSource, listCaptureSources } from '@/lib/fieldbook/captureBookClient'
+import { getPendingCaptureDraft, reserveCaptureDraft, completeCaptureDraft } from '@/lib/offline/captureDraftIntent'
+jest.mock('@/lib/offline/captureDraftIntent',()=>({getPendingCaptureDraft:jest.fn(),reserveCaptureDraft:jest.fn(),completeCaptureDraft:jest.fn()}))
 jest.mock('@/lib/fieldbook/captureBookClient',()=>({createCaptureBook:jest.fn(),inspectCaptureSource:jest.fn(),listCaptureSources:jest.fn()}))
 jest.mock('next-auth/react',()=>({useSession:()=>({status:'authenticated',data:{user:{id:'11111111-1111-4111-8111-111111111111'}}})}))
 const actor='11111111-1111-4111-8111-111111111111',project='22222222-2222-4222-8222-222222222222',batch='33333333-3333-4333-8333-333333333333'
 const props={actorId:actor,projectId:project,onPrepare:jest.fn(),onCreated:jest.fn()}
 beforeEach(()=>{
   jest.resetAllMocks();props.onPrepare.mockResolvedValue(true);props.onCreated.mockResolvedValue(true)
+  jest.mocked(getPendingCaptureDraft).mockResolvedValue(null)
+  jest.mocked(reserveCaptureDraft).mockImplementation(async(_actor,request)=>request)
+  jest.mocked(completeCaptureDraft).mockResolvedValue(true)
   jest.mocked(listCaptureSources).mockResolvedValue({items:[{batchId:batch,clientId:'device',station:'TP1',mode:'leveling',capturedBy:null,recordedAt:'2026-10-21T08:00:00.000Z'}],next:null})
   jest.mocked(inspectCaptureSource).mockResolvedValue({batchId:batch,observationId:actor,projectId:project,clientId:'device',inputHash:'a'.repeat(64),capturedBy:null,projectReference:null,raw:{id:'device',station:'TP1',surveyType:'leveling',rawForm:{bs:'0.000'}}})
   jest.mocked(createCaptureBook).mockResolvedValue({id:actor,user_id:actor,project_id:project,name:'Draft',type:'leveling',data:{}})
@@ -48,9 +53,66 @@ test('a different signed-in account cannot open this reviewer’s source panel',
   expect(listCaptureSources).not.toHaveBeenCalled()
 })
 test('a definitive validation rejection lets the reviewer correct the selected book type',async()=>{
-  jest.mocked(createCaptureBook).mockRejectedValueOnce(Object.assign(new Error('Incompatible capture mode'),{status:422}))
+  jest.mocked(createCaptureBook).mockRejectedValueOnce(Object.assign(new Error('Incompatible capture mode'),{status:422,code:'FIELD_CAPTURE_MAPPING'}))
   render(<FieldbookCaptureImport {...props}/>);await selectSource()
   fireEvent.click(screen.getByRole('button',{name:'Create source-linked draft'}))
   expect(await screen.findByRole('alert')).toHaveTextContent('Incompatible capture mode')
   expect(screen.getByRole('combobox',{name:'Book type'})).toBeEnabled()
+})
+
+test('a reloaded panel recovers the persisted creation key without requiring raw selections again',async()=>{
+  jest.mocked(createCaptureBook).mockRejectedValueOnce(new Error('Connection lost after sending'))
+  const first=render(<FieldbookCaptureImport {...props}/>);await selectSource()
+  fireEvent.click(screen.getByRole('button',{name:'Create source-linked draft'}))
+  await screen.findByRole('alert')
+  const sent=jest.mocked(createCaptureBook).mock.calls[0]?.[1]
+  if(!sent)throw new Error('Expected original creation request')
+  expect(reserveCaptureDraft).toHaveBeenCalledWith(actor,sent)
+  first.unmount()
+  jest.mocked(getPendingCaptureDraft).mockResolvedValue(sent)
+  render(<FieldbookCaptureImport {...props}/>)
+  fireEvent.click(screen.getByRole('button',{name:'Review captured readings'}))
+  fireEvent.click(await screen.findByRole('button',{name:'Retry draft creation'}))
+  await waitFor(()=>expect(props.onCreated).toHaveBeenCalledTimes(1))
+  expect(jest.mocked(createCaptureBook).mock.calls[1]?.[1]).toEqual(sent)
+  expect(completeCaptureDraft).toHaveBeenCalledWith(actor,sent)
+})
+
+test('failure to retain the creation key stops the HTTP mutation and keeps the selected sources',async()=>{
+  jest.mocked(reserveCaptureDraft).mockRejectedValueOnce(new Error('Device storage full'))
+  render(<FieldbookCaptureImport {...props}/>);await selectSource()
+  fireEvent.click(screen.getByRole('button',{name:'Create source-linked draft'}))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Device storage full')
+  expect(createCaptureBook).not.toHaveBeenCalled()
+  expect(screen.getByRole('button',{name:'Create source-linked draft'})).toBeEnabled()
+})
+
+test('a later access refusal retains an earlier unconfirmed creation for recovery',async()=>{
+  jest.mocked(createCaptureBook).mockRejectedValueOnce(new Error('Lost acknowledgement')).mockRejectedValueOnce(Object.assign(new Error('Access changed'),{status:403}))
+  render(<FieldbookCaptureImport {...props}/>);await selectSource()
+  fireEvent.click(screen.getByRole('button',{name:'Create source-linked draft'}));await screen.findByRole('alert')
+  fireEvent.click(screen.getByRole('button',{name:'Retry draft creation'}))
+  await waitFor(()=>expect(screen.getByRole('alert')).toHaveTextContent('Access changed'))
+  expect(screen.getByRole('button',{name:'Retry draft creation'})).toBeEnabled()
+  expect(completeCaptureDraft).not.toHaveBeenCalled()
+})
+
+test('another tab’s retained request is displayed for explicit retry without sending the new selection',async()=>{
+  render(<FieldbookCaptureImport {...props}/>);await selectSource()
+  jest.mocked(reserveCaptureDraft).mockImplementationOnce(async(_actor,request)=>({...request,bookId:'77777777-7777-4777-8777-777777777777',name:'Other tab reviewed draft'}))
+  fireEvent.click(screen.getByRole('button',{name:'Create source-linked draft'}))
+  expect(await screen.findByText(/Retained draft request: Other tab reviewed draft/)).toBeInTheDocument()
+  expect(createCaptureBook).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('button',{name:'Retry draft creation'}))
+  await waitFor(()=>expect(createCaptureBook).toHaveBeenCalledWith(actor,expect.objectContaining({bookId:'77777777-7777-4777-8777-777777777777'})))
+})
+
+test('failed acknowledgement cleanup retains the same recovery request',async()=>{
+  jest.mocked(completeCaptureDraft).mockRejectedValueOnce(new Error('Recovery key could not be cleared'))
+  render(<FieldbookCaptureImport {...props}/>);await selectSource()
+  fireEvent.click(screen.getByRole('button',{name:'Create source-linked draft'}))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Recovery key could not be cleared')
+  fireEvent.click(screen.getByRole('button',{name:'Retry draft creation'}))
+  await waitFor(()=>expect(createCaptureBook).toHaveBeenCalledTimes(2))
+  expect(jest.mocked(createCaptureBook).mock.calls[0]?.[1]).toEqual(jest.mocked(createCaptureBook).mock.calls[1]?.[1])
 })
