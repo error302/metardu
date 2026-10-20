@@ -4,21 +4,25 @@ import { promises as fs } from 'fs'
 import { db } from '@/lib/db'
 import { GET, POST, DELETE } from '@/app/api/storage/route'
 
-jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: unknown) => handler }))
+jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: (request: NextRequest, context: { userId: string }) => Promise<Response>) =>
+  (request: NextRequest) => handler(request, { userId: 'alice' }) }))
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn(), transaction: jest.fn() } }))
 jest.mock('fs', () => ({ promises: {
   mkdir: jest.fn(), writeFile: jest.fn(), readFile: jest.fn(), unlink: jest.fn(),
 } }))
-const ctx = { userId: 'alice' } as any
+const ctx = {}
 const request = (value: string) => new NextRequest(`http://localhost/api/storage?path=${encodeURIComponent(value)}`)
-const upload = (value: string) => ({ formData: async () => new Map([
-  ['path', value], ['bucket', 'reports'],
-  ['file', { name: 'report.pdf', size: 4, type: 'application/pdf', arrayBuffer: async () => Buffer.from('data') }],
-] as any) }) as any
+const upload = (value: string) => {
+  const form = new FormData()
+  form.set('path', value)
+  form.set('bucket', 'reports')
+  form.set('file', new Blob(['data'], { type: 'application/pdf' }), 'report.pdf')
+  return new NextRequest('http://127.0.0.1/api/storage', { method: 'POST', body: form })
+}
 
 beforeEach(() => {
   jest.resetAllMocks()
-  ;(db.transaction as jest.Mock).mockImplementation(async callback => callback({ query: db.query }))
+  jest.mocked(db.transaction).mockImplementation(async callback => callback({ query: db.query } as unknown as Parameters<Parameters<typeof db.transaction>[0]>[0]))
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [] })
   ;(fs.mkdir as jest.Mock).mockResolvedValue(undefined)
   ;(fs.writeFile as jest.Mock).mockResolvedValue(undefined)
@@ -83,8 +87,17 @@ test('new uploads register the caller and retain the default user directory', as
   }))
   const result = await POST(upload(''), ctx)
   expect(result.status).toBe(200)
-  expect((await result.json()).data.path).toMatch(/^reports\/alice\/[a-f0-9]+-report\.pdf$/)
+  const body = await result.json() as { data: { path: string } }
+  expect(body.data.path).toMatch(/^reports\/alice\/[a-f0-9]+-report\.pdf$/)
   expect(fs.writeFile).toHaveBeenCalledTimes(1)
+})
+
+test('an account change rejects a queued upload before any file or database write', async () => {
+  const queued = upload('reports/alice/report.pdf')
+  queued.headers.set('X-Metardu-Expected-User', 'previous-owner')
+  expect((await POST(queued, ctx)).status).toBe(403)
+  expect(fs.writeFile).not.toHaveBeenCalled()
+  expect(db.query).not.toHaveBeenCalled()
 })
 
 test('unregistered paths outside the caller directory cannot be claimed', async () => {

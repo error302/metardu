@@ -18,7 +18,7 @@
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export interface QueryResult<T = any> {
   data: T | null
-  error: { message: string; code: string; details?: string } | null
+  error: { message: string; code: string; details?: string; retryAfter?: string } | null
   count?: number | null
 }
 
@@ -80,7 +80,7 @@ class ClientQueryBuilder<T = any> {
   private payload: Record<string, unknown> | Record<string, unknown>[] | null = null
   private onConflict: string | null = null
 
-  constructor(table: string) {
+  constructor(table: string, private expectedUserId?: string) {
     this.table = table
   }
 
@@ -156,7 +156,7 @@ class ClientQueryBuilder<T = any> {
     try {
       const res = await fetch('/api/db', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: { 'Content-Type': 'application/json', ...(this.expectedUserId ? { 'X-Metardu-Expected-User': this.expectedUserId } : {}) },
         body: JSON.stringify({
           table: this.table,
           operation: this.operation,
@@ -177,7 +177,8 @@ class ClientQueryBuilder<T = any> {
 
       if (!res.ok) {
         const err = (await res.json().catch(() => ({ error: res.statusText }))) as { error?: string }
-        return { data: null, error: { message: err.error || 'Query failed', code: String(res.status) } }
+        const retryAfter = res.headers?.get('Retry-After')
+        return { data: null, error: { message: err.error || 'Query failed', code: String(res.status), ...(retryAfter ? { retryAfter } : {}) } }
       }
 
       return await res.json() as QueryResult<T>
@@ -189,15 +190,16 @@ class ClientQueryBuilder<T = any> {
   }
 }
 
-export function createClient(): BrowserClient {
+export function createClient(options: { expectedUserId?: string } = {}): BrowserClient {
   return {
     from(table: string): ClientQueryBuilder {
-      return new ClientQueryBuilder(table)
+      return new ClientQueryBuilder(table, options.expectedUserId)
     },
     auth: {
       async getUser() {
         try {
-          const res = await fetch('/api/auth/session')
+          const res = await fetch('/api/auth/session', { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+          if (!res.ok) throw new Error('Session check failed')
           const session = (await res.json()) as SessionPayload | null
           if (session?.user) {
             return {
@@ -218,7 +220,8 @@ export function createClient(): BrowserClient {
       },
       async getSession() {
         try {
-          const res = await fetch('/api/auth/session')
+          const res = await fetch('/api/auth/session', { cache: 'no-store', signal: AbortSignal.timeout(15_000) })
+          if (!res.ok) throw new Error('Session check failed')
           const session = (await res.json()) as SessionPayload | null
           if (session?.user) {
             return {

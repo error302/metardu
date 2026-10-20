@@ -3,9 +3,17 @@
  * Uses IndexedDB for persistent storage with sync capability
  */
 
+import { mayRetryFieldDelivery, type FieldDeliveryRetry } from '@/lib/field/deliveryRetry'
+import { canReviewLegacyItem, isLegacyReviewQueuedFor, isMobileRecordVisibleTo, isUnattributedItem, legacySourceHash, LEGACY_REVIEW_VERSION, type LegacyRecoveryReview } from './legacyReview'
+import { canonicalJson } from '@/lib/provenance/canonicalJson'
+import type { FieldObservationDeliveryReceipt } from '@/lib/field/observationReceipt'
+
 const DB_NAME = 'MetarduFieldDB'
 const DB_VERSION = 1
+const SYNC_STATE_DB_NAME = 'MetarduFieldDeliveryState'
+const SYNC_STATE_STORE = 'state'
 export const SYNC_RECOVERY_LEASE_MS = 15 * 60 * 1000
+export const MOBILE_SYNC_BATCH_SIZE = 20
 
 // Store names
 const STORES = {
@@ -64,10 +72,31 @@ const STORE_CONFIGS: Record<string, DBConfig> = {
 
 class OfflineStorage {
   private db: IDBDatabase | null = null
+  private syncStateDb: IDBDatabase | null = null
 
   private requireDb(): IDBDatabase {
     if (!this.db) throw new Error('OfflineStorage not initialized - call init() first')
     return this.db
+  }
+
+  /** Keep transport timing separate so older app images can still open the
+   * unchanged version-1 field database after a production rollback. */
+  private async getSyncStateDb(): Promise<IDBDatabase> {
+    if (this.syncStateDb) return this.syncStateDb
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.open(SYNC_STATE_DB_NAME, 1)
+      request.onupgradeneeded = () => { request.result.createObjectStore(SYNC_STATE_STORE, { keyPath: 'id' }) }
+      request.onerror = () => reject(request.error)
+      request.onblocked = () => reject(new Error('Close other METARDU field tabs, then retry delivery. Saved field records were retained.'))
+      request.onsuccess = () => {
+        this.syncStateDb = request.result
+        request.result.onversionchange = () => {
+          request.result.close()
+          if (this.syncStateDb === request.result) this.syncStateDb = null
+        }
+        resolve(request.result)
+      }
+    })
   }
 
   async init(): Promise<void> {
@@ -75,8 +104,13 @@ class OfflineStorage {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
 
       request.onerror = () => reject(request.error)
+      request.onblocked = () => reject(new Error('Close other METARDU field tabs, then retry. Their saved device records will be retained.'))
       request.onsuccess = () => {
         this.db = request.result
+        this.db.onversionchange = () => {
+          request.result.close()
+          if (this.db === request.result) this.db = null
+        }
         resolve()
       }
 
@@ -167,12 +201,13 @@ class OfflineStorage {
 
         const updated = { ...existing, ...data }
         const putRequest = store.put(updated)
-
-        putRequest.onsuccess = () => resolve()
         putRequest.onerror = () => reject(putRequest.error)
       }
 
       request.onerror = () => reject(request.error)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not commit the device record.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Saving the device record was aborted.'))
     })
   }
 
@@ -184,8 +219,10 @@ class OfflineStorage {
       const store = transaction.objectStore(storeName)
       const request = store.delete(id)
 
-      request.onsuccess = () => resolve()
       request.onerror = () => reject(request.error)
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not commit the queue removal.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Removing the queued record was aborted.'))
     })
   }
 
@@ -208,11 +245,15 @@ class OfflineStorage {
     }
     const photoRecords = photos.map(photo => ({
       ...photo,
+      ownerId: observation.ownerId,
       id: photo.id || this.generateId(),
       observationClientId: photo.observationClientId ?? id,
       timestamp: photo.timestamp ?? now,
       synced: false,
     }))
+    if (photos.some(photo => photo.projectId !== observation.projectId || (photo.ownerId && photo.ownerId !== observation.ownerId))) {
+      throw new Error('The observation and attached photos must belong to the same project and capture account.')
+    }
 
     return new Promise((resolve, reject) => {
       const transaction = this.requireDb().transaction(
@@ -226,14 +267,14 @@ class OfflineStorage {
       observationStore.add(record)
       queueStore.add({
         id: this.generateId(), type: 'field_observation', recordId: id,
-        action: 'create', data: record, timestamp: now, status: 'pending', retryCount: 0,
+        action: 'create', data: record, ownerId: record.ownerId, timestamp: now, status: 'pending', retryCount: 0,
       } satisfies SyncQueueItem)
 
       for (const photo of photoRecords) {
         photoStore.add(photo)
         queueStore.add({
           id: this.generateId(), type: 'photo', recordId: photo.id,
-          action: 'create', data: photo, timestamp: now, status: 'pending', retryCount: 0,
+          action: 'create', data: photo, ownerId: photo.ownerId, timestamp: now, status: 'pending', retryCount: 0,
         } satisfies SyncQueueItem)
       }
 
@@ -243,12 +284,17 @@ class OfflineStorage {
     })
   }
 
-  async getFieldObservations(projectId: string): Promise<FieldObservation[]> {
-    return this.getAll(STORES.FIELD_OBSERVATIONS, 'project_id', projectId)
+  async getFieldObservations(projectId: string, ownerId?: string): Promise<FieldObservation[]> {
+    if (!ownerId) return []
+    const rows = await this.getAll<FieldObservation>(STORES.FIELD_OBSERVATIONS, 'project_id', projectId)
+    const visible = await Promise.all(rows.map(row => isMobileRecordVisibleTo(row, ownerId)))
+    return rows.filter((_row, index) => visible[index])
   }
 
-  async getProjectPhotos(projectId: string): Promise<PhotoData[]> {
-    return this.getAll(STORES.PHOTOS, 'project_id', projectId)
+  async getProjectPhotos(projectId: string, ownerId?: string): Promise<PhotoData[]> {
+    if (!ownerId) return []
+    const rows = await this.getAll<PhotoData>(STORES.PHOTOS, 'project_id', projectId)
+    return rows.filter(row => row.ownerId === ownerId)
   }
 
   async getUnsyncedObservations(): Promise<FieldObservation[]> {
@@ -283,7 +329,7 @@ class OfflineStorage {
         photoStore.add(photo)
         queueStore.add({
           id: this.generateId(), type: 'photo', recordId: photo.id,
-          action: 'create', data: photo, timestamp: now, status: 'pending', retryCount: 0,
+          action: 'create', data: photo, ownerId: photo.ownerId, timestamp: now, status: 'pending', retryCount: 0,
         } satisfies SyncQueueItem)
       }
 
@@ -304,12 +350,87 @@ class OfflineStorage {
     })
   }
 
-  async getPendingSyncItems(): Promise<SyncQueueItem[]> {
-    return this.getAll(STORES.SYNC_QUEUE, 'status', 'pending')
+  async getPendingSyncItems(ownerId?: string): Promise<SyncQueueItem[]> {
+    if (!ownerId) return []
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readonly')
+      const request = transaction.objectStore(STORES.SYNC_QUEUE).index('status').openCursor('pending')
+      const items: SyncQueueItem[] = []
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor) return
+        const item = cursor.value as SyncQueueItem
+        if ((isSyncItemOwnedBy(item, ownerId) || isLegacyReviewQueuedFor(item, ownerId)) && mayRetryFieldDelivery(item.deliveryRetry, false)) items.push(item)
+        // Do not materialize a job's entire queue of base64 photos in memory.
+        if (items.length < MOBILE_SYNC_BATCH_SIZE) cursor.continue()
+      }
+      transaction.oncomplete = () => resolve(items)
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not read queued field records.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Reading queued field records was cancelled.'))
+    })
+  }
+
+  async getSyncPauseUntil(): Promise<number> {
+    const db = await this.getSyncStateDb()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SYNC_STATE_STORE], 'readonly')
+      const request = transaction.objectStore(SYNC_STATE_STORE).get('delivery-pause')
+      let until = 0
+      request.onsuccess = () => {
+        const state = request.result as { until?: number } | undefined
+        if (typeof state?.until === 'number' && Number.isFinite(state.until)) until = state.until
+      }
+      transaction.oncomplete = () => resolve(until)
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not read the sync retry time.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Reading the sync retry time was cancelled.'))
+    })
+  }
+
+  /** A later tab/failure must never shorten a previously requested server delay. */
+  async pauseSyncUntil(until: number): Promise<void> {
+    if (!Number.isFinite(until)) throw new Error('Invalid sync retry time.')
+    const db = await this.getSyncStateDb()
+    return new Promise((resolve, reject) => {
+      const transaction = db.transaction([SYNC_STATE_STORE], 'readwrite')
+      const store = transaction.objectStore(SYNC_STATE_STORE)
+      const request = store.get('delivery-pause')
+      request.onsuccess = () => {
+        const previous = request.result as { until?: number } | undefined
+        const previousUntil = previous?.until
+        store.put({ id: 'delivery-pause', until: Math.max(until, typeof previousUntil === 'number' && Number.isFinite(previousUntil) ? previousUntil : 0) })
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not retain the sync retry time.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Saving the sync retry time was cancelled.'))
+    })
+  }
+
+  /** Check the shared pause, then claim a pending, due record atomically. */
+  async claimSyncItem(id: string, ownerId?: string): Promise<boolean> {
+    if (!ownerId) return false
+    if (await this.getSyncPauseUntil() > Date.now()) return false
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readwrite')
+      const store = transaction.objectStore(STORES.SYNC_QUEUE)
+      let claimed = false
+      const request = store.get(id)
+      request.onsuccess = () => {
+        const item = request.result as SyncQueueItem | undefined
+        if (item?.status !== 'pending' || !(isSyncItemOwnedBy(item, ownerId) || isLegacyReviewQueuedFor(item, ownerId)) || !mayRetryFieldDelivery(item.deliveryRetry, false)) return
+        store.put({ ...item, status: 'syncing', lastAttempt: Date.now() })
+        claimed = true
+      }
+      transaction.oncomplete = () => resolve(claimed)
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not claim the queued field record.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Claiming the queued field record was cancelled.'))
+    })
   }
 
   /** Requeue items whose previous sync process ended without completing. */
-  async recoverStaleSyncItems(now = Date.now(), leaseMs = SYNC_RECOVERY_LEASE_MS): Promise<number> {
+  async recoverStaleSyncItems(ownerId?: string, now = Date.now(), leaseMs = SYNC_RECOVERY_LEASE_MS): Promise<number> {
+    if (!ownerId) return 0
     if (!this.db) await this.init()
 
     return new Promise((resolve, reject) => {
@@ -323,7 +444,7 @@ class OfflineStorage {
         if (!cursor) return
 
         const item = cursor.value as SyncQueueItem
-        if (isSyncQueueItemRecoveryExpired(item, now, leaseMs)) {
+        if ((isSyncItemOwnedBy(item, ownerId) || isLegacyReviewQueuedFor(item, ownerId)) && isSyncQueueItemRecoveryExpired(item, now, leaseMs)) {
           cursor.update({ ...item, status: 'pending', lastAttempt: now, error: undefined })
           recovered += 1
         }
@@ -337,33 +458,104 @@ class OfflineStorage {
     })
   }
 
-  async updateSyncStatus(id: string, status: SyncStatus, error?: string, retryCount?: number): Promise<void> {
+  async updateSyncStatus(id: string, status: SyncStatus, error?: string, retryCount?: number, deliveryRetry?: FieldDeliveryRetry): Promise<void> {
     await this.update(STORES.SYNC_QUEUE, id, {
       status,
       error,
       lastAttempt: Date.now(),
       ...(retryCount === undefined ? {} : { retryCount }),
+      ...(deliveryRetry === undefined ? {} : { deliveryRetry }),
     })
   }
 
-  async retryFailedSyncItems(): Promise<void> {
+  async retryFailedSyncItems(ownerId?: string): Promise<void> {
+    if (!ownerId) return
     const failed = await this.getAll<SyncQueueItem>(STORES.SYNC_QUEUE, 'status', 'failed')
-    await Promise.all(failed.filter(item => item.id).map(item => this.update(STORES.SYNC_QUEUE, item.id!, {
+    for (const item of failed) {
+      if (!item.id || !(isSyncItemOwnedBy(item, ownerId) || isLegacyReviewQueuedFor(item, ownerId))) continue
+      await this.update(STORES.SYNC_QUEUE, item.id, {
       status: 'pending',
       retryCount: 0,
       error: undefined,
-    })))
+      // Explicit review may retry a blocked item, but cannot bypass its delay.
+      deliveryRetry: item.deliveryRetry ? { ...item.deliveryRetry, blocked: false } : undefined,
+      })
+    }
   }
 
   async removeFromSyncQueue(id: string): Promise<void> {
     await this.delete(STORES.SYNC_QUEUE, id)
   }
 
+  async getLegacyQueuePage(projectId: string, actorId: string, after?: string): Promise<{ items: LegacyQueueSummary[]; next: string | null }> {
+    if (!actorId || !projectId) return { items: [], next: null }
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readonly')
+      const request = transaction.objectStore(STORES.SYNC_QUEUE).openCursor(after ? IDBKeyRange.lowerBound(after, true) : null)
+      const items: LegacyQueueSummary[] = []
+      request.onsuccess = () => {
+        const cursor = request.result
+        if (!cursor || items.length >= 11) return
+        const item = cursor.value as SyncQueueItem
+        if (item.id && isUnattributedItem(item, projectId)) {
+          const data = item.data as Record<string, unknown>
+          items.push({ id: item.id, recordId: item.recordId, type: item.type,
+            name: String(data.pointName ?? data.name ?? item.recordId).slice(0, 100), status: item.status, error: item.error,
+            canQueue: canReviewLegacyItem(item, projectId)
+              && (!item.recoveryReview || item.recoveryReview.actorId === actorId)
+              && (item.status !== 'syncing' || isSyncQueueItemRecoveryExpired(item)),
+          })
+        }
+        if (items.length < 11) cursor.continue()
+      }
+      transaction.oncomplete = () => resolve({ items: items.slice(0, 10), next: items.length > 10 ? items[9].id : null })
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not inspect older device records.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Device recovery inspection was cancelled.'))
+    })
+  }
+
+  async queueLegacyReview(queueId: string, actorId: string, projectId: string, sourceHash: string): Promise<void> {
+    const item = await this.get<SyncQueueItem>(STORES.SYNC_QUEUE, queueId)
+    if (!actorId || !item || !canReviewLegacyItem(item, projectId)) {
+      throw new Error('This source is attributed, unsupported or belongs to another project. It was retained unchanged.')
+    }
+    if (await legacySourceHash(item) !== sourceHash) throw new Error('The source changed after selection. Review the retained source again.')
+    const snapshot = canonicalJson(item.data)
+    if (!this.db) await this.init()
+    return new Promise((resolve, reject) => {
+      const transaction = this.requireDb().transaction([STORES.SYNC_QUEUE], 'readwrite')
+      const store = transaction.objectStore(STORES.SYNC_QUEUE)
+      const request = store.get(queueId)
+      request.onsuccess = () => {
+        const current = request.result as SyncQueueItem | undefined
+        if (!current || !isUnattributedItem(current, projectId) || canonicalJson(current.data) !== snapshot
+          || current.type !== item.type || current.action !== item.action || current.recordId !== item.recordId
+          || (current.recoveryReview && current.recoveryReview.actorId !== actorId)
+          || (current.status === 'syncing' && !isSyncQueueItemRecoveryExpired(current))) {
+          reject(new Error('The source, review or delivery state changed. No new review was queued.'))
+          return
+        }
+        store.put({ ...current, status: 'pending', error: undefined,
+          ...(current.deliveryRetry ? { deliveryRetry: { ...current.deliveryRetry, blocked: false } } : {}),
+          recoveryReview: { version: LEGACY_REVIEW_VERSION, actorId, projectId, sourceHash,
+            reviewedAt: new Date().toISOString(), capturedBy: null } satisfies LegacyRecoveryReview,
+        })
+      }
+      transaction.oncomplete = () => resolve()
+      transaction.onerror = () => reject(transaction.error ?? new Error('Could not retain the recovery review.'))
+      transaction.onabort = () => reject(transaction.error ?? new Error('Saving the recovery review was cancelled.'))
+    })
+  }
+
   // Storage stats
-  async getStorageStats(): Promise<StorageStats> {
-    const observations = await this.getAll(STORES.FIELD_OBSERVATIONS)
-    const photos = await this.getAll(STORES.PHOTOS)
-    const queue = await this.getAll(STORES.SYNC_QUEUE)
+  async getStorageStats(ownerId?: string): Promise<StorageStats> {
+    if (!ownerId) return { observations: 0, photos: 0, pendingSync: 0, failedSync: 0, storageUsed: '0 B' }
+    const allObservations = await this.getAll<FieldObservation>(STORES.FIELD_OBSERVATIONS)
+    const visible = await Promise.all(allObservations.map(row => isMobileRecordVisibleTo(row, ownerId)))
+    const observations = allObservations.filter((_row, index) => visible[index])
+    const photos = (await this.getAll<PhotoData>(STORES.PHOTOS)).filter(row => row.ownerId === ownerId)
+    const queue = (await this.getAll<SyncQueueItem>(STORES.SYNC_QUEUE)).filter(row => isSyncItemOwnedBy(row, ownerId) || isLegacyReviewQueuedFor(row, ownerId))
 
     return {
       observations: observations.length,
@@ -410,9 +602,15 @@ class OfflineStorage {
 // Types
 export interface FieldObservation {
   id?: string
+  ownerId?: string
   projectId: string
   pointName: string
   pointId?: string
+  surveyType?: 'traverse' | 'leveling' | 'gnss' | 'unspecified'
+  surveyMode?: 'traverse' | 'leveling' | 'control'
+  captureFormVersion?: number
+  /** Exact operator-entered strings, retained independently of normalized fields. */
+  rawForm?: Record<string, string>
   observationType: 'gps' | 'total_station' | 'level' | 'manual'
   northing?: number
   easting?: number
@@ -432,6 +630,9 @@ export interface FieldObservation {
   backsight?: string
   foresight?: string
   horizontalAngle?: number
+  backsightReading?: number
+  intermediateReading?: number
+  foresightReading?: number
   verticalAngle?: number
   slopeDistance?: number
   temperature?: number
@@ -442,13 +643,15 @@ export interface FieldObservation {
   horizontalCrs?: string
   verticalDatum?: string
   instrumentName?: string
-  observationSource?: 'gnss_receiver' | 'browser_geolocation' | 'total_station'
+  observationSource?: 'gnss_receiver' | 'browser_geolocation' | 'total_station' | 'manual'
   timestamp?: number
   synced?: boolean
+  deliveryReceipt?: FieldObservationDeliveryReceipt
 }
 
 export interface PhotoData {
   id?: string
+  ownerId?: string
   projectId: string
   pointId?: string
   pointName?: string
@@ -470,6 +673,7 @@ export interface PhotoData {
 
 export interface SyncQueueItem {
   id?: string
+  ownerId?: string
   type: 'field_observation' | 'photo' | 'survey_point'
   recordId: string
   action: 'create' | 'update' | 'delete'
@@ -479,9 +683,28 @@ export interface SyncQueueItem {
   retryCount?: number
   error?: string
   lastAttempt?: number
+  deliveryRetry?: FieldDeliveryRetry
+  recoveryReview?: LegacyRecoveryReview
+}
+
+export interface LegacyQueueSummary {
+  id: string
+  recordId: string
+  type: SyncQueueItem['type']
+  name: string
+  canQueue: boolean
+  status: SyncStatus | undefined
+  error?: string
 }
 
 export type SyncStatus = 'pending' | 'syncing' | 'synced' | 'failed'
+
+/** Unknown historical attribution is retained, never assigned to a new login. */
+export function isSyncItemOwnedBy(item: SyncQueueItem, ownerId?: string): boolean {
+  if (!ownerId || !item.data || typeof item.data !== 'object' || Array.isArray(item.data)) return false
+  const captureOwner = (item.data as { ownerId?: unknown }).ownerId
+  return captureOwner === ownerId && (item.ownerId === undefined || item.ownerId === ownerId)
+}
 
 export function isSyncQueueItemRecoveryExpired(
   item: SyncQueueItem,

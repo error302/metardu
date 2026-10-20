@@ -1034,13 +1034,17 @@ export default function DigitalFieldBookPage() {
     if (!hasStation) return
     if (photos.length > 0) {
       if (!projectId) throw new Error('Select a project before attaching field photos.')
+      const currentSession = await dbClient.auth.getSession()
+      if (!ownerId || currentSession.data.session?.user?.id !== ownerId) throw new Error('The signed-in account changed. Reopen this fieldbook under its owner before attaching photos.')
       const pointName = (row.station ?? row.pointId ?? '').trim()
       const photoData = await prepareCapturedPhotoData(photos, projectId, {
         pointId: row.pointId?.trim() || pointName,
         pointName,
       })
-      await offlineStorage.savePhotos(photoData)
-      if (typeof navigator !== 'undefined' && navigator.onLine) await syncService.forceSync()
+      await offlineStorage.savePhotos(photoData.map(photo => ({ ...photo, ownerId })))
+      if (typeof navigator !== 'undefined' && navigator.onLine) {
+        void syncService.syncPending().catch(error => logger.error('Photo delivery pending:', { error }))
+      }
     }
     trackFieldbookSave(type, 1)
     const id = row.id?.trim() || crypto.randomUUID()

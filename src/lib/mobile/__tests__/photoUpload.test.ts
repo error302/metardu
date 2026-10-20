@@ -33,6 +33,23 @@ describe('uploadFieldPhoto', () => {
       .rejects.toThrow('Forbidden')
   })
 
+  it('retains storage throttling instructions and bounds the upload lifetime', async () => {
+    const fetcher = jest.fn().mockResolvedValue({ ok: false, status: 429,
+      headers: new Map([['Retry-After', '90']]), json: async () => { throw new SyntaxError('Not JSON') } }) as unknown as typeof fetch
+    await expect(uploadFieldPhoto('photo-throttled', 'AQID', 'project-2', 'image/jpeg', 'original.jpg', fetcher))
+      .rejects.toMatchObject({ status: 429, retryAfter: '90' })
+    const [, init] = (fetcher as jest.Mock).mock.calls[0] as [string, RequestInit]
+    expect(init.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  it('binds a queued photo to the capture account before sending its original bytes', async () => {
+    const fetcher = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: { path: 'survey-photos/owner/photo.png' } }) }) as unknown as typeof fetch
+    await uploadFieldPhoto('photo', 'AQID', 'project', 'image/png', 'original.png', fetcher, 'capture-owner')
+    const [, init] = (fetcher as jest.Mock).mock.calls[0] as [string, RequestInit]
+    expect(init.headers).toEqual({ 'X-Metardu-Expected-User': 'capture-owner' })
+    expect(((init.body as FormData).get('file') as File).size).toBe(3)
+  })
+
   it('rejects invalid image data before making a request', async () => {
     const fetcher = jest.fn() as unknown as typeof fetch
     await expect(uploadFieldPhoto('photo-3', '%%%bad%%%', 'project-3', 'image/jpeg', 'photo-3.jpg', fetcher))

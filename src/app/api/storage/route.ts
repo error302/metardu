@@ -45,6 +45,10 @@ function safeResolvePath(relativePath: string): string | null {
 }
 
 export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ctx) => {
+  const expectedUserId = request.headers?.get('X-Metardu-Expected-User')
+  if (expectedUserId && expectedUserId !== ctx.userId) {
+    return NextResponse.json({ error: 'Sign in as the account that captured this queued file.' }, { status: 403 })
+  }
   const formData = await request.formData()
   const file = formData.get('file') as File | null
   const bucket = (formData.get('bucket') as string | null) ?? 'default'

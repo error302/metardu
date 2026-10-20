@@ -3,11 +3,15 @@
  * Handles upload when connectivity returns
  */
 
-import { offlineStorage, SyncQueueItem, type FieldObservation, type PhotoData } from './offlineStorage'
+import { offlineStorage, isSyncItemOwnedBy, MOBILE_SYNC_BATCH_SIZE, SyncQueueItem, type FieldObservation, type PhotoData } from './offlineStorage'
 import type { BrowserClient,QueryResult } from '@/lib/api-client/client'
 import { createClient } from '@/lib/api-client/client'
 import { uploadFieldPhoto } from './photoUpload'
 import { acknowledgeFieldObservation,observationDeliveryHash,hasStoredFieldAcknowledgement } from '@/lib/field/observationReceipt'
+import { fieldDeliveryFailure } from '@/lib/field/deliveryRetry'
+import { SyncDeliveryError, syncDeliveryError } from './syncDeliveryError'
+import { isLegacyReviewQueuedFor, legacySourceHash, type LegacyRecoveryReview } from './legacyReview'
+import { mobileObservationCapture } from './observationCapture'
 
 // The sync queue stores the same records offlineStorage persists, with the
 // generated id and a server-side timestamp guaranteed by addToSyncQueue.
@@ -16,6 +20,7 @@ type PhotoPayload = PhotoData & { id: string; timestamp: number }
 
 interface SurveyPointPayload {
   id: string
+  ownerId: string
   projectId: string
   name: string
   easting: number
@@ -30,6 +35,8 @@ class SyncService {
   private isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true
   private syncInterval: NodeJS.Timeout | null = null
   private isSyncing = false
+  private lastMessage: string | null = null
+  private retryAt: number | null = null
 
   constructor() {
     if (typeof window !== 'undefined') {
@@ -43,7 +50,7 @@ class SyncService {
 
     this.syncInterval = setInterval(() => {
       if (this.isOnline && !this.isSyncing) {
-        this.syncPending()
+        void this.syncPending().catch(() => { this.lastMessage = 'Could not read the device queue. Your saved records were retained.' })
       }
     }, intervalMs)
   }
@@ -57,14 +64,14 @@ class SyncService {
 
   private handleOnline() {
     this.isOnline = true
-    this.syncPending()
+    void this.syncPending().catch(() => { this.lastMessage = 'Could not read the device queue. Your saved records were retained.' })
   }
 
   private handleOffline() {
     this.isOnline = false
   }
 
-  async syncPending(): Promise<{ synced: number; failed: number }> {
+  async syncPending(options: { retryFailed?: boolean } = {}): Promise<{ synced: number; failed: number }> {
     if (this.isSyncing) return { synced: 0, failed: 0 }
     if (!this.isOnline) return { synced: 0, failed: 0 }
 
@@ -72,40 +79,48 @@ class SyncService {
     let synced = 0
     let failed = 0
     try {
+      this.lastMessage = null
+      this.retryAt = null
+      const session = await createClient().auth.getSession()
+      const ownerId = session.data.session?.user?.id
+      if (session.error || !ownerId) {
+        this.lastMessage = 'Sign in as the capture owner before delivering device readings. Unattributed records remain on this device for review.'
+        return { synced, failed }
+      }
+      const pauseUntil = await offlineStorage.getSyncPauseUntil()
+      if (pauseUntil > Date.now()) {
+        this.retryAt = pauseUntil
+        this.lastMessage = 'Delivery is paused until the retry time. Your device records are retained.'
+        return { synced, failed }
+      }
+      if (options.retryFailed) await offlineStorage.retryFailedSyncItems(ownerId)
       // A browser/tab may have closed after claiming an item. Requeue only
       // claims older than the recovery lease so active slow uploads are not
       // stolen by another sync pass.
-      await offlineStorage.recoverStaleSyncItems()
-      const items = await offlineStorage.getPendingSyncItems()
+      await offlineStorage.recoverStaleSyncItems(ownerId)
+      const items = await offlineStorage.getPendingSyncItems(ownerId)
 
-      for (const item of items) {
+      for (const item of items.slice(0, MOBILE_SYNC_BATCH_SIZE)) {
+        if (!isSyncItemOwnedBy(item, ownerId) && !isLegacyReviewQueuedFor(item, ownerId)) continue
         const id = item.id
         if (!id) { failed++; continue }
+        // The durable claim also observes a pause written by another tab.
+        if (!await offlineStorage.claimSyncItem(id, ownerId)) continue
         try {
-          await this.syncItem(item)
+          await this.syncItem(item, ownerId)
           synced++
         } catch (error) {
           failed++
-          // eslint-disable-next-line no-console -- background sync loop operational log, not user-facing UI
-          console.error('[Sync] Failed to sync item:', item.id, error)
-
-          // Keep a bounded retry count and make permanently failed items
-          // explicitly retryable from the field UI.
-          const retryCount = (item.retryCount || 0) + 1
-          if (retryCount >= 3) {
-            await offlineStorage.updateSyncStatus(
-              id,
-              'failed',
-              error instanceof Error ? error.message : 'Unknown error',
-              retryCount,
-            )
-          } else {
-            await offlineStorage.updateSyncStatus(
-              id,
-              'pending',
-              error instanceof Error ? error.message : 'Unknown error',
-              retryCount,
-            )
+          const deliveryError = syncDeliveryError(error)
+          const retry = fieldDeliveryFailure(item.deliveryRetry, deliveryError.status, deliveryError.retryAfter)
+          await offlineStorage.updateSyncStatus(id, retry.blocked ? 'failed' : 'pending', deliveryError.message, retry.attempts, retry)
+          this.lastMessage = retry.blocked
+            ? 'A record needs review before retrying. Its original device copy is retained.'
+            : 'Delivery was interrupted. Your records are retained and will retry after a delay.'
+          if (!retry.blocked || deliveryError.status === 401) {
+            await offlineStorage.pauseSyncUntil(retry.nextAttemptAt)
+            this.retryAt = retry.nextAttemptAt
+            break
           }
         }
       }
@@ -116,16 +131,15 @@ class SyncService {
     }
   }
 
-  private async syncItem(item: SyncQueueItem): Promise<void> {
+  private async syncItem(item: SyncQueueItem, actorId: string): Promise<void> {
     if (!item.id) throw new Error('Sync item missing id')
-    if(!['create','update'].includes(item.action))throw new Error('This queued action needs a reviewed removal/recovery workflow. The device record was retained.')
-    const dbClient = createClient()
-
-    await offlineStorage.updateSyncStatus(item.id, 'syncing')
+    if(!['create','update'].includes(item.action))throw new SyncDeliveryError('This queued action needs a reviewed removal/recovery workflow. The device record was retained.', 422)
+    if (item.recoveryReview && await legacySourceHash(item) !== item.recoveryReview.sourceHash) throw new SyncDeliveryError('This source changed after review. Retain and review it again before delivery.', 409)
+    const dbClient = createClient({ expectedUserId: actorId })
 
     switch (item.type) {
       case 'field_observation':
-        await this.syncObservation(item.data as ObservationPayload)
+        await this.syncObservation(item.data as ObservationPayload, item.recoveryReview, actorId)
         break
       case 'photo':
         await this.syncPhoto(dbClient, item.data as PhotoPayload)
@@ -134,29 +148,29 @@ class SyncService {
         await this.syncSurveyPoint(dbClient, item.data as SurveyPointPayload)
         break
       default:
-        throw new Error('Unsupported queued field record. The device copy was retained for recovery.')
+        throw new SyncDeliveryError('Unsupported queued field record. The device copy was retained for recovery.', 422)
     }
 
     await offlineStorage.updateSyncStatus(item.id, 'synced')
     await offlineStorage.removeFromSyncQueue(item.id)
   }
 
-  private async syncObservation(payload: ObservationPayload): Promise<void> {
-    const capture={...payload,
-      // Retain the complete original payload, including fields with no table
-      // column. Unspecified survey type is explicit rather than inferred.
-      surveyType:payload.observationType==='level'?'leveling':payload.observationType==='gps'?'gnss':'unspecified',
-      station:payload.pointName,pointId:payload.pointId??payload.pointName,
-      targetHeight:payload.rodHeight,createdAt:new Date(payload.timestamp).toISOString(),
-    }
+  private async syncObservation(payload: ObservationPayload, review?: LegacyRecoveryReview, actorId?: string): Promise<void> {
+    const capture = mobileObservationCapture(payload)
     const inputHash=await observationDeliveryHash(capture)
-    const response=await fetch('/api/fieldbook/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(capture),signal:AbortSignal.timeout(15000)})
-    const data:unknown=await response.json()
-    if(!response.ok)throw new Error(data&&typeof data==='object'&&'error'in data?String(data.error):'Raw observation delivery failed. The device copy was retained.')
-    acknowledgeFieldObservation(data,payload.id,inputHash)
+    const body = review ? { capture, acknowledgement: review.version, sourceHash: review.sourceHash } : capture
+    const response=await fetch(review?'/api/fieldbook/recovery':'/api/fieldbook/sync',{method:'POST',headers:{'Content-Type':'application/json',...(review&&actorId?{'X-Metardu-Expected-User':actorId}:{})},body:JSON.stringify(body),signal:AbortSignal.timeout(15000)})
+    const data:unknown=await response.json().catch(() => null)
+    if(!response.ok)throw new SyncDeliveryError(data&&typeof data==='object'&&'error'in data?String(data.error):'Raw observation delivery failed. The device copy was retained.', response.status, response.headers?.get('Retry-After'))
+    let receipt: ReturnType<typeof acknowledgeFieldObservation>
+    try { receipt = acknowledgeFieldObservation(data,payload.id,inputHash) }
+    catch { throw new SyncDeliveryError('The server receipt does not match this observation. Review is required; the device copy was retained.', 422) }
+    if (review && (receipt.legacyRecoveryReview?.reviewedBy !== actorId || receipt.legacyRecoveryReview?.sourceHash !== inputHash)) {
+      throw new SyncDeliveryError('The server did not confirm this legacy recovery review. The device source was retained.', 422)
+    }
 
     // Mark observation as synced
-    await offlineStorage.update('field_observations', payload.id, { synced: true })
+    await offlineStorage.update('field_observations', payload.id, { synced: true, deliveryReceipt: receipt })
   }
 
   private async syncPhoto(dbClient: BrowserClient, payload: PhotoPayload): Promise<void> {
@@ -168,6 +182,8 @@ class SyncService {
       payload.projectId,
       payload.contentType,
       payload.fileName,
+      fetch,
+      payload.ownerId,
     )
 
     // The project/client unique key makes a retry safe after any interrupted
@@ -193,7 +209,7 @@ class SyncService {
       // metadata. Deleting here could destroy a previous successful upload.
       throw error
     }
-    if(!hasStoredFieldAcknowledgement(data,{client_id:payload.id,project_id:payload.projectId,storage_path:storagePath}))throw new Error('Photo metadata acknowledgement is missing or does not match. The original device photo was retained.')
+    if(!hasStoredFieldAcknowledgement(data,{client_id:payload.id,project_id:payload.projectId,storage_path:storagePath}))throw new SyncDeliveryError('Photo metadata acknowledgement is missing or does not match. The original device photo was retained.', 422)
 
     await offlineStorage.update('photos', payload.id, { synced: true, storagePath })
   }
@@ -212,16 +228,15 @@ class SyncService {
     }).select('id,project_id').single() as QueryResult<unknown>
 
     if (error) throw error
-    if(!hasStoredFieldAcknowledgement(data,{id:payload.id,project_id:payload.projectId}))throw new Error('The server did not acknowledge this exact survey point. The device copy was retained.')
+    if(!hasStoredFieldAcknowledgement(data,{id:payload.id,project_id:payload.projectId}))throw new SyncDeliveryError('The server did not acknowledge this exact survey point. The device copy was retained.', 422)
   }
 
   async forceSync(): Promise<{ synced: number; failed: number }> {
-    await offlineStorage.retryFailedSyncItems()
-    return this.syncPending()
+    return this.syncPending({ retryFailed: true })
   }
 
-  getSyncStatus(): { isOnline: boolean; isSyncing: boolean } {
-    return { isOnline: this.isOnline, isSyncing: this.isSyncing }
+  getSyncStatus(): { isOnline: boolean; isSyncing: boolean; message: string | null; retryAt: number | null } {
+    return { isOnline: this.isOnline, isSyncing: this.isSyncing, message: this.lastMessage, retryAt: this.retryAt }
   }
 }
 

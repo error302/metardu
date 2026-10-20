@@ -5,6 +5,7 @@ import {
   type SyncQueueItem,
 } from '../offlineStorage'
 import { syncService } from '../syncService'
+jest.mock('@/lib/api-client/client', () => ({ createClient: () => ({ auth: { getSession: async () => ({ data: { session: { user: { id: '11111111-1111-4111-8111-111111111111' } } }, error: null }) } }) }))
 
 describe('offline field sync recovery', () => {
   it('recovers only syncing items whose lease has expired', () => {
@@ -36,6 +37,7 @@ describe('offline field sync recovery', () => {
       calls.push('pending')
       return []
     })
+    const pause = jest.spyOn(offlineStorage, 'getSyncPauseUntil').mockResolvedValue(0)
 
     try {
       await expect(syncService.syncPending()).resolves.toEqual({ synced: 0, failed: 0 })
@@ -43,6 +45,7 @@ describe('offline field sync recovery', () => {
     } finally {
       recover.mockRestore()
       getPending.mockRestore()
+      pause.mockRestore()
     }
   })
 })

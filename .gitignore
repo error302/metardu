@@ -248,3 +248,13 @@ tunnel-log.txt
 
 !public/landing/captures/*.png
 
+# Local one-off helpers: private fixtures, fabricated sessions or source rewrites.
+# Preserve locally; these are not supported product tests or release evidence.
+/scripts/capture-map-states.mjs
+/scripts/simulate-home-survey-browser.mjs
+/scripts/test-auth-navigation.mjs
+/scripts/test-generate-home-deed-plan.mjs
+/scripts/test-mint-session.mjs
+/scripts/test-topology-and-deed.mjs
+/scripts/update-map-client.mjs
+

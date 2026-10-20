@@ -2,7 +2,7 @@
 import { db } from '@/lib/db'
 import { logAuditEvent } from '@/lib/enterprise/auditTrail'
 import { recordOfflineObservation } from '../observationCaptureServer'
-import { offlineObservationSchema, offlineObservationInputHash } from '../observationCapture'
+import { offlineObservationSchema, offlineObservationInputHash, offlineObservationSource } from '../observationCapture'
 
 jest.mock('@/lib/db',()=>({db:{transaction:jest.fn()}}))
 jest.mock('@/lib/enterprise/auditTrail',()=>({logAuditEvent:jest.fn().mockResolvedValue('audit')}))
@@ -34,6 +34,30 @@ test('viewer or unrelated account is denied before any capture lookup or write',
   await expect(recordOfflineObservation(actor,input)).rejects.toMatchObject({statusCode:403})
   expect(query.mock.calls.some(([sql])=>sql.includes('FROM observation_batches')||sql.includes('INSERT'))).toBe(false)
 })
+
+test('an account switch cannot relabel an owner-bound mobile capture even on a shared project',async()=>{
+  const other='99999999-9999-4999-8999-999999999999'
+  await expect(recordOfflineObservation(actor,{...input,ownerId:other})).rejects.toMatchObject({statusCode:403,code:'FIELD_OBSERVATION_OWNER'})
+  expect(query).not.toHaveBeenCalled()
+})
+
+type RecoveryRecorder = (actorId: string, capture: unknown, options: { legacyReview: { acknowledgement: 'unknown-author-v1'; sourceHash: string } }) => ReturnType<typeof recordOfflineObservation>
+const recover = recordOfflineObservation as RecoveryRecorder
+test('explicit legacy recovery records the reviewer separately and retains unknown capture authorship',async()=>{
+  const hash=offlineObservationInputHash(input)
+  await recover(actor,input,{legacyReview:{acknowledgement:'unknown-author-v1',sourceHash:hash}})
+  const capture=query.mock.calls.find(([sql])=>sql.includes('INSERT INTO observation_batches'))
+  const metadata:unknown=JSON.parse(String(capture?.[1]?.find(value=>typeof value==='string'&&value.startsWith('{'))))
+  expect(metadata).toMatchObject({inputHash:hash,raw:offlineObservationSource(input),capturedBy:null,uploadedBy:actor,fieldVerified:false,
+    legacyRecoveryReview:{version:'unknown-author-v1',reviewedBy:actor,sourceHash:hash,capturedBy:null}})
+  expect(input).not.toHaveProperty('ownerId')
+})
+
+test('recovery cannot change the selected raw content or turn an attributed capture into legacy work',async()=>{
+  await expect(recover(actor,input,{legacyReview:{acknowledgement:'unknown-author-v1',sourceHash:'0'.repeat(64)}})).rejects.toMatchObject({statusCode:409})
+  await expect(recover(actor,{...input,ownerId:actor},{legacyReview:{acknowledgement:'unknown-author-v1',sourceHash:offlineObservationInputHash({...input,ownerId:actor})}})).rejects.toMatchObject({statusCode:409})
+  expect(query).not.toHaveBeenCalled()
+})
 test.each(['observation','capture'])('a silently skipped %s write cannot acknowledge delivery',async value=>{
   skip=value
   await expect(recordOfflineObservation(actor,input)).rejects.toMatchObject({code:'FIELD_OBSERVATION_ACKNOWLEDGEMENT'})
@@ -46,6 +70,17 @@ test('transport retry metadata does not change source identity; changed measurem
 })
 test('browser geographic readings retain their declared source and remain unverified raw input',()=>{
   expect(offlineObservationSchema.safeParse({...input,easting:undefined,northing:undefined,surveyType:'gnss',observationType:'gps',latitude:0,longitude:0,observationSource:'browser_geolocation',accuracySource:'browser',accuracy:20}).success).toBe(true)
+})
+
+test('mobile form strings and distinct measured heights remain in the raw capture archive and receipt hash',async()=>{
+  const rawForm={station:'STN-1',bearing:'45.5056',slopeDist:'125.456',ih:'1.200',th:'2.300',bs:'0',is:'1.500',fs:'2.250'}
+  const mobile=offlineObservationSchema.parse({...input,rawForm,surveyMode:'traverse',captureFormVersion:1,
+    instrumentHeight:1.2,targetHeight:2.3,slopeDistance:125.456,backsightReading:0,intermediateReading:1.5,foresightReading:2.25,observationSource:'manual'})
+  const result=await recordOfflineObservation(actor,mobile)
+  expect(result.inputHash).toBe(offlineObservationInputHash(mobile))
+  const capture=query.mock.calls.find(([sql])=>sql.includes('INSERT INTO observation_batches'))
+  const metadata:unknown=JSON.parse(String(capture?.[1]?.find(value=>typeof value==='string'&&value.startsWith('{'))))
+  expect(metadata).toMatchObject({raw:{rawForm,instrumentHeight:1.2,targetHeight:2.3,backsightReading:0,intermediateReading:1.5,foresightReading:2.25},fieldVerified:false})
 })
 test('reused ID with another payload or uploader refuses overwrite',async()=>{
   previous={id:batchId,created_by:actor,quality_metadata:{kind:'offline_field_observation',inputHash:'f'.repeat(64)}}

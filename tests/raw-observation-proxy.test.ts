@@ -27,3 +27,10 @@ test('capture archives are not exposed as a generic writable table',async()=>{
   expect((await POST(request('delete','observation_batches'))).status).toBe(403)
   expect(mockQuery).not.toHaveBeenCalled()
 })
+
+test('an account-switch precondition rejects a queued write before any database access',async()=>{
+  const pending=request('upsert','field_photos')
+  pending.headers.set('X-Metardu-Expected-User','99999999-9999-4999-8999-999999999999')
+  expect((await POST(pending)).status).toBe(403)
+  expect(mockQuery).not.toHaveBeenCalled()
+})

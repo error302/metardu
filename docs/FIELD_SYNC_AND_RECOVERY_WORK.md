@@ -1,5 +1,16 @@
 # Field sync and recovery continuation
 
+Latest source continuation: see `MOBILE_SYNC_PACING.md` for mobile capture
+preservation, coordinate/height mapping, bounded delivery/backoff, multi-tab
+claims and transaction-commit fixes. Its 78 focused tests, strict app/test typing
+and changed-file lint pass. These changes are not yet promoted; actual browser
+metadata/rollback reopening, offline recovery and physical-device acceptance
+remain open. The broader active objective and work order are in
+`PRODUCTION_GOAL.md`. The production checkpoint below is separate live evidence.
+The following source checkpoint is `MOBILE_FIELD_OWNERSHIP.md`: account-scoped
+capture, local lists and queue operations, plus server account-switch guards.
+Its legacy reconciliation and offline/browser/release boundaries remain explicit.
+
 ## Verified production checkpoint — 20 October 2026
 
 Production is healthy at `08fae42763aae6d6c4fa24e7f32ec359bf41ddc7`, image
@@ -206,6 +217,12 @@ paused for memory during final checks, then restored in place on 127.0.0.1:3021;
 its public health check returned 200/healthy. Production was never paused.
 
 ## Outstanding functional acceptance
+
+Mobile continuation checkpoints are documented in `MOBILE_SYNC_PACING.md`,
+`MOBILE_FIELD_OWNERSHIP.md` and `LEGACY_DEVICE_RECOVERY.md`. The latter adds an
+authorized, individually acknowledged path for selected unattributed device
+sources; it does not reconcile existing unreceipted server rows or prove browser,
+device or production acceptance. Retain its primary-device-source integrity gate.
 
 The release path now includes a strict pre/post raw-field schema/privilege/RLS
 contract, a restrictive-policy digest comparison, and observation/photo row

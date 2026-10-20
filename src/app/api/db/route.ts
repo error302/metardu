@@ -165,7 +165,8 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   setCurrentRlsServiceRole(null)
   setCurrentTillClaimCode(null)
 
-  if (!PUBLIC_TABLES.has(table as string)) {
+  const expectedUserId = request.headers?.get('X-Metardu-Expected-User')
+  if (!PUBLIC_TABLES.has(table as string) || expectedUserId) {
     // /api/db uses apiHandler({ auth: false }) for conditional auth, so
     // ctx.session is NOT populated by the wrapper. Fetch the session here
     // directly so authenticated (non-public) tables are properly gated.
@@ -178,6 +179,10 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
     }
     userId = (session.user as { id: string }).id
     userEmail = session.user.email ?? null
+    // This precondition only refuses an account switch; it never supplies auth.
+    if (expectedUserId && expectedUserId !== userId) {
+      return NextResponse.json({ data: null, error: { message: 'Sign in as the account that captured this queued record.', code: 'CAPTURE_OWNER_CHANGED' } }, { status: 403 })
+    }
 
     // Set RLS context
     if (userId) {

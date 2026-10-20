@@ -18,6 +18,7 @@
 import { Suspense, useState, useEffect, useCallback } from 'react'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 import { useSearchParams } from 'next/navigation'
+import { useSession } from 'next-auth/react'
 import Link from 'next/link'
 import {
   Bluetooth, MapPin, Ruler, Compass,
@@ -36,6 +37,7 @@ import { GNSSConnectionPanel } from '@/components/gnss/GNSSConnectionPanel'
 import { useInstrumentStore } from '@/stores/instrumentStore'
 import type { NMEAPosition } from '@/lib/gnss/nmea-parser'
 import { logger } from '@/lib/logger'
+import { LegacyDeviceRecovery } from '@/components/fieldbook/LegacyDeviceRecovery'
 
 // ─── Survey type metadata ───────────────────────────────────────
 
@@ -47,7 +49,7 @@ const SURVEY_TYPES: Record<MobileSurveyType, { label: string; icon: typeof Compa
 
 // ─── Main Component ─────────────────────────────────────────────
 
-function MobileFieldContent() {
+function MobileFieldContent({ ownerId }: { ownerId: string }) {
   const searchParams = useSearchParams()
   const projectId = searchParams.get('project') || ''
 
@@ -56,7 +58,9 @@ function MobileFieldContent() {
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
   const [pendingCount, setPendingCount] = useState(0)
+  const [failedCount, setFailedCount] = useState(0)
   const [lastSync, setLastSync] = useState<string | null>(null)
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   // Survey mode
   const [activeSurveyType, setActiveSurveyType] = useState<MobileSurveyType>('traverse')
@@ -82,14 +86,15 @@ function MobileFieldContent() {
 
   const loadObservations = useCallback(async () => {
     if (!projectId) return
-    const observations = await offlineStorage.getFieldObservations(projectId)
+    const observations = await offlineStorage.getFieldObservations(projectId, ownerId)
     setRecentObservations(observations.slice(-10).reverse())
-  }, [projectId])
+  }, [projectId, ownerId])
 
   const loadStats = useCallback(async () => {
-    const stats = await offlineStorage.getStorageStats()
+    const stats = await offlineStorage.getStorageStats(ownerId)
     setPendingCount(stats.pendingSync)
-  }, [])
+    setFailedCount(stats.failedSync)
+  }, [ownerId])
 
   // ─── Initialize ────────────────────
   useEffect(() => {
@@ -121,14 +126,14 @@ function MobileFieldContent() {
     setIsSyncing(true)
     try {
       const { synced, failed } = await syncService.forceSync()
-      setLastSync(new Date().toLocaleTimeString())
+      if (synced > 0) setLastSync(new Date().toLocaleTimeString())
+      const status = syncService.getSyncStatus()
+      const delay = status.retryAt ? ` Retry after ${new Date(status.retryAt).toLocaleTimeString()}.` : ''
+      setSyncMessage(status.message ? `${status.message}${delay}` : `${synced} records delivered.${failed > 0 ? ` ${failed} records need attention; device copies retained.` : ' Remaining queued records are retained on this device.'}`)
       await loadStats()
       await loadObservations()
-      if (failed > 0) {
-        alert(`Synced: ${synced}, Failed: ${failed}`)
-      }
     } catch {
-      // Sync will retry automatically
+      setSyncMessage('Could not complete delivery. Saved device records were retained; retry when the connection and device storage are available.')
     } finally {
       setIsSyncing(false)
     }
@@ -136,52 +141,80 @@ function MobileFieldContent() {
 
   // ─── Observation handling ─────────────────────────────
   const handleAddObservation = useCallback(async (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => {
-    if (!projectId) return
-
-    const optionalNumber = (value: string | undefined): number | undefined => {
-      if (!value?.trim()) return undefined
-      const parsed = Number(value)
-      return Number.isFinite(parsed) ? parsed : undefined
-    }
-    const pointName = row.station?.trim() || row.pointId?.trim() || row.soundingId?.trim()
-    if (!pointName) throw new Error('Enter a station or point identifier before saving this observation.')
-
-    const observationId = crypto.randomUUID()
-    const observation: FieldObservation = {
-      id: observationId,
-      projectId,
-      pointName,
-      observationType: activeSurveyType === 'leveling'
-        ? 'level'
-        : activeSurveyType === 'traverse'
-          ? 'total_station'
-          : 'manual',
-      northing: optionalNumber(row.northing),
-      easting: optionalNumber(row.easting),
-      elevation: optionalNumber(row.elevation),
-      latitude: undefined,
-      longitude: undefined,
-      accuracy: undefined,
-      rodHeight: optionalNumber(row.ih || row.instrumentHeight || row.th || row.targetHeight),
-      notes: row.remarks || undefined,
-    }
-
     try {
+      if (!projectId) throw new Error('Select a project before saving an observation.')
+
+      const optionalNumber = (value: string | undefined): number | undefined => {
+        if (!value?.trim()) return undefined
+        const parsed = Number(value)
+        if (!Number.isFinite(parsed)) throw new Error('Entered measurements must be finite numbers; leave unknown readings blank.')
+        return parsed
+      }
+      const pointName = row.station?.trim() || row.pointId?.trim() || row.soundingId?.trim()
+      if (!pointName) throw new Error('Enter a station or point identifier before saving this observation.')
+
+      const observationId = crypto.randomUUID()
+      const observation: FieldObservation = {
+        id: observationId,
+        projectId,
+        ownerId,
+        pointName,
+        pointId: row.pointId?.trim() || undefined,
+        surveyType: activeSurveyType === 'control' ? 'unspecified' : activeSurveyType,
+        surveyMode: activeSurveyType,
+        captureFormVersion: 1,
+        rawForm: { ...row },
+        observationSource: 'manual',
+        observationType: activeSurveyType === 'leveling'
+          ? 'level'
+          : activeSurveyType === 'traverse'
+            ? 'total_station'
+            : 'manual',
+        northing: optionalNumber(row.northing),
+        easting: optionalNumber(row.easting),
+        elevation: optionalNumber(row.elevation),
+        latitude: optionalNumber(row.latitude),
+        longitude: optionalNumber(row.longitude),
+        accuracy: undefined,
+        instrumentHeight: optionalNumber(row.ih || row.instrumentHeight),
+        rodHeight: optionalNumber(row.th || row.targetHeight),
+        slopeDistance: optionalNumber(row.slopeDist || row.slopeDistance),
+        verticalAngle: optionalNumber(row.vaDeg || row.verticalAngle),
+        backsightReading: optionalNumber(row.bs),
+        intermediateReading: optionalNumber(row.is),
+        foresightReading: optionalNumber(row.fs),
+        // Retain bearing text in rawForm: this form has no declared DMS/decimal
+        // encoding, so it cannot safely populate numeric horizontalAngle.
+        notes: row.remarks || undefined,
+      }
+
       const photoData = await prepareCapturedPhotoData(photos, projectId, {
         pointId: row.pointId?.trim() || pointName,
         pointName,
         observationClientId: observationId,
       })
       await offlineStorage.saveFieldObservationWithPhotos(observation, photoData)
-      if (isOnline) await syncService.forceSync()
-      await loadObservations()
-      await loadStats()
     } catch (error) {
       logger.error('Save error:', { error: error })
       alert(error instanceof Error ? `Could not save the observation and its photos: ${error.message}` : 'Could not save the observation and its photos.')
       throw error
     }
-  }, [projectId, activeSurveyType, isOnline, loadObservations, loadStats])
+    // A later delivery/read failure must not turn a committed capture into a
+    // reported save failure and encourage the operator to record it twice.
+    setSyncMessage('Saved on this device. Server delivery is pending.')
+    try {
+      if (isOnline) {
+        const { synced } = await syncService.syncPending()
+        if (synced > 0) setLastSync(new Date().toLocaleTimeString())
+        const status = syncService.getSyncStatus()
+        setSyncMessage(status.message ?? (synced > 0 ? `${synced} queued records delivered. Check the pending count for remaining work.` : 'Saved on this device. Server delivery is pending.'))
+      }
+      await loadObservations()
+      await loadStats()
+    } catch {
+      setSyncMessage('Saved on this device. Delivery or queue refresh could not complete; your saved record was retained.')
+    }
+  }, [projectId, ownerId, activeSurveyType, isOnline, loadObservations, loadStats])
 
   // ─── Pull from instrument ─────────────────────────────
   const handlePullFromInstrument = useCallback(async (): Promise<Partial<Record<string, string>>> => {
@@ -189,11 +222,11 @@ function MobileFieldContent() {
     if (!latest) return {}
 
     const reading: Partial<Record<string, string>> = {}
-    if (latest.northing) reading.northing = latest.northing.toFixed(4)
-    if (latest.easting) reading.easting = latest.easting.toFixed(4)
-    if (latest.elevation !== null) reading.elevation = latest.elevation.toFixed(4)
-    if (latest.latitude) reading.bearing = latest.latitude.toFixed(7)
-    if (latest.longitude) reading.slopeDist = latest.longitude.toFixed(7)
+    if (typeof latest.northing === 'number' && Number.isFinite(latest.northing)) reading.northing = String(latest.northing)
+    if (typeof latest.easting === 'number' && Number.isFinite(latest.easting)) reading.easting = String(latest.easting)
+    if (typeof latest.elevation === 'number' && Number.isFinite(latest.elevation)) reading.elevation = String(latest.elevation)
+    if (typeof latest.latitude === 'number' && Number.isFinite(latest.latitude)) reading.latitude = String(latest.latitude)
+    if (typeof latest.longitude === 'number' && Number.isFinite(latest.longitude)) reading.longitude = String(latest.longitude)
     return reading
   }, [])
 
@@ -278,13 +311,20 @@ function MobileFieldContent() {
         </div>
         {lastSync && (
           <span className="text-gray-600">
-            Synced: {lastSync}
+            Last delivery: {lastSync}
           </span>
         )}
       </div>
+      {failedCount > 0 && (
+        <p className="px-4 py-2 text-xs text-amber-300">Needs review: {failedCount}. Device records retained. Sync retries rejected records after the retry delay.</p>
+      )}
+      {syncMessage && (
+        <p role="status" className="px-4 py-2 text-xs text-gray-300 border-b border-gray-800">{syncMessage}</p>
+      )}
 
       {/* Main Content */}
       <main className="flex-1 overflow-y-auto">
+        {projectId && <div className="px-4 pt-4"><LegacyDeviceRecovery actorId={ownerId} projectId={projectId} onRefresh={async () => { await loadObservations(); await loadStats() }} /></div>}
         {/* Survey Type Selector */}
         <div className="p-4">
           <div className="text-xs text-gray-500 uppercase tracking-wider font-medium mb-2">Survey Type</div>
@@ -356,6 +396,7 @@ function MobileFieldContent() {
                     </div>
                     <div>
                       <p className="font-medium text-sm text-gray-200">{obs.pointName}</p>
+                      {!obs.ownerId && obs.deliveryReceipt?.legacyRecoveryReview && <p className="text-xs text-amber-300">Capture author unknown · recovery reviewed</p>}
                       <p className="text-xs text-gray-500">
                         {new Date(obs.timestamp || 0).toLocaleTimeString()}
                       </p>
@@ -401,6 +442,15 @@ function MobileFieldContent() {
   )
 }
 
+function MobileFieldSession() {
+  const session = useSession()
+  const searchParams = useSearchParams()
+  const ownerId = session.data?.user.id
+  if (session.status === 'loading') return <p role="status" className="p-4">Checking your account…</p>
+  if (session.status !== 'authenticated' || !ownerId) return <p className="p-4">Sign in to access this account’s device readings. <Link href="/login?next=%2Fmobile%2Ffield">Sign in</Link></p>
+  return <MobileFieldContent key={`${ownerId}:${searchParams.get('project') ?? ''}`} ownerId={ownerId} />
+}
+
 export default function MobileFieldPage() {
   return (
     <Suspense
@@ -411,7 +461,7 @@ export default function MobileFieldPage() {
         </div>
       }
     >
-      <MobileFieldContent />
+      <MobileFieldSession />
     </Suspense>
   )
 }

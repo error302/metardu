@@ -1,13 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Wifi, WifiOff, CloudUpload, CheckCircle, AlertTriangle, Image } from 'lucide-react';
+import { useSession } from 'next-auth/react'
+import Link from 'next/link'
+import { Wifi, WifiOff, CloudUpload, CheckCircle, AlertTriangle, Image as ImageIcon } from 'lucide-react';
 import { offlineStorage, type FieldObservation } from '@/lib/mobile/offlineStorage'
 import { syncService } from '@/lib/mobile/syncService'
 import { prepareCapturedPhotoData } from '@/lib/mobile/capturedPhotoData'
 import { QuickAddModal, type QuickAddObservation } from './QuickAddModal';
 import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
 import { logger } from '@/lib/logger'
+import { LegacyDeviceRecovery } from './LegacyDeviceRecovery'
 
 interface FieldBookMobileProps {
   projectId: string;
@@ -15,7 +18,15 @@ interface FieldBookMobileProps {
   surveyorId: string;
 }
 
-export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
+export function FieldBookMobile(props: FieldBookMobileProps) {
+  const session = useSession()
+  const ownerId = session.data?.user.id
+  if (session.status === 'loading') return <p role="status">Checking your account…</p>
+  if (session.status !== 'authenticated' || !ownerId) return <p>Sign in to access this account’s device readings. <Link href="/login?next=%2Ffieldbook">Sign in</Link></p>
+  return <OwnedFieldBookMobile key={`${ownerId}:${props.projectId}`} projectId={props.projectId} ownerId={ownerId} />
+}
+
+function OwnedFieldBookMobile({ projectId, ownerId }: { projectId: string; ownerId: string }) {
   const [online, setOnline] = useState(() => typeof navigator === 'undefined' ? true : navigator.onLine);
   const [observations, setObservations] = useState<SavedFieldObservation[]>([]);
   const [photoCounts, setPhotoCounts] = useState<Record<string, number>>({});
@@ -24,15 +35,16 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
   const [syncResult, setSyncResult] = useState<{ synced: number; failed: number } | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [lastSync, setLastSync] = useState<Date | null>(null);
+  const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
   const loadObservations = useCallback(async () => {
-    const obs = await offlineStorage.getFieldObservations(projectId)
+    const obs = await offlineStorage.getFieldObservations(projectId, ownerId)
     const saved = obs.filter((record): record is SavedFieldObservation => typeof record.id === 'string' && typeof record.timestamp === 'number')
       .sort((a, b) => b.timestamp - a.timestamp)
     setObservations(saved)
     const [photos, stats] = await Promise.all([
-      offlineStorage.getProjectPhotos(projectId),
-      offlineStorage.getStorageStats(),
+      offlineStorage.getProjectPhotos(projectId, ownerId),
+      offlineStorage.getStorageStats(ownerId),
     ])
     const counts: Record<string, number> = {}
     for (const photo of photos) {
@@ -41,7 +53,7 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
     }
     setPhotoCounts(counts)
     setPendingCount(stats.pendingSync + stats.failedSync)
-  }, [projectId]);
+  }, [projectId, ownerId]);
 
   useEffect(() => {
     loadObservations();
@@ -69,20 +81,25 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
     try {
       const result = await syncService.forceSync()
       setSyncResult({ synced: result.synced, failed: result.failed });
-      setLastSync(new Date());
+      if (result.synced > 0) setLastSync(new Date());
+      setSyncMessage(syncService.getSyncStatus().message)
       await loadObservations();
     } catch (err) {
       logger.error('Sync failed:', { error: err });
+      setSyncMessage('Delivery could not complete. Your saved device readings were retained.')
     } finally {
       setSyncing(false);
     }
-  }, [projectId, online, syncing, loadObservations]);
+  }, [online, syncing, loadObservations]);
 
   const handleAddObservation = async (obs: QuickAddObservation, photos: CapturedBeaconPhoto[]) => {
     const id = crypto.randomUUID()
     const newObs: FieldObservation = {
       id,
+      ownerId,
       projectId,
+      surveyType: 'traverse',
+      observationSource: 'manual',
       pointName: obs.station_to,
       pointId: obs.station_to,
       observationType: 'total_station',
@@ -102,15 +119,22 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
     })
 
     await offlineStorage.saveFieldObservationWithPhotos(newObs, photoData)
-    if (online) await syncService.forceSync()
-    await loadObservations();
     setShowAddModal(false);
+    setSyncMessage('Saved on this device. Server delivery is pending.')
+    try {
+      if (online) await syncService.syncPending()
+      await loadObservations()
+      setSyncMessage(syncService.getSyncStatus().message ?? 'Delivery attempted. Check the pending count for retained records.')
+    } catch {
+      setSyncMessage('Saved on this device. Delivery or queue refresh could not complete; the device record was retained.')
+    }
   };
 
   const unsyncedCount = pendingCount;
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      {syncMessage && <p role="status" className="px-4 py-2 text-sm text-gray-700">{syncMessage}</p>}
       <div className="sticky top-0 z-10 flex items-center justify-between px-4 py-3 bg-white border-b shadow-sm">
         <div className="flex items-center gap-2">
           {online ? (
@@ -129,7 +153,7 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
         <div className="flex items-center gap-3">
           {lastSync && (
             <span className="text-xs text-gray-500">
-              Last sync: {lastSync.toLocaleTimeString()}
+              Last delivery: {lastSync.toLocaleTimeString()}
             </span>
           )}
           
@@ -178,6 +202,7 @@ export function FieldBookMobile({ projectId }: FieldBookMobileProps) {
       )}
 
       <div className="flex-1 overflow-auto p-4">
+        {projectId && <div className="mb-4"><LegacyDeviceRecovery actorId={ownerId} projectId={projectId} onRefresh={loadObservations} /></div>}
         {observations.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full text-gray-500">
             <p className="text-lg font-medium">No observations yet</p>
@@ -229,6 +254,7 @@ function ObservationCard({ observation, index, photoCount }: { observation: Save
         <span className="text-xs text-gray-500">#{index}</span>
       </div>
       
+      {!observation.ownerId && observation.deliveryReceipt?.legacyRecoveryReview && <p className="mb-2 text-xs text-amber-700">Capture author unknown · recovery reviewed</p>}
       <div className="grid grid-cols-3 gap-2 text-sm">
         <div>
           <span className="text-gray-500">HA</span>
@@ -263,7 +289,7 @@ function ObservationCard({ observation, index, photoCount }: { observation: Save
       )}
       {photoCount > 0 && (
         <p className="mt-2 flex items-center gap-1 text-xs text-gray-500">
-          <Image className="w-3 h-3" /> {photoCount} original field photo{photoCount === 1 ? '' : 's'} attached
+          <ImageIcon aria-hidden="true" className="w-3 h-3" /> {photoCount} original field photo{photoCount === 1 ? '' : 's'} attached
         </p>
       )}
     </div>

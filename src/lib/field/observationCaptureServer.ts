@@ -11,10 +11,13 @@ interface CaptureReceipt {
 const failure=(message:string,code='FIELD_OBSERVATION_CONFLICT')=>new AppError(message,409,code)
 
 /** Retain raw readings and a bound receipt; this does not issue reviewed points. */
-export async function recordOfflineObservation(actorId:string,input:unknown){
+export async function recordOfflineObservation(actorId:string,input:unknown,options:{legacyReview?:{acknowledgement:'unknown-author-v1';sourceHash:string}}={}){
   const observation=offlineObservationSchema.parse(input)
   if(observation.ownerId&&observation.ownerId!==actorId)throw new AppError('Sign in as this device capture’s owner before syncing.',403,'FIELD_OBSERVATION_OWNER')
   const raw=offlineObservationSource(observation),inputHash=offlineObservationInputHash(raw)
+  const legacyReview=options.legacyReview
+  if(legacyReview&&(legacyReview.acknowledgement!=='unknown-author-v1'||observation.ownerId!==undefined||legacyReview.sourceHash!==inputHash))throw failure('Legacy review must retain unknown authorship and match the exact selected raw source.')
+  const legacyRecoveryReview=legacyReview?{version:'unknown-author-v1',reviewedBy:actorId,reviewedAt:new Date().toISOString(),sourceHash:inputHash,capturedBy:null}:undefined
   const batchNumber='field-'+fieldObservationHash({projectId:observation.projectId,clientId:observation.id})
   return db.transaction(async client=>{
     // The established narrow helper locks a readable project without granting
@@ -34,7 +37,8 @@ export async function recordOfflineObservation(actorId:string,input:unknown){
       if(previous.created_by!==actorId||receipt?.kind!=='offline_field_observation'||receipt.inputHash!==inputHash||!receipt.observationId||!receipt.storedObservationHash)throw failure('This device ID already belongs to a different raw capture. No existing reading was overwritten.')
     const stored=(await client.query<Record<string,unknown>>('SELECT * FROM survey_observations WHERE id=$1 AND project_id=$2 AND client_id=$3',[receipt.observationId,observation.projectId,observation.id])).rows
       if(stored.length!==1||fieldObservationHash(stored[0])!==receipt.storedObservationHash)throw failure('The recorded observation no longer matches its capture receipt. Retain the device copy for review.','FIELD_OBSERVATION_CHANGED')
-      return {ok:true as const,id:observation.id,observationId:receipt.observationId,batchId:previous.id,inputHash,replayed:true,fieldVerified:false as const}
+      if(legacyRecoveryReview)await logAuditEvent({userId:actorId,action:'import',resourceType:'survey_observations',resourceId:receipt.observationId,timestamp:new Date(),details:{projectId:observation.projectId,clientId:observation.id,batchId:previous.id,inputHash,fieldVerified:false,replayed:true,legacyRecoveryReview}},client)
+      return {ok:true as const,id:observation.id,observationId:receipt.observationId,batchId:previous.id,inputHash,replayed:true,fieldVerified:false as const,...(legacyRecoveryReview?{legacyRecoveryReview}:{})}
     }
     const existing=(await client.query<{id:string}>('SELECT id FROM survey_observations WHERE project_id=$1 AND client_id=$2',[observation.projectId,observation.id])).rows
     if(existing.length)throw failure('An existing reading has this device ID but no matching capture receipt. Retain both copies for review.')
@@ -64,11 +68,11 @@ export async function recordOfflineObservation(actorId:string,input:unknown){
     const observationId=String(saved[0].id),batchId=randomUUID()
     const metadata={schemaVersion:1,kind:'offline_field_observation',inputHash,raw,projectReference:reference,
       observationId,storedObservationHash:fieldObservationHash(saved[0]),uploadedBy:actorId,capturedBy:observation.ownerId??null,
-      authority:'raw_capture',fieldVerified:false}
+      authority:'raw_capture',fieldVerified:false,...(legacyRecoveryReview?{legacyRecoveryReview}:{})}
     const capture=(await client.query<{id:string}>(`INSERT INTO observation_batches (id,project_id,batch_number,source_type,source_crs,instrument_name,quality_metadata,point_count,observation_count,status,created_by)
       VALUES ($1,$2,$3,'import',$4,$5,$6,0,1,'raw',$7) RETURNING id`,[batchId,observation.projectId,batchNumber,observation.horizontalCrs??null,observation.instrumentName??null,JSON.stringify(metadata),actorId])).rows
     if(capture.length!==1||capture[0].id!==batchId)throw new AppError('The server did not acknowledge the raw capture receipt. Delivery was rolled back.',500,'FIELD_OBSERVATION_ACKNOWLEDGEMENT')
-    await logAuditEvent({userId:actorId,action:'import',resourceType:'survey_observations',resourceId:observationId,timestamp:new Date(),details:{projectId:observation.projectId,clientId:observation.id,batchId,inputHash,fieldVerified:false}},client)
-    return {ok:true as const,id:observation.id,observationId,batchId,inputHash,replayed:false,fieldVerified:false as const}
+    await logAuditEvent({userId:actorId,action:'import',resourceType:'survey_observations',resourceId:observationId,timestamp:new Date(),details:{projectId:observation.projectId,clientId:observation.id,batchId,inputHash,fieldVerified:false,...(legacyRecoveryReview?{legacyRecoveryReview}:{})}},client)
+    return {ok:true as const,id:observation.id,observationId,batchId,inputHash,replayed:false,fieldVerified:false as const,...(legacyRecoveryReview?{legacyRecoveryReview}:{})}
   })
 }

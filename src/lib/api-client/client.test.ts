@@ -33,4 +33,25 @@ describe('browser query mutation chaining', () => {
     const result = await createClient().from('fieldbooks').upsert({ id: 'book' }).select('id')
     expect(result).toMatchObject({ data: null, error: { code: '403', message: 'Access denied' } })
   })
+
+  it('retains server backoff even when a rejected response body is not JSON', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, status: 429, statusText: 'Too Many Requests',
+      headers: new Map([['Retry-After', '120']]), json: async () => { throw new SyntaxError('Not JSON') } } as unknown as Response)
+    const result = await createClient().from('field_photos').upsert({ client_id: 'photo' }).select('id')
+    expect(result).toMatchObject({ data: null, error: { code: '429', retryAfter: '120' } })
+  })
+
+  it('binds an offline mutation to the expected account without replacing session authentication', async () => {
+    await createClient({ expectedUserId: 'capture-owner' }).from('field_photos').upsert({ client_id: 'photo' }).select('id')
+    expect(fetchMock.mock.calls[0][1]?.headers).toMatchObject({ 'X-Metardu-Expected-User': 'capture-owner' })
+    const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body)) as Record<string, unknown>
+    expect(request).toMatchObject({ operation: 'upsert', table: 'field_photos', payload: { client_id: 'photo' } })
+  })
+
+  it('does not trust user data in a rejected session response', async () => {
+    fetchMock.mockResolvedValueOnce({ ok: false, json: async () => ({ user: { id: 'stale-owner' } }) } as Response)
+    const result = await createClient().auth.getSession()
+    expect(result.data.session).toBeNull()
+    expect(result.error).not.toBeNull()
+  })
 })

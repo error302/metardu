@@ -1,3 +1,5 @@
+import { SyncDeliveryError } from './syncDeliveryError'
+
 type StorageUploadResponse = {
   data?: { path?: unknown }
   error?: unknown
@@ -11,6 +13,7 @@ export async function uploadFieldPhoto(
   contentType = 'image/jpeg',
   fileName = `${id}.jpg`,
   fetcher: typeof fetch = fetch,
+  expectedUserId?: string,
 ): Promise<string> {
   const comma = base64Data.indexOf(',')
   const encoded = comma >= 0 ? base64Data.slice(comma + 1) : base64Data
@@ -35,12 +38,13 @@ export async function uploadFieldPhoto(
   form.set('clientId', id)
   form.set('file', new Blob([bytes], { type: uploadType }), fileName || `${id}`)
 
-  const response = await fetcher('/api/storage', { method: 'POST', body: form })
+  const response = await fetcher('/api/storage', { method: 'POST', body: form, signal: AbortSignal.timeout(60_000),
+    ...(expectedUserId ? { headers: { 'X-Metardu-Expected-User': expectedUserId } } : {}) })
   const result = await response.json().catch(() => ({})) as StorageUploadResponse
   const path = result.data?.path
   if (!response.ok || typeof path !== 'string' || !path) {
     const message = typeof result.error === 'string' ? result.error : 'Photo upload failed'
-    throw new Error(message)
+    throw new SyncDeliveryError(message, response.status, response.headers?.get('Retry-After'))
   }
   return path
 }
