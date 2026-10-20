@@ -578,7 +578,7 @@ export default function DocumentsPage() {
         firm_address: surveyorDetails['address'] || undefined,
         firm_phone: surveyorDetails['phone'] || undefined,
         firm_email: surveyorDetails['email'] || undefined,
-        drawing_no: `MD-${Date.now().toString().slice(-6)}`,
+        drawing_no: undefined,
         plan_title: 'DRAFT Boundary Identification Plan',
         notes: 'DRAFT — independent review required. Monument types and control accuracy have not been verified.',
         northRotationDeg: 0,

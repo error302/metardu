@@ -1,3 +1,4 @@
+import { coordinateArea } from '@/lib/engine/area'
 export const DPI = 96
 export const MM_PER_INCH = 25.4
 export const PX_PER_MM = DPI / MM_PER_INCH
@@ -112,12 +113,7 @@ export function formatBearingDegMinSec(deg: number): string {
 }
 
 export function shoelaceArea(points: Array<{ easting: number; northing: number }>): number {
-  let a = 0
-  for (let i = 0; i < points.length; i++) {
-    const j = (i + 1) % points.length
-    a += points[i].easting * points[j].northing - points[j].easting * points[i].northing
-  }
-  return Math.abs(a) / 2
+  return coordinateArea(points).areaSqm
 }
 
 export function shoelacePerimeter(points: Array<{ easting: number; northing: number }>): number {

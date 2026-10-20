@@ -225,3 +225,38 @@ All 144 targeted renderer/geometry/draft checks passed. The existing standard
 layout snapshot is being refreshed for the reviewed draft/scale/layout changes.
 Final combined gates and a repeat PDF check after legend/footer refinements are
 still required. The unsigned draft is not a certified deed plan or field survey.
+
+### A3 paper rendering repair — 20 October 2026
+
+The viewer previously called `window.print()` on the entire workspace, including
+the scroll-limited, zoomed preview. It now prepares a separate owned print document
+with 420 × 297 mm sheets, explicit page breaks and a screen-only print toolbar.
+Navigation and preview transforms are excluded. Loading/blocked-popup failures
+leave the saved plan intact and report an actionable error. The same sanitized
+sheet splitter supplies the unsigned PDF exporter, which adds one A3 page per
+recorded sheet instead of shrinking the combined viewport onto one page.
+
+Both review layouts use physical 7/9 mm sheet borders, an in-bounds compact project
+identity block, visible grid area/perimeter/working CRS, and lower notices inside
+the printable region. Unassigned drawing/revision references are not fabricated.
+Coordinate grid lines and labels stay inside the drawing frame; the axis-aligned
+grid is omitted for rotated views. Print labels use an available Helvetica family
+in both SVG and PDF; scale-bar labels were enlarged. Printed planar area reuses
+the translated-origin coordinate engine to avoid cancellation at large eastings
+and northings. No field observations, legal corners, heights or approvals were added.
+
+Source evidence: 156 focused print/export/renderer/geometry checks and the reviewed
+layout snapshot passed. App and test TypeScript passed; final focused test lint
+is recorded separately in the working verification log. Browser evidence: the ordinary synthetic account opened
+the dedicated owned print sheet; DOM/CSS confirmed one A3 sheet with no navigation
+or transform. Its actual unsigned PDF download was parsed and raster-reviewed:
+one 420 × 297 mm page, all four simulation station labels, Helvetica/Helvetica-Bold
+fonts, unverified-draft notices and at least 10 mm text clearance from each paper
+edge. Private parcel artifacts remain outside Git.
+
+Live/external limits: no production promotion or physical printer acceptance is
+claimed. Print A3 landscape at actual size/100%, disable browser headers/footers,
+and verify the physical scale bar. The existing multi-sheet renderer repeats
+parcel content rather than implementing engineered extent tiling, and the legacy
+paper-size option does not implement A4 geometry; neither is accepted as complete.
+Unrelated concurrent offline/field-work edits remain preserved for their own review.

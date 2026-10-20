@@ -9,6 +9,7 @@ import ComplianceChecklistModal from '@/components/ComplianceChecklistModal'
 import { AlertCircle, FileCheck } from 'lucide-react'
 import { sanitizeHtml } from '@/lib/security/sanitize'
 import { logger } from '@/lib/logger'
+import { openSurveyPlanSheet } from '@/lib/print/surveyPlanSheet'
 
 interface SurveyPlanViewerProps {
   data: SurveyPlanData
@@ -26,6 +27,8 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
   const [svgContent, setSvgContent] = useState('')
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
+  const [printError, setPrintError] = useState<string | null>(null)
+  const [openingPrint, setOpeningPrint] = useState(false)
   const [showCompliance, setShowCompliance] = useState(false)
   const [useFormNo4, setUseFormNo4] = useState(true) // Default to Form No. 4 for Kenya
   const containerRef = useRef<HTMLDivElement>(null)
@@ -136,14 +139,23 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
     URL.revokeObjectURL(url)
   }
 
-  const handlePrint = () => window.print()
+  const handlePrint = async () => {
+    setPrintError(null)
+    setOpeningPrint(true)
+    try {
+      if (!svgContent || loading || error) throw new Error('Wait for a complete plan before opening the print sheet.')
+      const sheets = Number(data.project.totalSheets || '1')
+      await openSurveyPlanSheet(svgContent, data.project.name, useFormNo4 ? 1 : sheets)
+    } catch (cause) { setPrintError(cause instanceof Error ? cause.message : 'The print sheet could not be opened.') }
+    finally { setOpeningPrint(false) }
+  }
 
   // Check if Form No. 4 data is available
   const hasFormNo4Data = Boolean(data.project.folioNumber || data.project.registerNumber || data.project.lrNumber || data.project.name || data.project.parcel_id)
 
   return (
     <div className={`flex flex-col h-full ${className}`}>
-      <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)] no-print">
+      <div className="flex flex-wrap items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--bg-secondary)] no-print">
         <button onClick={zoomOut} disabled={scale <= ZOOM_LEVELS[0]}
           className="px-2 py-1 text-sm rounded hover:bg-[var(--bg-tertiary)] disabled:opacity-30">−</button>
         <span className="text-xs font-mono min-w-[48px] text-center">{Math.round(scale * 100)}%</span>
@@ -178,9 +190,9 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
             Download SVG
           </button>
         )}
-        <button onClick={handlePrint}
+        <button onClick={() => { void handlePrint() }} disabled={openingPrint || loading || !svgContent || Boolean(error)}
           className="px-3 py-1 text-xs rounded bg-gray-600 text-white hover:opacity-80">
-          Print
+          {openingPrint ? 'Opening print sheet…' : 'Print A3 sheet'}
         </button>
         <button onClick={handleDownloadCSV}
           className="px-3 py-1 text-xs rounded bg-green-600 text-white hover:opacity-80">
@@ -191,6 +203,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
           Export Plan
         </button>
       </div>
+      {printError && <p role="alert" className="px-3 py-2 text-sm text-red-500">{printError}</p>}
       
       {/* Info banner for Form No. 4 */}
       {useFormNo4 && hasFormNo4Data && (
@@ -282,7 +295,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
         isOpen={showCompliance}
         onClose={() => setShowCompliance(false)}
         data={data}
-        onExport={handlePrint}
+        onExport={() => { void handlePrint() }}
       />
     </div>
   )

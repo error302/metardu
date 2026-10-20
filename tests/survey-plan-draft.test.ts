@@ -1,6 +1,7 @@
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
 import { FormNo4Renderer } from '@/lib/reports/surveyPlan/formNo4Renderer'
 import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
+import { mmToPx, shoelaceArea } from '@/lib/reports/surveyPlan/geometry'
 
 const data: SurveyPlanData = {
   project: { name: 'FICTIONAL SIMULATION — not field evidence', location: '', utm_zone: 37, hemisphere: 'S', datum: 'WGS84', notes: 'Imagery simulation. Height and control accuracy unknown.' },
@@ -14,6 +15,22 @@ const data: SurveyPlanData = {
 const render = (layout: string, value = data) => layout === 'form4'
   ? new FormNo4Renderer(value, { scale: 200, watermarkPlan: 'pro' }).renderFormNo4()
   : new SurveyPlanRenderer(value, { scale: 200, watermarkPlan: 'pro' }).render()
+
+test.each(['standard', 'form4'])('%s keeps the title block and final notice within printable margins', async layout => {
+  const xml = new DOMParser().parseFromString(await render(layout), 'image/svg+xml')
+  const block = xml.querySelector('.sheet-identity > rect')
+  if (!block) throw new Error('Printed sheet identity is missing')
+  expect(Number(block.getAttribute('y')) + Number(block.getAttribute('height'))).toBeLessThan(mmToPx(277))
+  expect(xml.querySelector('.sheet-identity')?.textContent).toContain('Grid area: 800.000 m²')
+  for (const label of Array.from(xml.querySelectorAll('text')).filter(node => /Content fingerprint:|not certification|Fingerprint identifies/.test(node.textContent || ''))) {
+    expect(Number(label.getAttribute('y'))).toBeLessThanOrEqual(mmToPx(287))
+  }
+})
+
+test('printed area is stable for a small parcel in large projected coordinates', () => {
+  const points = [{ easting: 0, northing: 0 }, { easting: 0.125, northing: 0 }, { easting: 0.125, northing: 0.25 }, { easting: 0, northing: 0.25 }]
+  expect(shoelaceArea(points.map(point => ({ easting: point.easting + 500000, northing: point.northing + 9900000 })))).toBe(shoelaceArea(points))
+})
 
 test.each(['standard', 'form4'])('%s preserves unverified provenance even on a paid plan, without fabricated certification or road facts', async layout => {
   const svg = await render(layout)

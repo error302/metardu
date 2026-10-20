@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { SurveyPlanData, PlanOptions } from '@/lib/reports/surveyPlan/types'
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
 import { FormNo4Renderer } from '@/lib/reports/surveyPlan/formNo4Renderer'
+import { surveyPlanSheets } from '@/lib/print/surveyPlanSheet'
 import type { PlanId } from '@/lib/subscription/catalog'
 
 interface SurveyPlanExportProps {
@@ -29,18 +30,21 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
     try {
       const svgString = await buildSvgString()
 
-      const container = document.createElement('div')
-      container.innerHTML = svgString
-      const svgEl = container.querySelector('svg')
-      if (!svgEl) throw new Error('SVG element not found')
-
       const [, { jsPDF }] = await Promise.all([
         import('svg2pdf.js'),
         import('jspdf'),
       ])
 
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
-      await pdf.svg(svgEl, { x: 0, y: 0, width: 420, height: 297 })
+      const sheets = surveyPlanSheets(svgString, layout === 'form4' ? 1 : Number(data.project.totalSheets || '1'))
+      for (const [index, sheet] of sheets.entries()) {
+        const container = document.createElement('div')
+        container.innerHTML = sheet
+        const svgEl = container.querySelector('svg')
+        if (!svgEl) throw new Error('SVG sheet not found')
+        if (index > 0) pdf.addPage('a3', 'landscape')
+        await pdf.svg(svgEl, { x: 0, y: 0, width: 420, height: 297 })
+      }
 
       const date = new Date().toISOString().slice(0, 10)
       const filename = `${data.project.name.replace(/\s+/g, '_')}_DRAFT_Survey_Plan_${date}.pdf`

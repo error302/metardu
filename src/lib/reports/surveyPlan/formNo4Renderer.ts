@@ -69,7 +69,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawBackground())
     layers.push(this.drawSheetBorder())
     layers.push(this.drawPanelDivider())
-    layers.push(this.drawGrid())
+    if (this.opts.includeGrid) layers.push(this.drawGrid())
     layers.push(this.drawLotFill())
     layers.push(this.drawWatermark())
     
@@ -150,7 +150,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
     let hx = x
     headers.forEach((h, i) => {
       svg += `<rect x="${hx}" y="${y}" width="${colWidths[i]}" height="${rowHeight}" fill="#f0f0f0" stroke="${C_BLACK}" stroke-width="0.3"/>`
-      svg += `<text x="${hx + colWidths[i]/2}" y="${y + rowHeight/2 + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${h}</text>`
+      svg += `<text x="${hx + colWidths[i]/2}" y="${y + rowHeight/2 + 2}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">${h}</text>`
       hx += colWidths[i]
     })
 
@@ -169,7 +169,7 @@ svg += this.drawCoordinateTable(rightSideBeacons, 'right',
       
       cells.forEach((cell, i) => {
         svg += `<rect x="${hx}" y="${rowY}" width="${colWidths[i]}" height="${rowHeight}" fill="white" stroke="${C_BLACK}" stroke-width="0.3"/>`
-        svg += `<text x="${hx + (i < 1 ? 2 : colWidths[i]/2)}" y="${rowY + rowHeight/2 + 2}" text-anchor="${i < 1 ? 'start' : 'middle'}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
+        svg += `<text x="${hx + (i < 1 ? 2 : colWidths[i]/2)}" y="${rowY + rowHeight/2 + 2}" text-anchor="${i < 1 ? 'start' : 'middle'}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
         hx += colWidths[i]
       })
     })
@@ -209,14 +209,14 @@ private drawLRNumbersOnParcels(): string {
     let svg = ''
     
     // LR Number label
-    svg += `<text x="${cx}" y="${cy - 10}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="11" font-weight="bold" fill="${C_BLACK}">LR No. ${escapeXml(p.lrNumber)}</text>`
+    svg += `<text x="${cx}" y="${cy - 10}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="11" font-weight="bold" fill="${C_BLACK}">LR No. ${escapeXml(p.lrNumber)}</text>`
     
     // Area label
-    svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">A=co=${areaHa} Ha</text>`
+    svg += `<text x="${cx}" y="${cy + 2}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">A=co=${areaHa} Ha</text>`
     
     // DP Number if available
     if (p.plotParcelNumber) {
-      svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">D.P No. ${escapeXml(p.plotParcelNumber)}</text>`
+      svg += `<text x="${cx}" y="${cy + 14}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">D.P No. ${escapeXml(p.plotParcelNumber)}</text>`
     }
 
     return svg
@@ -234,7 +234,7 @@ private drawLRNumbersOnParcels(): string {
     if (!Number.isFinite(width) || width <= 0) throw new Error('Recorded road reserve width must be positive and finite.');
     const x = this.drawingX + mmToPx(8);
     const y = this.drawingY + mmToPx(8);
-    return `<text x="${x}" y="${y}" font-family="JetBrains Mono, Courier New" font-size="10">Recorded road reserve width: ${width.toFixed(2)} m (review required)</text>`;
+    return `<text x="${x}" y="${y}" font-family="helvetica, Arial, sans-serif" font-size="10">Recorded road reserve width: ${width.toFixed(2)} m (review required)</text>`;
   }
 
   /**
@@ -250,11 +250,11 @@ private drawFormNo4RightPanel(): string {
     let svg = `<g class="form-no-4-panel">`
 
     // Title
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">UNVERIFIED DRAFT PLAN</text>`
+    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">UNVERIFIED DRAFT PLAN</text>`
     y += mmToPx(6)
     
     // Form number
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${escapeXml(d.formNumber)} — review layout</text>`
+    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(d.formNumber)} — review layout</text>`
     y += mmToPx(8)
 
     // Plan info box
@@ -268,20 +268,21 @@ private drawFormNo4RightPanel(): string {
       ['Scale', d.scale],
       ['Datum', this.crs.datum],
       ['UTM Zone', this.crs.verified ? `${this.crs.zone}${this.crs.hemi}` : 'UNVERIFIED'],
-    ]
+    ].filter(([, value]) => Boolean(value))
+    const infoHeight = mmToPx(infoFields.length * 5 + 7)
 
-    svg += `<rect x="${panelX + margin/2}" y="${y}" width="${panelW - margin}" height="${mmToPx(50)}" fill="#f9f9f9" stroke="${C_BLACK}" stroke-width="0.5"/>`
+    svg += `<rect x="${panelX + margin/2}" y="${y}" width="${panelW - margin}" height="${infoHeight}" fill="#f9f9f9" stroke="${C_BLACK}" stroke-width="0.5"/>`
     
     let fieldY = y + mmToPx(5)
     infoFields.forEach(([label, value]) => {
       if (value) {
-        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="#555">${escapeXml(label)}:</text>`
-        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
+        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#555">${escapeXml(label)}:</text>`
+        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
         fieldY += mmToPx(5)
       }
     })
     
-    y += mmToPx(55)
+    y += infoHeight + mmToPx(5)
 
     // Legend
     svg += this.drawFormNo4Legend(panelX + margin/2, y, panelW - margin)
@@ -300,7 +301,7 @@ private drawFormNo4RightPanel(): string {
 
   private drawFormNo4Legend(x: number, y: number, w: number): string {
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${mmToPx(35)}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
     
     const items = [
       { symbol: `<rect x="-3" y="-6" width="6" height="6" fill="${C_GREEN}"/>`, label: 'Found Monument' },
@@ -312,7 +313,7 @@ private drawFormNo4RightPanel(): string {
     let itemY = y + mmToPx(10)
     items.forEach(item => {
       svg += `<g transform="translate(${x + mmToPx(3)},${itemY})">${item.symbol}</g>`
-      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${item.label}</text>`
+      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${item.label}</text>`
       itemY += mmToPx(6)
     })
     
@@ -331,7 +332,7 @@ private drawFormNo4RightPanel(): string {
     const h = mmToPx(20)
 
     let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
+    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
     svg += `<line x1="${x}" y1="${y + mmToPx(5.5)}" x2="${x + w}" y2="${y + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
 
     // Column headers
@@ -339,7 +340,7 @@ private drawFormNo4RightPanel(): string {
     const headers = ['Rev', 'Date', 'Description', 'By']
     let hx = x
     headers.forEach((h, i) => {
-      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="#555">${h}</text>`
+      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#555">${h}</text>`
       hx += colWidths[i]
     })
 
@@ -355,7 +356,7 @@ private drawFormNo4RightPanel(): string {
       hx = x
       const cells = [row.rev, row.date, row.description.length > 25 ? row.description.slice(0, 23) + '..' : row.description, row.by]
       cells.forEach((cell, ci) => {
-        svg += `<text x="${hx + 1}" y="${rowY}" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
+        svg += `<text x="${hx + 1}" y="${rowY}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
         hx += colWidths[ci]
       })
       rowY += mmToPx(3)
@@ -369,42 +370,7 @@ private drawFormNo4RightPanel(): string {
   }
 
   private drawFormNo4TitleBlock(): string {
-    const d = this.formNo4Data
-  const footerY = this.pageH - mmToPx(50)
-  const footerH = mmToPx(36)
-  const margin = mmToPx(10)
-  const cols = 6
-  const colW = (this.pageW - margin * 2) / cols
-
-    let svg = `<g class="form-no-4-title-block">`
-    
-    // Main title block with 6 columns
-    const headers = ['Registration', 'Transaction', 'Authentication', 'Date', 'Records', 'Date']
-    let x = margin
-    
-    headers.forEach((header) => {
-      svg += `<rect x="${x}" y="${footerY}" width="${colW}" height="${footerH}" fill="#f8f8f8" stroke="${C_BLACK}" stroke-width="0.5"/>`
-      svg += `<text x="${x + colW/2}" y="${footerY + mmToPx(4)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">${header}</text>`
-      x += colW
-    })
-
-    // Folio and Register numbers (large text below)
-    const folioY = footerY + footerH + mmToPx(3)
-    
-    if (d.folioNumber) {
-      svg += `<text x="${this.pageW/2 - mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Folio No. ${escapeXml(d.folioNumber)}</text>`
-    }
-    
-    if (d.registerNumber) {
-      svg += `<text x="${this.pageW/2 + mmToPx(40)}" y="${folioY}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="14" font-weight="bold" fill="${C_BLACK}">Register No. ${escapeXml(d.registerNumber)}</text>`
-    }
-    
-    if (d.firNumber) {
-      svg += `<text x="${this.pageW/2}" y="${folioY + mmToPx(6)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="${C_BLACK}">FIR No. ${escapeXml(d.firNumber)}</text>`
-    }
-
-    svg += '</g>'
-    return svg
+    return this.drawSheetIdentity()
   }
 
   /**
@@ -417,7 +383,7 @@ private drawFormNo4RightPanel(): string {
   const y = mmToPx(8)
   const cx = this.pageW / 2
 
-    return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
+    return `<text x="${cx}" y="${y}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">Submission: ${escapeXml(d.submissionNumber)}</text>`
   }
 
   // drawRoadTruncationLines() — inherited from SurveyPlanRenderer base class
@@ -447,12 +413,12 @@ private drawFormNo4RightPanel(): string {
     const rawString = `${coordString}|${areaVal}|${lrNum}|${scaleVal}|${dateStr}|${folio}|${register}|${surveyorLicence}|${revisionsCount}`
     const verCode = (await sha256Hex(rawString)).toUpperCase().slice(0, 16)
 
-    const y = this.pageH - mmToPx(7)
+    const y = this.pageH - mmToPx(14.5)
     const cx = this.pageW / 2
 
     let svg = ''
-    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="#999">Content fingerprint: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
-    svg += `<text x="${cx}" y="${y + mmToPx(3.5)}" text-anchor="middle" font-family="JetBrains Mono, Courier New" font-size="10" fill="#555">Selected plan data only; not certification, a signature or authority approval.</text>`
+    svg += `<text x="${cx}" y="${y}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#999">Content fingerprint: ${verCode} | Generated: ${escapeXml(dateStr)} | Scale: 1:${scaleVal}</text>`
+    svg += `<text x="${cx}" y="${y + mmToPx(3.5)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#555">Selected plan data only; not certification, a signature or authority approval.</text>`
 
     return svg
   }
