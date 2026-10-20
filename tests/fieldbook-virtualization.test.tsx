@@ -4,8 +4,14 @@ import { createRoot } from 'react-dom/client'
 import DynamicFieldBook from '@/components/workspace/DynamicFieldBook'
 
 beforeAll(() => {
-  ;(globalThis as any).IS_REACT_ACT_ENVIRONMENT = true
+  ;(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT: boolean }).IS_REACT_ACT_ENVIRONMENT = true
 })
+
+const originalFetch = global.fetch
+beforeEach(() => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ data: [], revision: 'a'.repeat(64) }) })
+})
+afterEach(() => { global.fetch = originalFetch })
 
 describe('DynamicFieldBook Virtualization', () => {
   it('renders standard table rows when under 50 rows', async () => {

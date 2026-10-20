@@ -52,3 +52,11 @@ it('does not enter a write transaction for a different owner', async () => {
   expect(response.status).toBe(403)
   expect(mockTransaction).not.toHaveBeenCalled()
 })
+
+it('rechecks ownership on the locked project before replacing any rows', async () => {
+  const query = jest.fn().mockResolvedValue({ rows: [] })
+  mockTransaction.mockImplementation(async callback => callback({ query } as never))
+  await expect(PUT(request(), { params: Promise.resolve({ id: 'project' }) })).rejects.toMatchObject({ statusCode: 409 })
+  expect(query).toHaveBeenCalledTimes(1)
+  expect(query).toHaveBeenCalledWith(expect.stringContaining('FOR UPDATE'), ['project', 'owner'])
+})

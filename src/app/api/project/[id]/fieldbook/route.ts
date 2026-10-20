@@ -59,25 +59,26 @@ export const PUT = apiHandler({auth:true,rateLimit:{max:180,windowMs:60000}},asy
   const ownership=await requireProjectOwnership(id,ctx.userId)
   if(!ownership.ok) return ownership.error ?? NextResponse.json({error:'Project owner required'},{status:403})
   const revision = await db.transaction(async client=>{
-    await client.query('SELECT id FROM projects WHERE id=$1 AND user_id=$2 FOR UPDATE',[id,ctx.userId])
-    const current = await client.query('SELECT * FROM project_fieldbook_entries WHERE project_id=$1 AND deleted_at IS NULL ORDER BY row_index ASC FOR UPDATE',[id])
+    const locked = await client.query<{ id: string }>('SELECT id FROM projects WHERE id=$1 AND user_id=$2 FOR UPDATE',[id,ctx.userId])
+    if (locked.rows.length !== 1) throw new ConflictError('Project ownership changed. No field-book edits were saved.')
+    const current = await client.query<ProjectFieldbookEntryRow>('SELECT * FROM project_fieldbook_entries WHERE project_id=$1 AND deleted_at IS NULL ORDER BY row_index ASC FOR UPDATE',[id])
     if (fieldBookRevision(current.rows) !== parsed.data.revision) {
       throw new ConflictError('The field book changed after it was opened. Your edits have not been saved. Reopen and reconcile the latest rows before retrying.')
     }
     for(const [index,row] of parsed.data.rows.entries()) {
-      await client.query(`INSERT INTO project_fieldbook_entries(project_id,row_index,station,bearing,distance,raw_data)
+      await client.query<never>(`INSERT INTO project_fieldbook_entries(project_id,row_index,station,bearing,distance,raw_data)
         VALUES($1,$2,$3,NULL,NULL,$4)
         ON CONFLICT(project_id,row_index) DO UPDATE SET station=EXCLUDED.station,bearing=NULL,distance=NULL,
           raw_data=EXCLUDED.raw_data,deleted_at=NULL,deleted_by=NULL,updated_at=NOW()`,
         [id,index,row.station ?? null,JSON.stringify(row)])
     }
-    await client.query('UPDATE project_fieldbook_entries SET deleted_at=NOW(),deleted_by=$3 WHERE project_id=$1 AND row_index >= $2 AND deleted_at IS NULL',[id,parsed.data.rows.length,ctx.userId])
+    await client.query<never>('UPDATE project_fieldbook_entries SET deleted_at=NOW(),deleted_by=$3 WHERE project_id=$1 AND row_index >= $2 AND deleted_at IS NULL',[id,parsed.data.rows.length,ctx.userId])
     const control=parsed.data.startPoint ? {startControl:parsed.data.startPoint} : {}
-    await client.query(`UPDATE projects SET area_sqm=NULL,area_ha=NULL,
+    await client.query<never>(`UPDATE projects SET area_sqm=NULL,area_ha=NULL,
       boundary_data=(COALESCE(boundary_data,'{}'::jsonb) - ARRAY['adjustedStations','stations','computation','precision_ratio','linear_misclosure','closing_error_e','closing_error_n','perimeter_m']) || $2::jsonb,
       updated_at=NOW() WHERE id=$1`,[id,JSON.stringify(control)])
-    await client.query("UPDATE submission_documents SET status='pending',file_url=NULL,generated_at=NULL WHERE project_id=$1",[id])
-    const saved = await client.query('SELECT * FROM project_fieldbook_entries WHERE project_id=$1 AND deleted_at IS NULL ORDER BY row_index ASC',[id])
+    await client.query<never>("UPDATE submission_documents SET status='pending',file_url=NULL,generated_at=NULL WHERE project_id=$1",[id])
+    const saved = await client.query<ProjectFieldbookEntryRow>('SELECT * FROM project_fieldbook_entries WHERE project_id=$1 AND deleted_at IS NULL ORDER BY row_index ASC',[id])
     return fieldBookRevision(saved.rows)
   })
   return NextResponse.json({saved:true,count:parsed.data.rows.length,revision})

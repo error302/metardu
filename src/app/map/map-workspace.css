@@ -1,7 +1,7 @@
 .map-workspace {
   --map-header-height: 48px;
   --map-bottom-clearance: 0px;
-  --map-surface: color-mix(in srgb, var(--bg-secondary) 97%, transparent);
+  --map-surface: var(--bg-secondary);
   isolation: isolate;
   display: flex;
   flex-direction: column;
@@ -436,6 +436,26 @@
 }
 
 /* ── Mobile Responsive Overrides ── */
+/* Keep field controls stable over moving tiles and while their panels scroll.
+   Opaque surfaces avoid backdrop compositing trails and preserve text contrast. */
+.map-workspace :is(
+  .map-search-input, .map-grid-switcher, .map-header-layers, .map-basemap-bar,
+  .map-mobile-tools-toggle, .map-mobile-tool-bar, .map-mobile-tool-panel,
+  .map-zoom-buttons, .map-pan-lock, .map-gesture-lock, .map-gps-toggle,
+  .map-print-button, .map-status-strip, .ol-scale-line
+) {
+  background: var(--map-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+/* On a narrow tablet the centred scale otherwise sits behind the left dock. */
+@media (min-width: 768px) and (max-width: 959px) {
+  .map-workspace .ol-scale-line {
+    bottom: calc(var(--map-bottom-clearance) + 108px);
+  }
+}
+
 @media (max-width: 767px) {
   .map-workspace-header {
     top: 8px;

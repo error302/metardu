@@ -138,3 +138,18 @@ legacy observation-table contract and fallback starting coordinates before this
 simulation can claim a complete compute-to-draft path. These are remaining source
 blockers, separate from the already exported reconnaissance map. No production
 promotion of this follow-up has occurred.
+
+The first push of `fdd32462` was blocked locally. Its related virtualization
+tests needed a canonical read-response fixture; the touched legacy field-book
+transaction also needed explicit database row types. Those corrections retain
+the load-before-edit protection and add an ownership recheck on the locked
+project row. The hook now scans the actual push base and prints its success
+message only if no gate recorded a failure; no gate is bypassed.
+
+Responsive inspection reached the lower mobile Capture controls and precision
+toggle. Scrolling exposed backdrop-compositing trails; opaque floating controls
+removed those trails after reloading the source stylesheet (computed backdrop
+filter `none`, with a rendered tablet check). A narrow-tablet scale/dock overlap
+was also found and its clearance adjusted. These are browser-emulated viewport
+checks, not physical-device or offline acceptance. Final tablet-clearance and
+short-phone checks remain to be recorded.

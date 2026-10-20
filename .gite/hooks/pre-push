@@ -115,7 +115,7 @@ if [[ -f tsconfig.json ]]; then
 fi
 
 echo "pre-push: api-row-sweep on changed routes ..."
-if ! timeout "$TIMEBOX" node scripts/api-row-sweep.mjs --check --paths-from-changed; then
+if ! timeout "$TIMEBOX" node scripts/api-row-sweep.mjs --check "$BASE_REF" --paths-from-changed; then
   fail "api-row-sweep failed on changed routes"
 fi
 
@@ -168,4 +168,6 @@ if [[ "${SKIP_PRE_PUSH_TESTS:-}" != "1" ]]; then
   fi
 fi
 
-echo "pre-push: all local gates passed ✓"
+if [[ -z "$REASON" ]]; then
+  echo "pre-push: all local gates passed ✓"
+fi
