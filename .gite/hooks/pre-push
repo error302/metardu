@@ -93,13 +93,13 @@ run_jest_batches() {
     [[ -n "$file" ]] || continue
     batch+=("$file")
     if (( ${#batch[@]} >= 75 )); then
-      timeout "$TIMEBOX" npx jest --findRelatedTests --passWithNoTests "${batch[@]}" || return 1
+      timeout "$TIMEBOX" npx jest --maxWorkers="${JEST_MAX_WORKERS:-2}" --findRelatedTests --passWithNoTests "${batch[@]}" || return 1
       batch=()
     fi
   done <<< "$CHANGED_FILES"
 
   if (( ${#batch[@]} > 0 )); then
-    timeout "$TIMEBOX" npx jest --findRelatedTests --passWithNoTests "${batch[@]}"
+    timeout "$TIMEBOX" npx jest --maxWorkers="${JEST_MAX_WORKERS:-2}" --findRelatedTests --passWithNoTests "${batch[@]}"
   fi
 }
 
