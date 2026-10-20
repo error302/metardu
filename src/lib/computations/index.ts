@@ -21,3 +21,4 @@ export * from './earthworksEngine';
 export * from './roadDesignEngine';
 export * from './settingOutEngine';
 export * from './traverseEngine';
+export * from './spectralEngine';

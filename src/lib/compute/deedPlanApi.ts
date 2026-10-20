@@ -1,10 +1,11 @@
 import type { DeedPlanInput, DeedPlanOutput } from '@/types/deedPlan'
 
-const BASE = process.env.NEXT_PUBLIC_URL || 'https://metardu.space'
-
 export async function generateDeedPlan(input: DeedPlanInput): Promise<DeedPlanOutput> {
-  const res = await fetch(`${BASE}/api/deed-plan/generate`, {
+  // This is a browser client: keep authentication and project data on this origin,
+  // including when a build-time public URL points at a different environment.
+  const res = await fetch('/api/deed-plan/generate', {
     method: 'POST',
+    credentials: 'same-origin',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(input)
   })

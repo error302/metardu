@@ -1,7 +1,7 @@
 'use client'
-/** Collapsible mobile tool groups with one scrollable context panel at a time. */
+/** Shared desktop/mobile tool groups with one scrollable context panel at a time. */
 
-import React, { memo, useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import React, { memo, useState, useCallback, useEffect, useMemo } from 'react'
 import {
   Binoculars, Crosshair, Calculator, Target,
   Layers, Download,
@@ -21,8 +21,8 @@ import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
 import { BookmarkPanel } from '@/app/map/components/BookmarkPanel'
 import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
 import { InstantClosureFeedback } from '@/app/map/components/InstantClosureFeedback'
-import { SurveyWorkflowBadge } from '@/app/map/components/SurveyWorkflowBadge'
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
+import { VertexEditToolbarContext } from '@/components/map/VertexEditToolbar'
 import { SchemeLayerPanel } from './SchemeLayerPanel'
 import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
@@ -165,57 +165,9 @@ function ProjectBadge() {
 // DockPanel — reusable wrapper for each panel card
 // ---------------------------------------------------------------------------
 
-interface DockPanelProps {
-  label: string
-  accent: string
-  isOpen: boolean
-  onClose: () => void
-  children: React.ReactNode
-}
 
-const DockPanel = memo(function DockPanel({ label, accent, isOpen, onClose, children }: DockPanelProps) {
-  const panelRef = useRef<HTMLDivElement>(null)
 
-  if (!isOpen) return null
 
-  return (
-    <div
-      ref={panelRef}
-      className="w-[270px] flex flex-col rounded-2xl overflow-hidden
-        bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-2xl
-        border border-white/[0.06]
-        shadow-[0_8px_32px_rgba(0,0,0,0.45)]
-        animate-[slideInLeft_0.18s_ease-out]"
-      style={{ boxShadow: `0 8px 32px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.04), 0 0 20px ${accent}0a` }}
-      role="region"
-      aria-label={`${label} tools`}
-    >
-      {/* Header */}
-      <div
-        className="h-9 flex items-center justify-between px-3 shrink-0 border-b border-white/[0.05]"
-        style={{ borderTop: `2px solid ${accent}` }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: accent }} />
-          <span className="text-[11px] font-semibold text-[var(--text-primary)] tracking-wide">{label}</span>
-          <ProjectBadge />
-        </div>
-        <button
-          onClick={onClose}
-          className="w-5 h-5 flex items-center justify-center rounded-md text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/[0.06] transition-colors"
-          aria-label={`Close ${label} panel`}
-        >
-          <X className="w-3 h-3" />
-        </button>
-      </div>
-
-      {/* Body — each panel scrolls internally */}
-      <div className="overflow-y-auto px-3 py-2 custom-scrollbar" style={{ maxHeight: '360px' }}>
-        {children}
-      </div>
-    </div>
-  )
-})
 
 // ---------------------------------------------------------------------------
 // Helper: polygon vertices from OL feature
@@ -332,6 +284,10 @@ export const CaptureContent = memo(function CaptureContent() {
 
       <SectionLabel hint="E">Edit</SectionLabel>
       <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} shortcut="V" />
+      <details className="py-2 text-xs text-[var(--text-secondary)]">
+        <summary className="cursor-pointer py-2">Precision vertex controls</summary>
+        <VertexEditToolbarContext />
+      </details>
       <div className="flex gap-1.5">
         <button onClick={ctx.undo} disabled={!ctx.canUndo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-[var(--text-secondary)] hover:bg-white/[0.04] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
           <Undo2 className="w-3.5 h-3.5" /> Undo
@@ -712,23 +668,15 @@ const MetarduWatermark = memo(function MetarduWatermark() {
 
 export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpandedChange }: { expanded?: boolean; onExpandedChange?: (expanded: boolean) => void }) {
   const [openPanels, setOpenPanels] = useState<Set<DockCategory>>(new Set())
-  const [dockVisible, setDockVisible] = useState(false)
-
   const {
     drawMode, editMode, measureMode, gpsTracking, stakeoutActive,
-    hasTraverse, showAnnotations, isMobile,
+    hasTraverse, showAnnotations,
   } = useMapContext()
 
   const togglePanel = useCallback((cat: DockCategory) => {
-    if (isMobile) onExpandedChange?.(true)
-    setOpenPanels(prev => {
-      if (isMobile) return prev.has(cat) ? new Set() : new Set([cat])
-      const next = new Set(prev)
-      if (next.has(cat)) next.delete(cat)
-      else next.add(cat)
-      return next
-    })
-  }, [isMobile, onExpandedChange])
+    onExpandedChange?.(true)
+    setOpenPanels(prev => (prev.has(cat) ? new Set() : new Set([cat])))
+  }, [onExpandedChange])
 
   const closePanel = useCallback((cat: DockCategory) => {
     setOpenPanels(prev => {
@@ -776,53 +724,77 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
     }
   }
 
-  // ── Mobile ──
-  if (isMobile) {
-    return (
-      <>
-        <MetarduWatermark />
+  return (
+    <>
+      <MetarduWatermark />
 
-        <button type="button" className="map-mobile-tools-toggle" aria-expanded={expanded} aria-controls="map-mobile-tool-groups" onClick={() => { setOpenPanels(new Set()); onExpandedChange?.(!expanded) }}>
-          {expanded ? <X className="h-4 w-4" /> : <Layers className="h-4 w-4" />}{expanded ? 'Hide tools' : 'Map tools'}
-        </button>
-        {/* Active panel — bottom sheet, only one at a time on mobile */}
-        {expanded && openPanels.size > 0 && (() => {
-          const cat = [...openPanels][openPanels.size - 1]
-          const catDef = CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
-          return (
-            <div
-              className="map-mobile-tool-panel bg-[var(--bg-secondary)] shadow-xl"
-              role="region" aria-label={`${catDef.label} tools`}
-            >
-              <div className="flex justify-center pt-2 pb-1">
-                <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
-              </div>
-              <div className="flex items-center justify-between px-4 pb-2 border-b border-white/[0.06]"
-                style={{ borderTop: `2px solid ${catDef.accent}` }}>
-                <div className="flex items-center gap-2">
-                  <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catDef.accent }} />
-                  <span className="text-xs text-[var(--text-secondary)] font-semibold">{catDef.label}</span>
-                  <ProjectBadge />
-                </div>
-                <button onClick={() => closePanel(cat)} className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/[0.06]" aria-label="Close panel">
-                  <X className="w-3.5 h-3.5" />
-                </button>
-              </div>
-              <div className="map-mobile-panel-body overflow-y-auto px-3 pb-4 custom-scrollbar">
-                {renderPanelContent(cat)}
-              </div>
+      {!expanded && <button
+        type="button"
+        className="map-mobile-tools-toggle"
+        aria-expanded={expanded}
+        aria-controls="map-mobile-tool-groups"
+        onClick={() => {
+          setOpenPanels(new Set())
+          onExpandedChange?.(!expanded)
+        }}
+      >
+        <Layers className="h-4 w-4" />
+        Map tools
+      </button>}
+
+      {/* Active panel — styled gracefully on both mobile & desktop */}
+      {expanded && openPanels.size > 0 && (() => {
+        const cat = [...openPanels][openPanels.size - 1]
+        const catDef = CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
+        return (
+          <div
+            id={`map-tools-${cat}`}
+            className="map-mobile-tool-panel bg-[var(--bg-secondary)] shadow-xl"
+            role="region"
+            aria-label={`${catDef.label} tools`}
+          >
+            <div className="flex justify-center pt-2 pb-1">
+              <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
             </div>
-          )
-        })()}
+            <div
+              className="flex items-center justify-between px-4 pb-2 border-b border-white/[0.06]"
+              style={{ borderTop: `2px solid ${catDef.accent}` }}
+            >
+              <div className="flex items-center gap-2">
+                <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: catDef.accent }} />
+                <span className="text-xs text-[var(--text-secondary)] font-semibold">{catDef.label}</span>
+                <ProjectBadge />
+              </div>
+              <button
+                onClick={() => closePanel(cat)}
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/[0.06]"
+                aria-label="Close panel"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+            <div className="map-mobile-panel-body overflow-y-auto px-3 pb-4 custom-scrollbar">
+              {renderPanelContent(cat)}
+            </div>
+          </div>
+        )
+      })()}
 
-        {/* Bottom horizontal dock bar */}
-        {expanded && <div id="map-mobile-tool-groups" className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
+      {/* Horizontal tool bar / dock */}
+      {expanded && (
+        <div id="map-mobile-tool-groups" className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
             const open = openPanels.has(cat.id)
             const active = isActive(cat.id)
             return (
-              <button key={cat.id} onClick={() => togglePanel(cat.id)} aria-label={cat.label}
+              <button
+                key={cat.id}
+                onClick={() => togglePanel(cat.id)}
+                aria-label={cat.label}
+                aria-expanded={open}
+                aria-controls={open ? `map-tools-${cat.id}` : undefined}
+                title={`${cat.label} (${cat.shortcut})`}
                 className={`flex flex-col items-center justify-center gap-0.5 rounded-xl transition-all duration-200 w-12 h-12 shrink-0 relative
                   ${open ? 'bg-white/[0.08] border border-white/[0.12] text-[var(--text-primary)]'
                     : active ? 'text-[var(--text-primary)]'
@@ -835,89 +807,10 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
               </button>
             )
           })}
-        </div>}
-      </>
-    )
-  }
-
-  // ── Desktop ──
-  return (
-    <>
-      <SurveyWorkflowBadge activeItems={CATEGORIES.filter(c => openPanels.has(c.id))} />
-      <MetarduWatermark />
-
-      {/* Toggle hamburger */}
-      <button
-        onClick={() => { setDockVisible(v => !v); if (dockVisible) setOpenPanels(new Set()) }}
-        className="absolute top-3 left-3 z-30 w-10 h-10 flex items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] backdrop-blur-xl border border-white/[0.08] text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-secondary)_80%,transparent)] transition-all"
-        title={dockVisible ? 'Hide tools (Esc)' : 'Show tools (press 1-6)'}
-        aria-label={dockVisible ? 'Hide map tools' : 'Show map tools'}
-      >
-        {dockVisible
-          ? <X className="w-4 h-4" />
-          : <svg viewBox="0 0 16 16" fill="currentColor" className="w-4 h-4"><rect x="2" y="3" width="12" height="1.5" rx="0.75"/><rect x="2" y="7.25" width="12" height="1.5" rx="0.75"/><rect x="2" y="11.5" width="12" height="1.5" rx="0.75"/></svg>
-        }
-      </button>
-
-      {dockVisible && (
-        /* Outer row: icon rail + panel stack side by side */
-        <div className="absolute top-3 left-3 z-20 flex flex-row items-start gap-2 mt-12">
-
-          {/* ── Icon rail ── */}
-          <div className="flex flex-col gap-1.5">
-            {CATEGORIES.map(cat => {
-              const Icon = cat.icon
-              const open = openPanels.has(cat.id)
-              const active = isActive(cat.id)
-              return (
-                <button
-                  key={cat.id}
-                  onClick={() => togglePanel(cat.id)}
-                  title={`${cat.label} (${cat.shortcut})`}
-                  aria-label={cat.label}
-                  aria-pressed={open}
-                  className={`
-                    relative w-10 h-10 min-w-[40px] min-h-[40px]
-                    flex items-center justify-center rounded-xl transition-all duration-200
-                    backdrop-blur-xl
-                    ${open
-                      ? 'bg-[color-mix(in_srgb,var(--bg-secondary)_80%,transparent)] border border-white/[0.12] text-[var(--text-primary)]'
-                      : active
-                        ? 'bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] border border-white/[0.08] text-[var(--text-primary)] hover:bg-[color-mix(in_srgb,var(--bg-secondary)_80%,transparent)]'
-                        : 'bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] border border-white/[0.05] text-[var(--text-muted)] hover:bg-[color-mix(in_srgb,var(--bg-secondary)_60%,transparent)] hover:text-[var(--text-secondary)]'}
-                  `}
-                  style={open ? { boxShadow: `0 0 14px ${cat.accent}35, inset 0 0 8px ${cat.accent}12`, borderColor: `${cat.accent}40` } : undefined}
-                >
-                  <Icon className="w-4 h-4" />
-                  {/* Active-state dot */}
-                  {active && !open && (
-                    <div className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full" style={{ backgroundColor: cat.accent }} />
-                  )}
-                  {/* Open indicator bar on right edge */}
-                  {open && (
-                    <div className="absolute right-0 top-2 bottom-2 w-0.5 rounded-full" style={{ backgroundColor: cat.accent }} />
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* ── Panel stack — panels render in category order, stacked vertically ── */}
-          {openPanels.size > 0 && (
-            <div className="flex flex-col gap-2" style={{ maxHeight: 'calc(100vh - 120px)', overflowY: 'auto' }}>
-              {CATEGORIES.filter(cat => openPanels.has(cat.id)).map(cat => (
-                <DockPanel
-                  key={cat.id}
-                  label={cat.label}
-                  accent={cat.accent}
-                  isOpen={openPanels.has(cat.id)}
-                  onClose={() => closePanel(cat.id)}
-                >
-                  {renderPanelContent(cat.id)}
-                </DockPanel>
-              ))}
-            </div>
-          )}
+          <button type="button" aria-label="Hide map tools" onClick={() => { setOpenPanels(new Set()); onExpandedChange?.(false) }} className="flex flex-col items-center justify-center gap-0.5 text-[var(--text-secondary)]">
+            <X className="w-4 h-4" aria-hidden="true" />
+            <span className="text-[10px]">Hide</span>
+          </button>
         </div>
       )}
     </>

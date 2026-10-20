@@ -1,9 +1,33 @@
 # Field sync and recovery continuation
 
-This follows the healthy `80940bf7` import release. The prior goal turn was
-progress: an additive production repair, complete live checks and independent
-cleanup. The full goal remains active. The user chose computer-browser testing;
-do not resume physical-phone work without new steering.
+## Verified production checkpoint — 20 October 2026
+
+Production is healthy at `08fae42763aae6d6c4fa24e7f32ec359bf41ddc7`, image
+`sha256:06103336484035d2aad7d3a1d45cf9bb37b8a814507b190108f5ae1586a9d0b0`.
+Migration 114 is applied: 119 ledger entries. Do not edit its applied checksum.
+The 18 October promotion passed its source, ten-case synthetic upgrade matrix,
+candidate artifact and preservation gates. Live HTTPS acceptance passed 24 raw
+field-delivery checks and 26 survey regression checks. A fresh read-only check
+on 20 October independently found zero exact fixture users, profiles, projects,
+raw observations, captures or reviewed points. Public HTTPS health returned 200.
+
+Evidence is under `.cache/release-verify/unified-release/08fae42763aae6d6c4fa24e7f32ec359bf41ddc7/`:
+`promotion.json`, `source-checks.json`, `upgrade-checks.json`,
+`candidate-artifacts/offline-policy.json`, `live-field-1.json`, `live-survey.json`.
+The independent refresh is `.cache/takeover/live-state.json`. Earlier notes below
+record the investigation chronologically; their source-only/promotion-pending
+statements are historical and superseded by this checkpoint.
+
+Raw delivery, replay/conflict handling, generic-proxy write denial, retry pacing,
+explicit asset recovery and deliberate service-worker updates are deployed.
+Generated-worker inspection is artifact proof, not disconnected-browser proof.
+The raw-row trigger rejects direct UPDATE; it is not a direct-SQL DELETE guard.
+Legacy reconciliation, complete evidence timeline, owner-safe private offline
+cold-open/reopen, mobile queue scaling and physical field acceptance remain open.
+Payment/email-provider and ChatGPT notice/deployment/consent gates are separate.
+The full goal remains active. Continue computer-browser testing as requested.
+
+## Historical investigation notes
 
 ## Verified gaps and work order
 

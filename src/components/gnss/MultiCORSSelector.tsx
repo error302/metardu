@@ -3,15 +3,12 @@
 import React, { useState, useMemo, useCallback } from 'react'
 import {
   NETWORKS,
-  STATIONS,
   findNearestCORSStation,
   NearestCORSResult,
-  CORSStation,
 } from '@/lib/gnss/multiCorsNetwork'
 import {
   RadioTower,
   MapPin,
-  Compass,
   Download,
   Copy,
   Check,
@@ -19,10 +16,6 @@ import {
   AlertTriangle,
   Server,
   Zap,
-  Shield,
-  Activity,
-  ArrowRight,
-  ExternalLink,
 } from 'lucide-react'
 
 // Preset benchmark survey centers across East Africa

@@ -35,16 +35,14 @@ import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapRightDock } from '@/app/map/components/MapRightDock'
 import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
-import MapRail from '@/app/map/components/MapRail'
 import { MapWorkspaceHeader, MapBasemapBar } from '@/app/map/components/MapWorkspaceHeader'
 import './map-workspace.css'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
-import { MapToolDock, ReconContent, CaptureContent, ComputeContent, SetOutContent, LayersContent, ExportContent } from '@/app/map/components/MapToolDock'
+import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { OsmBuildingsLayer } from '@/app/map/components/OsmBuildingsLayer'
-import { VertexEditToolbarContext as VertexEditToolbar } from '@/components/map/VertexEditToolbar'
 import { resolveMapSurveyCrs } from '@/app/map/mapSurveyCrs'
 import { useSelectionStore } from '@/lib/surveyMapEngine/ol/selection'
 import type { SnapMode, SnapType } from '@/lib/surveyMapEngine/ol/snapping'
@@ -58,11 +56,9 @@ import { useVertexEditing } from '@/hooks/useVertexEditing'
 import type { PaperSize, Orientation } from '@/lib/surveyMapEngine/io/printSurface'
 import { SurveyMapEngineProvider } from '@/lib/surveyMapEngine/react/SurveyMapEngineContext'
 import type { MapExtent } from './MapReactContext'
-import { MapProvider, useMapContext, type MapContextValue } from '@/app/map/MapReactContext'
+import { MapProvider, type MapContextValue } from '@/app/map/MapReactContext'
 // LINT FIX (2026-08-30): StakeoutPanel is rendered by MapToolDock (and
 // FieldDataCollector) — the local import was dead. Building2 unused.
-import { Target, PenLine, Layers, Ruler, Binoculars, Crosshair, Calculator, Download } from 'lucide-react'
-
 // ── Dynamic imports for heavy components ──
 const OfflineTileDownloader = dynamic(
   () => import('@/components/map/OfflineTileDownloader').then(m => ({ default: m.OfflineTileDownloader })),
@@ -73,22 +69,6 @@ const SheetLayout = dynamic(
   () => import('@/components/map/SheetLayout'),
   { ssr: false, loading: () => null }
 )
-
-// ── MapRail panels (radio-switched via MapRail) ──
-function MeasureRailPanel() {
-  const ctx = useMapContext()
-  return (
-    <div className="space-y-2">
-      <div className="grid grid-cols-2 gap-1.5">
-        <button onClick={() => ctx.toggleMeasure(ctx.measureMode==='distance' ? 'none' : 'distance')} className={`px-3 py-2.5 rounded-lg border text-xs font-medium ${ctx.measureMode==='distance' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]' : 'border-white/[0.06] text-[var(--text-secondary)]'}`}>Distance</button>
-        <button onClick={() => ctx.toggleMeasure(ctx.measureMode==='area' ? 'none' : 'area')} className={`px-3 py-2.5 rounded-lg border text-xs font-medium ${ctx.measureMode==='area' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]' : 'border-white/[0.06] text-[var(--text-secondary)]'}`}>Area</button>
-      </div>
-      {ctx.measureResult && <div className="p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] text-sm font-mono text-[var(--text-primary)]">{ctx.measureResult}</div>}
-      {!ctx.measureResult && <p className="text-[11px] text-[var(--text-muted)] px-1">Tap the map to measure. Distance shows bearing.</p>}
-    </div>
-  )
-}
-
 
 /* ══════════════════════════════════════════════════════════════════════
  *  POPUP RENDERER
@@ -273,8 +253,6 @@ export default function MapClient() {
 
   // ── OSM Buildings overlay toggle ──
   const [showOsmBuildings, setShowOsmBuildings] = useState(false)
-  const [activeRailTool, setActiveRailTool] = useState<string | null>(null)
-
   const [paperSize, setPaperSize] = useState<PaperSize>('a4')
   const [orientation, setOrientation] = useState<Orientation>('landscape')
 
@@ -823,7 +801,7 @@ export default function MapClient() {
       <div
         id="metardu-global-map"
         className="map-workspace h-[calc(100dvh-9rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
-        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': isMobile && mobileToolsExpanded ? '104px' : '0px' } as React.CSSProperties}
+        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': isMobile && mobileToolsExpanded ? '54px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
       >
@@ -836,11 +814,11 @@ export default function MapClient() {
             <>
               <MapOverlays />
 
-              <MapWorkspaceHeader layersOpen={activeRailTool === 'layers'} onToggleLayers={() => setActiveRailTool(current => current === 'layers' ? null : 'layers')} />
+              <MapWorkspaceHeader />
               <MapBasemapBar />
 
-              {/* ── Tool Dock — MOBILE ONLY (bottom-sheet UX) ── */}
-              {isMobile && <MapToolDock expanded={mobileToolsExpanded} onExpandedChange={setMobileToolsExpanded} />}
+              {/* ── Unified Tool Dock (matching UX on desktop & mobile) ── */}
+              <MapToolDock expanded={mobileToolsExpanded} onExpandedChange={setMobileToolsExpanded} />
 
               {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />
@@ -904,28 +882,7 @@ export default function MapClient() {
                 <OsmBuildingsLayer map={mapInstance.current} visible={showOsmBuildings} />
               )}
 
-              {/* ── Tool rail (desktop): single radio-switched rail, no overlap.
-                   Absorbs the Dock's Recon/Capture/Compute/SetOut/Export panels;
-                   the Dock itself is mobile-only (bottom-sheet UX). ── */}
-              {!isMobile && (
-                <>
-                  <MapRail
-                    items={[
-                      { id: 'recon', label: 'Recon & Search', icon: Binoculars, shortcut: '1', panel: <ReconContent /> },
-                      { id: 'capture', label: 'Draw & Capture', icon: Crosshair, shortcut: '2', panel: <CaptureContent /> },
-                      { id: 'vertex', label: 'Vertex Editing', icon: PenLine, shortcut: '3', dividerAfter: true, panel: <VertexEditToolbar /> },
-                      { id: 'compute', label: 'Compute (COGO / Traverse)', icon: Calculator, shortcut: '4', panel: <ComputeContent /> },
-                      { id: 'measure', label: 'Measure', icon: Ruler, shortcut: '5', dividerAfter: true, panel: <MeasureRailPanel /> },
-                      { id: 'stakeout', label: 'Stakeout & GPS', icon: Target, shortcut: '6', dividerAfter: true, panel: <SetOutContent /> },
-                      { id: 'layers', label: 'Layers', icon: Layers, shortcut: '7', panel: <LayersContent /> },
-                      { id: 'export', label: 'Export & Print', icon: Download, shortcut: '8', panel: <ExportContent /> },
-                    ]}
-                    activeId={activeRailTool}
-                    onActivate={setActiveRailTool}
-                  />
 
-                </>
-              )}
 
               {/* ── Sheet Layout Overlay (print-only — no manual toggle) ── */}
               {showSheetLayout && (

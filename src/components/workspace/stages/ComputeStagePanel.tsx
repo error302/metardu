@@ -9,7 +9,7 @@
  */
 
 import React from 'react'
-import { Calculator, Play, CheckCircle2, AlertTriangle, ArrowRight, Compass, Ruler } from 'lucide-react'
+import { Calculator, ArrowRight, Compass, Ruler } from 'lucide-react'
 import Link from 'next/link'
 import CadastralComputeIntegration from '@/components/workspace/CadastralComputeIntegration'
 import { FieldToFinishButton } from '@/components/workspace/FieldToFinishButton'
@@ -19,7 +19,7 @@ interface Props {
   projectName: string
 }
 
-export default function ComputeStagePanel({ projectId, projectName }: Props) {
+export default function ComputeStagePanel({ projectId, projectName: _projectName }: Props) {
   return (
     <div className="space-y-5">
       {/* 1-Click Field-to-Finish Banner */}

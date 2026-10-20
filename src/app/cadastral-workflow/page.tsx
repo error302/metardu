@@ -186,7 +186,20 @@ export default function CadastralWorkflowPage() {
   const progress = Math.round((completedCount / STEPS.length) * 100)
 
   if (!mounted) {
-    return <div className="max-w-5xl mx-auto px-4 py-8" style={{ minHeight: '50vh' }} />
+    return (
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-10 py-6 md:py-10" role="status" aria-busy="true">
+        <p className="text-sm text-[var(--text-secondary)] mb-6">Loading your cadastral workflow…</p>
+        <div className="border border-[var(--border-color)] bg-[var(--bg-card)]" aria-hidden="true">
+          {STEPS.map(step => (
+            <div key={step.id} className="p-5 md:p-6 border-b border-[var(--border-color)] last:border-b-0 motion-safe:animate-pulse">
+              <div className="h-5 w-2/3 bg-[var(--bg-tertiary)] mb-3" />
+              <div className="h-3 w-full bg-[var(--bg-tertiary)] mb-2" />
+              <div className="h-3 w-4/5 bg-[var(--bg-tertiary)]" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

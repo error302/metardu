@@ -9,7 +9,7 @@ import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 
 export const MapWorkspaceHeader = memo(function MapWorkspaceHeader({
   layersOpen, onToggleLayers,
-}: { layersOpen: boolean; onToggleLayers: () => void }) {
+}: { layersOpen?: boolean; onToggleLayers?: () => void } = {}) {
   const { mouseCoord, currentSurveyCrs, schemeProjectId } = useMapContext()
   return (
     <header className="map-workspace-header" aria-label="Map workspace">
@@ -23,9 +23,11 @@ export const MapWorkspaceHeader = memo(function MapWorkspaceHeader({
         </div>
       </div>
       <ProjectionSwitcher compact />
-      <button type="button" className="map-header-layers" onClick={onToggleLayers} aria-expanded={layersOpen} aria-controls="map-panel-layers">
-        <Layers className="h-4 w-4" aria-hidden="true" /> Layers
-      </button>
+      {onToggleLayers && (
+        <button type="button" className="map-header-layers" onClick={onToggleLayers} aria-expanded={layersOpen} aria-controls="map-panel-layers">
+          <Layers className="h-4 w-4" aria-hidden="true" /> Layers
+        </button>
+      )}
     </header>
   )
 })

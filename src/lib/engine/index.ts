@@ -29,3 +29,5 @@ export * from './leveling-standards';
 export * from './edm-corrections';
 export * from './crossSectionVolume';
 export * from './leastSquares';
+export * from './fourier';
+export * from './tidalHarmonics';
