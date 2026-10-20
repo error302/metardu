@@ -81,6 +81,11 @@ payment, engineering/deliverable and final candidate acceptance remain open.
 delivered raw captures can be reviewed and used to create a new named draft,
 with original snapshots and unknown authorship retained. Source changes preserve
 the current book during concurrent edits, include source references in transfers
-and exports, and remove the guessed 1 km leveling run length. Pinned native,
-authenticated browser, durable interrupted-creation recovery and release/device
-acceptance are still required; this is not a completed field-to-finish platform.
+and exports, and remove the guessed 1 km leveling run length. At `853c7bcc`, 68
+native HTTP/PostgreSQL checks passed, including exact draft creation/audit,
+replay preserving later edits and silent-insert rollback; independent exact
+fixture cleanup passed. Authenticated CUA project loading and the empty source
+inventory recovered through ordinary retries. Full browser selection/creation/
+export, native type/pagination/concurrency coverage, durable interrupted-creation
+recovery and release/device acceptance remain open; this is not a completed
+field-to-finish platform.

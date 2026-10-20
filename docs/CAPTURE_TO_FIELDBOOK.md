@@ -95,11 +95,40 @@ selection/creation is still unproven. The pre-existing autosave created an empty
 Pungu project during inspection. It was left intact, not deleted or relabeled.
 Avoid creating empty books merely by opening a project in a future UI pass.
 
+## Pinned native checkpoint
+
+At `853c7bcc2051506511fd7e3328ba3866d02dc513`,
+`.cache/field-sync/http-attempt-7.json` passed 68 real HTTP/PostgreSQL checks
+using ordinary disposable credentials on the one existing marked synthetic
+database and source preview. In addition to the raw-capture/recovery regressions,
+the run verifies the project-private source inventory, full source inspection,
+hash/account/role refusals, exact book insertion and audit, replay preserving
+later editable changes, same-ID request conflict and rollback after either a
+silent book insert or silent audit insert. Native source/archive values and all
+119 applied migration hashes remain unchanged. No new migration was required.
+
+Attempt 6 also passed 68 checks, but review found its new audit fault condition
+compared the text record ID with a UUID. That exercised rollback on an operator
+error rather than the intended missing audit acknowledgement. Commit `853c7bcc`
+corrected the condition; attempt 7 is the authoritative silent-insert proof.
+Both runs cleaned their exact entity fixtures and fault functions/triggers.
+`.cache/field-sync/capture-book-independent-cleanup-final.json` independently
+confirms zero remaining fixture users, profiles, projects, books, raw observations,
+captures, reviewed points, fault triggers and fault functions. Audit history is
+not erased as part of fixture cleanup.
+
+The ordinary CUA inventory retry subsequently completed: the selected Pungu
+simulation project displayed the expected empty-source message. No source
+selection/creation, file download or field acceptance is inferred from that
+empty-state observation. Production, customer data, applied migrations,
+required services and the localhost CAD drawing were not promoted or modified.
+
 ## Still required
 
-- Native HTTP/PostgreSQL proof at a clean source revision, including audit and
-  missing-insert rollback, replay preserving later edits, role/account refusal,
-  original customer-independent fixture fingerprints and exact cleanup.
+- Broaden native inventory acceptance to multi-page/equal-timestamp/null-time
+  boundaries, concurrent creation and all compatible book types. The current
+  native creation exercises a traverse draft; focused mappings cover leveling
+  and polar control, but those are not native/browser acceptance for each type.
 - Ordinary authenticated CUA selection/creation, editable save/reopen, complete
   JSON/CSV/PDF inspection, and responsive/keyboard acceptance.
 - Persist creation intent safely across reloads/device interruption. The current
