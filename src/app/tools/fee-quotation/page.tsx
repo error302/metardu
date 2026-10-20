@@ -10,12 +10,6 @@ import {
   Copy,
   Check,
   Building,
-  MapPin,
-  Compass,
-  Coins,
-  Percent,
-  Layers,
-  ChevronRight,
   ShieldCheck,
   Clock,
   Printer,
@@ -175,8 +169,7 @@ export default function FeeQuotationPage() {
       a.click()
       document.body.removeChild(a)
       URL.revokeObjectURL(url)
-    } catch (err) {
-      console.error(err)
+    } catch {
       alert('Failed to generate proposal PDF. Please check details and try again.')
     } finally {
       setDownloadingPdf(false)

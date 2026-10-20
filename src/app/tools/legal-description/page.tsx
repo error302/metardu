@@ -1,10 +1,11 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   generateLegalDescription,
   LegalDescriptionInput,
 } from '@/lib/documents/legalDescriptionWriter'
+import { escapeDocumentHtml } from '@/lib/documents/escapeDocumentHtml'
 import { PageHeader } from '@/components/shared/PageHeader'
 import {
   Breadcrumb,
@@ -15,7 +16,6 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb'
 import {
-  BookOpenText,
   FileText,
   Download,
   Copy,
@@ -24,7 +24,6 @@ import {
   Plus,
   Trash2,
   Upload,
-  Layers,
   MapPin,
   Building,
   Compass,
@@ -71,18 +70,19 @@ const PRESET_PARCELS: Record<string, { name: string; lr: string; locality: strin
 
 export default function LegalDescriptionPage() {
   // Project particulars
-  const [landRef, setLandRef] = useState('Kajiado/Kaputiei-North/1209')
-  const [regSection, setRegSection] = useState('Kaputiei North')
-  const [locality, setLocality] = useState('Kitengela, Kajiado County')
-  const [datum, setDatum] = useState('Arc 1960 / UTM Zone 37S')
-  const [surveyorName, setSurveyorName] = useState('Surv. David M. Kariuki, MISK')
-  const [surveyorLicense, setSurveyorLicense] = useState('SRB/LS/2026/0142')
-  const [surveyDate, setSurveyDate] = useState(new Date().toISOString().slice(0, 10))
-  const [closingBearing, setClosingBearing] = useState(true)
+  const [landRef, setLandRef] = useState('')
+  const [regSection, setRegSection] = useState('')
+  const [locality, setLocality] = useState('')
+  const [datum, setDatum] = useState('')
+  const [surveyorName, setSurveyorName] = useState('')
+  const [surveyorLicense, setSurveyorLicense] = useState('')
+  const [surveyDate, setSurveyDate] = useState('')
+  const [referenceConfirmed, setReferenceConfirmed] = useState(false)
+  const [closingBearing] = useState(true)
 
   // Beacons state
-  const [beacons, setBeacons] = useState<Beacon[]>(PRESET_PARCELS.kajiado_subdivision.beacons)
-  const [selectedPreset, setSelectedPreset] = useState<string>('kajiado_subdivision')
+  const [beacons, setBeacons] = useState<Beacon[]>([])
+  const [selectedPreset, setSelectedPreset] = useState<string>('')
 
   // Modals & UI states
   const [pasteModalOpen, setPasteModalOpen] = useState(false)
@@ -94,14 +94,19 @@ export default function LegalDescriptionPage() {
     setSelectedPreset(key)
     const p = PRESET_PARCELS[key]
     if (p) {
-      setLandRef(p.lr)
-      setLocality(p.locality)
-      setBeacons(p.beacons)
+      setLandRef('SYNTHETIC-' + key)
+      setLocality('Synthetic example — not a surveyed site')
+      setRegSection('Synthetic example')
+      setDatum('Synthetic local metre grid')
+      setReferenceConfirmed(false)
+      setBeacons(p.beacons.map(point => ({ ...point })))
+    } else {
+      setBeacons([]); setLandRef(''); setLocality(''); setRegSection(''); setDatum(''); setReferenceConfirmed(false)
     }
   }
 
   // Update single beacon
-  const updateBeacon = (index: number, field: keyof Beacon, value: any) => {
+  const updateBeacon = <K extends keyof Beacon>(index: number, field: K, value: Beacon[K]) => {
     const next = [...beacons]
     next[index] = { ...next[index], [field]: value }
     setBeacons(next)
@@ -109,14 +114,13 @@ export default function LegalDescriptionPage() {
 
   const addBeacon = () => {
     const nextNum = beacons.length + 1
-    const last = beacons[beacons.length - 1]
     setBeacons([
       ...beacons,
       {
         id: `MB-0${nextNum}`,
-        easting: last ? last.easting + 50 : 250000,
-        northing: last ? last.northing + 50 : 9845000,
-        monumentType: 'concrete',
+        easting: NaN,
+        northing: NaN,
+        monumentType: 'unknown',
       },
     ])
   }
@@ -138,13 +142,13 @@ export default function LegalDescriptionPage() {
         const parts = line.split(/[,\s\t]+/).filter(Boolean)
         if (parts.length >= 3) {
           const id = parts[0]
-          const e = parseFloat(parts[1])
-          const n = parseFloat(parts[2])
-          const type = (parts[3] as Beacon['monumentType']) || 'concrete'
-          if (!isNaN(e) && !isNaN(n)) {
+          const e = Number(parts[1])
+          const n = Number(parts[2])
+          const type = (parts[3] as Beacon['monumentType']) || 'unknown'
+          if (Number.isFinite(e) && Number.isFinite(n) && ['unknown', 'concrete', 'iron_pin', 'peg', 'tree', 'natural', 'pillar'].includes(type)) {
             parsed.push({ id, easting: e, northing: n, monumentType: type })
-          }
-        }
+          } else { throw new Error('Invalid row') }
+        } else { throw new Error('Incomplete row') }
       }
       if (parsed.length >= 3) {
         setBeacons(parsed)
@@ -158,11 +162,14 @@ export default function LegalDescriptionPage() {
     }
   }
 
-  // Generate legal prose
+  const finiteBoundary = beacons.length >= 3 && beacons.every(point => Number.isFinite(point.easting) && Number.isFinite(point.northing))
+
+  // Generate draft prose
   const generatedText = useMemo(() => {
-    if (beacons.length < 3) return 'Please enter at least 3 beacons to form a closed boundary polygon.'
+    if (!referenceConfirmed || !datum.trim()) return 'Declare and confirm the metre-based coordinate reference before generating a draft.'
+    if (!finiteBoundary) return 'Please enter at least 3 beacons to form a closed boundary polygon.'
     try {
-      return generateLegalDescription({
+      const draft = generateLegalDescription({
         landReference: landRef || '[Land Reference]',
         registrationSection: regSection || '[Registration Section]',
         locality: locality || '[Locality]',
@@ -173,14 +180,16 @@ export default function LegalDescriptionPage() {
         closingBearing,
         beacons,
       })
-    } catch (e: any) {
-      return `Error generating description: ${e.message}`
+      return selectedPreset ? draft.replace('For professional review;', 'SYNTHETIC EXAMPLE — NOT FIELD EVIDENCE\nFor professional review;') : draft
+    } catch (e: unknown) {
+      return `Error generating description: ${e instanceof Error ? e.message : 'Invalid boundary input'}`
     }
-  }, [landRef, regSection, locality, datum, surveyorName, surveyorLicense, surveyDate, closingBearing, beacons])
+  }, [landRef, regSection, locality, datum, surveyorName, surveyorLicense, surveyDate, closingBearing, beacons, finiteBoundary, referenceConfirmed, selectedPreset])
+  const canExport = generatedText.startsWith('DRAFT BOUNDARY DESCRIPTION')
 
   // Inverse leg calculations & Shoelace Area
   const traverseAnalysis = useMemo(() => {
-    if (beacons.length < 3) return { areaHa: 0, areaAcres: 0, perimeterM: 0, legs: [] }
+    if (!canExport) return { areaHa: 0, areaAcres: 0, perimeterM: 0, legs: [] }
 
     let areaM2 = 0
     let perimeterM = 0
@@ -209,11 +218,11 @@ export default function LegalDescriptionPage() {
       perimeterM,
       legs,
     }
-  }, [beacons])
+  }, [beacons, canExport])
 
   // SVG Polygon Preview Math
-  const { viewBox, pointsStr, minX, maxX, minY, maxY } = useMemo(() => {
-    if (beacons.length === 0) return { viewBox: '0 0 100 100', pointsStr: '', minX: 0, maxX: 100, minY: 0, maxY: 100 }
+  const { viewBox, pointsStr, minX, maxX } = useMemo(() => {
+    if (!finiteBoundary) return { viewBox: '0 0 100 100', pointsStr: '', minX: 0, maxX: 100, minY: 0, maxY: 100 }
 
     let bMinX = Infinity, bMinY = Infinity, bMaxX = -Infinity, bMaxY = -Infinity
     beacons.forEach((b) => {
@@ -236,10 +245,11 @@ export default function LegalDescriptionPage() {
     const pts = beacons.map((b) => `${b.easting},${-b.northing}`).join(' ')
 
     return { viewBox: vBox, pointsStr: pts, minX: vMinX, maxX: vMaxX, minY: vMinY, maxY: vMaxY }
-  }, [beacons])
+  }, [beacons, finiteBoundary])
 
   // Copy to clipboard
   const handleCopy = () => {
+    if (!canExport) return
     navigator.clipboard.writeText(generatedText)
     setCopiedStatus(true)
     setTimeout(() => setCopiedStatus(false), 2500)
@@ -247,13 +257,14 @@ export default function LegalDescriptionPage() {
 
   // Print direct
   const handlePrint = () => {
+    if (!canExport) return
     const printWindow = window.open('', '_blank')
     if (!printWindow) return
     printWindow.document.write(`
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Legal Description — ${landRef}</title>
+          <title>Legal Description — ${escapeDocumentHtml(landRef)}</title>
           <style>
             body { font-family: "Times New Roman", Georgia, serif; padding: 40px; line-height: 1.8; color: #111; font-size: 12pt; }
             h1 { font-size: 16pt; text-align: center; margin-bottom: 24px; text-transform: uppercase; }
@@ -266,13 +277,13 @@ export default function LegalDescriptionPage() {
         <body>
           <h1>Statutory Metes &amp; Bounds Legal Description</h1>
           <table class="header-table">
-            <tr><td><strong>Land Reference:</strong> ${landRef}</td><td><strong>Locality:</strong> ${locality}</td></tr>
-            <tr><td><strong>Datum / Projection:</strong> ${datum}</td><td><strong>Survey Date:</strong> ${surveyDate}</td></tr>
-            <tr><td><strong>Licensed Surveyor:</strong> ${surveyorName}</td><td><strong>License No:</strong> ${surveyorLicense}</td></tr>
+            <tr><td><strong>Land Reference:</strong> ${escapeDocumentHtml(landRef)}</td><td><strong>Locality:</strong> ${escapeDocumentHtml(locality)}</td></tr>
+            <tr><td><strong>Datum / Projection:</strong> ${escapeDocumentHtml(datum)}</td><td><strong>Survey Date:</strong> ${escapeDocumentHtml(surveyDate)}</td></tr>
+            <tr><td><strong>Entered reviewer / surveyor:</strong> ${escapeDocumentHtml(surveyorName)}</td><td><strong>Entered licence reference (unverified):</strong> ${escapeDocumentHtml(surveyorLicense)}</td></tr>
           </table>
-          <div class="prose-text">${generatedText}</div>
+          <div class="prose-text">${escapeDocumentHtml(generatedText)}</div>
           <div class="footer">
-            <p>Certified as true and accurate per the Survey Act Cap 299 and Land Registration Act 2012.</p>
+            <p>UNVERIFIED DRAFT — professional boundary, reference and documentary review required.</p>
           </div>
         </body>
       </html>
@@ -283,10 +294,11 @@ export default function LegalDescriptionPage() {
 
   // Download real Word Document (.doc XML/HTML format)
   const handleDownloadWordDoc = () => {
+    if (!canExport) return
     const docContent = `
       <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
       <head>
-        <title>Legal Description ${landRef}</title>
+        <title>Legal Description ${escapeDocumentHtml(landRef)}</title>
         <meta charset="utf-8">
         <style>
           body { font-family: 'Times New Roman', serif; font-size: 12pt; line-height: 1.6; }
@@ -297,18 +309,18 @@ export default function LegalDescriptionPage() {
         </style>
       </head>
       <body>
-        <h1>METES AND BOUNDS LEGAL DESCRIPTION</h1>
-        <p><strong>Parcel Reference:</strong> ${landRef}</p>
-        <p><strong>Registration Section:</strong> ${regSection}</p>
-        <p><strong>Locality:</strong> ${locality}</p>
-        <p><strong>Datum:</strong> ${datum}</p>
+        <h1>DRAFT BOUNDARY DESCRIPTION</h1>
+        <p><strong>Parcel Reference:</strong> ${escapeDocumentHtml(landRef)}</p>
+        <p><strong>Registration Section:</strong> ${escapeDocumentHtml(regSection)}</p>
+        <p><strong>Locality:</strong> ${escapeDocumentHtml(locality)}</p>
+        <p><strong>Datum:</strong> ${escapeDocumentHtml(datum)}</p>
         <hr/>
-        <div style="white-space: pre-wrap;">${generatedText}</div>
+        <div style="white-space: pre-wrap;">${escapeDocumentHtml(generatedText)}</div>
         <br/><br/>
         <p>_______________________________<br/>
-        <strong>${surveyorName}</strong><br/>
-        Licensed Land Surveyor (${surveyorLicense})<br/>
-        Date: ${surveyDate}</p>
+        <strong>${escapeDocumentHtml(surveyorName)}</strong><br/>
+        Entered licence reference (unverified): ${escapeDocumentHtml(surveyorLicense)}<br/>
+        Date: ${escapeDocumentHtml(surveyDate)}</p>
       </body>
       </html>
     `
@@ -338,9 +350,9 @@ export default function LegalDescriptionPage() {
 
         <PageHeader
           badge="CONVEYANCING &amp; TITLE"
-          title="Statutory Metes &amp; Bounds Legal Description Writer"
-          subtitle="Transform boundary beacon coordinates into official legal deed property descriptions compliant with the Land Registration Act 2012, Survey Act Cap 299, and common-law conveyance standards. Computes whole circle & quadrant bearings, inverse traverse distances, and shoelace area."
-          reference="Land Registration Act 2012 § 29 | Survey Act Cap 299 | Common Law Metes & Bounds"
+          title="Boundary Description Draft"
+          subtitle="Prepare a draft from entered metre-based grid coordinates. Geometry, boundary evidence, title records and professional review remain required; this tool does not certify ownership or official compliance."
+          reference="Declared metre-based grid · planar geometry · professional review"
         />
 
         {/* 3 Metric Cards */}
@@ -348,27 +360,27 @@ export default function LegalDescriptionPage() {
           <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-2xl p-4 shadow-sm">
             <div className="text-xs text-[var(--text-secondary)] mb-1">Computed Parcel Extent</div>
             <div className="text-xl font-black font-mono text-[var(--accent)]">
-              {traverseAnalysis.areaHa.toFixed(4)} Ha
+              {canExport ? traverseAnalysis.areaHa.toFixed(4) : '—'} Ha
             </div>
             <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-              ({traverseAnalysis.areaAcres.toFixed(3)} Acres)
+              ({canExport ? traverseAnalysis.areaAcres.toFixed(3) : '—'} Acres)
             </div>
           </div>
 
           <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-2xl p-4 shadow-sm">
             <div className="text-xs text-[var(--text-secondary)] mb-1">Total Boundary Perimeter</div>
             <div className="text-xl font-black font-mono text-[var(--text-primary)]">
-              {traverseAnalysis.perimeterM.toFixed(2)} m
+              {canExport ? traverseAnalysis.perimeterM.toFixed(2) : '—'} m
             </div>
             <div className="text-xs text-[var(--text-secondary)] mt-0.5">
-              {beacons.length} surveyed boundary legs
+              {beacons.length} entered boundary vertices
             </div>
           </div>
 
           <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-2xl p-4 shadow-sm">
-            <div className="text-xs text-[var(--text-secondary)] mb-1">Commencement Beacon</div>
+            <div className="text-xs text-[var(--text-secondary)] mb-1">Commencement vertex</div>
             <div className="text-xl font-black font-mono text-emerald-400">
-              {beacons[0]?.id || 'MB-01'}
+              {beacons[0]?.id || 'Not provided'}
             </div>
             <div className="text-xs text-[var(--text-secondary)] mt-0.5">
               E {beacons[0]?.easting.toFixed(2)} | N {beacons[0]?.northing.toFixed(2)}
@@ -392,9 +404,10 @@ export default function LegalDescriptionPage() {
                   onChange={(e) => handlePresetSelect(e.target.value)}
                   className="rounded-lg border border-[var(--border-color)] bg-black/20 px-2.5 py-1 text-xs focus:outline-none focus:border-[var(--accent)]"
                 >
+                  <option value="">Your records — start empty</option>
                   {Object.entries(PRESET_PARCELS).map(([k, v]) => (
                     <option key={k} value={k} className="bg-[var(--bg-secondary)]">
-                      {v.name}
+                      Synthetic example: {v.name}
                     </option>
                   ))}
                 </select>
@@ -436,18 +449,13 @@ export default function LegalDescriptionPage() {
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
-                    Coordinate Datum
+                    Declared metre-based coordinate reference
                   </label>
-                  <select
+                  <input type="text" placeholder="Enter the full CRS / grid reference from your source records"
                     value={datum}
-                    onChange={(e) => setDatum(e.target.value)}
+                    onChange={(e) => { setDatum(e.target.value); setReferenceConfirmed(false) }}
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-xs focus:outline-none focus:border-[var(--accent)]"
-                  >
-                    <option value="Arc 1960 / UTM Zone 37S" className="bg-[var(--bg-secondary)]">Arc 1960 / UTM Zone 37S</option>
-                    <option value="Arc 1960 / UTM Zone 36S" className="bg-[var(--bg-secondary)]">Arc 1960 / UTM Zone 36S</option>
-                    <option value="WGS 84 / UTM Zone 37S" className="bg-[var(--bg-secondary)]">WGS 84 / UTM Zone 37S</option>
-                    <option value="Cassini-Soldner (Kenya Local Origin)" className="bg-[var(--bg-secondary)]">Cassini-Soldner (Local)</option>
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
@@ -474,6 +482,9 @@ export default function LegalDescriptionPage() {
               </div>
             </div>
 
+            <label className="flex items-start gap-2 text-sm text-[var(--text-secondary)]"><input type="checkbox" checked={referenceConfirmed} onChange={event => setReferenceConfirmed(event.target.checked)} />I confirm these coordinates use the declared metre-based grid. This does not verify the boundary or establish ground distances.</label>
+            <label className="block text-sm">Recorded survey date (if known)<input type="date" value={surveyDate} onChange={event => setSurveyDate(event.target.value)} className="block border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2" /></label>
+            {selectedPreset && <p role="status" className="text-sm text-[var(--warning)]">Synthetic example. Edited outputs remain labelled synthetic.</p>}
             {/* Beacons Schedule Manager */}
             <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-2xl p-5 space-y-3 shadow-sm">
               <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
@@ -514,8 +525,8 @@ export default function LegalDescriptionPage() {
                       <input
                         type="number"
                         step="0.001"
-                        value={b.easting}
-                        onChange={(e) => updateBeacon(idx, 'easting', parseFloat(e.target.value) || 0)}
+                        value={Number.isFinite(b.easting) ? b.easting : ''}
+                        onChange={(e) => updateBeacon(idx, 'easting', e.target.value.trim() === '' ? NaN : Number(e.target.value))}
                         className="w-full bg-transparent font-mono text-xs focus:outline-none"
                       />
                     </div>
@@ -524,16 +535,17 @@ export default function LegalDescriptionPage() {
                       <input
                         type="number"
                         step="0.001"
-                        value={b.northing}
-                        onChange={(e) => updateBeacon(idx, 'northing', parseFloat(e.target.value) || 0)}
+                        value={Number.isFinite(b.northing) ? b.northing : ''}
+                        onChange={(e) => updateBeacon(idx, 'northing', e.target.value.trim() === '' ? NaN : Number(e.target.value))}
                         className="w-full bg-transparent font-mono text-xs focus:outline-none"
                       />
                     </div>
                     <select
                       value={b.monumentType}
-                      onChange={(e) => updateBeacon(idx, 'monumentType', e.target.value as any)}
+                      onChange={(e) => updateBeacon(idx, 'monumentType', e.target.value as Beacon['monumentType'])}
                       className="w-24 bg-transparent border border-[var(--border-color)] rounded px-1 py-0.5 text-[10px]"
                     >
+                      <option value="unknown">Marker not recorded</option>
                       <option value="concrete" className="bg-[var(--bg-secondary)]">Concrete</option>
                       <option value="iron_pin" className="bg-[var(--bg-secondary)]">Iron Pin</option>
                       <option value="pillar" className="bg-[var(--bg-secondary)]">Pillar</option>
@@ -567,7 +579,7 @@ export default function LegalDescriptionPage() {
               </div>
 
               <div className="w-full h-52 bg-black/40 border border-[var(--border-color)] rounded-xl overflow-hidden flex items-center justify-center relative p-3">
-                {beacons.length >= 3 && (
+                {canExport && (
                   <svg viewBox={viewBox} className="w-full h-full select-none">
                     <polygon
                       points={pointsStr}
@@ -604,14 +616,14 @@ export default function LegalDescriptionPage() {
                 </h3>
                 <div className="flex gap-2">
                   <button
-                    onClick={handleCopy}
+                    onClick={handleCopy} disabled={!canExport}
                     className="py-1 px-2.5 rounded-lg border border-[var(--border-color)] bg-white/5 hover:bg-white/10 text-xs font-medium flex items-center gap-1.5 transition-colors"
                   >
                     {copiedStatus ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
                     <span>{copiedStatus ? 'Copied!' : 'Copy'}</span>
                   </button>
                   <button
-                    onClick={handlePrint}
+                    onClick={handlePrint} disabled={!canExport}
                     className="py-1 px-2.5 rounded-lg border border-[var(--border-color)] bg-white/5 hover:bg-white/10 text-xs font-medium flex items-center gap-1.5 transition-colors"
                   >
                     <Printer className="w-3.5 h-3.5" />
@@ -621,14 +633,14 @@ export default function LegalDescriptionPage() {
               </div>
 
               {/* Text Area */}
-              <div className="p-4 rounded-xl bg-black/30 border border-[var(--border-color)] font-serif text-xs leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap text-justify text-[var(--text-primary)]">
+              <div className="p-4 rounded-xl bg-black/30 border border-[var(--border-color)] font-sans text-xs leading-relaxed max-h-60 overflow-y-auto whitespace-pre-wrap text-justify text-[var(--text-primary)]">
                 {generatedText}
               </div>
 
               {/* Action Buttons */}
               <div className="pt-2">
                 <button
-                  onClick={handleDownloadWordDoc}
+                  onClick={handleDownloadWordDoc} disabled={!canExport}
                   className="w-full py-2.5 px-4 rounded-xl bg-[var(--accent)] text-black font-bold text-xs hover:opacity-90 transition-opacity flex items-center justify-center gap-2 shadow-md shadow-[color-mix(in_srgb,var(--accent)_15%,transparent)]"
                 >
                   <Download className="w-4 h-4" /> Download Formatted Word Document (.doc)

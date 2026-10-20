@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react'
+import React, { useState, useEffect, useMemo } from 'react'
 import {
   CAMERA_PRESETS,
   computeFlightPlan,
@@ -24,16 +24,13 @@ import {
   Compass,
   Download,
   Upload,
-  Copy,
   Plus,
   Trash2,
-  RefreshCw,
   Layers,
   BatteryCharging,
   Clock,
   Camera,
   MapPin,
-  Check,
 } from 'lucide-react'
 
 // Realistic benchmark parcel presets (Lat/Lon)
@@ -85,7 +82,6 @@ export default function DroneFlightPlanPage() {
   })
 
   const [flightPlan, setFlightPlan] = useState<FlightPlan | null>(null)
-  const [copiedStatus, setCopiedStatus] = useState<string | null>(null)
 
   // Active camera sensor details
   const activeCamera = useMemo(() => {

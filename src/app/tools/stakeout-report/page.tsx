@@ -17,7 +17,6 @@ import {
   CheckCircle2,
   XCircle,
   TriangleAlert,
-  FileText,
   Upload,
   Layers,
   Scale,
@@ -41,9 +40,10 @@ import {
 } from '@/lib/reports/stakeoutCutSheet'
 import { parseStakeoutCsv, STAKEOUT_CSV_HEADER } from '@/lib/reports/stakeoutCsv'
 
-const SAMPLE_DATASETS: Record<string, { name: string; project: string; lr: string; method: StakeoutReportInput['method']; points: StakeoutPoint[] }> = {
+const SAMPLE_DATASETS: Record<string, { name: string; project: string; lr: string; crs: string; method: StakeoutReportInput['method']; points: StakeoutPoint[] }> = {
   column_grid: {
     name: 'Synthetic foundation example',
+    crs: 'EPSG:21037',
     project: 'Synthetic foundation training sample',
     lr: '',
     method: 'Total Station',
@@ -76,6 +76,7 @@ const SAMPLE_DATASETS: Record<string, { name: string; project: string; lr: strin
   },
   road_chainage: {
     name: 'Synthetic road example',
+    crs: 'EPSG:21037',
     project: 'Synthetic road training sample',
     lr: '',
     method: 'GNSS RTK',
@@ -113,9 +114,9 @@ export default function StakeoutReportPage() {
   const [projectName, setProjectName] = useState('')
   const [landReference, setLandReference] = useState('')
   const [surveyorName, setSurveyorName] = useState('')
-  const [surveyorLicense, setSurveyorLicense] = useState('')
+  const [surveyorLicense] = useState('')
   const [instrument, setInstrument] = useState('')
-  const [instrumentSerial, setInstrumentSerial] = useState('')
+  const [instrumentSerial] = useState('')
   const [method, setMethod] = useState<NonNullable<StakeoutReportInput['method']> | ''>('')
   const [crs, setCrs] = useState('')
   const [selectedPreset, setSelectedPreset] = useState('')
@@ -144,7 +145,7 @@ export default function StakeoutReportPage() {
       setLandReference(ds.lr)
       setMethod(ds.method ?? '')
       setPoints(ds.points.map(point => ({ ...point, timestamp: '', design: { ...point.design }, staked: { ...point.staked } })))
-      setCrs('EPSG:21037')
+      setCrs(ds.crs)
       setHorizontalTol(0.015)
       setVerticalTol(0.01)
       setToleranceReference('SYNTHETIC-EXAMPLE-01 — demonstration limits only')

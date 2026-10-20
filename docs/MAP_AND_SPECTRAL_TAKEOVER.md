@@ -42,3 +42,29 @@ Evidence: `.cache/takeover/helper-security.json` and `helper-scrub.json` contain
 Source: application and test type checks pass; focused regression tests pass (47 checks in nine suites, plus the new variance-report check). Changed-source/test lint is clean. The security/bug gate passes with all 119 applied migration hashes pinned. A staged-patch check found no matches to six protected running-app credential values. This is not a complete historical secret audit.
 
 Browser: the source desktop Capture panel exposed drawing, measurement and vertex actions with expanded-state semantics. Final precision-control, hide/reopen and narrow-width inspection remains incomplete after browser disconnection. Live: these edits need the planned promotion and authenticated deed-plan regression. External/field: measured parcel corners, verified CRS/control, instrument and professional acceptance; actual tide/road reference datasets; validated IRI and ISO reporting remain outstanding. ChatGPT notice/deployment/consent gates stay unchanged.
+
+## Follow-up from the first pre-push gate
+
+The first push was rejected by the local lint gate; no remote update occurred.
+Security/schema/typing gates and 64 related tests in 14 suites passed. The full
+push range included an earlier CI/UI commit whose four tool pages still had lint
+errors. Unused imports and untyped legal-description updates were corrected.
+The flagged stakeout CRS belongs to explicitly synthetic preset metadata; it is
+now carried by that preset rather than applied as a literal in its handler.
+Real observation mode still starts with an empty reference.
+
+The legal-description review exposed a broader issue: fabricated initial parcel
+and professional details and automatic certification language. The page now
+starts empty, makes synthetic examples opt-in and retains that label after edits,
+requires confirmation of the entered metre grid, and rejects incomplete or
+non-finite coordinates without turning blanks into zero. Unrecorded marker types
+remain unknown. Exports are unverified review drafts, with grid-relative quadrant
+bearings and planar distances; they do not claim True North, ground distance,
+statutory compliance or professional certification. Entered text is escaped in
+HTML/Word exports. This is not a full cadastral topology or title-evidence audit.
+
+The owner requested a visible end-to-end home-survey simulation and supplied the
+shared floating map-control layout as the cross-device reference. Browser control
+was recovered by opening a fresh allowed HTTP preview tab. The simulation uses a
+labelled ordinary-credentials account in the already-marked synthetic database;
+no production login, signing key or customer record is altered by that setup.

@@ -1,5 +1,5 @@
 import { computeBearingAndDistance } from '@/lib/survey/cogo/engine';
-import { normalizeBearing, decimalToDMS } from '@/lib/engine/angles';
+import { normalizeBearing } from '@/lib/engine/angles';
 
 /**
  * Input for generating a metes and bounds legal description.
@@ -12,7 +12,7 @@ export interface LegalDescriptionInput {
     id: string;
     easting: number;
     northing: number;
-    monumentType: 'concrete' | 'iron_pin' | 'peg' | 'tree' | 'natural' | 'pillar';
+    monumentType: 'unknown' | 'concrete' | 'iron_pin' | 'peg' | 'tree' | 'natural' | 'pillar';
   }>;
   datum: string;
   surveyorName: string;
@@ -53,11 +53,12 @@ function formatQuadrantBearing(bearing: number): string {
     angle = 360 - normalized;
   }
   
-  const dms = decimalToDMS(angle, false);
-  const min = String(dms.minutes).padStart(2, '0');
-  const sec = String(Math.round(dms.seconds)).padStart(2, '0');
+  const roundedSeconds = Math.round(angle * 3600);
+  const degrees = Math.floor(roundedSeconds / 3600);
+  const min = String(Math.floor((roundedSeconds % 3600) / 60)).padStart(2, '0');
+  const sec = String(roundedSeconds % 60).padStart(2, '0');
   
-  return `${quadrantFull} ${dms.degrees}°${min}'${sec}" ${directionFull}`;
+  return `${quadrantFull} ${degrees}°${min}'${sec}" ${directionFull}`;
 }
 
 /**
@@ -71,7 +72,7 @@ function formatMonument(type: string, id: string): string {
     case 'tree': return `a marked tree ${id}`;
     case 'natural': return `a natural feature marked ${id}`;
     case 'pillar': return `a boundary pillar marked ${id}`;
-    default: return `a beacon marked ${id}`;
+    default: return `boundary vertex ${id} (marker evidence not provided)`;
   }
 }
 
@@ -84,10 +85,11 @@ function calculateArea(beacons: LegalDescriptionInput['beacons']): number {
   if (beacons.length < 3) return 0;
   let area = 0;
   const n = beacons.length;
+  const origin = beacons[0];
   for (let i = 0; i < n; i++) {
     const p1 = beacons[i];
     const p2 = beacons[(i + 1) % n];
-    area += p1.easting * p2.northing - p2.easting * p1.northing;
+    area += (p1.easting - origin.easting) * (p2.northing - origin.northing) - (p2.easting - origin.easting) * (p1.northing - origin.northing);
   }
   return Math.abs(area) / 2;
 }
@@ -100,8 +102,8 @@ function formatNumber(num: number, decimals: number): string {
 }
 
 /**
- * Generates a formal prose metes-and-bounds legal boundary description
- * compliant with the Kenya Land Registration Act 2012 language.
+ * Generates a planar boundary-description draft for professional review.
+ * The caller must declare a metre-based coordinate reference; this is not certification.
  * 
  * @param input - The survey project and boundary details
  * @returns A formatted prose string
@@ -111,12 +113,19 @@ export function generateLegalDescription(input: LegalDescriptionInput): string {
   if (beacons.length < 3) {
     throw new Error('At least 3 beacons are required to generate a legal description.');
   }
+  if (!input.datum.trim()) throw new Error('Declare the metre-based coordinate reference before generating a draft.');
+  if (beacons.some(b => !b.id.trim() || !Number.isFinite(b.easting) || !Number.isFinite(b.northing))) throw new Error('Every boundary vertex needs an ID and finite coordinates.');
+  if (beacons.some(b => !['unknown', 'concrete', 'iron_pin', 'peg', 'tree', 'natural', 'pillar'].includes(b.monumentType))) throw new Error('Marker type must be recorded or explicitly unknown.');
+  if (new Set(beacons.map(b => b.id.trim())).size !== beacons.length) throw new Error('Boundary vertex IDs must be unique.');
+  if (beacons.some((b, i) => b.easting === beacons[(i + 1) % beacons.length].easting && b.northing === beacons[(i + 1) % beacons.length].northing)) throw new Error('Consecutive boundary vertices must be distinct.');
 
   const areaSqm = calculateArea(beacons);
+  if (!Number.isFinite(areaSqm) || areaSqm <= 0) throw new Error('A finite nonzero planar boundary area is required.');
   const areaHectares = areaSqm / 10000;
   const areaAcres = areaHectares * 2.47105;
 
-  let description = `LEGAL DESCRIPTION
+  let description = `DRAFT BOUNDARY DESCRIPTION — UNVERIFIED
+For professional review; not a certified survey, title determination or official form.
 Land Reference: ${input.landReference}
 Registration Section: ${input.registrationSection}
 Locality: ${input.locality}
@@ -152,13 +161,15 @@ ${distStr} metres to ${formatMonument(to.monumentType, to.id)};\n`;
   }
 
   description += `
-The above described parcel is shown on Survey Plan No. [___] 
-dated ${input.surveyDate} and prepared by ${input.surveyorName}, 
-Licensed Surveyor No. ${input.surveyorLicense}.
+Plan reference: Not independently verified.
+Entered survey date: ${input.surveyDate || 'Not provided'}
+Entered reviewer/surveyor: ${input.surveyorName || 'Not provided'}
+Entered licence reference: ${input.surveyorLicense || 'Not provided'} (not verified).
 
 Datum: ${input.datum}
-All bearings are Whole Circle Bearings (WCB) measured clockwise from True North.
-All distances are horizontal ground distances in metres.`;
+Bearings above are quadrant bearings relative to coordinate grid north.
+Distances and area are planar coordinate values in the declared metre-based grid;
+no grid-to-ground, datum, elevation or True North correction has been established.`;
 
   return description;
 }
