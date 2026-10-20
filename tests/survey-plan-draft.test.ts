@@ -42,6 +42,31 @@ test('standard-layout area annotations use paper coordinates', async () => {
   expect(Number(label.getAttribute('y'))).toBeLessThan(mmToPx(240))
 })
 
+test('standard paper tables stack without overlapping or crossing the footer', async () => {
+  const xml = new DOMParser().parseFromString(await render('standard'), 'image/svg+xml')
+  const sections = Array.from(xml.querySelectorAll('.plan-panel-section'))
+  expect(sections.length).toBeGreaterThanOrEqual(5)
+  let bottom = 0
+  for (const section of sections) {
+    const rect = section.querySelector('rect')
+    if (!rect) throw new Error('Missing table frame')
+    const top = Number(rect.getAttribute('y')), height = Number(rect.getAttribute('height'))
+    expect(top).toBeGreaterThan(bottom)
+    bottom = top + height
+    expect(bottom).toBeLessThan(mmToPx(243))
+    for (const text of Array.from(section.querySelectorAll('text'))) {
+      expect(Number(text.getAttribute('y'))).toBeGreaterThan(top)
+      expect(Number(text.getAttribute('y'))).toBeLessThan(bottom)
+    }
+  }
+  expect(xml.querySelector('.standard-plan-panel')?.textContent).not.toContain('SURVEYORS ASSOCIATION STAMP')
+})
+
+test('an oversized standard schedule fails explicitly rather than dropping rows or overlapping evidence', async () => {
+  const boundaryPoints = Array.from({ length: 30 }, (_, index) => ({ name: `Station-${index + 1}`, easting: 500000 + 20 * Math.cos(index * Math.PI / 15), northing: 9900000 + 20 * Math.sin(index * Math.PI / 15) }))
+  await expect(render('standard', { ...data, parcel: { ...data.parcel, boundaryPoints } })).rejects.toThrow(/continuation-sheet|continuation sheet/)
+})
+
 test.each(['standard', 'form4'])('%s preserves unverified provenance even on a paid plan, without fabricated certification or road facts', async layout => {
   const svg = await render(layout)
   expect(svg).toContain('UNVERIFIED DRAFT')

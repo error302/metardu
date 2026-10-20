@@ -245,7 +245,7 @@ in both SVG and PDF; scale-bar labels were enlarged. Printed planar area reuses
 the translated-origin coordinate engine to avoid cancellation at large eastings
 and northings. No field observations, legal corners, heights or approvals were added.
 
-Source evidence: 157 focused print/export/renderer/geometry checks and the reviewed
+Source evidence: 159 focused print/export/renderer/geometry checks and the reviewed
 layout snapshot passed. App and test TypeScript plus focused lint passed. The
 standard-layout area label also used raw grid coordinates as page coordinates;
 a regression reproduced an x position of 500010 before it was mapped to the
@@ -262,3 +262,18 @@ and verify the physical scale bar. The existing multi-sheet renderer repeats
 parcel content rather than implementing engineered extent tiling, and the legacy
 paper-size option does not implement A4 geometry; neither is accepted as complete.
 Unrelated concurrent offline/field-work edits remain preserved for their own review.
+
+The alternate standard PDF then exposed a separate paper defect: information,
+coordinate and bearing tables all started at fixed shared heights. The standard
+panel now stacks measured-height sections, wraps cells and retains all included
+schedule rows. Obsolete fixed-position helpers and the automatic association-stamp
+label were removed. Firm/contact information remains recorded, without implying
+membership verification. The existing chainage calculation supplies a separately
+stacked chainage section when an alignment is present. A schedule that cannot fit
+this sheet now reports the need for a continuation layout instead of silently
+truncating rows or overwriting the review record; automatic continuation pages
+remain unfinished source work. Both actual one-page PDF layouts were subsequently
+downloaded through the ordinary synthetic browser session and raster-reviewed.
+The standard page has separated readable tables, its area label inside the parcel,
+all four station labels and at least 10 mm text clearance. This is paper-layout
+evidence for the labelled simulation, not physical printer or field acceptance.

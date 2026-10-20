@@ -462,14 +462,15 @@ describe('SurveyPlanRenderer', () => {
       expect(svg).toContain('PART 2')
     })
 
-    it('renders association stamp when firm_name is provided', async () => {
+    it('records a supplied firm without manufacturing an association stamp', async () => {
       const dataWithFirm = {
         ...BASE_DATA,
         project: { ...BASE_DATA.project, firm_name: 'GeoTech Surveys Ltd' },
       }
       const renderer = new SurveyPlanRenderer(dataWithFirm)
       const svg = await renderer.render()
-      expect(svg).toContain('SURVEYORS ASSOCIATION STAMP')
+      expect(svg).not.toContain('SURVEYORS ASSOCIATION STAMP')
+      expect(svg).toContain('Recorded firm')
       expect(svg).toContain('GeoTech Surveys Ltd')
     })
 

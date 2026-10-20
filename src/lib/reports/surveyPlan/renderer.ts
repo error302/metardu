@@ -11,7 +11,7 @@ import {
   STANDARD_SCALES, mmToPx,
   bearingFromDelta, distance,
   segmentAngle, offsetFromMidpoint,
-  centroid, boundingBox, calcScaleLabel, calcScaleBarMetres,
+  centroid, boundingBox, calcScaleBarMetres,
   formatBearingDegMinSec,
   offsetPointPerpendicular, rotatePoints,
   formatChainage, computeChainageAlongAlignment,
@@ -23,8 +23,8 @@ import {
   svgFenceLine, svgFenceCallout,
   svgIndicatoryBeaconCallout,
   escapeXml, polylineFromPoints,
-  C_BLACK, C_GREEN, C_RED, C_GRID_MINOR, C_GRID_MAJOR,
-  C_LOT_FILL, C_WARNING_BG,
+  C_BLACK, C_GRID_MINOR, C_GRID_MAJOR,
+  C_LOT_FILL,
 } from './symbols'
 
 export class SurveyPlanRenderer {
@@ -396,144 +396,19 @@ export class SurveyPlanRenderer {
     return svgScaleBar(x, y, scaleBarPx, segmentMetres, 4)
   }
 
-  private drawDatumNote(leftPad: number, _panelInnerW: number): string {
-    const crs = this.crs
-    const note = crs.verified
-      ? `Grid: UTM ${crs.zone}${crs.hemi}, ${crs.datum} (${crs.epsgCode})`
-      : `Coordinates: UNVERIFIED — project CRS not declared`
-    const vertical = `Vertical: ${describeVerticalDatum(crs)}`
-    const y = this.margin + mmToPx(25)
-    return `<text x="${leftPad}" y="${y}" font-family="helvetica, Arial, sans-serif" font-size="10" font-style="italic" fill="#555">${escapeXml(note)}</text><text x="${leftPad}" y="${y + mmToPx(4)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-style="italic" fill="#555">${escapeXml(vertical)}</text>`
-  }
-
-  private drawCoordinateSchedule(leftPad: number, panelInnerW: number): string {
-    const crs = this.crs
-    const pts = this.data.parcel.boundaryPoints
-    const startY = this.margin + mmToPx(42)
-    const colW = panelInnerW / 4
-    const rowH = mmToPx(3.5)
-    const headerH = mmToPx(5)
-    const maxRows = Math.min(pts.length, 12)
-    const tableH = headerH + maxRows * rowH
-
-    let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    // Label from the CRS registry — one path for zone, hemisphere and EPSG;
-    // never a hard-coded zone or EPSG family.
-    const label = crs.verified
-      ? `COORDINATE SCHEDULE (${crs.datum} / UTM ${crs.zone}${crs.hemi} ${crs.epsgCode})`
-      : `COORDINATE SCHEDULE (UNVERIFIED — project CRS not declared)`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`
-    const hY = startY + headerH
-    svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    const headers = ['Point', 'Easting', 'Northing', '']
-    headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#555">${h}</text>`
-    })
-    pts.slice(0, maxRows).forEach((pt, i) => {
-      const ry = hY + rowH * (i + 1)
-      if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(pt.name)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
-    })
-    return svg
-  }
-
-  private drawMetricNote(leftPad: number, _rightPad: number): string {
-    const y = this.margin + mmToPx(30)
-    return `<text x="${leftPad}" y="${y}" font-family="helvetica, Arial, sans-serif" font-size="10" font-style="italic" fill="#555">Distances in metres. Divide by 0.3048 for feet.</text>`
-  }
-
-  private drawBearingSchedule(leftPad: number, panelInnerW: number): string {
-    const p = this.data.project
-    const entries = p.bearingSchedule || []
-    const pts = this.data.parcel.boundaryPoints
-    const schedule: Array<{ from: string; to: string; bearing: string; distance: number }> = entries.length > 0 ? entries : pts.map((pt, i) => {
-      const to = pts[(i + 1) % pts.length]
-      const dist = distance(pt.easting, pt.northing, to.easting, to.northing)
-      const bearingDeg = bearingFromDelta(to.easting - pt.easting, to.northing - pt.northing)
-      return {
-        from: pt.name,
-        to: to.name,
-        bearing: formatBearingDegMinSec(bearingDeg),
-        distance: dist,
-      }
-    })
-
-    const startY = this.margin + mmToPx(42)
-    const colW = panelInnerW / 4
-    const rowH = mmToPx(3.5)
-    const headerH = mmToPx(5)
-    const maxRows = 15
-    const tableH = headerH + Math.min(schedule.length, maxRows) * rowH
-
-    let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">BEARING SCHEDULE</text>`
-    const hY = startY + headerH
-    svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    const headers = ['From', 'To', 'Bearing', 'Dist (m)']
-    headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#555">${h}</text>`
-    })
-    const rows = schedule.slice(0, maxRows)
-    rows.forEach((row, i) => {
-      const ry = hY + rowH * (i + 1)
-      if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(row.from)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(row.to)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(row.bearing)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${row.distance.toFixed(3)}</text>`
-    })
-    return svg
-  }
-
-  private drawRevisionBlock(leftPad: number, panelInnerW: number): string {
-    const p = this.data.project
-    const revisions = p.revisions || []
-    const startY = this.margin + mmToPx(42 + 6 * 4 + 6 + 6)
-    const colW = panelInnerW / 4
-    const rowH = mmToPx(3.5)
-    const headerH = mmToPx(5)
-    const maxRows = Math.max(revisions.length, 1)
-    const tableH = headerH + maxRows * rowH
-
-    let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">REVISIONS</text>`
-    const hY = startY + headerH
-    svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    const headers = ['Rev', 'Date', 'Description', 'By']
-    headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#555">${h}</text>`
-    })
-    const rows = revisions.slice(0, 10)
-    if (rows.length === 0) {
-      rows.push({ rev: '—', date: '', description: 'No issued revision recorded', by: '' })
-    }
-    // Column separator lines for better readability
-    for (let c = 1; c < 4; c++) {
-      const colX = leftPad + colW * c
-      svg += `<line x1="${colX}" y1="${hY}" x2="${colX}" y2="${hY + rows.length * rowH}" stroke="${C_BLACK}" stroke-width="0.15" opacity="0.25"/>`
-    }
-    rows.forEach((row, i) => {
-      const ry = hY + rowH * (i + 1)
-      if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(row.rev)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(row.date)}</text>`
-      const desc = row.description.length > 20 ? row.description.slice(0, 18) + '…' : row.description
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(desc)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(row.by)}</text>`
-    })
-    return svg
-  }
-
-  private drawSurveyorCertificate(leftPad: number, _rightPad: number, panelInnerW: number): string {
-    const y = this.margin + mmToPx(140);
-    return this.drawReviewRecord(leftPad, y, panelInnerW, mmToPx(90));
-  }
-
-  protected drawReviewRecord(x: number, y: number, width: number, height: number): string {
+  protected drawReviewRecord(x: number, y: number, width: number, height: number, compact = false): string {
     const p = this.data.project;
-    const lines = [
+    const lines = compact ? [
+      'UNVERIFIED DRAFT — REVIEW REQUIRED',
+      'No certified survey or accepted legal boundary.',
+      'Field control, monuments and measurements unverified.',
+      'Independent professional review required.',
+      'No authority approval or professional seal is established.',
+      `Recorded preparer: ${p.surveyor_name || 'Not supplied'}`,
+      `Recorded registration: ${p.surveyor_licence || 'Not supplied'} (not verified)`,
+      ...(p.iskRegNo ? [`Recorded association registration: ${p.iskRegNo} (not verified)`] : []),
+      ...(p.notes ? [p.notes] : []),
+    ] : [
       'UNVERIFIED DRAFT — REVIEW REQUIRED',
       'This output does not certify a survey or legal boundary.',
       'Field control, monuments, measurements and tolerances',
@@ -556,6 +431,7 @@ export class SurveyPlanRenderer {
       }
       if (part) wrapped.push(part);
     }
+    if (compact && (wrapped.length + 2) * mmToPx(4) > height) throw new Error('The complete draft review record needs a continuation sheet; no evidence text was omitted.')
     return `<g class="draft-review-record"><rect x="${x}" y="${y}" width="${width}" height="${height}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
       + wrapped.slice(0, Math.floor(height / mmToPx(4)) - 2).map((line, index) => `<text x="${x + mmToPx(2)}" y="${y + mmToPx(6 + index * 4)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(line)}</text>`).join('') + '</g>';
   }
@@ -729,136 +605,82 @@ export class SurveyPlanRenderer {
   }
 
   private drawRightPanel(): string {
-    const leftPad = this.panelX + mmToPx(3)
-    const rightPad = this.panelX + this.panelW - mmToPx(3)
-    const panelInnerW = this.panelW - mmToPx(6)
-    const svgParts: string[] = []
-    svgParts.push(this.drawReportHeader(leftPad, rightPad, panelInnerW))
-    svgParts.push(this.drawDatumNote(leftPad, panelInnerW))
-    svgParts.push(this.drawMetricNote(leftPad, rightPad))
-    svgParts.push(this.drawPlanInfoBox(leftPad, rightPad, panelInnerW))
-    svgParts.push(this.drawCoordinateSchedule(leftPad, panelInnerW))
-    if (this.data.project.roadCenterLine) {
-      svgParts.push(this.drawChainageSchedule(leftPad, panelInnerW))
+    const x = this.panelX + mmToPx(3), width = this.panelW - mmToPx(6)
+    const bottom = this.pageH - mmToPx(54)
+    let y = this.margin
+    let svg = '<g class="standard-plan-panel">'
+    const text = (tx: number, ty: number, content: string, bold = false) => `<text x="${tx}" y="${ty}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="${bold ? 'bold' : 'normal'}" fill="${C_BLACK}">${escapeXml(content)}</text>`
+    const wrap = (value: string, available: number) => {
+      const limit = Math.max(1, Math.floor(available / 5.8))
+      const result: string[] = []
+      let line = ''
+      for (const word of value.split(/\s+/)) {
+        if (line && (line + ' ' + word).length > limit) { result.push(line); line = '' }
+        let rest = word
+        while (rest.length > limit) { if (line) { result.push(line); line = '' }; result.push(rest.slice(0, limit)); rest = rest.slice(limit) }
+        line = (line + ' ' + rest).trim()
+      }
+      if (line) result.push(line)
+      return result.length ? result : ['—']
     }
-    svgParts.push(this.drawBearingSchedule(leftPad, panelInnerW))
-    svgParts.push(this.drawLegend(leftPad, panelInnerW))
-    svgParts.push(this.drawWarningBox(leftPad, rightPad, panelInnerW))
-    svgParts.push(this.drawRevisionBlock(leftPad, panelInnerW))
-    svgParts.push(this.drawSurveyorCertificate(leftPad, rightPad, panelInnerW))
-    svgParts.push(this.drawCompanyFooter(leftPad, rightPad))
-    return svgParts.join('')
-  }
-
-  private drawReportHeader(leftPad: number, rightPad: number, _panelInnerW: number): string {
-    const p = this.data.project
-    const hasMun = !!p.municipality
-    const y = this.margin + mmToPx(4)
-    let svg = ''
-    const text = (content: string, yPos: number, size: number, weight = 'normal', color = C_BLACK) =>
-      `<text x="${leftPad}" y="${yPos}" font-family="helvetica, Arial, sans-serif" font-size="${size}" font-weight="${weight}" fill="${color}">${escapeXml(content)}</text>`
-    const hline = (y1: number) =>
-      `<line x1="${leftPad}" y1="${y1}" x2="${rightPad}" y2="${y1}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += text('SURVEYOR\'S REAL PROPERTY REPORT', y, 5)
-    svg += text(p.plan_title || 'BOUNDARY IDENTIFICATION PLAN', y + mmToPx(6), 9, 'bold')
-    if (p.municipality) svg += text(p.municipality, y + mmToPx(11), 16, 'bold')
-    svg += text(`SCALE ${calcScaleLabel(this.scale)}`, y + mmToPx(hasMun ? 18 : 12), 8, 'bold')
-    svg += hline(y + mmToPx(hasMun ? 21 : 15))
-    svg += text(p.firm_name || '', y + mmToPx(hasMun ? 25 : 19), 8, 'bold')
-    if (p.firm_name) {
-      svg += text('SURVEYORS ASSOCIATION STAMP', y + mmToPx(hasMun ? 27 : 21), 5, 'normal', '#888')
+    const section = (title: string, headings: string[], rows: string[][], fractions: number[]) => {
+      const startY = y
+      const widths = fractions.map(value => value * width)
+      let body = text(x + mmToPx(2), y + mmToPx(3.5), title, true)
+      y += mmToPx(6)
+      if (headings.length) {
+        let colX = x
+        headings.forEach((heading, index) => { body += text(colX + mmToPx(1), y + mmToPx(3), heading, true); colX += widths[index] })
+        y += mmToPx(5)
+      }
+      for (const row of rows) {
+        const lines = row.map((value, index) => wrap(value, widths[index] - mmToPx(2)))
+        const rowHeight = Math.max(...lines.map(value => value.length)) * mmToPx(3.5) + mmToPx(1)
+        let colX = x
+        lines.forEach((values, index) => {
+          values.forEach((value, line) => { body += text(colX + mmToPx(1), y + mmToPx(3 + line * 3.5), value) })
+          colX += widths[index]
+        })
+        y += rowHeight
+      }
+      y += mmToPx(1)
+      if (y > bottom) throw new Error('The complete plan schedules exceed this A3 sheet. A continuation-sheet layout is required; no schedule rows were omitted.')
+      svg += `<g class="plan-panel-section"><rect x="${x}" y="${startY}" width="${width}" height="${y - startY}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>${body}</g>`
+      y += mmToPx(3)
     }
-    svg += text(`\u00A9 ${new Date().getFullYear()}`, y + mmToPx(hasMun ? 28.5 : 22.5), 6)
-    svg += text('Survey Act Cap. 299 | Survey Regulations 1994 | RDM 1.3 (2023)', y + mmToPx(hasMun ? 32 : 26), 4.5, 'normal', '#888')
-    svg += text('Distances shown are in metres.', y + mmToPx(hasMun ? 33 : 27), 7, 'normal', '#555')
-    svg += text('Divide by 0.3048 for feet.', y + mmToPx(hasMun ? 36 : 30), 7, 'italic', '#555')
-    return svg
-  }
-
-  private drawPlanInfoBox(leftPad: number, rightPad: number, panelInnerW: number): string {
-    const p = this.data.project
-    const hasMun = !!p.municipality
-    const startY = this.margin + mmToPx(hasMun ? 40 : 34)
-    let y = startY
-    let svg = ''
-    const box = (yPos: number, h: number) =>
-      `<rect x="${leftPad}" y="${yPos}" width="${panelInnerW}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    const row = (label: string, value: string) =>
-      `<text x="${leftPad}" y="${y += mmToPx(4)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#555">${escapeXml(label)}</text><text x="${leftPad + mmToPx(22)}" y="${y}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
-    svg += box(y, mmToPx(4))
-    svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">PLAN INFORMATION</text>`
-    y += mmToPx(4)
-    const crs = this.crs
-    const info: Array<[string, string]> = [
-      ['Title Ref:', p.reference || '\u2014'],
-      ['Datum:', crs.verified
-        ? `${crs.datum} / UTM Zone ${crs.zone}${crs.hemi} (${crs.epsgCode})`
-        : 'UNVERIFIED — project CRS not declared'],
-      ['Vertical:', describeVerticalDatum(crs)],
-      ['Area:', p.area_sqm ? `${p.area_sqm.toFixed(2)} m\u00B2` : '\u2014'],
-      ['Council:', p.municipality || '\u2014'],
-      ['Client:', p.client_name || '\u2014'],
-      ['Drawing No:', p.drawing_no || 'Not supplied'],
+    const p = this.data.project, crs = this.crs, points = this.data.parcel.boundaryPoints
+    svg += text(x, y + mmToPx(4), 'UNVERIFIED DRAFT PLAN', true)
+    svg += text(x, y + mmToPx(9), `Scale 1:${this.scale} at A3 · Distances in metres`)
+    svg += text(x, y + mmToPx(14), 'Metres ÷ 0.3048 = feet')
+    y += mmToPx(19)
+    const info: string[][] = [
+      ['Working grid', crs.verified ? `${crs.datum} / UTM ${crs.zone}${crs.hemi} (${crs.epsgCode})` : 'UNVERIFIED — project CRS not declared'],
+      ['Vertical', describeVerticalDatum(crs)],
+      ...(p.reference ? [['Title reference', p.reference]] : []),
+      ...(p.client_name ? [['Client', p.client_name]] : []),
+      ...(p.municipality ? [['Council', p.municipality]] : []),
+      ...(p.firm_name ? [['Recorded firm', p.firm_name]] : []),
+      ...(p.firm_phone ? [['Firm phone', p.firm_phone]] : []),
+      ...(p.firm_email ? [['Firm email', p.firm_email]] : []),
     ]
-    for (const [label, value] of info) svg += row(label, value)
-
-    const residual = this.data.traverse?.linearError;
-    if (residual !== undefined && Number.isFinite(residual)) {
-      svg += row('Leg misclosure:', `${residual.toFixed(4)} m (unverified)`);
-    }
-
-    return svg
-  }
-
-  private drawLegend(leftPad: number, panelInnerW: number): string {
-    const hasMun = !!this.data.project.municipality
-    const afterInfo = this.margin + mmToPx(hasMun ? 40 : 34) + mmToPx(7 * 4 + 4 + 6)
-    let y = afterInfo
-    let svg = ''
-    const box = (yPos: number, h: number) =>
-      `<rect x="${leftPad}" y="${yPos}" width="${panelInnerW}" height="${h}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += box(y, mmToPx(4))
-    svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
-    const items = [
-      { label: 'Subject boundary', symbol: `<line x1="0" y1="0" x2="20" y2="0" stroke="${C_BLACK}" stroke-width="2.5"/>` },
-      { label: 'Adjacent boundary', symbol: `<line x1="0" y1="0" x2="20" y2="0" stroke="${C_BLACK}" stroke-width="1"/>` },
-      { label: 'Found monument', symbol: `<rect x="0" y="-3" width="6" height="6" fill="${C_GREEN}" stroke="${C_BLACK}" stroke-width="0.5"/>` },
-      { label: 'Set monument', symbol: `<circle cx="3" cy="0" r="3" fill="none" stroke="${C_GREEN}" stroke-width="1.5"/>` },
-      { label: 'Masonry Nail', symbol: `<circle cx="3" cy="0" r="2.5" fill="${C_RED}"/>` },
-      { label: 'Iron Pin', symbol: `<circle cx="3" cy="0" r="2" fill="${C_RED}" stroke="${C_BLACK}" stroke-width="0.4"/>` },
-      { label: '\u25C7 Indicatory Beacon (Cap. 299 Reg. 45)', symbol: `<polygon points="3,0 6,3 3,6 0,3" fill="none" stroke="${C_GREEN}" stroke-width="1.2" transform="scale(0.6) translate(1.5,1.5)"/>` },
-    ]
-    for (const item of items) {
-      svg += `<g transform="translate(${leftPad}, ${y += mmToPx(4)})">${item.symbol}</g>`
-      svg += `<text x="${leftPad + mmToPx(10)}" y="${y}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(item.label)}</text>`
-    }
-    return svg
-  }
-
-  private drawWarningBox(leftPad: number, rightPad: number, panelInnerW: number): string {
-    const hasMun = !!this.data.project.municipality
-    const afterLegend = this.margin + mmToPx(hasMun ? 40 : 34) + mmToPx(7 * 4 + 4 + 6) + mmToPx(6 * 4 + 6)
-    const y = afterLegend
-    let svg = ''
-    svg += `<rect x="${leftPad}" y="${y}" width="${panelInnerW}" height="${mmToPx(12)}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<rect x="${leftPad + 0.5}" y="${y + 0.5}" width="${panelInnerW - 1}" height="${mmToPx(12) - 1}" fill="${C_WARNING_BG}"/>`
-    const lines = ['WARNING: Fence set-out pegs', 'must be verified on site.', 'Dimensions subject to', 'survey verification.']
-    lines.forEach((line, i) => {
-      svg += `<text x="${leftPad + mmToPx(2)}" y="${y + mmToPx(3) + i * mmToPx(3)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="${i === 0 ? 'bold' : 'normal'}" fill="${C_BLACK}">${escapeXml(line)}</text>`
+    section('PLAN INFORMATION', [], info, [0.28, 0.72])
+    section('COORDINATE SCHEDULE', ['Station', 'Easting', 'Northing'], points.map(point => [point.name, point.easting.toFixed(3), point.northing.toFixed(3)]), [0.26, 0.37, 0.37])
+    const schedule = p.bearingSchedule?.length ? p.bearingSchedule : points.map((point, index) => {
+      const next = points[(index + 1) % points.length]
+      return { from: point.name, to: next.name, bearing: formatBearingDegMinSec(bearingFromDelta(next.easting - point.easting, next.northing - point.northing)), distance: distance(point.easting, point.northing, next.easting, next.northing) }
     })
-    return svg
-  }
-
-  private drawCompanyFooter(leftPad: number, rightPad: number): string {
-    const hasMun = !!this.data.project.municipality
-    const afterCert = this.margin + mmToPx(hasMun ? 40 : 34) + mmToPx(7 * 4 + 4 + 6) + mmToPx(6 * 4 + 6) + mmToPx(12 + 4) + mmToPx(20)
-    const y = afterCert
-    const p = this.data.project
-    let svg = `<line x1="${leftPad}" y1="${y}" x2="${rightPad}" y2="${y}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    if (p.firm_phone) svg += `<text x="${leftPad}" y="${y + mmToPx(3)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(p.firm_phone)}</text>`
-    if (p.firm_email) svg += `<text x="${leftPad}" y="${y + mmToPx(6)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(p.firm_email)}</text>`
-    if (p.iskRegNo) svg += `<text x="${leftPad}" y="${y + mmToPx(9)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">ISK (Chapter of Land Surveyors) Membership No. ${escapeXml(p.iskRegNo)}</text>`
-    return svg
+    section('BEARING SCHEDULE', ['From', 'To', 'Bearing', 'Dist (m)'], schedule.map(row => [row.from, row.to, row.bearing, row.distance.toFixed(3)]), [0.18, 0.18, 0.40, 0.24])
+    section('LEGEND / WARNING', [], [['Subject boundary', 'Continuous parcel outline'], ['Station circle', 'Coordinate only; monument unverified'], ['Field evidence', 'Verify control, monuments and dimensions on site.']], [0.35, 0.65])
+    const revisions = p.revisions || []
+    section('REVISIONS', revisions.length ? ['Rev', 'Date', 'Description', 'By'] : [], revisions.length ? revisions.map(row => [row.rev, row.date, row.description, row.by]) : [['No issued revision recorded']], revisions.length ? [0.12, 0.23, 0.45, 0.20] : [1])
+    if (p.roadCenterLine?.length) {
+      const chainage = computeChainageAlongAlignment(p.startChainage ?? 0, p.roadCenterLine)
+      section('CHAINAGE SCHEDULE', ['Chainage', 'Easting', 'Northing'], chainage.map(point => [formatChainage(point.chainage), point.easting.toFixed(3), point.northing.toFixed(3)]), [0.26, 0.37, 0.37])
+    }
+    const remaining = bottom - y
+    if (remaining < mmToPx(40)) throw new Error('The complete schedules leave insufficient space for the draft review record. A continuation-sheet layout is required; no rows were omitted.')
+    svg += this.drawReviewRecord(x, y, width, remaining, true)
+    return svg + '</g>'
   }
 
   protected drawSheetIdentity(): string {
@@ -1253,41 +1075,4 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawChainageSchedule(leftPad: number, panelInnerW: number): string {
-    const roadCenter = this.data.project.roadCenterLine
-    if (!roadCenter || roadCenter.length < 2) return ''
-
-    const startCh = this.data.project.startChainage ?? 0
-    const chainagePts = computeChainageAlongAlignment(startCh, roadCenter)
-    const roadName = this.data.project.roadName || 'Road'
-
-    const colW = panelInnerW / 4
-    const rowH = mmToPx(3.5)
-    const headerH = mmToPx(5)
-    const maxRows = Math.min(chainagePts.length, 20)
-    const startY = this.margin + mmToPx(8)
-    const tableH = headerH + maxRows * rowH
-
-    let svg = `<rect x="${leftPad}" y="${startY}" width="${panelInnerW}" height="${tableH}" fill="none" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${leftPad + 2}" y="${startY + mmToPx(3.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">CHAINAGE SCHEDULE — ${escapeXml(roadName)}</text>`
-
-    const hY = startY + headerH
-    svg += `<line x1="${leftPad}" y1="${hY}" x2="${leftPad + panelInnerW}" y2="${hY}" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    const headers = ['Chainage', 'Easting', 'Northing', 'Label']
-    headers.forEach((h, i) => {
-      svg += `<text x="${leftPad + i * colW + 2}" y="${hY + mmToPx(2.5)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#555">${h}</text>`
-    })
-
-    chainagePts.slice(0, maxRows).forEach((pt, i) => {
-      const ry = hY + rowH * (i + 1)
-      if (i > 0) svg += `<line x1="${leftPad}" y1="${ry}" x2="${leftPad + panelInnerW}" y2="${ry}" stroke="${C_BLACK}" stroke-width="0.25" opacity="0.3"/>`
-      svg += `<text x="${leftPad + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}" font-weight="bold">${formatChainage(pt.chainage)}</text>`
-      svg += `<text x="${leftPad + colW + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${pt.easting.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 2 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${pt.northing.toFixed(3)}</text>`
-      svg += `<text x="${leftPad + colW * 3 + 2}" y="${ry + mmToPx(2)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#555">km+m</text>`
-    })
-
-    svg += `<text x="${leftPad}" y="${startY + tableH + 8}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#555" font-style="italic">Chainage format: km+m (RDM 1.1 §5.6.4) · Interval: 100m markers</text>`
-    return svg
-  }
 }
