@@ -1,5 +1,14 @@
 # METARDU requirement readiness — checkpoints through 21 October 2026
 
+Latest coordinate checkpoint (21 October): the API transform path now uses the
+shared CRS authority, accepts the documented EPSG request, preserves precision and
+heights, and rejects invalid batches without zero-coordinate substitutes or a
+success log. The legacy helper no longer guesses a UTM zone or missing height.
+Five focused suites pass 140 tests; typing, scoped lint and security checks pass.
+This source-only result retains explicit legacy parameters with applicability
+notes; it does not establish regional control accuracy or live behavior. See
+[coordinate transform integrity](COORDINATE_TRANSFORM_INTEGRITY_2026-10-21.md).
+
 Latest GNSS checkpoint (21 October): the source RINEX panel invalidates results on
 all input changes and suppresses obsolete/unmounted callbacks. Server/client
 measurement validation fails closed, and client metadata must match submitted

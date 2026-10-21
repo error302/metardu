@@ -3,10 +3,11 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { transformCoordinates, type CoordSystem } from '@/lib/geo/transform'
+import { CrsError } from '@/lib/spatial/projectCrs'
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
-  const { coordinates, fromCRS, toCRS } = ctx.body as {
-    coordinates?: Array<{ id: string; x: number; y: number; z?: number }>
+  const { coordinates, fromCRS, toCRS } = (ctx.body ?? {}) as {
+    coordinates?: Array<{ id: string; x: number; y: number; z?: number | null }>
     fromCRS?: string
     toCRS?: string
   }
@@ -29,15 +30,17 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     )
   }
 
-  const result = transformCoordinates({
-    points: coordinates,
-    fromCRS: fromCRS as CoordSystem,
-    toCRS: toCRS as CoordSystem
-  })
+  let result: ReturnType<typeof transformCoordinates>
+  try {
+    result = transformCoordinates({ points: coordinates, fromCRS: fromCRS as CoordSystem, toCRS: toCRS as CoordSystem })
+  } catch (error) {
+    if (!(error instanceof CrsError)) throw error
+    return NextResponse.json({ error: error.message, code: 'COORDINATE_TRANSFORM_REJECTED' }, { status: 422 })
+  }
 
+  const { points, ...metadata } = result
   return NextResponse.json({
-    results: result.points,
-    fromCRS,
-    toCRS
+    results: points,
+    ...metadata,
   })
 })

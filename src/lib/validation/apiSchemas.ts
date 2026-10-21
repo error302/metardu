@@ -261,7 +261,7 @@ export const GeoTransformPointSchema = z.object({
   id: z.string().max(50),
   x: z.number(),
   y: z.number(),
-  z: z.number().optional(),
+  z: z.number().finite().nullable().optional(),
 })
 
 export const GeoTransformSchema = z.object({

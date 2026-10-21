@@ -24,47 +24,34 @@
 //      callPythonCompute('task_name', params)        → POST {url}/compute {task, params}
 //      callPythonCompute('/path', envelope)          → POST {url}{path} with the body as-is
 
-import { transformCoordinates, type CoordSystem } from '@/lib/geo/transform'
+import { transformCoordinates } from '@/lib/geo/transform'
 import { generateContours as localGenerateContours, type SpotHeight } from '@/lib/engine/contours'
 // Note: We avoid heavy turf imports here unless validateGeometry is used
 // import * as turf from '@turf/turf'
 
+/** Legacy coordinate-field adapter; both CRS must be explicit and heights stay unchanged. */
 export async function convertDatum(
-  coords: Array<{id?: string, easting: number, northing: number, elevation?: number}>,
-  fromDatum: string = 'WGS84',
-  toDatum: string = 'ARC1960'
+  coords: Array<{id?: string, easting: number, northing: number, elevation?: number | null}>,
+  fromDatum: string = '',
+  toDatum: string = ''
 ) {
-  if (fromDatum === toDatum) return coords
-  
-  try {
-    // Map the string datum names to the proj4 definitions
-    // e.g. WGS84 -> WGS84, ARC1960 -> Arc1960-UTM37S (fallback to default zone if not specified)
-    // The previous API just took "ARC1960" and guessed the zone from the coordinates.
-    // For a local implementation, we assume Arc1960-UTM37S if strictly ARC1960 is passed.
-    const mappedToDatum = toDatum === 'ARC1960' ? 'Arc1960-UTM37S' : toDatum;
-    const mappedFromDatum = fromDatum === 'ARC1960' ? 'Arc1960-UTM37S' : fromDatum;
-
-    const result = transformCoordinates({
-      points: coords.map((c, i) => ({
-        id: c.id || `pt-${i}`,
-        x: c.easting,
-        y: c.northing,
-        z: c.elevation || 0
-      })),
-      fromCRS: mappedFromDatum as CoordSystem,
-      toCRS: mappedToDatum as CoordSystem
-    })
-    
-    return result.points.map((p, i) => ({
-      ...coords[i],
-      easting: p.x,
-      northing: p.y,
-      elevation: p.z,
-      datum: toDatum
-    }))
-  } catch {
-    return coords.map((c) => ({ ...c, datum: fromDatum, fallback: true }))
-  }
+  const reservedIds = new Set(coords.flatMap(point => point.id === undefined ? [] : [point.id]))
+  const points = coords.map((point, index) => {
+    let id = point.id
+    if (id === undefined) {
+      id = `pt-${index}`
+      while (reservedIds.has(id)) id = `_${id}`
+      reservedIds.add(id)
+    }
+    return { id, x: point.easting, y: point.northing, z: point.elevation }
+  })
+  const result = transformCoordinates({
+    points,
+    fromCRS: fromDatum, toCRS: toDatum,
+  })
+  return result.points.map((point, index) => ({ ...coords[index], easting: point.x, northing: point.y,
+    ...(point.z !== undefined ? { elevation: point.z } : {}), datum: result.toDatum,
+    horizontalCrs: result.toCRS, horizontalUnits: result.toUnits, heightTransformed: false as const }))
 }
 
 export async function validateGeometry(params: {

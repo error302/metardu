@@ -14,7 +14,7 @@ const API_GROUPS = [
   {
     title: 'Coordinate Transformation',
     routes: [
-      { method: 'POST', path: '/api/geo/transform', desc: 'Transform coordinates between CRS (WGS84, UTM, Arc 1960, Cassini-Soldner). Bursa-Wolf datum shifts.' },
+      { method: 'POST', path: '/api/geo/transform', desc: 'Transform horizontal coordinates between declared, registered CRS. Heights are preserved without vertical conversion; operation applicability requires review.' },
       { method: 'POST', path: '/api/convert-datum', desc: 'Convert between datums (WGS84 ↔ Arc 1960). Wrapper around the geo transform engine.' },
       { method: 'POST', path: '/api/coordinates/transform', desc: 'Alternative coordinate transform endpoint.' },
       { method: 'POST', path: '/api/coordinates/batch', desc: 'Batch transform up to 5,000 coordinates.' },

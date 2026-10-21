@@ -6,6 +6,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { transformCoordinates, TransformInput } from '@/lib/geo/transform'
 import { GeoTransformSchema } from '@/lib/validation/apiSchemas'
+import { CrsError } from '@/lib/spatial/projectCrs'
 
 export const POST = apiHandler({ auth: true, schema: GeoTransformSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as z.infer<typeof GeoTransformSchema> & { projectId?: string }
@@ -17,7 +18,12 @@ export const POST = apiHandler({ auth: true, schema: GeoTransformSchema, rateLim
     projectId: body.projectId,
   }
 
-  const result = transformCoordinates(transformInput)
+  let result: ReturnType<typeof transformCoordinates>
+  try { result = transformCoordinates(transformInput) }
+  catch (error) {
+    if (!(error instanceof CrsError)) throw error
+    return NextResponse.json({ error: error.message, code: 'COORDINATE_TRANSFORM_REJECTED' }, { status: 422 })
+  }
 
   await db.query<never>(
     `INSERT INTO online_service_logs (
