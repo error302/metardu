@@ -23,7 +23,7 @@ import { polar3DWithHeights } from '@/lib/engine/polar'
 import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
 import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { persistWorkingBook } from '@/lib/offline/saveWorkingBook'
-import { listBookEdits, sendBookEdit, type BookSaveOrigin } from '@/lib/offline/bookEdits'
+import { listBookEdits, sendBookEdits, type BookSaveOrigin } from '@/lib/offline/bookEdits'
 import { prepareWorkingBook } from '@/lib/fieldbook/openWorkingBook'
 import type { SavedFieldbook } from './types'
 import { FieldbookRecovery, type RecoveryBook } from '@/components/fieldbook/FieldbookRecovery'
@@ -595,11 +595,8 @@ export default function DigitalFieldBookPage() {
       const r = await syncPendingOperations(dbClient)
       if (ownerId && projectId) {
         const edits = await listBookEdits(ownerId, projectId)
-        for (const { edit, result } of edits.filter(item => !item.result).slice(0, 20)) {
-          if (result) continue
-          try { await sendBookEdit(ownerId, projectId, edit.requestId); r.synced++ }
-          catch { r.failed++ }
-        }
+        const delivered = await sendBookEdits(ownerId, projectId, edits.filter(item => !item.result).map(item => item.edit.requestId))
+        r.synced += delivered.synced; r.failed += delivered.failed + delivered.deferred
       }
       setSyncStatus(r)
       await refreshPendingCount()

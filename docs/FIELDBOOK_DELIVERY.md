@@ -253,3 +253,62 @@ Migration 115 remains unapplied by this work. The native rollback probe approval
 database availability, browser reload/multiple-tab/quota/eviction/device checks,
 editor conflict acceptance, legacy reconciliation, bounded journal retention,
 backup restore and full release/engineering/paid-lifecycle gates remain open.
+
+## Reviewed legacy reconciliation and bounded retry continuation
+
+Legacy sources can now be explicitly linked to an exact acknowledged recovered
+copy. The recovery panel offers matching deliveries only when name, book type
+and the complete raw editable payload match, including precision strings and
+null-versus-zero. It shows the delivered destination book/revision, requires
+explicit review, and passes the hash of the displayed legacy source into
+confirmation. This permits recovery as a separately identified book without
+retagging the original book ID or inventing original authorship.
+
+`legacyBookRecovery.ts` rechecks the retained source hash, owner/project, retained
+edit and validated request/receipt before one strict IndexedDB transaction
+attaches a `legacy-book-delivery-v1` annotation. The transaction compares the
+source again. It never deletes the queue operation or rewrites its original data.
+The link records the reviewer, source hash, actual target book/revision and
+receipt hashes with `fieldVerified:false`. It is a device review link to the
+server delivery receipt, not a server-issued legacy-source audit or professional
+approval. Changed sources, missing receipts, another account or incompatible
+content stay pending. Linked sources are excluded from pending counts only while
+their source and retained receipt still verify; generic sync does not replay or
+delete them, or repeatedly count a verified recovery as a failed delivery.
+
+One Sync action now shares twenty network attempts across all branches rather
+than multiplying the per-branch limit. It inspects at most one hundred selected
+roots, retains the remainder, and stops after transport/access/rate-limit/server
+uncertainty. Repeated dependencies share their result within that pass. Immediate
+and manual dispatch serialize per account/project in this application instance,
+then recheck retained acknowledgements; concurrent requests do not duplicate an
+already acknowledged dispatch. Actual competing-tab coordination still requires
+browser acceptance; the instance lock is not presented as a cross-tab lock.
+
+Reproduced failures are recorded in `.cache/fieldbook-legacy-reconciliation-red.log`,
+`fieldbook-legacy-replay-count-red.log`, `fieldbook-legacy-review-source-red.log`
+and `fieldbook-batch-budget-red.log`. The component checks exercise the explicit
+review interaction; their earlier UI log named `red` completed after the UI edit
+and is not counted as a reproduced failing run. Final combined evidence is in
+`fieldbook-recovery-verified-{tests,types,lint,security}.log`: 129 checks across
+14 suites, full application/test typing, scoped lint and the security gate passed.
+The checks use mocked HTTP,
+actual page/component handlers and the real `idb` adapter with an in-memory
+IndexedDB implementation, not native database/browser/physical-device proof.
+Retention quotas, verified archive restoration, automatic-save backoff, native
+reconciliation acceptance, migration 115 and complete release/field gates remain
+open.
+
+Runtime update: Docker subsequently became reachable on `desktop-linux`.
+The existing Compose-owned `metardu-app` is **created, not running**, with image
+revision `08fae42763aae6d6c4fa24e7f32ec359bf41ddc7`. Its migration dependency
+`metardu-db-migrate` exited with code 1 after rejecting changed content for
+applied migration `052_schema_drift_reconciliation.sql`. The marked synthetic
+database is stopped (exit 255); supporting production PostgreSQL/Redis/worker,
+collaboration/NTRIP and backup containers were running in the read-only
+inventory. This supersedes the earlier engine-unavailable observation and does
+not confirm working production HTTP. No service was started, stopped, recreated,
+rebuilt or promoted by this checkpoint, and no migration/ledger was altered or
+refusal bypassed. Runtime restoration needs the ownership, exact source/image,
+applied-hash and recovery review in `DOCKER_RUNTIME_WORKFLOW.md`; blind Compose
+or dependency bypass is not the recovery plan.

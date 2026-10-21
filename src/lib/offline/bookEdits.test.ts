@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { deleteDB } from 'idb'
 import { createHash } from 'node:crypto'
 import { canonicalDeliveryJson, fieldbookEditablePayload, type FieldbookSaveRequest } from '@/lib/fieldbook/delivery'
-import { retainBookEdit, listBookEdits, sendBookEdit, exportBookEditRecords, type BookEdit } from './bookEdits'
+import { retainBookEdit, listBookEdits, sendBookEdit, sendBookEdits, exportBookEditRecords, type BookEdit } from './bookEdits'
 const actor = '11111111-1111-4111-8111-111111111111', project = '22222222-2222-4222-8222-222222222222', book = '33333333-3333-4333-8333-333333333333'
 const edit: BookEdit = { requestId: '44444444-4444-4444-8444-444444444444', projectId: project, bookId: book, type: 'leveling', name: 'Raw run', data: { bs: '1.5000', height: null }, basis: { kind: 'new' } }
 const sha = (value: Parameters<typeof canonicalDeliveryJson>[0]) => createHash('sha256').update(canonicalDeliveryJson(value)).digest('hex')
@@ -12,7 +12,7 @@ beforeEach(async () => { await deleteDB('metardu-book-edits'); await deleteDB('m
 afterAll(() => { global.fetch = originalFetch })
 function respond(revision: string, current = revision) { return async (_url: unknown, options?: RequestInit) => {
   const input = JSON.parse(String(options?.body)) as FieldbookSaveRequest
-  return new Response(JSON.stringify({ receipt: { protocol: input.protocol, fieldVerified: false, actorId: actor, projectId: project, bookId: book, requestId: input.requestId,
+  return new Response(JSON.stringify({ receipt: { protocol: input.protocol, fieldVerified: false, actorId: actor, projectId: project, bookId: input.bookId, requestId: input.requestId,
     inputHash: sha(input), payloadHash: sha(fieldbookEditablePayload(actor, input)), baseRevision: input.baseRevision, savedRevision: revision },
   book: { ...fieldbookEditablePayload(actor, input), status: 'active', revision, created_at: null, updated_at: null }, currentRevision: current, replayed: current !== revision }), { status: 200 })
 } }
@@ -70,4 +70,29 @@ test('quota failure leaves the previous edit intact and cannot report a durable 
     expect(await listBookEdits(actor, project)).toMatchObject([{ edit }])
     expect(fetch).not.toHaveBeenCalled()
   } finally { add.mockRestore() }
+})
+test('one batch has twenty HTTP attempts across all independent branches and retains the remainder', async () => {
+  const ids: string[] = []
+  for (let index = 1; index <= 25; index++) {
+    const id = `55555555-5555-4555-8555-${index.toString().padStart(12, '0')}`
+    ids.push(id); await retainBookEdit(actor, { ...edit, requestId: id, bookId: id })
+  }
+  jest.mocked(fetch).mockImplementation(respond('8'))
+  expect(await sendBookEdits(actor, project, ids)).toMatchObject({ synced: 20, failed: 0, deferred: 5, attempted: 20 })
+  expect(fetch).toHaveBeenCalledTimes(20)
+  expect((await listBookEdits(actor, project)).filter(item => !item.result)).toHaveLength(5)
+})
+test('an uncertain transport stops a batch after one attempt rather than hammering the remaining queue', async () => {
+  const second = { ...edit, requestId: '55555555-5555-4555-8555-555555555555', bookId: '66666666-6666-4666-8666-666666666666' }
+  await retainBookEdit(actor, edit); await retainBookEdit(actor, second)
+  jest.mocked(fetch).mockRejectedValue(new Error('Connection lost'))
+  expect(await sendBookEdits(actor, project, [edit.requestId, second.requestId])).toMatchObject({ synced: 0, failed: 1, deferred: 1, attempted: 1 })
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+test('concurrent immediate and manual retries send a retained request once in this application instance', async () => {
+  await retainBookEdit(actor, edit)
+  jest.mocked(fetch).mockImplementation(respond('8'))
+  const results = await Promise.all([sendBookEdit(actor, project, edit.requestId), sendBookEdit(actor, project, edit.requestId)])
+  expect(results.map(value => value.receipt.savedRevision)).toEqual(['8', '8'])
+  expect(fetch).toHaveBeenCalledTimes(1)
 })

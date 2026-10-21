@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from 'idb'
 import { z } from 'zod'
 import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema, type FieldbookSaveResult } from '@/lib/fieldbook/delivery'
-import { bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
+import { BookDeliveryError, bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
 import { findBookRequest, retainBookRequest, sendRetainedBookRequest } from './bookDeliveryJournal'
 export const bookSaveOriginSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('new') }).strict(), z.object({ kind: z.literal('unknown') }).strict(),
   z.object({ kind: z.literal('revision'), revision: bookRevisionSchema }).strict(), z.object({ kind: z.literal('operation'), requestId: z.string().uuid() }).strict()])
@@ -60,23 +60,67 @@ export async function exportBookEditRecords(actor: string, project: string): Pro
   try { return (await database.getAll('edits')).filter(value => value?.actorId === actor && value.projectId === project) }
   finally { database.close() }
 }
-/** Dispatch ancestors first. A parent's receipt supplies only its own saved revision. */
-export async function sendBookEdit(actor: string, project: string, id: string): Promise<FieldbookSaveResult> {
-  const seen = new Set<string>(); let remaining = 20
-  async function send(editId: string, child?: BookEdit): Promise<FieldbookSaveResult> {
-    if (seen.has(editId) || seen.size >= 1000) throw new Error('This edit ancestry needs inspection. All retained snapshots were kept.')
-    seen.add(editId)
+const deliveryTails = new Map<string, Promise<void>>()
+async function serialized<T>(actor: string, project: string, work: () => Promise<T>): Promise<T> {
+  const key = `${z.string().uuid().parse(actor)}:${z.string().uuid().parse(project)}`
+  const previous = deliveryTails.get(key) ?? Promise.resolve()
+  let release: () => void = () => {}
+  const current = new Promise<void>(resolve => { release = resolve })
+  deliveryTails.set(key, current)
+  await previous
+  try { return await work() }
+  finally { release(); if (deliveryTails.get(key) === current) deliveryTails.delete(key) }
+}
+class DeliveryBudgetError extends Error {}
+function deliveryPass(actor: string, project: string) {
+  const results = { synced: 0, failed: 0, deferred: 0, attempted: 0 }
+  const memo = new Map<string, Promise<FieldbookSaveResult>>()
+  async function deliver(editId: string, child: BookEdit | undefined, ancestors: Set<string>): Promise<FieldbookSaveResult> {
+    if (ancestors.has(editId) || ancestors.size >= 1000) throw new Error('This edit ancestry needs inspection. All retained snapshots were kept.')
     const edit = await readBookEdit(actor, project, editId)
     if (child && (edit.bookId !== child.bookId || edit.type !== child.type)) throw new Error('The parent edit belongs to a different book. No revision was adopted.')
+    if (memo.has(editId)) return memo.get(editId) as Promise<FieldbookSaveResult>
+    const work = deliverOne(edit, new Set([...ancestors, editId]))
+    memo.set(editId, work)
+    return work
+  }
+  async function deliverOne(edit: BookEdit, ancestors: Set<string>): Promise<FieldbookSaveResult> {
+    const editId = edit.requestId
     const previous = await findBookRequest(actor, project, editId)
     if (previous?.result) return previous.result
     if (edit.basis.kind === 'unknown') throw new Error('This older book has no reviewed server revision. Review both copies in recovery before delivering a new edit.')
     const baseRevision = edit.basis.kind === 'new' ? null : edit.basis.kind === 'revision' ? edit.basis.revision
-      : (await send(edit.basis.requestId, edit)).receipt.savedRevision
+      : (await deliver(edit.basis.requestId, edit, ancestors)).receipt.savedRevision
     const { basis: _basis, ...raw } = edit
     await retainBookRequest(actor, { ...raw, protocol: 'fieldbook-save-v1', baseRevision })
-    if (remaining-- <= 0) throw new Error('Twenty deliveries were attempted. Remaining edits are retained; use Retry to continue.')
-    return sendRetainedBookRequest(actor, project, editId)
+    if (results.attempted >= 20) throw new DeliveryBudgetError('Twenty deliveries were attempted. Remaining edits are retained; use Retry to continue.')
+    results.attempted++
+    const result = await sendRetainedBookRequest(actor, project, editId)
+    results.synced++
+    return result
   }
-  return send(id)
+  return { results, send: (id: string) => deliver(id, undefined, new Set()) }
+}
+/** Dispatch ancestors first; only their own saved revision supplies authority. */
+export async function sendBookEdit(actor: string, project: string, id: string): Promise<FieldbookSaveResult> {
+  return serialized(actor, project, () => deliveryPass(actor, project).send(id))
+}
+/** One action shares a network budget across every branch and stops on transport/access uncertainty. */
+export async function sendBookEdits(actor: string, project: string, ids: string[]): Promise<{ synced: number; failed: number; deferred: number; attempted: number }> {
+  return serialized(actor, project, async () => {
+    const pass = deliveryPass(actor, project), unique = [...new Set(ids)]
+    const selected = unique.slice(0, 100)
+    pass.results.deferred = unique.length - selected.length
+    for (let index = 0; index < selected.length; index++) {
+      try { await pass.send(selected[index]) }
+      catch (error) {
+        if (error instanceof DeliveryBudgetError) { pass.results.deferred += selected.length - index; break }
+        pass.results.failed++
+        if (error instanceof BookDeliveryError && (error.status === undefined || error.status === 401 || error.status === 403 || error.status === 429 || error.status >= 500)) {
+          pass.results.deferred += selected.length - index - 1; break
+        }
+      }
+    }
+    return pass.results
+  })
 }

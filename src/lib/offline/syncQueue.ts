@@ -129,6 +129,8 @@ export interface SyncOperation {
   projectId: string
   retries: number
   priority: 'high' | 'normal' | 'low'
+  /** Reviewed delivery link only; the original queued source remains intact. */
+  fieldbookRecovery?: unknown
 }
 
 export interface ConflictRecord {
@@ -187,11 +189,19 @@ export async function syncPendingOperations(
 ): Promise<{ synced: number; failed: number; conflicts: number }> {
   const pending = await getPendingOperations()
   const results = { synced: 0, failed: 0, conflicts: 0 }
+  let retainedOwner: string | undefined
+  if (pending.some(op => op.table === 'fieldbooks' && op.fieldbookRecovery !== undefined)) {
+    try { retainedOwner = (await dbClient.auth?.getSession())?.data.session?.user?.id } catch { /* An unconfirmed account keeps recovery pending. */ }
+  }
   for (const op of pending) {
     try {
       // Legacy records lack a reviewed revision. Never auto-rebase, discard or
       // generic-upsert them; the Fieldbook recovery inventory retains review.
       if (op.table === 'fieldbooks') {
+        if (retainedOwner && op.data.user_id === retainedOwner) {
+          const { verifiedLegacyBookDelivery } = await import('./legacyBookRecovery')
+          if (await verifiedLegacyBookDelivery(retainedOwner, op.projectId, op)) continue
+        }
         results.failed++
         continue
       }

@@ -159,3 +159,19 @@ settings, the synthetic DB port refuses connections and Docker's engine pipe
 is unavailable. No services/settings were changed. Earlier health and backup
 completion at `2026-10-21T02:00:03Z` do not confirm current runtime or restore
 recovery; fresh preservation/runtime checks are required when available.
+
+The next source checkpoint adds explicit, exact-content legacy recovery links
+without deleting original queue work, binds confirmation to the displayed
+source hash, and shares a twenty-attempt retry budget across branches. Instance
+serialization prevents duplicate immediate/manual dispatch of acknowledged work.
+Actual browser/native/device acceptance and quotas/retention/backoff remain open.
+
+Current runtime incident: Docker became reachable again, but the existing
+`metardu-app` is created and not running. Its migration dependency exited after
+rejecting the checksum of applied migration 052. The marked synthetic database
+is stopped; the supporting production services were running in the inspected
+inventory. No service or ledger was changed by this work and the refusal remains
+intact. Production HTTP is not confirmed healthy. Follow the existing migration,
+source/image/ownership and backup/recovery review before runtime restoration;
+do not bypass the gate or modify applied hashes. This is an open P0 runtime and
+release blocker alongside the previously recorded security/field/paid gates.

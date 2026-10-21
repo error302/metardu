@@ -3,14 +3,16 @@ import { FieldbookRecovery } from './FieldbookRecovery'
 import { listBookEdits, sendBookEdit } from '@/lib/offline/bookEdits'
 import { getPendingOperations } from '@/lib/offline/syncQueue'
 import { readReviewedBook } from '@/lib/fieldbook/deliveryClient'
+import { confirmLegacyBookDelivery, verifiedLegacyBookDelivery } from '@/lib/offline/legacyBookRecovery'
 jest.mock('@/lib/offline/bookEdits', () => ({ listBookEdits: jest.fn(), sendBookEdit: jest.fn(), exportBookEditRecords: jest.fn(async () => []) }))
 jest.mock('@/lib/offline/bookDeliveryJournal', () => ({ exportBookRequestRecords: jest.fn(async () => []) }))
 jest.mock('@/lib/offline/syncQueue', () => ({ getPendingOperations: jest.fn() }))
 jest.mock('@/lib/fieldbook/deliveryClient', () => ({ readReviewedBook: jest.fn() }))
+jest.mock('@/lib/offline/legacyBookRecovery', () => ({ ...jest.requireActual<typeof import('@/lib/offline/legacyBookRecovery')>('@/lib/offline/legacyBookRecovery'), legacyBookSourceHash: async () => 'c'.repeat(64), confirmLegacyBookDelivery: jest.fn(), verifiedLegacyBookDelivery: jest.fn(async () => null) }))
 const actor = '11111111-1111-4111-8111-111111111111', project = '22222222-2222-4222-8222-222222222222', book = '33333333-3333-4333-8333-333333333333'
 const edit = { requestId: '44444444-4444-4444-8444-444444444444', projectId: project, bookId: book, name: 'Morning run', type: 'leveling' as const, data: { bs: '1.5000' }, basis: { kind: 'unknown' as const } }
 const props = () => ({ actorId: actor, projectId: project, refreshKey: 0, onOpen: jest.fn(async () => {}), onReviewed: jest.fn(async () => {}), onCount: jest.fn() })
-beforeEach(() => { jest.resetAllMocks(); jest.mocked(listBookEdits).mockResolvedValue([{ edit, result: null }]); jest.mocked(getPendingOperations).mockResolvedValue([]) })
+beforeEach(() => { jest.resetAllMocks(); jest.mocked(verifiedLegacyBookDelivery).mockResolvedValue(null); jest.mocked(listBookEdits).mockResolvedValue([{ edit, result: null }]); jest.mocked(getPendingOperations).mockResolvedValue([]) })
 test('pending work is visible and a failed retry retains it without reporting delivery', async () => {
   jest.mocked(sendBookEdit).mockRejectedValue(new Error('Review both versions before retrying'))
   render(<FieldbookRecovery {...props()} />)
@@ -47,4 +49,19 @@ test('an unreadable owned legacy record remains counted and directs the user to 
   render(<FieldbookRecovery {...input} />)
   expect(await screen.findByText(/1 older record could not be opened/)).toBeInTheDocument()
   await waitFor(() => expect(input.onCount).toHaveBeenCalledWith(1))
+})
+test('a legacy snapshot requires explicit review before linking an exact acknowledged copy', async () => {
+  const original = { id: 3, type: 'UPSERT' as const, table: 'fieldbooks', timestamp: '2026-10-21T08:00:00Z', projectId: project, retries: 3, priority: 'normal' as const,
+    data: { id: book, user_id: actor, project_id: project, type: edit.type, name: edit.name, data: edit.data } }
+  jest.mocked(getPendingOperations).mockResolvedValue([original])
+  const result = { receipt: { protocol: 'fieldbook-save-v1' as const, fieldVerified: false as const, actorId: actor, projectId: project, bookId: book, requestId: edit.requestId,
+    inputHash: 'a'.repeat(64), payloadHash: 'b'.repeat(64), baseRevision: null, savedRevision: '8' }, book: { id: book, user_id: actor, project_id: project, type: edit.type, name: edit.name, data: edit.data, status: 'active', revision: '8', created_at: null, updated_at: null }, currentRevision: '8', replayed: false }
+  jest.mocked(listBookEdits).mockResolvedValue([{ edit, result }])
+  render(<FieldbookRecovery {...props()} />)
+  fireEvent.click(await screen.findByRole('button', { name: 'Review matching delivery' }))
+  const confirm = await screen.findByRole('button', { name: 'Confirm delivered copy' })
+  expect(confirm).toBeDisabled()
+  fireEvent.click(screen.getByRole('checkbox', { name: /I reviewed this legacy snapshot/ }))
+  fireEvent.click(confirm)
+  await waitFor(() => expect(confirmLegacyBookDelivery).toHaveBeenCalledWith(actor, project, 3, edit.requestId, 'c'.repeat(64)))
 })

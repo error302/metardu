@@ -11,6 +11,8 @@ import { saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { createCaptureDraftData, type SourceImport } from '@/lib/fieldbook/captureDraft'
 import { fieldbookTransferSchema } from '@/lib/fieldbook/transfer'
 import { useAutoSave } from '@/hooks/useAutoSave'
+import { listBookEdits, sendBookEdits } from '@/lib/offline/bookEdits'
+import { syncPendingOperations } from '@/lib/offline/syncQueue'
 
 const mockPdf = { setFontSize: jest.fn(), text: jest.fn(), addPage: jest.fn(), output: jest.fn(() => new Blob(['pdf'])) }
 const mockPdfTable = jest.fn<void, [unknown, { body: unknown }]>()
@@ -29,7 +31,7 @@ const mockNotify=jest.fn()
 jest.mock('@/hooks/useNotifications',()=>({useNotifications:()=>({notify:mockNotify})}))
 jest.mock('@/lib/offline/fieldbooks',()=>({getOfflineFieldbooks:jest.fn().mockResolvedValue([]),saveFieldbookOffline:jest.fn().mockResolvedValue(undefined)}))
 jest.mock('@/lib/offline/saveWorkingBook',()=>({persistWorkingBook:jest.fn(async (_actor: string, _record: unknown, _origin: unknown, _online: boolean, id?: string) => ({requestId: id ?? crypto.randomUUID(), pending:false}))}))
-jest.mock('@/lib/offline/bookEdits',()=>({listBookEdits:jest.fn(async()=>[]),readBookEdit:jest.fn(),sendBookEdit:jest.fn(),exportBookEditRecords:jest.fn(async()=>[])}))
+jest.mock('@/lib/offline/bookEdits',()=>({listBookEdits:jest.fn(async()=>[]),readBookEdit:jest.fn(),sendBookEdit:jest.fn(),sendBookEdits:jest.fn(),exportBookEditRecords:jest.fn(async()=>[])}))
 jest.mock('@/lib/fieldbook/openWorkingBook',()=>({prepareWorkingBook:jest.fn(async (_actor: string, _project: string, entry: unknown) => ({book:entry,origin:{kind:'unknown'}}))}))
 jest.mock('@/lib/offline/syncQueue',()=>({isOnline:()=>true,getPendingOperations:jest.fn().mockResolvedValue([]),setupOnlineListener:()=>()=>{},syncPendingOperations:jest.fn()}))
 jest.mock('@/components/fieldbook/FieldbookCaptureImport',()=>({FieldbookCaptureImport:jest.fn(()=>null)}))
@@ -58,6 +60,15 @@ test('project and saved-book reads retain the checked account precondition', asy
   await openPage()
   await waitFor(() => expect(mockReadScopes.some(item => item.table === 'fieldbooks')).toBe(true))
   expect(mockReadScopes.filter(item => item.table === 'fieldbooks' || item.table === 'projects').every(item => item.owner === actor)).toBe(true)
+})
+test('the actual Sync action delegates one bounded batch and reports work deferred on the device', async () => {
+  await openPage()
+  jest.mocked(syncPendingOperations).mockResolvedValueOnce({ synced: 0, failed: 0, conflicts: 0 })
+  jest.mocked(listBookEdits).mockResolvedValueOnce([{ edit: { requestId: book.id, projectId: project, bookId: book.id, type: book.type, name: book.name, data: {}, basis: { kind: 'new' } }, result: null }])
+  jest.mocked(sendBookEdits).mockResolvedValueOnce({ synced: 20, failed: 0, deferred: 5, attempted: 20 })
+  fireEvent.click(screen.getByRole('button', { name: 'field.syncOffline' }))
+  await waitFor(() => expect(workspace().status).toMatch(/5 operation/))
+  expect(sendBookEdits).toHaveBeenCalledWith(actor, project, [book.id])
 })
 
 test('source snapshots survive draft opening and later editable book saves; blank length never becomes 1 km',async()=>{
