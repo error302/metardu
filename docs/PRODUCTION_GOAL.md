@@ -146,3 +146,16 @@ faults, later-edit preservation and stale acknowledgements. The page/outbox and
 generic writer still await coordinated migration, baseline/ancestry review and
 visible recovery inventory. Native/browser/device and release acceptance remain
 separate; the full production goal stays active.
+
+The connected-source continuation wires new Fieldbook saves to durable edits,
+explicit parent ancestry and revision delivery, and adds a scoped recovery,
+retry/export and local/server review panel. Generic Fieldbook mutations and
+legacy automatic replay now refuse while retaining device work. Saved-book
+opening binds a reviewed revision to its fetched content. This remains source
+work with migration 115 unapplied. Receipt-bound legacy reconciliation, bounded
+journal retention, native/browser/device and promotion acceptance remain open.
+During verification the environment changed: browser use is disabled in Work
+settings, the synthetic DB port refuses connections and Docker's engine pipe
+is unavailable. No services/settings were changed. Earlier health and backup
+completion at `2026-10-21T02:00:03Z` do not confirm current runtime or restore
+recovery; fresh preservation/runtime checks are required when available.

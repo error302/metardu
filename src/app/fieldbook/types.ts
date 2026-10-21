@@ -9,6 +9,10 @@ export type SavedFieldbook = {
   updated_at?: string
   created_at?: string
   data: Record<string, unknown>
+  user_id?: string
+  project_id?: string
+  localEditId?: string
+  _origin?: 'server' | 'device'
 }
 
 export type LevelRow = { id: string; station: string; bs: string; is: string; fs: string; remarks: string }

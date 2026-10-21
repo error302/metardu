@@ -3,8 +3,8 @@
 import { useRef, useState } from 'react'
 import { Download, FolderOpen, Save, Upload, ChevronDown } from 'lucide-react'
 import { parseFieldbookTransfer, type FieldbookTransfer } from '@/lib/fieldbook/transfer'
+import type { SavedFieldbook as Book } from '@/app/fieldbook/types'
 
-type Book = { id: string; name: string; type: 'leveling' | 'traverse' | 'control'; data: Record<string, unknown> }
 interface Props {
   projectId: string
   projects: { id: string; name: string }[]
@@ -20,7 +20,7 @@ interface Props {
   error: boolean
   savedBooks: Book[]
   activeBookId: string | null
-  onOpen: (book: Book) => void
+  onOpen: (book: Book) => void | Promise<void>
   onImport?: (book: FieldbookTransfer) => Promise<void>
   onExportJSON: () => void
   onExportCSV: () => Promise<void>
@@ -92,7 +92,7 @@ export function FieldbookProjectPanel(props: Props) {
           <label className="block text-sm text-[var(--text-secondary)]">Open a saved book
             <select aria-label="Open saved fieldbook" className="input mt-1.5 min-h-12 w-full text-base" value={props.activeBookId ?? ''} disabled={disabled || !props.projectId} onChange={event => {
               const book = props.savedBooks.find(item => item.id === event.target.value)
-              if (book) void run(async () => { if (await props.onSave()) props.onOpen(book) })
+              if (book) void run(async () => { if (await props.onSave()) await props.onOpen(book) })
             }}>
               <option value="">Choose a saved book ({props.savedBooks.length})</option>
               {props.savedBooks.map(book => <option key={book.id} value={book.id}>{book.name || 'Untitled fieldbook'}</option>)}

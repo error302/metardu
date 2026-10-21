@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { deleteDB, openDB, type DBSchema } from 'idb'
 import { createHash } from 'node:crypto'
 import { canonicalDeliveryJson, fieldbookEditablePayload, type FieldbookSaveRequest, type FieldbookSaveResult } from '@/lib/fieldbook/delivery'
-import { retainBookRequest, listBookRequests, sendRetainedBookRequest, type RetainedBookRequest } from './bookDeliveryJournal'
+import { retainBookRequest, listBookRequests, sendRetainedBookRequest, exportBookRequestRecords, type RetainedBookRequest } from './bookDeliveryJournal'
 
 interface TestJournal extends DBSchema { requests: { key: string; value: RetainedBookRequest & { key: string } } }
 
@@ -125,4 +125,10 @@ test('an older retry response cannot rewind knowledge of a later server revision
 test('non-finite input cannot be silently retained as a different raw value', async () => {
   await expect(retainBookRequest(actor, { ...input, data: { height: NaN } })).rejects.toThrow()
   expect(await listBookRequests(actor, project)).toEqual([])
+})
+test('recovery archive exports only the retained owner and project records', async () => {
+  await retainBookRequest(actor, input)
+  expect(await exportBookRequestRecords(actor, project)).toMatchObject([{ actorId: actor, request: input }])
+  expect(await exportBookRequestRecords(book, project)).toEqual([])
+  expect(await exportBookRequestRecords(actor, book)).toEqual([])
 })

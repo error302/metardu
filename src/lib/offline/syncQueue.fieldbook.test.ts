@@ -31,12 +31,11 @@ beforeEach(() => {
 })
 afterAll(() => { global.fetch = originalFetch })
 
-it('replays a missing fieldbook idempotently as an upsert and removes only its acknowledged operation', async () => {
-  expect(await syncPendingOperations(createClient())).toMatchObject({ synced: 1, failed: 0 })
+it('retains legacy book operations for review instead of replaying unversioned upserts', async () => {
+  expect(await syncPendingOperations(createClient())).toMatchObject({ synced: 0, failed: 1 })
   const bodies = fetchMock.mock.calls.filter(call => call[0] === '/api/db').map(call => JSON.parse(String(call[1]?.body)) as { operation: string; payload: unknown })
-  expect(bodies.map(body => body.operation)).toEqual(['select', 'upsert'])
-  expect(bodies[1].payload).toEqual(op.data)
-  expect(mockDelete).toHaveBeenCalledWith('sync_queue', 5)
+  expect(bodies).toEqual([])
+  expect(mockDelete).not.toHaveBeenCalled()
 })
 it('does not send a different account’s cached book', async () => {
   owner = 'someone-else'
@@ -51,13 +50,13 @@ it('retains the operation if server confirmation has a different book ID', async
 })
 it('keeps a newer remote book untouched without a conflict resolution', async () => {
   remote = { data: { id: 'book', updated_at: '2026-10-18T10:00:00Z' }, error: null }
-  expect(await syncPendingOperations(createClient())).toMatchObject({ synced: 0, failed: 1, conflicts: 1 })
-  expect(fetchMock.mock.calls.filter(call => call[0] === '/api/db')).toHaveLength(1)
+  expect(await syncPendingOperations(createClient())).toMatchObject({ synced: 0, failed: 1 })
+  expect(fetchMock.mock.calls.filter(call => call[0] === '/api/db')).toHaveLength(0)
   expect(mockDelete).not.toHaveBeenCalled()
 })
 it('does not overwrite when the remote version cannot be checked', async () => {
   remote = { data: null, error: { message: 'Connection lost', code: 'FETCH_ERROR' } }
   expect(await syncPendingOperations(createClient())).toMatchObject({ synced: 0, failed: 1 })
-  expect(fetchMock.mock.calls.filter(call => call[0] === '/api/db')).toHaveLength(1)
+  expect(fetchMock.mock.calls.filter(call => call[0] === '/api/db')).toHaveLength(0)
   expect(mockDelete).not.toHaveBeenCalled()
 })

@@ -22,7 +22,11 @@ import { bearingToString, normalizeBearing, parseFieldAngle } from '@/lib/engine
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
 import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldbooks'
-import { persistFieldbook } from '@/lib/offline/saveFieldbook'
+import { persistWorkingBook } from '@/lib/offline/saveWorkingBook'
+import { listBookEdits, sendBookEdit, type BookSaveOrigin } from '@/lib/offline/bookEdits'
+import { prepareWorkingBook } from '@/lib/fieldbook/openWorkingBook'
+import type { SavedFieldbook } from './types'
+import { FieldbookRecovery, type RecoveryBook } from '@/components/fieldbook/FieldbookRecovery'
 import { FieldbookProjectPanel } from '@/components/fieldbook/FieldbookProjectPanel'
 import { FieldbookCaptureImport } from '@/components/fieldbook/FieldbookCaptureImport'
 import { FieldbookSourceReferences } from '@/components/fieldbook/FieldbookSourceReferences'
@@ -73,15 +77,6 @@ function useIsMobile() {
 type FieldbookType = 'leveling' | 'traverse' | 'control'
 
 type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string; pending?: boolean; message?: string } | { kind: 'error'; message: string }
-
-type SavedFieldbook = {
-  id: string
-  type: FieldbookType
-  name: string
-  updated_at?: string
-  created_at?: string
-  data: Record<string, unknown>
-}
 
 type LevelRow = { id: string; station: string; bs: string; is: string; fs: string; remarks: string }
 type TravRow = {
@@ -162,6 +157,9 @@ export default function DigitalFieldBookPage() {
   const [pendingCount, setPendingCount] = useState(0)
   const saveInProgress = useRef(false)
   const bookIdRef = useRef<string | null>(null)
+  const bookOrigin = useRef<BookSaveOrigin>({ kind: 'new' })
+  const lastRetained = useRef<{ fingerprint: string; requestId: string; origin: BookSaveOrigin } | null>(null)
+  const [recoveryKey, setRecoveryKey] = useState(0)
   const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
 
   useEffect(() => {
@@ -303,15 +301,16 @@ export default function DigitalFieldBookPage() {
         if (session.error) throw new Error('Session check could not be confirmed.')
         const sessUser = (session.data.session as Record<string, unknown> | null)?.user
         if (!sessUser) { if (isMounted) setProjectsError('Sign in online to load your projects.'); return }
-        if (isMounted && typeof (sessUser as { id?: unknown }).id === 'string') {
-          const checkedOwner = (sessUser as { id: string }).id
+        const checkedOwner = typeof (sessUser as { id?: unknown }).id === 'string' ? (sessUser as { id: string }).id : null
+        if (!checkedOwner) throw new Error('Session owner could not be confirmed.')
+        if (isMounted) {
           if (activeScope.current.ownerId && activeScope.current.ownerId !== checkedOwner) {
             setProjectsError('Your account changed. Your open book remains with its original owner. Export JSON before reloading under another account.')
             return
           }
           setOwnerId(checkedOwner)
         }
-        const { data, error } = (await dbClient.from('projects').select('id, name').order('created_at', { ascending: false })) as { data: { id: string; name: string }[] | null; error: unknown }
+        const { data, error } = (await createClient({ expectedUserId: checkedOwner }).from('projects').select('id, name').order('created_at', { ascending: false })) as { data: { id: string; name: string }[] | null; error: unknown }
         if (isMounted) {
           if (!error && data) setProjects(data)
           else setProjectsError('Projects could not be loaded. Reconnect and reload before starting a new book.')
@@ -331,11 +330,11 @@ export default function DigitalFieldBookPage() {
         if (isMounted) setSavedFieldbooks(offline)
       } catch {}
 
-      if (!projectId || !isOnline()) return
+      if (!projectId || !ownerId || !isOnline()) return
       try {
-        const { data, error } = (await dbClient
+        const { data, error } = (await createClient({ expectedUserId: ownerId })
           .from('fieldbooks')
-          .select('id, type, name, data, updated_at, created_at')
+          .select('id, user_id, project_id, type, name, data, updated_at, created_at')
           .eq('project_id', projectId)
           .eq('type', type)
           .order('updated_at', { ascending: false })) as { data: SavedFieldbook[] | null; error: unknown }
@@ -346,8 +345,8 @@ export default function DigitalFieldBookPage() {
           setSavedFieldbooks((prev) => {
             const byId = new Map(prev.map((x) => [x.id, x]))
             for (const row of data as unknown as SavedFieldbook[]) {
-              if (byId.has(row.id) && pendingIds.has(row.id)) continue
-              byId.set(row.id, row)
+              if (byId.get(row.id)?.localEditId || byId.has(row.id) && pendingIds.has(row.id)) continue
+              byId.set(row.id, { ...row, _origin: 'server' })
             }
             return Array.from(byId.values()).sort((a, b) => String(b.updated_at ?? b.created_at ?? '').localeCompare(String(a.updated_at ?? a.created_at ?? '')))
           })
@@ -506,10 +505,12 @@ export default function DigitalFieldBookPage() {
     setSyncStatus(null)
   }
 
-  function loadFieldbook(entry: SavedFieldbook) {
+  function loadFieldbook(entry: SavedFieldbook, origin: BookSaveOrigin = { kind: 'unknown' }) {
     const references = readCaptureReferences(entry.data || {}, projectId)
     setSourceImport(references)
     bookIdRef.current = entry.id
+    bookOrigin.current = origin
+    lastRetained.current = null
     setFieldbookId(entry.id)
     setType(entry.type)
     setSaveStatus({ kind: 'idle' })
@@ -568,10 +569,38 @@ export default function DigitalFieldBookPage() {
     panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
+  async function openSavedFieldbook(entry: SavedFieldbook) {
+    if (!ownerId || entry.user_id && entry.user_id !== ownerId || entry.project_id && entry.project_id !== projectId) throw new Error('This retained book belongs to a different account or project.')
+    const scope = { ...activeScope.current }, editable = JSON.stringify(latestEditable.current)
+    const { book, origin, warning } = await prepareWorkingBook(ownerId, projectId, entry, isOnline())
+    if (scope.ownerId !== activeScope.current.ownerId || scope.projectId !== activeScope.current.projectId || editable !== JSON.stringify(latestEditable.current)) throw new Error('The open book changed while loading. Save the latest edits before switching.')
+    loadFieldbook(book, origin)
+    if (warning) setSaveStatus({ kind: 'error', message: warning })
+  }
+
+  async function openRecoveryBook(book: RecoveryBook, revision?: string, asNew = false) {
+    if (book.user_id !== ownerId || book.project_id !== projectId) throw new Error('This recovery snapshot belongs to another account or project.')
+    if (!(await saveBeforeLeaving())) throw new Error('Save the current book before opening a recovery snapshot.')
+    if (asNew) {
+      loadFieldbook({ ...book, id: crypto.randomUUID(), localEditId: undefined }, { kind: 'new' })
+      return
+    }
+    if (revision !== undefined) loadFieldbook(book, { kind: 'revision', revision })
+    else await openSavedFieldbook(book)
+  }
+
   async function handleSyncNow() {
     setSyncStatus(null)
     try {
       const r = await syncPendingOperations(dbClient)
+      if (ownerId && projectId) {
+        const edits = await listBookEdits(ownerId, projectId)
+        for (const { edit, result } of edits.filter(item => !item.result).slice(0, 20)) {
+          if (result) continue
+          try { await sendBookEdit(ownerId, projectId, edit.requestId); r.synced++ }
+          catch { r.failed++ }
+        }
+      }
       setSyncStatus(r)
       await refreshPendingCount()
     } catch {
@@ -591,8 +620,7 @@ export default function DigitalFieldBookPage() {
   }
 
   async function refreshPendingCount() {
-    const pending = await getPendingOperations(projectId)
-    setPendingCount(pending.filter(op => op.table === 'fieldbooks' && op.data.user_id === ownerId).length)
+    setRecoveryKey(value => value + 1)
   }
 
   async function handleSave(dataOverride?: Record<string, unknown>): Promise<boolean> {
@@ -637,10 +665,16 @@ export default function DigitalFieldBookPage() {
     }
 
     try {
-      const result = await persistFieldbook(dbClient, record, isOnline())
+      const fingerprint = JSON.stringify({ id, projectId, userId, type, name: record.name, data: record.data })
+      const previous = lastRetained.current
+      const origin = previous?.fingerprint === fingerprint ? previous.origin : bookOrigin.current
+      const result = await persistWorkingBook(userId, record, origin, isOnline(), previous?.fingerprint === fingerprint ? previous.requestId : undefined)
+      if (activeScope.current.ownerId !== userId || activeScope.current.projectId !== projectId || bookIdRef.current !== id) return false
+      bookOrigin.current = { kind: 'operation', requestId: result.requestId }
+      lastRetained.current = { fingerprint, requestId: result.requestId, origin }
       setFieldbookId(id)
       setSaveStatus({ kind: 'saved', when: now, ...result })
-      setSavedFieldbooks(prev => [record, ...prev.filter(book => book.id !== id)])
+      setSavedFieldbooks(prev => [{ ...record, localEditId: result.requestId, _origin: 'device' }, ...prev.filter(book => book.id !== id)])
       await refreshPendingCount()
       return true
     } catch (e: unknown) {
@@ -651,21 +685,13 @@ export default function DigitalFieldBookPage() {
     }
   }
 
-  useEffect(() => {
-    let active = true
-    getPendingOperations(projectId).then(operations => {
-      if (active) setPendingCount(operations.filter(op => op.table === 'fieldbooks' && op.data.user_id === ownerId).length)
-    }).catch(() => {})
-    return () => { active = false }
-  }, [projectId, ownerId, syncStatus])
-
   async function importBook(book: FieldbookTransfer) {
     if (!projectId) throw new Error('Choose a project before importing.')
     readCaptureReferences(book.data, projectId)
     if (!(await saveBeforeLeaving())) throw new Error('Save the current book before importing. It has not been replaced.')
     // File IDs and project IDs never control database identity or ownership.
     const id = crypto.randomUUID()
-    loadFieldbook({ id, name: book.name, type: book.type, data: book.data })
+    loadFieldbook({ id, name: book.name, type: book.type, data: book.data }, { kind: 'new' })
     bookIdRef.current = id
     setFieldbookId(null)
     setSaveStatus({ kind: 'idle' })
@@ -674,6 +700,8 @@ export default function DigitalFieldBookPage() {
   function clearBook() {
     setSourceImport(undefined)
     bookIdRef.current = null
+    bookOrigin.current = { kind: 'new' }
+    lastRetained.current = null
     setFieldbookId(null)
     setName('')
     setLevelRows([])
@@ -1179,10 +1207,12 @@ export default function DigitalFieldBookPage() {
     saving={saveStatus.kind === 'saving'} onSave={saveBeforeLeaving} onNew={newBook}
     status={saveStatus.kind === 'error' ? saveStatus.message : syncStatus?.failed ? `Sync needs attention: ${syncStatus.failed} operation(s) remain on this device. Export JSON for a backup and retry after checking your account and connection.` : saveStatus.kind === 'saved' ? saveStatus.message ?? 'Saved.' : null}
     error={saveStatus.kind === 'error' || !!syncStatus?.failed}
-    savedBooks={savedFieldbooks} activeBookId={fieldbookId} onOpen={loadFieldbook}
+    savedBooks={savedFieldbooks} activeBookId={fieldbookId} onOpen={openSavedFieldbook}
     onImport={importBook}
     onExportJSON={exportJSON} onExportCSV={exportCSV} onExportPDF={exportPDF}
   />
+    {ownerId && projectId && <FieldbookRecovery key={`${ownerId}:${projectId}`} actorId={ownerId} projectId={projectId} refreshKey={recoveryKey}
+      onOpen={openRecoveryBook} onReviewed={(book, revision) => openRecoveryBook(book, revision)} onCopy={book => openRecoveryBook(book, undefined, true)} onCount={setPendingCount} />}
     {ownerId && projectId && <FieldbookCaptureImport actorId={ownerId} projectId={projectId} onPrepare={prepareCaptureImport} onCreated={openCapturedBook} />}
     {sourceImport && <FieldbookSourceReferences key={`${projectId}:${fieldbookId}:${sourceImport.requestHash}`} imported={sourceImport}
       rows={type === 'leveling' ? levelRows : type === 'traverse' ? travRows : controlSetups.flatMap(setup => setup.rows)} />}

@@ -6,7 +6,7 @@ import { FieldbookProjectPanel } from '@/components/fieldbook/FieldbookProjectPa
 import { LevelingBook } from '@/components/fieldbook/LevelingBook'
 import { TraverseBook } from '@/components/fieldbook/TraverseBook'
 import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
-import { persistFieldbook } from '@/lib/offline/saveFieldbook'
+import { persistWorkingBook } from '@/lib/offline/saveWorkingBook'
 import { saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { createCaptureDraftData, type SourceImport } from '@/lib/fieldbook/captureDraft'
 import { fieldbookTransferSchema } from '@/lib/fieldbook/transfer'
@@ -20,14 +20,17 @@ jest.mock('jspdf-autotable', () => ({ __esModule: true, default: (doc: unknown, 
 const actor='11111111-1111-4111-8111-111111111111', project='22222222-2222-4222-8222-222222222222'
 const mockQuery={select:jest.fn().mockReturnThis(),eq:jest.fn().mockReturnThis(),order:jest.fn().mockResolvedValue({data:[],error:null})}
 const mockClient={auth:{getSession:jest.fn().mockResolvedValue({data:{session:{user:{id:actor}}}})},from:jest.fn(()=>mockQuery)}
-jest.mock('@/lib/api-client/client',()=>({createClient:()=>mockClient}))
+const mockReadScopes: { table: string; owner?: string }[] = []
+jest.mock('@/lib/api-client/client',()=>({createClient:(options?: {expectedUserId?: string})=>({...mockClient,from:(table:string)=>{mockReadScopes.push({table,owner:options?.expectedUserId});return mockQuery}})}))
 jest.mock('@/lib/i18n/LanguageContext',()=>({useLanguage:()=>({t:(key:string)=>key})}))
 jest.mock('@/lib/analytics/events',()=>({trackFieldbookSave:jest.fn()}))
 jest.mock('@/hooks/useAutoSave',()=>({useAutoSave:jest.fn()}))
 const mockNotify=jest.fn()
 jest.mock('@/hooks/useNotifications',()=>({useNotifications:()=>({notify:mockNotify})}))
 jest.mock('@/lib/offline/fieldbooks',()=>({getOfflineFieldbooks:jest.fn().mockResolvedValue([]),saveFieldbookOffline:jest.fn().mockResolvedValue(undefined)}))
-jest.mock('@/lib/offline/saveFieldbook',()=>({persistFieldbook:jest.fn().mockResolvedValue({pending:false})}))
+jest.mock('@/lib/offline/saveWorkingBook',()=>({persistWorkingBook:jest.fn(async (_actor: string, _record: unknown, _origin: unknown, _online: boolean, id?: string) => ({requestId: id ?? crypto.randomUUID(), pending:false}))}))
+jest.mock('@/lib/offline/bookEdits',()=>({listBookEdits:jest.fn(async()=>[]),readBookEdit:jest.fn(),sendBookEdit:jest.fn(),exportBookEditRecords:jest.fn(async()=>[])}))
+jest.mock('@/lib/fieldbook/openWorkingBook',()=>({prepareWorkingBook:jest.fn(async (_actor: string, _project: string, entry: unknown) => ({book:entry,origin:{kind:'unknown'}}))}))
 jest.mock('@/lib/offline/syncQueue',()=>({isOnline:()=>true,getPendingOperations:jest.fn().mockResolvedValue([]),setupOnlineListener:()=>()=>{},syncPendingOperations:jest.fn()}))
 jest.mock('@/components/fieldbook/FieldbookCaptureImport',()=>({FieldbookCaptureImport:jest.fn(()=>null)}))
 jest.mock('@/components/fieldbook/FieldbookProjectPanel',()=>({FieldbookProjectPanel:jest.fn((p:ComponentProps<typeof FieldbookProjectPanel>)=><input aria-label="Book name" value={p.name} onChange={e=>p.onNameChange(e.target.value)}/>)}))
@@ -49,8 +52,13 @@ const traverse=()=>last(jest.mocked(TraverseBook).mock.calls)[0]
 const data=createCaptureDraftData('leveling',[{batchId:'33333333-3333-4333-8333-333333333333',observationId:actor,projectId:project,clientId:'device',inputHash:'a'.repeat(64),capturedBy:null,projectReference:null,
   raw:{surveyType:'leveling',station:'BM',rawForm:{bs:'0.000',is:'',fs:''}}}],{actorId:actor,reviewedAt:'2026-10-21T08:00:00.000Z',requestHash:'b'.repeat(64),bearingEncoding:'uninterpreted'})
 const book={id:'44444444-4444-4444-8444-444444444444',user_id:actor,project_id:project,name:'Source draft',type:'leveling' as const,data}
-beforeEach(()=>{jest.clearAllMocks();HTMLElement.prototype.scrollTo=jest.fn();window.history.replaceState({},'',`/fieldbook?project=${project}`);jest.mocked(saveFieldbookOffline).mockResolvedValue(undefined)})
+beforeEach(()=>{jest.clearAllMocks();mockReadScopes.length=0;HTMLElement.prototype.scrollTo=jest.fn();window.history.replaceState({},'',`/fieldbook?project=${project}`);jest.mocked(saveFieldbookOffline).mockResolvedValue(undefined)})
 async function openPage(){render(<Page/>);await waitFor(()=>expect(FieldbookCaptureImport).toHaveBeenCalled())}
+test('project and saved-book reads retain the checked account precondition', async () => {
+  await openPage()
+  await waitFor(() => expect(mockReadScopes.some(item => item.table === 'fieldbooks')).toBe(true))
+  expect(mockReadScopes.filter(item => item.table === 'fieldbooks' || item.table === 'projects').every(item => item.owner === actor)).toBe(true)
+})
 
 test('source snapshots survive draft opening and later editable book saves; blank length never becomes 1 km',async()=>{
   await openPage()
@@ -62,7 +70,7 @@ test('source snapshots survive draft opening and later editable book saves; blan
   const result=level().computed
   if(result.ok){expect(result.calc.allowableMisclosure).toBeUndefined();expect(result.calc.isAcceptable).toBe(false)}
   await act(async()=>{await workspace().onSave()})
-  expect(last(jest.mocked(persistFieldbook).mock.calls)[1]).toMatchObject({id:book.id,data:{sourceImport:data.sourceImport,distanceKm:''}})
+  expect(last(jest.mocked(persistWorkingBook).mock.calls)[1]).toMatchObject({id:book.id,data:{sourceImport:data.sourceImport,distanceKm:''}})
 })
 
 test('a confirmed new draft does not replace edits made during creation',async()=>{
@@ -89,7 +97,7 @@ test('malformed or cross-project portable sources are rejected before saving or 
   const importBook=workspace().onImport
   if(!importBook)throw new Error('Expected book import to be available')
   await act(async()=>{await expect(importBook(portable)).rejects.toThrow(/different project/)})
-  expect(persistFieldbook).not.toHaveBeenCalled()
+  expect(persistWorkingBook).not.toHaveBeenCalled()
   expect(screen.getByLabelText('Book name')).toHaveValue('Keep my work')
 })
 
@@ -116,7 +124,7 @@ test('opening an untouched project does not autosave an empty book; real setup e
   await openPage()
   expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(false)
   await act(async()=>{expect(await capture().onPrepare()).toBe(true)})
-  expect(persistFieldbook).not.toHaveBeenCalled()
+  expect(persistWorkingBook).not.toHaveBeenCalled()
   act(()=>level().setLevelRows(previous=>previous.map(row=>({...row,retainedExtension:{marker:'original metadata'}}))))
   expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(false)
   act(()=>level().setOpeningRL('0'))
@@ -126,7 +134,21 @@ test('opening an untouched project does not autosave an empty book; real setup e
 test('preserving an untouched workspace before opening a saved book does not create an empty saved copy', async () => {
   await openPage()
   await act(async () => { expect(await workspace().onSave()).toBe(true) })
-  expect(persistFieldbook).not.toHaveBeenCalled()
+  expect(persistWorkingBook).not.toHaveBeenCalled()
+})
+test('repeated saves reuse one retained request, while later edits explicitly descend from it', async () => {
+  await openPage()
+  fireEvent.change(screen.getByLabelText('Book name'), { target: { value: 'Retained run' } })
+  await act(async () => { await workspace().onSave() })
+  const first = last(jest.mocked(persistWorkingBook).mock.calls)
+  const requestId = workspace().savedBooks[0].localEditId
+  expect(first[2]).toEqual({ kind: 'new' })
+  await act(async () => { await workspace().onSave() })
+  expect(last(jest.mocked(persistWorkingBook).mock.calls)[4]).toBe(requestId)
+  fireEvent.change(screen.getByLabelText('Book name'), { target: { value: 'Later edit' } })
+  await act(async () => { await workspace().onSave() })
+  expect(last(jest.mocked(persistWorkingBook).mock.calls)[2]).toEqual({ kind: 'operation', requestId })
+  expect(last(jest.mocked(persistWorkingBook).mock.calls)[1]).toMatchObject({ id: first[1].id, name: 'Later edit' })
 })
 
 test.each(['rise_and_fall', 'height_of_collimation'] as const)('leveling PDF retains real BM station, raw precision and edited remarks (%s)', async method => {
@@ -178,7 +200,7 @@ test('invalid raw leveling strings remain saved but cannot produce calculated PD
   expect(level().computed.ok).toBe(false)
   await act(async () => { await expect(workspace().onExportPDF()).rejects.toThrow(/setup/) })
   await act(async () => { await workspace().onSave() })
-  expect(last(jest.mocked(persistFieldbook).mock.calls)[1]).toMatchObject({ data: { rows: [{ bs: '1.5junk', remarks: 'retain original' }] } })
+  expect(last(jest.mocked(persistWorkingBook).mock.calls)[1]).toMatchObject({ data: { rows: [{ bs: '1.5junk', remarks: 'retain original' }] } })
 })
 
 test.each([

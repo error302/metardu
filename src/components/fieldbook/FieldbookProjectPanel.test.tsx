@@ -34,3 +34,11 @@ it('disables saving until a project is selected', () => {
   render(<FieldbookProjectPanel {...props()} projectId="" />)
   expect(screen.getByRole('button', { name: 'Save fieldbook' })).toBeDisabled()
 })
+it('surfaces an async saved-book loading failure while retaining the selector for retry', async () => {
+  const input = props()
+  const onOpen = jest.fn(async () => { throw new Error('Revision access could not be confirmed') })
+  render(<FieldbookProjectPanel {...input} onOpen={onOpen} />)
+  fireEvent.change(screen.getByLabelText('Open saved fieldbook'), { target: { value: 'saved' } })
+  expect(await screen.findByRole('alert')).toHaveTextContent('Revision access could not be confirmed')
+  expect(screen.getByLabelText('Open saved fieldbook')).toBeEnabled()
+})

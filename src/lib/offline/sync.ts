@@ -67,6 +67,7 @@ export async function syncProject(
     })
 
     try {
+      if (op.table === 'fieldbooks') throw new Error('This older Fieldbook operation needs review in device recovery. Its device record was kept.')
       const response = await fetch('/api/sync', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

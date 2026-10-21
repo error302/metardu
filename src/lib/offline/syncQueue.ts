@@ -187,14 +187,11 @@ export async function syncPendingOperations(
 ): Promise<{ synced: number; failed: number; conflicts: number }> {
   const pending = await getPendingOperations()
   const results = { synced: 0, failed: 0, conflicts: 0 }
-  let fieldbookOwner: string | undefined
-  if (pending.some(op => op.table === 'fieldbooks')) {
-    try { fieldbookOwner = (await dbClient.auth?.getSession())?.data.session?.user?.id } catch { /* Keep owner-bound operations on this device. */ }
-  }
-
   for (const op of pending) {
     try {
-      if (op.table === 'fieldbooks' && (!fieldbookOwner || op.data.user_id !== fieldbookOwner)) {
+      // Legacy records lack a reviewed revision. Never auto-rebase, discard or
+      // generic-upsert them; the Fieldbook recovery inventory retains review.
+      if (op.table === 'fieldbooks') {
         results.failed++
         continue
       }
@@ -206,19 +203,6 @@ export async function syncPendingOperations(
       // Check for conflicts using timestamp
       const timestamp = op.data.updated_at || op.timestamp
       const existing = await checkRemoteVersion(dbClient, op.table, String(op.data.id), String(timestamp))
-      if (op.table === 'fieldbooks' && !existing.verified) {
-        results.failed++
-        continue
-      }
-
-      // Fieldbooks retain a device copy instead of silently overwriting a newer
-      // server edit when no conflict-resolution UI has been supplied.
-      if (op.table === 'fieldbooks' && existing.hasConflict && !options.onConflict) {
-        results.conflicts++
-        results.failed++
-        continue
-      }
-
       if (existing.hasConflict && options.onConflict) {
         // AUDIT FIX (H4, 2026-07-02): Retrieve the base snapshot for
         // three-way merge. Without it, we can only do naive LWW.
@@ -535,6 +519,7 @@ export async function resolveConflict(
   const db = await getDB()
   const conflict = await db.get('conflicts', conflictId)
   if (!conflict) throw new Error(`Conflict ${conflictId} not found`)
+  if (conflict.localOp.table === 'fieldbooks') throw new Error('Review retained Fieldbook work in device recovery. Generic conflict resolution cannot supply revision authority.')
 
   if (resolution === 'local') {
     await forceLocalUpdate(dbClient, conflict.localOp)

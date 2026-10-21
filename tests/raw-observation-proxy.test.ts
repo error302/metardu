@@ -34,3 +34,7 @@ test('an account-switch precondition rejects a queued write before any database 
   expect((await POST(pending)).status).toBe(403)
   expect(mockQuery).not.toHaveBeenCalled()
 })
+test.each(['insert','update','upsert','delete'])('generic Fieldbook %s cannot bypass reviewed revisions and delivery history',async operation=>{
+  expect((await POST(request(operation,'fieldbooks'))).status).toBe(403)
+  expect(mockQuery).not.toHaveBeenCalled()
+})

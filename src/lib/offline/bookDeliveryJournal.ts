@@ -32,6 +32,14 @@ async function read(actor: string, project: string, requestId: string): Promise<
   try { return await checked(await database.get('requests', key), actor, project, requestId) }
   finally { database.close() }
 }
+export async function findBookRequest(actor: string, project: string, requestId: string): Promise<RetainedBookRequest | null> {
+  const key = keyFor(actor, requestId); z.string().uuid().parse(project)
+  const database = await openJournal()
+  try {
+    const value = await database.get('requests', key)
+    return value === undefined ? null : await checked(value, actor, project, requestId)
+  } finally { database.close() }
+}
 /** A fixed request is durable before dispatch. No clock-based coalescing or baseline adoption. */
 export async function retainBookRequest(actor: string, value: FieldbookSaveRequest): Promise<RetainedBookRequest> {
   const request = JSON.parse(JSON.stringify(fieldbookSaveRequestSchema.parse(value))) as FieldbookSaveRequest, key = keyFor(actor, request.requestId)
@@ -61,6 +69,12 @@ export async function listBookRequests(actor: string, project: string): Promise<
     const all = await database.getAll('requests')
     return await Promise.all(all.filter(item => item?.actorId === actor && item.request?.projectId === project).map(item => checked(item, actor, project)))
   } finally { database.close() }
+}
+export async function exportBookRequestRecords(actor: string, project: string): Promise<unknown[]> {
+  z.string().uuid().parse(actor); z.string().uuid().parse(project)
+  const database = await openJournal()
+  try { return (await database.getAll('requests')).filter(value => value?.actorId === actor && value.request?.projectId === project) }
+  finally { database.close() }
 }
 /** Record only this immutable operation's result; other requests are never cleared or replaced. */
 export async function sendRetainedBookRequest(actor: string, project: string, requestId: string): Promise<FieldbookSaveResult> {
