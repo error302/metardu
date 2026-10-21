@@ -4,7 +4,7 @@ import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import {
   Search, BookOpen, Map, FileText, Calculator, CreditCard,
-  ChevronDown, ChevronRight, MessageSquare, Mail, Phone,
+  ChevronDown, ChevronRight, MessageSquare, Mail,
   Compass, ShieldCheck,
 } from 'lucide-react'
 
@@ -23,7 +23,7 @@ const FAQS: FAQItem[] = [
   {
     category: 'Getting Started',
     question: 'What survey types does METARDU support?',
-    answer: 'METARDU supports 6 survey types: Cadastral (land boundaries, mutations, subdivisions), Topographic (contours, features), Engineering (roads, buildings, pipelines), Control (traverse, triangulation), Hydrographic (bathymetry, soundings), and Mining (stockpiles, volumes).',
+    answer: 'Projects can be organised by survey type, with tools for cadastral, topographic, engineering and control work. A project category does not establish that a complete professional workflow has been validated. Review the required inputs, reference system and outputs for your job before relying on a tool.',
   },
   {
     category: 'Map',
@@ -33,7 +33,7 @@ const FAQS: FAQItem[] = [
   {
     category: 'Map',
     question: 'Can I use the map offline in the field?',
-    answer: 'Yes. Click the "Offline Tiles" button on the map to pre-cache tiles for your project area. Tiles are stored in your browser and work without internet. All fieldbook data is also saved locally and syncs when you reconnect.',
+    answer: 'Prepare your project and available map tiles while online, then reopen the required view offline before leaving for site. Browser storage and tile availability are limited. Keep an exported backup of important work, and review local/server delivery and any recovery actions after reconnecting; a local save is not confirmation of server delivery.',
   },
   {
     category: 'Map',
@@ -48,7 +48,7 @@ const FAQS: FAQItem[] = [
   {
     category: 'Fieldbook',
     question: 'Can I connect my GNSS rover directly to METARDU?',
-    answer: 'Yes. On the fieldbook desktop sidebar, use the "GNSS Rover" panel to connect via Bluetooth or USB-C OTG. METARDU supports CHCNAV, South, EFIX, Stonex, Trimble, and Leica rovers via Web Bluetooth and Web Serial APIs.',
+    answer: 'The GNSS tools offer Web Bluetooth and Web Serial connections where the browser, operating system and receiver protocol allow them. Check connection availability and permissions on your device. A connected receiver or a displayed fix does not prove RTK accuracy or compatibility with every model; validate observations against known control before field use.',
   },
   {
     category: 'Fieldbook',
@@ -63,7 +63,7 @@ const FAQS: FAQItem[] = [
   {
     category: 'Documents',
     question: 'Can I add my company logo to documents?',
-    answer: 'Yes, on Pro and Enterprise plans. Go to Account Settings > Company Logo to upload your logo. Free plan documents include a METARDU watermark. Paid plans with a logo show it in the title block; paid plans without a logo show nothing.',
+    answer: 'Review the current paid-plan features on /pricing and the company-logo options in your account settings. Check the generated document preview before downloading; document templates and watermark settings vary. A company logo does not certify the survey or replace professional review.',
   },
   {
     category: 'Documents',
@@ -78,12 +78,12 @@ const FAQS: FAQItem[] = [
   {
     category: 'Subscription',
     question: 'What are the plan limits?',
-    answer: 'Free: 1 project, basic tools, METARDU watermark. Pro: unlimited projects, all tools, custom logo, DXF/LandXML export, offline tiles. Enterprise: multi-user, team collaboration, API access, priority support. See /pricing for details.',
+    answer: 'The current plans are Free, Pro, Team and Firm. See /pricing for their current limits, features, currency and seat options, and review the checkout summary before approving a subscription.',
   },
   {
     category: 'Subscription',
     question: 'How do I upgrade my plan?',
-    answer: 'Visit /pricing to compare plans. Click "Upgrade" and complete payment via M-Pesa, card, or PayPal. Your subscription activates immediately. Admins can also promote any user via the admin dashboard.',
+    answer: 'Visit /pricing, choose a plan, then sign in to review checkout. Checkout shows the payment methods currently available. Recurring PayPal approval and a manual payment submitted for review are different processes. Confirm the final payment status and account entitlement before relying on paid access; do not treat a submitted receipt or approval redirect as activation.',
   },
   {
     category: 'Compliance',
@@ -156,6 +156,7 @@ export default function HelpPage() {
           return (
             <button
               key={cat}
+              aria-pressed={activeCategory === cat}
               onClick={() => setActiveCategory(cat)}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
                 activeCategory === cat
@@ -179,8 +180,8 @@ export default function HelpPage() {
             <p className="text-xs text-gray-600 mt-1">Try a different search term or category</p>
           </div>
         ) : (
-          filteredFaqs.map((faq, idx) => {
-            const id = `${faq.category}-${idx}`
+          filteredFaqs.map(faq => {
+            const id = `faq-${FAQS.indexOf(faq)}`
             const isExpanded = expandedId === id
             const Icon = CATEGORY_ICONS[faq.category] || BookOpen
             return (
@@ -189,6 +190,8 @@ export default function HelpPage() {
                 className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] overflow-hidden"
               >
                 <button
+                  aria-expanded={isExpanded}
+                  aria-controls={`${id}-answer`}
                   onClick={() => setExpandedId(isExpanded ? null : id)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] transition-colors text-left"
                 >
@@ -197,7 +200,7 @@ export default function HelpPage() {
                   {isExpanded ? <ChevronDown className="w-4 h-4 text-gray-500" /> : <ChevronRight className="w-4 h-4 text-gray-500" />}
                 </button>
                 {isExpanded && (
-                  <div className="px-4 pb-4 pt-1">
+                  <div id={`${id}-answer`} className="px-4 pb-4 pt-1">
                     <div className="flex gap-3">
                       <div className="w-4 shrink-0" />
                       <p className="text-xs text-[var(--text-secondary)] leading-relaxed">{faq.answer}</p>
@@ -221,14 +224,14 @@ export default function HelpPage() {
       {/* Contact support */}
       <div className="mt-8 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-5">
         <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-3">Still need help?</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <a href="mailto:support@metardu.com" suppressHydrationWarning className="flex items-center gap-2 p-3 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <Link href="/support" className="flex items-center gap-2 p-3 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors">
             <Mail className="w-4 h-4 text-[var(--accent)] shrink-0" />
             <div>
               <p className="text-xs font-medium text-[var(--text-primary)]">Email Support</p>
-              <p className="text-[10px] text-gray-500">support@metardu.com</p>
+              <p className="text-xs text-[var(--text-secondary)]">Contact details and support resources</p>
             </div>
-          </a>
+          </Link>
           <a href="/community" className="flex items-center gap-2 p-3 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors">
             <MessageSquare className="w-4 h-4 text-[var(--accent)] shrink-0" />
             <div>
@@ -236,13 +239,6 @@ export default function HelpPage() {
               <p className="text-[10px] text-gray-500">Ask other surveyors</p>
             </div>
           </a>
-          <div className="flex items-center gap-2 p-3 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] border border-[var(--border-color)]">
-            <Phone className="w-4 h-4 text-gray-500 shrink-0" />
-            <div>
-              <p className="text-xs font-medium text-[var(--text-primary)]">Enterprise</p>
-              <p className="text-[10px] text-gray-500">Priority support</p>
-            </div>
-          </div>
         </div>
       </div>
     </div>

@@ -57,3 +57,20 @@ integer indices; unrepresentable grid coordinates fail explicitly. Original
 survey coordinates are unchanged. The reproduced regression, both renderer
 suites and the existing small-site snapshot pass (79 checks). This is source
 rendering evidence, separate from printer, field and deployment acceptance.
+
+The help/support follow-up removes unverified automatic offline-sync, blanket
+receiver compatibility, obsolete Enterprise-plan and immediate payment-activation
+claims. Help now links to the support page rather than a conflicting hardcoded
+address. The support page reads and validates the deployment's public
+`SUPPORT_EMAIL`, with an explicit unconfigured state and no invented mailbox.
+FAQ expansion keeps a stable question identity during filtering and exposes
+expanded/selected states to assistive technology. Six focused DOM checks,
+strict application/test typing and scoped lint pass.
+
+The ordinary localhost Help page loaded and its accessibility tree confirms the
+new support link and expansion controls. Subsequent browser binding was stopped
+by an automatic approval-review connection failure before interaction; this does
+not establish responsive, mailbox or final rendered acceptance. Legal pages still
+contain historical contact/provider/response-time commitments requiring a
+separate operational and policy review. No terms, refunds, mailbox configuration,
+message delivery or customer commitments were changed by this source repair.
