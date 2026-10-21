@@ -1,4 +1,13 @@
-# METARDU requirement readiness — checkpoints through 21 October 2026
+# METARDU requirement readiness — checkpoints through 22 October 2026
+
+Latest recovery audit (22 October local time): ordinary production health and
+backup freshness pass, and the two named archive hashes remain unchanged. The
+deployed backup script matches source. Synthetic failure injection nevertheless
+shows uploads failures/corruption can report completion and invoke retention;
+ordinary restore lacks SQL stop-on-error handling, prints its connection URL and
+has a skipped-safety-backup status defect. These remain unrepaired. Offsite and
+encryption options are unconfigured in the inspected sidecar. No customer restore
+or runtime changes occurred. See [recovery failure-path evidence](RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md).
 
 Latest advisory checkpoint (21 October): the existing lockfile audit passes its
 current policy: runtime has zero reported advisories; the full graph has eight
