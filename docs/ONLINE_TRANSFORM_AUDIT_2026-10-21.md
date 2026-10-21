@@ -79,10 +79,13 @@ current parameter catalogue.
 
 ## Decision and evidence
 
-An online-contract design decision is pending: explicit registered source/target
-CRS selectors using the shared authority, or retained datum labels with separate
-grid and operation controls. The existing brainstorming skill requires approval
-before this interface change. No approved implementation spec is claimed here.
+The human approved explicit registered source/target CRS selectors using the
+shared authority, operation/accuracy metadata, preserved heights, stale-result
+protection and per-row batch outcomes. The written design is
+`docs/superpowers/specs/2026-10-21-online-coordinate-transform-design.md`;
+written-spec review and implementation remain pending. This design approval is
+separate from the unanswered synthetic database runtime approval. The reproduced
+defects above are not repaired by documenting the design.
 
 ## Full ordinary Jest checkpoint
 
