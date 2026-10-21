@@ -6,6 +6,7 @@ import { fieldDeliveryFailure, mayRetryFieldDelivery } from '@/lib/field/deliver
 
 const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().uuid(),
   request: fieldbookSaveRequestSchema, requestHash: z.string().regex(/^[a-f0-9]{64}$/), result: z.unknown() }).strict()
+export { envelopeSchema as bookRequestEnvelopeSchema }
 export interface RetainedBookRequest { request: FieldbookSaveRequest; result: FieldbookSaveResult | null }
 interface Envelope extends RetainedBookRequest { version: 1; key: string; actorId: string; requestHash: string }
 const retrySchema = z.object({ key: z.string(), actorId: z.string().uuid(), projectId: z.string().uuid().nullable(), requestId: z.string().uuid().nullable(),

@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { FieldbookRecovery } from './FieldbookRecovery'
+jest.mock('./FieldbookArchiveRecovery', () => ({ FieldbookArchiveRecovery: () => null }))
 import { listBookEdits, sendBookEdit } from '@/lib/offline/bookEdits'
 import { getPendingOperations } from '@/lib/offline/syncQueue'
 import { readReviewedBook } from '@/lib/fieldbook/deliveryClient'

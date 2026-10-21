@@ -3,7 +3,8 @@ import 'fake-indexeddb/auto'
 import { deleteDB, openDB, type DBSchema } from 'idb'
 import { createHash } from 'node:crypto'
 import { canonicalDeliveryJson, fieldbookEditablePayload, type FieldbookSaveRequest } from '@/lib/fieldbook/delivery'
-import { retainBookEdit, listBookEdits, sendBookEdit, sendBookEdits, exportBookEditRecords, type BookEdit } from './bookEdits'
+import { retainBookEdit, listBookEdits, sendBookEdit, sendBookEdits, exportBookEditRecords, bookSaveOriginSchema, type BookEdit } from './bookEdits'
+import { retainBookRequest, sendRetainedBookRequest } from './bookDeliveryJournal'
 const actor = '11111111-1111-4111-8111-111111111111', project = '22222222-2222-4222-8222-222222222222', book = '33333333-3333-4333-8333-333333333333'
 const edit: BookEdit = { requestId: '44444444-4444-4444-8444-444444444444', projectId: project, bookId: book, type: 'leveling', name: 'Raw run', data: { bs: '1.5000', height: null }, basis: { kind: 'new' } }
 const sha = (value: Parameters<typeof canonicalDeliveryJson>[0]) => createHash('sha256').update(canonicalDeliveryJson(value)).digest('hex')
@@ -117,4 +118,35 @@ test('corrupt retry ownership stops delivery without counting a network attempt 
   expect(await sendBookEdits(actor, project, [edit.requestId])).toMatchObject({ attempted: 0, failed: 1, deferred: 0 })
   expect(fetch).toHaveBeenCalledTimes(1)
   expect(await listBookEdits(actor, project)).toMatchObject([{ edit, result: null }])
+})
+
+test('an orphan recovered request replays its exact retained baseline without inventing parent work', async () => {
+  const origin = bookSaveOriginSchema.safeParse({ kind: 'retained_request' })
+  expect(origin.success).toBe(true)
+  if (!origin.success) return
+  const recovered = { ...edit, basis: origin.data }
+  const { basis: _basis, ...raw } = edit
+  await retainBookEdit(actor, recovered)
+  await retainBookRequest(actor, { ...raw, protocol: 'fieldbook-save-v1', baseRevision: '8' })
+  jest.mocked(fetch).mockImplementation(respond('9'))
+  await sendBookEdit(actor, project, edit.requestId)
+  expect(JSON.parse(String(jest.mocked(fetch).mock.calls[0][1]?.body))).toMatchObject({ requestId: edit.requestId, baseRevision: '8', data: { bs: '1.5000', height: null } })
+})
+
+test('a recovered edit with no exact retained request cannot invent a baseline', async () => {
+  await retainBookEdit(actor, { ...edit, basis: { kind: 'retained_request' } })
+  await expect(sendBookEdit(actor, project, edit.requestId)).rejects.toThrow(/unavailable/)
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+test('a retained request cannot acknowledge different editable content under the same operation ID', async () => {
+  const { basis: _basis, ...raw } = edit
+  await retainBookRequest(actor, { ...raw, protocol: 'fieldbook-save-v1', baseRevision: null })
+  jest.mocked(fetch).mockImplementation(respond('8'))
+  await sendRetainedBookRequest(actor, project, edit.requestId)
+  await retainBookEdit(actor, { ...edit, data: { bs: '9.9999', height: null } })
+  await expect(listBookEdits(actor, project)).rejects.toThrow()
+  await expect(sendBookEdit(actor, project, edit.requestId)).rejects.toThrow()
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(await exportBookEditRecords(actor, project)).toMatchObject([{ edit: { data: { bs: '9.9999' } } }])
 })

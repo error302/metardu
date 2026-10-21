@@ -1,14 +1,15 @@
 import { openDB, type DBSchema } from 'idb'
 import { z } from 'zod'
-import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema, type FieldbookSaveResult } from '@/lib/fieldbook/delivery'
+import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema, type FieldbookSaveRequest, type FieldbookSaveResult } from '@/lib/fieldbook/delivery'
 import { BookDeliveryDeferredError, BookDeliveryError, bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
 import { findBookRequest, retainBookRequest, sendRetainedBookRequest } from './bookDeliveryJournal'
-export const bookSaveOriginSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('new') }).strict(), z.object({ kind: z.literal('unknown') }).strict(),
+export const bookSaveOriginSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('new') }).strict(), z.object({ kind: z.literal('unknown') }).strict(), z.object({ kind: z.literal('retained_request') }).strict(),
   z.object({ kind: z.literal('revision'), revision: bookRevisionSchema }).strict(), z.object({ kind: z.literal('operation'), requestId: z.string().uuid() }).strict()])
 export type BookSaveOrigin = z.infer<typeof bookSaveOriginSchema>
 const editSchema = fieldbookSaveRequestSchema.omit({ protocol: true, baseRevision: true }).extend({ basis: bookSaveOriginSchema }).strict()
 export type BookEdit = z.infer<typeof editSchema>
 const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().uuid(), projectId: z.string().uuid(), edit: editSchema, hash: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
+export { envelopeSchema as bookEditEnvelopeSchema }
 type Envelope = z.infer<typeof envelopeSchema>
 interface EditDB extends DBSchema { edits: { key: string; value: Envelope } }
 const openEdits = () => openDB<EditDB>('metardu-book-edits', 1, { upgrade(database) { database.createObjectStore('edits', { keyPath: 'key' }) } })
@@ -42,6 +43,17 @@ export async function readBookEdit(actor: string, project: string, id: string): 
   try { return (await checked(await database.get('edits', key), actor, project)).edit }
   finally { database.close() }
 }
+export async function findBookEdit(actor: string, project: string, id: string): Promise<BookEdit | null> {
+  const key = keyFor(actor, id); z.string().uuid().parse(project)
+  const database = await openEdits()
+  try { const value = await database.get('edits', key); return value === undefined ? null : (await checked(value, actor, project)).edit }
+  finally { database.close() }
+}
+export function bookEditRequestMatches(edit: BookEdit, request: FieldbookSaveRequest): boolean {
+  const { basis: _basis, ...editable } = edit
+  const { protocol: _protocol, baseRevision: _base, ...requested } = request
+  return canonicalDeliveryJson(editable) === canonicalDeliveryJson(requested)
+}
 export async function listBookEdits(actor: string, project: string): Promise<{ edit: BookEdit; result: FieldbookSaveResult | null }[]> {
   z.string().uuid().parse(actor); z.string().uuid().parse(project)
   const database = await openEdits()
@@ -50,6 +62,7 @@ export async function listBookEdits(actor: string, project: string): Promise<{ e
     return await Promise.all(values.map(async value => {
       const { edit } = await checked(value, actor, project)
       const request = await findBookRequest(actor, project, edit.requestId)
+      if (request && !bookEditRequestMatches(edit, request.request)) throw new Error('The retained edit and its delivery identify different content. Both records were kept for inspection.')
       return { edit, result: request?.result ?? null }
     }))
   } finally { database.close() }
@@ -87,12 +100,17 @@ function deliveryPass(actor: string, project: string, explicitRetry: boolean) {
   async function deliverOne(edit: BookEdit, ancestors: Set<string>): Promise<FieldbookSaveResult> {
     const editId = edit.requestId
     const previous = await findBookRequest(actor, project, editId)
+    if (previous && !bookEditRequestMatches(edit, previous.request)) throw new Error('The retained edit differs from its exact request. No acknowledgement was adopted.')
     if (previous?.result) return previous.result
     if (edit.basis.kind === 'unknown') throw new Error('This older book has no reviewed server revision. Review both copies in recovery before delivering a new edit.')
-    const baseRevision = edit.basis.kind === 'new' ? null : edit.basis.kind === 'revision' ? edit.basis.revision
-      : (await deliver(edit.basis.requestId, edit, ancestors)).receipt.savedRevision
-    const { basis: _basis, ...raw } = edit
-    await retainBookRequest(actor, { ...raw, protocol: 'fieldbook-save-v1', baseRevision })
+    if (edit.basis.kind === 'retained_request') {
+      if (!previous) throw new Error('The exact recovered request is unavailable. Its baseline was not invented.')
+    } else {
+      const baseRevision = edit.basis.kind === 'new' ? null : edit.basis.kind === 'revision' ? edit.basis.revision
+        : (await deliver(edit.basis.requestId, edit, ancestors)).receipt.savedRevision
+      const { basis: _basis, ...raw } = edit
+      await retainBookRequest(actor, { ...raw, protocol: 'fieldbook-save-v1', baseRevision })
+    }
     const result = await sendRetainedBookRequest(actor, project, editId, explicitRetry, () => {
       if (results.attempted >= 20) throw new DeliveryBudgetError('Twenty deliveries were attempted. Remaining edits are retained; use Retry to continue.')
       results.attempted++

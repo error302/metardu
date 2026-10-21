@@ -8,6 +8,7 @@ import { getPendingOperations } from '@/lib/offline/syncQueue'
 import { legacyBookContent, legacyBookSourceHash, confirmLegacyBookDelivery, verifiedLegacyBookDelivery } from '@/lib/offline/legacyBookRecovery'
 import { canonicalDeliveryJson } from '@/lib/fieldbook/delivery'
 import { readReviewedBook } from '@/lib/fieldbook/deliveryClient'
+import { FieldbookArchiveRecovery } from './FieldbookArchiveRecovery'
 export interface RecoveryBook extends SavedFieldbook { user_id: string; project_id: string; localEditId?: string }
 interface Match { requestId: string; bookId: string; revision: string; name: string; data: Record<string, unknown> }
 interface Item { key: string; book: RecoveryBook; delivered: string | null; legacy: boolean; legacyId?: number; sourceHash?: string; recoveredBookId?: string; matches?: Match[] }
@@ -65,6 +66,7 @@ export function FieldbookRecovery(props: { actorId: string; projectId: string; r
         download({ version: 1, projectId, actorId, edits, requests, legacy: legacy.filter(op => op.table === 'fieldbooks' && op.data.user_id === actorId && op.data.project_id === projectId) }, 'metardu-device-recovery.json')
       })}>Export device archive</button>
     </div>
+    <FieldbookArchiveRecovery actorId={actorId} projectId={projectId} onRestored={() => setRefresh(value => value + 1)} />
     {error && <p role="alert" className="mt-3 text-sm text-red-400">{error}</p>}
     {unreadable > 0 && <p className="mt-3 text-sm">{unreadable} older record could not be opened. It remains on this device and is included in Export device archive for inspection.</p>}
     {!items.length && !unreadable && !error && <p className="mt-3 text-sm">No retained book snapshots found for this account and project.</p>}

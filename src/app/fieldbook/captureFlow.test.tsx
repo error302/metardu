@@ -36,6 +36,7 @@ jest.mock('@/lib/offline/bookEdits',()=>({listBookEdits:jest.fn(async()=>[]),rea
 jest.mock('@/lib/fieldbook/openWorkingBook',()=>({prepareWorkingBook:jest.fn(async (_actor: string, _project: string, entry: unknown) => ({book:entry,origin:{kind:'unknown'}}))}))
 jest.mock('@/lib/offline/syncQueue',()=>({isOnline:()=>true,getPendingOperations:jest.fn().mockResolvedValue([]),setupOnlineListener:()=>()=>{},syncPendingOperations:jest.fn()}))
 jest.mock('@/components/fieldbook/FieldbookCaptureImport',()=>({FieldbookCaptureImport:jest.fn(()=>null)}))
+jest.mock('@/components/fieldbook/FieldbookArchiveRecovery',()=>({FieldbookArchiveRecovery:()=>null}))
 jest.mock('@/components/fieldbook/FieldbookProjectPanel',()=>({FieldbookProjectPanel:jest.fn((p:ComponentProps<typeof FieldbookProjectPanel>)=><input aria-label="Book name" value={p.name} onChange={e=>p.onNameChange(e.target.value)}/>)}))
 jest.mock('@/components/fieldbook/LevelingBook',()=>({LevelingBook:jest.fn(()=>null)}))
 jest.mock('@/components/fieldbook/TraverseBook',()=>({TraverseBook:jest.fn(()=>null)}))

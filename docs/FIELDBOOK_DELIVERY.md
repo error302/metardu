@@ -407,3 +407,53 @@ performed. The existing marked synthetic database is still stopped. A fresh
 question requests permission to restart that exact database and run the corrected
 single-transaction rollback-only probe; the earlier automatic approval review
 disconnected, and no unanswered retry approval has been assumed.
+
+## Staged device archive restoration (21 October, source only)
+
+The approved restoration flow is now available in the Device recovery panel.
+Choose a version-one device archive for the current account and project, review
+its inventory and exact SHA-256, then explicitly confirm restoration. The panel
+does not open or replace the current editor or dispatch any imported work.
+
+The importer copies input bytes before asynchronous work, rejects invalid UTF-8,
+unsupported formats, foreign ownership, files over 50 MiB and arrays over 10,000
+records per category. It validates edit/request schemas, identities and canonical
+hashes. Unreadable owned material remains in the original downloadable bytes.
+The source is durably retained in `metardu-book-recovery-archives` before any edit
+or request journal writes. Whitespace, BOM, raw precision strings, null heights,
+zero and special own JSON keys remain intact.
+
+Imported receipt claims never acknowledge work. Requests are retained pending;
+an exact already verified local receipt is preserved. An orphan request gets a
+local representation that can replay only its exact retained request and baseline.
+Editable ancestry is preserved; child delivery still requires its parent's real
+receipt. Matching editable content is checked before displaying or adopting any
+local delivery result. Older valid queue content receives stable staged edit IDs
+and an unknown baseline; original queue operations and recovery links remain
+inspection material in the source file, rather than being re-enqueued.
+
+All known identity/content conflicts are preflighted before journal writes, and
+each journal repeats its immutable-record check inside a strict transaction.
+Different stores cannot form one atomic transaction: quota failure or a late
+conflict retains the source and completed records, leaving restoration incomplete.
+Review and resume reuses the staged IDs without duplicates. Even an earlier
+complete restore rechecks the actual journals. Account/project changes discard
+pending file previews and suppress late results from the previous scope.
+
+Evidence: `.cache/book-archive-{contract,core,ui}-red.log` records reproduced
+failures. `.cache/book-archive-final-tests.log` passes **151 checks across 14
+suites**, including real idb with fake-indexeddb, controlled HTTP, exact archive
+round trip, forged receipts, ancestry, conflicts, storage interruptions, concurrent
+resume, damaged metadata, changed input, byte mutation, ownership and UI review.
+Application/test typing and scoped lint are recorded in
+`book-archive-verified-{types,lint}.log`; `book-archive-security.log` passes the
+security gate with 119 applied migrations pinned.
+
+These are source and simulated storage/transport checks. Port 3021 had no host
+source-preview listener during final verification, so native file selection,
+reload, browser quota/eviction and competing-tab acceptance remain unverified.
+The marked synthetic database remains stopped and its separate rollback-probe
+approval unanswered. No SQL, application build, container restart or promotion
+was performed. Native migration 115, retention capacity policy, coordinated release
+and physical field acceptance remain open. The healthy production runtime and
+its verified rollback image remain separate from these unpromoted source changes.
