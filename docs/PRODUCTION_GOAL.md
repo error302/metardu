@@ -126,3 +126,14 @@ independently preserved. A previously created local empty copy/pending operation
 is retained and unconfirmed, and source-preview request delays remain. Adopted
 criteria/revisions, recovery reconciliation, engineering, paid lifecycle,
 security and release/field gates remain open; the full goal stays active.
+
+`FIELDBOOK_DELIVERY.md` records the next, unactivated source authority: explicit
+server revisions, retained request identities, exact immutable delivery receipts,
+prior/new snapshots, current permission checks and replay without overwriting
+later edits. Twenty-three focused checks passed. The additive migration remains
+unapplied; the corrected rollback-only native probe is waiting for an approval
+retry after review connectivity failed. Independent read-only inspection still
+finds the original book/captures and 119 applied records, with no new delivery
+schema installed. The legacy client/outbox and generic writer still require
+migration, and the pending local operation is retained. This is progress toward
+revision-safe recovery, not an activated recovery fix or production completion.
