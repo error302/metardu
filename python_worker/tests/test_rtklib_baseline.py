@@ -36,6 +36,38 @@ def _params(**overrides):
     return params
 
 
+@pytest.mark.parametrize("mode", ["static", "kinematic"])
+@pytest.mark.parametrize("frequency", ["l1", "l1+l2", "l1+l2+l5"])
+@pytest.mark.parametrize("ambiguity", ["off", "continuous", "instantaneous", "fix-and-hold"])
+def test_configuration_values_match_native_rtklib_enum_tokens(mode, frequency, ambiguity):
+    # RTKLIB loadopts/str2enum does not trim leading whitespace from values.
+    # These are native option tokens, not human-readable formatting labels.
+    options, base = rtklib_baseline._validated_options(_params(options={
+        "mode": mode, "frequency": frequency, "ambiguity_resolution": ambiguity,
+    }))
+    values = dict(line.split("=", 1) for line in rtklib_baseline._configuration(options, base).splitlines())
+    values = {key.strip(): value for key, value in values.items()}
+    expected = {
+        "pos1-posmode": mode,
+        "pos1-frequency": {"l1": "1", "l1+l2": "2", "l1+l2+l5": "3"}[frequency],
+        "pos2-armode": ambiguity,
+        "ant1-postype": "rinexhead", "ant2-postype": "llh",
+        "ant1-anttype": "*", "ant2-anttype": "*",
+        "out-solformat": "llh", "out-degform": "deg", "out-height": "ellipsoidal",
+        "out-outhead": "on", "out-solstatic": "all",
+    }
+    assert {key: values[key] for key in expected} == expected
+
+
+def test_native_configuration_error_rejects_even_zero_exit_and_fix_row(tmp_path):
+    def rejected_option_runner(command, **_kwargs):
+        Path(command[command.index("-o") + 1]).write_text(_row(), encoding="utf-8")
+        return SimpleNamespace(returncode=0, stdout="", stderr="invalid option value pos1-frequency (rtklib.conf:2)\n")
+
+    with pytest.raises(RuntimeError, match="rejected.*configuration"):
+        process_rnx2rtkp_baseline(_params(), executable="rnx2rtkp", runner=rejected_option_runner, temp_dir=str(tmp_path))
+
+
 def test_process_uses_config_file_rover_then_base_and_known_reference(tmp_path):
     captured = {}
 
@@ -57,13 +89,13 @@ def test_process_uses_config_file_rover_then_base_and_known_reference(tmp_path):
     assert command[-2].endswith("base.obs")
     assert command[-1].endswith("navigation.nav")
     assert captured["kwargs"]["timeout"] == 300
-    assert "pos1-posmode = kinematic" in captured["config"]
-    assert "pos1-frequency = 2" in captured["config"]
-    assert "pos2-armode = continuous" in captured["config"]
-    assert "ant2-postype = llh" in captured["config"]
-    assert "ant2-pos1 = -1.292100000000" in captured["config"]
-    assert "ant2-pos2 = 36.821900000000" in captured["config"]
-    assert "ant2-pos3 = 1650.3200" in captured["config"]
+    assert "pos1-posmode=kinematic" in captured["config"]
+    assert "pos1-frequency=2" in captured["config"]
+    assert "pos2-armode=continuous" in captured["config"]
+    assert "ant2-postype=llh" in captured["config"]
+    assert "ant2-pos1=-1.292100000000" in captured["config"]
+    assert "ant2-pos2=36.821900000000" in captured["config"]
+    assert "ant2-pos3=1650.3200" in captured["config"]
     assert "pos1-armode" not in captured["config"]
     assert result["quality"] == "FIX"
     assert result["ratio"] == pytest.approx(4.5)

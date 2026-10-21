@@ -1,6 +1,20 @@
 # Worker source acceptance and production artifact gap
 
-## Current result
+## Later native/source checkpoint, 22 October local time
+
+A real native reference check found the checkout wrapper's enum values were
+rejected because of whitespace after `=`. The source serializer is repaired and
+now rejects configuration errors even on native exit 0. Full host source tests
+pass 83 with two network checks skipped. The corrected wrapper produces actual
+FIX/FLOAT solutions on the pinned upstream observation pair, responds to a
+synthetic base shift, rejects SINGLE, and rejects an invalid native setting even
+when FIX rows are present. Scratch directories were removed and the running
+handler was not patched or deployed. See [native evidence and limits](GNSS_NATIVE_ACCEPTANCE_2026-10-22.md).
+
+The artifact gap below remains. The remainder records the earlier 21 October
+checkpoint; its statement that no native solve occurred applies to that pass.
+
+## Earlier source/artifact result
 
 The source worker passes 58 tests with two network-dependent tests skipped.
 Production passes the ordinary service-health check, but fails the new worker

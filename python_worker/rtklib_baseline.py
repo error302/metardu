@@ -54,23 +54,25 @@ def _validated_options(params: dict[str, Any]) -> tuple[dict[str, Any], dict[str
 
 def _configuration(options: dict[str, Any], base: dict[str, float]) -> str:
     """Build only the RTKLIB 2.4.x options this workflow owns."""
+    # Native loadopts/str2enum preserves whitespace after '='. A leading space
+    # rejects enum values and can leave single-point defaults active with exit 0.
     return "\n".join((
-        f"pos1-posmode = {options['mode']}",
-        f"pos1-frequency = {_FREQUENCIES[options['frequency']]}",
-        f"pos1-elmask = {options['elevation_mask']:.6g}",
-        f"pos2-armode = {options['ambiguity_resolution']}",
-        "ant1-postype = rinexhead",
-        "ant1-anttype = *",
-        "ant2-postype = llh",
-        f"ant2-pos1 = {base['latitude']:.12f}",
-        f"ant2-pos2 = {base['longitude']:.12f}",
-        f"ant2-pos3 = {base['ellipsoidal_height']:.4f}",
-        "ant2-anttype = *",
-        "out-solformat = llh",
-        "out-degform = deg",
-        "out-height = ellipsoidal",
-        "out-outhead = on",
-        "out-solstatic = all",
+        f"pos1-posmode={options['mode']}",
+        f"pos1-frequency={_FREQUENCIES[options['frequency']]}",
+        f"pos1-elmask={options['elevation_mask']:.6g}",
+        f"pos2-armode={options['ambiguity_resolution']}",
+        "ant1-postype=rinexhead",
+        "ant1-anttype=*",
+        "ant2-postype=llh",
+        f"ant2-pos1={base['latitude']:.12f}",
+        f"ant2-pos2={base['longitude']:.12f}",
+        f"ant2-pos3={base['ellipsoidal_height']:.4f}",
+        "ant2-anttype=*",
+        "out-solformat=llh",
+        "out-degform=deg",
+        "out-height=ellipsoidal",
+        "out-outhead=on",
+        "out-solstatic=all",
         "",
     ))
 
@@ -172,6 +174,9 @@ def process_rnx2rtkp_baseline(
         if result.returncode != 0:
             detail = (getattr(result, "stderr", "") or getattr(result, "stdout", "") or "").strip()
             raise RuntimeError(f"RTKLIB error {result.returncode}: {detail[:500] or 'no diagnostic returned'}")
+        diagnostics = getattr(result, "stderr", "") or ""
+        if any(line.lstrip().lower().startswith("invalid option ") for line in diagnostics.splitlines()):
+            raise RuntimeError("RTKLIB rejected its processing configuration; no baseline result was accepted.")
 
         try:
             output = output_path.read_text(encoding="utf-8", errors="replace")

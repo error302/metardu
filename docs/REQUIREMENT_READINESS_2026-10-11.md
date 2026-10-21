@@ -1,5 +1,14 @@
 # METARDU requirement readiness — checkpoints through 22 October 2026
 
+Latest native GNSS checkpoint (22 October local time): the actual installed
+RTKLIB exposed rejected enum settings in the checkout wrapper. The serializer
+and zero-exit diagnostic guard are repaired. Full worker source tests pass 83
+with two network checks skipped; controlled native reference runs produce
+FIX/FLOAT, respond to a base shift and reject SINGLE and configuration errors.
+The running worker handler remains unchanged and its artifact gap is open. This
+is native consistency evidence, not surveyed control or field accuracy. See
+[native GNSS acceptance](GNSS_NATIVE_ACCEPTANCE_2026-10-22.md).
+
 Latest recovery audit (22 October local time): ordinary production health and
 backup freshness pass, and the two named archive hashes remain unchanged. The
 deployed backup script matches source. Synthetic failure injection nevertheless
