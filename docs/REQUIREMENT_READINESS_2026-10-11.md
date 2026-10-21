@@ -1,4 +1,17 @@
-# METARDU requirement readiness — updated 16 October 2026
+# METARDU requirement readiness — checkpoints through 21 October 2026
+
+Latest source checkpoint (21 October): the full ordinary Jest suite passes 5,379
+tests across 597 executed suites, with nine native checks skipped and zero
+failures. The working tree was unchanged during that run, including the existing
+uncommitted survey-plan work. This is source evidence, not an isolated release
+artifact. The QA area-cache collision, missing numerical area evidence and stale
+save-status races are repaired; see [QA evidence integrity](QA_EVIDENCE_INTEGRITY_2026-10-21.md).
+Strict app/test typing, scoped lint and the security gate pass. Read-only runtime
+verification confirms the existing production stack healthy; this source was not
+built, migrated or promoted. Fieldbook migration 115, the separate synthetic DB
+approval, native browser/device/field acceptance, CI coverage/worker gates,
+backup restore and complete paid/provider workflows remain open. Earlier release
+and access-failure statements below are dated historical checkpoints.
 
 Latest outcome (18 October): see `OBSERVATION_IMPORT_RELEASE_VERIFICATION.md`.
 Production is healthy `80940bf7`, with all 118 applied entries and original

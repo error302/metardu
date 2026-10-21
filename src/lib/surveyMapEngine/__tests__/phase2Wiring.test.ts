@@ -6,6 +6,9 @@
  */
 import { readdirSync, readFileSync } from 'fs';
 import { join, sep } from 'path';
+import ProjectMapPage from '@/app/project/[id]/map/page';
+import { redirect } from 'next/navigation';
+jest.mock('next/navigation', () => ({ redirect: jest.fn() }));
 
 const repoRoot = join(__dirname, '..', '..', '..', '..');
 const srcRoot = join(repoRoot, 'src');
@@ -54,13 +57,19 @@ function definingFiles(pattern: RegExp): string[] {
 describe('selection store wiring (Phase 2 exit)', () => {
   test.each([
     ['/map MapClient', files.mapClient, "kind: 'feature'", "surface: 'map'", "clearSelectionFrom('map')"],
-    ['/project/[id]/map page (SurveyMap surface)', files.projectMapPage, "kind: 'beacon'", "'project-map'", "clearSelectionFrom('project-map')"],
     ['WorkspaceMap', files.workspaceMap, "kind: 'station'", "surface: 'workspace'", "clearSelectionFrom('workspace')"],
     ['workspace bridge (grid selection)', files.bridge, "kind: 'station'", "surface: 'workspace'", "clearSelectionFrom('workspace')"],
   ])('%s mirrors into the unified store', (_name, relPath, ...needles) => {
     const text = readSource(relPath);
     expect(text).toContain('@/lib/surveyMapEngine/ol/selection');
     for (const needle of needles) expect(text).toContain(needle);
+  });
+
+  test.each(['synthetic-project', 'project?name=synthetic&part=1#corner'])('the legacy project map forwards %s into the shared map', async (id) => {
+    jest.mocked(redirect).mockClear();
+    await ProjectMapPage({ params: Promise.resolve({ id }) });
+    expect(redirect).toHaveBeenCalledTimes(1);
+    expect(redirect).toHaveBeenCalledWith(`/map?projectId=${encodeURIComponent(id)}`);
   });
 
   test('only the engine defines the selection store', () => {

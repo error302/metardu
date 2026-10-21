@@ -151,10 +151,13 @@ describe('SurveyPlanRenderer', () => {
     it('contains boundary labels with bearings and distances', async () => {
       const renderer = new SurveyPlanRenderer(BASE_DATA)
       const svg = await renderer.render()
-      expect(svg).toContain('\u00B0')
-      expect(svg).toContain("'")
-      expect(svg).toContain('"')
-      expect(svg).toContain(' m')
+      const document = new DOMParser().parseFromString(svg, 'image/svg+xml')
+      expect(document.querySelector('parsererror')).toBeNull()
+      const labels = Array.from(document.querySelectorAll('text'), node => node.textContent).join(' ')
+      expect(labels).toContain('\u00B0')
+      expect(labels).toContain("'")
+      expect(labels).toContain('"')
+      expect(labels).toContain(' m')
     })
 
     it('contains corner dot symbols', async () => {

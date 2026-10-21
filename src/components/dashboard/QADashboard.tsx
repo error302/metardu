@@ -25,10 +25,11 @@ import { evaluateTraversePrecision, type TraverseCategory } from '@/lib/engine/c
 import { computeAreaWithPrecision } from '@/lib/engine/computationalAccuracy'
 import type { StageReference } from '@/lib/workspaces/stageReference'
 import { memoize } from '@/lib/performance'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 
 // Memoized area computation — caches results for same vertex sets
 const memoizedComputeArea = memoize(computeAreaWithPrecision, {
-  keyFn: (vertices) => JSON.stringify(vertices[0]),
+  keyFn: (vertices) => JSON.stringify(vertices),
   maxSize: 200,
 })
 
@@ -85,6 +86,7 @@ const EMPTY_PARCELS: ExistingParcel[] = []
 
 /** Evidence persistence is best-effort; never let it hold up the dashboard. */
 const QA_PERSIST_TIMEOUT_MS = 10000
+type EvidenceState = 'saving' | 'saved' | 'failed'
 
 export function QADashboard({
   projectId,
@@ -98,10 +100,20 @@ export function QADashboard({
   const [running, setRunning] = useState(false)
   const persistedRuns = useRef<Set<string>>(new Set())
   const savingRuns = useRef<Set<string>>(new Set())
-  const [evidenceState, setEvidenceState] = useState<'saving' | 'saved' | 'failed'>('saving')
-  const currentProject = useRef(projectId)
-  currentProject.current = projectId
+  const inputSnapshot = JSON.stringify({ reference, parcels, traverseData, parentAreaHa, surveyCategory })
+  const inputIdentity = JSON.stringify({ projectId, inputSnapshot })
+  const currentInput = useRef(inputIdentity)
+  currentInput.current = inputIdentity
+  const activeFingerprint = useRef<string | null>(null)
+  const mounted = useRef(true)
+  const [evidence, setEvidence] = useState<{ input: string; state: EvidenceState }>({ input: inputIdentity, state: 'saving' })
+  const evidenceState = evidence.input === inputIdentity ? evidence.state : 'saving'
+  const setEvidenceState = useCallback((state: EvidenceState) => setEvidence({ input: inputIdentity, state }), [inputIdentity])
   const runSequence = useRef(0)
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false }
+  }, [])
 
   /**
    * Persist the run as QA evidence (blueprint §2.5): a PASS must carry the
@@ -114,7 +126,7 @@ export function QADashboard({
     async (results: QACheck[]) => {
       const payload = {
         trigger: 'manual',
-        inputSnapshot: JSON.stringify({ reference, parcels, traverseData, parentAreaHa, surveyCategory }),
+        inputSnapshot,
         results: results.map(check => ({
           checkType: `dashboard.${check.id}`,
           result: check.status === 'pass' ? 'PASS' : check.status === 'warning' ? 'WARN' : check.status === 'fail' ? 'FAIL' : 'INFO',
@@ -126,6 +138,7 @@ export function QADashboard({
         })),
       }
       const fingerprint = JSON.stringify({ projectId, ...payload })
+      activeFingerprint.current = fingerprint
       if (persistedRuns.current.has(fingerprint)) {
         setEvidenceState('saved')
         return
@@ -142,23 +155,29 @@ export function QADashboard({
         })
         if (!response.ok) throw new Error('QA record was not saved')
         persistedRuns.current.add(fingerprint)
-        if (currentProject.current === projectId) setEvidenceState('saved')
+        if (mounted.current && currentInput.current === inputIdentity && activeFingerprint.current === fingerprint) setEvidenceState('saved')
       } catch {
-        if (currentProject.current === projectId) setEvidenceState('failed')
+        if (mounted.current && currentInput.current === inputIdentity && activeFingerprint.current === fingerprint) setEvidenceState('failed')
       } finally {
         clearTimeout(timer)
         savingRuns.current.delete(fingerprint)
       }
     },
-    [projectId, reference, parcels, traverseData, parentAreaHa, surveyCategory]
+    [projectId, inputSnapshot, inputIdentity, setEvidenceState]
   )
 
   const runAllChecks = useCallback(async () => {
     const sequence = ++runSequence.current
+    activeFingerprint.current = null
+    setEvidenceState('saving')
     setRunning(true)
 
     const results: QACheck[] = []
-    const epsg = reference?.source === 'declared' ? reference.code : null
+    let epsg: string | null = null
+    if (reference?.source === 'declared') {
+      try { const crs = assertProjectedCrs(reference.code); if (crs.units === 'metres') epsg = crs.code }
+      catch { /* An invalid declaration cannot authorize spatial checks. */ }
+    }
     try {
     if (!epsg) results.push({ id: 'qa-reference', category: 'topology', name: 'Project Reference System', status: 'pending', message: 'Declare a projected reference system in project settings before checking spatial data.' })
 
@@ -239,6 +258,7 @@ export function QADashboard({
           ? `Sum of parts (${sumOfParts.toFixed(4)} ha) matches parent (${parentAreaHa.toFixed(4)} ha)`
           : `Mismatch: parent ${parentAreaHa.toFixed(4)} ha vs parts ${sumOfParts.toFixed(4)} ha (diff ${difference.toFixed(4)} ha)`,
         details: 'Sum of subdivision parts must equal parent title area within ±0.001 ha',
+        measuredValue: difference, thresholdValue: tolerance, unit: 'ha', comparison: 'lte',
       })
     }
 
@@ -329,7 +349,7 @@ export function QADashboard({
       details: 'METARDU does not submit to a government registry. Check the current official process, ownership records and required documents before filing.',
     })
 
-    if (sequence !== runSequence.current) return
+    if (!mounted.current || sequence !== runSequence.current) return
     setChecks(results)
     setRunning(false)
 
@@ -337,12 +357,12 @@ export function QADashboard({
     // surveyor is waiting for.
     void persistQaRun(results).catch(() => {})
     } catch {
-      if (sequence !== runSequence.current) return
+      if (!mounted.current || sequence !== runSequence.current) return
       setRunning(false)
       setEvidenceState('failed')
       setChecks([{ id: 'qa-incomplete', category: 'topology', name: 'QA checks incomplete', status: 'pending', message: 'Review the coordinates and declared reference system, then retry.' }])
     }
-  }, [reference, parcels, parentAreaHa, traverseData, surveyCategory, persistQaRun])
+  }, [reference, parcels, parentAreaHa, traverseData, surveyCategory, persistQaRun, setEvidenceState])
 
   // Auto-run on mount / when the inputs change. This is a side effect, so it
   // belongs in an effect — running it during render (via useMemo) re-entered

@@ -27,8 +27,10 @@ test('geometry cannot manufacture document compliance or submission readiness, a
    parcels: [{ id: 'parcel', lrNumber: 'SYN', vertices: [{ easting: 0, northing: 0 }, { easting: 10, northing: 0 }, { easting: 10, northing: 10 }, { easting: 0, northing: 10 }] }],
    traverseData: { linearErrorM: 0.01, totalDistanceM: 40, angularMisclosureSec: -100, stationCount: 4 } }
  await act(async()=>root.render(<QADashboard {...props} />))
- expect(host.textContent).toContain('A generated document has not been inspected for compliance.')
- expect(host.textContent).toContain('Submission readiness has not been verified')
+ expect(host.textContent).toContain('A generated document has not been reviewed by a licensed surveyor.')
+ expect(host.textContent).toContain('METARDU does not certify legal or registry compliance.')
+ expect(host.textContent).toContain('A surveyor has not completed the manual handoff review')
+ expect(host.textContent).toContain('NOT READY — FIX ERRORS')
  expect(host.textContent).not.toContain('READY FOR SUBMISSION')
  expect(host.textContent).not.toContain('READY WITH WARNINGS')
  expect(host.textContent).toContain('100.0"')
