@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process'
+import { assertRuntimeArtifactPair, assertRuntimeMigrationContainer } from './runtime-artifact.mjs'
 
 const services = ['metardu-app', 'metardu-worker', 'metardu-postgres', 'metardu-redis', 'metardu-collaboration', 'metardu-ntrip', 'metardu-backup']
 function docker(args) {
@@ -11,6 +12,8 @@ try {
   const action = process.argv[2] ?? 'status'
   if (action === 'down' || action === 'build') throw new Error('This workflow preserves the running production stack. Build/deployment requires the migration and backup review in docs/DOCKER_RUNTIME_WORKFLOW.md; no duplicate test stack is started.')
   if (!['status', 'logs'].includes(action)) throw new Error('Use status or logs.')
+  // Resolve in memory: Compose output contains deployment secrets.
+  assertRuntimeArtifactPair(JSON.parse(docker(['compose', '-f', 'docker-compose.yml', 'config', '--format', 'json'])))
   const ids = docker(['ps', '-aq']).split(/\s+/).filter(Boolean)
   const containers = ids.length ? JSON.parse(docker(['inspect', ...ids])) : []
   for (const service of services) {
@@ -19,7 +22,11 @@ try {
     if (container.State.Health && container.State.Health.Status !== 'healthy') throw new Error(`Production service is unhealthy: ${service}`)
     console.log(`${service}: ${container.State.Health?.Status ?? 'running (no configured healthcheck)'}`)
   }
-  const duplicates = containers.filter(item => item.Name !== '/metardu-app' && (
+  const app = containers.find(item => item.Name === '/metardu-app')
+  const migration = containers.find(item => item.Name === '/metardu-db-migrate')
+  assertRuntimeMigrationContainer(app, migration)
+  console.log('Migration service: completed successfully with the application image.')
+  const duplicates = containers.filter(item => item.Name !== '/metardu-app' && item !== migration && (
     /^\/metardu-.+-preview-/.test(item.Name) ||
     item.Config.Labels?.['com.docker.compose.service'] === 'metardu-app' ||
     /^metardu-release-verify:/.test(item.Config.Image ?? '') ||

@@ -312,3 +312,12 @@ rebuilt or promoted by this checkpoint, and no migration/ledger was altered or
 refusal bypassed. Runtime restoration needs the ownership, exact source/image,
 applied-hash and recovery review in `DOCKER_RUNTIME_WORKFLOW.md`; blind Compose
 or dependency bypass is not the recovery plan.
+
+The later 21 October recovery supersedes that stopped-production observation:
+the retained `08fae427` runtime is healthy, its matching migration bootstrap
+exited 0 with all 119 versions already applied, and independent checks confirmed
+unchanged customer table/upload/ledger/privilege fingerprints and supporting
+service identities. See `RUNTIME_RECOVERY_2026-10-21.md` for exact artifact,
+backup and post-check evidence. This restored the existing release without
+promoting the Fieldbook changes or applying 115. The marked synthetic database
+remains stopped; native/browser/device and full release gates above stay open.

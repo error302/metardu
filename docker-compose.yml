@@ -49,12 +49,7 @@ services:
   # Database administration is isolated to this short-lived service. The web
   # container connects through the restricted APP_DB_* credentials below.
   metardu-db-migrate:
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-https://metardu.space}
-        NEXT_PUBLIC_PAYPAL_CLIENT_ID: ${NEXT_PUBLIC_PAYPAL_CLIENT_ID:-}
+    image: ${METARDU_APP_IMAGE:-metardu-metardu-app:latest}
     container_name: metardu-db-migrate
     entrypoint: ["node"]
     command: ["/app/provision-runtime-db-role.mjs"]
@@ -131,6 +126,7 @@ services:
     restart: unless-stopped
 
   metardu-app:
+    image: ${METARDU_APP_IMAGE:-metardu-metardu-app:latest}
     build:
       context: .
       dockerfile: Dockerfile
