@@ -26,7 +26,8 @@ const mockReadScopes: { table: string; owner?: string }[] = []
 jest.mock('@/lib/api-client/client',()=>({createClient:(options?: {expectedUserId?: string})=>({...mockClient,from:(table:string)=>{mockReadScopes.push({table,owner:options?.expectedUserId});return mockQuery}})}))
 jest.mock('@/lib/i18n/LanguageContext',()=>({useLanguage:()=>({t:(key:string)=>key})}))
 jest.mock('@/lib/analytics/events',()=>({trackFieldbookSave:jest.fn()}))
-jest.mock('@/hooks/useAutoSave',()=>({useAutoSave:jest.fn()}))
+const mockResetFailureDelay = jest.fn()
+jest.mock('@/hooks/useAutoSave',()=>({useAutoSave:jest.fn(()=>({resetFailureDelay:mockResetFailureDelay}))}))
 const mockNotify=jest.fn()
 jest.mock('@/hooks/useNotifications',()=>({useNotifications:()=>({notify:mockNotify})}))
 jest.mock('@/lib/offline/fieldbooks',()=>({getOfflineFieldbooks:jest.fn().mockResolvedValue([]),saveFieldbookOffline:jest.fn().mockResolvedValue(undefined)}))
@@ -160,6 +161,17 @@ test('repeated saves reuse one retained request, while later edits explicitly de
   await act(async () => { await workspace().onSave() })
   expect(last(jest.mocked(persistWorkingBook).mock.calls)[2]).toEqual({ kind: 'operation', requestId })
   expect(last(jest.mocked(persistWorkingBook).mock.calls)[1]).toMatchObject({ id: first[1].id, name: 'Later edit' })
+})
+
+test('only a durable fieldbook save resumes automatic saving after a device-storage failure', async () => {
+  await openPage()
+  fireEvent.change(screen.getByLabelText('Book name'), { target: { value: 'Keep the raw run' } })
+  jest.mocked(persistWorkingBook).mockRejectedValueOnce(new DOMException('Device storage full', 'QuotaExceededError'))
+  await act(async () => { expect(await workspace().onSave()).toBe(false) })
+  expect(mockResetFailureDelay).not.toHaveBeenCalled()
+  expect(screen.getByLabelText('Book name')).toHaveValue('Keep the raw run')
+  await act(async () => { expect(await workspace().onSave()).toBe(true) })
+  expect(mockResetFailureDelay).toHaveBeenCalledTimes(1)
 })
 
 test.each(['rise_and_fall', 'height_of_collimation'] as const)('leveling PDF retains real BM station, raw precision and edited remarks (%s)', async method => {

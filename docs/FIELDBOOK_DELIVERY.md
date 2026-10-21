@@ -321,3 +321,40 @@ service identities. See `RUNTIME_RECOVERY_2026-10-21.md` for exact artifact,
 backup and post-check evidence. This restored the existing release without
 promoting the Fieldbook changes or applying 115. The marked synthetic database
 remains stopped; native/browser/device and full release gates above stay open.
+
+## Automatic save failure pacing
+
+The Fieldbook automatic-save hook now shares one retry deadline across its
+heartbeat, background/visibility and unload triggers. Previously, repeated
+background events could retry a failing device save immediately, and repeated
+failures never increased the interval. Reproduced failures are recorded in
+`.cache/fieldbook-autosave-backoff-red.log` (four attempts where only one was due,
+and an early repeated heartbeat) and `fieldbook-autosave-resume-red.log` (manual
+recovery did not resume the newly paced automatic path).
+
+After failure the default delay is 30 seconds, then 60, 120, 240, 480 and a
+15-minute cap. New typing and automatic background/unload triggers do not reset
+the deadline. The raw edited values remain dirty, the error stays available and
+no successful-save timestamp is invented. A successful automatic save resets
+the delay and still preserves edits made while it was in flight. Explicit save
+can retry immediately after a device issue is repaired; the actual page also
+resets the failure delay after a successful independent durable save. That reset
+does not claim newer unsaved edits were persisted.
+
+These deadlines are in memory for this open editor. They pace failed persistence,
+not acknowledged server delivery, and do not add journal retention quotas or
+prove persistence during browser termination. A pending delivery remains separate
+from a successfully retained device snapshot. Archive restoration, reload/tab/
+eviction/quota acceptance, transport backoff for the revision journal, native
+migration 115 and the coordinated source release remain open. The prior broad
+automatic-save backoff item is therefore narrowed to those remaining scopes.
+
+Focused evidence is retained in `.cache/fieldbook-autosave-final-tests.log`,
+`fieldbook-autosave-types.log`, `fieldbook-autosave-lint.log` and
+`fieldbook-autosave-security.log`. Hook checks exercise real React lifecycle and
+timers with a controlled persistence boundary; page checks exercise actual save
+handlers with mocked external storage/network. Neither is physical device or
+browser field proof. The final affected suite contains 29 checks, alongside
+strict application/test typing, scoped lint and the security gate (119 applied
+migrations pinned). Production remains the restored
+`08fae427` image; this source-only change has not been deployed.

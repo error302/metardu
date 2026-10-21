@@ -50,6 +50,8 @@ interface AutoSaveState {
 
 export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: AutoSaveOptions): AutoSaveState & {
   saveNow: () => Promise<void>
+  /** Resume after an independent durable save; this does not mark edits clean. */
+  resetFailureDelay: () => void
 } {
   const [state, setState] = useState<AutoSaveState>({
     lastAutoSave: null,
@@ -63,13 +65,22 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
   const lastSavedSerializedRef = useRef<string>(safeStringify(data))
   const savingRef = useRef(false)
   const dirtyRef = useRef(false)
+  const failuresRef = useRef(0)
+  const retryAtRef = useRef(0)
+  const resetFailureDelay = useCallback(() => {
+    failuresRef.current = 0
+    retryAtRef.current = 0
+  }, [])
   // Keep onSave in a ref so the heartbeat interval doesn't need to be
   // re-created (and reset) every time the parent passes a new closure.
   const onSaveRef = useRef(onSave)
   useEffect(() => { onSaveRef.current = onSave }, [onSave])
 
-  const doSave = useCallback(async () => {
+  const doSave = useCallback(async (explicit = false) => {
     if (savingRef.current) return
+    // Heartbeat, backgrounding and unload share a single failure deadline.
+    // New typing must not reset it and repeatedly hit unavailable storage.
+    if (!explicit && Date.now() < retryAtRef.current) return
     // Snapshot what we're about to persist so we can compare accurately.
     const snapshot = safeStringify(dataRef.current)
     if (snapshot === lastSavedSerializedRef.current && !dirtyRef.current) return
@@ -79,6 +90,7 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
 
     try {
       await onSaveRef.current(dataRef.current)
+      resetFailureDelay()
       lastSavedSerializedRef.current = snapshot
       // Edits may arrive while the network/storage write is in flight. Only
       // the captured snapshot was saved; keep newer edits eligible for retry.
@@ -92,7 +104,11 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
         error: null,
       }))
     } catch (err) {
-      // Keep dirty=true so the next heartbeat retries.
+      // Preserve the dirty snapshot while spacing failed automatic attempts.
+      // A manual save can retry after the operator repairs local storage.
+      failuresRef.current = Math.min(failuresRef.current + 1, 10)
+      const delay = Math.min(Math.max(1000, interval) * 2 ** (failuresRef.current - 1), 15 * 60_000)
+      retryAtRef.current = Date.now() + delay
       setState(s => ({
         ...s,
         saving: false,
@@ -101,7 +117,9 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
     } finally {
       savingRef.current = false
     }
-  }, [])
+  }, [interval, resetFailureDelay])
+
+  const saveNow = useCallback(() => doSave(true), [doSave])
 
   // Track data changes (content-based) and flag dirty.
   useEffect(() => {
@@ -149,7 +167,7 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
     return () => window.removeEventListener('beforeunload', handleBeforeUnload)
   }, [enabled, doSave])
 
-  return { ...state, saveNow: doSave }
+  return { ...state, saveNow, resetFailureDelay }
 }
 
 /** JSON.stringify that never throws (circular refs → empty marker). */

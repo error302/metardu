@@ -474,7 +474,7 @@ export default function DigitalFieldBookPage() {
     : type === 'traverse' ? [startStation, startE, startN, closeE, closeN].some(value => value.trim()) || travRows.some(rowHasContent)
       : controlSetups.some(setup => Object.values(setup.station).some(value => value.trim()) || setup.rows.some(rowHasContent)))
 
-  useAutoSave({
+  const { resetFailureDelay } = useAutoSave({
     data: autoSaveData,
     onSave: async () => {
       if (projectId) {
@@ -673,6 +673,7 @@ export default function DigitalFieldBookPage() {
       setSaveStatus({ kind: 'saved', when: now, ...result })
       setSavedFieldbooks(prev => [{ ...record, localEditId: result.requestId, _origin: 'device' }, ...prev.filter(book => book.id !== id)])
       await refreshPendingCount()
+      resetFailureDelay()
       return true
     } catch (e: unknown) {
       setSaveStatus({ kind: 'error', message: e instanceof Error ? e.message : 'Save failed. Export JSON to keep a copy.' })
