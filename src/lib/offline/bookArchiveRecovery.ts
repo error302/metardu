@@ -7,12 +7,14 @@ import { bookRequestEnvelopeSchema, findBookRequest, retainBookRequest } from '.
 
 export const BOOK_ARCHIVE_MAX_BYTES = 50 * 1024 * 1024
 export interface ArchivePreview { hash: string; edits: number; requests: number; legacy: number; unreadable: number }
-export interface ArchiveSummary extends ArchivePreview { complete: boolean }
+export interface ArchiveSummary extends ArchivePreview { complete: boolean; inspectionOnly?: true }
 const uuid = z.string().uuid(), hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const sourceSchema = z.object({ version: z.literal(1), actorId: uuid, projectId: uuid,
   edits: z.array(z.unknown()).max(10000), requests: z.array(z.unknown()).max(10000), legacy: z.array(z.unknown()).max(10000) }).strict()
 const recordSchema = z.object({ version: z.literal(1), key: z.string(), actorId: uuid, projectId: uuid, hash: hashSchema,
   bytes: z.instanceof(Uint8Array), bindings: z.array(uuid).max(10000), bindingsHash: hashSchema, complete: z.boolean() }).strict()
+// Export authority depends on the original bytes and scope, not mutable restore metadata.
+const sourceRecordSchema = recordSchema.pick({ version: true, key: true, actorId: true, projectId: true, hash: true, bytes: true }).strip()
 type ArchiveRecord = z.infer<typeof recordSchema>
 interface ArchiveDB extends DBSchema { archives: { key: string; value: ArchiveRecord } }
 const openArchives = () => openDB<ArchiveDB>('metardu-book-recovery-archives', 1, { upgrade(db) { db.createObjectStore('archives', { keyPath: 'key' }) } })
@@ -70,13 +72,22 @@ async function parseSource(actor: string, project: string, bytes: Uint8Array) {
   return { edits, requests, legacy, preview: { hash: await bytesHash(bytes), edits: edits.size, requests: requests.size, legacy: legacy.length, unreadable } }
 }
 type Parsed = Awaited<ReturnType<typeof parseSource>>
-async function checked(value: unknown, actor: string, project: string, hash?: string) {
-  const record = recordSchema.parse(value)
+async function checkedSource(value: unknown, actor: string, project: string, hash?: string) {
+  const record = sourceRecordSchema.parse(value)
   if (record.actorId !== actor || record.projectId !== project || hash && record.hash !== hash || record.key !== keyFor(actor, project, record.hash)
-    || record.bytes.byteLength > BOOK_ARCHIVE_MAX_BYTES || await bytesHash(record.bytes) !== record.hash || await bookDeliveryHash(record.bindings) !== record.bindingsHash) throw new Error('The retained source archive could not be verified. Keep device storage intact for inspection.')
+    || record.bytes.byteLength > BOOK_ARCHIVE_MAX_BYTES || await bytesHash(record.bytes) !== record.hash) throw new Error('The retained source archive could not be verified. Keep device storage intact for inspection.')
   const parsed = await parseSource(actor, project, record.bytes)
-  if (record.bindings.length !== parsed.legacy.length || new Set(record.bindings).size !== record.bindings.length) throw new Error('The retained archive identities could not be verified.')
   return { record, parsed }
+}
+async function checkedMetadata(value: unknown, parsed: Parsed) {
+  const record = recordSchema.parse(value)
+  if (await bookDeliveryHash(record.bindings) !== record.bindingsHash || record.bindings.length !== parsed.legacy.length
+    || new Set(record.bindings).size !== record.bindings.length) throw new Error('The retained archive identities could not be verified. Download its original bytes for inspection.')
+  return record
+}
+async function checked(value: unknown, actor: string, project: string, hash?: string) {
+  const { parsed } = await checkedSource(value, actor, project, hash)
+  return { record: await checkedMetadata(value, parsed), parsed }
 }
 async function stage(actor: string, project: string, bytes: Uint8Array, parsed: Parsed) {
   const bindings = parsed.legacy.map(() => crypto.randomUUID())
@@ -145,11 +156,15 @@ export async function listBookArchives(actor: string, project: string): Promise<
   const db = await openArchives()
   try {
     const values = (await db.getAll('archives')).filter(value => value?.actorId === actor && value.projectId === project)
-    return await Promise.all(values.map(async value => { const { record, parsed } = await checked(value, actor, project); return { ...parsed.preview, complete: record.complete } }))
+    return await Promise.all(values.map(async value => {
+      const { parsed } = await checkedSource(value, actor, project)
+      try { return { ...parsed.preview, complete: (await checkedMetadata(value, parsed)).complete } }
+      catch { return { ...parsed.preview, complete: false, inspectionOnly: true as const } }
+    }))
   } finally { db.close() }
 }
 export async function readBookArchive(actor: string, project: string, hash: string): Promise<Uint8Array> {
   const key = keyFor(actor, project, hash), db = await openArchives()
-  try { return (await checked(await db.get('archives', key), actor, project, hash)).record.bytes.slice() }
+  try { return (await checkedSource(await db.get('archives', key), actor, project, hash)).record.bytes.slice() }
   finally { db.close() }
 }

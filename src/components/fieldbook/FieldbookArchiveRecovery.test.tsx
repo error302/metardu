@@ -67,3 +67,12 @@ test('download preserves the retained bytes without reserializing JSON',async()=
  expect(readBookArchive).toHaveBeenCalledWith(actor,project,preview.hash)
  expect(restoreBookArchive).not.toHaveBeenCalled();click.mockRestore()
 })
+
+test('verified source bytes remain downloadable when restore metadata needs inspection',async()=>{
+ jest.mocked(listBookArchives).mockResolvedValue([{...preview,complete:false,inspectionOnly:true}])
+ render(<FieldbookArchiveRecovery {...props()}/>)
+ expect(await screen.findByText(/Restoration metadata needs inspection/)).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:'Download original archive'})).toBeEnabled()
+ expect(screen.queryByRole('button',{name:'Review and resume'})).not.toBeInTheDocument()
+ expect(restoreBookArchive).not.toHaveBeenCalled()
+})

@@ -457,3 +457,36 @@ approval unanswered. No SQL, application build, container restart or promotion
 was performed. Native migration 115, retention capacity policy, coordinated release
 and physical field acceptance remain open. The healthy production runtime and
 its verified rollback image remain separate from these unpromoted source changes.
+
+### Recovery metadata damage follow-up
+
+A reproduced failure showed that a damaged legacy-binding hash blocked not only
+restoration but also export of the intact original file. The shared validator
+made the entire archive list fail, hiding an unrelated healthy archive as well.
+Source-byte validation is now separate from restoration metadata validation.
+Downloads still require the exact stored SHA-256, account/project/key identity,
+valid source format and matching source ownership. They do not adopt any receipt
+or dispatch work. Bad bytes or foreign scope remain refused.
+
+An intact source with damaged restore metadata is listed as inspection-only,
+with its original download available and its resume control removed. Restoration
+still refuses the damaged metadata, and it does not regenerate legacy IDs or
+replace existing journal records. The healthy neighboring archive remains listed.
+This handles restore-metadata damage; corruption of the source itself is still
+an integrity error requiring external recovery, not an automatic repair.
+
+`.cache/archive-metadata-red.log` reproduces the original failure. The final
+archive/React run in `archive-metadata-green.log` passes 23 tests across two suites,
+including exact original export, neighboring inventory, refusal to restore with
+damaged metadata, byte corruption, and account/project isolation. Strict app/test
+typing, scoped lint and the security gate pass in `archive-metadata-{types,lint,
+security}.log`. This is source and simulated storage proof, not native browser or
+device acceptance. Port 3021 still has no source-preview listener.
+
+The read-only runtime verification in `.cache/archive-followup-runtime.log`
+confirms the existing application, worker, PostgreSQL, Redis, collaboration and
+NTRIP services healthy, backup running, matching-image migration bootstrap
+completed, and HTTP/database/Redis health passing. The last backup record is
+21 October 12:33:15 UTC, archive/header evidence only. No service, database,
+application image or migration was changed. The separate synthetic migration
+probe remains awaiting its previously requested approval.

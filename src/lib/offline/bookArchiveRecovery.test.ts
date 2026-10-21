@@ -192,3 +192,32 @@ test('corrupt staged identities fail closed and do not replace retained work',as
  await expect(restoreBookArchive(actor,project,source,preview.hash)).rejects.toThrow(/verified/i)
  expect(await listBookEdits(actor,project)).toEqual([]);expect(fetch).not.toHaveBeenCalled()
 })
+
+test('damaged restore metadata does not hide intact original bytes or another healthy archive',async()=>{
+ const source=bytes(archive([envelope(edit)])),preview=await previewBookArchive(actor,project,source)
+ await restoreBookArchive(actor,project,source,preview.hash)
+ const other=bytes(archive()),otherPreview=await previewBookArchive(actor,project,other)
+ await restoreBookArchive(actor,project,other,otherPreview.hash)
+ const db=await openDB('metardu-book-recovery-archives'),key=`${actor}:${project}:${preview.hash}`
+ const retained=await db.get('archives',key) as Record<string,unknown>
+ await db.put('archives',{...retained,bindingsHash:'0'.repeat(64)});db.close()
+ expect(await readBookArchive(actor,project,preview.hash)).toEqual(source)
+ expect(await listBookArchives(actor,project)).toEqual(expect.arrayContaining([
+  expect.objectContaining({hash:preview.hash,complete:false,inspectionOnly:true}),
+  expect.objectContaining({hash:otherPreview.hash,complete:true}),
+ ]))
+ await expect(restoreBookArchive(actor,project,source,preview.hash)).rejects.toThrow(/verified/i)
+ expect(await listBookEdits(actor,project)).toHaveLength(1);expect(fetch).not.toHaveBeenCalled()
+})
+
+test('exporting an intact archive still refuses byte damage and account or project reassignment',async()=>{
+ const source=bytes(archive([envelope(edit)])),preview=await previewBookArchive(actor,project,source)
+ await restoreBookArchive(actor,project,source,preview.hash)
+ await expect(readBookArchive(book,project,preview.hash)).rejects.toThrow()
+ await expect(readBookArchive(actor,book,preview.hash)).rejects.toThrow()
+ const db=await openDB('metardu-book-recovery-archives'),key=`${actor}:${project}:${preview.hash}`
+ const retained=await db.get('archives',key) as Record<string,unknown>
+ await db.put('archives',{...retained,bytes:bytes(archive())});db.close()
+ await expect(readBookArchive(actor,project,preview.hash)).rejects.toThrow(/verified/i)
+ expect(fetch).not.toHaveBeenCalled()
+})

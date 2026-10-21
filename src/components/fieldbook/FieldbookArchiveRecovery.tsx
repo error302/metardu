@@ -86,10 +86,11 @@ function ScopedArchiveRecovery({ actorId, projectId, onRestored }: Props) {
     {archives.length > 0 && <div className="mt-4">
       <h4 className="text-sm font-medium">Retained source archives</h4>
       <ul className="mt-2 space-y-2">{archives.map(archive => <li key={archive.hash} className="rounded-lg border border-[var(--border-color)] p-3">
-        <p className="text-sm">{archive.complete ? 'Eligible records restored' : 'Restoration incomplete'} · {archive.unreadable} unreadable records kept for inspection</p>
+        <p className="text-sm">{archive.inspectionOnly ? 'Restoration metadata needs inspection' : archive.complete ? 'Eligible records restored' : 'Restoration incomplete'} · {archive.unreadable} unreadable records kept for inspection</p>
+        {archive.inspectionOnly && <p className="mt-1 text-sm">The original file is intact and available to download. Restoration is blocked to preserve the existing record identities.</p>}
         <p className="mt-1 break-all text-xs text-[var(--text-muted)]">{archive.hash}</p>
         <div className="mt-2 flex flex-wrap gap-2">
-          <button className="btn btn-secondary min-h-11 text-sm" disabled={busy} onClick={() => void choose(() => readBookArchive(actorId, projectId, archive.hash), archive.hash)}>{archive.complete ? 'Review and recheck' : 'Review and resume'}</button>
+          {!archive.inspectionOnly && <button className="btn btn-secondary min-h-11 text-sm" disabled={busy} onClick={() => void choose(() => readBookArchive(actorId, projectId, archive.hash), archive.hash)}>{archive.complete ? 'Review and recheck' : 'Review and resume'}</button>}
           <button className="btn btn-secondary min-h-11 text-sm" disabled={busy} onClick={() => void download(archive.hash)}>Download original archive</button>
         </div>
       </li>)}</ul>
