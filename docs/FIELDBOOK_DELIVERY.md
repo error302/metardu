@@ -133,3 +133,51 @@ the completed recovery repair before the client and legacy gate are migrated.
    field acceptance. Delivery proofs still need binding into computation,
    control/design revisions, measured QA and deliverables; the full engineering,
    paid-lifecycle, signing-key and release gates remain open.
+
+## Client retention continuation (source only)
+
+`deliveryClient.ts` now validates the complete server receipt against the
+retained actor, request, raw payload, baseline and saved revision. A returned
+book ID alone cannot acknowledge delivery. Replays may report a newer current
+revision while retaining the original saved snapshot. Every HTTP request uses
+the retained-owner precondition; account changes cannot silently reassign work.
+Input and returned snapshots are copied before asynchronous work, and invalid
+runtime numbers are refused before serialization could turn them into null.
+
+`bookDeliveryJournal.ts` retains exact requests before explicit dispatch in the
+new `metardu-book-delivery-journal` IndexedDB database. A strict read/write
+transaction prevents two different payloads from claiming the same request key.
+No request is coalesced, deleted, rebound to a fetched baseline or marked
+delivered by a retry count. Acknowledgements attach only to the unchanged exact
+operation, leaving later edits separate. Concurrent retry responses retain the
+highest observed current revision rather than replacing it with an older one.
+Unreadable requests remain stored and cannot be sent or falsely acknowledged.
+No existing legacy stores are migrated, erased or automatically dispatched.
+
+The page, generic queue and writer have **not** been connected to this journal.
+This is required client authority for the migration, not an activated recovery
+repair. Editor ancestry, explicit review of unknown/stale baselines, visible
+pending/conflict/export inventory, quotas, retention costs and generic-writer
+closure remain required before activation. Neither a timestamp nor an
+acknowledged old operation authorizes a new edit of a later server revision.
+
+Evidence: `fieldbook-delivery-client-red.log`,
+`fieldbook-delivery-journal-red.log`, `fieldbook-delivery-journal-race-red.log`
+and `fieldbook-delivery-journal-raw-red.log` under `.cache/` record reproduced
+failures. A return-value regression also caught stale retry metadata reaching
+the caller after the newer revision had already been retained. The final
+combined run in `fieldbook-delivery-client-verified-tests.log`
+passed 50 tests in five suites, including 27 new client/journal cases. The
+journal tests use `fake-indexeddb` 6.2.6 through the real `idb` adapter, with
+concurrent transactions, closed/reopened connections, quota faults, payload
+tampering and delayed responses. This dependency is development-only; its
+in-memory transaction tests do not prove disk persistence, eviction resistance,
+browser crashes, actual competing tabs or physical-device recovery.
+Application/test typing, scoped lint and security results are in the adjacent
+`fieldbook-delivery-client-verified-{types,lint,security}.log` files. All 119 applied
+migration pins remain intact. Node 26 emits the existing experimental
+localStorage warning; dependency installation also reported the existing
+`better-sqlite3` Node-engine mismatch. No native SQLite or production packaging
+acceptance is inferred from these source checks. Production runtime verification
+passed again without changing services; the native rollback probe approval,
+migration, authenticated HTTP concurrency and final release gates remain open.

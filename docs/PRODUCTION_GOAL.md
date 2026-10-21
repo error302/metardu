@@ -137,3 +137,12 @@ finds the original book/captures and 119 applied records, with no new delivery
 schema installed. The legacy client/outbox and generic writer still require
 migration, and the pending local operation is retained. This is progress toward
 revision-safe recovery, not an activated recovery fix or production completion.
+
+The client continuation adds exact receipt validation and a transactional,
+immutable-request journal with owner-bound explicit dispatch. Fifty combined
+source checks passed, including real `idb` adapter tests against an in-memory
+IndexedDB implementation for concurrent keys, interrupted responses, quota
+faults, later-edit preservation and stale acknowledgements. The page/outbox and
+generic writer still await coordinated migration, baseline/ancestry review and
+visible recovery inventory. Native/browser/device and release acceptance remain
+separate; the full production goal stays active.
