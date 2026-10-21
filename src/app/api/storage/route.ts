@@ -84,7 +84,7 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
   const saved = await db.transaction(async client => {
     // The canonical table has no unique storage_path constraint. Serialize
     // uploads to a key before checking ownership and registering the file.
-    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [storagePath])
+    await client.query<never>('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [storagePath])
     const { rows } = await client.query<FileUploadRow>(
       'SELECT id, user_id, project_id FROM file_uploads WHERE storage_path = $1', [storagePath]
     )
