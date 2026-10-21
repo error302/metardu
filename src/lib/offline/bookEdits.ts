@@ -1,7 +1,7 @@
 import { openDB, type DBSchema } from 'idb'
 import { z } from 'zod'
 import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema, type FieldbookSaveResult } from '@/lib/fieldbook/delivery'
-import { BookDeliveryError, bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
+import { BookDeliveryDeferredError, BookDeliveryError, bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
 import { findBookRequest, retainBookRequest, sendRetainedBookRequest } from './bookDeliveryJournal'
 export const bookSaveOriginSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('new') }).strict(), z.object({ kind: z.literal('unknown') }).strict(),
   z.object({ kind: z.literal('revision'), revision: bookRevisionSchema }).strict(), z.object({ kind: z.literal('operation'), requestId: z.string().uuid() }).strict()])
@@ -72,7 +72,7 @@ async function serialized<T>(actor: string, project: string, work: () => Promise
   finally { release(); if (deliveryTails.get(key) === current) deliveryTails.delete(key) }
 }
 class DeliveryBudgetError extends Error {}
-function deliveryPass(actor: string, project: string) {
+function deliveryPass(actor: string, project: string, explicitRetry: boolean) {
   const results = { synced: 0, failed: 0, deferred: 0, attempted: 0 }
   const memo = new Map<string, Promise<FieldbookSaveResult>>()
   async function deliver(editId: string, child: BookEdit | undefined, ancestors: Set<string>): Promise<FieldbookSaveResult> {
@@ -93,28 +93,34 @@ function deliveryPass(actor: string, project: string) {
       : (await deliver(edit.basis.requestId, edit, ancestors)).receipt.savedRevision
     const { basis: _basis, ...raw } = edit
     await retainBookRequest(actor, { ...raw, protocol: 'fieldbook-save-v1', baseRevision })
-    if (results.attempted >= 20) throw new DeliveryBudgetError('Twenty deliveries were attempted. Remaining edits are retained; use Retry to continue.')
-    results.attempted++
-    const result = await sendRetainedBookRequest(actor, project, editId)
+    const result = await sendRetainedBookRequest(actor, project, editId, explicitRetry, () => {
+      if (results.attempted >= 20) throw new DeliveryBudgetError('Twenty deliveries were attempted. Remaining edits are retained; use Retry to continue.')
+      results.attempted++
+    })
     results.synced++
     return result
   }
   return { results, send: (id: string) => deliver(id, undefined, new Set()) }
 }
 /** Dispatch ancestors first; only their own saved revision supplies authority. */
-export async function sendBookEdit(actor: string, project: string, id: string): Promise<FieldbookSaveResult> {
-  return serialized(actor, project, () => deliveryPass(actor, project).send(id))
+export async function sendBookEdit(actor: string, project: string, id: string, explicitRetry = true): Promise<FieldbookSaveResult> {
+  return serialized(actor, project, () => deliveryPass(actor, project, explicitRetry).send(id))
 }
 /** One action shares a network budget across every branch and stops on transport/access uncertainty. */
 export async function sendBookEdits(actor: string, project: string, ids: string[]): Promise<{ synced: number; failed: number; deferred: number; attempted: number }> {
   return serialized(actor, project, async () => {
-    const pass = deliveryPass(actor, project), unique = [...new Set(ids)]
+    const pass = deliveryPass(actor, project, true), unique = [...new Set(ids)]
     const selected = unique.slice(0, 100)
     pass.results.deferred = unique.length - selected.length
     for (let index = 0; index < selected.length; index++) {
       try { await pass.send(selected[index]) }
       catch (error) {
         if (error instanceof DeliveryBudgetError) { pass.results.deferred += selected.length - index; break }
+        if (error instanceof BookDeliveryDeferredError) {
+          pass.results.deferred++
+          if (error.scope === 'actor') { pass.results.deferred += selected.length - index - 1; break }
+          continue
+        }
         pass.results.failed++
         if (error instanceof BookDeliveryError && (error.status === undefined || error.status === 401 || error.status === 403 || error.status === 429 || error.status >= 500)) {
           pass.results.deferred += selected.length - index - 1; break

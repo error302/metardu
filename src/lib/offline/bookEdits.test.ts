@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import 'fake-indexeddb/auto'
-import { deleteDB } from 'idb'
+import { deleteDB, openDB, type DBSchema } from 'idb'
 import { createHash } from 'node:crypto'
 import { canonicalDeliveryJson, fieldbookEditablePayload, type FieldbookSaveRequest } from '@/lib/fieldbook/delivery'
 import { retainBookEdit, listBookEdits, sendBookEdit, sendBookEdits, exportBookEditRecords, type BookEdit } from './bookEdits'
@@ -95,4 +95,26 @@ test('concurrent immediate and manual retries send a retained request once in th
   const results = await Promise.all([sendBookEdit(actor, project, edit.requestId), sendBookEdit(actor, project, edit.requestId)])
   expect(results.map(value => value.receipt.savedRevision)).toEqual(['8', '8'])
   expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+test('a shared server retry window defers the next batch without counting an HTTP attempt or another failure', async () => {
+  await retainBookEdit(actor, edit)
+  jest.mocked(fetch).mockResolvedValue(new Response('{}', { status: 429, headers: { 'Retry-After': '120' } }))
+  expect(await sendBookEdits(actor, project, [edit.requestId])).toMatchObject({ attempted: 1, failed: 1, deferred: 0 })
+  expect(await sendBookEdits(actor, project, [edit.requestId])).toMatchObject({ attempted: 0, failed: 0, deferred: 1 })
+  expect(fetch).toHaveBeenCalledTimes(1)
+})
+
+test('corrupt retry ownership stops delivery without counting a network attempt or changing retained readings', async () => {
+  await retainBookEdit(actor, edit)
+  jest.mocked(fetch).mockResolvedValue(new Response('{}', { status: 429, headers: { 'Retry-After': '120' } }))
+  await sendBookEdits(actor, project, [edit.requestId])
+  interface RetryDB extends DBSchema { retries: { key: string; value: Record<string, unknown> } }
+  const database = await openDB<RetryDB>('metardu-book-delivery-journal')
+  const state = await database.get('retries', `actor:${actor}`)
+  if (!state) throw new Error('Expected a retained throttle')
+  await database.put('retries', { ...state, actorId: project }); database.close()
+  expect(await sendBookEdits(actor, project, [edit.requestId])).toMatchObject({ attempted: 0, failed: 1, deferred: 0 })
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(await listBookEdits(actor, project)).toMatchObject([{ edit, result: null }])
 })

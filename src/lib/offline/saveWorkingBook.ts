@@ -14,7 +14,7 @@ export async function persistWorkingBook(actor: string, record: Record<string, u
   catch { cacheWarning = ' The saved-book cache could not be updated; this snapshot is available in recovery.' }
   if (!online) return { requestId: id, pending: true, message: `Saved on this device. Use recovery to deliver when connected.${cacheWarning}` }
   try {
-    const result = await sendBookEdit(actor, raw.projectId, id)
+    const result = await sendBookEdit(actor, raw.projectId, id, false)
     return { requestId: id, pending: false, result, message: `Delivered revision ${result.receipt.savedRevision}.${result.currentRevision !== result.receipt.savedRevision ? ' The server has a later revision; review it before new edits.' : ''}${cacheWarning}` }
   } catch (error) {
     return { requestId: id, pending: true, message: `Saved on this device. ${error instanceof Error ? error.message : 'Delivery is unconfirmed; retry the retained request in recovery.'}${cacheWarning}` }

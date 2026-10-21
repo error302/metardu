@@ -3,7 +3,13 @@ import { bookRevisionSchema, canonicalDeliveryJson, fieldbookEditablePayload, fi
   type FieldbookSaveRequest, type FieldbookSaveResult, type FieldbookSnapshot, type Json } from './delivery'
 
 export class BookDeliveryError extends Error {
-  constructor(message: string, readonly status?: number, readonly code?: string) { super(message); this.name = 'BookDeliveryError' }
+  constructor(message: string, readonly status?: number, readonly code?: string, readonly retryAfter?: string | null) { super(message); this.name = 'BookDeliveryError' }
+}
+export class BookDeliveryDeferredError extends BookDeliveryError {
+  constructor(readonly scope: 'request' | 'actor', readonly nextAttemptAt: number, blocked: boolean) {
+    super(blocked ? 'This retained delivery needs explicit review and retry in recovery. The device snapshot was kept.'
+      : `Delivery is paused. Retry after ${new Date(nextAttemptAt).toLocaleString()}. The exact device request was kept.`, undefined, 'FIELDBOOK_DELIVERY_DEFERRED')
+  }
 }
 const resultSchema = z.object({ receipt: fieldbookSaveReceiptSchema, book: fieldbookSnapshotSchema,
   currentRevision: bookRevisionSchema, replayed: z.boolean() }).strict()
@@ -42,7 +48,7 @@ async function requestApi(actor: string, path: string, body?: FieldbookSaveReque
     const problem = value && typeof value === 'object' && 'error' in value ? value.error : null
     const message = typeof problem === 'string' ? problem : problem && typeof problem === 'object' && 'message' in problem ? String(problem.message) : 'Book delivery was refused. Your device copy is retained.'
     const code = value && typeof value === 'object' && 'code' in value && typeof value.code === 'string' ? value.code : undefined
-    throw new BookDeliveryError(message, response.status, code)
+    throw new BookDeliveryError(message, response.status, code, response.headers.get('Retry-After'))
   }
   return value
 }

@@ -17,6 +17,7 @@ function reply(request = input): FieldbookSaveResult { return { receipt: { proto
   currentRevision: '8', replayed: false } }
 const originalFetch = global.fetch
 beforeEach(async () => { await deleteDB('metardu-book-delivery-journal'); global.fetch = jest.fn() })
+afterEach(() => jest.restoreAllMocks())
 afterAll(() => { global.fetch = originalFetch })
 
 test('reopening the journal retains the exact request and no HTTP is sent before explicit delivery', async () => {
@@ -131,4 +132,79 @@ test('recovery archive exports only the retained owner and project records', asy
   expect(await exportBookRequestRecords(actor, project)).toMatchObject([{ actorId: actor, request: input }])
   expect(await exportBookRequestRecords(book, project)).toEqual([])
   expect(await exportBookRequestRecords(actor, book)).toEqual([])
+})
+
+test('a persisted throttle window prevents manual retry on the same actor in another project without changing either raw request', async () => {
+  let now = 1700000000000
+  jest.spyOn(Date, 'now').mockImplementation(() => now)
+  const other = { ...input, requestId: '55555555-5555-4555-8555-555555555555', projectId: book }
+  await retainBookRequest(actor, input); await retainBookRequest(actor, other)
+  const original = await exportBookRequestRecords(actor, project)
+  jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify({ error: 'Please wait' }), { status: 429, headers: { 'Retry-After': '120' } }))
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).rejects.toMatchObject({ status: 429 })
+  await expect(sendRetainedBookRequest(actor, book, other.requestId)).rejects.toMatchObject({ code: 'FIELDBOOK_DELIVERY_DEFERRED' })
+  expect(fetch).toHaveBeenCalledTimes(1)
+  expect(await exportBookRequestRecords(actor, project)).toEqual(original)
+  expect(await listBookRequests(actor, book)).toMatchObject([{ request: other, result: null }])
+  now += 120000
+  jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(reply()), { status: 200 }))
+  expect(await sendRetainedBookRequest(actor, project, input.requestId)).toMatchObject({ receipt: { savedRevision: '8' } })
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
+
+test('a valid server overload Retry-After date cannot be bypassed by an explicit delivery retry', async () => {
+  let now = 1700000000000
+  jest.spyOn(Date, 'now').mockImplementation(() => now)
+  await retainBookRequest(actor, input)
+  jest.mocked(fetch).mockResolvedValue(new Response('{}', { status: 503, headers: { 'Retry-After': 'Tue, 14 Nov 2023 22:15:20 GMT' } }))
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).rejects.toMatchObject({ status: 503 })
+  now += 119000
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).rejects.toMatchObject({ code: 'FIELDBOOK_DELIVERY_DEFERRED' })
+  expect(fetch).toHaveBeenCalledTimes(1)
+  now += 1000
+  jest.mocked(fetch).mockResolvedValue(new Response(JSON.stringify(reply()), { status: 200 }))
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).resolves.toMatchObject({ receipt: { savedRevision: '8' } })
+})
+
+test('one actor throttle cannot prevent another retained owner from reaching the server', async () => {
+  await retainBookRequest(actor, input); await retainBookRequest(book, input)
+  jest.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': '120' } }))
+    .mockResolvedValueOnce(new Response('{}', { status: 503 }))
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).rejects.toMatchObject({ status: 429 })
+  await expect(sendRetainedBookRequest(book, project, input.requestId)).rejects.toMatchObject({ status: 503 })
+  expect(fetch).toHaveBeenCalledTimes(2)
+})
+
+test('an older in-flight success cannot erase a newer actor throttle from a different request', async () => {
+  const other = { ...input, requestId: '55555555-5555-4555-8555-555555555555' }
+  await retainBookRequest(actor, input); await retainBookRequest(actor, other)
+  let release!: (value: Response) => void
+  let started!: () => void
+  const dispatched = new Promise<void>(resolve => { started = resolve })
+  jest.mocked(fetch).mockImplementationOnce(() => { started(); return new Promise(resolve => { release = resolve }) })
+  const first = sendRetainedBookRequest(actor, project, input.requestId)
+  await dispatched
+  jest.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 429, headers: { 'Retry-After': '120' } }))
+  await expect(sendRetainedBookRequest(actor, project, other.requestId)).rejects.toMatchObject({ status: 429 })
+  release(new Response(JSON.stringify(reply()), { status: 200 })); await first
+  await expect(sendRetainedBookRequest(actor, project, other.requestId)).rejects.toMatchObject({ code: 'FIELDBOOK_DELIVERY_DEFERRED' })
+  expect(fetch).toHaveBeenCalledTimes(2)
+  expect(await listBookRequests(actor, project)).toMatchObject([{ request: input, result: { receipt: { savedRevision: '8' } } }, { request: other, result: null }])
+})
+
+test('opening a version-one journal adds retry storage without rewriting its original request or receipt', async () => {
+  const original = { version: 1, key: `${actor}:${input.requestId}`, actorId: actor, request: input, requestHash: sha(input), result: reply() }
+  const previous = await openDB<TestJournal>('metardu-book-delivery-journal', 1, { upgrade(database) { database.createObjectStore('requests', { keyPath: 'key' }) } })
+  await previous.put('requests', original); previous.close()
+  expect(await listBookRequests(actor, project)).toMatchObject([{ request: input, result: reply() }])
+  expect(await exportBookRequestRecords(actor, project)).toEqual([original])
+  expect(fetch).not.toHaveBeenCalled()
+})
+
+test.each(['garbage', '1e999', '9'.repeat(400)])('an invalid Retry-After value cannot make explicit recovery permanently unavailable (%s)', async header => {
+  await retainBookRequest(actor, input)
+  jest.mocked(fetch).mockResolvedValueOnce(new Response('{}', { status: 503, headers: { 'Retry-After': header } }))
+    .mockResolvedValueOnce(new Response(JSON.stringify(reply()), { status: 200 }))
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).rejects.toMatchObject({ status: 503 })
+  await expect(sendRetainedBookRequest(actor, project, input.requestId)).resolves.toMatchObject({ receipt: { savedRevision: '8' } })
 })

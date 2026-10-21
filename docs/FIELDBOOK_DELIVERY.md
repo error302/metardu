@@ -358,3 +358,52 @@ browser field proof. The final affected suite contains 29 checks, alongside
 strict application/test typing, scoped lint and the security gate (119 applied
 migrations pinned). Production remains the restored
 `08fae427` image; this source-only change has not been deployed.
+
+## Persisted revision-delivery retry windows
+
+Retained Fieldbook delivery now stores retry policy separately from immutable
+requests and receipts. Journal version two adds a retry store without rewriting
+version-one requests or acknowledgements. Automatic working-book saves keep
+retaining their raw edits, but unresolved access/validation/conflict responses
+pause that request for explicit recovery. Transient failures use persisted
+30-second exponential delays up to 15 minutes; a valid server `Retry-After`
+date or delay can extend that window. Invalid/overflowing headers do not create
+an infinite pause. Server rate limits cannot be bypassed by clicking Retry,
+saving in another project or closing/reopening the journal.
+
+Transport/server uncertainty and authentication loss also apply to the retained
+actor across projects. Another actor is independent. Explicit recovery may retry
+ordinary transient failures or reviewed refusals, but cannot bypass a valid
+server-requested wait or the minimum 429 window. Current server authentication,
+owner and project permissions are still required. Ordinary Save uses automatic
+delivery eligibility; the explicit recovery/Sync actions remain available for
+reviewed retries. Read-only server comparison is separate from this write policy.
+
+A verified acknowledgement and its request retry cleanup share one strict
+IndexedDB transaction. Actor policy carries an operation stamp: an older
+in-flight success cannot erase a throttle recorded after dispatch. A changed
+retry owner/key/schema fails closed while preserving the raw request. Batch
+budget/counting happens only after local verification and retry eligibility,
+immediately before dispatch. Paused work counts as deferred, and unreadable local
+retry state does not count as an HTTP attempt. The twenty-attempt/one-hundred-root
+limits remain in place.
+
+Reproduced failures are in `.cache/fieldbook-journal-retry-red.log`,
+`fieldbook-journal-auth-retry-red.log` and `fieldbook-journal-attempts-red.log`.
+The final affected suite passes **92 checks across seven suites**, covering the
+real IndexedDB adapter with controlled HTTP, actor/project isolation, original
+precision/null values, version-one preservation, retry dates/overflow, causality,
+late responses, deferred batch accounting and actual page/recovery handlers.
+Strict application/test typing, scoped lint and the security gate (119 pinned applied SQL
+files) pass. Evidence is `fieldbook-journal-retry-verified-{tests,types,lint}.log`
+and `fieldbook-journal-retry-security.log` under `.cache/`.
+
+This is source and simulated transport/storage proof. Native browser reload,
+competing tabs, quota failure during retry-policy retention, verified archive
+restoration, journal retention limits, migration 115 and final release/field
+acceptance remain open. Production and its supporting services remain healthy
+on the prior image; no application build, service restart or SQL promotion was
+performed. The existing marked synthetic database is still stopped. A fresh
+question requests permission to restart that exact database and run the corrected
+single-transaction rollback-only probe; the earlier automatic approval review
+disconnected, and no unanswered retry approval has been assumed.
