@@ -136,21 +136,30 @@ export class SurveyPlanRenderer {
     const parcel = this.data.parcel
     const bb = boundingBox(parcel.boundaryPoints)
     
-    // Use nice round numbers for grid lines (every 50m)
-    const gridMinE = Math.floor(bb.minE / 50) * 50
-    const gridMaxE = Math.ceil(bb.maxE / 50) * 50
-    const gridMinN = Math.floor(bb.minN / 50) * 50
-    const gridMaxN = Math.ceil(bb.maxN / 50) * 50
+    // Keep the 50 m site grid, increasing its display interval for large extents.
+    // Iterate integer indices so rounded coordinate additions cannot stall a loop.
+    const targetStep = Math.max(50, Math.max(bb.rangeE, bb.rangeN) / 20)
+    const magnitude = 10 ** Math.floor(Math.log10(targetStep))
+    const gridStep = [1, 2, 5, 10].map(factor => factor * magnitude).find(step => step >= targetStep)
+    if (!gridStep || !Number.isFinite(gridStep)) throw new RangeError('Plan extent cannot be represented by the display grid')
+    const gridMinE = Math.floor(bb.minE / gridStep)
+    const gridMaxE = Math.ceil(bb.maxE / gridStep)
+    const gridMinN = Math.floor(bb.minN / gridStep)
+    const gridMaxN = Math.ceil(bb.maxN / gridStep)
+    if (![gridMinE, gridMaxE, gridMinN, gridMaxN].every(Number.isSafeInteger) || gridMaxE - gridMinE > 22 || gridMaxN - gridMinN > 22) {
+      throw new RangeError('Plan extent cannot be represented by the display grid')
+    }
     
     let svg = ''
     
     // Vertical lines (Easting)
-    for (let e = gridMinE; e <= gridMaxE; e += 50) {
+    for (let index = gridMinE; index <= gridMaxE; index++) {
+      const e = index * gridStep
       const x = this.toSvgX(e)
       if (x < this.drawingX + mmToPx(14) || x > this.panelX - mmToPx(5)) continue
       const y1 = this.drawingY + mmToPx(3)
       const y2 = this.drawingY + this.drawingAreaH - mmToPx(3)
-      const isMajor = e % 100 === 0
+      const isMajor = index % 2 === 0
       const stroke = isMajor ? C_GRID_MAJOR : C_GRID_MINOR
       const width = isMajor ? 0.8 : 0.4
       const dash = isMajor ? 'none' : '2,4'
@@ -164,12 +173,13 @@ export class SurveyPlanRenderer {
     }
     
     // Horizontal lines (Northing)
-    for (let n = gridMinN; n <= gridMaxN; n += 50) {
+    for (let index = gridMinN; index <= gridMaxN; index++) {
+      const n = index * gridStep
       const y = this.toSvgY(n)
       if (y < this.drawingY + mmToPx(4) || y > this.drawingY + this.drawingAreaH - mmToPx(4)) continue
       const x1 = this.drawingX + mmToPx(3)
       const x2 = this.panelX - mmToPx(3)
-      const isMajor = n % 100 === 0
+      const isMajor = index % 2 === 0
       const stroke = isMajor ? C_GRID_MAJOR : C_GRID_MINOR
       const width = isMajor ? 0.8 : 0.4
       const dash = isMajor ? 'none' : '2,4'

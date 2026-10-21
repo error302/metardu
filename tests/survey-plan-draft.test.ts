@@ -32,6 +32,19 @@ test('printed area is stable for a small parcel in large projected coordinates',
   expect(shoelaceArea(points.map(point => ({ easting: point.easting + 500000, northing: point.northing + 9900000 })))).toBe(shoelaceArea(points))
 })
 
+test('large extents use a bounded number of display grid samples', () => {
+  class GridProbe extends SurveyPlanRenderer {
+    renderGridBounded() {
+      let samples = 0
+      this.toSvgX = () => { if (++samples > 200) throw new Error('Unbounded display grid'); return 100 }
+      this.toSvgY = () => { if (++samples > 200) throw new Error('Unbounded display grid'); return 100 }
+      return this.drawGrid()
+    }
+  }
+  const boundaryPoints = data.parcel.boundaryPoints.map(point => ({ ...point, easting: point.easting * 10000, northing: point.northing * 10000 }))
+  expect(() => new GridProbe({ ...data, parcel: { ...data.parcel, boundaryPoints } }).renderGridBounded()).not.toThrow()
+})
+
 test('standard-layout area annotations use paper coordinates', async () => {
   const xml = new DOMParser().parseFromString(await render('standard'), 'image/svg+xml')
   const label = Array.from(xml.querySelectorAll('text')).find(node => node.textContent === '800.00 m²')

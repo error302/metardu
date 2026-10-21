@@ -50,3 +50,10 @@ bypassing migration or customer-clone gates; promote the existing stack once;
 then validate ordinary-account workflows, providers and devices. Record failures
 and limitations in their own evidence categories. A green build or this ledger
 does not complete that sequence or narrow the original goal.
+
+The large-extent print follow-up reproduced an unbounded 50 m display-grid loop.
+Grid spacing now increases with the extent using round intervals and bounded
+integer indices; unrepresentable grid coordinates fail explicitly. Original
+survey coordinates are unchanged. The reproduced regression, both renderer
+suites and the existing small-site snapshot pass (79 checks). This is source
+rendering evidence, separate from printer, field and deployment acceptance.
