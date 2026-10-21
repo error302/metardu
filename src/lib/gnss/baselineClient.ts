@@ -1,3 +1,5 @@
+import { RelativeBaselineResultSchema } from './baselineResult'
+
 export interface RINEXBaselineFiles {
   base: Pick<File, 'name' | 'size' | 'text'>
   rover: Pick<File, 'name' | 'size' | 'text'>
@@ -70,31 +72,32 @@ export async function processRINEXBaseline(
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ baseRinex, roverRinex, navRinex, basePosition, options }),
   })
-  let payload: Partial<RINEXBaselineResponse> & { error?: string }
+  let payload: (Partial<RINEXBaselineResponse> & { error?: string }) | null
   try {
     payload = await response.json() as Partial<RINEXBaselineResponse> & { error?: string }
   } catch {
     throw new Error(`GNSS baseline processing returned an unreadable response (HTTP ${response.status}).`)
   }
-  if (!response.ok) throw new Error(payload.error || `GNSS baseline processing failed (HTTP ${response.status}).`)
-  if (!payload.baseline || !payload.meta?.basePosition) throw new Error('GNSS baseline processing did not return a complete result.')
+  if (!response.ok) throw new Error(typeof payload?.error === 'string' ? payload.error : `GNSS baseline processing failed (HTTP ${response.status}).`)
+  if (!payload?.baseline || !payload.meta?.basePosition) throw new Error('GNSS baseline processing did not return a complete result.')
 
-  const { baseline } = payload
-  if (![baseline.rover_latitude, baseline.rover_longitude, baseline.rover_height,
-    baseline.sigma_north, baseline.sigma_east, baseline.sigma_up, baseline.sat_count].every(Number.isFinite)) {
-    throw new Error('GNSS baseline processing returned incomplete or invalid measurements.')
-  }
-  if (Math.abs(baseline.rover_latitude) > 90 || Math.abs(baseline.rover_longitude) > 180
-    || baseline.sigma_north < 0 || baseline.sigma_east < 0 || baseline.sigma_up < 0
-    || !Number.isInteger(baseline.sat_count) || baseline.sat_count < 1
-    || !Number.isFinite(baseline.ratio) || baseline.ratio < 0
-    || !['FIX', 'FLOAT'].includes(baseline.quality)) {
-    throw new Error('GNSS baseline processing returned an invalid or non-relative solution.')
+  const measurements = RelativeBaselineResultSchema.safeParse(payload.baseline)
+  if (!measurements.success) {
+    throw new Error('GNSS baseline processing returned invalid measurements or a non-relative solution.')
   }
   const { latitude, longitude, ellipsoidalHeight } = payload.meta.basePosition
   if (![latitude, longitude, ellipsoidalHeight].every(Number.isFinite)
     || Math.abs(latitude) > 90 || Math.abs(longitude) > 180) {
     throw new Error('GNSS baseline processing returned invalid reference coordinates.')
   }
-  return payload as RINEXBaselineResponse
+  const meta = payload.meta
+  if (latitude !== basePosition.latitude || longitude !== basePosition.longitude || ellipsoidalHeight !== basePosition.ellipsoidalHeight
+    || meta.mode !== options.mode || meta.frequency !== options.frequency
+    || meta.elevationMask !== options.elevationMask || meta.ambiguityResolution !== options.ambiguityResolution) {
+    throw new Error('GNSS baseline response metadata does not match the submitted control and settings.')
+  }
+  if (meta.processedBy !== 'RTKLIB (rnx2rtkp)' || typeof meta.processedAt !== 'string' || !Number.isFinite(Date.parse(meta.processedAt))) {
+    throw new Error('GNSS baseline processing returned invalid processing metadata.')
+  }
+  return { baseline: measurements.data, meta }
 }

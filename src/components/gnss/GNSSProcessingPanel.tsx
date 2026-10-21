@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AlertCircle, Loader2, Satellite } from 'lucide-react'
 import { processRINEXBaseline, type RINEXBaselineResponse } from '@/lib/gnss/baselineClient'
 
@@ -32,14 +32,34 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
   const [result, setResult] = useState<RINEXBaselineResponse | null>(null)
   const [processing, setProcessing] = useState(false)
   const [error, setError] = useState('')
+  const [inputsChanged, setInputsChanged] = useState(false)
+  const inputRevision = useRef(0)
+  const mounted = useRef(true)
+  const pending = useRef(false)
 
-  const updateFile = (slot: FileSlot, file?: File) => {
-    setFiles(current => ({ ...current, [slot]: file ?? null }))
+  useEffect(() => {
+    mounted.current = true
+    return () => { mounted.current = false; inputRevision.current += 1 }
+  }, [])
+
+  const updateInputs = (update: () => void) => {
+    inputRevision.current += 1
+    if (pending.current || result) setInputsChanged(true)
     setResult(null)
     setError('')
+    update()
+  }
+
+  const updateFile = (slot: FileSlot, file?: File) => {
+    updateInputs(() => setFiles(current => ({ ...current, [slot]: file ?? null })))
+  }
+
+  const updateBaseCoordinate = (field: keyof typeof baseCoordinates, value: string) => {
+    updateInputs(() => setBaseCoordinates(current => ({ ...current, [field]: value })))
   }
 
   const handleProcess = async () => {
+    if (pending.current) return
     if (!files.base || !files.rover || !files.navigation) {
       setError('Choose base, rover, and navigation RINEX files before processing.')
       return
@@ -60,7 +80,10 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
       setError('Check the base-control coordinate ranges and ellipsoidal height.')
       return
     }
+    const revision = inputRevision.current
+    pending.current = true
     setProcessing(true)
+    setInputsChanged(false)
     setError('')
     setResult(null)
     try {
@@ -69,6 +92,7 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
         { mode, frequency, elevationMask, ambiguityResolution },
         basePosition,
       )
+      if (!mounted.current || revision !== inputRevision.current) return
       setResult(response)
       onPositionComputed?.({
         lat: response.baseline.rover_latitude,
@@ -82,9 +106,12 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
         satellites: response.baseline.sat_count,
       })
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'GNSS baseline processing failed.')
+      if (mounted.current && revision === inputRevision.current) {
+        setError(cause instanceof Error ? cause.message : 'GNSS baseline processing failed.')
+      }
     } finally {
-      setProcessing(false)
+      pending.current = false
+      if (mounted.current) setProcessing(false)
     }
   }
 
@@ -132,15 +159,15 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
         <div className="grid gap-4 sm:grid-cols-3">
           <div>
             <label htmlFor="gnss-base-latitude" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Latitude (degrees)</label>
-            <input id="gnss-base-latitude" type="number" min="-90" max="90" step="any" inputMode="decimal" value={baseCoordinates.latitude} onChange={event => setBaseCoordinates(current => ({ ...current, latitude: event.target.value }))} className={inputClass} />
+            <input id="gnss-base-latitude" type="number" min="-90" max="90" step="any" inputMode="decimal" value={baseCoordinates.latitude} onChange={event => updateBaseCoordinate('latitude', event.target.value)} className={inputClass} />
           </div>
           <div>
             <label htmlFor="gnss-base-longitude" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Longitude (degrees)</label>
-            <input id="gnss-base-longitude" type="number" min="-180" max="180" step="any" inputMode="decimal" value={baseCoordinates.longitude} onChange={event => setBaseCoordinates(current => ({ ...current, longitude: event.target.value }))} className={inputClass} />
+            <input id="gnss-base-longitude" type="number" min="-180" max="180" step="any" inputMode="decimal" value={baseCoordinates.longitude} onChange={event => updateBaseCoordinate('longitude', event.target.value)} className={inputClass} />
           </div>
           <div>
             <label htmlFor="gnss-base-height" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Ellipsoidal height (m)</label>
-            <input id="gnss-base-height" type="number" min="-12000" max="100000" step="any" inputMode="decimal" value={baseCoordinates.ellipsoidalHeight} onChange={event => setBaseCoordinates(current => ({ ...current, ellipsoidalHeight: event.target.value }))} className={inputClass} />
+            <input id="gnss-base-height" type="number" min="-12000" max="100000" step="any" inputMode="decimal" value={baseCoordinates.ellipsoidalHeight} onChange={event => updateBaseCoordinate('ellipsoidalHeight', event.target.value)} className={inputClass} />
           </div>
         </div>
       </section>
@@ -154,14 +181,14 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
       <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="RTKLIB processing settings">
         <div>
           <label htmlFor="gnss-mode" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Positioning mode</label>
-          <select id="gnss-mode" value={mode} onChange={event => setMode(event.target.value as typeof mode)} className={inputClass}>
+          <select id="gnss-mode" value={mode} onChange={event => updateInputs(() => setMode(event.target.value as typeof mode))} className={inputClass}>
             <option value="static">Static</option>
             <option value="kinematic">Kinematic</option>
           </select>
         </div>
         <div>
           <label htmlFor="gnss-frequency" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Frequency</label>
-          <select id="gnss-frequency" value={frequency} onChange={event => setFrequency(event.target.value as typeof frequency)} className={inputClass}>
+          <select id="gnss-frequency" value={frequency} onChange={event => updateInputs(() => setFrequency(event.target.value as typeof frequency))} className={inputClass}>
             <option value="l1">L1</option>
             <option value="l1+l2">L1 + L2</option>
             <option value="l1+l2+l5">L1 + L2 + L5</option>
@@ -169,11 +196,11 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
         </div>
         <div>
           <label htmlFor="gnss-elevation-mask" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Elevation mask (degrees)</label>
-          <input id="gnss-elevation-mask" type="number" min="0" max="90" step="1" value={elevationMask} onChange={event => setElevationMask(Math.max(0, Math.min(90, Number(event.target.value))))} className={inputClass} />
+          <input id="gnss-elevation-mask" type="number" min="0" max="90" step="1" value={elevationMask} onChange={event => updateInputs(() => setElevationMask(Math.max(0, Math.min(90, Number(event.target.value)))))} className={inputClass} />
         </div>
         <div>
           <label htmlFor="gnss-ambiguity-resolution" className="mb-1 block text-xs font-medium text-[var(--text-secondary)]">Ambiguity resolution</label>
-          <select id="gnss-ambiguity-resolution" value={ambiguityResolution} onChange={event => setAmbiguityResolution(event.target.value as typeof ambiguityResolution)} className={inputClass}>
+          <select id="gnss-ambiguity-resolution" value={ambiguityResolution} onChange={event => updateInputs(() => setAmbiguityResolution(event.target.value as typeof ambiguityResolution))} className={inputClass}>
             <option value="continuous">Continuous</option>
             <option value="instantaneous">Instantaneous</option>
             <option value="fix-and-hold">Fix and hold</option>
@@ -183,6 +210,9 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
       </section>
 
       {error && <div role="alert" className="flex items-start gap-2 rounded-lg border border-red-800 bg-red-950/40 p-3 text-sm text-red-200"><AlertCircle className="mt-0.5 h-4 w-4 shrink-0" /><p>{error}</p></div>}
+      {inputsChanged && <p role="status" className="text-sm text-[var(--text-secondary)]">{processing
+        ? 'Inputs changed. The submitted run is still finishing; its result will be discarded. Process the current inputs after it finishes.'
+        : 'Inputs changed. Process again to obtain a result for the current files, control and settings.'}</p>}
 
       <button
         type="button"
@@ -192,7 +222,7 @@ export default function GNSSProcessingPanel({ onPositionComputed }: GNSSProcessi
       >
         {processing ? <><Loader2 className="h-4 w-4 animate-spin" /> Processing RINEX…</> : <><Satellite className="h-4 w-4" /> Process baseline</>}
       </button>
-      {processing && <p role="status" className="text-sm text-[var(--text-muted)]">The RTKLIB worker may take several minutes on long observation sessions.</p>}
+      {processing && !inputsChanged && <p role="status" className="text-sm text-[var(--text-muted)]">The RTKLIB worker may take several minutes on long observation sessions.</p>}
 
       {baseline && result && (
         <section className="space-y-4 rounded-lg border border-emerald-700/60 bg-emerald-950/15 p-4" aria-labelledby="gnss-baseline-result">

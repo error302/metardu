@@ -17,6 +17,19 @@ const validResponse: RINEXBaselineResponse = {
 }
 
 describe('RINEX baseline client', () => {
+  it.each([
+    { basePosition: { ...validResponse.meta.basePosition, ellipsoidalHeight: 999 } },
+    { basePosition: { ...validResponse.meta.basePosition, latitude: 0 } },
+    { mode: 'kinematic' }, { frequency: 'l1' }, { elevationMask: 0 }, { ambiguityResolution: 'off' },
+    { processedBy: 'another solver' }, { processedAt: 'invalid date' },
+  ])('rejects response metadata that is invalid or differs from the submitted control/settings: %j', async meta => {
+    const files = { base: file('base.obs', 'B'.repeat(120)), rover: file('rover.obs', 'R'.repeat(120)), navigation: file('nav.nav', 'N'.repeat(120)) }
+    await expect(processRINEXBaseline(files,
+      { mode: 'static', frequency: 'l1+l2', elevationMask: 15, ambiguityResolution: 'continuous' },
+      validResponse.meta.basePosition,
+      async () => ({ ok: true, status: 200, json: async () => ({ ...validResponse, meta: { ...validResponse.meta, ...meta } }) } as Response),
+    )).rejects.toThrow(/metadata|submitted/)
+  })
   it('sends the selected source files and settings to the authenticated RTKLIB endpoint', async () => {
     const fetcher = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => validResponse })
     const files = {

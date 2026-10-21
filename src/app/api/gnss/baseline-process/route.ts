@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { apiHandler } from '@/lib/apiHandler'
 import { callPythonCompute } from '@/lib/compute/pythonService'
+import { RelativeBaselineResultSchema } from '@/lib/gnss/baselineResult'
 
 /**
  * POST /api/gnss/baseline-process
@@ -31,9 +32,8 @@ import { callPythonCompute } from '@/lib/compute/pythonService'
  *   {
  *     rover_latitude, rover_longitude, rover_height,
  *     sigma_north, sigma_east, sigma_up,
- *     quality: 'FIX' | 'FLOAT' | 'SINGLE' | ...,
+ *     quality: 'FIX' | 'FLOAT',
  *     sat_count, ratio,
- *     raw_output (last 2KB for debugging)
  *   }
  *
  * Note: RTKLIB must be installed in the Python worker container.
@@ -70,18 +70,7 @@ export const POST = apiHandler(
 
     // Dispatch to Python worker (RTKLIB subprocess)
     // 5-minute timeout for RTKLIB processing
-    const result = await callPythonCompute<{
-      rover_latitude: number
-      rover_longitude: number
-      rover_height: number
-      sigma_north: number
-      sigma_east: number
-      sigma_up: number
-      quality: string
-      sat_count: number
-      ratio: number
-      raw_output: string
-    }>(
+    const result = await callPythonCompute<unknown>(
       '/compute',
       {
         task: 'gnss_baseline_process',
@@ -116,8 +105,16 @@ export const POST = apiHandler(
       )
     }
 
+    const measurements = RelativeBaselineResultSchema.safeParse(result.value)
+    if (!measurements.success) {
+      return NextResponse.json({
+        error: 'GNSS worker returned invalid measurements or a non-relative solution.',
+        code: 'INVALID_WORKER_RESULT',
+      }, { status: 502 })
+    }
+
     return NextResponse.json({
-      baseline: result.value,
+      baseline: measurements.data,
       meta: {
         processedBy: 'RTKLIB (rnx2rtkp)',
         mode: options.mode,

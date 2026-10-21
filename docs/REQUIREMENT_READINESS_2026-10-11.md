@@ -1,5 +1,13 @@
 # METARDU requirement readiness — checkpoints through 21 October 2026
 
+Latest GNSS checkpoint (21 October): the source RINEX panel invalidates results on
+all input changes and suppresses obsolete/unmounted callbacks. Server/client
+measurement validation fails closed, and client metadata must match submitted
+control/settings. Seven focused suites pass 65 tests; strict app/test typing
+passes. These are source checks; metadata echoes are not worker attestations and
+the production worker artifact gap remains. See
+[GNSS result integrity and acceptance limits](GNSS_RESULT_INTEGRITY_2026-10-21.md).
+
 Latest worker checkpoint (21 October): host Python source tests pass 58/58 with
 two network checks skipped; release/upgrade helper tests pass 13/13. The new
 read-only worker artifact guard has six passing contract tests, but its actual
@@ -8,7 +16,7 @@ the LiDAR task declaration are absent, while main/requirements differ. Ordinary
 production health passes independently. No worker was rebuilt or restarted. See
 [worker acceptance and release gates](WORKER_ACCEPTANCE_2026-10-21.md).
 
-Latest application source checkpoint (21 October): the full ordinary Jest suite passes 5,379
+Earlier application-wide source checkpoint (21 October): the full ordinary Jest suite passed 5,379
 tests across 597 executed suites, with nine native checks skipped and zero
 failures. The working tree was unchanged during that run, including the existing
 uncommitted survey-plan work. This is source evidence, not an isolated release
