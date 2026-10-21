@@ -315,7 +315,7 @@ export default function DigitalFieldBookPage() {
           if (!error && data) setProjects(data)
           else setProjectsError('Projects could not be loaded. Reconnect and reload before starting a new book.')
         }
-      } catch { if (isMounted) setProjectsError('The account or project request could not be confirmed. Check your connection and retry. Your open book is retained.') }
+      } catch { if (isMounted) setProjectsError('The account or project request could not be confirmed. Check your connection and retry. Export JSON before reloading to keep your open book.') }
     })()
     return () => {
       isMounted = false

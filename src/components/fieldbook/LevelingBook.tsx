@@ -2,6 +2,7 @@
 
 import type { Dispatch, SetStateAction } from 'react'
 import type { LevelingResult } from '@/lib/engine/types'
+import styles from './FieldbookTable.module.css'
 
 type Translator = (key: string, values?: Record<string, string | number>) => string
 
@@ -71,8 +72,10 @@ export function LevelingBook({
           </div>
         </div>
 
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <table className="table min-w-[920px]">
+        <p className="text-xs text-[var(--text-secondary)]">Scroll the table horizontally to see every observation and result. Station names and row actions stay visible.</p>
+        <div className={styles.scroll} role="region" aria-label="Leveling observations" tabIndex={0}>
+          <table className={`${styles.table} ${styles.leveling}`}>
+            <caption className="sr-only">Leveling observations and computed results</caption>
             <thead className="sticky top-0 z-10">
               <tr>
                 <th className="text-left">{t('common.station')}</th>
@@ -83,7 +86,7 @@ export function LevelingBook({
                 <th>{t('leveling.fall')}</th>
                 <th>{t('leveling.rl')}</th>
                 <th className="text-left">{t('common.remarks')}</th>
-                <th />
+                <th><span className="sr-only">Row actions</span></th>
               </tr>
             </thead>
             <tbody>

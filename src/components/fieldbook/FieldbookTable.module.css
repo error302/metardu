@@ -1,0 +1,62 @@
+.scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  border: 1px solid var(--border-color);
+  border-radius: 0.5rem;
+}
+
+.scroll:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.leveling { min-width: 68rem; }
+.traverse { min-width: 112rem; }
+
+.table th,
+.table td {
+  min-width: 5rem;
+  padding: 0.625rem 0.75rem;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--border-color);
+  background: var(--bg-primary);
+}
+
+.table th {
+  white-space: nowrap;
+  font-weight: 600;
+  background: var(--bg-secondary);
+}
+
+.table input { min-width: 0; }
+
+.table thead tr:first-child th:first-child,
+.table tbody td:first-child {
+  position: sticky;
+  left: 0;
+  z-index: 2;
+  min-width: 8rem;
+  background: var(--bg-secondary);
+  box-shadow: 1px 0 0 var(--border-color);
+}
+
+.table thead tr:first-child th:last-child,
+.table tbody td:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 2;
+  min-width: 6.5rem;
+  white-space: nowrap;
+  background: var(--bg-secondary);
+  box-shadow: -1px 0 0 var(--border-color);
+}
+
+.table tbody tr:last-child td { border-bottom: 0; }

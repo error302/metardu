@@ -490,3 +490,34 @@ completed, and HTTP/database/Redis health passing. The last backup record is
 21 October 12:33:15 UTC, archive/header evidence only. No service, database,
 application image or migration was changed. The separate synthetic migration
 probe remains awaiting its previously requested approval.
+
+### Source browser recovery and observation-table layout
+
+The existing host source preview is now reachable again. Chrome rendered the
+Fieldbook page and an explicit account retry ended at `Sign in online to load
+your projects.`, with saving disabled. The source session log confirmed refusal
+at the stopped synthetic DB on port 55433. After source refresh, middleware
+redirected the now-unconfirmed session to login. The scoped recovery panel and
+archive import/reload workflow were therefore not accepted natively. The exact
+runtime, observed screenshot, pending probe and preservation plan are recorded
+in `FIELDBOOK_NATIVE_ACCEPTANCE.md`.
+
+The rendered Level Book also exposed cramped result headers and a clipped row
+action. The `table` class supplied display behavior without the cell spacing
+those components expected. Leveling and traverse now share scoped table styles:
+minimum readable column widths, cell padding, numeric tabular figures, opaque
+sticky station/action columns and a focusable horizontal-scroll region. Each
+table has a descriptive caption, visible scrolling guidance and an accessible
+row-actions header. Raw inputs, calculations and save behavior are unchanged.
+The account-load failure message now advises exporting JSON before reloading;
+it no longer implies durable retention when an owner could not be confirmed.
+
+The existing Leveling Book, Traverse Book and page suites pass 27 checks across
+three suites (`.cache/fieldbook-table-final-tests.log`). Strict app/test typing
+and scoped lint pass in `fieldbook-table-types.log`,
+`fieldbook-table-final-app-types.log` and `fieldbook-table-final-lint.log`.
+The security gate passes in `fieldbook-table-security.log`.
+This is source/behavior verification;
+the updated table appearance, scrolling, focus and narrow-view layout still
+require a confirmed source login and native browser checks. The saved screenshot
+captures the pre-change layout and account gate, not an after-change proof.

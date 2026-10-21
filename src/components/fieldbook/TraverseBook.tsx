@@ -1,4 +1,5 @@
 'use client';
+import styles from './FieldbookTable.module.css'
 
 import { useEffect, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
@@ -199,8 +200,10 @@ export function TraverseBook({
           )}
         </div>
 
-        <div className="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
-          <table className="table min-w-[1400px]">
+        <p className="text-xs text-[var(--text-secondary)]">Scroll the table horizontally to see every observation and result. Station names and row actions stay visible.</p>
+        <div className={styles.scroll} role="region" aria-label="Traverse observations" tabIndex={0}>
+          <table className={`${styles.table} ${styles.traverse}`}>
+            <caption className="sr-only">Traverse observations and computed results</caption>
             <thead className="sticky top-0 z-10">
               <tr>
                 <th className="text-left" rowSpan={2}>{t('common.station')}</th>
@@ -216,7 +219,7 @@ export function TraverseBook({
                 <th className="text-right" rowSpan={2}>{t('common.easting')}</th>
                 <th className="text-right" rowSpan={2}>{t('common.northing')}</th>
                 <th className="text-left" rowSpan={2}>{t('common.remarks')}</th>
-                <th rowSpan={2} />
+                <th rowSpan={2}><span className="sr-only">Row actions</span></th>
               </tr>
               <tr>
                 <th className="text-center text-[10px] text-[var(--text-muted)]">Deg</th>
