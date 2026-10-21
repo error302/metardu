@@ -79,7 +79,7 @@ export function TraverseBook({
   computed:
     | { ok: false; errors: string[] }
     | { ok: true; mode: 'open'; raw: { legs: Array<{ deltaN: number; deltaE: number; easting: number; northing: number }> } }
-    | { ok: true; mode: 'closed' | 'link'; adjusted: { legs: Array<{ adjDeltaN: number; adjDeltaE: number; adjEasting: number; adjNorthing: number }>; closingErrorE: number; closingErrorN: number; linearError: number; totalDistance: number } }
+    | { ok: true; mode: 'closed' | 'link'; adjusted: { legs: Array<{ adjDeltaN: number; adjDeltaE: number; adjEasting: number; adjNorthing: number }>; closingErrorE: number; closingErrorN: number; linearError: number; totalDistance: number; precisionRatio: number } }
 }) {
   const [edmOpen, setEdmOpen] = useState(false)
 
@@ -344,7 +344,9 @@ export function TraverseBook({
             <div className="p-3 bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] border border-[var(--border-color)] rounded">
               <div className="text-xs text-[var(--text-muted)]">{t('traverse.precision')}</div>
               <div className="font-mono">
-                1 : {Math.max(1, Math.round(Number(computed.adjusted.totalDistance) / Math.max(1e-12, Number(computed.adjusted.linearError)))).toLocaleString()}
+                {Number.isFinite(computed.adjusted.precisionRatio) && computed.adjusted.precisionRatio > 0
+                  ? `1:${Math.round(computed.adjusted.precisionRatio).toLocaleString()}`
+                  : computed.adjusted.linearError === 0 && computed.adjusted.totalDistance > 0 ? 'Zero computed closure' : 'Not evaluated'}
               </div>
             </div>
           </div>

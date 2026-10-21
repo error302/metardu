@@ -114,3 +114,15 @@ other type/long-report/responsive acceptance remain open. Source-preview
 timeouts, misleading zero-delivery copy and an unrelated zero-misclosure QC
 sidebar are retained findings. This source/browser milestone does not promote
 production, prove recovery from backup, or complete the paid engineering chain.
+
+`FIELDBOOK_QUALITY.md` records the next source/browser checkpoint. Desktop and
+mobile checks now present the active engine result, preserve unknown closure,
+reject silently skipped malformed leveling input, and remove inferred statutory
+verdicts. The invalid save-time scalar/vector check was replaced with an actual
+adjusted-coordinate consistency check. Untouched saved-book navigation no longer
+creates an empty copy. Thirty-five focused checks and one ordinary responsive
+leveling fixture passed; raw originals and the restored native book were
+independently preserved. A previously created local empty copy/pending operation
+is retained and unconfirmed, and source-preview request delays remain. Adopted
+criteria/revisions, recovery reconciliation, engineering, paid lifecycle,
+security and release/field gates remain open; the full goal stays active.

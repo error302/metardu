@@ -15,10 +15,9 @@ import { trackFieldbookSave } from '@/lib/analytics/events'
 import { createClient } from '@/lib/api-client/client'
 import ErrorBoundary from '@/components/ErrorBoundary'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
-import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
+import { computeLevelBook } from '@/lib/fieldbook/computeLevelBook'
 import { logger } from '@/lib/logger'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
-import { TRAVERSE_PRECISION_STANDARDS } from '@/lib/engine/traverse'
 import { bearingToString, normalizeBearing, parseFieldAngle } from '@/lib/engine/angles'
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
@@ -46,11 +45,11 @@ import type { FieldObservation } from '@/lib/mobile/offlineStorage'
 import { syncService } from '@/lib/mobile/syncService'
 import { prepareCapturedPhotoData } from '@/lib/mobile/capturedPhotoData'
 import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
+import { summarizeBookQuality } from '@/lib/fieldbook/qualitySummary'
 import { InstrumentStreamBar, type StreamedReading, type SurveyType as StreamSurveyType } from '@/components/fieldbook/InstrumentStreamBar'
-import { InstantClosureFeedback } from '@/components/fieldbook/InstantClosureFeedback'
 import { useAutoSave } from '@/hooks/useAutoSave'
 import { useNotifications } from '@/hooks/useNotifications'
-import { crossCheckArea, crossCheckClosure } from '@/lib/engine/calculationCrossCheck'
+import { crossCheckAdjustedTraverse } from '@/lib/engine/calculationCrossCheck'
 
 /** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
 function useIsMobile() {
@@ -136,106 +135,6 @@ function TabButton({ active, onClick, children }: { active: boolean; onClick: ()
     >
       {children}
     </button>
-  )
-}
-
-// ─── Bowditch Adjustment Summary ────────────────────────────────────
-// Displays precision stats and statutory compliance for closed/link traverses.
-// Uses the TraverseResult from the existing bowditchAdjustment() engine.
-
-function BowditchSummary({ adjusted, threshold = TRAVERSE_PRECISION_STANDARDS.cadastral, surveyClassLabel = 'cadastral' }: {
-  adjusted: import('@/lib/engine/types').TraverseResult
-  threshold?: number
-  surveyClassLabel?: string
-}) {
-  const precisionRatio = adjusted.precisionRatio
-  const linearError = adjusted.linearError
-  const totalDistance = adjusted.totalDistance
-  const grade = adjusted.precisionGrade
-
-  const isAcceptable = precisionRatio >= threshold
-  // AUDIT FIX (M-007, 2026-07-27): handle zero/invalid precision — previously
-  // showed "1:0" when no observations were added. Show placeholder instead.
-  const ratioDisplay = precisionRatio > 0 && Number.isFinite(precisionRatio)
-    ? `1:${precisionRatio.toLocaleString()}`
-    : '—'
-  const thresholdDisplay = `1:${threshold.toLocaleString()}`
-
-  const gradeConfig: Record<string, { color: string; bg: string; label: string }> = {
-    excellent: { color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: 'Excellent' },
-    good: { color: 'text-blue-400', bg: 'bg-blue-500/10 border-blue-500/30', label: 'Good' },
-    acceptable: { color: 'text-amber-400', bg: 'bg-amber-500/10 border-amber-500/30', label: 'Acceptable' },
-    poor: { color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', label: 'Poor' },
-  }
-  const cfg = gradeConfig[grade] || gradeConfig.poor
-
-  return (
-    <div className="card p-4 mt-4">
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <svg className="w-4 h-4 text-[var(--accent)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 7h6M9 12h6M9 17h6M5 4h14a1 1 0 011 1v14a1 1 0 01-1 1H5a1 1 0 01-1-1V5a1 1 0 011-1z" />
-          </svg>
-          <span className="text-sm font-semibold text-[var(--text-primary)]">Bowditch Adjustment Summary</span>
-        </div>
-        <span className={`text-[10px] font-medium px-2 py-0.5 rounded border ${cfg.bg} ${cfg.color}`}>
-          {cfg.label}
-        </span>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        <div className="p-2.5 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
-          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Precision Ratio</span>
-          <div className={`text-sm font-mono font-semibold mt-0.5 ${isAcceptable ? 'text-emerald-400' : 'text-red-400'}`}>
-            {ratioDisplay}
-          </div>
-          <div className="text-[9px] text-gray-600 mt-0.5">
-            Threshold: {thresholdDisplay}
-          </div>
-        </div>
-        <div className="p-2.5 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
-          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Linear Error</span>
-          <div className="text-sm font-mono text-gray-300 mt-0.5">
-            {linearError.toFixed(4)} m
-          </div>
-          <div className="text-[9px] text-gray-600 mt-0.5">
-            dE: {adjusted.closingErrorE.toFixed(4)} | dN: {adjusted.closingErrorN.toFixed(4)}
-          </div>
-        </div>
-        <div className="p-2.5 rounded-lg bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
-          <span className="text-[9px] text-gray-500 uppercase tracking-wider">Total Distance</span>
-          <div className="text-sm font-mono text-gray-300 mt-0.5">
-            {totalDistance.toFixed(3)} m
-          </div>
-          <div className="text-[9px] text-gray-600 mt-0.5">
-            {adjusted.legs.length} legs
-          </div>
-        </div>
-      </div>
-
-      {!isAcceptable && (
-        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-red-500/5 border border-red-500/20">
-          <svg className="w-4 h-4 text-red-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
-          <p className="text-[11px] text-red-400/80">
-            Precision is below the statutory threshold ({thresholdDisplay} for {surveyClassLabel} surveys per Survey Act Cap 299 / Survey Regulations 1994).
-            Check observations for errors before submitting.
-          </p>
-        </div>
-      )}
-
-      {isAcceptable && (
-        <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-emerald-500/5 border border-emerald-500/20">
-          <svg className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M9 12l2 2 4-4M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <p className="text-[11px] text-emerald-400/80">
-            Within statutory tolerance. Bowditch adjustment applied — coordinates distributed across the traverse.
-          </p>
-        </div>
-      )}
-    </div>
   )
 }
 
@@ -469,44 +368,9 @@ export default function DigitalFieldBookPage() {
     })
   }, [dbClient])
 
-    const levelingComputed = useMemo(() => {
-      const open = asNumber(openingRL)
-      if (open === null) return { ok: false as const, errors: ['Opening RL is required.'] }
-      // Help TypeScript narrow the type: open should be number after validation
-      const openingRLValue: number = open
-      const close = closingRL.trim() ? asNumber(closingRL) : undefined
-      if (closingRL.trim() && close === null) return { ok: false as const, errors: ['Closing RL must be a number.'] }
-      // Help TypeScript narrow the type: close should be number | undefined after validation
-      const closingRLValue: number | undefined = close === null ? undefined : close
-      const k = distanceKm.trim() ? asNumber(distanceKm) : undefined
-      if (k === null || k !== undefined && k <= 0) return { ok: false as const, errors: ['Run length must be a positive number, or blank if unknown.'] }
-
-      const readings = levelRows.map((r) => ({
-        station: r.station.trim(),
-        bs: r.bs.trim() ? asNumber(r.bs) ?? undefined : undefined,
-        is: r.is.trim() ? asNumber(r.is) ?? undefined : undefined,
-        fs: r.fs.trim() ? asNumber(r.fs) ?? undefined : undefined,
-      }))
-
-      const errors: string[] = []
-      const stationSet = new Set<string>()
-      for (const r of readings) {
-        if (!r.station) errors.push('Station names are required.')
-        if (r.station) {
-          const key = r.station.toUpperCase()
-          if (stationSet.has(key)) errors.push(`Duplicate station: ${r.station}`)
-          stationSet.add(key)
-        }
-      }
-      if (errors.length) return { ok: false as const, errors }
-
-      const calc =
-        levelMethod === 'rise_and_fall'
-          ? riseAndFall({ readings, openingRL: openingRLValue, closingRL: closingRLValue, method: 'rise_and_fall', distanceKm: k })
-          : heightOfCollimation({ readings, openingRL: openingRLValue, closingRL: closingRLValue, method: 'height_of_collimation', distanceKm: k })
-
-      return { ok: true as const, calc }
-    }, [openingRL, closingRL, distanceKm, levelMethod, levelRows])
+  const levelingComputed = useMemo(() => computeLevelBook({
+    openingRL, closingRL, distanceKm, method: levelMethod, rows: levelRows,
+  }), [openingRL, closingRL, distanceKm, levelMethod, levelRows])
 
   const traverseComputed = useMemo(() => {
     const startEasting = asNumber(startE)
@@ -589,6 +453,8 @@ export default function DigitalFieldBookPage() {
   }, [controlRows, controlStation])
 
   const currentComputed = type === 'leveling' ? levelingComputed : type === 'traverse' ? traverseComputed : controlComputed
+  const qualitySummary = summarizeBookQuality(type === 'leveling' ? { type, computed: levelingComputed }
+    : type === 'traverse' ? { type, computed: traverseComputed } : { type, computed: controlComputed })
 
   // ── AUDIT FIX (2026-07-05): Auto-save + QC notifications (wired AFTER state) ──
   // Content-based snapshot: include the actual editable state (not just row
@@ -620,27 +486,6 @@ export default function DigitalFieldBookPage() {
     interval: 30000,
     enabled: !!projectId && !!ownerId && hasBookContent,
   })
-
-  // Fire notification when QC fails — don't wait for surveyor to scroll
-  useEffect(() => {
-    if (type === 'traverse' && traverseComputed?.ok) {
-      const adjusted = traverseComputed.adjusted
-      if (adjusted?.linearError != null && adjusted.linearError > 0.05) {
-        notify({
-          title: 'QC Alert: Traverse Misclosure Exceeded',
-          body: `Linear misclosure is ${adjusted.linearError.toFixed(3)}m. Check bearings and distances for errors.`,
-          type: 'qc_fail',
-        })
-      }
-      if (adjusted?.precisionRatio != null && adjusted.precisionRatio < 5000 && adjusted.precisionRatio > 0) {
-        notify({
-          title: 'QC Alert: Precision Below Standard',
-          body: `Precision ratio is 1:${adjusted.precisionRatio}. Cadastral surveys require minimum 1:5000 per Cap. 299.`,
-          type: 'qc_fail',
-        })
-      }
-    }
-  }, [traverseComputed, type, notify])
 
   function currentDataPayload() {
     const references = sourceImport ? { sourceImport } : {}
@@ -735,6 +580,7 @@ export default function DigitalFieldBookPage() {
   }
 
   async function saveBeforeLeaving(): Promise<boolean> {
+    if (!hasBookContent) return true
     const snapshot = JSON.stringify(autoSaveData)
     if (!(await handleSave())) return false
     if (JSON.stringify(latestEditable.current) !== snapshot) {
@@ -759,49 +605,15 @@ export default function DigitalFieldBookPage() {
     setSaveStatus({ kind: 'saving' })
     const now = niceNow()
 
-    // ── AUDIT FIX (2026-07-05): Run cross-checks BEFORE saving ──
-    // These are the independent verification methods that catch
-    // computation errors before data is committed to the DB.
-    // If a cross-check fails, we still save (data isn't lost) but
-    // we fire a notification so the surveyor knows there's an issue.
-    if (!dataOverride && type === 'traverse' && traverseComputed?.ok) {
-      const adjusted = traverseComputed.adjusted
-      if (adjusted && adjusted.legs && adjusted.legs.length >= 3) {
-        // Extract adjusted coordinates from legs for cross-checking
-        const points = adjusted.legs.map((leg: { adjEasting?: number; adjNorthing?: number }) => ({
-          easting: leg.adjEasting || 0,
-          northing: leg.adjNorthing || 0,
-        }))
-
-        // Run area cross-check (Shoelace vs. triangulation)
-        const areaCheck = crossCheckArea(points)
-        if (!areaCheck.passed) {
-          notify({
-            title: 'QC Warning: Area Cross-Check Failed',
-            body: areaCheck.message,
-            type: 'qc_fail',
-          })
-        }
-
-        // Run closure cross-check (traverse sums vs. coordinate round-trip)
-        if (points.length >= 2) {
-          const start = points[0]
-          const end = points[points.length - 1]
-          const closureCheck = crossCheckClosure(
-            start.easting, start.northing,
-            end.easting, end.northing,
-            adjusted.linearError || 0, 0,
-            0.001
-          )
-          if (!closureCheck.passed) {
-            notify({
-              title: 'QC Warning: Closure Cross-Check Failed',
-              body: closureCheck.message,
-              type: 'qc_fail',
-            })
-          }
-        }
-      }
+    // An internal coordinate identity is separate from field/project acceptance.
+    // Raw work is retained even when that identity fails.
+    if (!dataOverride && type === 'traverse' && traverseComputed.ok && traverseComputed.mode !== 'open') {
+      const easting = asNumber(startE), northing = asNumber(startN)
+      const check = easting === null || northing === null ? null
+        : crossCheckAdjustedTraverse({ easting, northing }, traverseComputed.adjusted)
+      if (check && !check.passed) notify({
+        title: 'QC Warning: Coordinate Consistency Failed', body: check.message, type: 'qc_fail',
+      })
     }
 
     // Retain the signed-in owner while temporarily offline; never invent an owner.
@@ -1394,7 +1206,7 @@ export default function DigitalFieldBookPage() {
             onSync={handleSyncNow}
             stationName={type === 'control' ? controlStation.name : undefined}
             onViewAuditLog={() => setAuditDrawerOpen(true)}
-            computed={currentComputed}
+            qualitySummary={qualitySummary}
             openingRL={openingRL}
             setOpeningRL={setOpeningRL}
             closingRL={closingRL}
@@ -1475,18 +1287,8 @@ export default function DigitalFieldBookPage() {
 
           </div>
 
-          {/* AUDIT FIX (2026-07-05): Real-Time QC Panel — live closure monitor */}
           <div className="card p-4">
-            <RealTimeQCPanel
-              observations={travRows.map((r, i) => ({
-                fromStation: r.station || `ST${i}`,
-                toStation: travRows[i + 1]?.station || `ST${i + 1}`,
-                bearing: r.bearing ? parseFloat(r.bearing) : undefined,
-                distance: r.slopeDist ? parseFloat(r.slopeDist) : undefined,
-              }))}
-              surveyClass="urban"
-              compact
-            />
+            <RealTimeQCPanel summary={qualitySummary} />
           </div>
 
           {/* GNSS & NTRIP — collapsible to save space */}
@@ -1593,22 +1395,6 @@ export default function DigitalFieldBookPage() {
                 computed={traverseComputed}
               />
 
-              {/* Instant Closure Feedback — updates in real-time as surveyor types */}
-              <InstantClosureFeedback
-                rows={travRows}
-                startE={startE}
-                startN={startN}
-                closeE={closeE}
-                closeN={closeN}
-                mode={travMode}
-                surveyType={'cadastral'}
-                t={t}
-              />
-
-              {/* Bowditch Adjustment Summary — shows precision stats and statutory compliance */}
-              {traverseComputed.ok && traverseComputed.mode !== 'open' && (
-                <BowditchSummary adjusted={traverseComputed.adjusted} />
-              )}
             </>
           )}
 

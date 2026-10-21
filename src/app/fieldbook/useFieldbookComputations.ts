@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react'
-import { heightOfCollimation, riseAndFall } from '@/lib/engine/leveling'
+import { computeLevelBook } from '@/lib/fieldbook/computeLevelBook'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
 import { polar3DWithHeights } from '@/lib/engine/polar'
 import { zenithToVertical } from '@/lib/engine/verticalAngle'
@@ -40,44 +40,9 @@ export function useFieldbookComputations(input: FieldbookComputationsInput) {
     controlStation, controlRows,
   } = input
 
-  const levelingComputed = useMemo(() => {
-    const open = asNumber(openingRL)
-    if (open === null) return { ok: false as const, errors: ['Opening RL is required.'] }
-    // Help TypeScript narrow the type: open should be number after validation
-    const openingRLValue: number = open
-    const close = closingRL.trim() ? asNumber(closingRL) : undefined
-    if (closingRL.trim() && close === null) return { ok: false as const, errors: ['Closing RL must be a number.'] }
-    // Help TypeScript narrow the type: close should be number | undefined after validation
-    const closingRLValue: number | undefined = close === null ? undefined : close
-    const k = distanceKm.trim() ? asNumber(distanceKm) : undefined
-    if (k === null || k !== undefined && k <= 0) return { ok: false as const, errors: ['Run length must be a positive number, or blank if unknown.'] }
-
-    const readings = levelRows.map((r) => ({
-      station: r.station.trim(),
-      bs: r.bs.trim() ? asNumber(r.bs) ?? undefined : undefined,
-      is: r.is.trim() ? asNumber(r.is) ?? undefined : undefined,
-      fs: r.fs.trim() ? asNumber(r.fs) ?? undefined : undefined,
-    }))
-
-    const errors: string[] = []
-    const stationSet = new Set<string>()
-    for (const r of readings) {
-      if (!r.station) errors.push('Station names are required.')
-      if (r.station) {
-        const key = r.station.toUpperCase()
-        if (stationSet.has(key)) errors.push(`Duplicate station: ${r.station}`)
-        stationSet.add(key)
-      }
-    }
-    if (errors.length) return { ok: false as const, errors }
-
-    const calc =
-      levelMethod === 'rise_and_fall'
-        ? riseAndFall({ readings, openingRL: openingRLValue, closingRL: closingRLValue, method: 'rise_and_fall', distanceKm: k })
-        : heightOfCollimation({ readings, openingRL: openingRLValue, closingRL: closingRLValue, method: 'height_of_collimation', distanceKm: k })
-
-    return { ok: true as const, calc }
-  }, [openingRL, closingRL, distanceKm, levelMethod, levelRows])
+  const levelingComputed = useMemo(() => computeLevelBook({
+    openingRL, closingRL, distanceKm, method: levelMethod, rows: levelRows,
+  }), [openingRL, closingRL, distanceKm, levelMethod, levelRows])
 
   const traverseComputed = useMemo(() => {
     const startEasting = asNumber(startE)

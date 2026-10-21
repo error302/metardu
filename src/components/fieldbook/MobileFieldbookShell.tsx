@@ -16,11 +16,13 @@
  */
 
 import { useEffect, useState } from 'react'
-import { Wifi, WifiOff, CloudUpload, Plus, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle, Clock, History, Settings, Calculator, Ruler, Compass, MapPin } from 'lucide-react'
+import { Wifi, WifiOff, CloudUpload, Plus, ChevronUp, ChevronDown, CheckCircle2, AlertTriangle, Clock, History, Settings, Ruler, Compass, MapPin } from 'lucide-react'
 import type { MobileSurveyType } from './UniversalMobileObservationForm'
 import { UniversalMobileObservationForm } from './UniversalMobileObservationForm'
 import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
-import { StickySummary, OfflineCacheIndicator } from './MobileFieldUX'
+import { OfflineCacheIndicator } from './MobileFieldUX'
+import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
+import type { BookQualitySummary } from '@/lib/fieldbook/qualitySummary'
 import { SwipeableRow } from './FieldbookSwipeWrapper'
 import FieldbookInstallPrompt from '@/components/FieldbookInstallPrompt'
 import { logger } from '@/lib/logger'
@@ -30,28 +32,6 @@ export type Row = { id: string; [key: string]: string }
 type ControlStation = { name: string; e: string; n: string; z: string }
 
 export type ControlSetup = { id: string; station: ControlStation; rows: Row[] }
-
-interface MobileComputed {
-  ok: boolean
-  errors?: string[]
-  mode?: 'open' | 'closed' | 'link'
-  calc?: {
-    precisionRatio?: number
-    arithmeticCheck?: boolean
-    misclosure?: number
-    misclosureDistance?: number
-    allowableMisclosure?: number
-    readings?: Array<{ reducedLevel?: number; station?: string }>
-  }
-  adjusted?: {
-    linearError: number
-    totalDistance: number
-    closingErrorE: number
-    closingErrorN: number
-  }
-  raw?: { legs?: Array<Record<string, unknown>> }
-  rows?: Array<Record<string, unknown>>
-}
 
 interface MobileFieldbookShellProps {
   entryRequest?: number
@@ -71,7 +51,7 @@ interface MobileFieldbookShellProps {
   onViewAuditLog?: () => void
 
   // --- Computations ---
-  computed: MobileComputed | null
+  qualitySummary: BookQualitySummary
 
   // --- Leveling setup props ---
   openingRL: string
@@ -150,7 +130,7 @@ export function MobileFieldbookShell({
   stationName,
   onPullInstrumentReading,
   onViewAuditLog,
-  computed,
+  qualitySummary,
   openingRL,
   setOpeningRL,
   closingRL,
@@ -182,7 +162,6 @@ export function MobileFieldbookShell({
   const [editingRow, setEditingRow] = useState<Row | undefined>(undefined)
   useEffect(() => { if (entryRequest > 0) { setEditingRow(undefined); setShowForm(true) } }, [entryRequest])
   const [setupOpen, setSetupOpen] = useState(false)
-  const [resultsOpen, setResultsOpen] = useState(true)
 
   const lastStation = rows.length > 0
     ? (rows[rows.length - 1].station || rows[rows.length - 1].pointId || '')
@@ -269,43 +248,10 @@ export function MobileFieldbookShell({
         </div>
       </div>
 
-      {/* ─── AUDIT FIX: Sticky QC Summary + Offline Cache (mobile UX upgrade) ─── */}
-      {computed?.ok && (
-        <StickySummary
-          primary={
-            surveyType === 'traverse'
-              ? `1:${computed.calc?.precisionRatio?.toLocaleString() ?? '—'}`
-              : surveyType === 'leveling'
-                ? computed.calc?.arithmeticCheck ? 'PASS' : 'FAIL'
-                : `${rows.length} pts`
-          }
-          primaryLabel={
-            surveyType === 'traverse' ? 'Precision'
-            : surveyType === 'leveling' ? 'Arith Check'
-            : 'Readings'
-          }
-          primaryGood={
-            surveyType === 'traverse'
-              ? (computed.calc?.precisionRatio ?? 0) >= 5000
-              : surveyType === 'leveling'
-                ? (computed.calc?.arithmeticCheck ?? false)
-                : true
-          }
-          secondary={
-            surveyType === 'traverse'
-              ? `${computed.calc?.misclosureDistance?.toFixed(3) ?? '—'}m`
-              : surveyType === 'leveling'
-                ? `${Number(computed.calc?.misclosure ?? 0).toFixed(4)}m`
-                : undefined
-          }
-          secondaryLabel={
-            surveyType === 'traverse' ? 'Misclosure'
-            : surveyType === 'leveling' ? 'Misclosure'
-            : undefined
-          }
-          readingCount={rows.length}
-        />
-      )}
+      <div className="mx-4 my-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+        <RealTimeQCPanel summary={qualitySummary} />
+      </div>
+
       <OfflineCacheIndicator
         online={online}
         cachedReadings={rows.length}
@@ -672,93 +618,6 @@ export function MobileFieldbookShell({
           </div>
         )}
 
-        {/* Calculations & Precision Panel */}
-        {computed && (
-          <div className="mt-4 mb-4 bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] overflow-hidden shadow-sm">
-            <button
-              aria-expanded={resultsOpen}
-              onClick={() => setResultsOpen(!resultsOpen)}
-              className="w-full flex items-center justify-between px-4 py-3 bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] text-sm font-semibold text-[var(--text-primary)]"
-            >
-              <span className="flex items-center gap-2">
-                <Calculator className="w-4 h-4 text-[var(--accent)]" />
-                Precision & Closure Checks
-              </span>
-              {resultsOpen ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
-            </button>
-
-            {resultsOpen && (
-              <div className="p-4 border-t border-[var(--border-color)] space-y-3 bg-[color-mix(in_srgb,var(--bg-secondary)_25%,transparent)]">
-                {!computed.ok ? (
-                  <div className="p-3 bg-red-950/20 border border-red-500/30 rounded-lg text-xs text-red-300 space-y-1">
-                    <div className="font-semibold text-red-400"><AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Calculation Errors:</div>
-                    {(computed.errors ?? []).map((e: string, i: number) => (
-                      <div key={`item-${i}`} className="list-item ml-3">{e}</div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {surveyType === 'leveling' && (
-                      <div className="grid grid-cols-2 gap-2 text-xs">
-                        <div className="col-span-2 p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                          <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Arithmetic Check</div>
-                          <div className={`font-mono text-sm font-bold ${(computed.calc?.arithmeticCheck ?? false) ? 'text-green-400' : 'text-red-400'}`}>
-                            {(computed.calc?.arithmeticCheck ?? false) ? 'PASS' : 'FAIL'}
-                          </div>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                          <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Misclosure</div>
-                          <div className="font-mono text-sm text-[var(--text-primary)]">{closingRL.trim() ? `${Number(computed.calc?.misclosure ?? 0).toFixed(4)} m` : 'Closing RL required'}</div>
-                        </div>
-                        <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                          <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Allowable</div>
-                          <div className="font-mono text-sm text-[var(--text-primary)]">{computed.calc?.allowableMisclosure === undefined ? 'Run length required' : `±${Number(computed.calc.allowableMisclosure).toFixed(4)} m`}</div>
-                        </div>
-                      </div>
-                    )}
-
-                    {surveyType === 'traverse' && (
-                      <>
-                        {computed.mode === 'open' ? (
-                          <div className="p-3 bg-yellow-950/20 border border-yellow-500/30 rounded-lg text-xs text-yellow-350">
-                            <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Open Traverse: No closing coordinate check. Prohibited for legal land boundary surveys under Reg 67.
-                          </div>
-                        ) : (
-                          <div className="grid grid-cols-2 gap-2 text-xs">
-                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Linear Error</div>
-                              <div className="font-mono text-sm text-[var(--text-primary)]">{Number(computed.adjusted?.linearError ?? 0).toFixed(4)} m</div>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Precision Ratio</div>
-                              <div className="font-mono text-sm text-[var(--accent)] font-bold">
-                                1 : {Math.max(1, Math.round(Number(computed.adjusted?.totalDistance ?? 0) / Math.max(1e-12, Number(computed.adjusted?.linearError ?? 0)))).toLocaleString()}
-                              </div>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Closing Error E</div>
-                              <div className="font-mono text-xs text-[var(--text-primary)]">{Number(computed.adjusted?.closingErrorE ?? 0).toFixed(4)} m</div>
-                            </div>
-                            <div className="p-2.5 rounded-lg bg-[var(--bg-secondary)] border border-[var(--border-color)]">
-                              <div className="text-[10px] text-[var(--text-muted)] uppercase font-semibold">Closing Error N</div>
-                              <div className="font-mono text-xs text-[var(--text-primary)]">{Number(computed.adjusted?.closingErrorN ?? 0).toFixed(4)} m</div>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-
-                    {(surveyType === 'control') && (
-                      <div className="p-3 bg-emerald-950/20 border border-emerald-500/30 rounded-lg text-xs text-emerald-300">
-                         All {rows.length} points calculated successfully via 3D polar computations.
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* A full-width entry action stays clear of instrument controls. */}

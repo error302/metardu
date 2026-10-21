@@ -36,7 +36,7 @@
  *   - RDM 1.1 (2025) — Kenya Survey Regulations
  */
 
-import type { Point2D } from '@/lib/engine/types'
+import type { Point2D, TraverseResult } from '@/lib/engine/types'
 
 export interface CrossCheckResult {
   /** Name of the cross-check */
@@ -282,6 +282,17 @@ export function crossCheckClosure(
       : `Closure mismatch: traverse ΔE/ΔN sums don't match coordinate round-trip (diff ${difference.toFixed(6)}m). Check for accumulation errors.`,
     severity: 'error',
   }
+}
+
+/** Internal adjusted-coordinate consistency; this does not verify field observations or project acceptance. */
+export function crossCheckAdjustedTraverse(start: Point2D, result: TraverseResult): CrossCheckResult | null {
+  if (![start.easting, start.northing].every(Number.isFinite) || result.legs.length === 0
+    || !result.legs.every(leg => [leg.adjDeltaE, leg.adjDeltaN, leg.adjEasting, leg.adjNorthing].every(Number.isFinite))) return null
+  const deltas = result.legs.reduce((sum, leg) => ({ e: sum.e + leg.adjDeltaE, n: sum.n + leg.adjDeltaN }), { e: 0, n: 0 })
+  if (![deltas.e, deltas.n].every(Number.isFinite)) return null
+  const end = result.legs[result.legs.length - 1]
+  const check = crossCheckClosure(start.easting, start.northing, end.adjEasting, end.adjNorthing, deltas.e, deltas.n)
+  return { ...check, name: 'Adjusted traverse coordinate consistency' }
 }
 
 // ─── 5. Leveling Cross-Check: Rise & Fall vs. Height of Collimation ────────

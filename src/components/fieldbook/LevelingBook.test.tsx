@@ -23,3 +23,13 @@ test('a real station named BM retains its own computed RL without shifting subse
   expect(within(renderedRows[1]).getByText('100.0000')).toBeInTheDocument()
   expect(within(renderedRows[2]).getByText('100.2500')).toBeInTheDocument()
 })
+
+test('a backsight alone cannot appear as a measured zero closure or arithmetic pass', () => {
+  render(<LevelingBook t={key => key} openingRL="100" closingRL="100" distanceKm="1" levelMethod="rise_and_fall"
+    setOpeningRL={jest.fn()} setClosingRL={jest.fn()} setDistanceKm={jest.fn()} setLevelMethod={jest.fn()}
+    levelRows={[{ id: 'bm', station: 'BM', bs: '0.0000', is: '', fs: '', remarks: '' }]} setLevelRows={jest.fn()}
+    computed={{ ok: true, calc: riseAndFall({ readings: [{ station: 'BM', bs: 0 }], openingRL: 100, closingRL: 100, distanceKm: 1, method: 'rise_and_fall' }) }} />)
+  expect(screen.queryByText('common.pass')).not.toBeInTheDocument()
+  expect(screen.queryByText('0.0000 m')).not.toBeInTheDocument()
+  expect(screen.getAllByText('Forward sight required')).toHaveLength(2)
+})

@@ -1,9 +1,11 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import type { ComponentProps } from 'react'
 import Page from './page'
 import { FieldbookCaptureImport } from '@/components/fieldbook/FieldbookCaptureImport'
 import { FieldbookProjectPanel } from '@/components/fieldbook/FieldbookProjectPanel'
 import { LevelingBook } from '@/components/fieldbook/LevelingBook'
+import { TraverseBook } from '@/components/fieldbook/TraverseBook'
+import { MobileFieldbookShell } from '@/components/fieldbook/MobileFieldbookShell'
 import { persistFieldbook } from '@/lib/offline/saveFieldbook'
 import { saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { createCaptureDraftData, type SourceImport } from '@/lib/fieldbook/captureDraft'
@@ -30,21 +32,20 @@ jest.mock('@/lib/offline/syncQueue',()=>({isOnline:()=>true,getPendingOperations
 jest.mock('@/components/fieldbook/FieldbookCaptureImport',()=>({FieldbookCaptureImport:jest.fn(()=>null)}))
 jest.mock('@/components/fieldbook/FieldbookProjectPanel',()=>({FieldbookProjectPanel:jest.fn((p:ComponentProps<typeof FieldbookProjectPanel>)=><input aria-label="Book name" value={p.name} onChange={e=>p.onNameChange(e.target.value)}/>)}))
 jest.mock('@/components/fieldbook/LevelingBook',()=>({LevelingBook:jest.fn(()=>null)}))
-jest.mock('@/components/fieldbook/TraverseBook',()=>({TraverseBook:()=>null}))
+jest.mock('@/components/fieldbook/TraverseBook',()=>({TraverseBook:jest.fn(()=>null)}))
 jest.mock('@/components/fieldbook/ControlBook',()=>({ControlBook:()=>null}))
-jest.mock('@/components/fieldbook/MobileFieldbookShell',()=>({MobileFieldbookShell:()=>null}))
+jest.mock('@/components/fieldbook/MobileFieldbookShell',()=>({MobileFieldbookShell:jest.fn(()=>null)}))
 jest.mock('@/components/fieldbook/InstrumentStreamBar',()=>({InstrumentStreamBar:()=>null}))
-jest.mock('@/components/fieldbook/InstantClosureFeedback',()=>({InstantClosureFeedback:()=>null}))
 jest.mock('@/components/fieldbook/FieldbookAuditDrawer',()=>({FieldbookAuditDrawer:()=>null}))
 jest.mock('@/components/survey/GNSSRoverConnection',()=>({GNSSRoverConnection:()=>null}))
 jest.mock('@/components/survey/NTRIPClientPanel',()=>({NTRIPClientPanel:()=>null}))
 jest.mock('@/components/survey/GNSSQualityReport',()=>({GNSSQualityReport:()=>null}))
-jest.mock('@/components/survey/RealTimeQCPanel',()=>({RealTimeQCPanel:()=>null}))
 
 function last<T>(values:T[]):T { const value=values.at(-1);if(value===undefined)throw new Error('Expected a recorded call');return value }
 const capture=()=>last(jest.mocked(FieldbookCaptureImport).mock.calls)[0]
 const workspace=()=>last(jest.mocked(FieldbookProjectPanel).mock.calls)[0]
 const level=()=>last(jest.mocked(LevelingBook).mock.calls)[0]
+const traverse=()=>last(jest.mocked(TraverseBook).mock.calls)[0]
 const data=createCaptureDraftData('leveling',[{batchId:'33333333-3333-4333-8333-333333333333',observationId:actor,projectId:project,clientId:'device',inputHash:'a'.repeat(64),capturedBy:null,projectReference:null,
   raw:{surveyType:'leveling',station:'BM',rawForm:{bs:'0.000',is:'',fs:''}}}],{actorId:actor,reviewedAt:'2026-10-21T08:00:00.000Z',requestHash:'b'.repeat(64),bearingEncoding:'uninterpreted'})
 const book={id:'44444444-4444-4444-8444-444444444444',user_id:actor,project_id:project,name:'Source draft',type:'leveling' as const,data}
@@ -122,6 +123,12 @@ test('opening an untouched project does not autosave an empty book; real setup e
   expect(last(jest.mocked(useAutoSave).mock.calls)[0].enabled).toBe(true)
 })
 
+test('preserving an untouched workspace before opening a saved book does not create an empty saved copy', async () => {
+  await openPage()
+  await act(async () => { expect(await workspace().onSave()).toBe(true) })
+  expect(persistFieldbook).not.toHaveBeenCalled()
+})
+
 test.each(['rise_and_fall', 'height_of_collimation'] as const)('leveling PDF retains real BM station, raw precision and edited remarks (%s)', async method => {
   await openPage()
   act(() => {
@@ -142,4 +149,114 @@ test.each(['rise_and_fall', 'height_of_collimation'] as const)('leveling PDF ret
       ['TP1', '', '', '1.2500', method === 'rise_and_fall' ? 0.25 : '', method === 'rise_and_fall' ? 0 : '', 100.25, 'Edited review note'],
     ])
   } finally { click.mockRestore() }
+})
+
+test('the active leveling QC uses the book engine and clears measured closure when the closing RL is removed', async () => {
+  await openPage()
+  act(() => {
+    level().setOpeningRL('100')
+    level().setClosingRL('100')
+    level().setDistanceKm('0.125')
+    level().setLevelRows([
+      { id: 'bm', station: 'BM', bs: '1.5000', is: '', fs: '', remarks: '' },
+      { id: 'tp', station: 'TP1', bs: '', is: '', fs: '1.2500', remarks: '' },
+    ])
+  })
+  const checks = screen.getByRole('region', { name: 'Active book checks' })
+  expect(within(checks).getByText('0.2500 m')).toBeInTheDocument()
+  act(() => { level().setClosingRL('') })
+  expect(within(checks).getByText('Closing RL required')).toBeInTheDocument()
+  expect(within(checks).queryByText(/0\.000[0]?\s?m/)).not.toBeInTheDocument()
+})
+
+test('invalid raw leveling strings remain saved but cannot produce calculated PDF or a passing arithmetic check', async () => {
+  await openPage()
+  act(() => {
+    level().setOpeningRL('100')
+    level().setLevelRows([{ id: 'bad', station: 'BM', bs: '1.5junk', is: '', fs: '', remarks: 'retain original' }])
+  })
+  expect(level().computed.ok).toBe(false)
+  await act(async () => { await expect(workspace().onExportPDF()).rejects.toThrow(/setup/) })
+  await act(async () => { await workspace().onSave() })
+  expect(last(jest.mocked(persistFieldbook).mock.calls)[1]).toMatchObject({ data: { rows: [{ bs: '1.5junk', remarks: 'retain original' }] } })
+})
+
+test.each([
+  { bs: '', is: '', fs: '' },
+  { bs: '', is: '', fs: '1.2500' },
+  { bs: '1.5', is: 'invalid', fs: '' },
+  { bs: '1.5', is: '', fs: 'Infinity' },
+])('incomplete leveling reading %j cannot produce a numerical assessment', async reading => {
+  await openPage()
+  act(() => {
+    level().setOpeningRL('100')
+    level().setLevelRows([{ id: 'incomplete', station: 'BM', remarks: '', ...reading }])
+  })
+  expect(level().computed.ok).toBe(false)
+})
+
+test('closed traverse QC measures the declared link target without an inferred cadastral acceptance', async () => {
+  await openPage()
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'traverse.title' })) })
+  await waitFor(() => expect(TraverseBook).toHaveBeenCalled())
+  act(() => {
+    traverse().setTravMode('link')
+    traverse().setStartStation('A')
+    traverse().setStartE('0'); traverse().setStartN('0')
+    traverse().setCloseE('100'); traverse().setCloseN('100')
+    traverse().setTravRows(previous => [
+      { ...previous[0], station: 'B', bearing: '90', slopeDist: '100' },
+      { ...previous[0], id: 'second', station: 'C', bearing: '0', slopeDist: '99' },
+    ])
+  })
+  const checks = screen.getByRole('region', { name: 'Active book checks' })
+  expect(within(checks).getByText('Linear misclosure').parentElement).toHaveTextContent('1.0000 m')
+  expect(within(checks).getByText('1:199')).toBeInTheDocument()
+  expect(screen.queryByText(/statutory tolerance|statutory threshold|PASSES.*cadastral/)).not.toBeInTheDocument()
+  expect(mockNotify).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'qc_fail' }))
+  act(() => { traverse().setTravMode('open') })
+  expect(within(checks).getByText(/Open traverse.*closure not assessed/)).toBeInTheDocument()
+  expect(within(checks).queryByText('1.0000 m')).not.toBeInTheDocument()
+})
+
+test('the actual mobile shell displays the same active-book assessment and never substitutes zero for missing closure', async () => {
+  const ActualMobile = jest.requireActual<typeof import('@/components/fieldbook/MobileFieldbookShell')>('@/components/fieldbook/MobileFieldbookShell').MobileFieldbookShell
+  const original = window.matchMedia
+  window.matchMedia = jest.fn(query => ({ matches: query === '(max-width: 1023px)', media: query, onchange: null,
+    addListener: jest.fn(), removeListener: jest.fn(), addEventListener: jest.fn(), removeEventListener: jest.fn(), dispatchEvent: jest.fn() }))
+  jest.mocked(MobileFieldbookShell).mockImplementation(props => <ActualMobile {...props} />)
+  try {
+    await openPage()
+    const mobile = () => last(jest.mocked(MobileFieldbookShell).mock.calls)[0]
+    await act(async () => { await capture().onPrepare(); await capture().onCreated({ ...book, data: { ...data, openingRL: '100', rows: [
+      { id: 'bm', station: 'BM', bs: '1.5', is: '', fs: '', remarks: '' },
+      { id: 'tp', station: 'TP1', bs: '', is: '', fs: '1.25', remarks: '' },
+    ] } }) })
+    const checks = screen.getByRole('region', { name: 'Active book checks' })
+    expect(within(checks).getByText('Closing RL required')).toBeInTheDocument()
+    expect(within(checks).queryByText(/0\.000[0]?\s?m/)).not.toBeInTheDocument()
+    act(() => { mobile().setClosingRL('100') })
+    expect(within(checks).getByText('0.2500 m')).toBeInTheDocument()
+  } finally {
+    window.matchMedia = original
+    jest.mocked(MobileFieldbookShell).mockImplementation(() => <></>)
+  }
+})
+
+test('saving a numerically consistent closed traverse does not compare scalar misclosure with an invented delta vector', async () => {
+  await openPage()
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'traverse.title' })) })
+  await waitFor(() => expect(TraverseBook).toHaveBeenCalled())
+  act(() => {
+    traverse().setTravMode('closed'); traverse().setStartStation('A')
+    traverse().setStartE('0'); traverse().setStartN('0')
+    traverse().setTravRows(previous => [
+      { ...previous[0], station: 'B', bearing: '90', slopeDist: '100' },
+      { ...previous[0], id: 'second', station: 'C', bearing: '0', slopeDist: '100' },
+      { ...previous[0], id: 'third', station: 'D', bearing: '225', slopeDist: '141.4213562373095' },
+    ])
+  })
+  mockNotify.mockClear()
+  await act(async () => { await workspace().onSave() })
+  expect(mockNotify).not.toHaveBeenCalledWith(expect.objectContaining({ type: 'qc_fail' }))
 })
