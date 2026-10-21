@@ -68,7 +68,9 @@ Strict app/test typing, scoped lint and the security gate pass. The latter pins
 119 applied migrations; no migration source, ledger, existing coordinate record
 or production service was changed. No container was built, started, restarted,
 migrated or promoted in this pass. No browser storage or CAD training drawing
-was touched. The full ordinary Jest suite was not rerun after this change.
+was touched. A later full ordinary Jest checkpoint passes 5,441 tests with nine
+native checks skipped; its source fingerprint and the separate online-service
+defects are recorded in [the online transform audit](ONLINE_TRANSFORM_AUDIT_2026-10-21.md).
 
 Ignored local evidence: `.cache/transform-integrity-red.log`,
 `transform-local-code-red.log`, `transform-adapter-review-red.log`,

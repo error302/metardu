@@ -1,5 +1,14 @@
 # METARDU requirement readiness — checkpoints through 21 October 2026
 
+Latest full ordinary Jest checkpoint (21 October): 5,441 tests pass across 601
+executed suites, with nine native checks skipped, zero failures and one existing
+snapshot passing. Tested source/config remained unchanged, including the existing
+uncommitted survey-plan work. Separate online-service probes still reproduce
+invalid identity successes, rejected zero northing, inferred target grids,
+unsupported precision claims and an Arc 1960 inconsistency confirmed against host
+native PROJ. The online-contract design is awaiting approval; these defects are
+unrepaired. See [online transform audit and full-suite limits](ONLINE_TRANSFORM_AUDIT_2026-10-21.md).
+
 Latest coordinate checkpoint (21 October): the API transform path now uses the
 shared CRS authority, accepts the documented EPSG request, preserves precision and
 heights, and rejects invalid batches without zero-coordinate substitutes or a
