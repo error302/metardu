@@ -1,6 +1,14 @@
 # METARDU requirement readiness — checkpoints through 21 October 2026
 
-Latest source checkpoint (21 October): the full ordinary Jest suite passes 5,379
+Latest worker checkpoint (21 October): host Python source tests pass 58/58 with
+two network checks skipped; release/upgrade helper tests pass 13/13. The new
+read-only worker artifact guard has six passing contract tests, but its actual
+production run fails: LiDAR/OSM source modules, three required distributions and
+the LiDAR task declaration are absent, while main/requirements differ. Ordinary
+production health passes independently. No worker was rebuilt or restarted. See
+[worker acceptance and release gates](WORKER_ACCEPTANCE_2026-10-21.md).
+
+Latest application source checkpoint (21 October): the full ordinary Jest suite passes 5,379
 tests across 597 executed suites, with nine native checks skipped and zero
 failures. The working tree was unchanged during that run, including the existing
 uncommitted survey-plan work. This is source evidence, not an isolated release
@@ -9,7 +17,7 @@ save-status races are repaired; see [QA evidence integrity](QA_EVIDENCE_INTEGRIT
 Strict app/test typing, scoped lint and the security gate pass. Read-only runtime
 verification confirms the existing production stack healthy; this source was not
 built, migrated or promoted. Fieldbook migration 115, the separate synthetic DB
-approval, native browser/device/field acceptance, CI coverage/worker gates,
+approval, native browser/device/field acceptance, CI coverage/native worker gates,
 backup restore and complete paid/provider workflows remain open. Earlier release
 and access-failure statements below are dated historical checkpoints.
 

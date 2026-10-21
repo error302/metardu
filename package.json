@@ -25,6 +25,7 @@
     "test:quick": "npx tsx scripts/quick-test.ts",
     "test:security": "npx tsx scripts/security-audit.ts",
     "docker:verify": "node scripts/verify-production-runtime.mjs",
+    "docker:verify:worker": "node scripts/verify-worker-runtime.mjs",
     "docker:test": "node scripts/verify-production-runtime.mjs",
     "docker:test:down": "node scripts/verify-production-runtime.mjs down",
     "docker:test:logs": "node scripts/verify-production-runtime.mjs logs",

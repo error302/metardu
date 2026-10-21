@@ -27,6 +27,17 @@ existing port-3021 host preview supports source/browser CAD verification against
 the synthetic database. Protect the user's localhost training drawing; use the
 owned 127.0.0.1 origin for QA. This does not prove production has these changes.
 
+After the ordinary runtime check, run `npm run docker:verify:worker` when reviewing
+a worker release. It independently checks exact worker ownership and health, then
+reads fixed `/app` source files, package distribution metadata and RTKLIB executable
+presence from that immutable container ID. It compares nine artifact hashes with
+this checkout and requires the expected task declarations. It never imports the
+worker, reads its secret, invokes a computation or changes its cache. The command
+fails on absent/stale artifacts; ordinary service health remains a separate result.
+It does not prove live registration, import compatibility, an actual RTKLIB solution,
+OSM data availability or field accuracy. Current findings and host test evidence are
+in [worker acceptance](WORKER_ACCEPTANCE_2026-10-21.md).
+
 ## Planned promotion of verified source
 
 Finish a coherent milestone before rebuilding. Review the whole changed runtime
