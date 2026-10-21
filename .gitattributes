@@ -6,3 +6,7 @@ src/lib/db/migrations/*.sql text eol=lf
 # Preserve the exact bytes of recovered, already-applied migration artifacts.
 src/lib/db/migrations/052_schema_drift_reconciliation.sql -text whitespace=cr-at-eol
 src/lib/db/migrations/064_project_settings_fields.sql -text whitespace=cr-at-eol
+
+# Hash-pinned public RINEX reference bytes must survive Windows/Linux checkout.
+python_worker/native_tests/data/*.05o -text
+python_worker/native_tests/data/*.05n -text

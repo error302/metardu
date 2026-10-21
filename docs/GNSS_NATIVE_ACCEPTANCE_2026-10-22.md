@@ -1,5 +1,54 @@
 # GNSS native baseline check and configuration repair
 
+## Maintained native gate
+
+`python_worker/native_tests/` now retains the five native acceptance cases,
+the three exact public RINEX fixtures and a hash/provenance/control manifest.
+From `python_worker/`, the command is:
+
+```sh
+python -B -m unittest discover -s native_tests -v
+```
+
+Missing RTKLIB is a failure, not a skipped acceptance result. The Windows host's
+missing-executable check exited 1 with its explicit requirement message. The
+ordinary pytest suite stays separate; it does not silently substitute its fake
+runner for this command. Fixture downloads are unnecessary during the test.
+Git attributes retain their hash-pinned bytes across Windows/Linux checkouts.
+
+The existing Python worker CI job now selects Ubuntu 24.04, installs its RTKLIB
+CLI, then runs the native command as a blocking step after ordinary pytest.
+Ubuntu's [package catalogue](https://packages.ubuntu.com/noble/rtklib) lists the
+native CLI for that release. The workflow YAML parses, and source inspection
+confirms the install step, working directory, command and absence of a
+continue-on-error override. This is a committed workflow configuration, not a
+claim that GitHub-hosted CI or its package installation has executed here.
+
+At 2026-10-21T21:36:32Z–21:36:36Z, the maintained suite and exact fresh-process
+CLI both passed all five cases with zero skips using owned temporary copies in
+the existing worker/Python 3.11.16. A copy of the original whitespace-defective
+source failed the real positive baseline test with SINGLE rejection. A copy
+without the warning guard failed its real native configuration-error assertion.
+Both failures were checked for their expected causes, not merely nonzero exit.
+No checkout source was reverted to run these regression replays.
+
+The first replay harness accidentally bypassed class setup on individual tests;
+that report is retained as `maintained-native-incomplete-harness.json` and is
+excluded from regression evidence. The corrected report is
+`.cache/native-rtklib-reference/maintained-native-summary.json`, including both
+valid regression failures, all five current successes and the exact CLI output.
+It verifies source/fixture hashes, scratch removal, deployed source hashes and
+unchanged worker identity/start time/mounts/health. The application handler was
+not replaced, and no production job or customer record was created.
+
+The maintained suite's SHA-256 was
+`c22ff15acb5dd3ebef7de77bed98b32725ac5fca725ccbe8fcce78f46ba940ab`.
+This small GPS case is repeatable native regression coverage. Receiver diversity,
+multi-constellation/L5, long workloads, independent control and live route/field
+acceptance remain separate gates.
+
+## Earlier native investigation and source repair
+
 Local date: 22 October 2026; execution timestamps below are UTC on 21 October.
 The repaired checkout wrapper now produces real relative RTKLIB solutions on a
 pinned upstream reference pair. This is controlled native-executable evidence,

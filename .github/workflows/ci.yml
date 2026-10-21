@@ -88,10 +88,12 @@ jobs:
   # cross-validated against IGS final SP3 orbits, and the solver proven by
   # noise-free closed-loop recovery (<1 mm). Network-dependent ephemeris
   # download tests are opt-in (--run-network) and skipped here so the gate
-  # never depends on public mirrors being up.
+  # never depends on ephemeris mirrors being up. The separate native RTKLIB
+  # acceptance suite uses pinned repository fixtures and fails if the CLI is
+  # missing; FIX/FLOAT and configuration rejection must execute without mocks.
   python-worker:
     name: Python Worker (GNSS and LAS/LAZ)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -100,9 +102,17 @@ jobs:
           python-version: '3.12'
       - name: Install worker test deps
         run: pip install pytest numpy requests 'fastapi>=0.104.0' 'pydantic>=2.0.0' 'laspy[lazrs]>=2.7.0,<3.0' 'pyproj>=3.6.0,<4.0'
+      - name: Install native RTKLIB CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rtklib
+          command -v rnx2rtkp
       - name: Run survey worker test suite
         working-directory: python_worker
         run: python -m pytest tests/ -v
+      - name: Run native baseline acceptance without mocks
+        working-directory: python_worker
+        run: python -B -m unittest discover -s native_tests -v
 
   lint:
     name: ESLint

@@ -1,5 +1,12 @@
 # METARDU requirement readiness — checkpoints through 22 October 2026
 
+Latest verification-pipeline checkpoint (22 October local time): five maintained
+native RTKLIB tests and hash-pinned public RINEX fixtures are now wired into the
+existing worker CI job. The exact native command passes locally in the existing
+worker, and replayed historical defects fail for verified reasons. Missing
+RTKLIB fails the gate. GitHub-hosted execution/package installation remains
+unverified; no deployment occurred. See [maintained native gate](GNSS_NATIVE_ACCEPTANCE_2026-10-22.md).
+
 Latest native GNSS checkpoint (22 October local time): the actual installed
 RTKLIB exposed rejected enum settings in the checkout wrapper. The serializer
 and zero-exit diagnostic guard are repaired. Full worker source tests pass 83

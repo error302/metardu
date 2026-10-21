@@ -1,0 +1,60 @@
+{
+  "repository": "https://github.com/tomojitakasu/RTKLIB",
+  "revision": "71db0ffa0d9735697c6adfd06fdf766d0e5ce807",
+  "provenance": "Public RTKLIB test observations; supplied test base; native PROJ offline ECEF-to-LLH conversion. Numerical outputs are RTKLIB regression references, not independently surveyed truth.",
+  "files": {
+    "07590920.05o": {
+      "bytes": 68266,
+      "sha256": "8474af556633e9c03293a8fb1e2c1f55180b42336b17574a84fda06eb6a02f9e",
+      "url": "https://raw.githubusercontent.com/tomojitakasu/RTKLIB/71db0ffa0d9735697c6adfd06fdf766d0e5ce807/test/data/rinex/07590920.05o"
+    },
+    "30400920.05o": {
+      "bytes": 74854,
+      "sha256": "732ba88d70412b6a70c145494a8030f79b844e99bd5225d0e7b7d982d2e2b540",
+      "url": "https://raw.githubusercontent.com/tomojitakasu/RTKLIB/71db0ffa0d9735697c6adfd06fdf766d0e5ce807/test/data/rinex/30400920.05o"
+    },
+    "30400920.05n": {
+      "bytes": 96480,
+      "sha256": "ff1e2a3190c99a77b1b8bf2cd37d813a536bcd27498998c40a50fcca2f806d77",
+      "url": "https://raw.githubusercontent.com/tomojitakasu/RTKLIB/71db0ffa0d9735697c6adfd06fdf766d0e5ce807/test/data/rinex/30400920.05n"
+    }
+  },
+  "controls": {
+    "upstream-base": {
+      "ecef": [
+        -3978241.958,
+        3382840.234,
+        3649900.853
+      ],
+      "base_position": {
+        "latitude": 35.132057067754985,
+        "longitude": 139.62430657739648,
+        "ellipsoidal_height": 73.90766507294029
+      }
+    },
+    "synthetic-base-x-plus-one-metre": {
+      "ecef": [
+        -3978240.958,
+        3382840.234,
+        3649900.853
+      ],
+      "base_position": {
+        "latitude": 35.13206101924526,
+        "longitude": 139.62429946986532,
+        "ellipsoidal_height": 73.28463306091726
+      }
+    }
+  },
+  "numericalRegressionOutputs": {
+    "upstream-base": {
+      "latitude": 35.160865963,
+      "longitude": 139.613843011,
+      "ellipsoidal_height": 68.3841
+    },
+    "synthetic-base-x-plus-one-metre": {
+      "latitude": 35.160869917,
+      "longitude": 139.613835899,
+      "ellipsoidal_height": 67.7615
+    }
+  }
+}
