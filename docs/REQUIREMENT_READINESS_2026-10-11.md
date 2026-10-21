@@ -1,12 +1,20 @@
 # METARDU requirement readiness — checkpoints through 21 October 2026
 
+Latest advisory checkpoint (21 October): the existing lockfile audit passes its
+current policy: runtime has zero reported advisories; the full graph has eight
+high and 21 moderate affected-package entries stemming from three advisories,
+all affected nodes marked development-only in the lockfile. Build-tool review
+remains open. The static security/migration gate also passes. No dependencies or
+production services changed. See [dependency evidence and limits](DEPENDENCY_ACCEPTANCE_2026-10-21.md).
+
 Latest full ordinary Jest checkpoint (21 October): 5,441 tests pass across 601
 executed suites, with nine native checks skipped, zero failures and one existing
 snapshot passing. Tested source/config remained unchanged, including the existing
 uncommitted survey-plan work. Separate online-service probes still reproduce
 invalid identity successes, rejected zero northing, inferred target grids,
 unsupported precision claims and an Arc 1960 inconsistency confirmed against host
-native PROJ. The online-contract design is awaiting approval; these defects are
+native PROJ. The explicit-CRS architecture is now approved; the committed written
+specification awaits review before implementation planning. These defects remain
 unrepaired. See [online transform audit and full-suite limits](ONLINE_TRANSFORM_AUDIT_2026-10-21.md).
 
 Latest coordinate checkpoint (21 October): the API transform path now uses the
