@@ -511,16 +511,16 @@ describe('SurveyPlanRenderer', () => {
       expect(svg).toContain('FENCE TYPES')
     })
 
-    it('renders multiple sheets when totalSheets > 1', async () => {
+    it('derives actual sheet count rather than repeating a drawing from legacy totalSheets', async () => {
       const dataMultiSheet = {
         ...BASE_DATA,
         project: { ...BASE_DATA.project, sheetNo: '1', totalSheets: '4' },
       }
       const renderer = new SurveyPlanRenderer(dataMultiSheet)
       const svg = await renderer.render()
-      expect(svg).toContain('Sheet 1 of 4')
-      expect(svg).toContain('Sheet 4 of 4')
-      expect(svg).toContain('width="3174.')
+      expect(svg).toContain('Sheet 1 of')
+      expect(svg).not.toContain('Sheet 4 of 4')
+      expect((svg.match(/<polyline/g) || []).length).toBeLessThan(10)
     })
   })
 })

@@ -3,8 +3,8 @@ import { escapeXml } from '@/lib/reports/surveyPlan/symbols'
 import { mmToPx, PAGE_HEIGHT_MM, PAGE_WIDTH_MM } from '@/lib/reports/surveyPlan/geometry'
 
 /** Separate physical sheets from preview zoom and the surrounding workspace. */
-export function surveyPlanSheets(svg: string, count = 1): string[] {
-  if (!Number.isInteger(count) || count < 1 || count > 50) throw new Error('Choose between 1 and 50 recorded plan sheets.')
+export function surveyPlanSheets(svg: string, count?: number): string[] {
+  if (count !== undefined && (!Number.isInteger(count) || count < 1 || count > 50)) throw new Error('Choose between 1 and 50 recorded plan sheets.')
   const document = new DOMParser().parseFromString(sanitizeHtml(svg), 'image/svg+xml')
   const root = document.documentElement
   if (root.localName !== 'svg' || document.querySelector('parsererror')) throw new Error('The plan SVG could not be prepared for printing.')
@@ -13,6 +13,23 @@ export function surveyPlanSheets(svg: string, count = 1): string[] {
     if (!inertTags.has(element.localName) || element.namespaceURI !== 'http://www.w3.org/2000/svg') element.remove()
   }
   const viewBox = root.getAttribute('viewBox')?.trim().split(/[\s,]+/).map(Number)
+  const physicalSheets = Array.from(root.children).filter(element => element.localName === 'svg' && element.classList.contains('survey-plan-sheet'))
+  if (physicalSheets.length) {
+    if (physicalSheets.length > 50 || (count !== undefined && count !== physicalSheets.length)) throw new Error('The sheet count does not match the rendered plan.')
+    return physicalSheets.map((element, index) => {
+      const sheet = element.cloneNode(true) as SVGElement
+      if (sheet.getAttribute('viewBox') !== `0 0 ${mmToPx(420)} ${mmToPx(297)}`) throw new Error('An individual plan sheet has invalid paper dimensions.')
+      sheet.setAttributeNS('http://www.w3.org/2000/xmlns/', 'xmlns', 'http://www.w3.org/2000/svg')
+      sheet.setAttribute('width', '420mm'); sheet.setAttribute('height', '297mm')
+      sheet.removeAttribute('x'); sheet.removeAttribute('y')
+      sheet.setAttribute('aria-label', `Survey plan sheet ${index + 1} of ${physicalSheets.length}`)
+      for (const node of [sheet, ...Array.from(sheet.querySelectorAll('*'))]) {
+        node.removeAttribute('style'); node.removeAttribute('href'); node.removeAttribute('src')
+      }
+      return new XMLSerializer().serializeToString(sheet)
+    })
+  }
+  count ??= 1
   const columns = Math.ceil(Math.sqrt(count))
   const pageWidth = mmToPx(PAGE_WIDTH_MM), pageHeight = mmToPx(PAGE_HEIGHT_MM)
   const rows = Math.ceil(count / columns)
@@ -37,7 +54,7 @@ export function surveyPlanSheets(svg: string, count = 1): string[] {
   })
 }
 
-export function buildSurveyPlanSheetDocument(svg: string, title: string, count = 1): string {
+export function buildSurveyPlanSheetDocument(svg: string, title: string, count?: number): string {
   const sheets = surveyPlanSheets(svg, count)
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><title>${escapeXml(title)} — print sheet</title>
 <style>
@@ -53,11 +70,11 @@ html, body { margin: 0; padding: 0; background: #fff; color: #111; font-family: 
 @media print { .print-tools { display: none; } .plan-sheet { margin: 0; box-shadow: none; } body { width: ${PAGE_WIDTH_MM}mm; } * { print-color-adjust: exact; -webkit-print-color-adjust: exact; } }
 </style></head><body><header class="print-tools"><button id="print-plan-sheet" type="button">Print A3 sheet</button>
 A3 landscape · Actual size / 100% · Disable browser headers and footers. Use the scale bar to check the printed sheet. This is an unverified draft.</header>
-${sheets.map((sheet, index) => `<section class="plan-sheet" aria-label="Sheet ${index + 1} of ${count}">${sheet}</section>`).join('')}
+${sheets.map((sheet, index) => `<section class="plan-sheet" aria-label="Sheet ${index + 1} of ${sheets.length}">${sheet}</section>`).join('')}
 </body></html>`
 }
 
-export async function openSurveyPlanSheet(svg: string, title: string, count = 1): Promise<void> {
+export async function openSurveyPlanSheet(svg: string, title: string, count?: number): Promise<void> {
   const html = buildSurveyPlanSheetDocument(svg, title, count)
   const popup = window.open('/print/survey-plan', '_blank')
   if (!popup) throw new Error('Allow the print-sheet tab to open, then try again. Your saved plan is unchanged.')

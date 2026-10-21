@@ -17,12 +17,13 @@ const data: SurveyPlanData = {
 beforeEach(() => jest.clearAllMocks())
 
 test('exports recorded standard sheets on separate A3 pages at full physical size', async () => {
-  render(<SurveyPlanExport data={data} layout="standard" />)
+  const boundaryPoints = Array.from({ length: 80 }, (_, index) => ({ name: `Station-${index + 1}`, easting: 500000 + 20 * Math.cos(index * Math.PI / 40), northing: 9900000 + 20 * Math.sin(index * Math.PI / 40) }))
+  render(<SurveyPlanExport data={{ ...data, parcel: { ...data.parcel, boundaryPoints } }} layout="standard" />)
   fireEvent.click(screen.getByRole('button', { name: 'Unsigned PDF' }))
   await waitFor(() => expect(mockSave).toHaveBeenCalledTimes(1))
-  expect(mockAddPage).toHaveBeenCalledTimes(2)
+  expect(mockSvg.mock.calls.length).toBeGreaterThan(1)
+  expect(mockAddPage).toHaveBeenCalledTimes(mockSvg.mock.calls.length - 1)
   expect(mockAddPage).toHaveBeenCalledWith('a3', 'landscape')
-  expect(mockSvg).toHaveBeenCalledTimes(3)
   for (const [svg, dimensions] of mockSvg.mock.calls) {
     expect(svg.getAttribute('width')).toBe('420mm')
     expect(svg.getAttribute('height')).toBe('297mm')

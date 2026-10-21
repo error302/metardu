@@ -36,7 +36,7 @@ export default function SurveyPlanExport({ data, options, projectId, plan = 'fre
       ])
 
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a3' })
-      const sheets = surveyPlanSheets(svgString, layout === 'form4' ? 1 : Number(data.project.totalSheets || '1'))
+      const sheets = surveyPlanSheets(svgString)
       for (const [index, sheet] of sheets.entries()) {
         const container = document.createElement('div')
         container.innerHTML = sheet

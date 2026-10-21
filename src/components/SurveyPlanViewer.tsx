@@ -9,7 +9,7 @@ import ComplianceChecklistModal from '@/components/ComplianceChecklistModal'
 import { AlertCircle, FileCheck } from 'lucide-react'
 import { sanitizeHtml } from '@/lib/security/sanitize'
 import { logger } from '@/lib/logger'
-import { openSurveyPlanSheet } from '@/lib/print/surveyPlanSheet'
+import { openSurveyPlanSheet, surveyPlanSheets } from '@/lib/print/surveyPlanSheet'
 
 interface SurveyPlanViewerProps {
   data: SurveyPlanData
@@ -25,6 +25,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
   const [scale, setScale] = useState(1.0)
   const [currentSheet, setCurrentSheet] = useState(0)
   const [svgContent, setSvgContent] = useState('')
+  const [sheets, setSheets] = useState<string[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [printError, setPrintError] = useState<string | null>(null)
@@ -41,6 +42,8 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
     setLoading(true)
     setError(null)
     setSvgContent('')
+    setSheets([])
+    setCurrentSheet(0)
 
     try {
       // Quality Hardening: Validate data before rendering
@@ -69,7 +72,9 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
       
       if (cancelled) return
       rendererRef.current = renderer
+      const renderedSheets = surveyPlanSheets(content)
       setSvgContent(content)
+      setSheets(renderedSheets)
     } catch (e) {
       logger.error('Survey plan render error:', { error: e })
       if (!cancelled) {
@@ -144,8 +149,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
     setOpeningPrint(true)
     try {
       if (!svgContent || loading || error) throw new Error('Wait for a complete plan before opening the print sheet.')
-      const sheets = Number(data.project.totalSheets || '1')
-      await openSurveyPlanSheet(svgContent, data.project.name, useFormNo4 ? 1 : sheets)
+      await openSurveyPlanSheet(svgContent, data.project.name)
     } catch (cause) { setPrintError(cause instanceof Error ? cause.message : 'The print sheet could not be opened.') }
     finally { setOpeningPrint(false) }
   }
@@ -220,22 +224,16 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
         </div>
       )}
       
-      {svgContent && svgContent.includes('Sheet ') && (
-        (() => {
-          const match = svgContent.match(/Sheet \d+ of (\d+)/)
-          const total = match ? parseInt(match[1], 10) : 1
-          return (
-            <div className="flex items-center justify-center gap-2 px-3 py-1 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
-              <span className="text-xs font-mono text-[var(--text-secondary)]">Sheet {currentSheet + 1} of {total}</span>
-              <button onClick={() => setCurrentSheet(Math.max(0, currentSheet - 1))} disabled={currentSheet === 0}
-                className="px-2 py-0.5 text-xs rounded hover:bg-[var(--bg-tertiary)] disabled:opacity-30 border border-[var(--border)]">&lt;</button>
-              <button onClick={() => setCurrentSheet(Math.min(total - 1, currentSheet + 1))} disabled={currentSheet >= total - 1}
-                className="px-2 py-0.5 text-xs rounded hover:bg-[var(--bg-tertiary)] disabled:opacity-30 border border-[var(--border)]">&gt;</button>
-            </div>
-          )
-        })()
+      {sheets.length > 1 && (
+        <div className="flex items-center justify-center gap-2 px-3 py-1 border-b border-[var(--border)] bg-[var(--bg-secondary)]">
+          <span className="text-xs font-mono text-[var(--text-secondary)]">Sheet {currentSheet + 1} of {sheets.length}</span>
+          <button aria-label="Previous plan sheet" onClick={() => setCurrentSheet(value => Math.max(0, value - 1))} disabled={currentSheet === 0}
+            className="px-2 py-0.5 text-xs rounded disabled:opacity-30 border border-[var(--border)]">&lt;</button>
+          <button aria-label="Next plan sheet" onClick={() => setCurrentSheet(value => Math.min(sheets.length - 1, value + 1))} disabled={currentSheet >= sheets.length - 1}
+            className="px-2 py-0.5 text-xs rounded disabled:opacity-30 border border-[var(--border)]">&gt;</button>
+        </div>
       )}
-      
+
       <div ref={containerRef} className="flex-1 overflow-auto bg-[#e8e8e8] p-4">
         {loading ? (
           <div className="flex flex-col items-center justify-center h-full text-[var(--text-secondary)] gap-3">
@@ -263,29 +261,11 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
               Try Standard Format
             </button>
           </div>
-        ) : svgContent ? (
-          svgContent.includes('Sheet ') ? (
-            <div
-              className="shadow-lg mx-auto"
-              style={{
-                width: '1587px',
-                height: '1123px',
-                overflow: 'hidden',
-              }}
-            >
-              <div
-                style={{
-                  transform: `translate(${-currentSheet * 1587 * scale}px, 0) scale(${scale})`,
-                  transformOrigin: 'top left',
-                  position: 'absolute',
-                }}
-                dangerouslySetInnerHTML={{ __html: sanitizeHtml(svgContent) }}
-              />
-            </div>
-          ) : (
-            <div className="shadow-lg mx-auto" style={{ transform: `scale(${scale})`, transformOrigin: 'top center', width: 'fit-content' }}
-              dangerouslySetInnerHTML={{ __html: sanitizeHtml(svgContent) }} />
-          )
+        ) : sheets.length ? (
+          <div className="shadow-lg mx-auto" style={{ width: 1587.4015748031497 * scale, height: 1122.5196850393702 * scale, position: 'relative' }}>
+            <div style={{ transform: `scale(${scale})`, transformOrigin: 'top left', width: 1587.4015748031497, height: 1122.5196850393702 }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(sheets[currentSheet] || sheets[0]) }} />
+          </div>
         ) : (
           <div className="flex items-center justify-center h-full text-[var(--text-secondary)]">No plan data available</div>
         )}

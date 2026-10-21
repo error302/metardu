@@ -166,7 +166,7 @@ source hash, and shares a twenty-attempt retry budget across branches. Instance
 serialization prevents duplicate immediate/manual dispatch of acknowledged work.
 Actual browser/native/device acceptance and quotas/retention/backoff remain open.
 
-Current runtime incident: Docker became reachable again, but the existing
+Earlier runtime incident (superseded by the recovery record below): Docker became reachable again, but the existing
 `metardu-app` is created and not running. Its migration dependency exited after
 rejecting the checksum of applied migration 052. The marked synthetic database
 is stopped; the supporting production services were running in the inspected
@@ -175,3 +175,14 @@ intact. Production HTTP is not confirmed healthy. Follow the existing migration,
 source/image/ownership and backup/recovery review before runtime restoration;
 do not bypass the gate or modify applied hashes. This is an open P0 runtime and
 release blocker alongside the previously recorded security/field/paid gates.
+
+22 October continuation: the existing runtime restoration is recorded in
+`RUNTIME_RECOVERY_2026-10-21.md`; fresh read-only verification again passed the
+single application/supporting stack, matching-image migration bootstrap and
+HTTP/database/Redis checks. The subsequent public 530/1033 incident was traced
+to the stopped named Cloudflare connector and restored with its existing saved
+configuration. Public home/health and provider endpoints returned 200 afterward.
+Connector supervision, unknown public release identity, the deferred security
+rotation, source promotion and field/provider acceptance remain separate gates.
+See `CREDIBILITY_ACCEPTANCE.md` for the current evidence ledger and source-only
+schedule pagination checkpoint. The broader goal is not complete.

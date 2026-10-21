@@ -277,3 +277,30 @@ downloaded through the ordinary synthetic browser session and raster-reviewed.
 The standard page has separated readable tables, its area label inside the parcel,
 all four station labels and at least 10 mm text clearance. This is paper-layout
 evidence for the labelled simulation, not physical printer or field acceptance.
+
+### Content-derived continuation sheets — 22 October source checkpoint
+
+The standard and Form No. 4 review paths now share row-preserving schedule
+pagination. Headers repeat at page breaks, long cells wrap, wide coordinate
+tables move to full-width continuation sheets, and all supplied revision rows
+are retained. The legacy manual sheet count no longer repeats the parcel diagram.
+Actual sheet elements determine preview/print/PDF page count. Preview navigation
+extracts each sheet independently rather than translating horizontally through
+a two-dimensional composite. Switching layout resets to the drawing page.
+
+Dense diagrams use a numbered station key and spaced leaders, with an explicit
+notice directing the reader to complete leg dimensions in the schedules. Unsafe
+leader density and rows exceeding the physical page report their limits; original
+records are preserved. This is schedule continuation, not geographic extent tiling.
+The obsolete fixed/truncated Form No. 4 review/revision blocks were removed.
+Monument classifications remain source classifications requiring field review.
+
+165 focused checks across eight suites, the reviewed snapshot, strict app/test
+typing and scoped lint pass. A separate source raster fixture rendered both
+80-station layouts into seven A3 sheets each, with one diagram, a station key,
+complete coordinate/bearing schedules and no repeated parcel geometry. Individual
+SVG parsing exposed and repaired a duplicate-namespace defect. These are source
+render and mocked export/DOM checks; no new browser large-plan download, deployed
+PDF acceptance, physical printer or field accuracy is claimed. No customer or
+production schema/data was changed by the print work. Public-access recovery
+and provider evidence are recorded separately in `CREDIBILITY_ACCEPTANCE.md`.

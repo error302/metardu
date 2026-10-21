@@ -1,5 +1,6 @@
 import { buildSurveyPlanSheetDocument, openSurveyPlanSheet, surveyPlanSheets } from './surveyPlanSheet'
 import { mmToPx } from '@/lib/reports/surveyPlan/geometry'
+import { bundleSurveySheets } from '@/lib/reports/surveyPlan/schedulePages'
 
 const width = mmToPx(420), height = mmToPx(297)
 const plan = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${width} ${height}"><text x="40" y="40">UNVERIFIED DRAFT</text></svg>`
@@ -32,6 +33,22 @@ test('removes active content, external resources and injected print CSS', () => 
   const dirty = plan.replace('</svg>', '<style>@page{size:1mm}</style><script>alert(1)</script><a href="https://invalid.example"><text onclick="alert(1)" style="transform:scale(3)">unsafe</text></a><image href="https://invalid.example/x"/></svg>')
   const sheet = surveyPlanSheets(dirty)[0]
   expect(sheet).not.toMatch(/<style|<script|<image|<a\b|onclick|href|transform:scale|@page/)
+})
+
+test('extracts only each actual sheet, with a valid independent SVG namespace', () => {
+  const bundle = bundleSurveySheets(['<text>first-page-only</text>', '<text>second-page-only</text>', '<text>third-page-only</text>'], width, height)
+  const sheets = surveyPlanSheets(bundle)
+  expect(sheets).toHaveLength(3)
+  sheets.forEach((sheet, index) => {
+    const doc = new DOMParser().parseFromString(sheet, 'image/svg+xml')
+    expect(doc.querySelector('parsererror')).toBeNull()
+    expect(doc.documentElement.getAttribute('width')).toBe('420mm')
+    expect(doc.documentElement.hasAttribute('x')).toBe(false)
+    expect(doc.documentElement.textContent).toContain(['first-page-only', 'second-page-only', 'third-page-only'][index])
+    expect(doc.documentElement.querySelectorAll('svg')).toHaveLength(0)
+  })
+  expect(sheets[0]).not.toContain('second-page-only')
+  expect(() => surveyPlanSheets(bundle, 1)).toThrow(/sheet count/)
 })
 
 test('populates the owned landing document even when navigation drops initial Window load listeners', async () => {

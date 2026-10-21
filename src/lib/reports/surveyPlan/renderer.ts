@@ -1,3 +1,4 @@
+import { bundleSurveySheets, paginateScheduleTables, type ScheduleTable } from './schedulePages'
 import { sha256Hex } from '@/lib/crypto/sha256'
 import type { SurveyPlanData, PlanOptions } from './types'
 import { getRoadReserveWidth } from './types'
@@ -40,6 +41,7 @@ export class SurveyPlanRenderer {
   protected panelW: number
   protected margin = mmToPx(10)
   protected titleBlockH = mmToPx(44)
+  protected continuationSchedules: string[] = []
   protected scale = 500
   protected mPerPx = 1
   protected toSvgX!: (m: number) => number
@@ -155,7 +157,7 @@ export class SurveyPlanRenderer {
       
       svg += `<line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${dash}" opacity="0.7"/>`
       
-      if (isMajor) {
+      if (isMajor && this.rotatedPoints.length <= 12) {
         const ly = this.drawingY + this.drawingAreaH - mmToPx(1)
         svg += `<text x="${x}" y="${ly}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}" opacity="0.6">${e}</text>`
       }
@@ -174,7 +176,7 @@ export class SurveyPlanRenderer {
       
       svg += `<line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" stroke="${stroke}" stroke-width="${width}" stroke-dasharray="${dash}" opacity="0.7"/>`
       
-      if (isMajor) {
+      if (isMajor && this.rotatedPoints.length <= 12) {
         const lx = this.drawingX + mmToPx(3)
         svg += `<text x="${lx}" y="${y - 3}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}" opacity="0.6">${n}</text>`
       }
@@ -211,6 +213,7 @@ export class SurveyPlanRenderer {
   }
 
   protected drawBoundaryLabels(): string {
+    if (this.rotatedPoints.length > 12) return `<text x="${this.drawingX + mmToPx(25)}" y="${mmToPx(25)}" font-family="helvetica, Arial, sans-serif" font-size="10">Dense boundary: numbered station key and complete leg dimensions are in the schedules.</text>`
     const pts = this.rotatedPoints
     let svg = ''
     for (let i = 0; i < pts.length; i++) {
@@ -248,6 +251,17 @@ export class SurveyPlanRenderer {
     let svg = ''
     const rawPts = this.data.parcel.boundaryPoints
     const rotPts = this.rotatedPoints
+    const dense = rawPts.length > 12
+    const labelPositions = new Map<number, { x: number; y: number; anchor: string }>()
+    if (dense) {
+      const middle = (Math.min(...rotPts.map(point => point.easting)) + Math.max(...rotPts.map(point => point.easting))) / 2
+      for (const left of [true, false]) {
+        const side = rotPts.map((point, index) => ({ point, index })).filter(({ point }) => (point.easting <= middle) === left).sort((a, b) => b.point.northing - a.point.northing)
+        const available = this.drawingAreaH - mmToPx(65)
+        if (side.length > 1 && available / (side.length - 1) < 12) throw new Error('The numbered station leaders require an enlarged or tiled drawing at this density. The source observations are unchanged.')
+        side.forEach(({ index }, row) => labelPositions.set(index, { x: left ? this.drawingX + mmToPx(16) : this.panelX - mmToPx(16), y: this.drawingY + mmToPx(35) + row * available / Math.max(1, side.length - 1), anchor: left ? 'end' : 'start' }))
+      }
+    }
     for (let i = 0; i < rawPts.length; i++) {
       const rawPt = rawPts[i]
       const rotPt = rotPts[i]
@@ -257,7 +271,11 @@ export class SurveyPlanRenderer {
       const cx = this.toSvgX(rotPt.easting)
       const cy = this.toSvgY(rotPt.northing)
       svg += svgCornerDot(cx, cy)
-      svg += `<text x="${cx + 7}" y="${cy - 7}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(rawPt.name)}</text>`
+      const label = labelPositions.get(i)
+      if (label) {
+        svg += `<line x1="${cx}" y1="${cy}" x2="${label.x}" y2="${label.y - 3}" stroke="#888" stroke-width="0.3"/>`
+        svg += `<text x="${label.x}" y="${label.y}" text-anchor="${label.anchor}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">#${i + 1}</text>`
+      } else svg += `<text x="${cx + 7}" y="${cy - 7}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(rawPt.name)}</text>`
       if (!cp) continue
       switch (cp.monumentType) {
         case 'found': svg += svgFoundMonument(cx, cy); break
@@ -394,46 +412,6 @@ export class SurveyPlanRenderer {
     const x = this.drawingX + mmToPx(8)
     const y = this.drawingY + this.drawingAreaH - mmToPx(15)
     return svgScaleBar(x, y, scaleBarPx, segmentMetres, 4)
-  }
-
-  protected drawReviewRecord(x: number, y: number, width: number, height: number, compact = false): string {
-    const p = this.data.project;
-    const lines = compact ? [
-      'UNVERIFIED DRAFT — REVIEW REQUIRED',
-      'No certified survey or accepted legal boundary.',
-      'Field control, monuments and measurements unverified.',
-      'Independent professional review required.',
-      'No authority approval or professional seal is established.',
-      `Recorded preparer: ${p.surveyor_name || 'Not supplied'}`,
-      `Recorded registration: ${p.surveyor_licence || 'Not supplied'} (not verified)`,
-      ...(p.iskRegNo ? [`Recorded association registration: ${p.iskRegNo} (not verified)`] : []),
-      ...(p.notes ? [p.notes] : []),
-    ] : [
-      'UNVERIFIED DRAFT — REVIEW REQUIRED',
-      'This output does not certify a survey or legal boundary.',
-      'Field control, monuments, measurements and tolerances',
-      'require independent evidence and professional review.',
-      'No authority approval or professional seal is established.',
-      `Project: ${p.name}`,
-      `Recorded preparer: ${p.surveyor_name || 'Not supplied'}`,
-      `Recorded registration: ${p.surveyor_licence || 'Not supplied'} (not verified)`,
-      ...(p.iskRegNo ? [`Recorded association registration: ${p.iskRegNo} (not verified)`] : []),
-      `Grid: ${this.crs.crsName}`,
-      `Vertical: ${describeVerticalDatum(this.crs)}`,
-      ...(p.notes ? [p.notes] : []),
-    ];
-    const wrapped: string[] = [];
-    for (const line of lines) {
-      let part = '';
-      for (const word of line.split(/\s+/)) {
-        if ((part + ' ' + word).trim().length > 50 && part) { wrapped.push(part); part = ''; }
-        part = (part + ' ' + word).trim();
-      }
-      if (part) wrapped.push(part);
-    }
-    if (compact && (wrapped.length + 2) * mmToPx(4) > height) throw new Error('The complete draft review record needs a continuation sheet; no evidence text was omitted.')
-    return `<g class="draft-review-record"><rect x="${x}" y="${y}" width="${width}" height="${height}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-      + wrapped.slice(0, Math.floor(height / mmToPx(4)) - 2).map((line, index) => `<text x="${x + mmToPx(2)}" y="${y + mmToPx(6 + index * 4)}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(line)}</text>`).join('') + '</g>';
   }
 
   private drawStreetInfo(): string {
@@ -604,54 +582,18 @@ export class SurveyPlanRenderer {
     return svg
   }
 
-  private drawRightPanel(): string {
+  protected drawRightPanel(coordinates: ScheduleTable | false | undefined = undefined, form4 = false): string {
     const x = this.panelX + mmToPx(3), width = this.panelW - mmToPx(6)
     const bottom = this.pageH - mmToPx(54)
     let y = this.margin
     let svg = '<g class="standard-plan-panel">'
     const text = (tx: number, ty: number, content: string, bold = false) => `<text x="${tx}" y="${ty}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="${bold ? 'bold' : 'normal'}" fill="${C_BLACK}">${escapeXml(content)}</text>`
-    const wrap = (value: string, available: number) => {
-      const limit = Math.max(1, Math.floor(available / 5.8))
-      const result: string[] = []
-      let line = ''
-      for (const word of value.split(/\s+/)) {
-        if (line && (line + ' ' + word).length > limit) { result.push(line); line = '' }
-        let rest = word
-        while (rest.length > limit) { if (line) { result.push(line); line = '' }; result.push(rest.slice(0, limit)); rest = rest.slice(limit) }
-        line = (line + ' ' + rest).trim()
-      }
-      if (line) result.push(line)
-      return result.length ? result : ['—']
-    }
-    const section = (title: string, headings: string[], rows: string[][], fractions: number[]) => {
-      const startY = y
-      const widths = fractions.map(value => value * width)
-      let body = text(x + mmToPx(2), y + mmToPx(3.5), title, true)
-      y += mmToPx(6)
-      if (headings.length) {
-        let colX = x
-        headings.forEach((heading, index) => { body += text(colX + mmToPx(1), y + mmToPx(3), heading, true); colX += widths[index] })
-        y += mmToPx(5)
-      }
-      for (const row of rows) {
-        const lines = row.map((value, index) => wrap(value, widths[index] - mmToPx(2)))
-        const rowHeight = Math.max(...lines.map(value => value.length)) * mmToPx(3.5) + mmToPx(1)
-        let colX = x
-        lines.forEach((values, index) => {
-          values.forEach((value, line) => { body += text(colX + mmToPx(1), y + mmToPx(3 + line * 3.5), value) })
-          colX += widths[index]
-        })
-        y += rowHeight
-      }
-      y += mmToPx(1)
-      if (y > bottom) throw new Error('The complete plan schedules exceed this A3 sheet. A continuation-sheet layout is required; no schedule rows were omitted.')
-      svg += `<g class="plan-panel-section"><rect x="${x}" y="${startY}" width="${width}" height="${y - startY}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>${body}</g>`
-      y += mmToPx(3)
-    }
+    const tables: ScheduleTable[] = []
+    const section = (title: string, headings: string[], rows: string[][], fractions: number[]) => { tables.push({ title, headings, rows, fractions }) }
     const p = this.data.project, crs = this.crs, points = this.data.parcel.boundaryPoints
     svg += text(x, y + mmToPx(4), 'UNVERIFIED DRAFT PLAN', true)
     svg += text(x, y + mmToPx(9), `Scale 1:${this.scale} at A3 · Distances in metres`)
-    svg += text(x, y + mmToPx(14), 'Metres ÷ 0.3048 = feet')
+    svg += text(x, y + mmToPx(14), form4 ? 'Form No. 4 — review layout' : 'Metres ÷ 0.3048 = feet')
     y += mmToPx(19)
     const info: string[][] = [
       ['Working grid', crs.verified ? `${crs.datum} / UTM ${crs.zone}${crs.hemi} (${crs.epsgCode})` : 'UNVERIFIED — project CRS not declared'],
@@ -662,28 +604,52 @@ export class SurveyPlanRenderer {
       ...(p.firm_name ? [['Recorded firm', p.firm_name]] : []),
       ...(p.firm_phone ? [['Firm phone', p.firm_phone]] : []),
       ...(p.firm_email ? [['Firm email', p.firm_email]] : []),
+      ...(form4 ? [
+        ['Registration District', p.registrationDistrict || 'Not supplied'], ['Locality', p.locality || 'Not supplied'],
+        ...(['lrNumber', 'folioNumber', 'registerNumber', 'firNumber', 'refMapRIM', 'registrationBlock', 'computationsNo', 'fieldBookNo', 'dateReceived', 'fileReference'] as const)
+          .filter(key => Boolean(p[key])).map(key => [key, p[key] as string]),
+      ] : []),
     ]
     section('PLAN INFORMATION', [], info, [0.28, 0.72])
-    section('COORDINATE SCHEDULE', ['Station', 'Easting', 'Northing'], points.map(point => [point.name, point.easting.toFixed(3), point.northing.toFixed(3)]), [0.26, 0.37, 0.37])
+    if (points.length > 12) tables.push({ title: 'DIAGRAM STATION KEY', headings: ['Label', 'Original station'], rows: points.map((point, index) => [`#${index + 1}`, point.name]), fractions: [0.15, 0.85], minWidth: mmToPx(200) })
+    if (coordinates) tables.push(coordinates)
+    else if (coordinates !== false) section('COORDINATE SCHEDULE', ['Station', 'Easting', 'Northing'], points.map(point => [point.name, point.easting.toFixed(3), point.northing.toFixed(3)]), [0.26, 0.37, 0.37])
     const schedule = p.bearingSchedule?.length ? p.bearingSchedule : points.map((point, index) => {
       const next = points[(index + 1) % points.length]
       return { from: point.name, to: next.name, bearing: formatBearingDegMinSec(bearingFromDelta(next.easting - point.easting, next.northing - point.northing)), distance: distance(point.easting, point.northing, next.easting, next.northing) }
     })
     section('BEARING SCHEDULE', ['From', 'To', 'Bearing', 'Dist (m)'], schedule.map(row => [row.from, row.to, row.bearing, row.distance.toFixed(3)]), [0.18, 0.18, 0.40, 0.24])
-    section('LEGEND / WARNING', [], [['Subject boundary', 'Continuous parcel outline'], ['Station circle', 'Coordinate only; monument unverified'], ['Field evidence', 'Verify control, monuments and dimensions on site.']], [0.35, 0.65])
+    const recordedTypes = Array.from(new Set(this.data.controlPoints.map(point => point.monumentType)))
+    section('LEGEND / WARNING', [], [['Subject boundary', 'Continuous parcel outline'], ['Station circle', 'Coordinate position; monument evidence requires review'],
+      ...recordedTypes.map(type => [`Recorded ${type.replaceAll('_', ' ')}`, 'Source classification; independent field verification required']),
+      ['Field evidence', 'Verify control, monuments and dimensions on site.']], [0.35, 0.65])
     const revisions = p.revisions || []
     section('REVISIONS', revisions.length ? ['Rev', 'Date', 'Description', 'By'] : [], revisions.length ? revisions.map(row => [row.rev, row.date, row.description, row.by]) : [['No issued revision recorded']], revisions.length ? [0.12, 0.23, 0.45, 0.20] : [1])
     if (p.roadCenterLine?.length) {
       const chainage = computeChainageAlongAlignment(p.startChainage ?? 0, p.roadCenterLine)
       section('CHAINAGE SCHEDULE', ['Chainage', 'Easting', 'Northing'], chainage.map(point => [formatChainage(point.chainage), point.easting.toFixed(3), point.northing.toFixed(3)]), [0.26, 0.37, 0.37])
     }
-    const remaining = bottom - y
-    if (remaining < mmToPx(40)) throw new Error('The complete schedules leave insufficient space for the draft review record. A continuation-sheet layout is required; no rows were omitted.')
-    svg += this.drawReviewRecord(x, y, width, remaining, true)
-    return svg + '</g>'
+    section('UNVERIFIED DRAFT — REVIEW REQUIRED', [], [
+      ['This output does not certify a survey or legal boundary.'],
+      ['Field control, monuments, measurements and tolerances require independent evidence and professional review.'],
+      ['No authority approval or professional seal is established.'],
+      [`Recorded preparer: ${p.surveyor_name || 'Not supplied'}`],
+      [`Recorded registration: ${p.surveyor_licence || 'Not supplied'} (not verified)`],
+      ...(p.iskRegNo ? [[`Recorded association registration: ${p.iskRegNo} (not verified)`]] : []),
+      ...(p.notes ? [[p.notes]] : []),
+    ], [1])
+    const pages = paginateScheduleTables(tables, { x, top: y, bottom, width }, { x: this.margin, top: mmToPx(22), bottom, width: this.pageW - this.margin * 2 })
+    this.continuationSchedules = pages.slice(1)
+    return svg + pages[0] + '</g>'
   }
 
-  protected drawSheetIdentity(): string {
+  protected async finishSheets(first: string): Promise<string> {
+    const fingerprint = await this.drawPrintVerification()
+    const continuation = this.continuationSchedules.map(page => [this.drawBackground(), this.drawSheetBorder(), page, this.drawSheetIdentity(true), fingerprint, this.drawLegalReferenceLine()].join(''))
+    return bundleSurveySheets([first, ...continuation], this.pageW, this.pageH)
+  }
+
+  protected drawSheetIdentity(scheduleOnly = false): string {
     const x = this.margin, y = this.pageH - mmToPx(49)
     const w = this.pageW - this.margin * 2, h = mmToPx(27)
     const nameW = mmToPx(220), cellW = (w - nameW) / 2, rowH = h / 3
@@ -697,7 +663,7 @@ export class SurveyPlanRenderer {
     if (p.location) svg += text(x + mmToPx(3), y + mmToPx(23), `Location: ${p.location.length > 90 ? p.location.slice(0, 87) + '…' : p.location}`)
     const reference = p.drawing_no || p.reference || 'Not assigned'
     const cells = [
-      `Scale at A3: 1:${this.scale}`, `Working CRS: ${this.crs.verified ? this.crs.epsgCode : 'UNVERIFIED'}`,
+      `${scheduleOnly ? 'Diagram on sheet 1' : 'Scale at A3'}: 1:${this.scale}`, `Working CRS: ${this.crs.verified ? this.crs.epsgCode : 'UNVERIFIED'}`,
       `Grid area: ${this.data.parcel.area_sqm.toFixed(3)} m²`, `Grid perimeter: ${this.data.parcel.perimeter_m.toFixed(3)} m`,
       `Drawing: ${reference}`, `Revision: ${p.version || 'Not assigned'}`,
     ]
@@ -888,8 +854,7 @@ export class SurveyPlanRenderer {
 
   async render(): Promise<string> {
     this.validateBoundary();
-    const totalSheets = parseInt(this.data.project.totalSheets || '1', 10)
-    if (totalSheets > 1) return this.renderMultiSheet()
+    this.continuationSchedules = []
 
     const layers: string[] = []
     layers.push(this.drawBackground())
@@ -921,63 +886,7 @@ export class SurveyPlanRenderer {
     layers.push(this.drawSheetFooter())
     layers.push(await this.drawPrintVerification())
     layers.push(this.drawLegalReferenceLine())
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
-  }
-
-  private async renderMultiSheet(): Promise<string> {
-    const totalSheets = parseInt(this.data.project.totalSheets || '1', 10)
-    if (totalSheets <= 1) return this.render()
-
-    const cols = Math.ceil(Math.sqrt(totalSheets))
-    const rows = Math.ceil(totalSheets / cols)
-    const sheetW = this.pageW * cols
-    const sheetH = this.pageH * rows
-
-    const sheets: string[] = []
-    for (let i = 0; i < totalSheets; i++) {
-      const sheetCol = i % cols
-      const sheetRow = Math.floor(i / cols)
-      const originX = sheetCol * this.pageW
-      const originY = sheetRow * this.pageH
-      const sheetNum = i + 1
-      const label = `Sheet ${sheetNum} of ${totalSheets}`
-
-      const layers: string[] = []
-      layers.push(`<g transform="translate(${originX},${originY})">`)
-      layers.push(this.drawBackground())
-      layers.push(this.drawSheetBorder())
-      if (this.opts.includePanel) layers.push(this.drawPanelDivider())
-      if (this.opts.includeGrid) layers.push(this.drawGrid())
-      layers.push(this.drawLotFill())
-      layers.push(this.drawWatermark())
-      layers.push(this.drawAdjacentLots())
-      layers.push(this.drawStreetInfo())
-      layers.push(this.drawRoadTruncationLines())
-      layers.push(this.drawBoundary())
-      layers.push(this.drawBoundaryLabels())
-      layers.push(this.drawBoundaryAdjacentLRNumbers())
-      layers.push(this.drawMonuments())
-      layers.push(this.drawAdjacentLotPlanRefs())
-      layers.push(this.drawFenceOffsets())
-      layers.push(this.drawLotNumber())
-      layers.push(this.drawPinLabel())
-      layers.push(this.drawPartLabels())
-      layers.push(this.drawAreaLabel())
-      layers.push(this.drawAdjacentLabels())
-      layers.push(this.drawBuildings())
-      layers.push(this.drawRoadReserveBoundaries())
-      layers.push(this.drawNorthArrow())
-      layers.push(this.drawScaleBar())
-        if (this.opts.includePanel) layers.push(this.drawRightPanel())
-      layers.push(this.drawSheetFooter())
-      layers.push(await this.drawPrintVerification())
-      layers.push(this.drawLegalReferenceLine())
-      layers.push(`<text x="${this.drawingX + this.drawingAreaW / 2}" y="${this.margin + mmToPx(3)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(label)}</text>`)
-      layers.push('</g>')
-      sheets.push(layers.join('\n'))
-    }
-
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${sheetW} ${sheetH}" width="${sheetW}" height="${sheetH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace; background: white;">${sheets.join('\n')}</svg>`
+    return this.finishSheets(layers.join('\n'))
   }
 
   getScale(): number { return this.scale }

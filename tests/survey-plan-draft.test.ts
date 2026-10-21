@@ -62,9 +62,19 @@ test('standard paper tables stack without overlapping or crossing the footer', a
   expect(xml.querySelector('.standard-plan-panel')?.textContent).not.toContain('SURVEYORS ASSOCIATION STAMP')
 })
 
-test('an oversized standard schedule fails explicitly rather than dropping rows or overlapping evidence', async () => {
-  const boundaryPoints = Array.from({ length: 30 }, (_, index) => ({ name: `Station-${index + 1}`, easting: 500000 + 20 * Math.cos(index * Math.PI / 15), northing: 9900000 + 20 * Math.sin(index * Math.PI / 15) }))
-  await expect(render('standard', { ...data, parcel: { ...data.parcel, boundaryPoints } })).rejects.toThrow(/continuation-sheet|continuation sheet/)
+test.each(['standard', 'form4'])('%s paginates a large schedule without dropping stations or duplicating the drawing', async layout => {
+  const boundaryPoints = Array.from({ length: 80 }, (_, index) => ({ name: `Station-${index + 1}`, easting: 500000 + 20 * Math.cos(index * Math.PI / 40), northing: 9900000 + 20 * Math.sin(index * Math.PI / 40) }))
+  const svg = await render(layout, { ...data, project: { ...data.project, totalSheets: '99' }, parcel: { ...data.parcel, boundaryPoints } })
+  const xml = new DOMParser().parseFromString(svg, 'image/svg+xml')
+  const sheets = Array.from(xml.documentElement.children).filter(node => node.classList.contains('survey-plan-sheet'))
+  expect(sheets.length).toBeGreaterThan(1)
+  expect(sheets.length).toBeLessThan(10)
+  expect(sheets[0].querySelector('polygon, polyline')).not.toBeNull()
+  for (const sheet of sheets.slice(1)) expect(sheet.querySelector('polygon, polyline')).toBeNull()
+  const scheduleNames = Array.from(xml.querySelectorAll('.plan-panel-section text')).map(node => node.textContent).filter(value => /^Station-\d+$/.test(value || ''))
+  // Original station key, coordinates, and both ends of the closed bearing schedule.
+  for (const point of boundaryPoints) expect(scheduleNames.filter(value => value === point.name)).toHaveLength(4)
+  expect(svg).toContain('complete leg dimensions are in the schedules')
 })
 
 test.each(['standard', 'form4'])('%s preserves unverified provenance even on a paid plan, without fabricated certification or road facts', async layout => {
@@ -107,7 +117,7 @@ test.each(['standard', 'form4'])('%s rejects nonfinite and crossing boundary geo
 
 function bearingLabels(svg: string) {
   const xml = new DOMParser().parseFromString(svg, 'image/svg+xml')
-  return Array.from(xml.querySelectorAll('text')).filter(element => /^\d{3}°\d{2}'/.test(element.textContent ?? ''))
+  return Array.from(xml.querySelectorAll('text')).filter(element => !element.closest('.plan-panel-section') && /^\d{3}°\d{2}'/.test(element.textContent ?? ''))
 }
 
 test('grid-coordinate leg labels are positioned inside the drawing viewport', async () => {

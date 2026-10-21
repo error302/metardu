@@ -6,7 +6,7 @@ import type { SurveyPlanData, PlanOptions, CoordinateScheduleEntry } from './typ
 import { mmToPx } from './geometry'
 import {
   escapeXml,
-  C_BLACK, C_GREEN, C_RED,
+  C_BLACK,
 } from './symbols'
 
 /**
@@ -63,6 +63,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
    */
   async renderFormNo4(): Promise<string> {
     this.validateBoundary();
+    this.continuationSchedules = [];
     const layers: string[] = []
     
     // Base layers
@@ -74,7 +75,8 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawWatermark())
     
     // Form No. 4 specific layers
-    layers.push(this.drawCoordinateTables())
+    if (this.data.parcel.boundaryPoints.length <= 12) layers.push(this.drawCoordinateTables())
+    else layers.push(`<text x="${this.drawingX + mmToPx(25)}" y="${mmToPx(20)}" font-family="helvetica, Arial, sans-serif" font-size="10">Complete coordinate schedule follows in the plan sheets.</text>`)
     layers.push(this.drawLRNumbersOnParcels())
     layers.push(this.drawRoadAnnotations())
     
@@ -95,7 +97,7 @@ export class FormNo4Renderer extends SurveyPlanRenderer {
     layers.push(this.drawLegalReferenceLine())
     layers.push(await this.drawPrintVerification())
     
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${this.pageW} ${this.pageH}" width="${this.pageW}" height="${this.pageH}" style="font-family: 'JetBrains Mono', 'Courier New', monospace;">${layers.join('\n')}</svg>`
+    return this.finishSheets(layers.join('\n'))
   }
 
   /**
@@ -241,132 +243,15 @@ private drawLRNumbersOnParcels(): string {
    * Draw Form No. 4 right panel
    */
 private drawFormNo4RightPanel(): string {
-  const d = this.formNo4Data
-  const panelX = this.panelX
-  const panelW = this.panelW
-    const margin = mmToPx(10)
-    
-    let y = margin + mmToPx(5)
-    let svg = `<g class="form-no-4-panel">`
-
-    // Title
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">UNVERIFIED DRAFT PLAN</text>`
-    y += mmToPx(6)
-    
-    // Form number
-    svg += `<text x="${panelX + panelW/2}" y="${y}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(d.formNumber)} — review layout</text>`
-    y += mmToPx(8)
-
-    // Plan info box
-    const infoFields = [
-      ['Registration District', d.registrationDistrict || 'Not supplied'],
-      ['Locality', d.locality || 'Not supplied'],
-      ['LR Number', d.lrNumber],
-      ['Folio Number', d.folioNumber],
-      ['Register Number', d.registerNumber],
-      ['FIR Number', d.firNumber],
-      ['Scale', d.scale],
-      ['Datum', this.crs.datum],
-      ['UTM Zone', this.crs.verified ? `${this.crs.zone}${this.crs.hemi}` : 'UNVERIFIED'],
-    ].filter(([, value]) => Boolean(value))
-    const infoHeight = mmToPx(infoFields.length * 5 + 7)
-
-    svg += `<rect x="${panelX + margin/2}" y="${y}" width="${panelW - margin}" height="${infoHeight}" fill="#f9f9f9" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    
-    let fieldY = y + mmToPx(5)
-    infoFields.forEach(([label, value]) => {
-      if (value) {
-        svg += `<text x="${panelX + margin}" y="${fieldY}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="#555">${escapeXml(label)}:</text>`
-        svg += `<text x="${panelX + panelW - margin}" y="${fieldY}" text-anchor="end" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">${escapeXml(value)}</text>`
-        fieldY += mmToPx(5)
-      }
-    })
-    
-    y += infoHeight + mmToPx(5)
-
-    // Legend
-    svg += this.drawFormNo4Legend(panelX + margin/2, y, panelW - margin)
-    y += mmToPx(40)
-
-    // Revision history
-    svg += this.drawFormNo4RevisionHistory(panelX + margin/2, y, panelW - margin)
-    y += mmToPx(22)
-
-    // Surveyor certificate
-    svg += this.drawSurveyorCertificateInternal(panelX + margin/2, y, panelW - margin)
-
-    svg += '</g>'
-    return svg
-  }
-
-  private drawFormNo4Legend(x: number, y: number, w: number): string {
-    let svg = `<rect x="${x}" y="${y}" width="${w}" height="${mmToPx(35)}" fill="#fafafa" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(5)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">LEGEND</text>`
-    
-    const items = [
-      { symbol: `<rect x="-3" y="-6" width="6" height="6" fill="${C_GREEN}"/>`, label: 'Found Monument' },
-      { symbol: `<circle cx="0" cy="-3" r="3" fill="none" stroke="${C_GREEN}"/>`, label: 'Set Monument' },
-      { symbol: `<circle cx="0" cy="-3" r="2.5" fill="${C_RED}"/>`, label: 'Masonry Nail' },
-      { symbol: `<line x1="-4" y1="-3" x2="4" y2="-3" stroke="${C_BLACK}"/>`, label: 'Boundary Line' },
-    ]
-    
-    let itemY = y + mmToPx(10)
-    items.forEach(item => {
-      svg += `<g transform="translate(${x + mmToPx(3)},${itemY})">${item.symbol}</g>`
-      svg += `<text x="${x + mmToPx(8)}" y="${itemY}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${item.label}</text>`
-      itemY += mmToPx(6)
-    })
-    
-    return svg
-  }
-
-  /**
-   * Draw revision history table (Form No. 4 Rule 7)
-   * Shows all revisions to the plan with date, description, and surveyor.
-   * Per Survey Act Cap. 299, every amendment to a registered plan must
-   * be recorded with a revision entry.
-   */
-  private drawFormNo4RevisionHistory(x: number, y: number, w: number): string {
-    const p = this.data.project
-    const revisions = p.revisions || []
-    const h = mmToPx(20)
-
-    let svg = `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="white" stroke="${C_BLACK}" stroke-width="0.5"/>`
-    svg += `<text x="${x + w/2}" y="${y + mmToPx(4)}" text-anchor="middle" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="${C_BLACK}">REVISION HISTORY</text>`
-    svg += `<line x1="${x}" y1="${y + mmToPx(5.5)}" x2="${x + w}" y2="${y + mmToPx(5.5)}" stroke="${C_BLACK}" stroke-width="0.3"/>`
-
-    // Column headers
-    const colWidths = [mmToPx(8), mmToPx(18), mmToPx(32), mmToPx(18)]
-    const headers = ['Rev', 'Date', 'Description', 'By']
-    let hx = x
-    headers.forEach((h, i) => {
-      svg += `<text x="${hx + 1}" y="${y + mmToPx(8)}" font-family="helvetica, Arial, sans-serif" font-size="10" font-weight="bold" fill="#555">${h}</text>`
-      hx += colWidths[i]
-    })
-
-    svg += `<line x1="${x}" y1="${y + mmToPx(9)}" x2="${x + w}" y2="${y + mmToPx(9)}" stroke="${C_BLACK}" stroke-width="0.2"/>`
-
-    // Revision rows — if none, show "Initial Issue"
-    const rows = revisions.length > 0 ? revisions.slice(0, 3) : [
-      { rev: '—', date: '', description: 'No issued revision recorded', by: '' }
-    ]
-
-    let rowY = y + mmToPx(11.5)
-    rows.forEach((row) => {
-      hx = x
-      const cells = [row.rev, row.date, row.description.length > 25 ? row.description.slice(0, 23) + '..' : row.description, row.by]
-      cells.forEach((cell, ci) => {
-        svg += `<text x="${hx + 1}" y="${rowY}" font-family="helvetica, Arial, sans-serif" font-size="10" fill="${C_BLACK}">${escapeXml(cell)}</text>`
-        hx += colWidths[ci]
-      })
-      rowY += mmToPx(3)
-    })
-
-    return svg
-  }
-
-  private drawSurveyorCertificateInternal(x: number, y: number, w: number): string {
-    return this.drawReviewRecord(x, y, w, mmToPx(105));
+    const controls = this.getControlPoints()
+    const points = this.data.parcel.boundaryPoints.map(point => controls.find(control => control.station === point.name)
+      ?? { station: point.name, easting: point.easting, northing: point.northing, height: undefined, beaconClass: 'unverified' })
+    return this.drawRightPanel(points.length > 12 ? {
+      title: 'COORDINATE SCHEDULE', headings: ['Station', 'Northing', 'Easting', 'Height', 'Class'],
+      minWidth: mmToPx(200),
+      rows: points.map(point => [point.station, point.northing.toFixed(4), point.easting.toFixed(4), point.height?.toFixed(3) ?? '—', this.formatBeaconClass(point.beaconClass)]),
+      fractions: [0.2, 0.25, 0.25, 0.15, 0.15],
+    } : false, true)
   }
 
   private drawFormNo4TitleBlock(): string {
