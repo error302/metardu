@@ -86,3 +86,43 @@ probe/browser/device/retention/archive-restoration gates remain open. Migration
 115 is absent from production. The deferred signing-key rotation is unchanged.
 Payment/provider, engineering release and physical field acceptance remain
 separate requirements; this recovery does not establish platform-wide readiness.
+
+## User-requested obsolete image retirement
+
+After recovery, the user requested identification of the image in use and removal
+of redundant METARDU images. Fresh production verification passed before and
+after cleanup. Full Docker inventory established that both the running app and
+successful migration container consume `061033364840…`; `latest` and `candidate`
+are aliases for that single image, not separate stored copies. The protected
+`rollback-current` image `604238eef9cd…` was retained.
+
+Eight exact unused images were removed without force or prune:
+
+| Retired tag | Image ID prefix |
+| --- | --- |
+| `metardu-metardu-app:rollback-e7b2ad11fd8969ec` | `e7b2ad11fd89` |
+| `metardu-metardu-app:rollback-af17d7af4559e416` | `af17d7af4559` |
+| `metardu-metardu-app:rollback-b2e12ba5e0a2c414` | `b2e12ba5e0a2` |
+| `metardu-metardu-app:rollback-3f97a2ebefae129a` | `3f97a2ebefae` |
+| `metardu-metardu-app:rollback-fd7c870ce441fd67` | `fd7c870ce441` |
+| `metardu-metardu-db-migrate:latest` | `694e8f3a965c` |
+| `metardu-metardu-app:rollback-prior-current` | `44106f7a461e` |
+| `metardu-metardu-app:rollback-previous-verified` | `650c1a183f09` |
+
+The allowlist checked every running and stopped container consumer, exact full
+image IDs and repository aliases. A guard initially stopped because Docker
+returned mounts in a different order; sorting by destination confirmed identical
+mount contents before any deletion. Each deletion rechecked consumers and tags.
+Independent before/after comparison confirmed all nine container identities,
+images, statuses, start times and mounts unchanged, all 25 volume names retained,
+and every remaining image/tag/digest unchanged. No containers, volumes, backups,
+builders or caches were removed. Supporting services and unrelated projects were
+preserved, including the stopped synthetic database.
+
+Unique local images dropped from 20 to 12. Docker now accounts for **5.122 GB** of
+images across all projects; build cache is zero. These are Docker logical figures,
+not a claim about Windows free space or VHDX shrinkage. No disk compaction or
+Docker/WSL shutdown was performed. Exact private inventory, allowlist, individual
+removal output, before/after disk reports and preservation report are retained
+under `.cache/image-retirement/`. Historical release records still identify their
+former artifacts; removed rollback tags are no longer available for execution.
