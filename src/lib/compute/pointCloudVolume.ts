@@ -62,12 +62,26 @@ export function gridMethodVolume(
     return { cut: 0, fill: 0, net: 0, area: 0, method: 'grid', cellSize }
   }
 
-  // Compute the bounding box of both surfaces combined
-  const allPoints = [...surface1, ...surface2]
-  const minE = Math.min(...allPoints.map(p => p.easting))
-  const maxE = Math.max(...allPoints.map(p => p.easting))
-  const minN = Math.min(...allPoints.map(p => p.northing))
-  const maxN = Math.max(...allPoints.map(p => p.northing))
+  // Compute the bounding box of both surfaces combined using O(n) loop
+  // to avoid 'Maximum call stack size exceeded' on large point clouds.
+  let minE = Infinity
+  let maxE = -Infinity
+  let minN = Infinity
+  let maxN = -Infinity
+  for (let i = 0; i < surface1.length; i++) {
+    const p = surface1[i]
+    if (p.easting < minE) minE = p.easting
+    if (p.easting > maxE) maxE = p.easting
+    if (p.northing < minN) minN = p.northing
+    if (p.northing > maxN) maxN = p.northing
+  }
+  for (let i = 0; i < surface2.length; i++) {
+    const p = surface2[i]
+    if (p.easting < minE) minE = p.easting
+    if (p.easting > maxE) maxE = p.easting
+    if (p.northing < minN) minN = p.northing
+    if (p.northing > maxN) maxN = p.northing
+  }
 
   const width = maxE - minE
   const height = maxN - minN
@@ -259,7 +273,14 @@ export function tinToTinVolume(
   // point density.
 
   // Estimate point density
-  const bounds = getBounds([...surface1, ...surface2])
+  const b1 = getBounds(surface1)
+  const b2 = getBounds(surface2)
+  const bounds = {
+    minE: Math.min(b1.minE, b2.minE),
+    maxE: Math.max(b1.maxE, b2.maxE),
+    minN: Math.min(b1.minN, b2.minN),
+    maxN: Math.max(b1.maxN, b2.maxN),
+  }
   const area = (bounds.maxE - bounds.minE) * (bounds.maxN - bounds.minN)
   const density = (surface1.length + surface2.length) / area
 
@@ -276,12 +297,19 @@ export function tinToTinVolume(
 }
 
 function getBounds(points: Point3D[]) {
-  return {
-    minE: Math.min(...points.map(p => p.easting)),
-    maxE: Math.max(...points.map(p => p.easting)),
-    minN: Math.min(...points.map(p => p.northing)),
-    maxN: Math.max(...points.map(p => p.northing)),
+  // Use O(n) loop to avoid maximum call stack size exceeded on large point clouds.
+  let minE = Infinity
+  let maxE = -Infinity
+  let minN = Infinity
+  let maxN = -Infinity
+  for (let i = 0; i < points.length; i++) {
+    const p = points[i]
+    if (p.easting < minE) minE = p.easting
+    if (p.easting > maxE) maxE = p.easting
+    if (p.northing < minN) minN = p.northing
+    if (p.northing > maxN) maxN = p.northing
   }
+  return { minE, maxE, minN, maxN }
 }
 
 // ─── Stockpile Volume (single surface + base plane) ─────────────────────────
