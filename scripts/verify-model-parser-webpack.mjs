@@ -92,6 +92,12 @@ try {
     assert.deepEqual(parsedGlb.errors, [], JSON.stringify(parsedGlb))
     check('compiled native GLB retains binary geometry transforms', /X: 9 to 14/.test(parsedGlb.extractedText) && parsedGlb.building === undefined)
 
+    // A null count is safe even against a regression; do not allocate a huge
+    // declared array merely to check the compiled pre-decoding validation.
+    const invalidCount = { ...document, accessors: document.accessors.map(accessor => ({ ...accessor, count: null })) }
+    const invalidAccessor = await parseGLTFFile(fixtureFile('invalid-accessor.gltf', JSON.stringify(invalidCount)))
+    check('compiled parser validates accessor declarations before decoding', /invalid glTF accessor/i.test(invalidAccessor.errors.join(' ')) && invalidAccessor.extractedText === undefined)
+
     document.buffers[0].uri = 'http://127.0.0.1/private-synthetic-only.bin'
     const external = await parseGLTFFile(fixtureFile('external.gltf', JSON.stringify(document)))
     check('compiled parser rejects external model resources', external.errors.length > 0 && /self-contained|external/.test(external.errors.join(' ')))

@@ -10,8 +10,13 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 const imports = []
 let nativeParses = 0
+let forbidNativeDecode = false
 class ObservedGLTFLoader extends GLTFLoader {
-  parse(...args) { nativeParses++; return super.parse(...args) }
+  parse(...args) {
+    nativeParses++
+    if (forbidNativeDecode) throw new Error('Test safety stop: oversized declarations reached native decoding')
+    return super.parse(...args)
+  }
 }
 function loadSource(file) {
   const source = fs.readFileSync(file, 'utf8')
@@ -212,4 +217,64 @@ test('cyclic glTF node dependencies are rejected before native recursion', { tim
   assert.equal(nativeParses, before, 'Invalid node cycles must be rejected before native recursion')
   assert.ok(result.errors.length > 0)
   assert.match(result.errors.join(' '), /cycle|cyclic/i)
+})
+
+async function rejectsBeforeAllocation(document) {
+  const before = nativeParses
+  // The unchanged parser must never actually allocate these declared arrays.
+  // Positive fixtures above still execute the unmodified native decoder.
+  forbidNativeDecode = true
+  let result
+  try { result = await withoutFetch(() => parseGLTFFile(file('declared-allocation.gltf', JSON.stringify(document)))) }
+  finally { forbidNativeDecode = false }
+  assert.equal(nativeParses, before, 'Oversized declarations must be rejected before native allocation')
+  assert.ok(result.errors.length > 0)
+  assert.match(result.errors.join(' '), /storage.*budget|accessor.*invalid|invalid.*accessor/i)
+  assert.equal(result.extractedText, undefined)
+}
+
+test('tiny zero-backed glTF cannot declare oversized native position storage', async () => {
+  const { document } = model()
+  delete document.accessors[0].bufferView
+  document.accessors[0].count = 10_000_001
+  await rejectsBeforeAllocation(document)
+})
+
+test('aggregate accessor declarations are bounded even when each accessor fits alone', async () => {
+  const { document } = model()
+  document.accessors = Array.from({ length: 3 }, () => ({ componentType: 5126, count: 3_000_000, type: 'VEC3', min: [0, 0, 0], max: [0, 0, 0] }))
+  document.meshes[0].primitives[0].attributes = { POSITION: 0, NORMAL: 1 }
+  document.meshes[0].primitives[0].targets = [{ POSITION: 2 }]
+  await rejectsBeforeAllocation(document)
+})
+
+test('implicit instancing matrices are bounded before native mesh construction', async () => {
+  const document = instancedModel()
+  delete document.accessors[1].bufferView
+  document.accessors[1].count = 2_000_000
+  await rejectsBeforeAllocation(document)
+})
+
+test('repeated buffer-view copy declarations count toward the native storage budget', async () => {
+  const { document } = model()
+  document.bufferViews = Array.from({ length: 3 }, () => ({ buffer: 0, byteLength: 40 * 1024 * 1024 }))
+  await rejectsBeforeAllocation(document)
+})
+
+for (const count of [-1, 1.5, null, Number.MAX_SAFE_INTEGER]) test(`invalid accessor count is rejected before allocation: ${count}`, async () => {
+  const { document } = model()
+  document.accessors[0].count = count
+  await rejectsBeforeAllocation(document)
+})
+
+test('native decoding still accepts small zero-backed accessor geometry', async () => {
+  const { document } = model()
+  delete document.accessors[0].bufferView
+  document.accessors[0].min = document.accessors[0].max = [0, 0, 0]
+  const before = nativeParses
+  const result = await withoutFetch(() => parseGLTFFile(file('zero-backed.gltf', JSON.stringify(document))))
+  assert.equal(nativeParses, before + 1)
+  assert.deepEqual(result.errors, [])
+  assert.match(result.extractedText, /Position samples.*3/)
+  assert.match(result.extractedText, /X: 10 to 10/)
 })

@@ -70,6 +70,63 @@ export async function parseOBJFile(file: File): Promise<ParsedInput> {
 function object(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
 }
+/** Bound declarations that can allocate arrays before positions are inventoried.
+ * This conservative aggregate covers all buffer views/accessors, including
+ * unused ones, and per-node instance matrices. It is not a total memory bound.
+ */
+function checkDeclaredStorage(document: Record<string, unknown>): void {
+  const shapes: Record<string, [number, number]> = { SCALAR: [1, 1], VEC2: [1, 2], VEC3: [1, 3], VEC4: [1, 4], MAT2: [2, 2], MAT3: [3, 3], MAT4: [4, 4] }
+  const componentBytes: Record<number, number> = { 5120: 1, 5121: 1, 5122: 2, 5123: 2, 5125: 4, 5126: 4 }
+  if (document.accessors !== undefined && !Array.isArray(document.accessors)) throw new Error('Invalid glTF accessor collection.')
+  let storage = 0
+  const reserve = (bytes: number) => {
+    if (!Number.isSafeInteger(bytes) || bytes < 0 || storage + bytes > MAX_FILE_SIZE) {
+      throw new Error('Declared glTF buffer-view, accessor and instance storage exceeds the 100 MiB inventory storage budget. Reduce the model before importing.')
+    }
+    storage += bytes
+  }
+  if (document.bufferViews !== undefined && !Array.isArray(document.bufferViews)) throw new Error('Invalid glTF buffer-view collection.')
+  for (const view of (document.bufferViews ?? []) as unknown[]) {
+    if (!object(view) || typeof view.byteLength !== 'number' || !Number.isSafeInteger(view.byteLength) || view.byteLength < 1
+      || view.byteOffset !== undefined && (typeof view.byteOffset !== 'number' || !Number.isSafeInteger(view.byteOffset) || view.byteOffset < 0)) throw new Error('Invalid glTF buffer-view length or offset.')
+    // GLTFLoader slices a new ArrayBuffer for each distinct loaded view.
+    reserve(view.byteLength)
+  }
+  const accessors = ((document.accessors ?? []) as unknown[]).map(accessor => {
+    if (!object(accessor) || typeof accessor.count !== 'number' || !Number.isSafeInteger(accessor.count) || accessor.count < 1
+      || typeof accessor.type !== 'string' || !Object.hasOwn(shapes, accessor.type)
+      || typeof accessor.componentType !== 'number' || !Object.hasOwn(componentBytes, accessor.componentType)) throw new Error('Invalid glTF accessor count, shape or component type.')
+    const [columns, rows] = shapes[accessor.type], width = componentBytes[accessor.componentType]
+    // Matrix columns have 4-byte alignment in glTF buffer storage.
+    const stride = columns === 1 ? rows * width : columns * Math.ceil(rows * width / 4) * 4
+    const bytes = accessor.count * stride
+    reserve(bytes)
+    if (accessor.normalized === true) reserve(accessor.count * columns * rows * 4)
+    if (accessor.sparse !== undefined) {
+      if (!object(accessor.sparse) || typeof accessor.sparse.count !== 'number' || !Number.isSafeInteger(accessor.sparse.count)
+        || accessor.sparse.count < 1 || accessor.sparse.count > accessor.count) throw new Error('Invalid glTF sparse accessor count.')
+      // Sparse expansion may copy a complete buffer-backed accessor.
+      if (accessor.bufferView !== undefined) reserve(bytes)
+    }
+    return { count: accessor.count }
+  })
+  for (const node of (document.nodes ?? []) as Record<string, unknown>[]) {
+    if (!object(node.extensions) || node.extensions.EXT_mesh_gpu_instancing === undefined) continue
+    const instance = node.extensions.EXT_mesh_gpu_instancing
+    if (!object(instance) || !object(instance.attributes) || Object.keys(instance.attributes).length === 0) throw new Error('Invalid glTF instancing accessor attributes.')
+    let count: number | undefined
+    for (const reference of Object.values(instance.attributes)) {
+      if (typeof reference !== 'number' || !Number.isSafeInteger(reference) || reference < 0 || !accessors[reference]) throw new Error('Invalid glTF instancing accessor reference.')
+      const next = accessors[reference].count
+      if (count !== undefined && next !== count) throw new Error('Invalid glTF instancing accessor counts; all instance attributes must agree.')
+      count = next
+    }
+    const mesh: unknown = Array.isArray(document.meshes) && typeof node.mesh === 'number' && Number.isSafeInteger(node.mesh) ? document.meshes[node.mesh] : undefined
+    if (!object(mesh) || !Array.isArray(mesh.primitives) || mesh.primitives.length === 0) throw new Error('Invalid glTF instancing mesh primitives.')
+    // The native extension constructs one Float32 instance matrix per primitive.
+    reserve((count ?? 0) * 16 * 4 * mesh.primitives.length)
+  }
+}
 /** Inspect JSON/GLB resource policy before the native loader can load anything. */
 function gltfDocument(data: ArrayBuffer): Record<string, unknown> {
   const view = new DataView(data)
@@ -130,6 +187,7 @@ function gltfDocument(data: ArrayBuffer): Record<string, unknown> {
       }
     }
   }
+  checkDeclaredStorage(document)
   return document
 }
 

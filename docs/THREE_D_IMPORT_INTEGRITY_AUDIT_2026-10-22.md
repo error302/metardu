@@ -185,3 +185,40 @@ Node syntax, CI YAML/step gating, scoped whitespace and the repository security
 gate pass. This checkpoint exercises a scoped production-mode compiler config;
 it does not complete the full Next application build, promoted-image, browser,
 customer-model, resource-isolation or survey/field acceptance gates above.
+
+## Guard native allocation declarations before decoding
+
+A follow-up traced the installed native loader's zero-backed accessor allocation,
+buffer-view copies and per-primitive instancing matrices. The existing position
+sample limit ran after those operations. A small JSON model could therefore
+reach native allocation with declarations far larger than its upload size.
+Seven source regressions reproduced missing accessor/instancing guards; one
+additional regression reproduced the buffer-view guard gap. The oversized tests
+stop at the observed native entry point before allocation, so they do not
+allocate hostile arrays or establish an observed out-of-memory incident.
+
+Preflight now enforces a separate **100 MiB aggregate declared storage budget**
+before invoking the loader. It counts buffer-view lengths, accessor shapes and
+component widths (including matrix alignment), normalized expansion allowance,
+sparse copy allowance and each node's per-primitive instance matrices. Accessor
+counts must be positive safe integers with supported shapes/component types;
+sparse counts and instancing references/count agreement are checked. Existing
+file-size and post-decoding sample limits remain in force.
+
+This is deliberately conservative: unused declarations and shared storage count
+toward the aggregate. A valid model within the upload-size limit may still need
+reduction to fit this separate budget. It is not measured peak memory and does
+not cover every loader allocation, scene clone, object, recursion depth or CPU
+workload. Hostile-input resource isolation and representative customer-model
+acceptance remain release work.
+
+The maintained native suite now passes **39 tests, zero skipped**, including real
+decoding of small zero-backed geometry and the earlier valid OBJ/glTF/GLB and
+instancing controls. The compiled gate passes **11 checks**, including a safe
+invalid-accessor declaration. Strict application typing, a separate final strict
+parser type check, scoped ESLint, Node syntax and security checks pass. No
+database, service, browser storage or customer file was changed. Receipts are
+`.cache/parser-3d-allocation-{red,green,final,types,scoped-types,lint-final,security}.log`
+and `.cache/parser-3d-view-storage-red.log`; the compiler report retains input and
+artifact hashes. The new parser SHA-256 is
+`07d14c55f9a7c61f35fda88d8e448f394291562ffa5fbe758a3ae34e6e9ce8db`.
