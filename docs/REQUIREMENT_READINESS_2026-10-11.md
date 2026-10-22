@@ -1,5 +1,15 @@
 # METARDU requirement readiness — checkpoints through 22 October 2026
 
+Latest 3D import checkpoint (22 October): the approved source repair rejects
+invalid source positions, invented building semantics and external model loads;
+supported self-contained OBJ/glTF/GLB inputs yield explicit model-space inventory.
+Native transforms, line/point geometry and instancing are exercised, with a
+bounded position-processing budget. Thirty native synthetic tests and nine
+adjacent Jest tests pass, as do full/scoped typing and scoped lint. Fallow now
+reports four cycles, with the parser/router cycle removed. No production artifact,
+browser upload, customer-model or field acceptance is claimed. See
+[3D import integrity](THREE_D_IMPORT_INTEGRITY_AUDIT_2026-10-22.md).
+
 Latest codebase-intelligence checkpoint (22 October): pinned Fallow 3.34.1
 completed local graph/duplication/complexity analysis, with findings reviewed
 against actual source. A confirmed malformed legacy migration entry point now

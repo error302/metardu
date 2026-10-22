@@ -92,6 +92,10 @@ runs; repository Git configuration was not changed.
    problem. Extract shared parser metadata/scoring into a lower-level module,
    preserve compatibility exports, and test direct parser loading and actual
    output before/after. Do not change survey geometry just to lower a graph score.
+   Follow-up: the approved 3D integrity repair removed this cycle while correcting
+   fabricated model output and unsafe resource loading. Thirty native synthetic
+   tests pass; the final graph has four remaining cycles. See
+   [3D import repair](THREE_D_IMPORT_INTEGRITY_AUDIT_2026-10-22.md).
 5. **Monitoring and offline cycles:** logger/Sentry and syncQueue/legacy recovery
    contain deliberate lazy links and existing guards. An analyzer cycle alone
    does not prove recursion or justify breaking retained recovery behavior.

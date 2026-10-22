@@ -329,6 +329,8 @@ jobs:
       # P2-7 (2026-07-24): Removed --passWithNoTests. METARDU has 132+ test
       # suites — if Jest finds zero tests, that's a configuration error
       # that should fail the build, not silently pass.
+      - name: Native self-contained 3D parser integrity
+        run: node --test tests/parser-3d-integrity.test.mjs
       - run: npx jest --silent --coverage --coverageReporters=text-summary
 
   e2e:
