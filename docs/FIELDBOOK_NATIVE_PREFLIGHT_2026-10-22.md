@@ -1,5 +1,13 @@
 # Fieldbook native acceptance preflight
 
+Execution update, 09:45 UTC: the stopped-target and unexecuted-probe states below
+describe the earlier preflight. The continuing native run subsequently reused
+that exact target, passed all 22 rollback checks, prepared a guarded backup and
+installed migration 115 normally in the synthetic database. Its 120 source
+migrations and original records were independently checked. See
+`FIELDBOOK_NATIVE_ACCEPTANCE.md` for the executed receipts and remaining HTTP,
+browser, production and field boundaries. This preflight is retained as history.
+
 22 October 2026. This checkpoint prepares the existing rollback-only Fieldbook
 probe; it is not a completed database or browser delivery test.
 

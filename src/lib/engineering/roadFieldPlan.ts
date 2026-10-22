@@ -24,10 +24,13 @@ const MAX_ROAD_FIELD_STATIONS = 10_000
 
 /** Extract only an explicit, registered projected EPSG code; never infer from a zone label. */
 export function resolveRoadFieldPlanCrsCode(value: string): string | null {
-  const match = /\bEPSG:\s*(\d{4,6})\b/i.exec(value)
-  if (!match) return null
+  const declarations = [...value.matchAll(/\bEPSG\b/gi)]
+  const matches = [...value.matchAll(/\bEPSG\s*:\s*(\d{4,6})(?=$|[\s),;/\]])/gi)]
+  if (!matches.length || matches.length !== declarations.length) return null
+  const codes = new Set(matches.map(match => `EPSG:${match[1]}`))
+  if (codes.size !== 1) return null
   try {
-    return assertProjectedCrs(`EPSG:${match[1]}`).code
+    return assertProjectedCrs(`EPSG:${matches[0][1]}`).code
   } catch {
     return null
   }

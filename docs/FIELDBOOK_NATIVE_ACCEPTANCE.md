@@ -1,5 +1,13 @@
 # Fieldbook native acceptance handoff
 
+Latest native continuation, 22 October: the original synthetic database is now
+running, the corrected rollback probe passed 22 checks, and migration 115 then
+applied normally after a backup/fingerprint preflight. Its ledger now has 120
+matching source entries. The earlier stopped-database and pending-start notes
+below are historical; the execution evidence at the end supersedes them.
+Production remains separate and unchanged. Authenticated Fieldbook browser and
+revision-delivery HTTP acceptance are still open.
+
 Status, 21 October 2026: source recovery work is committed through `e24c714b`.
 The existing host source preview has been restored on `127.0.0.1:3021`, using
 its original wrapper and build cache. Production is unchanged and passes the
@@ -56,3 +64,35 @@ Native acceptance remains pending. A normal migration upgrade, measured field
 pilot, browser quota/eviction, shared-device identity/privacy policy, full paid
 workflow/provider proof, backup restore and coordinated release remain distinct
 gates. Do not weaken account checks to get a successful browser demonstration.
+
+## Executed synthetic continuation — 22 October, 09:43–09:45 UTC
+
+Fresh inspection matched the exact retained container, ownership label, sole
+data volume and loopback-only binding above. Only that existing synthetic
+container was started; no image, container, builder or database was created.
+The original preview wrapper was reused without a restart.
+
+The reviewed rollback probe passed all 22 checks. Its transaction rolled back,
+the original books/captures/batches and 119 migration records matched, its test
+rows were absent, and migration 115 objects remained absent at that checkpoint.
+Its private receipt is `.cache/fieldbook-delivery/native-rollback.json`.
+
+The subsequent forward-upgrade preflight found only migration 115 pending and
+no mutated/ghost history. A 1,960,861-byte custom-format synthetic backup passed
+header and table-of-contents checks; it was not restored. Fingerprints covered
+154 original public tables. The normal migration runner's dry run passed, then
+its normal apply installed 115 without force or historical checksum changes.
+All original table row counts/content fingerprints and 119 prior ledger records
+matched afterward. Existing books received only the declared revision-zero
+column; no raw input was rewritten. New receipt storage was empty.
+
+The new synthetic ledger has 120 matching source migrations. A separate read-only
+verification passed nine checks after the road API exercise, reconfirming old
+books/captures/batches, original ledger rows, disabled test actors and removed
+fault injection. Receipts and the retained backup are under
+`.cache/fieldbook-delivery/`; private fixture/record values are not committed.
+
+The existing synthetic database remains running for further native acceptance.
+Production SQL and services were not changed. The rollback probe and this normal
+synthetic upgrade are distinct from backup restoration, production compatibility,
+native Fieldbook HTTP delivery, ordinary browser recovery and device/field proof.

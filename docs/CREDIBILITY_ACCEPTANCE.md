@@ -99,3 +99,34 @@ evidence only. The existing synthetic database remains stopped; native road
 quantity and Fieldbook recovery acceptance still require its separately pending
 start approval. A push attempt refused newly concurrent migration-review edits
 before invoking Git push; none were staged or discarded by this work.
+
+### Native continuation and road reference repair — 22 October, 09:45 UTC
+
+This supersedes the stopped-database checkpoint immediately above. The exact
+existing marked synthetic database was inspected and reused within the continuing
+test scope. The rollback-only Fieldbook probe passed 22 checks. After a guarded
+backup, all-table fingerprint and normal migration dry run, migration 115 applied
+normally to this synthetic database. Its 120-entry ledger matches source; all
+154 original table fingerprints and 119 prior migration records matched after
+the upgrade. The backup passed archive/header/TOC checks, not an actual restore.
+Production was not migrated or restarted.
+
+The road quantity HTTP/PostgreSQL verifier then passed all 25 checks, including
+the previously missing shared-reader and actual insert-failure rollback cases.
+Nine independent read-only checks reconfirmed the original books/captures and
+prior migration records, disabled test actors and removed fault injection.
+See `FIELDBOOK_NATIVE_ACCEPTANCE.md` and `ROAD_QUANTITY_RECORDING.md` for receipts
+and precise source/native/browser/production/field boundaries. The synthetic DB
+remains running for the next native acceptance work; the original preview is reused.
+
+The road-plan parser also no longer selects the first EPSG code from conflicting
+or malformed declarations. Its binding and offline project-resume path fail
+closed; repeated identical valid declarations remain usable. All 23 focused
+checks across two suites, strict app/test types and scoped lint pass. No saved
+plan, CRS label, observation, geometry or customer record was rewritten.
+
+The latest gated push was not executed because automatic approval review lost
+its connection before execution, including the single retry. Source commits
+remain local until a successful normal gated push and independent remote check.
+Native Fieldbook HTTP/browser recovery, shared-device privacy, final release,
+payment/email lifecycle and physical field acceptance remain open.

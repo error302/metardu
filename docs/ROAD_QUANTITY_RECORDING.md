@@ -119,3 +119,33 @@ that OAuth or production sign-in is fully accepted.
   A later run from this restricted shell failed at `docker ps` with an access
   error; that failure does not establish that Docker is stopped, so the current
   production runtime state remains unverified from this session.
+
+## Completed native continuation — 22 October 2026
+
+The earlier shared-reader and forced-write-rollback gaps are now closed on the
+existing marked synthetic database and owned `127.0.0.1:3021` source preview.
+After the reviewed synthetic migration upgrade, the unchanged HTTP verifier
+passed all 25 checks at 09:44:53 UTC. Owner and other actor authenticated through
+normal CSRF/credential/session endpoints. No session or browser storage was
+injected and no authentication protection was disabled.
+
+The run verifies the independent 140 m³ cut / zero fill fixture and updated
+320 m³ cut profile; denial of caller-authored reductions and foreign access;
+idempotent/concurrent delivery; archived raw profiles; immutable evidence;
+viewer reference/history reads with recording and reference writes denied;
+stale/incomplete-input refusals; and actual insert failure rolling back
+predecessor retirement with no partial run. The exact temporary fault trigger
+and function were removed. Legacy quantities and all applied migration hashes
+were unchanged. Test accounts were disabled; labeled synthetic revisions remain.
+
+The previous result was preserved as `pre-resume-result.json`; current detailed
+proof is `.cache/release-verify/road-quantities-http/result.json`, with the log and
+exit receipt under `.cache/fieldbook-delivery/`. Nine independent read-only
+post-checks reconfirmed original books/captures and ledger rows, the exact
+synthetic fixture, disabled actors and absence of fault injection.
+
+This is real HTTP/PostgreSQL source acceptance, not production, browser editing,
+instrument, construction approval, material-factor or physical field proof.
+The existing source database is now running with 120 source migrations;
+production remains separate. Wider engineering and the single reviewed release
+sequence remain open.

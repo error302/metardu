@@ -72,6 +72,22 @@ describe('road field plan', () => {
     expect(roadFieldPlanCrsIsBoundToProject(`WGS 84 / UTM zone 37S (${WGS84_PROJECT_CRS})`, MISMATCHED_PROJECT_CRS)).toBe(false)
   })
 
+  it.each([
+    'EPSG:21037 / EPSG:32737',
+    'EPSG:21037; display EPSG:3857',
+    'EPSG:21037; EPSG:9999999',
+    'EPSG:21037; EPSG:unknown',
+    'EPSG:21037; EPSG 32737',
+    'EPSG:21037.5',
+  ])('refuses an ambiguous or malformed second grid declaration: %s', label => {
+    expect(resolveRoadFieldPlanCrsCode(label)).toBeNull()
+    expect(roadFieldPlanCrsIsBoundToProject(label, REGISTERED_PROJECT_CRS)).toBe(false)
+  })
+
+  it('accepts repeated identical explicit grid identity without inventing a second CRS', () => {
+    expect(resolveRoadFieldPlanCrsCode('Arc 1960 (EPSG:21037); declared EPSG:21037')).toBe(REGISTERED_PROJECT_CRS)
+  })
+
   it('rejects plans that would create an impractically large station list', () => {
     expect(validateRoadFieldPlan({ ...validPlan, endChainageM: 1_000_000, stationIntervalM: 1 })).toContain('exceeds')
   })

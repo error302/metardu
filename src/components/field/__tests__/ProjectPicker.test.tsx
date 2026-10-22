@@ -106,4 +106,12 @@ describe('ProjectPicker offline road plans', () => {
     expect(await screen.findByText(/No verified road field plans are cached/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Road project/ })).not.toBeInTheDocument()
   })
+
+  it('does not automatically resume a cached plan with conflicting grid declarations', async () => {
+    const onPick = jest.fn()
+    jest.mocked(listCachedRoadFieldPlans).mockResolvedValue([{ ...cachedPlan, plan: { ...cachedPlan.plan, projectCrs: `${fixtureCrs} / EPSG:21037` } }])
+    render(<ProjectPicker onPick={onPick} title="Road field collection" subtitle="Choose a prepared project" initialProjectId={projectId} allowOfflineRoadPlans />)
+    expect(await screen.findByRole('alert')).toHaveTextContent('No verified offline road plan is cached for this project.')
+    expect(onPick).not.toHaveBeenCalled()
+  })
 })
