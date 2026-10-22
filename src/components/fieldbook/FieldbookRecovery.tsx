@@ -101,7 +101,7 @@ export function FieldbookRecovery(props: { actorId: string; projectId: string; r
     {comparison && <div className="mt-4 border-t border-[var(--border-color)] pt-4">
       <h3 className="font-semibold">Review both copies</h3>
       <p className="mt-1 text-sm">This keeps the local observations and creates a new edit against the revision you review. The server may refuse it if that revision changes. Original snapshots stay retained.</p>
-      <div className="mt-3 grid gap-3 lg:grid-cols-2">
+      <div className="mt-3 grid gap-3 grid-cols-[repeat(auto-fit,minmax(min(100%,20rem),1fr))]">
         <div><h4 className="text-sm font-medium">Local copy</h4><pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify({ name: comparison.local.name, data: comparison.local.data }, null, 2)}</pre></div>
         <div><h4 className="text-sm font-medium">Server revision {comparison.server.revision}</h4><pre className="mt-1 max-h-64 overflow-auto whitespace-pre-wrap break-all text-xs">{JSON.stringify({ name: comparison.server.name, data: comparison.server.data }, null, 2)}</pre></div>
       </div>
