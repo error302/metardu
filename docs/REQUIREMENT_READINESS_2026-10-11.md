@@ -1,5 +1,15 @@
 # METARDU requirement readiness — checkpoints through 22 October 2026
 
+Latest codebase-intelligence checkpoint (22 October): pinned Fallow 3.34.1
+completed local graph/duplication/complexity analysis, with findings reviewed
+against actual source. A confirmed malformed legacy migration entry point now
+fails deliberately with supported guidance and no database client; three
+regressions pass. Large candidate counts, five import cycles, parser limitations
+and unconfigured architecture rules remain visible. Both pinned npm analysis
+aliases executed; the architecture command correctly exits one for five cycles,
+while combined JSON identifies its failing finding gates as unenforced.
+No production changes occurred. See [Fallow review and application](FALLOW_CODEBASE_REVIEW_2026-10-22.md).
+
 Latest verification-pipeline checkpoint (22 October local time): five maintained
 native RTKLIB tests and hash-pinned public RINEX fixtures are now wired into the
 existing worker CI job. The exact native command passes locally in the existing

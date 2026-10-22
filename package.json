@@ -13,6 +13,8 @@
     "typecheck": "npm run typecheck:app && npm run typecheck:tests",
     "typecheck:app": "tsc --noEmit",
     "typecheck:tests": "tsc --noEmit --project tsconfig.tests.json",
+    "quality:codebase": "npm exec --yes --package=fallow@3.34.1 -- fallow --threads 2 --no-cache --format json --quiet",
+    "quality:architecture": "npm exec --yes --package=fallow@3.34.1 -- fallow architecture --threads 2 --no-cache",
     "budget:landing": "node scripts/bundle-budget.mjs",
     "migrate": "node scripts/migrate-unified.mjs",
     "migrate:status": "node scripts/migrate-unified.mjs --status",
