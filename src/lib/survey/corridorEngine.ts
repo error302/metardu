@@ -36,6 +36,8 @@
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+import { formatChainageLabel } from '@/lib/formatChainage'
+
 export interface PIPoint {
   /** Point ID (e.g., 'PI1') */
   id: string
@@ -400,9 +402,7 @@ export function organizeShotsByChainage(
  * e.g., 12450 → '12+450'
  */
 export function formatChainage(chainage: number): string {
-  const km = Math.floor(chainage / 1000)
-  const m = chainage % 1000
-  return `${km}+${m.toFixed(0).padStart(3, '0')}`
+  return formatChainageLabel(chainage, 0)
 }
 
 /**

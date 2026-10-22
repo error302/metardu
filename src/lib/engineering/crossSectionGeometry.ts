@@ -18,6 +18,7 @@
 
 // ─── TYPES ─────────────────────────────────────────────────────────────────────
 import { integrateProfileAreas, interpolateProfile, validateProfile } from './profileGeometry'
+import { formatChainageLabel } from '@/lib/formatChainage'
 
 export interface ProfilePoint {
   offset: number
@@ -460,11 +461,7 @@ export function determineSectionType(
  * @returns Formatted chainage string
  */
 export function formatChainage(chainage: number): string {
-  const km = Math.floor(chainage / 1000)
-  const m = chainage % 1000
-  return km > 0
-    ? `${km}+${m.toFixed(3).padStart(6, '0')}`
-    : `${m.toFixed(3)}`
+  return formatChainageLabel(chainage)
 }
 
 /**

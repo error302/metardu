@@ -74,3 +74,28 @@ not establish responsive, mailbox or final rendered acceptance. Legal pages stil
 contain historical contact/provider/response-time commitments requiring a
 separate operational and policy review. No terms, refunds, mailbox configuration,
 message delivery or customer commitments were changed by this source repair.
+
+### Road station label consistency
+
+Five reproduced regressions showed labels such as `0+1000.000` / `0+1000` at a
+rounded kilometre boundary, missing kilometre notation in cross sections, and
+negative rounded zero. Field planning/capture, map ticks, cross sections,
+corridors, staking tables, longitudinal profiles and survey-plan annotations now
+share a display-only formatter. It rounds at the requested label precision
+before splitting kilometres and metres, retains a meaningful negative sign, and
+shows an unknown marker for nonfinite or unrepresentable values. It does not
+change stored stationing, coordinates, design geometry or calculation precision.
+
+The related run passes 476 tests across 42 suites and the existing print snapshot;
+the field/map/corridor/plan-focused run passes 145 checks across five suites
+(these scopes overlap). Both strict TypeScript checks and all nine changed
+TypeScript source/test files pass lint. This is source evidence, not a measured
+road, receiver, browser or deployment acceptance record.
+
+Fresh read-only production runtime verification again passes the existing app,
+required supporting services, matching migration artifact, HTTP/database/Redis
+and single-application inventory. The backup receipt remains archive/header
+evidence only. The existing synthetic database remains stopped; native road
+quantity and Fieldbook recovery acceptance still require its separately pending
+start approval. A push attempt refused newly concurrent migration-review edits
+before invoking Git push; none were staged or discarded by this work.

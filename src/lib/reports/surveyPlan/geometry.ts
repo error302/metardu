@@ -1,4 +1,5 @@
 import { coordinateArea } from '@/lib/engine/area'
+import { formatChainageLabel } from '@/lib/formatChainage'
 export const DPI = 96
 export const MM_PER_INCH = 25.4
 export const PX_PER_MM = DPI / MM_PER_INCH
@@ -211,9 +212,7 @@ export function computeFenceBoundary(
 }
 
 export function formatChainage(chainageM: number): string {
-  const km = Math.floor(chainageM / 1000)
-  const m = chainageM % 1000
-  return `${km}+${String(Math.round(m)).padStart(3, '0')}`
+  return formatChainageLabel(chainageM, 0)
 }
 
 export function parseChainage(label: string): number | null {

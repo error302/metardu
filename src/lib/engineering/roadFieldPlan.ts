@@ -1,5 +1,6 @@
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { formatChainageLabel } from '@/lib/formatChainage'
 
 export const ROAD_FIELD_CODE_OPTIONS: ReadonlyArray<{
   code: RoadFieldFeatureCode
@@ -156,10 +157,7 @@ export function summarizeRoadStationCaptures(
 }
 
 export function formatRoadChainage(chainageM: number): string {
-  const absolute = Math.abs(chainageM)
-  const kilometres = Math.floor(absolute / 1000)
-  const remainder = (absolute - kilometres * 1000).toFixed(3).padStart(7, '0')
-  return `${chainageM < 0 ? '-' : ''}${kilometres}+${remainder}`
+  return formatChainageLabel(chainageM)
 }
 
 export function parseRoadFieldPlan(value: unknown): RoadFieldPlan | null {

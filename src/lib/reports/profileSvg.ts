@@ -1,3 +1,5 @@
+import { formatChainageLabel } from '@/lib/formatChainage'
+
 export type LongitudinalProfilePoint = {
   chainage: number
   elevation: number
@@ -67,10 +69,7 @@ function fmtScale(denom: number) {
 }
 
 function formatChainageKmPlus(m: number) {
-  const km = Math.floor(m / 1000)
-  const rem = m - km * 1000
-  const mText = rem.toFixed(3).padStart(7, '0')
-  return `${km}+${mText}`
+  return formatChainageLabel(m)
 }
 
 export function generateLongitudinalProfileSvg(points: LongitudinalProfilePoint[], opts: LongitudinalProfileSvgOptions = {}) {

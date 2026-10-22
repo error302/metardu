@@ -16,6 +16,7 @@
 
 import type { LineString } from 'ol/geom'
 import type { Coordinate } from 'ol/coordinate'
+import { formatChainageLabel } from '@/lib/formatChainage'
 import { assertSurveyCrs } from '@/lib/spatial/projectCrs'
 
 export interface ChainageResult {
@@ -148,9 +149,7 @@ export function calculateChainage(
  *       1234.56 → "KM 1+234.56"
  */
 export function formatChainage(chainageM: number): string {
-  const km = Math.floor(chainageM / 1000)
-  const m = chainageM % 1000
-  return `KM ${km}+${m.toFixed(m < 100 ? 1 : 0).padStart(m < 100 ? 5 : 4, '0')}`
+  return formatChainageLabel(chainageM, Math.abs(chainageM) % 1000 < 100 ? 1 : 0, 'KM ')
 }
 
 /**

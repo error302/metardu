@@ -15,6 +15,8 @@
 
 // ─── Types ──────────────────────────────────────────────────────────────────
 
+import { formatChainageLabel } from '@/lib/formatChainage'
+
 export interface HorizontalCurveData {
   /** Intersection Point (IP) easting */
   ipE: number
@@ -385,7 +387,5 @@ function computeStakingPoint(
 // ─── Helper ─────────────────────────────────────────────────────────────────
 
 function formatChainage(chainage: number): string {
-  const km = Math.floor(chainage / 1000)
-  const m = chainage % 1000
-  return `KM ${km}+${m.toFixed(0).padStart(3, '0')}`
+  return formatChainageLabel(chainage, 0, 'KM ')
 }
