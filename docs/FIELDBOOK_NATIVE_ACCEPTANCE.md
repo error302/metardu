@@ -124,3 +124,22 @@ created no new synthetic evidence or left sequence counters byte-identical.
 
 Source API acceptance does not prove native browser archive selection, offline
 reload/quota/identity handling, production release or physical field behavior.
+
+## Subsequent ordinary browser acceptance
+
+`FIELDBOOK_BROWSER_RECOVERY_2026-10-22.md` records normal source-preview sign-in,
+archive file selection/review/restore, reload, byte-identical original download,
+responsive raw-reading views and recovery after one exact synthetic receipt
+failure. Independent SQL confirms the original rejected request was delivered
+once with its retained hashes and unverified field status. All fault triggers
+were removed, originals outside the exact new fixture and historical migration
+records matched, and the temporary account credential was disabled afterward.
+The earlier two-book fixture count applies to the HTTP checkpoint; the later
+browser checkpoint deliberately retains an additional empty named QA draft.
+
+The original before-unload guard was preserved; recovery used a second ordinary
+page rather than forcing a dirty unload. Actual offline reconnect, quota,
+shared-device privacy, competing edits, release and physical field acceptance
+remain separate. The read-only reopen exercise also exposed redundant identical
+autosaves; its focused source repair and post-fix native verification are
+tracked in the browser record.

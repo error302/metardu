@@ -2,6 +2,47 @@ import { act, renderHook } from '@testing-library/react'
 import { useAutoSave } from './useAutoSave'
 
 afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks() })
+it('opens a retained snapshot without writing it again, then saves subsequent edits', async () => {
+  jest.useFakeTimers()
+  const onSave = jest.fn<Promise<void>, [unknown]>().mockResolvedValue(undefined)
+  const { result, rerender } = renderHook(({ value, opened }) => {
+    const options = { data: value, onSave, interval: 1000, readSnapshotKey: opened }
+    return useAutoSave(options)
+  }, { initialProps: { value: { bs: '', height: null as number | null }, opened: 0 } })
+  rerender({ value: { bs: '1.5000', height: null }, opened: 1 })
+  expect(result.current.hasUnsavedChanges).toBe(false)
+  const unload = new Event('beforeunload', { cancelable: true })
+  await act(async () => { jest.advanceTimersByTime(2000); window.dispatchEvent(unload) })
+  expect(unload.defaultPrevented).toBe(false)
+  expect(onSave).not.toHaveBeenCalled()
+  expect(result.current.lastAutoSave).toBeNull()
+  rerender({ value: { bs: '1.7500', height: 0 }, opened: 1 })
+  await act(async () => { jest.advanceTimersByTime(1000) })
+  expect(onSave).toHaveBeenCalledTimes(1)
+  expect(onSave).toHaveBeenLastCalledWith({ bs: '1.7500', height: 0 })
+})
+
+it('an older in-flight save cannot acknowledge a newly opened snapshot or its later edits', async () => {
+  jest.useFakeTimers()
+  let finish: () => void = () => {}
+  const pending = new Promise<void>(resolve => { finish = resolve })
+  const onSave = jest.fn<Promise<void>, [unknown]>().mockReturnValueOnce(pending).mockResolvedValue(undefined)
+  const { result, rerender } = renderHook(({ value, opened }) => {
+    const options = { data: value, onSave, interval: 1000, readSnapshotKey: opened }
+    return useAutoSave(options)
+  }, { initialProps: { value: 'initial', opened: 0 } })
+  rerender({ value: 'old book edit', opened: 0 })
+  act(() => jest.advanceTimersByTime(1000))
+  rerender({ value: 'newly opened saved book', opened: 1 })
+  expect(result.current.hasUnsavedChanges).toBe(false)
+  rerender({ value: 'new book edit', opened: 1 })
+  await act(async () => { finish(); await pending })
+  expect(result.current.hasUnsavedChanges).toBe(true)
+  expect(result.current.lastAutoSave).toBeNull()
+  await act(async () => { jest.advanceTimersByTime(1000) })
+  expect(onSave).toHaveBeenLastCalledWith('new book edit')
+})
+
 it('saves edits made during an in-flight write on the next heartbeat', async () => {
   jest.useFakeTimers()
   let finish: () => void = () => {}

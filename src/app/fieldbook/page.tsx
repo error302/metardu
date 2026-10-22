@@ -182,6 +182,7 @@ export default function DigitalFieldBookPage() {
   }, [])
 
   const [name, setName] = useState('')
+  const [readSnapshotKey, setReadSnapshotKey] = useState(0)
   const [fieldbookId, setFieldbookId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: 'idle' })
   const [syncStatus, setSyncStatus] = useState<{ synced: number; failed: number } | null>(null)
@@ -476,6 +477,7 @@ export default function DigitalFieldBookPage() {
 
   const { resetFailureDelay } = useAutoSave({
     data: autoSaveData,
+    readSnapshotKey,
     onSave: async () => {
       if (projectId) {
         const saved = await handleSave()
@@ -505,7 +507,7 @@ export default function DigitalFieldBookPage() {
     setSyncStatus(null)
   }
 
-  function loadFieldbook(entry: SavedFieldbook, origin: BookSaveOrigin = { kind: 'unknown' }) {
+  function loadFieldbook(entry: SavedFieldbook, origin: BookSaveOrigin = { kind: 'unknown' }, readingRetainedSnapshot = false) {
     const references = readCaptureReferences(entry.data || {}, projectId)
     setSourceImport(references)
     bookIdRef.current = entry.id
@@ -566,6 +568,7 @@ export default function DigitalFieldBookPage() {
       }
     }
 
+    if (readingRetainedSnapshot) setReadSnapshotKey(value => value + 1)
     panelRef.current?.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -574,7 +577,7 @@ export default function DigitalFieldBookPage() {
     const scope = { ...activeScope.current }, editable = JSON.stringify(latestEditable.current)
     const { book, origin, warning } = await prepareWorkingBook(ownerId, projectId, entry, isOnline())
     if (scope.ownerId !== activeScope.current.ownerId || scope.projectId !== activeScope.current.projectId || editable !== JSON.stringify(latestEditable.current)) throw new Error('The open book changed while loading. Save the latest edits before switching.')
-    loadFieldbook(book, origin)
+    loadFieldbook(book, origin, true)
     if (warning) setSaveStatus({ kind: 'error', message: warning })
   }
 

@@ -12,7 +12,7 @@ with recovery/support processes and real surveyor acceptance.
 | Requirement | Evidence available | Acceptance still needed |
 | --- | --- | --- |
 | Reliable service and safe releases | Fresh read-only Docker verifier passes the existing app, supporting services, matching-image migration bootstrap and HTTP/database/Redis checks. Runtime restoration is documented in `RUNTIME_RECOVERY_2026-10-21.md`. | One pinned promotion of the reviewed source, migration compatibility and restored-data/rollback proof; monitoring and incident response acceptance. Runtime health does not prove signed-in workflows. |
-| Original field work survives failures | Revision-bound delivery, exact request journals and recovery work are recorded in `FIELDBOOK_DELIVERY.md` and related source tests. | Real browser/device interruption, quota, offline reopening, account switching, archive restoration and native database checks on the release. |
+| Original field work survives failures | Revision-bound delivery and request journals; 22 real HTTP/PostgreSQL checks; normal browser archive review/restore/reload and exact-once retry after a controlled rejected save. See `FIELDBOOK_BROWSER_RECOVERY_2026-10-22.md`. | Actual offline loss/reconnect, quota/eviction, shared-device identity/privacy, competing edits, physical device/field checks and acceptance on the promoted release. |
 | Engineering results and deliverables agree | Declared CRS/control binding, numerical regression checks, labelled home simulation and reviewed A3 draft exports. | Independent field/reference comparisons, complete engineering workflows including drainage and road set-out, professional review and actual printer/instrument acceptance. Imagery is not measured control or legal boundary evidence. |
 | Large printable plans retain evidence | Content-derived schedule sheets, repeated headings, numbered station keys, actual-page preview and per-page PDF export pass 165 focused checks. Both fictional 80-station layouts render seven real sheets, with the diagram once and all rows retained. Strict app/test typing and scoped lint pass. | Final deployed large-plan download and physical print check. Engineered geographical tiling, exceptional row length and extremely dense drawing acceptance remain open; unsafe densities report a limitation rather than dropping evidence. |
 | Identity and customer isolation | Custom login/verification and ownership guards exist; current source gates and authorization tests are recorded in the implementation records. | Deployed normal-user/staff/admin acceptance, recovery and abuse handling. The known signing-key exposure remains open; the owner deferred rotation. |
@@ -145,3 +145,31 @@ The test now waits explicitly, with a finite budget, for the completed rendering
 state. Actual renderers and all page/content assertions remain exercised. The
 focused four-suite run passes 80 checks and the print snapshot. No push or source
 gate was bypassed; the normal gated push must be rerun.
+
+### Browser recovery and repository checkpoint
+
+The normal gated push subsequently completed successfully through
+`0254722ce3e3f365b0c4e5731be47e2947722afb`, independently matched to the authorized
+remote branch. Historical migration pins, schema drift, strict application/test
+typing, API row checks, scoped lint and related Jest batches passed. Batches
+overlap and are not summed as unique coverage. Gitleaks was unavailable locally;
+this is not a claim that a complete local secret scan passed. Later concurrent
+source work and the latest repair need their own reviewed commit/push checks.
+
+Ordinary synthetic browser archive review, restore, reload, original-byte export,
+responsive reading and exact-once delivery after a scoped receipt failure now
+have recorded evidence. Fresh-page recovery kept the original guarded tab; no
+before-unload protection was bypassed. The independent final check preserved
+original records outside the explicitly labeled fixture, all prior migration
+records and unverified field status, and confirmed all fault triggers removed.
+Temporary browser credentials were disabled after the run. Details and artifact
+paths are in `FIELDBOOK_BROWSER_RECOVERY_2026-10-22.md`.
+
+That exercise also found unnecessary identical revisions when reopening a book.
+The source repair adopts a retained read snapshot as the editor baseline without
+acknowledging pending delivery or field verification; subsequent edits still
+save. Its focused 32 tests, application/test typing and scoped lint pass. Ordinary
+browser plus independent SQL now prove 63,144 ms of idle reopening without a
+write, stale-copy refusal followed by explicit review, and a subsequent normal
+automatic save with one new receipt. Production
+has not been promoted, and the full goal remains active.

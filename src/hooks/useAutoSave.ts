@@ -35,6 +35,8 @@ interface AutoSaveOptions {
   interval?: number
   /** Whether auto-save is enabled */
   enabled?: boolean
+  /** Change only when opening retained content for reading; not a delivery acknowledgement. */
+  readSnapshotKey?: number
 }
 
 interface AutoSaveState {
@@ -48,7 +50,7 @@ interface AutoSaveState {
   error: string | null
 }
 
-export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: AutoSaveOptions): AutoSaveState & {
+export function useAutoSave({ data, onSave, interval = 30000, enabled = true, readSnapshotKey = 0 }: AutoSaveOptions): AutoSaveState & {
   saveNow: () => Promise<void>
   /** Resume after an independent durable save; this does not mark edits clean. */
   resetFailureDelay: () => void
@@ -67,6 +69,8 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
   const dirtyRef = useRef(false)
   const failuresRef = useRef(0)
   const retryAtRef = useRef(0)
+  const readSnapshotRef = useRef(readSnapshotKey)
+  const viewGenerationRef = useRef(0)
   const resetFailureDelay = useCallback(() => {
     failuresRef.current = 0
     retryAtRef.current = 0
@@ -83,6 +87,7 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
     if (!explicit && Date.now() < retryAtRef.current) return
     // Snapshot what we're about to persist so we can compare accurately.
     const snapshot = safeStringify(dataRef.current)
+    const generation = viewGenerationRef.current
     if (snapshot === lastSavedSerializedRef.current && !dirtyRef.current) return
 
     savingRef.current = true
@@ -90,6 +95,10 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
 
     try {
       await onSaveRef.current(dataRef.current)
+      if (generation !== viewGenerationRef.current) {
+        setState(s => ({ ...s, saving: false }))
+        return
+      }
       resetFailureDelay()
       lastSavedSerializedRef.current = snapshot
       // Edits may arrive while the network/storage write is in flight. Only
@@ -104,6 +113,10 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
         error: null,
       }))
     } catch (err) {
+      if (generation !== viewGenerationRef.current) {
+        setState(s => ({ ...s, saving: false }))
+        return
+      }
       // Preserve the dirty snapshot while spacing failed automatic attempts.
       // A manual save can retry after the operator repairs local storage.
       failuresRef.current = Math.min(failuresRef.current + 1, 10)
@@ -125,13 +138,23 @@ export function useAutoSave({ data, onSave, interval = 30000, enabled = true }: 
   useEffect(() => {
     dataRef.current = data
     const serialized = safeStringify(data)
+    if (readSnapshotRef.current !== readSnapshotKey) {
+      readSnapshotRef.current = readSnapshotKey
+      viewGenerationRef.current += 1
+      lastSavedSerializedRef.current = serialized
+      dirtyRef.current = false
+      resetFailureDelay()
+      // Opening a snapshot changes the editor baseline, not its server receipt.
+      setState(s => ({ ...s, hasUnsavedChanges: false, lastAutoSave: null, error: null }))
+      return
+    }
     if (serialized !== lastSavedSerializedRef.current) {
       if (!dirtyRef.current) {
         dirtyRef.current = true
         setState(s => (s.hasUnsavedChanges ? s : { ...s, hasUnsavedChanges: true }))
       }
     }
-  }, [data])
+  }, [data, readSnapshotKey, resetFailureDelay])
 
   // Heartbeat: fires at a fixed cadence and saves only when dirty.
   // Not re-created on data changes, so active typing never delays the save.

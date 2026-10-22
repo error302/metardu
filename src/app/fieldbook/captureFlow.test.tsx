@@ -149,6 +149,15 @@ test('preserving an untouched workspace before opening a saved book does not cre
   await act(async () => { expect(await workspace().onSave()).toBe(true) })
   expect(persistWorkingBook).not.toHaveBeenCalled()
 })
+
+test('opening a retained book adopts a read-only editor snapshot without acknowledging delivery', async () => {
+  await openPage()
+  const before = last(jest.mocked(useAutoSave).mock.calls)[0].readSnapshotKey
+  await act(async () => { await workspace().onOpen(book) })
+  expect(last(jest.mocked(useAutoSave).mock.calls)[0].readSnapshotKey).toBe((before ?? 0) + 1)
+  expect(persistWorkingBook).not.toHaveBeenCalled()
+  expect(level().levelRows[0].bs).toBe('0.000')
+})
 test('repeated saves reuse one retained request, while later edits explicitly descend from it', async () => {
   await openPage()
   fireEvent.change(screen.getByLabelText('Book name'), { target: { value: 'Retained run' } })

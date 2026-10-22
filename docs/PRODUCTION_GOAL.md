@@ -198,3 +198,15 @@ originals, exact new fixtures, disabled actors and removed fault injection.
 Production remains separate and unchanged. See `FIELDBOOK_NATIVE_ACCEPTANCE.md`,
 `ROAD_QUANTITY_RECORDING.md` and `CREDIBILITY_ACCEPTANCE.md` for evidence and
 remaining browser/device, shared-identity, provider, field and release gates.
+
+The next ordinary source-browser checkpoint now proves archive review/restore,
+reload and byte-identical source export, and exact-once recovery of a deliberately
+rejected save. Original observations, unknown setup and unverified field status
+survive. The before-unload guard protected the original tab; a fresh page
+recovered the retained request, so this does not establish a real crash or
+offline outage. All scoped fault triggers were removed and the synthetic test
+credential disabled afterward. Acceptance found and is repairing redundant
+autosaves when reopening unchanged books. See
+`FIELDBOOK_BROWSER_RECOVERY_2026-10-22.md`. Actual offline/quota/shared-identity,
+release, paid lifecycle, backup restoration and professional field evidence
+remain open. The full goal remains active.
