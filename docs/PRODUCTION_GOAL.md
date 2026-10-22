@@ -210,3 +210,14 @@ autosaves when reopening unchanged books. See
 `FIELDBOOK_BROWSER_RECOVERY_2026-10-22.md`. Actual offline/quota/shared-identity,
 release, paid lifecycle, backup restoration and professional field evidence
 remain open. The full goal remains active.
+
+The next recovery checkpoint runs the actual source restore script with native
+PostgreSQL in the existing marked Alpine rehearsal service. It finds and repairs
+the BusyBox safety-archive template failure. Thirty-one maintained regressions
+and the native restoration/atomic-failure/preservation/cleanup checks pass.
+All 154 retained original synthetic table fingerprints and 119 historical
+migration records are restored exactly; a deliberate SQL error rolls back its
+preceding writes. No customer archive, rejected clone, production service or
+applied migration was changed. Customer/uploads/offsite/key recovery, final
+release and the wider engineering/paid/field requirements remain open. See
+`RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md` for the precise boundary.

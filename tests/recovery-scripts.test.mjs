@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, writeFil
 import { spawnSync } from 'node:child_process'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import { gzipSync } from 'node:zlib'
+import { gzipSync, gunzipSync } from 'node:zlib'
 
 const repository = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const evidence = path.join(repository, '.cache', 'recovery-script-tests')
@@ -17,6 +17,14 @@ const results = []
 const scripts = Object.fromEntries(['backup', 'restore'].map(name => [name, readFileSync(path.join(repository, 'scripts', `${name}.sh`), 'utf8').replaceAll('\r\n', '\n')]))
 const sql = '--\n-- PostgreSQL database dump\n--\nSELECT 1;\n-- PostgreSQL database dump complete\n'
 const stubs = {
+  mktemp: `#!/usr/bin/bash
+# Reproduce BusyBox's trailing-X template requirement without replacing the
+# host's random-name generation or file/directory creation.
+if [ "$TEST_CASE" = portable-mktemp ]; then
+  case "\${@: -1}" in *XXXXXX) ;; *) printf 'mktemp: Invalid argument\\n' >&2; exit 1;; esac
+fi
+exec /usr/bin/mktemp "$@"
+`,
   pg_dump: `#!/usr/bin/bash
 printf 'pg_dump\\n' >> "$TEST_TRACE"
 case "$TEST_CASE" in
@@ -171,6 +179,18 @@ for (const skipSafety of [false, true]) test(`restore succeeds with honest safet
   assert.match(result.trace, /psql[^\n]*<-X>/)
   assert.equal(result.trace.includes('pg_dump'), !skipSafety)
   if (skipSafety) assert.match(result.output, /safety backup.*skipped/i)
+})
+
+test('restore creates a usable private safety archive with portable trailing-X mktemp', { timeout: 30000 }, () => {
+  const result = runCase('portable-mktemp', { script: 'restore' })
+  assert.equal(result.status, 0, result.output)
+  assert.match(result.output, /Safety backup verified/)
+  const directories = readdirSync(path.join(result.root, 'archives')).filter(name => name.startsWith('pre_restore_'))
+  assert.equal(directories.length, 1)
+  const safety = path.join(result.root, 'archives', directories[0], 'database.sql.gz')
+  assert.match(gunzipSync(readFileSync(safety)).toString('utf8'), /-- PostgreSQL database dump/)
+  assert.match(result.output, /pre_restore_[^\s]+\/database\.sql\.gz/)
+  assert.match(result.trace, /pg_dump[\s\S]*psql/)
 })
 
 for (const name of ['sql-error', 'client-failure', 'safety-dump-failure', 'safety-invalid-header']) test(`restore never reports success after ${name}`, { timeout: 30000 }, () => {

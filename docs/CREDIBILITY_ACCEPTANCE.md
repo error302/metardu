@@ -11,7 +11,7 @@ with recovery/support processes and real surveyor acceptance.
 
 | Requirement | Evidence available | Acceptance still needed |
 | --- | --- | --- |
-| Reliable service and safe releases | Fresh read-only Docker verifier passes the existing app, supporting services, matching-image migration bootstrap and HTTP/database/Redis checks. Runtime restoration is documented in `RUNTIME_RECOVERY_2026-10-21.md`. | One pinned promotion of the reviewed source, migration compatibility and restored-data/rollback proof; monitoring and incident response acceptance. Runtime health does not prove signed-in workflows. |
+| Reliable service and safe releases | Fresh read-only Docker verifier passes the existing app/supporting stack. Real PostgreSQL restoration and SQL-error rollback from the retained synthetic archive preserve 154 original table fingerprints and 119 historical migration records; see `RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md`. | One pinned promotion, customer-database compatibility/restoration, uploads/offsite/key recovery and operational recovery objectives; monitoring and incident response acceptance. Runtime or synthetic recovery does not prove deployed signed-in workflows. |
 | Original field work survives failures | Revision-bound delivery and request journals; 22 real HTTP/PostgreSQL checks; normal browser archive review/restore/reload and exact-once retry after a controlled rejected save. See `FIELDBOOK_BROWSER_RECOVERY_2026-10-22.md`. | Actual offline loss/reconnect, quota/eviction, shared-device identity/privacy, competing edits, physical device/field checks and acceptance on the promoted release. |
 | Engineering results and deliverables agree | Declared CRS/control binding, numerical regression checks, labelled home simulation and reviewed A3 draft exports. | Independent field/reference comparisons, complete engineering workflows including drainage and road set-out, professional review and actual printer/instrument acceptance. Imagery is not measured control or legal boundary evidence. |
 | Large printable plans retain evidence | Content-derived schedule sheets, repeated headings, numbered station keys, actual-page preview and per-page PDF export pass 165 focused checks. Both fictional 80-station layouts render seven real sheets, with the diagram once and all rows retained. Strict app/test typing and scoped lint pass. | Final deployed large-plan download and physical print check. Engineered geographical tiling, exceptional row length and extremely dense drawing acceptance remain open; unsafe densities report a limitation rather than dropping evidence. |
@@ -173,3 +173,14 @@ browser plus independent SQL now prove 63,144 ms of idle reopening without a
 write, stale-copy refusal followed by explicit review, and a subsequent normal
 automatic save with one new receipt. Production
 has not been promoted, and the full goal remains active.
+
+### Native restore and portable safety backup
+
+The real Alpine/PostgreSQL rehearsal exposed a BusyBox `mktemp` failure before
+SQL application. The source repair uses a private unique directory containing
+`database.sql.gz`, retaining atomic ownership and a directly usable archive name.
+All 31 maintained recovery regressions pass. A fresh native run verifies actual
+safety dumps, complete restoration of the trusted synthetic archive, rollback
+after deliberate SQL failure, original rehearsal preservation and exact owned
+temporary cleanup. Production health remains unchanged. Customer archives,
+uploads/offsite/key recovery and deployment remain separate acceptance gates.

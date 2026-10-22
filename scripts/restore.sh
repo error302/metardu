@@ -78,7 +78,10 @@ fi
 
 if [ "$SKIP_SAFETY_BACKUP" != '1' ]; then
   mkdir -p -- "$BACKUP_DIR"
-  SAFETY_FILE=$(mktemp "$BACKUP_DIR/pre_restore_$(date -u +%Y%m%d_%H%M%S)_XXXXXXXX.sql.gz")
+  # BusyBox mktemp requires the X run at the end of the template. A private
+  # directory preserves atomic ownership and a directly restorable .sql.gz name.
+  SAFETY_DIR=$(mktemp -d "$BACKUP_DIR/pre_restore_$(date -u +%Y%m%d_%H%M%S)_XXXXXXXX")
+  SAFETY_FILE="$SAFETY_DIR/database.sql.gz"
   if ! pg_dump --dbname="$DATABASE_URL" 2> "$STAGE_DIR/dump.log" | gzip > "$SAFETY_FILE"; then
     echo 'ERROR: pre-restore safety backup failed; SQL was not applied.' >&2
     exit 1

@@ -183,3 +183,63 @@ Ignored evidence: `.cache/recovery-audit/audit-synthetic.mjs`,
 `independent-fixture-integrity.json`, `inspect-runtime.mjs` and
 `runtime-summary.json`. Audited restore source SHA-256:
 `99b7a5f52dc916318b47c50dab253eb978bc2c89cb422e061ff812f1861f166a`.
+
+## Native PostgreSQL continuation — 22 October, 18:41 UTC
+
+This adds actual database evidence to the earlier stub-client suite. The exact
+existing `metardu-schema-rehearsal-20261008` service was ownership/mount/loopback
+checked and reused. It runs PostgreSQL 15/PostGIS on Alpine with BusyBox. No
+container, image, builder, customer clone or production service was created or
+changed. The only input was the previously retained synthetic pre-115 archive,
+whose length and SHA-256 matched `synthetic-upgrade.json` before use.
+
+The first native run found a real portability failure: BusyBox `mktemp` rejects
+the safety archive template with `.sql.gz` after its random `X` suffix. Restore
+stopped before SQL application. Its cancellation and exact temporary cleanup
+passed; the failed result/log remain under
+`.cache/recovery-audit/native-postgres/`. The host sandbox also initially refused
+Git Bash startup; that was not treated as a test result. The normally approved
+host regression then reproduced the actual `mktemp: Invalid argument` failure.
+
+The repair creates a private unique directory with a trailing-X template, then
+places `database.sql.gz` inside it. This preserves atomic directory ownership,
+avoids an unsafe filename-rename race, and keeps an archive extension accepted by
+the restore script. The safety archive remains available after completion or
+failure. Existing archives and backup retention behavior are unchanged.
+
+All 31 maintained script regressions pass, zero skipped. The additional case
+uses the host's real random-name generation while enforcing BusyBox's template
+restriction, then independently decompresses the resulting safety file and
+checks that the dump precedes restore. The actual native run also passes:
+
+- Cancellation leaves a deliberately empty, newly marked disposable target
+  unchanged.
+- The current source restore script creates and verifies a real `pg_dump` safety
+  archive, then applies the complete trusted SQL in one transaction.
+- All 154 original synthetic table fingerprints and all 119 historical migration
+  records match the retained archive snapshot. There are 155 public tables when
+  the migration ledger is included.
+- A second trusted synthetic SQL file creates a table and inserts a row before
+  deliberately dividing by zero. Restore rejects it, reports failure, leaves
+  the probe table absent, and preserves every restored table fingerprint.
+- Both actual safety archives pass gzip verification and are retained on the
+  host with independent lengths/SHA-256 hashes.
+- The complete original rehearsal database and its current migration ledger
+  match their pre-run fingerprints. The exact marked target database and all
+  owned staging files/directories were removed without terminating clients.
+
+The successful source SHA-256 is
+`df2b2242218090715259221039a7374d9f13a9f4611d7724c29aa80e7f84d116`.
+The private receipt and logs are under
+`.cache/recovery-audit/native-postgres-portable/`; the reviewed verifier is
+`.cache/recovery-audit/verify-postgres-restore.mjs`. The normal Docker verifier
+passed again afterward, including the one-application inventory and required
+supporting services. Production backup completion remains 22 October 02:00:03 UTC,
+archive/header evidence for that different archive.
+
+This proves real SQL restoration and rollback from a trusted synthetic archive
+in the existing Alpine/PostgreSQL service. It does not restore customer data,
+apply migrations to production, test uploads restoration, prove offsite or key
+recovery, measure recovery objectives, or establish the exact running backup
+sidecar's artifact/client compatibility. The source repair still needs its
+coordinated release; the rejected customer-clone gate remains intact.
