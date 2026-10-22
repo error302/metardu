@@ -47,6 +47,13 @@ jobs:
         with:
           name: pdf-parser-webpack-evidence
           path: test-results/runtime-database/pdf-webpack.json
+      - name: Verify 3D parser through the Next Webpack compiler
+        run: node scripts/verify-model-parser-webpack.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: model-parser-webpack-evidence
+          path: test-results/runtime-database/model-webpack.json
 
   design-revisions:
     name: Project Design and Set-out PostgreSQL Regression

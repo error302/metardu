@@ -154,3 +154,34 @@ Additional ignored evidence: `.cache/parser-3d-{red,edge-red,final,jest}.log`,
 `.cache/fallow-analysis/final-model.{json,metadata.json,stderr.log}`. The final
 parser source SHA-256 is
 `85b67fcfb6a65282fe42ed3614c265911c23c50253a7322aafdfc0539f734b0e`.
+
+## Next Webpack compiler checkpoint
+
+The maintained `node scripts/verify-model-parser-webpack.mjs` compiles the actual
+parser and types modules with Next's bundled Webpack, then executes the emitted
+CommonJS entry and lazy native-loader chunks. Ten checks pass: the real
+GLTFLoader is in the graph, the higher-level router is absent, finite OBJ bounds
+and native glTF/GLB scene transforms survive compilation, partial numeric OBJ
+tokens and external buffers are refused, and the fixtures issue no fetches or
+invented building/confidence output. Source and lockfile hashes are checked
+before and after execution. Only owned ignored cache/report files are written.
+
+Local execution used Webpack 5.98.0 with a Node 20 target on host Node v26.4.0.
+The existing CI type-check job now runs this command after dependency installation
+and publishes its JSON report even on failure. Hosted CI execution remains open.
+The report is `test-results/runtime-database/model-webpack.json` and includes
+input hashes, emitted-asset hashes, runtime/compiler versions and check outcomes.
+
+A controlled negative run changed only a separate cache copy of the transpiled
+parser to hide parsing errors. The same compiled-fixture checks then exited 1
+at `compiled OBJ rejects partial numeric tokens`, after four successful checks.
+The actual parser hash stayed unchanged. Its ignored receipt is
+`.cache/model-webpack-regression-red.json`; the positive report uses a separate
+cache and remains intact. An initial throwaway `.mjs` staging attempt failed
+extensionless-import resolution; switching staging to `.js` preserves the
+application's existing import resolution. This was a harness correction.
+
+Node syntax, CI YAML/step gating, scoped whitespace and the repository security
+gate pass. This checkpoint exercises a scoped production-mode compiler config;
+it does not complete the full Next application build, promoted-image, browser,
+customer-model, resource-isolation or survey/field acceptance gates above.
