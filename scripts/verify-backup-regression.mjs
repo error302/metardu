@@ -10,7 +10,8 @@ const setup=`set -eu
 task_dir=$(mktemp -d /tmp/metardu-backup-regression.XXXXXX)
 case "$task_dir" in /tmp/metardu-backup-regression.*) ;; *) exit 99;; esac
 trap 'rm -rf -- "$task_dir"' EXIT
-mkdir -p "$task_dir/bin" "$task_dir/archives"
+mkdir -p "$task_dir/bin" "$task_dir/archives" "$task_dir/uploads"
+printf 'Synthetic regression file only.\\n' > "$task_dir/uploads/synthetic.txt"
 cat > "$task_dir/backup.sh" <<'METARDU_BACKUP_SOURCE_END'
 ${source}
 METARDU_BACKUP_SOURCE_END
@@ -26,7 +27,7 @@ METARDU_DUMP_STUB_END
 chmod +x "$task_dir/bin/pg_dump"
 export PATH="$task_dir/bin:$PATH"
 export DATABASE_URL='postgresql://invalid:invalid@invalid.invalid/synthetic_backup_only'
-export BACKUP_DIR="$task_dir/archives" UPLOADS_DIR="$task_dir/no-uploads"
+export BACKUP_DIR="$task_dir/archives" UPLOADS_DIR="$task_dir/uploads"
 export BACKUP_RETENTION=36500 GPG_RECIPI='' BACKUP_OFFSITE_DIR='' BACKUP_LOG_FILE=''
 export TEST_CASE
 bash "$task_dir/backup.sh"

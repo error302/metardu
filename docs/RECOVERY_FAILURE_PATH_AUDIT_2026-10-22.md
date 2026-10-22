@@ -2,8 +2,9 @@
 
 Local date: 22 October 2026. Evidence timestamps are UTC, 21 October 2026.
 Source HEAD: `8e0048bd` with existing unrelated survey-plan edits preserved.
-This is an audit and proposed repair boundary, not a completed repair or a fresh
-customer archive restoration.
+The original audit below records the deployed failure paths. The approved
+source-only repair is now verified by synthetic regressions; it has not been
+deployed and is not a fresh customer archive restoration.
 
 ## Production read-only checkpoint
 
@@ -112,10 +113,70 @@ Cover SQL/client/decompression failures, abort, invalid input and skipped/defaul
 safety backup with synthetic tests. Real transactional restore still needs a
 separately authorized isolated database test; mocked flags are not that proof.
 
-This proposed source repair awaits the bounded-design decision required by the
-brainstorming workflow. Deployment, offsite destination choice, encryption/key
-recovery policy, customer restore rehearsal and retention/RPO/RTO acceptance
-remain separate actions. No source script or runtime configuration changed here.
+The user approved this bounded source-only repair on 22 October. Deployment,
+offsite destination choice, encryption/key recovery policy, customer restore
+rehearsal and retention/RPO/RTO acceptance remain separate actions.
+
+## Approved source repair and verification
+
+`scripts/backup.sh` now requires the configured uploads directory, stages a
+database/uploads pair privately, checks database gzip/header and uploads gzip/
+tar listing, and fails any required archive/encryption/configured-copy error.
+Both configured copies must match their source bytes before retention or the
+completion line. A local directory lock serializes backup publication and
+retention. Publication refuses to replace an existing timestamp, including a
+directory at that name. Retention only visits matching regular files directly
+inside the configured archive directories; no recursive cleanup is performed.
+Earlier archives remain untouched in the failure regressions.
+
+The lock intentionally fails closed if it already exists. After an interrupted
+run, an operator must inspect active backup processes before removing that exact
+`.backup.lock` directory. Failed runs may leave newly published partial pairs or
+partial offsite copies; they do not report completion or trigger retention. An
+archive filename alone is not evidence of a complete pair. Local staging needs
+hard-link support in the archive filesystem; unsupported publication fails.
+
+`scripts/restore.sh` validates and completely decompresses/decrypts the trusted
+input before database contact. Cancellation makes no database calls. After
+confirmation, a default safety dump must pass gzip/header checks before SQL is
+applied. It invokes psql with `-X`, `ON_ERROR_STOP=1`, `--single-transaction` and
+a fully materialized SQL file, then propagates failure instead of reporting
+success. The skipped-safety mode reports its actual status and exits correctly.
+Connection strings and client/safety-dump diagnostics are withheld from console
+output to prevent credential disclosure. The warning accurately describes SQL
+application rather than promising database creation or uploads restoration.
+
+SQL archives execute code and must be trusted; a header is not a signature or
+proof of semantic compatibility. A transaction flag does not make arbitrary SQL
+safe, nor prove a real rollback occurred. Restore remains an explicit operator
+action against a deliberately chosen target.
+
+The maintained command is `node --test tests/recovery-scripts.test.mjs`. It runs
+the actual normalized source scripts with isolated synthetic files, real host
+gzip/tar/copy utilities, and stub PostgreSQL/GPG commands. All 30 cases pass,
+zero skipped (40.6 seconds on Windows Git Bash). The first 21-case run against
+unchanged source produced 14 expected failures; valid small/large dump controls
+passed. Additional tests exposed credential leakage in pg_dump errors, a tar
+implementation accepting non-tar gzip as an empty listing, and publication into
+an existing directory. Each was reproduced before correction. The final suite
+also covers truncated compressed input, invalid SQL headers, required safety
+dump failure, copy corruption, archive collisions, and both gzip/encrypted input
+branches. The positive GPG branch is a stub, not real cryptographic/key recovery
+evidence. Existing positive regression fixtures now provide required synthetic
+uploads. The existing CI Node gate includes the maintained suite; GitHub-hosted
+execution and Alpine sidecar compatibility remain unverified.
+
+Node syntax checks, scoped whitespace checks, CI YAML parsing and the existing
+security/migration-immutability gate pass. No production service, customer
+archive, database, migration, offsite configuration or encryption policy was
+changed by this repair. The inspected running sidecar still uses the older
+script and retains the original failure paths until an approved promotion.
+
+Additional ignored evidence: `.cache/recovery-audit/source-repair-red.log`,
+`source-repair-edge-red.log`, `source-repair-final.log`, and per-case outputs and
+traces under `.cache/recovery-script-tests/run-*/`. Automatic approval review
+initially disconnected before execution; those rejected attempts are not test
+results. Subsequent host execution succeeded through the normal approval path.
 
 Ignored evidence: `.cache/recovery-audit/audit-synthetic.mjs`,
 `synthetic-summary.json`, `synthetic-run/` command traces/output/fixtures,

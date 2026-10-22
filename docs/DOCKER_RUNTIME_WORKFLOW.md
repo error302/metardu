@@ -11,9 +11,9 @@ services, ownership, HTTP/database/Redis health and accumulated duplicate
 application containers, dated verification images and verification builders.
 It also requires a completed backup within 36 hours and no later backup errors;
 running cron alone is insufficient. This does not prove a successful restore.
-The current script can still log completion after uploads archive/copy warnings;
+The inspected deployed script can still log completion after uploads archive/copy warnings;
 the verifier does not independently validate the recovery pair. The reproduced
-failure paths and proposed repair are in
+failure paths and verified source-only repair are in
 [the recovery audit](RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md). A passing daily
 check must not be described as complete backup/recovery acceptance.
 The app and one-shot migration service must select the same explicit image via

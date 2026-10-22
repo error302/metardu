@@ -574,8 +574,8 @@ jobs:
       - run: node scripts/dependency-audit.mjs
       - name: Security, migration immutability & bug invariant gate
         run: node scripts/security-and-bug-gate.mjs
-      - name: Release, migration drift & worker artifact unit gates
-        run: node --test tests/release-plan.test.mjs tests/survey-upgrade.test.mjs scripts/worker-runtime-contract.test.mjs
+      - name: Release, migration drift, worker artifact & recovery script gates
+        run: node --test tests/release-plan.test.mjs tests/survey-upgrade.test.mjs scripts/worker-runtime-contract.test.mjs tests/recovery-scripts.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

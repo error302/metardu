@@ -1,52 +1,35 @@
 #!/usr/bin/env bash
-#
-# METARDU Database Backup Script
-#
-# AUDIT FIX (H7, 2026-07-02): Upgraded from a bare pg_dump+gzip script
-# to a production-grade backup with:
-#   - Encrypted backups (GPG) when GPG_RECIPI is set
-#   - Post-dump verification (pg_restore --list sanity check)
-#   - Offsite copy to a secondary directory (BACKUP_OFFSITE_DIR) if set
-#   - Retention policy (default 30 days, configurable)
-#   - Structured logging to stdout + BACKUP_LOG_FILE
-#   - Exit codes for monitoring (0=ok, 1=db error, 2=verify error, 3=offsite error)
-#
-# Usage:
-#   ./scripts/backup.sh                           # daily backup
-#   BACKUP_DIR=/backups GPG_RECIPI=admin@metardu ./scripts/backup.sh
-#
-# Environment variables:
-#   DATABASE_URL        (optional) PostgreSQL connection string for local/manual use
-#   PGHOST/PGPORT/PGDATABASE/PGUSER/PGPASSWORD (Docker sidecar connection)
-#   BACKUP_DIR          (default ./backups) local backup directory
-#   BACKUP_OFFSITE_DIR  (optional) secondary copy destination
-#   BACKUP_RETENTION    (default 30) days to keep backups
-#   GPG_RECIPI          (optional) GPG key ID/email for encryption
-#   BACKUP_LOG_FILE     (optional) log file path; defaults to stdout
+# METARDU database + uploads backup. Completion requires a verified pair and,
+# when configured, verified copies of both files in BACKUP_OFFSITE_DIR.
+# GPG_RECIPI encrypts the database archive ONLY; uploads remain unencrypted.
+# Exit codes: 1=input/dump/storage, 2=archive/encryption, 3=configured copy.
 set -euo pipefail
+umask 077
 
 BACKUP_DIR="${BACKUP_DIR:-./backups}"
 BACKUP_OFFSITE_DIR="${BACKUP_OFFSITE_DIR:-}"
 BACKUP_RETENTION="${BACKUP_RETENTION:-30}"
 GPG_RECIPI="${GPG_RECIPI:-}"
 BACKUP_LOG_FILE="${BACKUP_LOG_FILE:-}"
-# AUDIT FIX (H-15, 2026-08-30): uploads directory (mounted read-only at
-# /uploads in the backup container). Included in every backup so a single
-# VM failure is no longer total data loss for user files.
 UPLOADS_DIR="${UPLOADS_DIR:-/uploads}"
-
-TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-mkdir -p "$BACKUP_DIR"
 
 log() {
   local msg="[$(date -u +%Y-%m-%dT%H:%M:%SZ)] $*"
   echo "$msg"
   if [ -n "$BACKUP_LOG_FILE" ]; then
-    mkdir -p "$(dirname "$BACKUP_LOG_FILE")"
+    mkdir -p -- "$(dirname -- "$BACKUP_LOG_FILE")"
     echo "$msg" >> "$BACKUP_LOG_FILE"
   fi
 }
 
+if [[ ! "$BACKUP_RETENTION" =~ ^[0-9]+$ ]]; then
+  log "ERROR: BACKUP_RETENTION must be a nonnegative integer"
+  exit 1
+fi
+if [ ! -d "$UPLOADS_DIR" ]; then
+  log "ERROR: required uploads directory is missing"
+  exit 1
+fi
 if [ -n "${DATABASE_URL:-}" ]; then
   DB_DUMP_ARGUMENTS=(--dbname="$DATABASE_URL")
 elif [ -n "${PGHOST:-}" ] && [ -n "${PGDATABASE:-}" ] && [ -n "${PGUSER:-}" ]; then
@@ -56,93 +39,96 @@ else
   exit 1
 fi
 
-# ─── 1. Database backup ───────────────────────────────────────────────────
-log "Starting database backup..."
-DB_FILE="$BACKUP_DIR/db_${TIMESTAMP}.sql.gz"
+mkdir -p -- "$BACKUP_DIR"
+BACKUP_DIR=$(cd -- "$BACKUP_DIR" && pwd -P)
+# Serialize publication/retention. An interrupted run may leave a lock; fail
+# closed until an operator verifies no active backup before removing it.
+LOCK_DIR="$BACKUP_DIR/.backup.lock"
+if ! mkdir -- "$LOCK_DIR"; then
+  log "ERROR: backup lock exists or cannot be created; inspect before retrying"
+  exit 1
+fi
+STAGE_DIR=''
+cleanup() {
+  if [ -n "$STAGE_DIR" ]; then
+    case "$STAGE_DIR" in "$BACKUP_DIR"/.backup-stage.*) rm -rf -- "$STAGE_DIR";; esac
+  fi
+  rmdir -- "$LOCK_DIR"
+}
+trap cleanup EXIT
+STAGE_DIR=$(mktemp -d "$BACKUP_DIR/.backup-stage.XXXXXXXX")
+TIMESTAMP=$(date -u +%Y%m%d_%H%M%S)
+DB_FILE="$STAGE_DIR/db_${TIMESTAMP}.sql.gz"
+UPLOADS_FILE="$STAGE_DIR/uploads_${TIMESTAMP}.tar.gz"
 
+log "Starting database backup..."
 if ! pg_dump "${DB_DUMP_ARGUMENTS[@]}" | gzip > "$DB_FILE"; then
   log "ERROR: pg_dump failed"
   exit 1
 fi
-
-DB_SIZE=$(stat -c%s "$DB_FILE" 2>/dev/null || stat -f%z "$DB_FILE" 2>/dev/null || echo 0)
-log "Database backup: $DB_FILE ($(numfmt --to=iec $DB_SIZE 2>/dev/null || echo ${DB_SIZE}B))"
-
-# ─── 1b. Uploads backup (audit H-15, 2026-08-30) ──────────────────────
-UPLOADS_FILE=""
-if [ -d "$UPLOADS_DIR" ]; then
-  log "Archiving uploads from $UPLOADS_DIR..."
-  UPLOADS_FILE="$BACKUP_DIR/uploads_${TIMESTAMP}.tar.gz"
-  if tar -czf "$UPLOADS_FILE" -C "$UPLOADS_DIR" . 2>>"${BACKUP_LOG_FILE:-/dev/null}"; then
-    UPLOADS_SIZE=$(stat -c%s "$UPLOADS_FILE" 2>/dev/null || stat -f%z "$UPLOADS_FILE" 2>/dev/null || echo 0)
-    log "Uploads backup: $UPLOADS_FILE ($(numfmt --to=iec $UPLOADS_SIZE 2>/dev/null || echo ${UPLOADS_SIZE}B))"
-  else
-    log "WARN: uploads archive failed — DB backup continues"
-    rm -f "$UPLOADS_FILE"
-    UPLOADS_FILE=""
-  fi
-else
-  log "No uploads directory at $UPLOADS_DIR — skipping uploads backup"
-fi
-
-# ─── 2. Verification (pg_restore --list) ─────────────────────────────────
-log "Verifying backup integrity..."
-if ! gzip -t "$DB_FILE"; then
-  log "ERROR: gzip integrity check failed for $DB_FILE"
+# Consume the full stream to avoid SIGPIPE on large plain-SQL pg_dump output.
+if ! gzip -t "$DB_FILE" || ! gzip -dc "$DB_FILE" | awk 'NR <= 10 && $0 == "-- PostgreSQL database dump" { header = 1 } END { exit(header ? 0 : 1) }'; then
+  log "ERROR: database gzip/SQL header verification failed"
   exit 2
 fi
-if ! zcat "$DB_FILE" | pg_restore --list 2>/dev/null | head -5 > /dev/null; then
-  log "WARN: pg_restore --list failed (may be normal for plain-text dumps). Verifying SQL header..."
-  # Consume the complete stream: head exits early and makes zcat return SIGPIPE
-  # under pipefail, falsely rejecting large valid dumps. Require the pg_dump
-  # header itself, not an arbitrary line containing a comment or product name.
-  if ! zcat "$DB_FILE" | awk 'NR <= 10 && $0 == "-- PostgreSQL database dump" { header = 1 } END { exit(header ? 0 : 1) }'; then
-    log "ERROR: backup does not look like a valid PostgreSQL dump"
-    exit 2
-  fi
+log "Archiving uploads..."
+if ! tar -czf "$UPLOADS_FILE" -C "$UPLOADS_DIR" .; then
+  log "ERROR: required uploads archive failed"
+  exit 2
 fi
-log "Backup integrity verified."
+if ! gzip -t "$UPLOADS_FILE" || ! tar -tzf "$UPLOADS_FILE" > "$STAGE_DIR/uploads.list" || ! awk 'NR == 1 && ($0 == "./" || $0 == ".") { root = 1 } END { exit(root ? 0 : 1) }' "$STAGE_DIR/uploads.list"; then
+  log "ERROR: uploads gzip/tar verification failed"
+  exit 2
+fi
+log "Database and uploads archive integrity verified."
 
-# ─── 3. Encryption (optional) ─────────────────────────────────────────────
 if [ -n "$GPG_RECIPI" ]; then
-  log "Encrypting backup with GPG (recipient: $GPG_RECIPI)..."
-  ENC_FILE="${DB_FILE}.gpg"
+  log "Encrypting database archive only; uploads remain unencrypted."
   if ! gpg --batch --yes --trust-model always --recipient "$GPG_RECIPI" \
-       --encrypt --output "$ENC_FILE" "$DB_FILE"; then
+       --encrypt --output "${DB_FILE}.gpg" "$DB_FILE" || [ ! -s "${DB_FILE}.gpg" ]; then
     log "ERROR: GPG encryption failed"
     exit 2
   fi
-  # Remove the unencrypted file after successful encryption
-  rm "$DB_FILE"
-  DB_FILE="$ENC_FILE"
-  log "Encrypted backup: $DB_FILE"
+  rm -- "$DB_FILE"
+  DB_FILE="${DB_FILE}.gpg"
 fi
 
-# ─── 4. Offsite copy (optional) ───────────────────────────────────────────
+# Hard links publish without overwriting an existing timestamp. Local staging
+# is on the same filesystem. Partial new pairs are never completion.
+for source_file in "$DB_FILE" "$UPLOADS_FILE"; do
+  if ! ln -T -- "$source_file" "$BACKUP_DIR/$(basename -- "$source_file")"; then
+    log "ERROR: could not publish archive without overwriting an existing file"
+    exit 1
+  fi
+done
+DB_FILE="$BACKUP_DIR/$(basename -- "$DB_FILE")"
+UPLOADS_FILE="$BACKUP_DIR/$(basename -- "$UPLOADS_FILE")"
+
 if [ -n "$BACKUP_OFFSITE_DIR" ]; then
-  log "Copying backup to offsite location: $BACKUP_OFFSITE_DIR"
-  mkdir -p "$BACKUP_OFFSITE_DIR"
-  if ! cp "$DB_FILE" "$BACKUP_OFFSITE_DIR/"; then
-    log "ERROR: offsite copy failed"
+  if ! mkdir -p -- "$BACKUP_OFFSITE_DIR"; then
+    log "ERROR: offsite directory unavailable"
     exit 3
   fi
-  log "Offsite copy complete."
-
-  # AUDIT FIX (H-15, 2026-08-30): uploads archive goes offsite too
-  if [ -n "$UPLOADS_FILE" ]; then
-    cp "$UPLOADS_FILE" "$BACKUP_OFFSITE_DIR/" || log "WARN: uploads offsite copy failed"
+  BACKUP_OFFSITE_DIR=$(cd -- "$BACKUP_OFFSITE_DIR" && pwd -P)
+  if [ "$BACKUP_OFFSITE_DIR" = "$BACKUP_DIR" ]; then
+    log "ERROR: offsite destination must differ from local archive directory"
+    exit 3
   fi
-
-  # Prune offsite backups too
-  find "$BACKUP_OFFSITE_DIR" -name "db_*.sql.gz*" -mtime +"$BACKUP_RETENTION" -delete 2>/dev/null || true
-  find "$BACKUP_OFFSITE_DIR" -name "uploads_*.tar.gz" -mtime +"$BACKUP_RETENTION" -delete 2>/dev/null || true
+  for source_file in "$DB_FILE" "$UPLOADS_FILE"; do
+    destination="$BACKUP_OFFSITE_DIR/$(basename -- "$source_file")"
+    # noclobber opens only a new file; copying to the already-open descriptor
+    # prevents replacement of an earlier archive at this destination.
+    if ! (set -C; cp -- "$source_file" /dev/stdout > "$destination") || ! cmp -s -- "$source_file" "$destination"; then
+      log "ERROR: configured offsite archive copy/integrity check failed"
+      exit 3
+    fi
+  done
+  log "Both configured offsite copies verified."
 fi
 
-# ─── 5. Retention (delete backups older than BACKUP_RETENTION days) ───────
-log "Pruning backups older than $BACKUP_RETENTION days..."
-find "$BACKUP_DIR" -name "db_*.sql.gz*" -mtime +"$BACKUP_RETENTION" -delete 2>/dev/null || true
-find "$BACKUP_DIR" -name "uploads_*.tar.gz" -mtime +"$BACKUP_RETENTION" -delete 2>/dev/null || true
-
-REMAINING=$(find "$BACKUP_DIR" -name "db_*.sql.gz*" | wc -l)
-UPLOADS_REMAINING=$(find "$BACKUP_DIR" -name "uploads_*.tar.gz" | wc -l)
-log "Backup complete. $REMAINING db backups (+$UPLOADS_REMAINING uploads archives) retained in $BACKUP_DIR."
+# No retention is reached until every required archive/copy has passed.
+log "Pruning archives older than $BACKUP_RETENTION days..."
+for archive_dir in "$BACKUP_DIR" ${BACKUP_OFFSITE_DIR:+"$BACKUP_OFFSITE_DIR"}; do
+  find "$archive_dir" -maxdepth 1 -type f \( -name 'db_*.sql.gz' -o -name 'db_*.sql.gz.gpg' -o -name 'uploads_*.tar.gz' \) -mtime +"$BACKUP_RETENTION" -delete
+done
+log "Backup complete. Verified database and uploads archives retained in $BACKUP_DIR."

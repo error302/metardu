@@ -16,14 +16,16 @@ The running worker handler remains unchanged and its artifact gap is open. This
 is native consistency evidence, not surveyed control or field accuracy. See
 [native GNSS acceptance](GNSS_NATIVE_ACCEPTANCE_2026-10-22.md).
 
-Latest recovery audit (22 October local time): ordinary production health and
-backup freshness pass, and the two named archive hashes remain unchanged. The
-deployed backup script matches source. Synthetic failure injection nevertheless
-shows uploads failures/corruption can report completion and invoke retention;
-ordinary restore lacks SQL stop-on-error handling, prints its connection URL and
-has a skipped-safety-backup status defect. These remain unrepaired. Offsite and
-encryption options are unconfigured in the inspected sidecar. No customer restore
-or runtime changes occurred. See [recovery failure-path evidence](RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md).
+Latest recovery checkpoint (22 October local time): the approved source repair
+requires verified database/uploads archives and configured copies before success
+or retention, refuses archive overwrites, validates restore input before database
+contact, withholds connection credentials and uses transactional stop-on-error
+psql flags with honest safety-backup status. All 30 maintained synthetic cases
+pass with zero skipped; security/migration and CI configuration checks pass.
+The inspected running sidecar retains the older failure paths. Offsite/encryption
+are unconfigured there; real restoration, Alpine compatibility, CI execution and
+promotion remain unverified. No customer restore or runtime change occurred. See
+[recovery repair and evidence limits](RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md).
 
 Latest advisory checkpoint (21 October): the existing lockfile audit passes its
 current policy: runtime has zero reported advisories; the full graph has eight
