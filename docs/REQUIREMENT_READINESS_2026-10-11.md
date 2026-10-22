@@ -1,5 +1,13 @@
 # METARDU requirement readiness — checkpoints through 22 October 2026
 
+Latest Fieldbook native preflight (22 October): required production health and
+single-app inventory pass. The exact existing synthetic PostgreSQL container is
+stopped; its volume has no production consumers. The guarded rollback-only
+migration-115 probe is reviewed but unexecuted pending separate database-action
+approval. The existing source preview is live and its sign-in page renders via
+CUA; no authentication/storage/reload/save success is claimed. See
+[native acceptance preflight](FIELDBOOK_NATIVE_PREFLIGHT_2026-10-22.md).
+
 Latest 3D import checkpoint (22 October): the approved source repair rejects
 invalid source positions, invented building semantics and external model loads;
 supported self-contained OBJ/glTF/GLB inputs yield explicit model-space inventory.
