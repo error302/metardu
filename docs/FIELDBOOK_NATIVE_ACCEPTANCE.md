@@ -5,8 +5,8 @@ running, the corrected rollback probe passed 22 checks, and migration 115 then
 applied normally after a backup/fingerprint preflight. Its ledger now has 120
 matching source entries. The earlier stopped-database and pending-start notes
 below are historical; the execution evidence at the end supersedes them.
-Production remains separate and unchanged. Authenticated Fieldbook browser and
-revision-delivery HTTP acceptance are still open.
+Production remains separate and unchanged. Revision-delivery HTTP checks now
+pass as recorded below; authenticated browser recovery is still open.
 
 Status, 21 October 2026: source recovery work is committed through `e24c714b`.
 The existing host source preview has been restored on `127.0.0.1:3021`, using
@@ -96,3 +96,31 @@ The existing synthetic database remains running for further native acceptance.
 Production SQL and services were not changed. The rollback probe and this normal
 synthetic upgrade are distinct from backup restoration, production compatibility,
 native Fieldbook HTTP delivery, ordinary browser recovery and device/field proof.
+
+## Native revision-delivery HTTP acceptance
+
+The existing source preview and marked synthetic database passed 22 further
+checks through real HTTP, ordinary CSRF/credential/session sign-in and PostgreSQL.
+The ignored reviewed verifier is `.cache/fieldbook-delivery/verify-http.mjs` and
+its receipt is `native-http.json` in the same folder. Both synthetic actors were
+created with explicit labels, and disabled after the run; no credentials or
+session tokens are in the receipt. No production env or customer login was used.
+
+The run verifies anonymous/foreign/account-switch refusal, exact raw strings and
+reserved JSON keys, independently computed input/payload hashes, unverified
+receipts, owner reload, same-key and concurrent replay, revision advancement,
+stale baseline refusal and immutable old snapshots after later edits. Viewers
+can reopen their retained authored book but cannot write it or read a different
+author's book. A retained receipt cannot replay after current access is lost.
+Forcing one exact test receipt insert to fail rolls back both the new book and
+its receipt. The scoped temporary fault function/trigger were removed.
+
+Thirteen separate read-only post-checks verify the original books/captures and
+119 prior migration records, the exact declared HTTP fixture/two retained books,
+disabled actors and absence of both native fault triggers. Original book hashes
+exclude only that new explicit fixture; this is not a claim that native tests
+created no new synthetic evidence or left sequence counters byte-identical.
+`native-resume-independent.json` retains that post-check receipt.
+
+Source API acceptance does not prove native browser archive selection, offline
+reload/quota/identity handling, production release or physical field behavior.

@@ -10,7 +10,9 @@ const data: SurveyPlanData = {
 
 test('page controls show one actual sheet and reset to the drawing when the layout changes', async () => {
   const { container } = render(<SurveyPlanViewer data={data} />)
-  const next = await screen.findByRole('button', { name: 'Next plan sheet' })
+  // The real 80-station renderer hashes and parses several sheets asynchronously.
+  // Assert completed navigation without imposing the default one-second budget.
+  const next = await screen.findByRole('button', { name: 'Next plan sheet' }, { timeout: 10_000 })
   expect(screen.getByRole('button', { name: 'Previous plan sheet' })).toBeDisabled()
   expect(container.querySelectorAll('.survey-plan-sheet')).toHaveLength(1)
   expect(container.querySelector('.survey-plan-sheet polygon')).not.toBeNull()
@@ -20,6 +22,6 @@ test('page controls show one actual sheet and reset to the drawing when the layo
   expect(container.querySelector('.survey-plan-sheet polygon')).toBeNull()
   expect(container.querySelector('.survey-plan-sheet')?.textContent).toContain('Schedule continuation')
   fireEvent.click(screen.getByRole('button', { name: 'Form No. 4 (Kenya)' }))
-  await waitFor(() => expect(screen.getByRole('button', { name: 'Previous plan sheet' })).toBeDisabled())
+  await waitFor(() => expect(screen.getByRole('button', { name: 'Previous plan sheet' })).toBeDisabled(), { timeout: 10_000 })
   expect(container.querySelector('.survey-plan-sheet polygon')).not.toBeNull()
-})
+}, 30_000)

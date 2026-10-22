@@ -186,3 +186,15 @@ Connector supervision, unknown public release identity, the deferred security
 rotation, source promotion and field/provider acceptance remain separate gates.
 See `CREDIBILITY_ACCEPTANCE.md` for the current evidence ledger and source-only
 schedule pagination checkpoint. The broader goal is not complete.
+
+The subsequent native continuation reuses the exact marked synthetic database.
+The Fieldbook rollback probe passes 22 checks; a guarded backup/dry run and
+normal migration 115 upgrade preserve all 154 original table fingerprints and
+119 prior migration records. The synthetic ledger now has 120 source entries.
+Road quantities pass all 25 real HTTP/PostgreSQL checks, including shared-reader
+access and forced-write rollback. Fieldbook revision delivery passes 22 further
+HTTP/PostgreSQL checks; thirteen independent post-checks confirm retained
+originals, exact new fixtures, disabled actors and removed fault injection.
+Production remains separate and unchanged. See `FIELDBOOK_NATIVE_ACCEPTANCE.md`,
+`ROAD_QUANTITY_RECORDING.md` and `CREDIBILITY_ACCEPTANCE.md` for evidence and
+remaining browser/device, shared-identity, provider, field and release gates.

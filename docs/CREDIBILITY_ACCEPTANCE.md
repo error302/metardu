@@ -128,5 +128,20 @@ plan, CRS label, observation, geometry or customer record was rewritten.
 The latest gated push was not executed because automatic approval review lost
 its connection before execution, including the single retry. Source commits
 remain local until a successful normal gated push and independent remote check.
-Native Fieldbook HTTP/browser recovery, shared-device privacy, final release,
+Native Fieldbook browser recovery, shared-device privacy, final release,
 payment/email lifecycle and physical field acceptance remain open.
+
+The subsequent Fieldbook revision-delivery HTTP run passed 22 real
+HTTP/PostgreSQL checks, including raw JSON fidelity, exact receipt hashes,
+concurrent same-key delivery, stale revisions, old snapshots after later edits,
+current-access refusal and atomic book/receipt rollback. Thirteen independent
+post-checks confirm original books/captures and ledger entries, exact retained
+fixtures, disabled actors and removed fault injection. These source API checks
+close the HTTP gap above; they do not close native browser/device acceptance.
+
+The combined pre-push gate then caught a viewer navigation test whose default
+one-second query expired while the real multi-sheet renderer was still loading.
+The test now waits explicitly, with a finite budget, for the completed rendering
+state. Actual renderers and all page/content assertions remain exercised. The
+focused four-suite run passes 80 checks and the print snapshot. No push or source
+gate was bypassed; the normal gated push must be rerun.
