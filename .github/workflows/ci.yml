@@ -85,6 +85,8 @@ jobs:
       - run: node scripts/verify-design-revisions.mjs
       - name: Verify atomic deliverable registration and concurrent exports
         run: node scripts/verify-deliverable-register.mjs green --ci
+      - name: Verify atomic corridor versions and competing first writes
+        run: node scripts/verify-corridor-networks.mjs green --ci
       - uses: actions/upload-artifact@v4
         with:
           name: design-revision-postgres-evidence
@@ -93,6 +95,7 @@ jobs:
             test-results/design-revisions/synthetic-project-cut-sheet.html
             test-results/design-revisions/synthetic-setout-history.csv
             test-results/deliverable-register/green.json
+            test-results/corridor-networks/green.json
 
   # GNSS compute worker tests (audit C9 "make it work", 2026-08-31): the
   # SPP engine is real mathematics — parsers validated against georinex

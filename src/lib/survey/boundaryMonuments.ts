@@ -87,7 +87,8 @@ export interface CreateMonumentInput {
   utm_zone?: number
   hemisphere?: string
   datum?: string
-  epsg_code?: string
+  /** Explicit registered UTM CRS; redundant metadata is validated if supplied. */
+  epsg_code: string
   coordinate_epoch?: number
   reference_frame?: string
   observation_date?: string
