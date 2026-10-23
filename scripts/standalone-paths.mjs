@@ -1,4 +1,4 @@
-import { existsSync, lstatSync, realpathSync, readdirSync, rmSync } from 'node:fs'
+import { existsSync, lstatSync, realpathSync, readdirSync, rmSync, mkdirSync, cpSync } from 'node:fs'
 import path from 'node:path'
 
 function inside(root, target) {
@@ -19,6 +19,19 @@ export function assertBuildDestination(root,target) {
 export function standalonePaths(root,dist='.next') {
   const build=assertBuildDestination(root,path.resolve(root,dist))
   return {build,standalone:assertBuildDestination(root,path.join(build,'standalone'))}
+}
+
+/** Next's generated server resolves static assets under its configured distDir. */
+export function copyStandaloneStaticAssets(root,dist='.next') {
+  const {build,standalone}=standalonePaths(root,dist)
+  const source=assertBuildDestination(root,path.join(build,'static'))
+  const relativeBuild=path.relative(path.resolve(root),build)
+  const target=assertBuildDestination(root,path.join(standalone,relativeBuild,'static'))
+  if(!existsSync(source)||!lstatSync(source).isDirectory())throw new Error('Compiled static assets are missing; rebuild before preparing standalone output')
+  mkdirSync(path.dirname(target),{recursive:true})
+  if(existsSync(target))rmSync(target,{recursive:true,force:true})
+  cpSync(source,target,{recursive:true})
+  return {source,target}
 }
 export function assertNoBundledEnvironmentFiles(standalone) {
   if(existsSync(standalone)&&readdirSync(standalone).some(name=>name==='.env'||name.startsWith('.env.'))){

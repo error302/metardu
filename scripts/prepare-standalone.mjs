@@ -1,10 +1,10 @@
 import { cpSync, existsSync, mkdirSync, rmSync, lstatSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { createRequire } from 'node:module'
-import { standalonePaths, assertBuildDestination, assertNoBundledEnvironmentFiles, removeBundledEnvironmentFiles } from './standalone-paths.mjs'
+import { standalonePaths, copyStandaloneStaticAssets, assertBuildDestination, assertNoBundledEnvironmentFiles, removeBundledEnvironmentFiles } from './standalone-paths.mjs'
 
 const rootDir = process.cwd()
-const {build:buildDir,standalone:standaloneDir}=standalonePaths(rootDir,process.env.METARDU_NEXT_DIST_DIR||'.next')
+const {standalone:standaloneDir}=standalonePaths(rootDir,process.env.METARDU_NEXT_DIST_DIR||'.next')
 
 if (!existsSync(standaloneDir)) {
   console.log('[prepare-standalone] standalone output missing, skipping asset copy')
@@ -16,18 +16,8 @@ if (removedEnvironmentFiles.length) {
   console.log(`[prepare-standalone] removed ${removedEnvironmentFiles.length} generated environment file(s) from standalone output`)
 }
 assertNoBundledEnvironmentFiles(standaloneDir)
-const staticSource = path.join(buildDir, 'static')
-const staticTarget = path.join(standaloneDir, '.next', 'static')
-
-if (existsSync(staticSource)) {
-  assertBuildDestination(rootDir,staticTarget)
-  mkdirSync(path.dirname(staticTarget), { recursive: true })
-  rmSync(staticTarget, { recursive: true, force: true })
-  cpSync(staticSource, staticTarget, { recursive: true })
-  console.log('[prepare-standalone] copied .next/static into standalone output')
-} else {
-  console.warn('[prepare-standalone] .next/static not found, skipping asset copy')
-}
+copyStandaloneStaticAssets(rootDir,process.env.METARDU_NEXT_DIST_DIR||'.next')
+console.log('[prepare-standalone] copied static assets into the selected standalone runtime directory')
 
 const publicSource = path.join(rootDir, 'public')
 const publicTarget = path.join(standaloneDir, 'public')
