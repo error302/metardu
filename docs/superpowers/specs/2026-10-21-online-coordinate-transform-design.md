@@ -2,9 +2,9 @@
 
 Date: 2026-10-21
 
-Status: the human approved the explicit-CRS architecture in chat. This written
-specification awaits the required written-spec review before implementation
-planning. It does not claim implementation or release acceptance.
+Status: the human approved the explicit-CRS architecture and explicitly approved
+this written specification on 22 October 2026. Implementation planning and
+verification follow; approval does not claim implementation or release acceptance.
 
 ## Problem and intended outcome
 

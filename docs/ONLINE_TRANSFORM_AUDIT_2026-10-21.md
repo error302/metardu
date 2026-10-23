@@ -126,3 +126,14 @@ The probes are throwaway verification harnesses, not application features.
 Production is unchanged in this pass. This service must not be counted as ready
 because the separate transform engine has passing tests. Existing worker,
 Fieldbook migration, recovery, provider/payment and device/field gates also remain.
+
+## 23 October implementation checkpoint
+
+The written specification was approved and the separate online math was replaced
+in the actual page and both APIs with explicit registered references and the
+shared authority. `ONLINE_TRANSFORM_REPAIR_2026-10-23.md` records the source,
+native numerical-fixture, mounted-page and CUA evidence, intentional legacy
+transition and remaining authenticated HTTP/release/field gates. The defects
+above describe the audited previous implementation; they are retained as the
+original failure evidence. This source milestone does not certify regional
+operations or complete the platform's production acceptance.

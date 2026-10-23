@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import dynamic from 'next/dynamic'
 import { logger } from '@/lib/logger'
-import { transformCoordinates, getSupportedSystems, type CoordinateSystem, type TransformResult } from '@/lib/online/coordinates'
+import OnlineCoordinateTransform from '@/components/online/OnlineCoordinateTransform'
 import { calculateEDMCorrection } from '@/lib/online/weather'
 import ReviewedBenchmarkSearch from '@/components/beacons/ReviewedBenchmarkSearch'
 import GNSSProcessor from '@/components/online/GNSSProcessor'
@@ -11,9 +11,7 @@ const ImageryViewer = dynamic(() => import('@/components/online/ImageryViewer'),
 
 export default function OnlineServicesPage() {
   const [activeTab, setActiveTab] = useState<'gnss' | 'transform' | 'edm' | 'benchmarks' | 'imagery'>('gnss')
-  const [transformResult, setTransformResult] = useState<TransformResult | null>(null)
   const [weatherResult, setWeatherResult] = useState<ReturnType<typeof calculateEDMCorrection> | null>(null)
-  const [loading, setLoading] = useState(false)
   const [onlineStatus, setOnlineStatus] = useState<'online' | 'offline'>('online')
 
   useEffect(() => {
@@ -28,49 +26,12 @@ export default function OnlineServicesPage() {
     }
   }, [])
 
-  const [transformInput, setTransformInput] = useState({
-    latitude: '',
-    longitude: '',
-    easting: '',
-    northing: '',
-    zone: '',
-    hemisphere: 'N' as 'N' | 'S',
-    fromSystem: 'WGS84',
-    toSystem: 'UTM'
-  })
-
-
   const [weatherInput, setWeatherInput] = useState({
     temperature: '25',
     pressure: '1013.25',
     humidity: '50',
     elevation: ''
   })
-
-  const systems = getSupportedSystems()
-
-  const handleTransform = async () => {
-    setLoading(true)
-    try {
-      const result = await transformCoordinates(
-        {
-          latitude: transformInput.latitude ? parseFloat(transformInput.latitude) : undefined,
-          longitude: transformInput.longitude ? parseFloat(transformInput.longitude) : undefined,
-          easting: transformInput.easting ? parseFloat(transformInput.easting) : undefined,
-          northing: transformInput.northing ? parseFloat(transformInput.northing) : undefined,
-          zone: transformInput.zone ? parseInt(transformInput.zone) : undefined,
-          hemisphere: transformInput.hemisphere
-        },
-        transformInput.fromSystem as CoordinateSystem,
-        transformInput.toSystem as CoordinateSystem
-      )
-      setTransformResult(result)
-    } catch (e) {
-      logger.error('Coordinate transform error:', { error: e })
-    }
-    setLoading(false)
-  }
-
 
   const handleWeatherCalc = () => {
     const result = calculateEDMCorrection({
@@ -138,159 +99,7 @@ export default function OnlineServicesPage() {
           </div>
         )}
 
-        {activeTab === 'transform' && (
-          <div className="bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] p-6">
-            <h2 className="text-xl font-semibold mb-4">Coordinate Transformation</h2>
-            <div className="grid md:grid-cols-2 gap-6">
-              <div>
-                <label htmlFor="from-system" className="block text-sm font-medium text-[var(--text-muted)] mb-1">From System</label>
-                <select
-                  id="from-system"
-                  value={transformInput.fromSystem}
-                  onChange={e => setTransformInput({ ...transformInput, fromSystem: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  {systems.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-
-                <div className="mt-4 space-y-3">
-                  {transformInput.fromSystem === 'WGS84' ? (
-                    <>
-                      <div>
-                        <label htmlFor="transform-latitude" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Latitude</label>
-                        <input
-                          id="transform-latitude"
-                          type="number"
-                          step="any"
-                          value={transformInput.latitude}
-                          onChange={e => setTransformInput({ ...transformInput, latitude: e.target.value })}
-                          aria-label="Latitude" placeholder="e.g., -1.2921"
-                          className="w-full p-2 border rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="transform-longitude" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Longitude</label>
-                        <input
-                          id="transform-longitude"
-                          type="number"
-                          step="any"
-                          value={transformInput.longitude}
-                          onChange={e => setTransformInput({ ...transformInput, longitude: e.target.value })}
-                          aria-label="Longitude" placeholder="e.g., 36.8219"
-                          className="w-full p-2 border rounded-lg"
-                        />
-                      </div>
-                    </>
-                  ) : (
-                    <>
-                      <div>
-                        <label htmlFor="transform-easting" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Easting (m)</label>
-                        <input
-                          id="transform-easting"
-                          type="number"
-                          step="any"
-                          value={transformInput.easting}
-                          onChange={e => setTransformInput({ ...transformInput, easting: e.target.value })}
-                          aria-label="Easting (m)" placeholder="e.g., 250000"
-                          className="w-full p-2 border rounded-lg"
-                        />
-                      </div>
-                      <div>
-                        <label htmlFor="transform-northing" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Northing (m)</label>
-                        <input
-                          id="transform-northing"
-                          type="number"
-                          step="any"
-                          value={transformInput.northing}
-                          onChange={e => setTransformInput({ ...transformInput, northing: e.target.value })}
-                          aria-label="Northing (m)" placeholder="e.g., 9850000"
-                          className="w-full p-2 border rounded-lg"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-3">
-                        <div>
-                          <label htmlFor="transform-zone" className="block text-sm font-medium text-[var(--text-muted)] mb-1">UTM Zone</label>
-                          <input
-                            id="transform-zone"
-                            type="number"
-                            value={transformInput.zone}
-                            onChange={e => setTransformInput({ ...transformInput, zone: e.target.value })}
-                            placeholder="e.g., 37"
-                            className="w-full p-2 border rounded-lg"
-                          />
-                        </div>
-                        <div>
-                          <label htmlFor="transform-hemisphere" className="block text-sm font-medium text-[var(--text-muted)] mb-1">Hemisphere</label>
-                          <select
-                            id="transform-hemisphere"
-                            value={transformInput.hemisphere}
-                            onChange={e => setTransformInput({ ...transformInput, hemisphere: e.target.value as 'N' | 'S' })}
-                            className="w-full p-2 border rounded-lg"
-                          >
-                            <option value="N">Northern</option>
-                            <option value="S">Southern</option>
-                          </select>
-                        </div>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="to-system" className="block text-sm font-medium text-[var(--text-muted)] mb-1">To System</label>
-                <select
-                  id="to-system"
-                  value={transformInput.toSystem}
-                  onChange={e => setTransformInput({ ...transformInput, toSystem: e.target.value })}
-                  className="w-full p-2 border rounded-lg"
-                >
-                  {systems.map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
-                </select>
-
-                <button
-                  onClick={handleTransform}
-                  disabled={loading}
-                  className="mt-4 w-full bg-sky-600 text-white py-2 px-4 rounded-lg hover:bg-sky-700 disabled:opacity-50"
-                >
-                  {loading ? 'Transforming...' : 'Transform Coordinates'}
-                </button>
-
-                {transformResult && (
-                  <div className="mt-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]">
-                    {transformResult.success ? (
-                      <div>
-                        <h3 className="font-medium text-green-600 mb-2">Transformation Successful</h3>
-                        <p className="text-sm text-[var(--text-muted)]">Precision: {transformResult.precision}</p>
-                        {transformResult.result?.latitude && (
-                          <p className="text-sm">Lat: {transformResult.result.latitude.toFixed(6)}°</p>
-                        )}
-                        {transformResult.result?.longitude && (
-                          <p className="text-sm">Lon: {transformResult.result.longitude.toFixed(6)}°</p>
-                        )}
-                        {transformResult.result?.easting && (
-                          <p className="text-sm">E: {transformResult.result.easting.toFixed(3)} m</p>
-                        )}
-                        {transformResult.result?.northing && (
-                          <p className="text-sm">N: {transformResult.result.northing.toFixed(3)} m</p>
-                        )}
-                        {transformResult.result?.zone && (
-                          <p className="text-sm">Zone: {transformResult.result.zone}{transformResult.result.hemisphere}</p>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-red-600">{transformResult.error}</p>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
+        {activeTab === 'transform' && <OnlineCoordinateTransform />}
 
         {activeTab === 'benchmarks' && <ReviewedBenchmarkSearch />}
 

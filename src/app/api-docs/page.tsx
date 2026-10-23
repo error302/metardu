@@ -16,8 +16,8 @@ const API_GROUPS = [
     routes: [
       { method: 'POST', path: '/api/geo/transform', desc: 'Transform horizontal coordinates between declared, registered CRS. Heights are preserved without vertical conversion; operation applicability requires review.' },
       { method: 'POST', path: '/api/convert-datum', desc: 'Convert between datums (WGS84 ↔ Arc 1960). Wrapper around the geo transform engine.' },
-      { method: 'POST', path: '/api/coordinates/transform', desc: 'Alternative coordinate transform endpoint.' },
-      { method: 'POST', path: '/api/coordinates/batch', desc: 'Batch transform up to 5,000 coordinates.' },
+      { method: 'POST', path: '/api/coordinates/transform', desc: 'Explicit registered fromCRS/toCRS with named coordinates; inadmissible references or measurements return 422. Heights are preserved, not transformed; accuracy is not established. GET discovers available references. Legacy compatibility is limited to WGS84 identity and explicit-grid UTM inverse.' },
+      { method: 'POST', path: '/api/coordinates/batch', desc: 'Transform 1–1,000 rows using one common explicit CRS pair. Ordered indexed outcomes retain source rows, per-row errors and unchanged heights; common reference errors return 422. Legacy UTM batches require explicit CRS codes.' },
     ],
   },
   {

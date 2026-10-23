@@ -1,126 +1,33 @@
 export const dynamic = 'force-dynamic'
-
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import { z } from 'zod'
+import { transformOnlineCoordinates, resolveOnlineReferences, getSupportedSystems } from '@/lib/online/coordinates'
+import { transformBatchSchema, onlineFailure, ONLINE_BATCH_MAX_POINTS, UNAVAILABLE_DATUM_GUIDANCE, type OnlineRequest, type NamedCoordinates, type TransformResult } from '@/lib/online/coordinateContract'
 
-interface BatchPointInput {
-  latitude?: number
-  longitude?: number
-  easting?: number
-  northing?: number
-  zone?: number
-  hemisphere?: 'N' | 'S'
-  id?: string
-  name?: string
-  elevation?: number
-}
-
-interface BatchResultItem {
-  id?: string
-  name?: string
-  latitude?: number
-  longitude?: number
-  easting?: number
-  northing?: number
-  zone?: number
-  hemisphere?: string
-  elevation?: number
-  success: boolean
-  error?: string
-}
-
-const transformBatchSchema = z.object({
-  points: z.array(z.object({
-    latitude: z.number().optional(),
-    longitude: z.number().optional(),
-    easting: z.number().optional(),
-    northing: z.number().optional(),
-    zone: z.number().optional(),
-    hemisphere: z.enum(['N', 'S']).optional(),
-    id: z.string().optional(),
-    name: z.string().optional(),
-    elevation: z.number().optional(),
-  })).min(1).max(1000),
-  fromSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
-  toSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
-})
-
+type RowResult = { index: number; source: unknown; id?: unknown; name?: unknown } & ({ success: true; result: NamedCoordinates } | Extract<TransformResult, { success: false }>)
 export const POST = apiHandler(
   { auth: true, schema: transformBatchSchema, rateLimit: { max: 10, windowMs: 60000 } },
-  async (req, ctx) => {
-    const { transformCoordinates } = await import('@/lib/online/coordinates')
-
-    const { points, fromSystem, toSystem } = ctx.body as {
-      points: BatchPointInput[]
-      fromSystem: Parameters<typeof transformCoordinates>[1]
-      toSystem: Parameters<typeof transformCoordinates>[1]
+  async (_req, ctx) => {
+    const body = ctx.body as OnlineRequest & { points: unknown[] }
+    let references
+    try { references = resolveOnlineReferences(body, true) }
+    catch (error) { return NextResponse.json(onlineFailure(error), { status: 422, headers: { 'Cache-Control': 'private, no-store' } }) }
+    const results: RowResult[] = []
+    for (const [index, source] of body.points.entries()) {
+      const point = source !== null && typeof source === 'object' && !Array.isArray(source) ? source as OnlineRequest : null
+      let outcome: TransformResult | { success: false; code: 'INVALID_COORDINATE' | 'CRS_AMBIGUOUS'; error: string }
+      if (!point) outcome = { success: false, code: 'INVALID_COORDINATE', error: 'A coordinate row must be an object with the named source measurements.' }
+      else if (['fromCRS', 'toCRS', 'fromSystem', 'toSystem'].some(key => Object.hasOwn(point, key))) outcome = { success: false, code: 'CRS_AMBIGUOUS', error: 'Rows cannot override the common batch references.' }
+      else outcome = await transformOnlineCoordinates({ zone: body.zone, hemisphere: body.hemisphere, ...point, fromCRS: references.fromCRS, toCRS: references.toCRS })
+      results.push({ index, source, ...(point && Object.hasOwn(point, 'id') ? { id: point.id } : {}), ...(point && Object.hasOwn(point, 'name') ? { name: point.name } : {}),
+        ...(outcome.success ? { success: true as const, result: outcome.result } : outcome) })
     }
-
-    const results: BatchResultItem[] = []
-    let successCount = 0
-    let errorCount = 0
-
-    for (const point of points) {
-      try {
-        const result = await transformCoordinates(
-          {
-            latitude: point.latitude,
-            longitude: point.longitude,
-            easting: point.easting,
-            northing: point.northing,
-            zone: point.zone,
-            hemisphere: point.hemisphere,
-          },
-          fromSystem,
-          toSystem
-        )
-
-        if (!result.success || !result.result) {
-          throw new Error(result.error || 'Transform failed')
-        }
-
-        results.push({
-          id: point.id,
-          name: point.name,
-          latitude: result.result.latitude,
-          longitude: result.result.longitude,
-          easting: result.result.easting,
-          northing: result.result.northing,
-          zone: result.result.zone,
-          hemisphere: result.result.hemisphere,
-          elevation: point.elevation,
-          success: true,
-        })
-        successCount++
-      } catch (error) {
-        results.push({
-          id: point.id,
-          name: point.name,
-          success: false,
-          error: error instanceof Error ? error.message : 'Transform failed',
-        })
-        errorCount++
-      }
-    }
-
-    return NextResponse.json({
-      fromSystem,
-      toSystem,
-      totalPoints: points.length,
-      successCount,
-      errorCount,
-      results,
-    })
+    const successCount = results.filter(row => row.success).length
+    return NextResponse.json({ ...references, totalPoints: results.length, successCount, errorCount: results.length - successCount, results }, { headers: { 'Cache-Control': 'private, no-store' } })
   }
 )
-
-export const GET = apiHandler({ auth: true }, async () => {
-  const { getSupportedSystems } = await import('@/lib/online/coordinates')
-  return NextResponse.json({
-    endpoint: '/coordinates/batch',
-    description: 'Batch coordinate transformation',
-    systems: getSupportedSystems(),
-    maxPoints: 1000,
-  })
-})
+export const GET = apiHandler({ auth: true }, async () => NextResponse.json({
+  endpoint: '/coordinates/batch', description: 'Explicit horizontal CRS transformation with indexed per-row outcomes.',
+  systems: getSupportedSystems(), maxPoints: ONLINE_BATCH_MAX_POINTS, unavailableDatums: UNAVAILABLE_DATUM_GUIDANCE,
+  selectors: ['fromCRS', 'toCRS'], horizontalOnly: true, verticalTreatment: 'preserved-untransformed',
+}, { headers: { 'Cache-Control': 'private, no-store' } }))

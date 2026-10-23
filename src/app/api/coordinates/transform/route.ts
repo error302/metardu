@@ -1,37 +1,19 @@
 export const dynamic = 'force-dynamic'
-
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
-import { transformCoordinates, getSupportedSystems } from '@/lib/online/coordinates'
-import { z } from 'zod'
-
-const transformRequestSchema = z.object({
-  latitude: z.number().optional(),
-  longitude: z.number().optional(),
-  easting: z.number().optional(),
-  northing: z.number().optional(),
-  zone: z.number().optional(),
-  hemisphere: z.enum(['N', 'S']).optional(),
-  fromSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
-  toSystem: z.enum(['WGS84', 'UTM', 'ARC1960', 'HARTEBEESTHOEK94', 'ADINDAN', 'CAPE', 'ED50', 'PSAD56']),
-})
+import { transformOnlineCoordinates, getSupportedSystems } from '@/lib/online/coordinates'
+import { transformRequestSchema, ONLINE_BATCH_MAX_POINTS, UNAVAILABLE_DATUM_GUIDANCE, type OnlineRequest } from '@/lib/online/coordinateContract'
 
 export const POST = apiHandler(
   { auth: true, schema: transformRequestSchema, rateLimit: { max: 120, windowMs: 60000 } },
-  async (req, ctx) => {
-    const { latitude, longitude, easting, northing, zone, hemisphere, fromSystem, toSystem } =
-      ctx.body as z.infer<typeof transformRequestSchema>
-
-    const result = await transformCoordinates(
-      { latitude, longitude, easting, northing, zone, hemisphere },
-      fromSystem,
-      toSystem
-    )
-
-    return NextResponse.json(result)
+  async (_req, ctx) => {
+    const result = await transformOnlineCoordinates(ctx.body as OnlineRequest)
+    return NextResponse.json(result, { status: result.success ? 200 : 422, headers: { 'Cache-Control': 'private, no-store' } })
   }
 )
-
-export const GET = apiHandler({ auth: true }, async () => {
-  return NextResponse.json({ systems: getSupportedSystems() })
-})
+export const GET = apiHandler({ auth: true }, async () => NextResponse.json({
+  systems: getSupportedSystems(), maxPoints: ONLINE_BATCH_MAX_POINTS,
+  selectors: ['fromCRS', 'toCRS'], horizontalOnly: true, verticalTreatment: 'preserved-untransformed',
+  unavailableDatums: UNAVAILABLE_DATUM_GUIDANCE,
+  legacy: 'Only WGS84 identity and single-point UTM inverse with an explicit zone/hemisphere remain compatible. Other legacy selectors require explicit CRS codes.',
+}, { headers: { 'Cache-Control': 'private, no-store' } }))
