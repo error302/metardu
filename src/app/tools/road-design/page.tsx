@@ -37,11 +37,11 @@ export default function RoadDesignPage() {
         ))}
       </div>
 
-      <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-6">
+      <div className="min-w-0 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg p-4 sm:p-6">
         {tab === 'horizontal' && (
           <>
             <h2 className="text-lg font-semibold mb-1">Horizontal Curve Elements &amp; Set-Out</h2>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Source: RDM 1.3 §5.2 | Ghilani &amp; Wolf Ch.24 | Basak Ch.14-16 | Schofield &amp; Breach Ch.11</p>
+            <p className="text-xs text-[var(--text-muted)] mb-4">Simple circular curve geometry. <a href="https://wsdot.wa.gov/publications/manuals/fulltext/m22-97/chapter11.pdf" className="underline">Formula reference: WSDOT Highway Surveying Manual, Chapter 11</a>. Project design standards and field acceptance require separate review.</p>
             <HorizontalCurveCalculator />
           </>
         )}

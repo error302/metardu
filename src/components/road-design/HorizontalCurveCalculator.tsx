@@ -1,223 +1,147 @@
-'use client';
+'use client'
 
 import { useState } from 'react'
-import { horizontalCurveElements, type HorizontalCurveInput, type HorizontalCurveResult } from '@/lib/computations/roadDesignEngine'
+import { curveSetOut, horizontalCurveElements, type HorizontalCurveInput, type HorizontalCurveResult, type SetOutResult } from '@/lib/computations/roadDesignEngine'
 import { SimpleCurveDiagram } from '@/components/tools/SimpleCurveDiagram'
 
 type Tab = 'elements' | 'setout'
+type Fields = { radius: string; degrees: string; minutes: string; seconds: string; ip: string; interval: string }
+type Computation = { input: HorizontalCurveInput; elements: HorizontalCurveResult; setout: SetOutResult }
+const fields: { key: keyof Fields; label: string; min?: string; max?: string; step: string }[] = [
+  { key: 'radius', label: 'Radius R (m)', min: '0', step: 'any' },
+  { key: 'degrees', label: 'Δ Degrees', min: '0', max: '179', step: '1' },
+  { key: 'minutes', label: 'Δ Minutes', min: '0', max: '59', step: '1' },
+  { key: 'seconds', label: 'Δ Seconds', min: '0', max: '59.999999999', step: 'any' },
+  { key: 'ip', label: 'IP Chainage (m)', step: 'any' },
+  { key: 'interval', label: 'Peg Interval (m)', min: '0', step: 'any' },
+]
+
+function readNumber(value: string, label: string) {
+  const trimmed = value.trim()
+  if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(trimmed) || !Number.isFinite(Number(trimmed))) {
+    throw new Error(`${label} requires a finite number.`)
+  }
+  return Number(trimmed)
+}
 
 export default function HorizontalCurveCalculator() {
   const [tab, setTab] = useState<Tab>('elements')
-  const [result, setResult] = useState<HorizontalCurveResult | null>(null)
-  const [resultSetout, setResultSetout] = useState<{ T: number; L: number; CT: number } | null>(null)
+  const [values, setValues] = useState<Fields>({ radius: '', degrees: '', minutes: '0', seconds: '0', ip: '', interval: '20' })
+  const [computed, setComputed] = useState<Computation | null>(null)
+  const [error, setError] = useState('')
 
-  const [radius, setRadius] = useState('300')
-  const [deltaD, setDeltaD] = useState('45')
-  const [deltaM, setDeltaM] = useState('00')
-  const [deltaS, setDeltaS] = useState('00')
-  const [ipChainage, setIpChainage] = useState('2500.000')
-
-  const [interval, setInterval] = useState('20')
-
-  function computeElements() {
-    const input: HorizontalCurveInput = {
-      radius: parseFloat(radius),
-      deflectionAngleDeg: parseInt(deltaD) || 0,
-      deflectionAngleMin: parseInt(deltaM) || 0,
-      deflectionAngleSec: parseFloat(deltaS) || 0,
-      ipChainage: parseFloat(ipChainage),
+  function update(key: keyof Fields, value: string) {
+    setValues(previous => ({ ...previous, [key]: value }))
+    setComputed(null)
+    setError('')
+  }
+  function compute() {
+    setComputed(null)
+    setError('')
+    try {
+      const numbers = Object.fromEntries(fields.map(field => [field.key, readNumber(values[field.key], field.label)])) as Record<keyof Fields, number>
+      const input: HorizontalCurveInput = {
+        radius: numbers.radius, deflectionAngleDeg: numbers.degrees, deflectionAngleMin: numbers.minutes,
+        deflectionAngleSec: numbers.seconds, ipChainage: numbers.ip,
+      }
+      const elements = horizontalCurveElements(input)
+      const setout = curveSetOut({ ...input, tcChainage: elements.tcChainage, ctChainage: elements.ctChainage, interval: numbers.interval })
+      if (!elements.arithmeticCheck.passed || !setout.arithmeticCheck.passed) throw new Error('Numerical consistency check failed; review the inputs.')
+      setComputed({ input, elements, setout })
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Unable to calculate this curve.')
     }
-    const r = horizontalCurveElements(input)
-    setResult(r)
-    setResultSetout({ T: r.tangentLength, L: r.curveLength, CT: r.ctChainage })
   }
-
-  function ChainageDisplay(ch: number) {
-    const km = Math.floor(ch / 1000)
-    const m = ch % 1000
-    return km > 0 ? `${km}+${m.toFixed(3)}` : `${m.toFixed(3)}`
-  }
+  const result = computed?.elements
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 space-y-6">
       <div className="flex gap-2 border-b border-[var(--border-color)] pb-3">
-        <button onClick={() => setTab('elements')} className={`px-4 py-2 rounded-t text-sm font-medium ${tab === 'elements' ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>Curve Elements</button>
-        <button onClick={() => setTab('setout')} className={`px-4 py-2 rounded-t text-sm font-medium ${tab === 'setout' ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>Set-Out Table</button>
+        {([['elements', 'Curve Elements'], ['setout', 'Set-Out Table']] as const).map(([id, label]) => (
+          <button key={id} type="button" aria-pressed={tab === id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-t text-sm font-medium ${tab === id ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-muted)] hover:text-[var(--text-primary)]'}`}>{label}</button>
+        ))}
       </div>
-
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="radius-r-m">Radius R (m)</label>
-          <input id="radius-r-m" aria-label="Radius R (m)" value={radius} onChange={e => setRadius(e.target.value)} type="number" min="1"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="degrees">Δ Degrees</label>
-          <input id="degrees" aria-label="Δ Degrees" value={deltaD} onChange={e => setDeltaD(e.target.value)} type="number" min="1" max="180"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="minutes">Δ Minutes</label>
-          <input id="minutes" aria-label="Δ Minutes" value={deltaM} onChange={e => setDeltaM(e.target.value)} type="number" min="0" max="59"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="seconds">Δ Seconds</label>
-          <input id="seconds" aria-label="Δ Seconds" value={deltaS} onChange={e => setDeltaS(e.target.value)} type="number" step="0.001" min="0" max="59.999"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="ip-chainage-m">IP Chainage (m)</label>
-          <input id="ip-chainage-m" aria-label="IP Chainage (m)" value={ipChainage} onChange={e => setIpChainage(e.target.value)} type="number" min="0"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <button onClick={computeElements} className="px-5 py-2 bg-[var(--accent)] text-black rounded text-sm font-medium hover:opacity-90">
-          Compute
-        </button>
-        {result && (
-          <span className={`text-xs font-mono px-2 py-1 rounded ${result.arithmeticCheck.passed ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'}`}>
-            {result.arithmeticCheck.passed ? ' Arithmetic Check PASS' : `[x] Arithmetic Check FAIL (diff=${result.arithmeticCheck.diff.toFixed(4)}m)`}
-          </span>
-        )}
-      </div>
-
-      {tab === 'elements' && result && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-          {[
-            ['Tangent Length (T)', `${result.tangentLength.toFixed(4)} m`, 'RDM 1.3 §5.2'],
-            ['Curve Length (L)', `${result.curveLength.toFixed(4)} m`, 'RDM 1.3 §5.2'],
-            ['Long Chord (C)', `${result.longChord.toFixed(4)} m`, 'RDM 1.3 §5.2'],
-            ['Mid Ordinate (M)', `${result.midOrdinate.toFixed(4)} m`, 'RDM 1.3 §5.2'],
-            ['External Dist (E)', `${result.externalDistance.toFixed(4)} m`, 'RDM 1.3 §5.2'],
-            ['Degree of Curve (D)', `${result.degreeOfCurve.toFixed(4)}°`, 'RDM 1.3 §5.2'],
-            ['TC Chainage', ChainageDisplay(result.tcChainage), 'RDM 1.3 §5.2'],
-            ['CC Chainage', ChainageDisplay(result.ccChainage), 'RDM 1.3 §5.2'],
-            ['CT Chainage', ChainageDisplay(result.ctChainage), 'RDM 1.3 §5.2'],
-            ['Δ (radians)', result.delta.toFixed(8), 'Ghilani Ch.24 Eq.24.1'],
-          ].map(([label, value, source]) => (
-            <div key={label} className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-3">
-              <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className="text-lg font-mono text-[var(--text-primary)]">{value}</p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">{source}</p>
+      <p className="text-sm text-[var(--text-muted)]">Enter the design radius, central angle and PI (IP) chainage. Stationing follows the arc from TC (PC) to CT (PT); intervals are in metres.</p>
+      <form noValidate onSubmit={event => { event.preventDefault(); compute() }} className="space-y-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3">
+          {fields.map(field => (
+            <div key={field.key} className="min-w-0">
+              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor={`curve-${field.key}`}>{field.label}</label>
+              <input id={`curve-${field.key}`} value={values[field.key]} onChange={event => update(field.key, event.target.value)} type="number" min={field.min} max={field.max} step={field.step}
+                className="w-full min-w-0 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
           ))}
         </div>
-      )}
-
-      {tab === 'elements' && result && (
-        <SimpleCurveDiagram
-          radius={parseFloat(radius)}
-          deflectionDeg={result.delta * 180 / Math.PI}
-          tangentLength={result.tangentLength}
-          arcLength={result.curveLength}
-          longChord={result.longChord}
-          externalDistance={result.externalDistance}
-          midOrdinate={result.midOrdinate}
-          pcChainage={result.tcChainage}
-          piChainage={parseFloat(ipChainage)}
-          ptChainage={result.ctChainage}
-        />
-      )}
-
-      {tab === 'elements' && result && result.steps && (
-        <details className="text-xs">
-          <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium mb-2">Show Computation Steps</summary>
-          <div className="space-y-1">
-            {result.steps.map((step) => (
-              <div key={step.value} className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 font-mono py-1 border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)]">
-                <span className="text-[var(--text-secondary)]">{step.description}</span>
-                <span className="text-[var(--text-muted)]">=</span>
-                <span className="text-[var(--text-primary)]">{step.value}</span>
-                <span className="text-[var(--text-muted)] text-right">{step.formula}</span>
+        <div className="flex flex-wrap items-center gap-3">
+          <button type="submit" className="px-5 py-2 bg-[var(--accent)] text-black rounded text-sm font-medium hover:opacity-90">Compute</button>
+          {computed && <span role="status" className="text-xs text-[var(--text-muted)]">Numerical identities consistent · field checks still required</span>}
+        </div>
+      </form>
+      {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+      {!computed && !error && <p className="text-sm text-[var(--text-muted)]">Enter or update the inputs, then compute to show current results.</p>}
+      {tab === 'elements' && result && computed && (
+        <>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            {[
+              ['Tangent Length (T)', `${result.tangentLength.toFixed(4)} m`],
+              ['Curve Length (L)', `${result.curveLength.toFixed(4)} m`],
+              ['Long Chord (C)', `${result.longChord.toFixed(4)} m`],
+              ['Mid Ordinate (M)', `${result.midOrdinate.toFixed(4)} m`],
+              ['External Dist (E)', `${result.externalDistance.toFixed(4)} m`],
+              ['Degree of Curve (30 m arc)', `${result.degreeOfCurve.toFixed(4)}°`],
+              ['TC Chainage (m)', result.tcChainage.toFixed(3)],
+              ['CC Chainage (m)', result.ccChainage.toFixed(3)],
+              ['CT Chainage (m)', result.ctChainage.toFixed(3)],
+              ['Δ (radians)', result.delta.toFixed(8)],
+            ].map(([label, value]) => (
+              <div key={label} className="min-w-0 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-3">
+                <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
+                <p className="break-words text-lg font-mono text-[var(--text-primary)]">{value}</p>
               </div>
             ))}
           </div>
-        </details>
+          <SimpleCurveDiagram radius={computed.input.radius} deflectionDeg={result.delta * 180 / Math.PI}
+            tangentLength={result.tangentLength} arcLength={result.curveLength} longChord={result.longChord}
+            externalDistance={result.externalDistance} midOrdinate={result.midOrdinate}
+            pcChainage={result.tcChainage} piChainage={computed.input.ipChainage} ptChainage={result.ctChainage} />
+          <details className="text-xs">
+            <summary className="cursor-pointer text-[var(--text-muted)]">Show Computation Steps</summary>
+            <ol className="mt-3 space-y-3 break-words font-mono">
+              {result.steps.map(step => <li key={step.description}>{step.description}: {step.value}<br /><span className="text-[var(--text-muted)]">{step.formula}</span></li>)}
+            </ol>
+          </details>
+        </>
       )}
-
-      {tab === 'setout' && resultSetout && (
-        <SetOutDisplay radius={parseFloat(radius)} T={resultSetout.T} tcChainage={parseFloat(radius) * Math.tan((parseFloat(deltaD) + parseFloat(deltaM)/60 + parseFloat(deltaS)/3600) * Math.PI / 360)} interval={parseInt(interval) || 20} deltaD={parseInt(deltaD)||0} deltaM={parseInt(deltaM)||0} deltaS={parseFloat(deltaS)||0} />
-      )}
-
-      {tab === 'setout' && !resultSetout && (
-        <div className="text-sm text-[var(--text-muted)] text-center py-8">
-          Compute curve elements first, then switch to Set-Out tab
-        </div>
-      )}
-
-      {tab === 'setout' && (
-        <div className="mt-2">
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="peg-interval-m">Peg Interval (m)</label>
-          <input  id="peg-interval-m" aria-label="Peg Interval (m)" value={interval} onChange={e => setInterval(e.target.value)} type="number" min="1" max="100"
-            className="w-24 px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-      )}
+      {tab === 'setout' && computed && <SetOutDisplay result={computed.setout} />}
     </div>
   )
 }
 
-function SetOutDisplay({ radius, T: _T, tcChainage, interval, deltaD, deltaM, deltaS }: { radius: number; T: number; tcChainage: number; interval: number; deltaD: number; deltaM: number; deltaS: number }) {
-  const delta = (deltaD + deltaM / 60 + deltaS / 3600) * Math.PI / 180
-  const ctChainage = tcChainage + (Math.PI * radius * delta / 180)
-  const rows: Array<{ peg: string; chainage: number; chord: number; defAngle: string; totalDef: string; remarks: string }> = []
-
-  rows.push({ peg: 'TC', chainage: tcChainage, chord: 0, defAngle: '0°00\'00"', totalDef: '0°00\'00"', remarks: 'Tangent/Curve' })
-
-  let ch = Math.ceil(tcChainage / interval) * interval
-  while (ch < ctChainage) {
-    const arc = ch - tcChainage
-    const defRad = arc / radius
-    const defDeg = (defRad * 180 / Math.PI) / 2
-    const d = Math.floor(defDeg)
-    const mf = (defDeg - d) * 60
-    const m = Math.floor(mf)
-    const s = (mf - m) * 60
-    const chord = 2 * radius * Math.sin(arc / (2 * radius))
-    rows.push({ peg: String(rows.length), chainage: ch, chord, defAngle: `${d}°${String(m).padStart(2,'0')}'${s.toFixed(1).padStart(4,'0')}"`, totalDef: `${d}°${String(m).padStart(2,'0')}'${s.toFixed(1).padStart(4,'0')}"`, remarks: '' })
-    ch += interval
-  }
-
-  const finalArc = ctChainage - tcChainage
-  const finalDefDeg = ((finalArc / radius) * 180 / Math.PI) / 2
-  const fd = Math.floor(finalDefDeg)
-  const fmf = (finalDefDeg - fd) * 60
-  const fm = Math.floor(fmf)
-  const fs = (fmf - fm) * 60
-  const finalChord = 2 * radius * Math.sin(finalArc / (2 * radius))
-  rows.push({ peg: 'CT', chainage: ctChainage, chord: finalChord, defAngle: `${fd}°${String(fm).padStart(2,'0')}'${fs.toFixed(1).padStart(4,'0')}"`, totalDef: `${fd}°${String(fm).padStart(2,'0')}'${fs.toFixed(1).padStart(4,'0')}"`, remarks: 'Curve/Tangent' })
-
-  function fmtCh(ch: number) {
-    const km = Math.floor(ch / 1000)
-    const m = ch % 1000
-    return km > 0 ? `${km}+${m.toFixed(3)}` : `${m.toFixed(3)}`
-  }
-
+function SetOutDisplay({ result }: { result: SetOutResult }) {
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full text-xs font-mono border-collapse">
-        <thead>
-          <tr className="bg-[var(--bg-tertiary)]">
-            {['Peg', 'Chainage', 'Chord (m)', 'Deflection Angle', 'Cumulative Def', 'Remarks'].map((h) => (
-              <th key={h} className="px-3 py-2 text-left text-[var(--text-muted)] font-medium border border-[var(--border-color)]">{h}</th>
+    <div className="min-w-0 space-y-3">
+      <p className="text-sm text-[var(--text-muted)]">Chords join consecutive pegs. Cumulative deflections are magnitudes from the forward tangent at TC; apply the declared curve direction in the field. This table supplies no coordinates, bearings or control verification.</p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[680px] text-xs font-mono border-collapse">
+          <caption className="pb-2 text-left text-[var(--text-muted)]">Arc chainages (m) · deflections in degrees, minutes and seconds</caption>
+          <thead><tr className="bg-[var(--bg-tertiary)]">
+            {['Peg', 'Chainage (m)', 'Chord from previous peg (m)', 'Incremental deflection', 'Cumulative from TC tangent', 'Remarks'].map(heading => (
+              <th scope="col" key={heading} className="px-3 py-2 text-left text-[var(--text-muted)] font-medium border border-[var(--border-color)]">{heading}</th>
             ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr key={`${row}-${i}`} className="border border-[color-mix(in_srgb,var(--border-color)_50%,transparent)] hover:bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)]">
-              <td className="px-3 py-1.5 text-[var(--text-primary)]">{row.peg}</td>
-              <td className="px-3 py-1.5 text-[var(--text-primary)]">{fmtCh(row.chainage)}</td>
-              <td className="px-3 py-1.5 text-[var(--text-primary)] text-right">{row.chord > 0 ? row.chord.toFixed(3) : '—'}</td>
-              <td className="px-3 py-1.5 text-[var(--text-primary)]">{row.defAngle}</td>
-              <td className="px-3 py-1.5 text-[var(--text-primary)]">{row.totalDef}</td>
-              <td className="px-3 py-1.5 text-[var(--text-muted)]">{row.remarks}</td>
+          </tr></thead>
+          <tbody>{result.rows.map(row => (
+            <tr key={row.peg} className="border border-[var(--border-color)]">
+              <th scope="row" className="px-3 py-2 text-left font-normal">{row.peg}</th>
+              <td className="px-3 py-2">{row.chainage.toFixed(3)}</td>
+              <td className="px-3 py-2 text-right">{row.peg === 'TC' ? '—' : row.chord.toFixed(3)}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{row.deflectionAngle}</td>
+              <td className="px-3 py-2 whitespace-nowrap">{row.totalDeflection}</td>
+              <td className="px-3 py-2">{row.remarks}</td>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          ))}</tbody>
+        </table>
+      </div>
+      <p className="text-xs text-[var(--text-muted)]">Sum of successive chords: {result.totalChord.toFixed(3)} m. CT deflection: {result.checkTotalDeflection}. These are mathematical checks, not field acceptance.</p>
     </div>
   )
 }

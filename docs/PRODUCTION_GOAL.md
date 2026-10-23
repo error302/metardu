@@ -234,3 +234,13 @@ verify the 4 mm fixture, unknown evidence, stale-result removal, precision and
 complete statements. Uploaded-notes browser, adopted project criteria, release
 and physical field acceptance remain open. Production and deferred signing-key
 rotation remain unchanged, and the broader goal stays active.
+
+23 October horizontal-curve checkpoint: the public road-design calculator now
+uses shared arc stationing, successive peg chords and correctly halved CT
+deflection. It refuses unsafe inputs/row counts, clears stale results and
+connects its schematic to both tangent points without invented north direction.
+The focused source run passes 57 tests across six suites; owned host-browser
+desktop/mobile checks reproduce the independent 100 m / 60° / PI 500 m fixture.
+See `HORIZONTAL_CURVE_INTEGRITY_2026-10-23.md` for exact references, numerical
+guards and evidence. Production promotion and physical field acceptance remain
+open; this checkpoint does not complete the broader goal.

@@ -200,3 +200,17 @@ actual downloaded-PDF inspection additionally verify unknown closure, the 4 mm
 reference fixture, stale-result removal, millimetre display precision and
 complete evidence text. Production deployment, adopted project criteria and
 physical field acceptance remain open.
+
+### Horizontal circular curve evidence — 23 October
+
+The public road-design set-out path had wrong TC/CT chainages, double angle
+conversion, false arithmetic failures and incorrectly labeled chord/deflection
+columns. The shared source repair now follows arc stationing, computes chords
+between consecutive pegs, reaches Δ/2 at CT and removes stale results after edits.
+Unsafe inputs fail before table allocation. The shared schematic connects its
+arc to PC/PT and no longer invents north orientation. The focused six-suite run
+passes 57 tests, with owned host-browser desktop/mobile checks of the independent
+100 m radius, 60° central angle, PI 500 m case. See
+`HORIZONTAL_CURVE_INTEGRITY_2026-10-23.md` for precision/transport limits and
+reference boundaries. This source/preview proof is not production promotion,
+site-standard compliance or physical set-out acceptance.

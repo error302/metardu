@@ -11,8 +11,7 @@
 //   - Δ  = deflection (intersection) angle
 //   - T  = tangent length, L = arc length, C = long chord, M = mid-ordinate
 //
-// The curve is drawn starting at PC heading in (bearing 0°), turning
-// through Δ to PT. The two tangent lines meet at PI.
+// Local schematic: incoming tangent points right; no geographic bearing is supplied.
 
 export interface SimpleCurveDiagramProps {
   radius: number
@@ -31,9 +30,7 @@ export interface SimpleCurveDiagramProps {
 
 const W = 640
 const H = 460
-const CX = 220
-const CY = 290
-const PAD = 30
+const PAD = 70
 
 const DARK_BG = '#0d1117'
 const GRID = '#1a2233'
@@ -63,15 +60,16 @@ export function SimpleCurveDiagram({
   const lLength = arcLength
   const cChord = longChord
 
-  // Scale to fit the drawing area. The widest extent is roughly the chord
-  // plus the external distance; the tallest is the radius + external.
-  const scale = Math.min((W - 2 * PAD) / (Math.max(cChord, tLength * 1.1) + PAD), (H - 2 * PAD) / (R + R * 0.55))
+  // Fit the centre, both tangent points, PI and the whole arc in the viewport.
+  const width = Math.max(tLength, R * (delta > Math.PI / 2 ? 1 : Math.sin(delta)))
+  const height = Math.max(R, R * (1 - Math.cos(delta)))
+  const scale = Math.min((W - 2 * PAD) / width, (H - 2 * PAD) / height)
   const px = (meters: number) => meters * scale
 
   // PC is at the origin of the local coordinate system, heading east (bearing 0°).
   // PI = PC + tangent along incoming bearing.
-  const pcX = CX - px(tLength) * 0.15
-  const pcY = CY
+  const pcX = (W - px(width)) / 2
+  const pcY = (H - px(height)) / 2
   const piX = pcX + px(tLength)
   const piY = pcY
 
@@ -79,11 +77,11 @@ export function SimpleCurveDiagram({
   const cX = pcX
   const cY = pcY + px(R)
 
-  // PT: rotate (0, R) vector about centre by Δ.
+  // PC lies above O in screen coordinates; rotate its upward radius clockwise.
   const ptLocalX = R * Math.sin(delta)
   const ptLocalY = R * Math.cos(delta)
   const ptX = cX + px(ptLocalX)
-  const ptY = cY + px(ptLocalY)
+  const ptY = cY - px(ptLocalY)
 
   // Arc path — sample points along the circular arc from PC to PT.
   const arcPoints: { x: number; y: number }[] = []
@@ -92,7 +90,7 @@ export function SimpleCurveDiagram({
     const theta = (i / N) * delta
     const ax = R * Math.sin(theta)
     const ay = R * Math.cos(theta)
-    arcPoints.push({ x: cX + px(ax), y: cY + px(ay) })
+    arcPoints.push({ x: cX + px(ax), y: cY - px(ay) })
   }
   const arcPath = arcPoints.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ')
 
@@ -110,7 +108,7 @@ export function SimpleCurveDiagram({
   // External distance: from PI to midpoint of arc.
   const midTheta = delta / 2
   const midArcX = cX + px(R * Math.sin(midTheta))
-  const midArcY = cY + px(R * Math.cos(midTheta))
+  const midArcY = cY - px(R * Math.cos(midTheta))
   const extX = (piX + midArcX) / 2
   const extY = (piY + midArcY) / 2
 
@@ -133,9 +131,8 @@ export function SimpleCurveDiagram({
   const tangentMidY = (pcY + piY) / 2 - 12
 
   // Deflection angle marker at PI.
-  const angX = piX + px(tLength) * 0.12
-  const angY = piY - px(tLength) * 0.12
-  const arcAngR = px(tLength) * 0.18
+  const arcAngR = Math.min(25, px(tLength) * 0.18)
+  const anglePath = `M${piX + arcAngR},${piY} A${arcAngR},${arcAngR} 0 0 1 ${piX + arcAngR * Math.cos(delta)},${piY + arcAngR * Math.sin(delta)}`
 
   const chainageRows = [
     { label: 'PC (TC) chainage', value: `${pcChainage.toFixed(3)} m` },
@@ -145,15 +142,16 @@ export function SimpleCurveDiagram({
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
-        <div className="flex items-baseline justify-between mb-4">
+      <div className="min-w-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3 sm:p-6">
+        <div className="flex flex-wrap gap-2 items-baseline justify-between mb-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Curve Diagram — Plan View</h3>
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
             R {R.toFixed(1)} m · Δ {deflectionDeg.toFixed(2)}°
           </p>
         </div>
 
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded" style={{ maxHeight: '480px', background: DARK_BG }}>
+        <p className="mb-3 text-xs text-[var(--text-muted)]">Local schematic; no north orientation or curve direction is defined.</p>
+        <svg role="img" aria-label="Simple circular curve schematic" viewBox={`0 0 ${W} ${H}`} className="w-full rounded" style={{ maxHeight: '480px', background: DARK_BG }}>
           {/* Grid */}
           {Array.from({ length: 9 }).map((_, i) => (
             <line key={`gx${i}`} x1={i * (W / 8)} y1={0} x2={i * (W / 8)} y2={H} stroke={GRID} strokeWidth="0.5" />
@@ -178,7 +176,7 @@ export function SimpleCurveDiagram({
 
           {/* Deflection angle marker at PI */}
           <path
-            d={`M${piX},${piY} L${angX},${piY} L${piX + arcAngR * Math.cos(-0.5)},${angY}`}
+            d={anglePath}
             fill="none"
             stroke="#f472b6"
             strokeWidth="1"
@@ -215,12 +213,6 @@ export function SimpleCurveDiagram({
           {/* Δ label near PI */}
           <text x={piX + 16} y={piY - 26} fill="#f472b6" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">Δ = {deflectionDeg.toFixed(2)}°</text>
 
-          {/* North arrow */}
-          <g transform={`translate(${W - 34}, 26)`}>
-            <line x1="0" y1="16" x2="0" y2="0" stroke="#aaa" strokeWidth="1.5" />
-            <polygon points="0,0 -4,7 4,7" fill="#aaa" />
-            <text x="0" y="26" fill="#aaa" fontSize="10" textAnchor="middle" fontFamily="Geist, system-ui, sans-serif">N</text>
-          </g>
         </svg>
 
         {/* Legend */}

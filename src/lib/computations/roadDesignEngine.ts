@@ -30,12 +30,32 @@ export interface HorizontalCurveResult {
   steps: Array<{ description: string; formula: string; value: string }>
 }
 
+function horizontalAngle(input: Pick<HorizontalCurveInput, 'radius' | 'deflectionAngleDeg' | 'deflectionAngleMin' | 'deflectionAngleSec'>): number {
+  const { radius, deflectionAngleDeg: degrees, deflectionAngleMin: minutes, deflectionAngleSec: seconds } = input
+  if (!Number.isFinite(radius) || radius <= 0) throw new Error('Radius must be a finite positive number.')
+  if (!Number.isInteger(degrees) || degrees < 0 || degrees >= 180) throw new Error('Degrees must be an integer from 0 to 179.')
+  if (!Number.isInteger(minutes) || minutes < 0 || minutes >= 60) throw new Error('Minutes must be an integer from 0 to 59.')
+  if (!Number.isFinite(seconds) || seconds < 0 || seconds >= 60) throw new Error('Seconds must be from 0 up to, but excluding, 60.')
+  const angle = (degrees + minutes / 60 + seconds / 3600) * Math.PI / 180
+  if (!(angle > 0 && angle < Math.PI)) throw new Error('Central angle must be greater than 0 and less than 180 degrees.')
+  return angle
+}
+
+// Round once, before splitting into D/M/S, so 59.99 seconds carries correctly.
+function horizontalDms(degrees: number): string {
+  const tenths = Math.round(degrees * 36000)
+  const d = Math.floor(tenths / 36000)
+  const m = Math.floor((tenths % 36000) / 600)
+  const s = (tenths % 600) / 10
+  return `${d}°${String(m).padStart(2, '0')}'${s.toFixed(1).padStart(4, '0')}"`
+}
+
 export function horizontalCurveElements(input: HorizontalCurveInput): HorizontalCurveResult {
   const { radius, deflectionAngleDeg, deflectionAngleMin, deflectionAngleSec, ipChainage } = input
 
-  // Source: Ghilani & Wolf, Eq. 24.1 — Deflection angle
+  const deltaRad = horizontalAngle(input)
+  if (!Number.isFinite(ipChainage)) throw new Error('IP chainage must be a finite number.')
   const deltaDeg = deflectionAngleDeg + deflectionAngleMin / 60 + deflectionAngleSec / 3600
-  const deltaRad = deltaDeg * Math.PI / 180
   const halfDelta = deltaRad / 2
 
   // Source: RDM 1.3 Section 5.2 — Tangent length: T = R × tan(Δ/2)
@@ -48,23 +68,28 @@ export function horizontalCurveElements(input: HorizontalCurveInput): Horizontal
   const longChord = 2 * radius * Math.sin(halfDelta)
 
   // Source: RDM 1.3 Section 5.2 — Mid ordinate
-  const midOrdinate = radius * (1 - Math.cos(halfDelta))
+  const midOrdinate = 2 * radius * Math.sin(halfDelta / 2) ** 2
 
   // Source: RDM 1.3 Section 5.2 — External distance
-  const externalDistance = radius * (1 / Math.cos(halfDelta) - 1)
+  const externalDistance = midOrdinate / Math.cos(halfDelta)
 
   // Source: RDM 1.3 Section 5.2 — Degree of curve (arc definition)
-  const degreeOfCurve = 1718.873 / radius
+  const degreeOfCurve = (30 / radius) * 180 / Math.PI
 
   // Source: RDM 1.3 Section 5.2 — Chainage of key points
   const tcChainage = ipChainage - tangentLength
   const ccChainage = tcChainage + curveLength / 2
   const ctChainage = tcChainage + curveLength
 
-  // Source: Rule 5 — Arithmetic check: CT chainage via two methods
-  const ctFromIP = ipChainage + tangentLength
+  if (![tangentLength, curveLength, longChord, midOrdinate, externalDistance, degreeOfCurve, tcChainage, ccChainage, ctChainage].every(Number.isFinite) ||
+      !(curveLength > 0 && tangentLength > 0 && longChord > 0 && tcChainage < ccChainage && ccChainage < ctChainage)) {
+    throw new Error('Curve cannot be represented at this radius and chainage precision.')
+  }
+
+  // Numerical identity only: PI + T follows the tangent, not the curve stationing.
+  const ctFromIP = ipChainage + (curveLength - tangentLength)
   const ctFromTC = tcChainage + curveLength
-  const arithmeticCheck = { passed: Math.abs(ctFromIP - ctFromTC) < 0.001, diff: ctFromIP - ctFromTC }
+  const arithmeticCheck = { passed: Math.abs(ctFromIP - ctFromTC) <= 32 * Number.EPSILON * Math.max(1, Math.abs(ipChainage), tangentLength, curveLength), diff: ctFromIP - ctFromTC }
 
   const steps = [
     { description: `Δ = ${deflectionAngleDeg}° + ${deflectionAngleMin}'/60 + ${deflectionAngleSec}"/3600`, formula: `${deltaDeg.toFixed(6)}°`, value: `${deltaRad.toFixed(8)} rad` },
@@ -73,11 +98,11 @@ export function horizontalCurveElements(input: HorizontalCurveInput): Horizontal
     { description: `C = 2R × sin(Δ/2)`, formula: `2 × ${radius} × sin(${halfDelta.toFixed(6)})`, value: `${longChord.toFixed(4)} m` },
     { description: `M = R × (1 - cos(Δ/2))`, formula: `${radius} × (1 - cos(${halfDelta.toFixed(6)}))`, value: `${midOrdinate.toFixed(4)} m` },
     { description: `E = R × (1/cos(Δ/2) - 1)`, formula: `${radius} × (1/cos(${halfDelta.toFixed(6)}) - 1)`, value: `${externalDistance.toFixed(4)} m` },
-    { description: `D = 1718.873 / R`, formula: `1718.873 / ${radius}`, value: `${degreeOfCurve.toFixed(4)}°` },
+    { description: `D (30 m arc) = (30/R) × 180/π`, formula: `(30/${radius}) × 180/π`, value: `${degreeOfCurve.toFixed(4)}°` },
     { description: `TC = IP - T`, formula: `${ipChainage.toFixed(3)} - ${tangentLength.toFixed(4)}`, value: `${tcChainage.toFixed(4)} m` },
     { description: `CC = TC + L/2`, formula: `${tcChainage.toFixed(4)} + ${curveLength.toFixed(4)}/2`, value: `${ccChainage.toFixed(4)} m` },
     { description: `CT = TC + L`, formula: `${tcChainage.toFixed(4)} + ${curveLength.toFixed(4)}`, value: `${ctChainage.toFixed(4)} m` },
-    { description: `[CHECK] CT via IP: IP + T`, formula: `${ipChainage.toFixed(4)} + ${tangentLength.toFixed(4)} = ${ctFromIP.toFixed(4)}`, value: `${arithmeticCheck.passed ? 'PASS ' : 'FAIL [x]'} (diff=${arithmeticCheck.diff.toFixed(4)}m)` },
+    { description: `Numerical identity: CT = IP + (L - T)`, formula: `${ipChainage.toFixed(4)} + (${curveLength.toFixed(4)} - ${tangentLength.toFixed(4)})`, value: `${ctFromIP.toFixed(4)} m; ${arithmeticCheck.passed ? 'consistent' : 'inconsistent'} (diff=${arithmeticCheck.diff.toExponential(2)} m)` },
   ]
 
   return {
@@ -120,81 +145,62 @@ export interface SetOutResult {
 }
 
 export function curveSetOut(input: SetOutInput): SetOutResult {
-  const { radius, tcChainage, ctChainage, deflectionAngleDeg, deflectionAngleMin, deflectionAngleSec, interval } = input
-
-  const delta = (deflectionAngleDeg + deflectionAngleMin / 60 + deflectionAngleSec / 3600) * Math.PI / 180
+  const { radius, tcChainage, ctChainage, interval } = input
+  const delta = horizontalAngle(input)
+  if (!Number.isFinite(tcChainage) || !Number.isFinite(ctChainage) || ctChainage <= tcChainage) {
+    throw new Error('TC and CT chainages must be finite and strictly increasing.')
+  }
+  if (!Number.isFinite(interval) || interval <= 0) throw new Error('Peg interval must be a finite positive number.')
   const curveLength = ctChainage - tcChainage
-
-  const steps = [
-    { description: `Δ = ${deflectionAngleDeg}° ${deflectionAngleMin}' ${deflectionAngleSec}"`, formula: `${(delta * 180 / Math.PI).toFixed(6)}°`, value: `${delta.toFixed(8)} rad` },
-    { description: `Curve length L = CT - TC`, formula: `${ctChainage.toFixed(4)} - ${tcChainage.toFixed(4)}`, value: `${curveLength.toFixed(4)} m` },
-    { description: `Max deflection at CT = Δ/2`, formula: `${(delta * 180 / Math.PI / 2).toFixed(6)}°`, value: `${(delta / 2).toFixed(8)} rad` },
-  ]
-
-  const rows: SetOutRow[] = []
-
-  // TC row
-  rows.push({ peg: 'TC', chainage: tcChainage, chord: 0, deflectionAngle: '0°00\'00"', totalDeflection: '0°00\'00"', remarks: 'Tangent/Curve' })
-
-  // Generate pegs at intervals
-  let currentChainage = Math.ceil(tcChainage / interval) * interval
-  while (currentChainage < ctChainage) {
-    const arcFromTC = currentChainage - tcChainage
-    // Source: Basak — deflection angle δ = arc/R (in radians), converted to degrees
-    const deltaRad = arcFromTC / radius
-    const totalDefRad = deltaRad / 2
-
-    // Chord length: Source: Basak — c = 2R × sin(arc/R)
-    const chord = 2 * radius * Math.sin(arcFromTC / (2 * radius))
-    // Cumulative deflection
-    const totalDefDeg = totalDefRad * 180 / Math.PI
-
-    const deg = Math.floor(totalDefDeg)
-    const minFloat = (totalDefDeg - deg) * 60
-    const min = Math.floor(minFloat)
-    const sec = (minFloat - min) * 60
-
-    rows.push({
-      peg: String(rows.length),
-      chainage: currentChainage,
-      chord,
-      deflectionAngle: `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1).padStart(4, '0')}"`,
-      totalDeflection: `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1).padStart(4, '0')}"`,
-      remarks: '',
-    })
-    currentChainage += interval
+  const expectedLength = radius * delta
+  // Floating-point consistency, not an engineering or field acceptance tolerance.
+  const precision = 32 * Number.EPSILON * Math.max(1, Math.abs(tcChainage), Math.abs(ctChainage), expectedLength)
+  if (!Number.isFinite(curveLength) || !Number.isFinite(expectedLength) ||
+      expectedLength <= 0 || precision > expectedLength * 1e-8 || Math.abs(curveLength - expectedLength) > precision) {
+    throw new Error('TC/CT chainages must match the radius and central angle at sufficient numerical precision.')
+  }
+  const startIndex = Math.floor(tcChainage / interval) + 1
+  const endIndex = Math.ceil(ctChainage / interval) - 1
+  const count = Math.max(0, endIndex - startIndex + 1)
+  if (!Number.isSafeInteger(startIndex) || !Number.isSafeInteger(endIndex) || count + 2 > 10000) {
+    throw new Error('Peg interval exceeds the 10,000-row limit or available chainage precision; use a larger interval.')
   }
 
-  // CT row
-  const finalArcFromTC = ctChainage - tcChainage
-  const finalDefRad = finalArcFromTC / radius
-  const finalTotalDefDeg = finalDefRad * 180 / Math.PI
-  const fdeg = Math.floor(finalTotalDefDeg)
-  const fminFloat = (finalTotalDefDeg - fdeg) * 60
-  const fmin = Math.floor(fminFloat)
-  const fsec = (fminFloat - fmin) * 60
-  const finalChord = 2 * radius * Math.sin(finalArcFromTC / (2 * radius))
-
-  rows.push({
-    peg: 'CT',
-    chainage: ctChainage,
-    chord: finalChord,
-    deflectionAngle: `${fdeg}°${String(fmin).padStart(2, '0')}'${fsec.toFixed(1).padStart(4, '0')}"`,
-    totalDeflection: `${fdeg}°${String(fmin).padStart(2, '0')}'${fsec.toFixed(1).padStart(4, '0')}"`,
-    remarks: 'Curve/Tangent',
-  })
-
-  const expectedTotal = (delta / 2) * 180 / Math.PI
-  const checkDiff = Math.abs(finalTotalDefDeg - expectedTotal)
-
-  const totalChord = rows.reduce((s, r) => s + r.chord, 0)
-
+  const zero = horizontalDms(0)
+  const rows: SetOutRow[] = [{ peg: 'TC', chainage: tcChainage, chord: 0, deflectionAngle: zero, totalDeflection: zero, remarks: 'Tangent/Curve' }]
+  function append(chainage: number, peg: string, remarks: string) {
+    const previous = rows[rows.length - 1].chainage
+    if (!(chainage > previous)) throw new Error('Peg interval cannot advance at this chainage precision.')
+    const arc = chainage - previous
+    rows.push({
+      peg, chainage,
+      chord: radius * (2 * Math.sin(arc / radius / 2)),
+      deflectionAngle: horizontalDms(arc / radius * 90 / Math.PI),
+      totalDeflection: horizontalDms((chainage - tcChainage) / radius * 90 / Math.PI),
+      remarks,
+    })
+  }
+  for (let i = 0; i < count; i++) {
+    const chainage = (startIndex + i) * interval
+    // Exclude endpoints including roundoff at exact interval boundaries.
+    if (chainage - tcChainage <= precision || ctChainage - chainage <= precision) continue
+    append(chainage, String(rows.length), '')
+  }
+  append(ctChainage, 'CT', 'Curve/Tangent')
+  const expectedTotal = delta * 90 / Math.PI
+  const finalTotal = curveLength / radius * 90 / Math.PI
+  const checkDiff = Math.abs(finalTotal - expectedTotal)
   return {
     rows,
-    totalChord,
-    checkTotalDeflection: `${fdeg}°${String(fmin).padStart(2, '0')}'${fsec.toFixed(1).padStart(4, '0')}" (expected ${expectedTotal.toFixed(4)}°)`,
-    arithmeticCheck: { passed: checkDiff < 0.01, diffDeg: checkDiff },
-    steps,
+    totalChord: rows.reduce((sum, row) => sum + row.chord, 0),
+    checkTotalDeflection: `${horizontalDms(finalTotal)} (expected ${horizontalDms(expectedTotal)})`,
+    arithmeticCheck: { passed: Math.abs(curveLength - expectedLength) <= precision, diffDeg: checkDiff },
+    steps: [
+      { description: 'Arc stationing L = CT - TC = RΔ', formula: `${ctChainage} - ${tcChainage}`, value: `${curveLength.toFixed(4)} m` },
+      { description: 'Chord between consecutive pegs', formula: 'c = 2R sin((station - previous station)/(2R))', value: 'Metres; station interval is measured along the arc' },
+      { description: 'Incremental deflection', formula: 'δ = (station - previous station)/(2R)', value: 'Radians, displayed as DMS' },
+      { description: 'Cumulative deflection from TC tangent', formula: 'θ = (station - TC)/(2R)', value: `${horizontalDms(finalTotal)} at CT; Δ/2` },
+    ],
   }
 }
 
