@@ -1,0 +1,7 @@
+{
+  "protocol": "metardu-compute-v1",
+  "tasks": {
+    "gnss_baseline_process": "rtklib-relative-v1",
+    "parse_lidar": "las-laz-preview-v1"
+  }
+}

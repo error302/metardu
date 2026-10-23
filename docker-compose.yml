@@ -101,6 +101,7 @@ services:
     restart: unless-stopped
 
   metardu-worker:
+    image: ${METARDU_WORKER_IMAGE:-metardu-metardu-worker:latest}
     build:
       context: ./python_worker
     container_name: metardu-worker

@@ -1,0 +1,21 @@
+# Only runtime sources and maintained public/synthetic acceptance fixtures may
+# enter the worker build context. Retain local caches, logs and device work.
+**
+!Dockerfile
+!requirements.txt
+!main.py
+!gnss_processor.py
+!rtklib_baseline.py
+!pointcloud_processor.py
+!osm_feature_server.py
+!osm_streaming.py
+!osm_overpass.py
+!spatial_cache.py
+!compute-contract.json
+!pytest.ini
+!tests/
+!tests/**
+!native_tests/
+!native_tests/**
+**/__pycache__/
+**/.pytest_cache/

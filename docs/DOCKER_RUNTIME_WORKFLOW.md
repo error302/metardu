@@ -35,13 +35,20 @@ owned 127.0.0.1 origin for QA. This does not prove production has these changes.
 After the ordinary runtime check, run `npm run docker:verify:worker` when reviewing
 a worker release. It independently checks exact worker ownership and health, then
 reads fixed `/app` source files, package distribution metadata and RTKLIB executable
-presence from that immutable container ID. It compares nine artifact hashes with
+presence from that immutable container ID. It compares ten artifact hashes with
 this checkout and requires the expected task declarations. It never imports the
 worker, reads its secret, invokes a computation or changes its cache. The command
 fails on absent/stale artifacts; ordinary service health remains a separate result.
 It does not prove live registration, import compatibility, an actual RTKLIB solution,
 OSM data availability or field accuracy. Current findings and host test evidence are
 in [worker acceptance](WORKER_ACCEPTANCE_2026-10-21.md).
+
+New source also admits baseline/LAS tasks through the authenticated worker
+capability contract before submission and verifies the returned task/contract.
+Health alone does not satisfy this check. `METARDU_WORKER_IMAGE` now supports an
+explicit worker artifact. The worker Dockerfile's final runtime depends on a
+Linux source/HTTP/native-reference acceptance stage; its build tests create no
+service or duplicate application container. Retain one reusable candidate tag.
 
 ## Planned promotion of verified source
 

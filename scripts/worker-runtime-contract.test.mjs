@@ -6,7 +6,7 @@ import { WORKER_FILES, WORKER_PACKAGES, WORKER_TASKS, workerContractFailures, ve
 
 const expected = Object.fromEntries([
   'main.py', 'gnss_processor.py', 'rtklib_baseline.py', 'pointcloud_processor.py',
-  'osm_feature_server.py', 'osm_streaming.py', 'osm_overpass.py', 'spatial_cache.py', 'requirements.txt',
+  'osm_feature_server.py', 'osm_streaming.py', 'osm_overpass.py', 'spatial_cache.py', 'requirements.txt', 'compute-contract.json',
 ].map(name => [name, 'a'.repeat(64)]))
 const current = () => ({
   files: { ...expected },

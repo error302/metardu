@@ -26,6 +26,7 @@
 
 import { transformCoordinates } from '@/lib/geo/transform'
 import { generateContours as localGenerateContours, type SpotHeight } from '@/lib/engine/contours'
+import computeContract from '../../../python_worker/compute-contract.json'
 // Note: We avoid heavy turf imports here unless validateGeometry is used
 // import * as turf from '@turf/turf'
 
@@ -173,6 +174,16 @@ interface WorkerEnvelope {
   data?: unknown
   error?: string
   detail?: string
+  task?: string
+  contract?: string
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+}
+
+function isAbortError(value: unknown): boolean {
+  return isRecord(value) && value.name === 'AbortError'
 }
 
 /**
@@ -205,14 +216,49 @@ export async function callPythonCompute<T>(
     }
   }
 
+  if (!secret.trim()) {
+    return { ok: false, status: 503, error: 'Compute worker credentials are not configured. Processing is unavailable.' }
+  }
+
   const isPath = taskOrPath.startsWith('/')
   const url = isPath ? `${baseUrl}${taskOrPath}` : `${baseUrl}/compute`
-  const payload: unknown = isPath ? body : { task: taskOrPath, params: body }
+  let payload: unknown = isPath ? body : { task: taskOrPath, params: body }
+  const task = !isPath ? taskOrPath : taskOrPath === '/compute' && isRecord(body) && typeof body.task === 'string' ? body.task : null
+  const contracts: Readonly<Record<string, string>> = computeContract.tasks
+  const requiredContract = task !== null && Object.hasOwn(contracts, task) ? contracts[task] : null
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), timeoutMs)
+  let checkingCapabilities = Boolean(requiredContract)
   try {
+    if (requiredContract && task !== null) {
+      // Never cache admission across worker replacements. A healthy process
+      // does not establish that the required implementation is present.
+      const admissionTimer = setTimeout(() => controller.abort(), Math.min(timeoutMs, 5000))
+      try {
+        const admission = await fetch(`${baseUrl}/capabilities`, {
+          method: 'GET', headers: { 'X-Worker-Secret': secret }, cache: 'no-store', signal: controller.signal,
+        })
+        if (admission.status === 403) {
+          return { ok: false, status: 502, error: 'Compute worker rejected the request (authentication failed — check WORKER_SECRET).' }
+        }
+        let capabilities: unknown
+        try { capabilities = await admission.json() } catch (error) {
+          if (isAbortError(error) || controller.signal.aborted) throw error
+          capabilities = null
+        }
+        if (admission.status !== 200 || !isRecord(capabilities) || capabilities.protocol !== computeContract.protocol
+          || !isRecord(capabilities.tasks) || capabilities.tasks[task] !== requiredContract) {
+          return { ok: false, status: 503, error: 'This processing service is temporarily unavailable. Your input has not been submitted. Please contact support.' }
+        }
+      } finally {
+        clearTimeout(admissionTimer)
+      }
+      payload = { ...(payload as Record<string, unknown>), contract: requiredContract }
+    }
+    checkingCapabilities = false
+
     const res = await fetch(url, {
       method: 'POST',
       headers: {
@@ -244,22 +290,25 @@ export async function callPythonCompute<T>(
     // jsdom polyfill omits it) — use the explicit status range.
     const statusOk = res.status >= 200 && res.status < 300
 
-    let envelope: WorkerEnvelope | null = null
+    let rawEnvelope: unknown
     try {
-      envelope = (await res.json()) as WorkerEnvelope
-    } catch {
+      rawEnvelope = await res.json()
+    } catch (error) {
+      if (isAbortError(error) || controller.signal.aborted) throw error
       return {
         ok: false,
         status: 502,
         error: `Compute worker returned a non-JSON response (HTTP ${res.status}).`,
       }
     }
+    const envelope = isRecord(rawEnvelope) ? rawEnvelope as unknown as WorkerEnvelope : null
 
     if (!statusOk) {
       return {
         ok: false,
         status: res.status,
-        error: envelope?.detail || envelope?.error || `Compute worker HTTP ${res.status}.`,
+        error: typeof envelope?.detail === 'string' ? envelope.detail
+          : typeof envelope?.error === 'string' ? envelope.error : `Compute worker HTTP ${res.status}.`,
       }
     }
     if (envelope && envelope.success === false) {
@@ -267,16 +316,22 @@ export async function callPythonCompute<T>(
       return {
         ok: false,
         status: 422,
-        error: envelope.error || 'Compute worker task failed.',
+        error: typeof envelope.error === 'string' && envelope.error ? envelope.error : 'Compute worker task failed.',
       }
     }
-    return { ok: true, value: (envelope?.data ?? null) as T }
+    if (envelope?.success !== true || envelope.data === undefined || envelope.data === null
+      || (requiredContract && (envelope.task !== task || envelope.contract !== requiredContract))) {
+      return { ok: false, status: 502, error: 'Processing returned an unusable result. No result was accepted. Please retry or contact support.' }
+    }
+    return { ok: true, value: envelope.data as T }
   } catch (err) {
-    if (err instanceof Error && err.name === 'AbortError') {
+    if (isAbortError(err) || controller.signal.aborted) {
       return {
         ok: false,
         status: 504,
-        error: `Compute worker timed out after ${Math.round(timeoutMs / 1000)} s.`,
+        error: checkingCapabilities
+          ? `Compute worker compatibility check timed out after ${Math.min(timeoutMs, 5000) / 1000} s.`
+          : `Compute worker timed out after ${timeoutMs / 1000} s.`,
       }
     }
     return {

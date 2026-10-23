@@ -17,6 +17,12 @@ import hmac
 import math
 import json
 import os
+from pathlib import Path
+
+# This is wire/implementation compatibility, never a field-accuracy certificate.
+# Shared with the application so an older healthy worker cannot silently stand
+# in for a task whose input/result semantics have changed.
+COMPUTE_CONTRACT = json.loads(Path(__file__).with_name("compute-contract.json").read_text(encoding="utf-8"))
 
 # ─── Structured Logging ──────────────────────────────────────────────────────
 # Emits JSON lines to stdout so `docker compose logs -f metardu-worker` is
@@ -176,22 +182,42 @@ async def verify_worker_secret(request: Request, call_next):
 class ComputeRequest(BaseModel):
     task: str
     params: dict[str, Any]
+    contract: Optional[str] = None
 
 class ComputeResponse(BaseModel):
     success: bool
     data: Optional[Any] = None
     error: Optional[str] = None
+    task: Optional[str] = None
+    contract: Optional[str] = None
 
 # --- Health Check ---
 @app.get("/health")
 async def health():
     return {"status": "ok", "service": "metardu-compute-worker", "version": "0.1.0"}
 
+
+@app.get("/capabilities")
+async def capabilities(response: Response):
+    # Authentication is enforced by the same middleware as /compute. Expose
+    # only contracts for handlers actually registered in this process.
+    response.headers["Cache-Control"] = "private, no-store"
+    return {
+        "protocol": COMPUTE_CONTRACT["protocol"],
+        "tasks": {name: contract for name, contract in COMPUTE_CONTRACT["tasks"].items()
+                  if name in TASK_REGISTRY},
+    }
+
 # --- Task Dispatcher ---
 @app.post("/compute")
 async def compute(request: ComputeRequest):
     start = time.perf_counter()
     task_name = request.task
+    contract = COMPUTE_CONTRACT["tasks"].get(task_name)
+    if request.contract is not None and (contract is None or request.contract != contract):
+        return JSONResponse(status_code=409, content={
+            "success": False, "error": "Compute task contract is incompatible; review the application/worker release.",
+        })
     if task_name not in TASK_REGISTRY:
         available = list(TASK_REGISTRY.keys())
         logger.warning("unknown_task", extra={"task": task_name})
@@ -211,7 +237,7 @@ async def compute(request: ComputeRequest):
             "compute_ok",
             extra={"task": task_name, "latency_ms": latency_ms, "points": points},
         )
-        return ComputeResponse(success=True, data=result)
+        return ComputeResponse(success=True, data=result, task=task_name, contract=contract)
     except Exception as e:
         latency_ms = round((time.perf_counter() - start) * 1000, 2)
         logger.error(

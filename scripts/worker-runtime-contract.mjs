@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 // These are artifact checks, not computation or field-accuracy acceptance.
 export const WORKER_FILES = Object.freeze([
   'main.py', 'gnss_processor.py', 'rtklib_baseline.py', 'pointcloud_processor.py',
-  'osm_feature_server.py', 'osm_streaming.py', 'osm_overpass.py', 'spatial_cache.py', 'requirements.txt',
+  'osm_feature_server.py', 'osm_streaming.py', 'osm_overpass.py', 'spatial_cache.py', 'requirements.txt', 'compute-contract.json',
 ])
 export const WORKER_PACKAGES = Object.freeze(['numpy', 'fastapi', 'pydantic', 'laspy', 'lazrs', 'pyproj'])
 export const WORKER_TASKS = Object.freeze([

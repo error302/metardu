@@ -179,6 +179,10 @@ jobs:
           fi
 
           echo "=== [5/6] Verifying database schema state (migrations gate) ==="
+          # Health alone can pass with an older worker missing the corrected
+          # baseline/parser modules. Compare the deployed worker to this pinned
+          # checkout before treating the release as successful.
+          node scripts/verify-worker-runtime.mjs
           # The one-shot metardu-db-migrate dependency applies migrations as
           # the bootstrap login. The app entrypoint and this deploy gate both
           # verify schema history with the restricted runtime login.

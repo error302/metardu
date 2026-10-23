@@ -5,6 +5,31 @@ FastAPI service for heavy survey computations. Invoked by Next.js through
 `PYTHON_COMPUTE_URL` + `WORKER_SECRET` pair (docker-compose wires both
 automatically inside the compose network).
 
+## Application/worker compatibility
+
+`/health` reports liveness only. The authenticated, non-cacheable
+`GET /capabilities` endpoint reports versioned baseline and LAS/LAZ task
+contracts from `compute-contract.json`. The application checks these before
+submitting those tasks, sends the selected contract in its `/compute` envelope,
+and requires the successful response to name the same task and contract.
+An older healthy worker is therefore unavailable for these newer operations;
+it cannot silently stand in for the corrected implementation. Other callers
+also require an explicit success envelope and a non-null result. These are
+compatibility checks, not certification of numerical accuracy or field suitability.
+
+The default Docker runtime target depends on an acceptance stage. It executes
+the source/ASGI HTTP tests and the native RTKLIB reference suite using the actual
+Linux runtime dependencies. Test tooling, fixtures, caches and logs stay outside
+the final runtime stage. `worker-build-acceptance.json` records the successful
+build checks; actual authenticated application routes, field controls and a
+reviewed production promotion still require separate acceptance.
+
+For a planned release, `METARDU_WORKER_IMAGE` selects an explicit worker image
+(default `metardu-metardu-worker:latest`). Prepare the reusable `candidate` tag
+and inspect/protect the exact existing worker rollback image alongside the app.
+Follow `docs/DOCKER_RUNTIME_WORKFLOW.md`; building this image does not authorize
+blind compose promotion, changing customer migrations or replacing live services.
+
 ## Registered tasks
 
 | Task | Purpose |
