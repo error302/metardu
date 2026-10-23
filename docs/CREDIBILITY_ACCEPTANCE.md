@@ -300,3 +300,13 @@ Simple set-out includes exact endpoints through the bounded shared engine.
 stations and 10 PDF pages pass. See `CIRCULAR_CURVE_PLAN_INTEGRITY_2026-10-23.md`
 for changed contracts and the absent fresh browser/mobile proof. Local drafts
 remain distinct from CRS-bound saved designs and approved field deliverables.
+
+### Legacy BVC-anchored profile — 23 October
+
+The exported engine helper no longer applies a 100-fold grade-offset error or
+the wrong stationary-point sign. It shares bounded reviewed geometry, retains
+exact endpoints and the supplied start level, and refuses collapsed/overflowing
+profiles. 107 focused tests, 70 CLI checks and independent Decimal verification
+of 12 profiles / 1,076 stations pass; 11 invalid native cases are refused. See
+`LEGACY_VERTICAL_PROFILE_INTEGRITY_2026-10-23.md` for the compatibility meaning
+of `cutFill` and the remaining legacy/source/browser/production boundaries.

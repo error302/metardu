@@ -12,7 +12,7 @@
 
 import { CurveElements, CurveStakeoutResult } from './types';
 import { bearingToString } from './angles';
-import { horizontalCurveElements, curveSetOut } from '../computations/roadDesignEngine';
+import { horizontalCurveElements, curveSetOut, verticalCurve as sharedVerticalCurve } from '../computations/roadDesignEngine';
 
 export function curveElements(
   radius: number,
@@ -46,6 +46,12 @@ export function curveStakeout(piChainage: number, bearingIn: number, radius: num
     }) };
 }
 
+/**
+ * Symmetric parabolic profile, anchored at BVC (local station zero).
+ * Grades are percent; chainage, RL and offsets are metres. The legacy `cutFill`
+ * key is a signed offset from the incoming tangent, NOT earthwork cut/fill:
+ * no ground profile, datum verification or design-standard assessment is given.
+ */
 export function verticalCurve(
   incomingGrade: number,
   outgoingGrade: number,
@@ -53,47 +59,18 @@ export function verticalCurve(
   startRL: number,
   interval: number = 10
 ): Array<{ chainage: number; rl: number; cutFill: number }> {
-  // Parabolic vertical curve: y = (g2 - g1) * x^2 / (2L)
-  // where x is distance from start of curve
-  
-  const gradeDiff = outgoingGrade - incomingGrade;
-  const results: Array<{ chainage: number; rl: number; cutFill: number }> = [];
-  
-  const numPoints = Math.floor(curveLength / interval);
-  
-  for (let i = 0; i <= numPoints; i++) {
-    const x = i * interval;
-    const chainage = x;
-    
-    // Height of curve at this point
-    const y = (gradeDiff * x * x) / (2 * curveLength);
-    
-    // RL at this point
-    const rl = startRL + (incomingGrade * x / 100) + y;
-    
-    results.push({
-      chainage,
-      rl,
-      cutFill: y
-    });
+  if (!Number.isFinite(startRL)) throw new RangeError('Start reduced level must be finite.');
+  // Calculate about BVC RL = 0, then translate once. Passing startRL through a
+  // derived VPI and subtracting it again can erase a small, valid BVC level.
+  const relative = sharedVerticalCurve({ g1: incomingGrade, g2: outgoingGrade,
+    vpiChainage: curveLength / 2, vpiRL: (incomingGrade / 100) * (curveLength / 2),
+    curveLength, interval });
+  const rows = relative.rows.map(row => ({ chainage: row.chainage, rl: startRL + row.rl, cutFill: row.y }));
+  if (rows.some(row => !Number.isFinite(row.rl))) throw new RangeError('Translated profile levels exceed numerical range.');
+  if ((incomingGrade !== 0 || outgoingGrade !== 0) && rows.every(row => row.rl === startRL)) {
+    throw new RangeError('Nonzero grades cannot be represented at this start-level precision.');
   }
-  
-  // Find highest/lowest point
-  if (gradeDiff !== 0) {
-    const apexDistance = (incomingGrade * curveLength) / gradeDiff;
-    if (apexDistance > 0 && apexDistance < curveLength) {
-      // Add apex point
-      const apexY = (gradeDiff * apexDistance * apexDistance) / (2 * curveLength);
-      const apexRL = startRL + (incomingGrade * apexDistance / 100) + apexY;
-      results.push({
-        chainage: apexDistance,
-        rl: apexRL,
-        cutFill: apexY
-      });
-    }
-  }
-  
-  return results.sort((a, b) => a.chainage - b.chainage);
+  return rows;
 }
 
 export type CompoundCurveElements = {

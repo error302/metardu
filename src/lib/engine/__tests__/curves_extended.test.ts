@@ -36,12 +36,11 @@ describe('verticalCurve', () => {
     expect(approxEqual(pts[0].rl, 150.0, 10 ** -3)).toBe(true)
   })
 
-  it('crest curve is lower in the middle than at start', () => {
+  it('symmetric crest rises to its middle and returns to the start level', () => {
     // g1=+2%, g2=-2% → crest curve, highest at apex
     const pts = verticalCurve(2, -2, 200, 100.0, 20)
-    const last = pts[pts.length - 1]
-    // End point should be below first point due to change in grade
-    expect(Number.isFinite(last.rl)).toBe(true)
+    expect(pts.find(point => point.chainage === 100)?.rl).toBe(101)
+    expect(pts[pts.length - 1].rl).toBe(100)
   })
 })
 

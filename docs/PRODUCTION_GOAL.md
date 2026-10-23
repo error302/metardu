@@ -325,3 +325,13 @@ draft pairs, 118 set-out stations and 10 PDF pages pass. Full TypeScript, scoped
 lint and security checks pass. See `CIRCULAR_CURVE_PLAN_INTEGRITY_2026-10-23.md`
 for the intentional helper/sampling changes. No fresh browser proof is available
 while local browser use is disabled. Production/project/field gates remain open.
+
+23 October legacy vertical-profile checkpoint: the BVC-anchored engine helper
+now shares reviewed percent-grade geometry, exact endpoints and stationary
+points, while preserving the supplied start level through a zero-anchor
+translation. Invalid/unresolvable levels and unsafe sampling fail closed.
+107 focused tests, 70 CLI checks and independent Decimal checks of 1,076
+stations / 12 profiles pass, with 11 native refusals. The historical `cutFill`
+key is explicitly a tangent offset, without measured ground evidence. See
+`LEGACY_VERTICAL_PROFILE_INTEGRITY_2026-10-23.md`. Other legacy implementations,
+browser/project acceptance and production/field gates remain open.
