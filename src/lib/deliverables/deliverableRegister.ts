@@ -89,7 +89,7 @@ export interface RegisterDeliverableInput {
   storagePath?: string | null
   userId?: string | null
   /** Emit an evidence event; almost always true for professional outputs. */
-  evidence?: { entityId?: string; eventType?: EvidenceEventType }
+  evidence?: { entityId?: string; eventType?: EvidenceEventType } | null
 }
 
 export interface RegisterDeliverableResult {
@@ -100,7 +100,7 @@ export interface RegisterDeliverableResult {
 }
 
 /**
- * Register an issued document.
+ * Register a generated document and its default export evidence atomically.
  *
  * Behaviour:
  *  - the current live deliverable of this (project, type) becomes a new
@@ -112,108 +112,117 @@ export interface RegisterDeliverableResult {
 export async function registerDeliverable(
   input: RegisterDeliverableInput,
 ): Promise<RegisterDeliverableResult> {
+  // Keep metadata consistent while waiting for the per-document stream lock.
+  input = { ...input }
+  const manifest = JSON.stringify(input.manifest ?? {})
   const contentHash = hashDeliverableContent(input.content)
   const byteLength =
     typeof input.content === 'string'
       ? Buffer.byteLength(input.content, 'utf8')
       : input.content.byteLength ?? input.content.length
 
-  const existing = await db.query<DeliverableRecord>(
-    `SELECT * FROM deliverables
-      WHERE project_id = $1 AND document_type = $2
-        AND superseded_by IS NULL AND status <> 'VOID'
-      ORDER BY created_at DESC LIMIT 1`,
-    [input.projectId, input.documentType]
-  )
-  const current = existing.rows[0]
-
-  let deliverableId: string
-  let revisionNumber: number
-  const supersededDeliverableId: string | null = null
-
-  if (current) {
-    deliverableId = current.id
-    revisionNumber = current.current_revision + 1
-    await db.query(
-      `UPDATE deliverables
-          SET current_revision = $2, updated_at = NOW(), status = 'IN_REVIEW'
-        WHERE id = $1`,
-      [deliverableId, revisionNumber]
+  return db.transaction(async client => {
+    // Serialize the first append too, when there is no current row to lock yet.
+    const stream = `deliverables:${input.projectId.toLowerCase()}:${input.documentType}`
+    await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [stream])
+    const existing = await client.query<DeliverableRecord>(
+      `SELECT * FROM deliverables
+        WHERE project_id = $1 AND document_type = $2
+          AND superseded_by IS NULL AND status <> 'VOID'
+        ORDER BY created_at DESC LIMIT 1 FOR UPDATE`,
+      [input.projectId, input.documentType]
     )
-  } else {
-    const created = await db.query<DeliverableRecord>(
-      `INSERT INTO deliverables
-         (project_id, document_type, title, source_revision, current_revision, status, generated_by)
-       VALUES ($1, $2, $3, $4, 1, 'IN_REVIEW', $5)
+    const current = existing.rows[0]
+
+    let deliverableId: string
+    let revisionNumber: number
+    let deliverable: DeliverableRecord
+    const supersededDeliverableId: string | null = null
+
+    if (current) {
+      deliverableId = current.id
+      revisionNumber = current.current_revision + 1
+      const updated = await client.query<DeliverableRecord>(
+        `UPDATE deliverables
+            SET current_revision = $2, updated_at = NOW(), status = 'IN_REVIEW',
+                source_revision = $3, title = $4, generated_by = $5,
+                reviewed_by = NULL, approved_at = NULL
+          WHERE id = $1 RETURNING *`,
+        [deliverableId, revisionNumber, input.sourceRevision ?? null,
+          input.title === undefined ? current.title : input.title, input.userId ?? null]
+      )
+      if (!updated.rows[0]) throw new Error('The deliverable register was not updated.')
+      deliverable = updated.rows[0]
+    } else {
+      const created = await client.query<DeliverableRecord>(
+        `INSERT INTO deliverables
+           (project_id, document_type, title, source_revision, current_revision, status, generated_by)
+         VALUES ($1, $2, $3, $4, 1, 'IN_REVIEW', $5)
+         RETURNING *`,
+        [
+          input.projectId,
+          input.documentType,
+          input.title ?? null,
+          input.sourceRevision ?? null,
+          input.userId ?? null,
+        ]
+      )
+      if (!created.rows[0]) throw new Error('The deliverable register was not created.')
+      deliverable = created.rows[0]
+      deliverableId = deliverable.id
+      revisionNumber = 1
+    }
+
+    const revisionRow = await client.query<DeliverableRevision>(
+      `INSERT INTO deliverable_revisions
+         (deliverable_id, revision, content_hash, storage_path, bytes, source_revision,
+          generator, generator_version, project_crs, manifest, generated_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
       [
-        input.projectId,
-        input.documentType,
-        input.title ?? null,
+        deliverableId,
+        revisionNumber,
+        contentHash,
+        input.storagePath ?? null,
+        byteLength,
         input.sourceRevision ?? null,
+        input.generator ?? null,
+        input.generatorVersion ?? null,
+        input.projectCrs ?? null,
+        manifest,
         input.userId ?? null,
       ]
     )
-    deliverableId = created.rows[0].id
-    revisionNumber = 1
-  }
+    if (!revisionRow.rows[0]) throw new Error('The deliverable revision was not recorded.')
 
-  const revisionRow = await db.query<DeliverableRevision>(
-    `INSERT INTO deliverable_revisions
-       (deliverable_id, revision, content_hash, storage_path, bytes, source_revision,
-        generator, generator_version, project_crs, manifest, generated_by)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-     RETURNING *`,
-    [
-      deliverableId,
-      revisionNumber,
-      contentHash,
-      input.storagePath ?? null,
-      byteLength,
-      input.sourceRevision ?? null,
-      input.generator ?? null,
-      input.generatorVersion ?? null,
-      input.projectCrs ?? null,
-      JSON.stringify(input.manifest ?? {}),
-      input.userId ?? null,
-    ]
-  )
-
-  if (input.evidence !== null) {
-    const eventType = input.evidence?.eventType ?? 'EXPORTED'
-    if (eventType === 'EXPORTED') {
-      await recordEvidenceEvent({
-        projectId: input.projectId,
-        entityType: 'deliverable',
-        entityId: deliverableId,
-        eventType,
-        userId: input.userId ?? undefined,
-        details: {
-          document_type: input.documentType,
-          revision: revisionNumber,
-          content_hash: contentHash,
-          source_revision: input.sourceRevision ?? null,
-          project_crs: input.projectCrs ?? null,
-          generator: input.generator ?? null,
-          bytes: byteLength,
-        },
-      }).catch(() => {
-        // Evidence is additive: a failure here must not lose the register row,
-        // but it must be visible. Log-and-continue keeps delivery available.
-      })
+    if (input.evidence !== null) {
+      const eventType = input.evidence?.eventType ?? 'EXPORTED'
+      if (eventType === 'EXPORTED') {
+        await recordEvidenceEvent({
+          projectId: input.projectId,
+          entityType: 'deliverable',
+          entityId: deliverableId,
+          eventType,
+          userId: input.userId ?? undefined,
+          details: {
+            document_type: input.documentType,
+            revision: revisionNumber,
+            content_hash: contentHash,
+            source_revision: input.sourceRevision ?? null,
+            project_crs: input.projectCrs ?? null,
+            generator: input.generator ?? null,
+            bytes: byteLength,
+          },
+        }, client)
+      }
     }
-  }
 
-  const deliverable = await db.query<DeliverableRecord>(
-    'SELECT * FROM deliverables WHERE id = $1',
-    [deliverableId]
-  )
-
-  return {
-    deliverable: deliverable.rows[0],
-    revision: revisionRow.rows[0],
-    supersededDeliverableId,
-  }
+    return {
+      deliverable,
+      revision: revisionRow.rows[0],
+      supersededDeliverableId,
+    }
+  })
 }
 
 /** Mark a deliverable superseded by another (never deleted). */

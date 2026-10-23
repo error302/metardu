@@ -13,6 +13,7 @@
 
 import { createHash } from 'crypto'
 import { db } from '@/lib/db'
+import type { PoolClient, QueryResultRow } from 'pg'
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -325,7 +326,10 @@ export interface RecordEvidenceInput {
  */
 export async function recordEvidenceEvent(
   input: RecordEvidenceInput,
+  transactionClient?: Pick<PoolClient, 'query'>,
 ): Promise<EvidenceEvent> {
+  const query = <T extends QueryResultRow>(text: string, params?: unknown[]) =>
+    transactionClient ? transactionClient.query<T>(text, params) : db.query<T>(text, params)
   // 1. Get the hash of the latest event in this project's chain
   const latestQuery = `
     SELECT event_hash
@@ -334,7 +338,7 @@ export async function recordEvidenceEvent(
     ORDER BY created_at DESC, id DESC
     LIMIT 1
   `
-  const latestResult = await db.query<{ event_hash: string }>(latestQuery, [
+  const latestResult = await query<{ event_hash: string }>(latestQuery, [
     input.projectId,
   ])
   const previousHash = latestResult.rows[0]?.event_hash || 'GENESIS'
@@ -367,7 +371,7 @@ export async function recordEvidenceEvent(
     RETURNING *
   `
 
-  const { rows } = await db.query<EvidenceEvent>(insertQuery, [
+  const { rows } = await query<EvidenceEvent>(insertQuery, [
     input.projectId,
     input.entityType,
     input.entityId,
@@ -378,6 +382,7 @@ export async function recordEvidenceEvent(
     previousHash,
   ])
 
+  if (!rows[0]) throw new Error('The evidence event was not recorded.')
   return rows[0]
 }
 
