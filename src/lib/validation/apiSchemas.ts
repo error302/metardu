@@ -5,6 +5,7 @@
  */
 import { z } from 'zod'
 import { parcelStatusSchema as ParcelStatusEnum, schemeStatusSchema as SchemeStatusEnum } from './scheme'
+import { EngineeringPayloadSchema } from './engineeringPayload'
 
 export { ParcelStatusEnum, SchemeStatusEnum }
 
@@ -390,10 +391,10 @@ export const SaveEarthworksSchema = z.object({
 }).strict()
 
 export const SaveEngineeringDataSchema = z.object({
-  projectId: z.string().min(1, 'projectId is required'),
-  subtype: z.string().min(1, 'subtype is required').max(50),
-  data: z.record(z.unknown()),
-})
+  projectId: z.string().uuid('A valid projectId is required').transform(value => value.toLowerCase()),
+  subtype: z.string().trim().min(1, 'subtype is required').max(50),
+  data: EngineeringPayloadSchema,
+}).strict()
 
 // ─── Submission Schemas ─────────────────────────────────────────────────────
 

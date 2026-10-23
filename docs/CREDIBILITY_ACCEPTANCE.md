@@ -243,3 +243,16 @@ checks reproduce failing/unassessed SSD, correct rotation length, over-limit
 banking and mobile containment. See
 `ROAD_SAFETY_CRITERIA_INTEGRITY_2026-10-23.md`. Declared criteria remain distinct
 from verified project adoption, site observations and whole-design approval.
+
+### Engineering payload project isolation — 23 October
+
+The generic engineering-data endpoint now checks project access before reads,
+admits only owner writes and rechecks ownership at the persistence boundary.
+Missing/unassigned ownership remains private, shared viewers stay read-only and
+success requires confirmed persistence. Valid zero/null data is preserved;
+nonfinite JSON numbers are refused before serialization can change them to null.
+Forty focused source tests and thirteen native PostgreSQL checks pass, including
+real owner-transfer locking and exact fixture/original-record/ledger preservation.
+An actual anonymous source-preview GET returns 401. See
+`ENGINEERING_DATA_ACCESS_INTEGRITY_2026-10-23.md` for the authenticated-fixture
+boundary and remaining production, version-history and export requirements.

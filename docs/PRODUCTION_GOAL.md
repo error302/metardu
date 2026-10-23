@@ -266,3 +266,15 @@ owned desktop/mobile browser cases pass. See
 `ROAD_SAFETY_CRITERIA_INTEGRITY_2026-10-23.md` for reference provenance, changed
 source contracts and exact limits. Other standard packs, project-bound adoption,
 production promotion and physical/professional acceptance remain open.
+
+23 October engineering access checkpoint: the generic engineering-data endpoint
+now admits project readers/owners explicitly, restricts writes to the owner,
+binds reads to one ownership snapshot and locks/rechecks ownership during saves.
+It refuses unconfirmed persistence and numeric-overflow payloads, preserves valid
+zero/null/nested data and uses private no-store responses. Forty focused checks
+and thirteen native PostgreSQL checks pass, including an observed owner-transfer
+lock wait and exact fixture/original-record/migration preservation. Actual
+anonymous source-preview GET returns 401. See
+`ENGINEERING_DATA_ACCESS_INTEGRITY_2026-10-23.md`. The legacy payload's revision
+history, signed-in production acceptance and the ongoing engineering export/
+criteria trace remain open; the full goal stays active.
