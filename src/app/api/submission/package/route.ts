@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
 import { generateFullPackage } from '@/lib/generators/fullPackage'
+import { generateDocument } from '@/lib/submission/assembleDocument'
 import { uploadFile, getSignedUrl } from '@/lib/storage'
 import { db } from '@/lib/db'
 
@@ -32,7 +33,7 @@ export const POST = apiHandler(
     }
 
     // 2. Generate full submission package buffer
-    const zipBuffer = await generateFullPackage(projectId, ctx.userId)
+    const zipBuffer = await generateFullPackage(projectId, ctx.userId, generateDocument)
     const filename = `submission-dossier-${projectId.slice(0, 8)}.zip`
     const storagePath = await uploadFile(zipBuffer, filename, 'application/zip', `submissions/${projectId}`)
     await db.query(

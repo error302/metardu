@@ -33,7 +33,7 @@ async function main() {
       await db.query(`INSERT INTO submission_documents(project_id,document_id,document_type,status,file_url)
         VALUES($1,$2::text,$2::text,'ready',$3)`,[projectId,documentId,result.fileUrl]);
     }
-    const zip = await generateFullPackage(projectId,userId);
+    const zip = await generateFullPackage(projectId,userId,generateDocument);
     await mkdir('live-test-results',{recursive:true});
     await writeFile('live-test-results/verified-survey-package.zip',zip);
     console.log(JSON.stringify({success:true,documents:results,packageBytes:zip.length}));

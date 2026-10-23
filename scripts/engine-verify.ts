@@ -5,7 +5,7 @@ import { coordinateArea } from '../src/lib/engine/area'
 import { curveElements } from '../src/lib/engine/curves'
 import { riseAndFall } from '../src/lib/engine/leveling'
 import { leastSquaresAdjustment } from '../src/lib/engine/leastSquares'
-import { geographicToUTM, utmToGeographic } from '../src/lib/engine/coordinates'
+import { geographicToUTM, utmToGeographic } from '../src/lib/geodesy/coordinates'
 
 let passed = 0
 let failed = 0

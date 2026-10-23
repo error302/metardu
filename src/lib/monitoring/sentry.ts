@@ -10,7 +10,7 @@
  * - payment_error: Payment processing errors
  */
 
-import { logger, NO_FORWARD } from '@/lib/logger'
+import { logger, NO_FORWARD } from '@/lib/loggingCore'
 
 // @sentry/nextjs (~180 KB minified across chunks) is loaded lazily: it only
 // downloads when a capture/setUser call actually fires, and only when a DSN

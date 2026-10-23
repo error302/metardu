@@ -1,0 +1,24 @@
+{
+  "$schema": "https://raw.githubusercontent.com/fallow-rs/fallow/main/schema.json",
+  "entry": [
+    "src/index.{ts,tsx,js,jsx}",
+    "src/main.{ts,tsx,js,jsx}",
+    "scripts/**/*.{ts,mjs,js}"
+  ],
+  "ignoreUnresolvedImports": [
+    "@/lib/payments/__tests__/fixtures/mpesa/callback-success.json",
+    "@/lib/payments/__tests__/fixtures/mpesa/callback-amount-mismatch.json",
+    "@/lib/payments/__tests__/fixtures/mpesa/callback-no-metadata.json",
+    "@/lib/payments/__tests__/fixtures/mpesa/callback-user-cancelled.json",
+    "@/test-utils/fixtures/setout-capture-v1.json",
+    "@/test-utils/fixtures/setout-capture-replay-v1.json"
+  ],
+  "rules": {
+    "circular-dependencies": "error",
+    "duplicate-exports": "warn",
+    "unresolved-imports": "error",
+    "unlisted-dependencies": "warn",
+    "dev-dependencies-in-production": "warn",
+    "test-only-dependencies": "warn"
+  }
+}

@@ -6,16 +6,6 @@ import { loadPreAdjustedFromDB } from '../generators/deedPlanGeometry';
 import { logger } from '@/lib/logger'
 
 // ── Row interfaces for the queries below (typed via db.query<T>) ──────────────
-interface ProjectOwnerRow {
-  user_id: string;
-  surveyor_name: string | null;
-  surveyor_license: string | null;
-}
-interface SurveyorProfileRow {
-  full_name: string | null;
-  isk_number: string | null;
-  firm_name: string | null;
-}
 interface ProjectDetailRow {
   name: string | null;
   lr_number: string | null;
@@ -87,8 +77,8 @@ function parsePrecisionRatio(value: string): number {
 function computeTraverseAdjustment(
   stations: Array<{ station: string; easting: number; northing: number }>,
   bearingSchedule: Array<{ from: string; to: string; bearing: string; distance: string }>,
-  misclosureMm: number,
-  perimeterM: number,
+  _misclosureMm: number,
+  _perimeterM: number,
 ): Array<{
   label: string;
   observedBearing: number;
@@ -222,7 +212,7 @@ export async function generateDocument(
     }
     case 'full-package': {
       const { generateFullPackage } = await import('../generators/fullPackage');
-      buffer = await generateFullPackage(projectId, userId);
+      buffer = await generateFullPackage(projectId, userId, generateDocument);
       fileName = `submission-package-${projectId}.zip`;
       mimeType = 'application/zip';
       break;

@@ -64,7 +64,7 @@ import {
   type ReferenceFrame,
   type EpochCoordinate,
   type PropagatedCoordinate,
-} from './epochManager'
+} from './epochBase'
 
 // ─── ITRF Frame Transformation Parameters ───────────────────────────────────
 

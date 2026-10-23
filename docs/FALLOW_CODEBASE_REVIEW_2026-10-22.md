@@ -149,3 +149,16 @@ matching metadata/stderr files, `recommend.json`, and the bounded `run.mjs` help
 The reports contain repository structure and should remain local unless reviewed
 for sharing. This work is source maintenance; all broader production and field
 blockers in the readiness record remain open.
+
+## 23 October behavior-preserving integration
+
+`DEPENDENCY_DIRECTION_REPAIR_2026-10-23.md` records the subsequent source review.
+The offline and epoch extractions preserve their previous declarations/bodies;
+logger forwarding is restored through an acyclic lower-level core, and package
+generation uses explicit callbacks instead of asynchronous global registration.
+The existing engine verification command now executes its 70 checks. Analyzer
+configuration is narrowed to six exact, verified fixture exceptions, and the
+cycle-focused graph is clean. The broader hygiene gate still fails for retained
+review candidates. Read that record for behavior tests and the remaining
+release/provider/device/field boundaries; these source results do not complete
+the platform goal.

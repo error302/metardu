@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { getDB, type SyncOperation } from './syncQueue'
+import { getDB, type SyncOperation } from './offlineDatabase'
 import { readBookEdit } from './bookEdits'
 import { findBookRequest } from './bookDeliveryJournal'
 import { bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'

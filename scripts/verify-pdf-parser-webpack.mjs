@@ -39,6 +39,7 @@ await new Promise((resolve, reject) => {
   })
 })
 const require = createRequire(pathToFileURL(path.join(directory, 'entry.mjs')))
+// fallow-ignore-next-line unresolved-import
 const { parsePDFContent } = require('./parser.cjs')
 const document = new jsPDF()
 document.text('SYNTHETIC METARDU WEBPACK PARSER', 15, 20)

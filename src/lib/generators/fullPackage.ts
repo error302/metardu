@@ -29,9 +29,17 @@ interface ProjectMetaRow {
  *   6. Beacon Coordinate Schedule (CSV)
  *   7. Submission Dossier Summary (TXT)
  */
+export type DocumentGeneratorFn = (input: {
+  projectId: string;
+  documentId: string;
+  surveyType: string;
+  userId?: string;
+}) => Promise<{ fileUrl: string }>;
+
 export async function generateFullPackage(
   projectId: string,
-  userId?: string
+  userId?: string,
+  customGenerator?: DocumentGeneratorFn
 ): Promise<Buffer> {
   const projRes = await db.query<ProjectMetaRow>(
     'SELECT name, survey_type, lr_number, plot_parcel_number AS parcel_number, county FROM projects WHERE id = $1',
@@ -46,7 +54,7 @@ export async function generateFullPackage(
     "SELECT document_id, file_url FROM submission_documents WHERE project_id = $1 AND status = 'ready' AND document_id != 'full-package'",
     [projectId]
   );
-  let readyDocs = readyDocsRes.rows;
+  const readyDocs = readyDocsRes.rows;
 
   // Core statutory documents to ensure are present in a 1-click full submission
   const coreDocIds = surveyType === 'cadastral'
@@ -59,10 +67,13 @@ export async function generateFullPackage(
 
   // Auto-generate missing core documents on the fly
   if (missingCoreIds.length > 0) {
-    const { generateDocument } = await import('@/lib/submission/assembleDocument');
+    const generator = customGenerator;
+    if (!generator) {
+      throw new Error(`Cannot create complete package: ${missingCoreIds.join(', ')} require an explicit document generator.`);
+    }
     for (const docId of missingCoreIds) {
       try {
-        const result = await generateDocument({
+        const result = await generator({
           projectId,
           documentId: docId,
           surveyType,
@@ -123,7 +134,7 @@ export async function generateFullPackage(
       const csvLines = [
         'Beacon_ID,Easting,Northing,Elevation,Beacon_Type,Status',
         ...preAdjusted.stations.map((st) =>
-          `"${st.station.replace(/"/g, '""')}",${st.easting.toFixed(3)},${st.northing.toFixed(3)},${Number.isFinite(st.elevation) ? st.elevation!.toFixed(3) : ''},"${(st.monument || '').replace(/"/g, '""')}","${(st.markStatus || '').replace(/"/g, '""')}"`
+          `"${st.station.replace(/"/g, '""')}",${st.easting.toFixed(3)},${st.northing.toFixed(3)},${typeof st.elevation === 'number' && Number.isFinite(st.elevation) ? st.elevation.toFixed(3) : ''},"${(st.monument || '').replace(/"/g, '""')}","${(st.markStatus || '').replace(/"/g, '""')}"`
         ),
       ];
       folder.file('06_Beacon_Coordinates.csv', csvLines.join('\r\n'));

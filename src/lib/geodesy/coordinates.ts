@@ -12,8 +12,8 @@
 
 // METARDU Engine - Coordinate conversions
 
-import { LatLon, UTMCoord } from '@/lib/engine/types';
-import { decimalToDMS } from '@/lib/engine/angles';
+import { LatLon, UTMCoord } from '../engine/types';
+import { decimalToDMS } from '../engine/angles';
 import { getUTMZoneFromLatLng } from './utmZones';
 
 // WGS84 ellipsoid
@@ -211,7 +211,7 @@ export function latLonToString(lat: number, lon: number): string {
  */
 export function latLonToMGRS(lat: number, lon: number, accuracy: number = 5): string {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const mgrs = require('mgrs')
+  const mgrs = require('mgrs') as typeof import('mgrs')
   return mgrs.forward([lon, lat], accuracy)
 }
 
@@ -223,7 +223,7 @@ export function mgrsToLatLon(mgrsStr: string): LatLon | null {
   try {
     const cleaned = mgrsStr.replace(/\s+/g, '').toUpperCase()
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mgrs = require('mgrs')
+    const mgrs = require('mgrs') as typeof import('mgrs')
     const [lon, lat] = mgrs.toPoint(cleaned)
     if (typeof lat === 'number' && typeof lon === 'number' && !isNaN(lat) && !isNaN(lon)) {
       return { lat, lon }
