@@ -59,6 +59,12 @@ Native unauthenticated GET probes returned 401 for `/api/admin/dashboard`,
 `/api/coordinates/transform` and `/api/coordinates/batch`; these prove denial,
 not successful administrator or ordinary-user access.
 
+The subsequent ordinary-account native HTTP pass signed in normally and received
+403 from `/api/admin/dashboard`, confirming the privilege boundary. It did not
+grant admin access or establish successful administrator dashboard rendering.
+See `ORDINARY_API_ACCEPTANCE_2026-10-23.md` for native evidence and pending
+synthetic credential cleanup.
+
 The existing source preview was restarted using its unchanged loopback-only
 synthetic configuration after connection refusal was confirmed. An initial
 sandbox launch was unreachable and its exact inspected process tree was stopped

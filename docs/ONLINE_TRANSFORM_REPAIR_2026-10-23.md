@@ -80,10 +80,45 @@ a request is pending. Other online service tabs are preserved.
 ## Release and field blockers
 
 Authenticated ordinary-account HTTP acceptance for single/batch discovery,
-semantic errors and mixed-row results remains open. Browser timing tests use
+semantic errors and mixed-row results subsequently passed the native checkpoint
+below. Browser timing tests use
 deferred component promises, not a real slow-network/device incident. Regional
 control, operation applicability/accuracy, vertical datum transformations,
 provider/device and field evidence remain separate. No deployment, migration,
 customer-data modification or source promotion occurred in this repair.
 
 The full engineering platform is not complete after this source milestone.
+
+## Ordinary authenticated HTTP checkpoint — 23 October, 10:05 UTC
+
+The existing marked rehearsal database and source preview were reused. An
+already prepared ordinary synthetic account signed in through the actual
+NextAuth CSRF/credential endpoints; no token injection, account reactivation or
+privilege grant was used. Sixteen named native checks passed for anonymous
+POST denial, ordinary-user admin refusal, both authenticated discovery routes,
+all 120 UTM references, exact zero/null/omitted heights, both hemispheres,
+the pinned Arc numerical fixture, malformed/semantic failures and mixed/all-
+failed batches. The HTTP boundary admitted 1000 rows and rejected 0/1001;
+source row order, duplicate/missing IDs, counts and no-substitute failures held.
+
+Native before/after fingerprints matched for projects, fieldbooks, survey
+points, raw observations, observation batches, delivery receipts and the complete
+120-entry migration ledger. A separate SQL/source post-check reconfirmed those
+fingerprints and exact tested working-tree hashes. The online source also
+matches commit `1168d089` after only CRLF-to-LF normalization for Git blobs.
+An initial raw Git-blob hash comparison correctly differed on Windows line
+endings; the exact working-tree hashes still matched their before-run receipts.
+
+Evidence: `.cache/online-transform-http.json`, its guarded
+`verify-online-transform-http.mjs` harness and
+`online-transform-http-postcheck.json`. These establish the current host source
+API path with native authentication/database boundaries, not a production image,
+remote CI, browser timing, physical instrument or independent field result.
+
+Cleanup of synthetic account `22360396-8518-4424-b61b-1d08f5c146a8` remains
+pending explicit approval. Automatic approval review rejected the exact cleanup
+because disabling its access and invalidating its temporary sessions lacked
+specific trusted authorization. The independent post-check confirms that it is
+still enabled and `.cache/fieldbook-delivery/browser-qa.json` still exists;
+credentials were not printed. No cleanup bypass or production account change
+was performed. See `ORDINARY_API_ACCEPTANCE_2026-10-23.md` for the combined ledger.
