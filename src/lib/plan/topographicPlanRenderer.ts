@@ -259,10 +259,17 @@ export function renderTopographicPlan(opts: TopographicPlanOptions): string {
 
   // Expand extent from spot heights if no contours
   if (!opts.contours && opts.spotHeights?.length) {
-    t.x_min = Math.min(...opts.spotHeights.map((p: SpotHeight) => p.x));
-    t.x_max = Math.max(...opts.spotHeights.map((p: SpotHeight) => p.x));
-    t.y_min = Math.min(...opts.spotHeights.map((p: SpotHeight) => p.y));
-    t.y_max = Math.max(...opts.spotHeights.map((p: SpotHeight) => p.y));
+    t.x_min = Infinity;
+    t.x_max = -Infinity;
+    t.y_min = Infinity;
+    t.y_max = -Infinity;
+
+    for (const p of opts.spotHeights) {
+      if (p.x < t.x_min) t.x_min = p.x;
+      if (p.x > t.x_max) t.x_max = p.x;
+      if (p.y < t.y_min) t.y_min = p.y;
+      if (p.y > t.y_max) t.y_max = p.y;
+    }
   }
 
   const parts: string[] = [];
