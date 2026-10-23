@@ -3,10 +3,12 @@
 import { useState } from 'react'
 import { curveSetOut, horizontalCurveElements, type HorizontalCurveInput, type HorizontalCurveResult, type SetOutResult } from '@/lib/computations/roadDesignEngine'
 import { SimpleCurveDiagram } from '@/components/tools/SimpleCurveDiagram'
+import { horizontalCurveDraftDxf, type LocalCurveDirection } from '@/lib/engineering/roadQuickComputeDxf'
+import { RoadDxfExportButton } from './RoadDxfExportButton'
 
 type Tab = 'elements' | 'setout'
 type Fields = { radius: string; degrees: string; minutes: string; seconds: string; ip: string; interval: string }
-type Computation = { input: HorizontalCurveInput; elements: HorizontalCurveResult; setout: SetOutResult }
+type Computation = { input: HorizontalCurveInput; interval: number; elements: HorizontalCurveResult; setout: SetOutResult }
 const fields: { key: keyof Fields; label: string; min?: string; max?: string; step: string }[] = [
   { key: 'radius', label: 'Radius R (m)', min: '0', step: 'any' },
   { key: 'degrees', label: 'Δ Degrees', min: '0', max: '179', step: '1' },
@@ -29,6 +31,7 @@ export default function HorizontalCurveCalculator() {
   const [values, setValues] = useState<Fields>({ radius: '', degrees: '', minutes: '0', seconds: '0', ip: '', interval: '20' })
   const [computed, setComputed] = useState<Computation | null>(null)
   const [error, setError] = useState('')
+  const [direction, setDirection] = useState<LocalCurveDirection | ''>('')
 
   function update(key: keyof Fields, value: string) {
     setValues(previous => ({ ...previous, [key]: value }))
@@ -47,7 +50,7 @@ export default function HorizontalCurveCalculator() {
       const elements = horizontalCurveElements(input)
       const setout = curveSetOut({ ...input, tcChainage: elements.tcChainage, ctChainage: elements.ctChainage, interval: numbers.interval })
       if (!elements.arithmeticCheck.passed || !setout.arithmeticCheck.passed) throw new Error('Numerical consistency check failed; review the inputs.')
-      setComputed({ input, elements, setout })
+      setComputed({ input, interval: numbers.interval, elements, setout })
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Unable to calculate this curve.')
     }
@@ -79,6 +82,14 @@ export default function HorizontalCurveCalculator() {
       </form>
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
       {!computed && !error && <p className="text-sm text-[var(--text-muted)]">Enter or update the inputs, then compute to show current results.</p>}
+      <div className="min-w-0 space-y-2">
+        <label htmlFor="curve-direction" className="block text-xs text-[var(--text-muted)]">Curve Direction (local DXF)</label>
+        <select id="curve-direction" value={direction} onChange={event => { setDirection(event.target.value as LocalCurveDirection | ''); setComputed(null); setError('') }} className="max-w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-sm">
+          <option value="">Choose direction for export</option><option value="left">Left</option><option value="right">Right</option>
+        </select>
+        <p className="text-xs text-[var(--text-muted)]">The DXF uses TC at (0,0), the incoming tangent along +X and metre units. It has no project CRS, bearing or surveyed placement. Set-out deflections above are magnitudes.</p>
+      </div>
+      {computed && <RoadDxfExportButton disabled={!direction} filename="horizontal-curve-local-draft.dxf" createDxf={() => horizontalCurveDraftDxf(computed.input, computed.interval, direction as LocalCurveDirection)} />}
       {tab === 'elements' && result && computed && (
         <>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

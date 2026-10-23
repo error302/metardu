@@ -1,16 +1,16 @@
 /**
  * Engineering Computation Library
  * 
- * Kenya RDM 1.1 (Roads Development Authority) and KeRRA (Kenya Rural Roads Authority)
- * compliant civil engineering calculations for road design.
- * 
- * Coordinate System: Arc 1960 / UTM Zone 37S (SRID 21037)
+ * Civil engineering calculations and legacy adapters. Individual calculations
+ * require their own criteria, provenance and verification; this module does not
+ * establish blanket standards compliance or a coordinate reference system.
  * All distances in metres, angles in decimal degrees unless otherwise specified.
  * 
  * @packageDocumentation
  */
 
 import { z } from 'zod';
+import { horizontalCurveElements, curveSetOut } from '@/lib/computations/roadDesignEngine';
 import type { createClient } from '@/lib/api-client/client';
 import { logger } from '@/lib/logger'
 import { endAreaVolume, prismoidalVolumeFromMidSection } from '@/lib/engine/engineering'
@@ -71,10 +71,11 @@ export async function logEngineeringCompute(
 // Horizontal Curve Input
 // Reference: RDM 1.1 Volume 2, Chapter 3 - Horizontal Alignment
 export const HorizontalCurveSchema = z.object({
-  R: z.number().positive().max(2000, 'Radius must be ≤ 2000m for rural roads'),
-  deltaDeg: z.number().positive().max(180, 'Deflection angle must be ≤ 180°'),
-  chainageStart: z.number().min(0),
-}).default({ R: 100, deltaDeg: 30, chainageStart: 0 });
+  R: z.number().finite().positive(),
+  deltaDeg: z.number().finite().positive().lt(180, 'Central angle must be less than 180 degrees'),
+  // Historical name: this is the PI/IP station, not TC. Signed stations are valid.
+  chainageStart: z.number().finite(),
+});
 
 export type HorizontalCurveInput = z.infer<typeof HorizontalCurveSchema>;
 
@@ -179,65 +180,25 @@ export interface SettingOutRow {
 }
 
 export function horizontalCurve(input: HorizontalCurveInput): HorizontalCurveResult {
-  const parsed = HorizontalCurveSchema.parse(input);
-  const { R, deltaDeg, chainageStart } = parsed;
-  const deltaRad = (deltaDeg * Math.PI) / 180;
-
-  // RDM 1.1 Formulae (Volume 2, Chapter 3)
-  const T = R * Math.tan(deltaRad / 2);
-  const L = R * deltaRad;
-  const LC = 2 * R * Math.sin(deltaRad / 2);
-  const M = R * (1 - Math.cos(deltaRad / 2));
-  const E = R * (1 / Math.cos(deltaRad / 2) - 1);
-
-  const chainage_TC = chainageStart - T;
-  const chainage_CT = chainage_TC + L;
-
-  // Setting out table per RDM 1.1 - 20m intervals
-  const pegInterval = 20;
-  const settingOutTable: SettingOutRow[] = [];
-
-  let peg = Math.ceil(chainage_TC / pegInterval) * pegInterval;
-  let prevChord = 0;
-
-  while (peg <= chainage_CT) {
-    const arc = peg - chainage_TC;
-    const deflection = (arc / (2 * R)) * (180 / Math.PI);
-    const chord = 2 * R * Math.sin((arc / R) / 2);
-    const increment = chord - prevChord;
-
-    settingOutTable.push({
-      chainage: peg,
-      deflectionFromTC: parseFloat(deflection.toFixed(6)),
-      chordFromTC: parseFloat(chord.toFixed(4)),
-      chordIncrement: parseFloat(increment.toFixed(4))
-    });
-
-    prevChord = chord;
-    peg += pegInterval;
-  }
-
-  // Always include CT point
-  if (settingOutTable[settingOutTable.length - 1]?.chainage !== chainage_CT) {
-    settingOutTable.push({
-      chainage: parseFloat(chainage_CT.toFixed(3)),
-      deflectionFromTC: parseFloat((deltaDeg / 2).toFixed(6)),
-      chordFromTC: parseFloat(LC.toFixed(4)),
-      chordIncrement: parseFloat((LC - prevChord).toFixed(4))
-    });
-  }
-
+  const { R, deltaDeg, chainageStart } = HorizontalCurveSchema.parse(input);
+  const degrees = Math.floor(deltaDeg);
+  const remainingMinutes = (deltaDeg - degrees) * 60;
+  const minutes = Math.floor(remainingMinutes);
+  const geometry = { radius: R, deflectionAngleDeg: degrees, deflectionAngleMin: minutes,
+    deflectionAngleSec: (remainingMinutes - minutes) * 60, ipChainage: chainageStart };
+  const result = horizontalCurveElements(geometry);
+  const setout = curveSetOut({ ...geometry, tcChainage: result.tcChainage, ctChainage: result.ctChainage, interval: 20 });
   return {
-    T: parseFloat(T.toFixed(4)),
-    L: parseFloat(L.toFixed(4)),
-    LC: parseFloat(LC.toFixed(4)),
-    M: parseFloat(M.toFixed(4)),
-    E: parseFloat(E.toFixed(4)),
-    deflectionAngleDeg: deltaDeg,
-    chainageStart,
-    chainage_TC: parseFloat(chainage_TC.toFixed(3)),
-    chainage_CT: parseFloat(chainage_CT.toFixed(3)),
-    settingOutTable
+    T: result.tangentLength, L: result.curveLength, LC: result.longChord,
+    M: result.midOrdinate, E: result.externalDistance,
+    deflectionAngleDeg: deltaDeg, chainageStart,
+    chainage_TC: result.tcChainage, chainage_CT: result.ctChainage,
+    settingOutTable: setout.rows.map(row => ({
+      chainage: row.chainage,
+      deflectionFromTC: (row.chainage - result.tcChainage) / R * 90 / Math.PI,
+      chordFromTC: 2 * R * Math.sin((row.chainage - result.tcChainage) / R / 2),
+      chordIncrement: row.chord,
+    })),
   };
 }
 

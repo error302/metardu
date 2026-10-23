@@ -256,3 +256,14 @@ real owner-transfer locking and exact fixture/original-record/ledger preservatio
 An actual anonymous source-preview GET returns 401. See
 `ENGINEERING_DATA_ACCESS_INTEGRITY_2026-10-23.md` for the authenticated-fixture
 boundary and remaining production, version-history and export requirements.
+
+### Road quick-compute and local draft files — 23 October
+
+Project quick-compute now shares the reviewed horizontal and banking authority.
+No fictional defaults or radius-based sight-distance pass is emitted. DXF drafts
+retain full-size local geometry, actual width, declared criteria and comparison
+failures. 120 focused checks and 64 independent CAD checks include two actual
+source-preview browser downloads, with mobile containment and stale-result
+removal verified. See `ROAD_QUICK_COMPUTE_INTEGRITY_2026-10-23.md` for exact scope.
+Global type acceptance is not claimed while concurrent topographic errors remain;
+other legacy curves and project-bound/revisioned output acceptance stay open.

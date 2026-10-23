@@ -278,3 +278,14 @@ anonymous source-preview GET returns 401. See
 `ENGINEERING_DATA_ACCESS_INTEGRITY_2026-10-23.md`. The legacy payload's revision
 history, signed-in production acceptance and the ongoing engineering export/
 criteria trace remain open; the full goal stays active.
+
+23 October road quick-compute checkpoint: project horizontal/banking panels now
+use the reviewed shared calculators, with explicit geometry/criteria and stale
+result removal. Local DXF drafts retain full-size arcs, declared direction,
+actual rotated width and failing verdicts. The registered horizontal API uses
+the same bounded stationing/chords, requires PI and cannot reinterpret invalid
+typed requests. 120 focused tests and 64 independent CAD-reader checks cover
+source fixtures plus actual browser downloads. See
+`ROAD_QUICK_COMPUTE_INTEGRITY_2026-10-23.md`. Concurrent topographic type failures
+are preserved; whole-checkout type acceptance, other legacy curves, saved
+revision/export authority and production/field gates remain open.

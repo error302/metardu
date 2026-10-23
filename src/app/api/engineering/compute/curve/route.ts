@@ -13,9 +13,9 @@ import { horizontalCurve } from '@/lib/engineering/compute'
 const CurveComputeSchema = z.discriminatedUnion('curveType', [
   z.object({
     curveType: z.literal('horizontal'),
-    R: z.number().positive().max(2000),
-    deltaDeg: z.number().positive().max(180),
-    chainageStart: z.number().min(0).default(0),
+    R: z.number().finite().positive(),
+    deltaDeg: z.number().finite().positive().lt(180),
+    chainageStart: z.number().finite(),
     designSpeed: z.number().positive().optional(),
   }),
   z.object({
@@ -38,9 +38,9 @@ const CurveComputeSchema = z.discriminatedUnion('curveType', [
 
 /** Legacy schema for backward compatibility (no curveType field) */
 const LegacyCurveComputeSchema = z.object({
-  R: z.number().positive().max(2000),
-  deltaDeg: z.number().positive().max(180),
-  chainageStart: z.number().min(0).default(0),
+  R: z.number().finite().positive(),
+  deltaDeg: z.number().finite().positive().lt(180),
+  chainageStart: z.number().finite(),
 })
 
 export async function POST(req: NextRequest) {
@@ -50,28 +50,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 })
     }
 
-    const body: unknown = await req.json()
+    let body: unknown
+    try { body = await req.json() }
+    catch { return NextResponse.json({ error: 'Valid JSON is required' }, { status: 400 }) }
 
-    // Try new schema first, fall back to legacy
-    let input: z.infer<typeof CurveComputeSchema> | z.infer<typeof LegacyCurveComputeSchema>
-    const newParsed = CurveComputeSchema.safeParse(body)
-    if (newParsed.success) {
-      input = newParsed.data
-    } else {
-      const legacyParsed = LegacyCurveComputeSchema.safeParse(body)
-      if (!legacyParsed.success) {
-        return NextResponse.json(
-          { error: 'Validation failed', details: [...newParsed.error.errors, ...legacyParsed.error.errors] },
-          { status: 400 }
-        )
-      }
-      input = legacyParsed.data
-    }
+    // An explicit calculation kind cannot be silently reinterpreted as legacy
+    // horizontal geometry when that kind or its required inputs are invalid.
+    const typed = typeof body === 'object' && body !== null && 'curveType' in body
+    const parsed = typed ? CurveComputeSchema.safeParse(body) : LegacyCurveComputeSchema.safeParse(body)
+    if (!parsed.success) return NextResponse.json({ error: 'Validation failed', details: parsed.error.errors }, { status: 400 })
+    const input: z.infer<typeof CurveComputeSchema> | z.infer<typeof LegacyCurveComputeSchema> = parsed.data
 
     // For horizontal curve (new or legacy), use the existing horizontalCurve function
     if (!('curveType' in input) || input.curveType === 'horizontal') {
-      const result = horizontalCurve(input)
-      return NextResponse.json(result)
+      try {
+        return NextResponse.json(horizontalCurve(input))
+      } catch {
+        // This pure calculation has no database/provider dependency. Finite but
+        // unrepresentable geometry and row-limit failures are invalid requests.
+        return NextResponse.json({ error: 'Curve inputs cannot be represented safely; review radius, angle and PI station.' }, { status: 400 })
+      }
     }
 
     // For vertical and transition curves, return computed values
