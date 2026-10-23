@@ -244,3 +244,13 @@ desktop/mobile checks reproduce the independent 100 m / 60° / PI 500 m fixture.
 See `HORIZONTAL_CURVE_INTEGRITY_2026-10-23.md` for exact references, numerical
 guards and evidence. Production promotion and physical field acceptance remain
 open; this checkpoint does not complete the broader goal.
+
+23 October vertical-curve checkpoint: the road-design calculator now includes
+exact BVC/EVC and in-curve stationary points, separates tangent offsets from
+elevations, preserves straight/equal-grade cases and refuses unsafe inputs.
+Its profile uses the shared equation independently of peg interval; edits and
+mode switches clear prior outputs. The combined regression run passes 104
+checks across nine suites, with host-browser length/K equivalence and mobile
+containment verified. `VERTICAL_CURVE_INTEGRITY_2026-10-23.md` records the
+fixtures, contract changes and limits. Deployment, other engines and physical
+field acceptance remain separate; the full production goal remains active.

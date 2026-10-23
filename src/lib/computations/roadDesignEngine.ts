@@ -221,8 +221,9 @@ export interface VerticalCurveInput {
 export interface VerticalCurveRow {
   chainage: number
   rl: number
-  y: number
+  y: number      // signed offset from the incoming tangent, metres
   x: number
+  grade: number  // instantaneous grade, percent
   isBVC: boolean
   isEVC: boolean
   isPeak: boolean
@@ -232,109 +233,96 @@ export interface VerticalCurveRow {
 export interface VerticalCurveResult {
   A: number           // algebraic difference of grades
   L: number           // curve length
-  K: number           // K value
+  K: number | null    // m/%; undefined for equal grades
   bvcChainage: number
   bvcRL: number
   evcChainage: number
   evcRL: number
-  xPeak: number       // distance from BVC to peak/sag
-  chainagePeak: number
-  rlPeak: number
+  xPeak: number | null // stationary point in [BVC,EVC], otherwise absent
+  chainagePeak: number | null
+  rlPeak: number | null
   isCrest: boolean    // negative A (g2<g1) = crest, positive A (g2>g1) = sag
+  curveType: 'crest' | 'sag' | 'straight'
   arithmeticCheck: { passed: boolean; diff: number }
   rows: VerticalCurveRow[]
+  profileRows: VerticalCurveRow[] // bounded dense samples from the same equation
   steps: Array<{ description: string; formula: string; value: string }>
 }
 
 export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const { g1, g2, vpiChainage, vpiRL, curveLength, kValue, interval = 20 } = input
-
-  // Source: RDM 1.3 Section 5.4 — algebraic grade difference
+  if (![g1, g2, vpiChainage, vpiRL].every(Number.isFinite)) throw new Error('Grades, VPI chainage and reduced level must be finite numbers.')
+  if (!Number.isFinite(interval) || interval <= 0) throw new Error('RL table interval must be a finite positive number.')
+  if ((curveLength === undefined) === (kValue === undefined)) throw new Error('Provide exactly one of curve length or K value.')
   const A = g2 - g1
-
-  // Source: RDM 1.3 Section 5.4 — K and L relationship
-  let L: number, K: number
-  if (curveLength !== undefined && curveLength > 0) {
-    L = curveLength
-    K = L / Math.abs(A)
-  } else if (kValue !== undefined && kValue > 0) {
-    K = kValue
-    L = K * Math.abs(A)
-  } else {
-    throw new Error('Provide either curveLength or kValue')
-  }
-
-  // Source: RDM 1.3 Section 5.4 — BVC/EVC chainages
+  if (!Number.isFinite(A)) throw new Error('Grade difference exceeds numerical range.')
+  const supplied = curveLength ?? kValue
+  if (supplied === undefined || !Number.isFinite(supplied) || supplied <= 0) throw new Error('Curve length or K value must be a finite positive number.')
+  if (kValue !== undefined && A === 0) throw new Error('K cannot determine a length for equal grades; enter an explicit length.')
+  const L = curveLength ?? supplied * Math.abs(A)
+  const K = A === 0 ? null : L / Math.abs(A)
+  if (!Number.isFinite(L) || L <= 0 || (K !== null && (!Number.isFinite(K) || K <= 0))) throw new Error('Length or K exceeds numerical range.')
   const bvcChainage = vpiChainage - L / 2
   const evcChainage = vpiChainage + L / 2
-
-  // Source: RDM 1.3 Section 5.4 — BVC/EVC reduced levels
   const bvcRL = vpiRL - (g1 / 100) * (L / 2)
   const evcRL = vpiRL + (g2 / 100) * (L / 2)
-
-  // Source: RDM 1.3 Section 5.4 — RL at any point: y = BVC_RL + (g1/100)x + (A/(200L))x²
-  const rate = A / (200 * L)
-
-  // Source: RDM 1.3 Section 5.4 — Peak/sag point
-  const xPeak = -g1 * L / A  // distance from BVC
-  const chainagePeak = bvcChainage + xPeak
-  const rlPeak = bvcRL + (g1 / 100) * xPeak + rate * xPeak * xPeak
+  const precision = 32 * Number.EPSILON * Math.max(1, Math.abs(bvcChainage), Math.abs(evcChainage), L)
+  if (![bvcChainage, evcChainage, bvcRL, evcRL].every(Number.isFinite) ||
+      !(bvcChainage < vpiChainage && vpiChainage < evcChainage) || precision > L * 1e-8) {
+    throw new Error('Curve cannot be represented at this chainage or elevation precision.')
+  }
+  const startIndex = Math.floor(bvcChainage / interval) + 1
+  const endIndex = Math.ceil(evcChainage / interval) - 1
+  const count = Math.max(0, endIndex - startIndex + 1)
+  if (!Number.isSafeInteger(startIndex) || !Number.isSafeInteger(endIndex) || count + 3 > 10000) {
+    throw new Error('RL table interval exceeds the 10,000-row limit or available chainage precision; use a larger interval.')
+  }
   const isCrest = A < 0
-
-  // Arithmetic check: RL at EVC via formula must equal EVC_RL via grades
-  const rlAtEVC = bvcRL + (g1 / 100) * L + rate * L * L
-  const arithmeticCheck = { passed: Math.abs(rlAtEVC - evcRL) < 0.001, diff: rlAtEVC - evcRL }
-
+  const curveType = A === 0 ? 'straight' : isCrest ? 'crest' : 'sag'
+  const candidateX = A === 0 ? NaN : (-g1 / A) * L
+  const xPeak = Number.isFinite(candidateX) && candidateX >= 0 && candidateX <= L ? candidateX : null
+  const chainagePeak = xPeak === null ? null : bvcChainage + xPeak
+  function evaluate(chainage: number, x: number): VerticalCurveRow {
+    const fraction = x / L
+    const y = (A / 200) * x * fraction
+    const rl = bvcRL + (g1 / 100) * x + y
+    const grade = (1 - fraction) * g1 + fraction * g2
+    if (![chainage, x, y, rl, grade].every(Number.isFinite)) throw new Error('Curve elevations exceed numerical range.')
+    const stationary = chainagePeak !== null && Math.abs(chainage - chainagePeak) <= precision
+    return { chainage, x, y, rl, grade, isBVC: x === 0, isEVC: x === L, isPeak: stationary && isCrest, isSag: stationary && A > 0 }
+  }
+  const rlPeak = xPeak === null || chainagePeak === null ? null : evaluate(chainagePeak, xPeak).rl
+  const rlAtEVC = evaluate(evcChainage, L).rl
+  const diff = rlAtEVC - evcRL
+  const rlPrecision = 32 * Number.EPSILON * Math.max(1, Math.abs(vpiRL), Math.abs(bvcRL), Math.abs(evcRL), Math.abs(rlAtEVC))
+  const arithmeticCheck = { passed: Math.abs(diff) <= rlPrecision, diff }
+  if (!arithmeticCheck.passed) throw new Error('Endpoint elevation identity failed at available numerical precision.')
+  const stations = [bvcChainage, evcChainage]
+  for (let i = 0; i < count; i++) {
+    const chainage = (startIndex + i) * interval
+    if (chainage - bvcChainage > precision && evcChainage - chainage > precision &&
+        (chainagePeak === null || Math.abs(chainage - chainagePeak) > precision)) stations.push(chainage)
+  }
+  if (chainagePeak !== null && chainagePeak - bvcChainage > precision && evcChainage - chainagePeak > precision) stations.push(chainagePeak)
+  stations.sort((a, b) => a - b)
+  const unique = stations.filter((station, i) => i === 0 || station - stations[i - 1] > precision)
+  const rows = unique.map(station => evaluate(station, station === bvcChainage ? 0 : station === evcChainage ? L : station - bvcChainage))
+  // Independent of requested peg density, so a long interval cannot flatten the drawing.
+  const profileRows = Array.from({ length: 65 }, (_, i) => evaluate(bvcChainage + L * (i / 64), L * (i / 64)))
+  if (chainagePeak !== null && xPeak !== null) {
+    profileRows.push(evaluate(chainagePeak, xPeak))
+    profileRows.sort((a, b) => a.chainage - b.chainage)
+  }
   const steps = [
-    { description: `A = G₂ - G₁`, formula: `${g2.toFixed(4)} - ${g1.toFixed(4)}`, value: `${A.toFixed(4)}%` },
-    { description: `K = L / |A|`, formula: `${L.toFixed(4)} / ${Math.abs(A).toFixed(4)}`, value: `${K.toFixed(4)}` },
-    { description: `L = K × |A|`, formula: `${K.toFixed(4)} × ${Math.abs(A).toFixed(4)}`, value: `${L.toFixed(4)} m` },
-    { description: `BVC = VPI - L/2`, formula: `${vpiChainage.toFixed(4)} - ${(L/2).toFixed(4)}`, value: `${bvcChainage.toFixed(4)} m` },
-    { description: `EVC = VPI + L/2`, formula: `${vpiChainage.toFixed(4)} + ${(L/2).toFixed(4)}`, value: `${evcChainage.toFixed(4)} m` },
-    { description: `BVC RL = VPI RL - G₁×(L/2)/100`, formula: `${vpiRL.toFixed(4)} - ${g1.toFixed(4)}×${(L/2).toFixed(4)}/100`, value: `${bvcRL.toFixed(4)} m` },
-    { description: `EVC RL = VPI RL + G₂×(L/2)/100`, formula: `${vpiRL.toFixed(4)} + ${g2.toFixed(4)}×${(L/2).toFixed(4)}/100`, value: `${evcRL.toFixed(4)} m` },
-    { description: `[CHECK] RL at EVC via formula`, formula: `${rlAtEVC.toFixed(4)} vs ${evcRL.toFixed(4)}`, value: `${arithmeticCheck.passed ? 'PASS ' : 'FAIL [x]'} (diff=${arithmeticCheck.diff.toFixed(4)}m)` },
+    { description: 'Grade change A = G₂ - G₁', formula: `${g2} - ${g1}`, value: `${A.toFixed(4)} percentage points` },
+    { description: 'K = L / |A|', formula: A === 0 ? 'Equal grades: A = 0' : `${L} / ${Math.abs(A)}`, value: K === null ? 'Undefined for equal grades' : `${K.toFixed(4)} m/%` },
+    { description: 'BVC = VPI - L/2; EVC = VPI + L/2', formula: `${vpiChainage} ± ${L / 2}`, value: `${bvcChainage.toFixed(4)} m to ${evcChainage.toFixed(4)} m` },
+    { description: 'Elevation at horizontal distance x from BVC', formula: 'RL = BVC_RL + G₁x/100 + Ax²/(200L)', value: 'Grades in percent; distances and elevations in metres' },
+    { description: 'Offset from incoming tangent', formula: 'y = Ax²/(200L)', value: 'Signed vertical offset, metres' },
+    { description: 'Stationary point x = -G₁L/A', formula: 'Only retained when 0 ≤ x ≤ L and A ≠ 0', value: xPeak === null ? 'No unique stationary point on this curve' : `${xPeak.toFixed(4)} m from BVC` },
+    { description: 'Endpoint elevation numerical identity', formula: `${rlAtEVC} versus ${evcRL}`, value: `Consistent; difference ${diff.toExponential(2)} m. Field acceptance is separate.` },
   ]
-
-  if (A !== 0) {
-    steps.push({
-      description: `x_peak = -G₁×L/A (from BVC)`, formula: `-${g1.toFixed(4)}×${L.toFixed(4)}/${A.toFixed(4)}`,
-      value: `${xPeak.toFixed(4)} m from BVC`,
-    })
-    steps.push({
-      description: `Peak/Sag chainage`, formula: `${bvcChainage.toFixed(4)} + ${xPeak.toFixed(4)}`,
-      value: `${chainagePeak.toFixed(4)} m`,
-    })
-    steps.push({
-      description: `Peak/Sag RL`, formula: `${bvcRL.toFixed(4)} + ...`, value: `${rlPeak.toFixed(4)} m`,
-    })
-  }
-
-  // Generate RL table
-  const rows: VerticalCurveRow[] = []
-  let ch = Math.floor(bvcChainage / interval) * interval
-  while (ch <= evcChainage) {
-    const x = ch - bvcChainage
-    const y = bvcRL + (g1 / 100) * x + rate * x * x
-    const rl = y
-    rows.push({
-      chainage: ch,
-      rl,
-      y,
-      x,
-      isBVC: Math.abs(ch - bvcChainage) < 0.001,
-      isEVC: Math.abs(ch - evcChainage) < 0.001,
-      isPeak: Math.abs(ch - chainagePeak) < interval / 2,
-      isSag: Math.abs(ch - chainagePeak) < interval / 2,
-    })
-    ch += interval
-  }
-
-  return {
-    A, L, K, bvcChainage, bvcRL, evcChainage, evcRL,
-    xPeak, chainagePeak, rlPeak, isCrest,
-    arithmeticCheck, rows, steps,
-  }
+  return { A, L, K, bvcChainage, bvcRL, evcChainage, evcRL, xPeak, chainagePeak, rlPeak, isCrest, curveType, arithmeticCheck, rows, profileRows, steps }
 }
 
 // ─── PART 4: SUPERELEVATION DESIGN ──────────────────────────────────────────

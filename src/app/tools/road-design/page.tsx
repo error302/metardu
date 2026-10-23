@@ -48,7 +48,7 @@ export default function RoadDesignPage() {
         {tab === 'vertical' && (
           <>
             <h2 className="text-lg font-semibold mb-1">Vertical Curve Design</h2>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Source: RDM 1.3 §5.4 | Ghilani &amp; Wolf Ch.25</p>
+            <p className="text-xs text-[var(--text-muted)] mb-4">Symmetrical parabolic geometry. <a href="https://help.trimble.com/doc/novapoint/novapoint/road/road-cad-tools/alignment-design/technical-information/supplementary-information" className="underline">Reference: Trimble Novapoint K-value concept</a>. Design-standard compliance requires separate review.</p>
             <VerticalCurveCalculator />
           </>
         )}

@@ -214,3 +214,18 @@ passes 57 tests, with owned host-browser desktop/mobile checks of the independen
 `HORIZONTAL_CURVE_INTEGRITY_2026-10-23.md` for precision/transport limits and
 reference boundaries. This source/preview proof is not production promotion,
 site-standard compliance or physical set-out acceptance.
+
+### Vertical parabolic curve evidence — 23 October
+
+The road-design elevation table previously extrapolated before BVC, omitted
+off-grid EVC and labeled nearby pegs as extrema. The source now includes exact
+endpoints/stationary points, omits extrapolated extrema, handles equal grades
+without infinite K and preserves true tangent offsets/instantaneous grades.
+Unsafe lengths/intervals fail before allocation, and input edits clear results.
+The shared profile receives dense samples from the same equation. Combined
+focused verification passes 104 tests across nine suites, app/test types,
+scoped lint and the security gate. Host-browser checks verify the independent
+−2%/+4%, VPI 1003 m / RL 100 m, length 200 m case, K equivalence and mobile
+containment. See `VERTICAL_CURVE_INTEGRITY_2026-10-23.md`; production promotion,
+project-standard compliance, other vertical engines and physical acceptance
+remain open.

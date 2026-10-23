@@ -51,11 +51,14 @@ export function VerticalCurveProfile({
   vpiRL,
   g1,
   g2,
-  isCrest,
   peakPoint,
 }: VerticalCurveProfileProps) {
   const plotW = W - ML - MR
   const plotH = H - MT - MB
+  const isCrest = g2 < g1
+  const profileType = g1 === g2 ? 'Straight' : isCrest ? 'Crest' : 'Sag'
+  const visiblePeak = g1 !== g2 && peakPoint && Number.isFinite(peakPoint.chainage) && Number.isFinite(peakPoint.RL) &&
+    peakPoint.chainage >= bvcChainage && peakPoint.chainage <= evcChainage ? peakPoint : null
 
   const chainages = rows.map(r => r.chainage)
   const rls = rows.map(r => r.RL)
@@ -94,20 +97,21 @@ export function VerticalCurveProfile({
   const yTickVals: number[] = []
   for (let i = 0; i <= yTicks; i++) yTickVals.push(minRl + (rlRange * i) / yTicks)
 
-  const peakX = peakPoint ? px(peakPoint.chainage) : 0
-  const peakY = peakPoint ? py(peakPoint.RL) : 0
+  const peakX = visiblePeak ? px(visiblePeak.chainage) : 0
+  const peakY = visiblePeak ? py(visiblePeak.RL) : 0
 
   return (
     <div className="space-y-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
-        <div className="flex items-baseline justify-between mb-4">
+      <div className="min-w-0 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-3 sm:p-6">
+        <div className="flex flex-wrap gap-2 items-baseline justify-between mb-4">
           <h3 className="text-sm font-semibold text-[var(--text-primary)]">Vertical Curve Profile</h3>
           <p className="text-[10px] text-[var(--text-muted)] uppercase tracking-wider">
-            {isCrest ? 'Crest' : 'Sag'} · G1 {g1.toFixed(2)}% → G2 {g2.toFixed(2)}%
+            {profileType} · G1 {g1.toFixed(2)}% → G2 {g2.toFixed(2)}%
           </p>
         </div>
 
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full rounded" style={{ maxHeight: '460px', background: '#0d1117' }}>
+        <p className="mb-3 text-xs text-[var(--text-muted)]">Sampled profile with independent horizontal and vertical scales; use the axis values.</p>
+        <svg role="img" aria-label="Vertical curve elevation profile" viewBox={`0 0 ${W} ${H}`} className="w-full rounded" style={{ maxHeight: '460px', background: '#0d1117' }}>
           {/* Grid + axis frame */}
           {xTickVals.map((ch, i) => {
             const x = px(ch)
@@ -159,13 +163,13 @@ export function VerticalCurveProfile({
           <circle cx={px(bvcChainage)} cy={py(bvcRL)} r="5" fill="#22c55e" stroke="#fff" strokeWidth="1" />
           <circle cx={px(evcChainage)} cy={py(evcRL)} r="5" fill="#22c55e" stroke="#fff" strokeWidth="1" />
           <circle cx={px(vpiChainage)} cy={py(vpiRL)} r="5" fill="#ef4444" stroke="#fff" strokeWidth="1" />
-          {peakPoint && <circle cx={peakX} cy={peakY} r="5" fill="#a855f7" stroke="#fff" strokeWidth="1" />}
+          {visiblePeak && <circle cx={peakX} cy={peakY} r="5" fill="#a855f7" stroke="#fff" strokeWidth="1" />}
 
           {/* Labels */}
           <text x={px(bvcChainage) - 6} y={py(bvcRL) + 20} fill="#22c55e" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif" textAnchor="middle">BVC</text>
           <text x={px(evcChainage) - 6} y={py(evcRL) + 20} fill="#22c55e" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif" textAnchor="middle">EVC</text>
           <text x={px(vpiChainage) + 8} y={py(vpiRL) + 18} fill="#ef4444" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">VPI</text>
-          {peakPoint && (
+          {visiblePeak && (
             <text x={peakX + 8} y={peakY - 8} fill="#a855f7" fontSize="11" fontWeight="600" fontFamily="Geist, system-ui, sans-serif">
               {isCrest ? 'Peak' : 'Low Pt'}
             </text>
@@ -176,7 +180,7 @@ export function VerticalCurveProfile({
           <text x={(px(vpiChainage) + px(evcChainage)) / 2} y={py(evcRL) + 30} fill="#f472b6" fontSize="10" fontFamily="JetBrains Mono, monospace" textAnchor="middle">G2 = {g2.toFixed(2)}%</text>
 
           {/* Key dimensions */}
-          <text x={px(bvcChainage)} y={H - MB - 6} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="start">L = {((rows[rows.length - 1]?.chainage ?? evcChainage) - bvcChainage).toFixed(1)} m</text>
+          <text x={px(bvcChainage)} y={H - MB - 6} fill="#888" fontSize="9" fontFamily="JetBrains Mono, monospace" textAnchor="start">L = {(evcChainage - bvcChainage).toFixed(1)} m</text>
         </svg>
       </div>
     </div>
