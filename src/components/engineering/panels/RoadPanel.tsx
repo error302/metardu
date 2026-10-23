@@ -78,6 +78,12 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
       setFormError('Enter finite PVI data and a positive curve length that keeps the PVC at or after chainage zero.');
       return;
     }
+    try {
+      computeVerticalCurve(pvi, elev, g1, g2, len);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Review the vertical curve geometry.');
+      return;
+    }
     setVerticalCurves([...verticalCurves, { pvIChainage: pvi, pvIElevation: elev, gradeIn: g1, gradeOut: g2, length: len }]);
     setVerticalDraft({ pvIChainage: '', pvIElevation: '', gradeIn: '', gradeOut: '', length: '' });
     setFormError('');
@@ -231,6 +237,9 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
                 <div><span className="text-zinc-400">Grade In:</span> {verticalCurves[i].gradeIn.toFixed(2)}%</div>
                 <div><span className="text-zinc-400">Grade Out:</span> {verticalCurves[i].gradeOut.toFixed(2)}%</div>
                 <div><span className="text-zinc-400">Length:</span> {verticalCurves[i].length.toFixed(3)}m</div>
+                <div><span className="text-zinc-400">Profile:</span> {vc.curveType}</div>
+                <div><span className="text-zinc-400">PVC chainage / level:</span> {vc.pvcChainage.toFixed(3)}m / {vc.pvcElevation.toFixed(3)}m</div>
+                <div><span className="text-zinc-400">PVT chainage / level:</span> {vc.pvtChainage.toFixed(3)}m / {vc.pvtElevation.toFixed(3)}m</div>
                 {vc.highLowPoint && (
                   <>
                     <div><span className="text-zinc-400">HL Chainage:</span> {vc.highLowPoint.chainage.toFixed(3)}m</div>
@@ -238,9 +247,10 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
                   </>
                 )}
               </div>
+              <p className="mt-2 text-xs text-amber-200/80">Geometry only. Design standards are not assessed; the supplied level has no verified vertical datum.</p>
             </div>
           ))}
-          {verticalCurves.length === 0 && <p className="text-sm text-zinc-400">Enter a PVI and approved grades/curve length. Nothing is assumed.</p>}
+          {verticalCurves.length === 0 && <p className="text-sm text-zinc-400">Enter the PVI, percent grades and explicit curve length.</p>}
           <div className="grid grid-cols-2 md:grid-cols-6 gap-2 mt-3">
             {([
               ['pvIChainage', 'PVI chainage (m)', verticalDraft.pvIChainage],

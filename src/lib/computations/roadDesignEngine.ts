@@ -247,10 +247,10 @@ export interface VerticalCurveResult {
   steps: Array<{ description: string; formula: string; value: string }>
 }
 
-export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
-  const { g1, g2, vpiChainage, vpiRL, curveLength, kValue, interval = 20 } = input
+/** Validated geometry without table allocation, shared by schedules and scalar queries. */
+export function verticalCurveGeometry(input: VerticalCurveInput) {
+  const { g1, g2, vpiChainage, vpiRL, curveLength, kValue } = input
   if (![g1, g2, vpiChainage, vpiRL].every(Number.isFinite)) throw new Error('Grades, VPI chainage and reduced level must be finite numbers.')
-  if (!Number.isFinite(interval) || interval <= 0) throw new Error('RL table interval must be a finite positive number.')
   if ((curveLength === undefined) === (kValue === undefined)) throw new Error('Provide exactly one of curve length or K value.')
   const A = g2 - g1
   if (!Number.isFinite(A)) throw new Error('Grade difference exceeds numerical range.')
@@ -272,14 +272,8 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
       !(bvcChainage < vpiChainage && vpiChainage < evcChainage) || precision > L * 1e-8) {
     throw new Error('Curve cannot be represented at this chainage or elevation precision.')
   }
-  const startIndex = Math.floor(bvcChainage / interval) + 1
-  const endIndex = Math.ceil(evcChainage / interval) - 1
-  const count = Math.max(0, endIndex - startIndex + 1)
-  if (!Number.isSafeInteger(startIndex) || !Number.isSafeInteger(endIndex) || count + 3 > 10000) {
-    throw new Error('RL table interval exceeds the 10,000-row limit or available chainage precision; use a larger interval.')
-  }
   const isCrest = A < 0
-  const curveType = A === 0 ? 'straight' : isCrest ? 'crest' : 'sag'
+  const curveType: VerticalCurveResult['curveType'] = A === 0 ? 'straight' : isCrest ? 'crest' : 'sag'
   const candidateX = A === 0 ? NaN : (-g1 / A) * L
   const xPeak = Number.isFinite(candidateX) && candidateX >= 0 && candidateX <= L ? candidateX : null
   const chainagePeak = xPeak === null ? null : bvcChainage + xPeak
@@ -298,6 +292,46 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const rlPrecision = 32 * Number.EPSILON * Math.max(1, Math.abs(vpiRL), Math.abs(bvcRL), Math.abs(evcRL), Math.abs(rlAtEVC))
   const arithmeticCheck = { passed: Math.abs(diff) <= rlPrecision, diff }
   if (!arithmeticCheck.passed) throw new Error('Endpoint elevation identity failed at available numerical precision.')
+  function rowAtOffset(x: number): VerticalCurveRow {
+    if (!Number.isFinite(x) || x < 0 || x > L) throw new RangeError('Profile offset must be finite and within the curve.')
+    return evaluate(x === 0 ? bvcChainage : x === L ? evcChainage : bvcChainage + x, x)
+  }
+  function rowAtStation(chainage: number): VerticalCurveRow {
+    if (!Number.isFinite(chainage) || chainage < bvcChainage || chainage > evcChainage) throw new RangeError('Profile station must be finite and within the curve.')
+    return evaluate(chainage, chainage === bvcChainage ? 0 : chainage === evcChainage ? L : chainage - bvcChainage)
+  }
+  function elevationAtStation(chainage: number, allowTangents = false): number {
+    if (!Number.isFinite(chainage)) throw new RangeError('Profile station must be finite.')
+    if (chainage >= bvcChainage && chainage <= evcChainage) return rowAtStation(chainage).rl
+    if (!allowTangents) throw new RangeError('Profile station is outside the supplied curve.')
+    const before = chainage < bvcChainage, grade = before ? g1 : g2
+    const anchor = before ? bvcRL : evcRL, station = before ? bvcChainage : evcChainage
+    const rl = grade === 0 ? anchor : anchor + (grade / 100) * (chainage - station)
+    if (!Number.isFinite(rl)) throw new RangeError('Tangent elevation exceeds numerical range.')
+    return rl
+  }
+  function gradeAtStation(chainage: number, allowTangents = false): number {
+    if (!Number.isFinite(chainage)) throw new RangeError('Profile station must be finite.')
+    if (chainage >= bvcChainage && chainage <= evcChainage) return rowAtStation(chainage).grade
+    if (!allowTangents) throw new RangeError('Profile station is outside the supplied curve.')
+    return chainage < bvcChainage ? g1 : g2
+  }
+  return { A, L, K, bvcChainage, bvcRL, evcChainage, evcRL, xPeak, chainagePeak, rlPeak,
+    isCrest, curveType, arithmeticCheck, precision, rowAtOffset, rowAtStation, elevationAtStation, gradeAtStation }
+}
+
+export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
+  const { g1, g2, vpiChainage, interval = 20 } = input
+  if (!Number.isFinite(interval) || interval <= 0) throw new Error('RL table interval must be a finite positive number.')
+  const model = verticalCurveGeometry(input)
+  const { A, L, K, bvcChainage, bvcRL, evcChainage, evcRL, xPeak, chainagePeak, rlPeak,
+    isCrest, curveType, arithmeticCheck, precision } = model
+  const startIndex = Math.floor(bvcChainage / interval) + 1
+  const endIndex = Math.ceil(evcChainage / interval) - 1
+  const count = Math.max(0, endIndex - startIndex + 1)
+  if (!Number.isSafeInteger(startIndex) || !Number.isSafeInteger(endIndex) || count + 3 > 10000) {
+    throw new Error('RL table interval exceeds the 10,000-row limit or available chainage precision; use a larger interval.')
+  }
   const stations = [bvcChainage, evcChainage]
   for (let i = 0; i < count; i++) {
     const chainage = (startIndex + i) * interval
@@ -307,11 +341,11 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   if (chainagePeak !== null && chainagePeak - bvcChainage > precision && evcChainage - chainagePeak > precision) stations.push(chainagePeak)
   stations.sort((a, b) => a - b)
   const unique = stations.filter((station, i) => i === 0 || station - stations[i - 1] > precision)
-  const rows = unique.map(station => evaluate(station, station === bvcChainage ? 0 : station === evcChainage ? L : station - bvcChainage))
+  const rows = unique.map(model.rowAtStation)
   // Independent of requested peg density, so a long interval cannot flatten the drawing.
-  const profileRows = Array.from({ length: 65 }, (_, i) => evaluate(bvcChainage + L * (i / 64), L * (i / 64)))
+  const profileRows = Array.from({ length: 65 }, (_, i) => model.rowAtOffset(L * (i / 64)))
   if (chainagePeak !== null && xPeak !== null) {
-    profileRows.push(evaluate(chainagePeak, xPeak))
+    profileRows.push(model.rowAtOffset(xPeak))
     profileRows.sort((a, b) => a.chainage - b.chainage)
   }
   const steps = [
@@ -321,7 +355,7 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
     { description: 'Elevation at horizontal distance x from BVC', formula: 'RL = BVC_RL + G₁x/100 + Ax²/(200L)', value: 'Grades in percent; distances and elevations in metres' },
     { description: 'Offset from incoming tangent', formula: 'y = Ax²/(200L)', value: 'Signed vertical offset, metres' },
     { description: 'Stationary point x = -G₁L/A', formula: 'Only retained when 0 ≤ x ≤ L and A ≠ 0', value: xPeak === null ? 'No unique stationary point on this curve' : `${xPeak.toFixed(4)} m from BVC` },
-    { description: 'Endpoint elevation numerical identity', formula: `${rlAtEVC} versus ${evcRL}`, value: `Consistent; difference ${diff.toExponential(2)} m. Field acceptance is separate.` },
+    { description: 'Endpoint elevation numerical identity', formula: `${model.rowAtOffset(L).rl} versus ${evcRL}`, value: `Consistent; difference ${arithmeticCheck.diff.toExponential(2)} m. Field acceptance is separate.` },
   ]
   return { A, L, K, bvcChainage, bvcRL, evcChainage, evcRL, xPeak, chainagePeak, rlPeak, isCrest, curveType, arithmeticCheck, rows, profileRows, steps }
 }

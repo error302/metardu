@@ -345,3 +345,13 @@ and independent Decimal checks of 2,148 station results pass, with 21 native
 refusals. See `VPI_VERTICAL_ADAPTER_INTEGRITY_2026-10-23.md` for the intentional
 helper contract changes. Scalar API/evaluator, other criteria, project outputs
 and production/browser/field acceptance remain open.
+
+23 October scalar/project vertical checkpoint: the separate scalar API and
+project evaluator now share the validated geometry model without sample-table
+allocation. Nonrepresentable inputs and overflowing tangent queries fail closed;
+the road panel checks a draft before retaining it and shows endpoints/evidence.
+171 focused tests, 70 CLI checks and independent Decimal checks of eight profiles
+/ 64 scalar samples pass. Earlier adapters and six retained PDF/CSV pairs pass
+rechecks; five source CSV hashes are unchanged. Actual source-preview anonymous
+HTTP returns 401. See `VERTICAL_SCALAR_INTEGRITY_2026-10-23.md` for the synthetic
+auth/rate boundaries and absent fresh browser/signed-in/production/field proof.

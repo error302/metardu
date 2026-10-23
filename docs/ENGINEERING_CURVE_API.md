@@ -112,3 +112,26 @@ Formula context: [Trimble's parabolic K-value definition](https://community.trim
 and [Esri's clothoid definition](https://doc.esri.com/en/arcgis-pro/latest/sdk/api-reference/topic75875.html).
 These sources explain the geometry; project adoption and professional acceptance
 require separate evidence.
+
+## Scalar vertical endpoint
+
+`POST /api/engineering/compute/vertical-curve` retains its explicit
+`pvIChainage`, `pvIElevation`, `gradeIn`, `gradeOut`, `length` request names.
+All are finite; length must be positive and the complete geometry representable.
+The object is strict: speed, K, datum and other undeclared fields are rejected.
+Grades are percent; stations, lengths and levels are metres. Signed stations and
+zero/negative levels remain valid.
+
+The flat version-2 response preserves the supplied parameters and the historical
+interior `highLowPoint` when present. It adds PVC/PVT stations and levels,
+`curveType`, `kValue` (null for equal grades), units, `standardCompliance:
+NOT_ASSESSED` and `verticalDatumStatus: NOT_VERIFIED`. It does not return a
+sample table or establish adopted criteria, datum correctness or approval.
+Responses use `Cache-Control: private, no-store`. Nonrepresentable finite
+geometry returns 400 / `INVALID_VERTICAL_GEOMETRY`; ordinary schema/malformed
+body errors remain 400 through the common wrapper. Authentication and the
+existing 60 requests/minute configuration remain in that wrapper.
+
+See `VERTICAL_SCALAR_INTEGRITY_2026-10-23.md` for source, numerical, synthetic
+wrapper and actual anonymous-HTTP evidence boundaries. No live authenticated
+acceptance or production promotion is implied.

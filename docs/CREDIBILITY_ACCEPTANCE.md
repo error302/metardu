@@ -321,3 +321,15 @@ measurements from geometry. 152 focused tests and independent Decimal checks of
 2,148 station results pass, with 21 expected native refusals. See
 `VPI_VERTICAL_ADAPTER_INTEGRITY_2026-10-23.md` for breaking helper contracts and
 the separate scalar API, criteria, project, production and field gates.
+
+### Scalar/project vertical authority — 23 October
+
+The scalar API, project evaluator and schedules now share validated geometry.
+Finite but collapsed inputs, nonfinite outputs and overflowing tangent extensions
+cannot masquerade as valid profiles; the local road form refuses a bad draft
+before render and supports correction. 171 focused tests, 70 CLI checks and
+independent checks of 64 scalar samples pass. Earlier adapters and six retained
+PDF/CSV pairs also pass, with all five source CSV hashes unchanged. Actual
+anonymous source-preview HTTP is 401; signed-in success remains synthetic-source
+evidence. See `VERTICAL_SCALAR_INTEGRITY_2026-10-23.md` for the unassessed criteria,
+unverified datum and outstanding saved-project/browser/production/field gates.

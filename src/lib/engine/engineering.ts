@@ -2,8 +2,11 @@
  * engineering.ts
  * Shared computation engine for all Metardu engineering survey sub-types.
  * Road, Bridge, Dam, Pipeline, Railway, Building, Tunnel.
- * All coordinates in SRID 21037 (Arc 1960 / UTM Zone 37S).
+ * Coordinate and vertical references must come from the project; this module
+ * does not establish a blanket SRID, datum or adopted design standard.
  */
+
+import { verticalCurveGeometry } from '../computations/roadDesignEngine';
 
 export const ENGINEERING_SUBTYPES = [
   'road',
@@ -57,6 +60,22 @@ export interface VerticalCurve {
   highLowPoint?: { chainage: number; elevation: number };
 }
 
+export interface ComputedVerticalCurve extends VerticalCurve {
+  pvcChainage: number;
+  pvcElevation: number;
+  pvtChainage: number;
+  pvtElevation: number;
+  kValue: number | null;
+  curveType: 'crest' | 'sag' | 'straight';
+  standardCompliance: 'NOT_ASSESSED';
+  verticalDatumStatus: 'NOT_VERIFIED';
+}
+
+function scalarVerticalModel(vc: VerticalCurve) {
+  return verticalCurveGeometry({ g1: vc.gradeIn, g2: vc.gradeOut, vpiChainage: vc.pvIChainage,
+    vpiRL: vc.pvIElevation, curveLength: vc.length });
+}
+
 export interface CrossSection {
   chainage: number;
   naturalLevels: Array<{ offset: number; elevation: number }>;
@@ -98,55 +117,31 @@ export function computeVerticalCurve(
   gradeIn: number,
   gradeOut: number,
   length: number
-): VerticalCurve {
+): ComputedVerticalCurve {
   if (![pvIChainage, pvIElevation, gradeIn, gradeOut, length].every(Number.isFinite) || length <= 0) {
     throw new Error('Vertical curve requires finite PVI values, grades, and a positive curve length.')
   }
-  const r = (gradeOut - gradeIn) / length;
-
-  const pvcChainage = pvIChainage - length / 2;
-  const pvcElevation = pvIElevation - (gradeIn * length / 200);
-
-  let highLowPoint: { chainage: number; elevation: number } | undefined;
-  const distToHL = r === 0 ? Number.NaN : -gradeIn / r;
-
-  if (distToHL > 0 && distToHL < length) {
-    const hlChainage = pvcChainage + distToHL;
-    const hlElevation = pvcElevation + (gradeIn * distToHL / 100) + (r * distToHL * distToHL / 200);
-    highLowPoint = { chainage: hlChainage, elevation: hlElevation };
-  }
-
-  return { pvIChainage, pvIElevation, length, gradeIn, gradeOut, highLowPoint };
+  const input = { pvIChainage, pvIElevation, length, gradeIn, gradeOut };
+  const model = scalarVerticalModel(input);
+  const highLowPoint = model.xPeak !== null && model.xPeak > 0 && model.xPeak < length &&
+    model.chainagePeak !== null && model.rlPeak !== null ? { chainage: model.chainagePeak, elevation: model.rlPeak } : undefined;
+  return { ...input, highLowPoint, pvcChainage: model.bvcChainage, pvcElevation: model.bvcRL,
+    pvtChainage: model.evcChainage, pvtElevation: model.evcRL, kValue: model.K, curveType: model.curveType,
+    standardCompliance: 'NOT_ASSESSED', verticalDatumStatus: 'NOT_VERIFIED' };
 }
 
 export function verticalCurveElevation(
   vc: VerticalCurve,
   chainage: number
 ): number {
-  if (![vc.pvIChainage, vc.pvIElevation, vc.gradeIn, vc.gradeOut, vc.length, chainage].every(Number.isFinite) || vc.length <= 0) {
-    throw new Error('Vertical curve evaluation requires finite values and a positive curve length.')
-  }
-  const pvcChainage = vc.pvIChainage - vc.length / 2;
-  const pvcElevation = vc.pvIElevation - (vc.gradeIn * vc.length / 200);
-  const x = chainage - pvcChainage;
-
-  if (x < 0 || x > vc.length) {
-    return x < 0
-      ? pvcElevation + (vc.gradeIn * x / 100)
-      : pvcElevation + ((vc.gradeIn + vc.gradeOut) * vc.length / 200) + (vc.gradeOut * (x - vc.length) / 100);
-  }
-
-  const r = (vc.gradeOut - vc.gradeIn) / vc.length;
-  return pvcElevation + (vc.gradeIn * x / 100) + (r * x * x / 200);
+  // This historical scalar API explicitly extends the incoming/outgoing
+  // tangents. Project alignment coverage is checked separately by its caller.
+  return scalarVerticalModel(vc).elevationAtStation(chainage, true);
 }
 
 /** Percent grade on the supplied parabola, with the outgoing/incoming tangent beyond its ends. */
 export function verticalCurveGrade(vc: VerticalCurve, chainage: number): number {
-  if (![vc.pvIChainage, vc.gradeIn, vc.gradeOut, vc.length, chainage].every(Number.isFinite) || vc.length <= 0) throw new RangeError('Supply finite curve parameters and chainage.')
-  const x = Math.max(0, Math.min(vc.length, chainage - (vc.pvIChainage - vc.length / 2)))
-  const grade = vc.gradeIn + (vc.gradeOut - vc.gradeIn) * (x / vc.length)
-  if (!Number.isFinite(grade)) throw new RangeError('Vertical grade exceeds the finite calculation range.')
-  return grade
+  return scalarVerticalModel(vc).gradeAtStation(chainage, true);
 }
 
 /**
