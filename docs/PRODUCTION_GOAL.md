@@ -335,3 +335,13 @@ stations / 12 profiles pass, with 11 native refusals. The historical `cutFill`
 key is explicitly a tangent offset, without measured ground evidence. See
 `LEGACY_VERTICAL_PROFILE_INTEGRITY_2026-10-23.md`. Other legacy implementations,
 browser/project acceptance and production/field gates remain open.
+
+23 October VPI-adapter checkpoint: both legacy engineering vertical-profile
+exports now share reviewed geometry, exact endpoint/stationary sampling and full
+precision. Equal-grade K, unavailable sight distance and unmeasured ground
+cut/fill are explicit nulls; no default speed or untraced RDM limits are applied.
+The compute helper strictly rejects legacy speed/K ambiguity. 152 focused tests
+and independent Decimal checks of 2,148 station results pass, with 21 native
+refusals. See `VPI_VERTICAL_ADAPTER_INTEGRITY_2026-10-23.md` for the intentional
+helper contract changes. Scalar API/evaluator, other criteria, project outputs
+and production/browser/field acceptance remain open.

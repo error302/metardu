@@ -310,3 +310,14 @@ profiles. 107 focused tests, 70 CLI checks and independent Decimal verification
 of 12 profiles / 1,076 stations pass; 11 invalid native cases are refused. See
 `LEGACY_VERTICAL_PROFILE_INTEGRITY_2026-10-23.md` for the compatibility meaning
 of `cutFill` and the remaining legacy/source/browser/production boundaries.
+
+### Legacy VPI vertical adapters — 23 October
+
+Both exported legacy VPI helpers now share the reviewed parabolic authority,
+retain endpoint/stationary samples and numerical precision, and represent equal
+grades without infinite K. The compute helper no longer invents speed, SSD or
+ground cut/fill; its explicit nulls and evidence states distinguish unavailable
+measurements from geometry. 152 focused tests and independent Decimal checks of
+2,148 station results pass, with 21 expected native refusals. See
+`VPI_VERTICAL_ADAPTER_INTEGRITY_2026-10-23.md` for breaking helper contracts and
+the separate scalar API, criteria, project, production and field gates.

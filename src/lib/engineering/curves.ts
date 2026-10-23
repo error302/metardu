@@ -1,5 +1,6 @@
 // All angles in decimal degrees. Distances in metres.
-// Standards: KRDM 2017, KeRRA Rural Roads Design Manual
+// Geometry alone does not establish design-standard adoption or a project CRS.
+import { verticalCurve as sharedVerticalCurve } from '../computations/roadDesignEngine'
 
 export interface SimpleCurveInput {
   radius: number          // R in metres
@@ -96,66 +97,44 @@ export function simpleCircularCurve(input: SimpleCurveInput): SimpleCurveResult 
 export interface VerticalCurveInput {
   gradeIn: number        // g1 in percent (e.g. +3.5 = 3.5)
   gradeOut: number       // g2 in percent
-  length: number         // L in metres (must satisfy K and sight distance)
+  length: number         // explicit L in metres; standards assessment is separate
   chainage_VIP: number   // chainage at vertical intersection point
   elevation_VIP: number  // elevation at VIP
+  interval?: number     // table sampling only; defaults to 20 metres
 }
 
 export interface VerticalCurveResult {
   gradeIn: number
   gradeOut: number
   algebraicDiff: number  // A = g2 - g1
-  kValue: number         // K = L / A
+  kValue: number | null  // K = L / |A|; undefined for equal grades
   length: number
   isCrest: boolean
+  curveType: 'crest' | 'sag' | 'straight'
   chainage_VPC: number   // start of curve
   chainage_VPT: number   // end of curve
   elevationTable: VerticalCurvePoint[]
+  standardCompliance: 'NOT_ASSESSED'
+  verticalDatumStatus: 'NOT_VERIFIED'
 }
 
 export interface VerticalCurvePoint {
   chainage: number
   elevation: number
   grade: number          // grade at this point
+  tangentOffset: number  // signed offset from incoming tangent; not ground cut/fill
 }
 
 export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
-  const { gradeIn: g1, gradeOut: g2, length: L, chainage_VIP, elevation_VIP } = input
-
-  const A = g2 - g1
-  const K = Math.abs(L / A)
-  const isCrest = A < 0
-
-  const chainage_VPC = chainage_VIP - L / 2
-  const chainage_VPT = chainage_VIP + L / 2
-  const elevation_VPC = elevation_VIP - (g1 / 100) * (L / 2)
-
-  const elevationTable: VerticalCurvePoint[] = []
-  const step = 20
-
-  let ch = Math.ceil(chainage_VPC / step) * step
-  while (ch <= chainage_VPT) {
-    const x = ch - chainage_VPC
-    // Parabolic equation: y = elevation_VPC + (g1/100)*x + (A/200L)*x²
-    const elevation = elevation_VPC + (g1 / 100) * x + (A / (200 * L)) * x * x
-    const grade = g1 + (A / L) * x   // instantaneous grade at x
-    elevationTable.push({
-      chainage: parseFloat(ch.toFixed(3)),
-      elevation: parseFloat(elevation.toFixed(4)),
-      grade: parseFloat(grade.toFixed(4))
-    })
-    ch += step
-  }
-
+  const { gradeIn, gradeOut, length, chainage_VIP, elevation_VIP, interval } = input
+  const result = sharedVerticalCurve({ g1: gradeIn, g2: gradeOut, curveLength: length,
+    vpiChainage: chainage_VIP, vpiRL: elevation_VIP, interval })
   return {
-    gradeIn: g1,
-    gradeOut: g2,
-    algebraicDiff: parseFloat(A.toFixed(4)),
-    kValue: parseFloat(K.toFixed(2)),
-    length: L,
-    isCrest,
-    chainage_VPC: parseFloat(chainage_VPC.toFixed(3)),
-    chainage_VPT: parseFloat(chainage_VPT.toFixed(3)),
-    elevationTable
+    gradeIn, gradeOut, algebraicDiff: result.A, kValue: result.K, length: result.L,
+    isCrest: result.isCrest, curveType: result.curveType,
+    chainage_VPC: result.bvcChainage, chainage_VPT: result.evcChainage,
+    elevationTable: result.rows.map(row => ({ chainage: row.chainage, elevation: row.rl,
+      grade: row.grade, tangentOffset: row.y })),
+    standardCompliance: 'NOT_ASSESSED', verticalDatumStatus: 'NOT_VERIFIED',
   }
 }

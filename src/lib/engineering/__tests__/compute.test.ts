@@ -1,6 +1,6 @@
 /**
  * Engineering Computation Tests
- * Kenya RDM 1.1 / KeRRA compliant test cases
+ * Numerical fixtures; individual tests do not establish standards compliance.
  */
 
 import { 
@@ -65,8 +65,7 @@ describe('verticalCurve', () => {
       g1: 3,
       g2: -2,
       chainage_VIP: 1000,
-      elevation_VIP: 1650,
-      designSpeedKph: 80
+      elevation_VIP: 1650
     })
 
     expect(result.algebraicDiff).toBe(-5) // A = g2 - g1 = -2 - 3 = -5
@@ -82,8 +81,7 @@ describe('verticalCurve', () => {
       g1: 2,
       g2: 4,
       chainage_VIP: 1000,
-      elevation_VIP: 1650,
-      designSpeedKph: 100
+      elevation_VIP: 1650
     })
 
     expect(result.elevationTable.length).toBeGreaterThan(0)

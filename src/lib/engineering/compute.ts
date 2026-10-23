@@ -11,6 +11,8 @@
 
 import { z } from 'zod';
 import { horizontalCurveElements, curveSetOut } from '@/lib/computations/roadDesignEngine';
+import { verticalCurve as legacyVerticalProfile, type VerticalCurveResult as LegacyVerticalResult,
+  type VerticalCurvePoint as LegacyVerticalPoint } from './curves';
 import type { createClient } from '@/lib/api-client/client';
 import { logger } from '@/lib/logger'
 import { endAreaVolume, prismoidalVolumeFromMidSection } from '@/lib/engine/engineering'
@@ -65,7 +67,7 @@ export async function logEngineeringCompute(
 }
 
 /**
- * Input validation schemas per RDM 1.1 / KeRRA standards
+ * Input contracts. Geometry domains do not establish adopted design criteria.
  */
 
 // Horizontal Curve Input
@@ -79,17 +81,16 @@ export const HorizontalCurveSchema = z.object({
 
 export type HorizontalCurveInput = z.infer<typeof HorizontalCurveSchema>;
 
-// Vertical Curve Input
-// Reference: RDM 1.1 Volume 2, Chapter 4 - Vertical Alignment
+// Geometry input only. Adopted design criteria and sight distance require
+// separate evidence; no default speed or untraced standards limits are applied.
 export const VerticalCurveSchema = z.object({
-  L: z.number().positive().min(40, 'Minimum curve length 40m per RDM 1.1'),
-  g1: z.number().min(-15).max(15, 'Grade must be between -15% and +15%'),
-  g2: z.number().min(-15).max(15),
-  chainage_VIP: z.number().min(0),
-  elevation_VIP: z.number(),
-  designSpeedKph: z.number().positive().min(20).max(120).optional().default(80),
-  K: z.number().positive().optional(),
-});
+  L: z.number().finite().positive(),
+  g1: z.number().finite(),
+  g2: z.number().finite(),
+  chainage_VIP: z.number().finite(),
+  elevation_VIP: z.number().finite(),
+  interval: z.number().finite().positive().optional(),
+}).strict();
 
 export type VerticalCurveInput = z.infer<typeof VerticalCurveSchema>;
 
@@ -205,81 +206,29 @@ export function horizontalCurve(input: HorizontalCurveInput): HorizontalCurveRes
 /**
  * Vertical Curve Computation
  * 
- * Parabolic vertical curve per RDM 1.1 Volume 2, Chapter 4:
- * - Computes elevation at any point on curve
- * - K value (rate of vertical curvature) per sight distance requirements
- * - Automatic crest/sag classification
+ * Symmetric parabolic geometry from explicit VPI, percent grades and length.
+ * No sight distance or earthwork cut/fill can be inferred from those inputs.
  * 
  * @param input - Vertical curve parameters
  * @returns Elevation table and curve properties
  */
-export interface VerticalCurveResult {
-  gradeIn: number;
-  gradeOut: number;
-  algebraicDiff: number;
-  kValue: number;
-  length: number;
-  isCrest: boolean;
-  chainage_VPC: number;
-  chainage_VPT: number;
-  sightDistance: number;
+export interface VerticalCurveResult extends LegacyVerticalResult {
+  sightDistance: null;
+  sightDistanceStatus: 'NOT_ASSESSED';
   elevationTable: VerticalCurvePoint[];
 }
 
-export interface VerticalCurvePoint {
-  chainage: number;
-  elevation: number;
-  grade: number;
-  cutFill: number;
+export interface VerticalCurvePoint extends LegacyVerticalPoint {
+  cutFill: null; // No measured ground profile is supplied.
 }
 
 export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const parsed = VerticalCurveSchema.parse(input);
-  const { L: curveLength, g1, g2, chainage_VIP, elevation_VIP, designSpeedKph } = parsed;
-
-  const A = g2 - g1;
-  const K = curveLength / Math.abs(A);
-  const isCrest = A < 0;
-
-  // RDM 1.1 minimum K values for stopping sight distance
-
-  const chainage_VPC = chainage_VIP - curveLength / 2;
-  const chainage_VPT = chainage_VIP + curveLength / 2;
-  const elevation_VPC = elevation_VIP - (g1 / 100) * (curveLength / 2);
-
-  // Stopping sight distance (SSD) per RDM 1.1
-  const SSD = 0.278 * designSpeedKph * 2.5 + Math.pow(designSpeedKph, 2) / (254 * (Math.abs(A) / 100));
-
-  const elevationTable: VerticalCurvePoint[] = [];
-  const step = 20;
-
-  let ch = Math.ceil(chainage_VPC / step) * step;
-  while (ch <= chainage_VPT) {
-    const x = ch - chainage_VPC;
-    // Parabolic equation: y = y₀ + g₁x + (A/200L)x²
-    const elevation = elevation_VPC + (g1 / 100) * x + (A / (200 * curveLength)) * x * x;
-    const grade = g1 + (A / curveLength) * x;
-    
-    elevationTable.push({
-      chainage: parseFloat(ch.toFixed(3)),
-      elevation: parseFloat(elevation.toFixed(4)),
-      grade: parseFloat(grade.toFixed(4)),
-      cutFill: 0 // To be filled when design level is provided
-    });
-    ch += step;
-  }
-
+  const result = legacyVerticalProfile({ gradeIn: parsed.g1, gradeOut: parsed.g2, length: parsed.L,
+    chainage_VIP: parsed.chainage_VIP, elevation_VIP: parsed.elevation_VIP, interval: parsed.interval });
   return {
-    gradeIn: g1,
-    gradeOut: g2,
-    algebraicDiff: parseFloat(A.toFixed(4)),
-    kValue: parseFloat(K.toFixed(2)),
-    length: curveLength,
-    isCrest,
-    chainage_VPC: parseFloat(chainage_VPC.toFixed(3)),
-    chainage_VPT: parseFloat(chainage_VPT.toFixed(3)),
-    sightDistance: parseFloat(SSD.toFixed(1)),
-    elevationTable
+    ...result, sightDistance: null, sightDistanceStatus: 'NOT_ASSESSED',
+    elevationTable: result.elevationTable.map(row => ({ ...row, cutFill: null })),
   };
 }
 
