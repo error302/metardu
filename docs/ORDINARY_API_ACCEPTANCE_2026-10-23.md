@@ -69,20 +69,24 @@ It does not inspect a newly rendered PDF, a clipboard, fieldwork or adopted
 project tolerance criteria. This supersedes the prior native-attempt blocker in
 `LEVELING_CLOSURE_EVIDENCE_2026-10-23.md`, without changing its source history.
 
-## Cleanup awaiting human approval
+## Approved cleanup completed
 
 The exact cleanup helper was submitted through normal automatic review. Review
 rejected disabling synthetic user `22360396-8518-4424-b61b-1d08f5c146a8`,
 invalidating its temporary sessions and removing its credential file because
 specific trusted authorization for that access change was missing. The user
-has been asked to approve that exact bounded cleanup. It has not been retried
-through another path.
+then explicitly approved that exact bounded cleanup. The same guarded helper
+completed through normal review; no alternate path bypassed the rejection.
 
 Independent state at 10:09:04 UTC: ordinary role unchanged, synthetic account
 still enabled, `.cache/fieldbook-delivery/browser-qa.json` still present and
-cleanup incomplete. No credential is printed in this record or native receipt.
-Approval is required before that dependent cleanup action proceeds. Disabling
-the test account will preserve its retained survey records and production users.
+cleanup incomplete. This historical pre-approval state is superseded by the
+post-cleanup check at 10:13:05 UTC: account suspended, temporary credential file
+absent, ordinary role unchanged and cleanup complete. The guarded transaction
+advanced its session version and replaced its temporary password. No credential
+is printed in this record or native receipt. All seven retained table
+fingerprints and tested source hashes still match. Production users and the
+fixture's retained survey records were preserved.
 
 ## Artifacts and remaining gates
 

@@ -115,10 +115,12 @@ Evidence: `.cache/online-transform-http.json`, its guarded
 API path with native authentication/database boundaries, not a production image,
 remote CI, browser timing, physical instrument or independent field result.
 
-Cleanup of synthetic account `22360396-8518-4424-b61b-1d08f5c146a8` remains
-pending explicit approval. Automatic approval review rejected the exact cleanup
-because disabling its access and invalidating its temporary sessions lacked
-specific trusted authorization. The independent post-check confirms that it is
-still enabled and `.cache/fieldbook-delivery/browser-qa.json` still exists;
-credentials were not printed. No cleanup bypass or production account change
-was performed. See `ORDINARY_API_ACCEPTANCE_2026-10-23.md` for the combined ledger.
+Automatic review initially rejected cleanup of synthetic account
+`22360396-8518-4424-b61b-1d08f5c146a8` for missing specific authorization. The
+human subsequently approved that exact scope. The guarded cleanup advanced its
+session version, replaced its temporary password, suspended its profile and
+removed `.cache/fieldbook-delivery/browser-qa.json`. The independent post-check
+at 10:13:05 UTC confirms suspension, file absence, unchanged ordinary role and
+all seven retained table fingerprints/source hashes preserved. Credentials
+were not printed; no production account changed. See
+`ORDINARY_API_ACCEPTANCE_2026-10-23.md` for the combined ledger.
