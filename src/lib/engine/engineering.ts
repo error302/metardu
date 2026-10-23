@@ -6,7 +6,7 @@
  * does not establish a blanket SRID, datum or adopted design standard.
  */
 
-import { verticalCurveGeometry } from '../computations/roadDesignEngine';
+import { verticalCurveGeometry, horizontalCurveElements, horizontalCurveInputFromDecimal } from '../computations/roadDesignEngine';
 
 export const ENGINEERING_SUBTYPES = [
   'road',
@@ -51,6 +51,11 @@ export interface HorizontalCurve {
   ptChainage: number;
 }
 
+export interface ComputedHorizontalCurve extends HorizontalCurve {
+  standardCompliance: 'NOT_ASSESSED';
+  coordinateReferenceStatus: 'NOT_VERIFIED';
+}
+
 export interface VerticalCurve {
   pvIChainage: number;
   pvIElevation: number;
@@ -87,27 +92,13 @@ export function computeHorizontalCurve(
   radius: number,
   delta: number,
   piChainage: number
-): HorizontalCurve {
-  const deltaRad = (delta * Math.PI) / 180;
-  const tangentLength = radius * Math.tan(deltaRad / 2);
-  const curveLength = radius * deltaRad;
-  const externalDistance = radius * (1 / Math.cos(deltaRad / 2) - 1);
-  const midOrdinate = radius * (1 - Math.cos(deltaRad / 2));
-  const longChord = 2 * radius * Math.sin(deltaRad / 2);
-  const pcChainage = piChainage - tangentLength;
-  const ptChainage = pcChainage + curveLength;
-
+): ComputedHorizontalCurve {
+  const result = horizontalCurveElements(horizontalCurveInputFromDecimal(radius, delta, piChainage));
   return {
-    piChainage,
-    radius,
-    delta,
-    tangentLength,
-    curveLength,
-    externalDistance,
-    midOrdinate,
-    longChord,
-    pcChainage,
-    ptChainage,
+    piChainage, radius, delta, tangentLength: result.tangentLength, curveLength: result.curveLength,
+    externalDistance: result.externalDistance, midOrdinate: result.midOrdinate, longChord: result.longChord,
+    pcChainage: result.tcChainage, ptChainage: result.ctChainage,
+    standardCompliance: 'NOT_ASSESSED', coordinateReferenceStatus: 'NOT_VERIFIED',
   };
 }
 

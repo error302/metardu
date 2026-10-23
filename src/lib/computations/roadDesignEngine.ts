@@ -20,7 +20,7 @@ export interface HorizontalCurveResult {
   longChord: number       // C = 2R × sin(Δ/2)
   midOrdinate: number     // M = R × (1 - cos(Δ/2))
   externalDistance: number // E = R × (1/cos(Δ/2) - 1)
-  degreeOfCurve: number   // D = 1718.873 / R (arc definition)
+  degreeOfCurve: number   // D = (30/R) × 180/π (30 m arc definition)
   tcChainage: number
   ccChainage: number
   ctChainage: number
@@ -37,6 +37,17 @@ function horizontalAngle(input: Pick<HorizontalCurveInput, 'radius' | 'deflectio
   const angle = (degrees + minutes / 60 + seconds / 3600) * Math.PI / 180
   if (!(angle > 0 && angle < Math.PI)) throw new Error('Central angle must be greater than 0 and less than 180 degrees.')
   return angle
+}
+
+/** Decimal-angle adapter; does not adopt a design standard or map reference. */
+export function horizontalCurveInputFromDecimal(radius: number, angle: number, ipChainage: number): HorizontalCurveInput {
+  if (!Number.isFinite(angle) || angle <= 0 || angle >= 180) throw new RangeError('Deflection must be finite, positive and less than 180 degrees.')
+  const degrees = Math.floor(angle), decimalMinutes = (angle - degrees) * 60, minutes = Math.floor(decimalMinutes)
+  const input = { radius, deflectionAngleDeg: degrees, deflectionAngleMin: minutes,
+    deflectionAngleSec: (decimalMinutes - minutes) * 60, ipChainage }
+  horizontalAngle(input)
+  if (!Number.isFinite(ipChainage)) throw new RangeError('IP chainage must be finite.')
+  return input
 }
 
 // Round once, before splitting into D/M/S, so 59.99 seconds carries correctly.
@@ -60,13 +71,13 @@ export function horizontalCurveElements(input: HorizontalCurveInput): Horizontal
   const tangentLength = radius * Math.tan(halfDelta)
 
   // Source: RDM 1.3 Section 5.2 — Arc length: L = πRΔ/180 (Δ in degrees)
-  const curveLength = Math.PI * radius * deltaDeg / 180
+  const curveLength = radius * deltaRad
 
   // Source: RDM 1.3 Section 5.2 — Long chord
-  const longChord = 2 * radius * Math.sin(halfDelta)
+  const longChord = radius * (2 * Math.sin(halfDelta))
 
   // Source: RDM 1.3 Section 5.2 — Mid ordinate
-  const midOrdinate = 2 * radius * Math.sin(halfDelta / 2) ** 2
+  const midOrdinate = radius * (2 * Math.sin(halfDelta / 2) ** 2)
 
   // Source: RDM 1.3 Section 5.2 — External distance
   const externalDistance = midOrdinate / Math.cos(halfDelta)
@@ -78,9 +89,11 @@ export function horizontalCurveElements(input: HorizontalCurveInput): Horizontal
   const tcChainage = ipChainage - tangentLength
   const ccChainage = tcChainage + curveLength / 2
   const ctChainage = tcChainage + curveLength
+  const stationPrecision = 32 * Number.EPSILON * Math.max(1, Math.abs(tcChainage), Math.abs(ctChainage), curveLength)
 
   if (![tangentLength, curveLength, longChord, midOrdinate, externalDistance, degreeOfCurve, tcChainage, ccChainage, ctChainage].every(Number.isFinite) ||
-      !(curveLength > 0 && tangentLength > 0 && longChord > 0 && tcChainage < ccChainage && ccChainage < ctChainage)) {
+      !(curveLength > 0 && tangentLength > 0 && longChord > 0 && tcChainage < ccChainage && ccChainage < ctChainage) ||
+      stationPrecision > curveLength * 1e-8) {
     throw new Error('Curve cannot be represented at this radius and chainage precision.')
   }
 

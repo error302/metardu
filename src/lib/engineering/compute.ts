@@ -10,7 +10,7 @@
  */
 
 import { z } from 'zod';
-import { horizontalCurveElements, curveSetOut } from '@/lib/computations/roadDesignEngine';
+import { horizontalCurveElements, curveSetOut, horizontalCurveInputFromDecimal } from '@/lib/computations/roadDesignEngine';
 import { verticalCurve as legacyVerticalProfile, type VerticalCurveResult as LegacyVerticalResult,
   type VerticalCurvePoint as LegacyVerticalPoint } from './curves';
 import type { createClient } from '@/lib/api-client/client';
@@ -182,11 +182,7 @@ export interface SettingOutRow {
 
 export function horizontalCurve(input: HorizontalCurveInput): HorizontalCurveResult {
   const { R, deltaDeg, chainageStart } = HorizontalCurveSchema.parse(input);
-  const degrees = Math.floor(deltaDeg);
-  const remainingMinutes = (deltaDeg - degrees) * 60;
-  const minutes = Math.floor(remainingMinutes);
-  const geometry = { radius: R, deflectionAngleDeg: degrees, deflectionAngleMin: minutes,
-    deflectionAngleSec: (remainingMinutes - minutes) * 60, ipChainage: chainageStart };
+  const geometry = horizontalCurveInputFromDecimal(R, deltaDeg, chainageStart);
   const result = horizontalCurveElements(geometry);
   const setout = curveSetOut({ ...geometry, tcChainage: result.tcChainage, ctChainage: result.ctChainage, interval: 20 });
   return {
@@ -197,7 +193,7 @@ export function horizontalCurve(input: HorizontalCurveInput): HorizontalCurveRes
     settingOutTable: setout.rows.map(row => ({
       chainage: row.chainage,
       deflectionFromTC: (row.chainage - result.tcChainage) / R * 90 / Math.PI,
-      chordFromTC: 2 * R * Math.sin((row.chainage - result.tcChainage) / R / 2),
+      chordFromTC: R * (2 * Math.sin((row.chainage - result.tcChainage) / R / 2)),
       chordIncrement: row.chord,
     })),
   };

@@ -333,3 +333,14 @@ PDF/CSV pairs also pass, with all five source CSV hashes unchanged. Actual
 anonymous source-preview HTTP is 401; signed-in success remains synthetic-source
 evidence. See `VERTICAL_SCALAR_INTEGRITY_2026-10-23.md` for the unassessed criteria,
 unverified datum and outstanding saved-project/browser/production/field gates.
+
+### Horizontal scalar and legacy simple schedule — 23 October
+
+Scalar/project and legacy simple paths now share reviewed horizontal geometry.
+The old cumulative-chord difference is replaced by the actual previous-peg
+chord, with exact endpoints and full precision. Strict API and form guards keep
+invalid/unrepresentable input from appearing valid or crashing draft entry.
+133 focused tests, 70 CLI checks and independent 80-digit checks of 130 stations
+pass. Seven plan draft pairs / ten pages and 64 CAD checks also pass. See
+`HORIZONTAL_ADAPTER_INTEGRITY_2026-10-23.md` for unchanged local/synthetic versus
+saved-project/browser/production/professional/field acceptance boundaries.

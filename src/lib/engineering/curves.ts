@@ -1,11 +1,13 @@
 // All angles in decimal degrees. Distances in metres.
 // Geometry alone does not establish design-standard adoption or a project CRS.
-import { verticalCurve as sharedVerticalCurve } from '../computations/roadDesignEngine'
+import { verticalCurve as sharedVerticalCurve, horizontalCurveInputFromDecimal,
+  horizontalCurveElements, curveSetOut } from '../computations/roadDesignEngine'
 
 export interface SimpleCurveInput {
   radius: number          // R in metres
   deflectionAngle: number // Δ (total deflection) in decimal degrees
   chainage_IP: number     // chainage at intersection point
+  interval?: number      // arc peg interval, defaults to 20 m
 }
 
 export interface SimpleCurveResult {
@@ -17,80 +19,34 @@ export interface SimpleCurveResult {
   midOrdinate: number         // M
   externalDistance: number    // E
   chainage_TC: number         // chainage at tangent-to-curve
-  chainage_CC: number         // chainage at curve centre (mid)
+  chainage_CC: number         // arc-midpoint station, not circle-centre coordinates
   chainage_CT: number         // chainage at curve-to-tangent
   settingOutTable: SettingOutRow[]
+  standardCompliance: 'NOT_ASSESSED'
+  coordinateReferenceStatus: 'NOT_VERIFIED'
 }
 
 export interface SettingOutRow {
   chainage: number
   deflectionFromTC: number    // cumulative deflection angle from TC
   chordFromTC: number         // chord from TC to this point
-  chordIncrement: number      // chord from previous point
+  chordIncrement: number      // actual chord from previous peg; not a difference of cumulative chords
 }
 
 export function simpleCircularCurve(input: SimpleCurveInput): SimpleCurveResult {
-  const { radius: R, deflectionAngle: Delta, chainage_IP } = input
-  const DeltaRad = (Delta * Math.PI) / 180
-
-  const T = R * Math.tan(DeltaRad / 2)
-  const L = (Math.PI * R * Delta) / 180
-  const C = 2 * R * Math.sin(DeltaRad / 2)
-  const M = R * (1 - Math.cos(DeltaRad / 2))
-  const E = R * (1 / Math.cos(DeltaRad / 2) - 1)
-
-  const chainage_TC = chainage_IP - T
-  const chainage_CT = chainage_TC + L
-  const chainage_CC = chainage_TC + L / 2
-
-  // Setting out table — pegs at every 20m chainage
-  const pegInterval = 20
-  const settingOutTable: SettingOutRow[] = []
-
-  let peg = Math.ceil(chainage_TC / pegInterval) * pegInterval
-  let prevChord = 0
-
-  while (peg <= chainage_CT) {
-    const arc = peg - chainage_TC
-    const deflection = (arc / (2 * R)) * (180 / Math.PI)
-    const chord = 2 * R * Math.sin((arc / R) / 2)
-    const increment = chord - prevChord
-
-    settingOutTable.push({
-      chainage: peg,
-      deflectionFromTC: parseFloat(deflection.toFixed(6)),
-      chordFromTC: parseFloat(chord.toFixed(4)),
-      chordIncrement: parseFloat(increment.toFixed(4))
-    })
-
-    prevChord = chord
-    peg += pegInterval
-  }
-
-  // Always include CT
-  if (settingOutTable[settingOutTable.length - 1]?.chainage !== chainage_CT) {
-    const deflection = Delta / 2
-    const chord = C
-    settingOutTable.push({
-      chainage: parseFloat(chainage_CT.toFixed(3)),
-      deflectionFromTC: parseFloat(deflection.toFixed(6)),
-      chordFromTC: parseFloat(chord.toFixed(4)),
-      chordIncrement: parseFloat((chord - prevChord).toFixed(4))
-    })
-  }
-
+  const { radius, deflectionAngle, chainage_IP, interval = 20 } = input
+  const geometry = horizontalCurveInputFromDecimal(radius, deflectionAngle, chainage_IP)
+  const result = horizontalCurveElements(geometry)
+  const setout = curveSetOut({ ...geometry, tcChainage: result.tcChainage, ctChainage: result.ctChainage, interval })
   return {
-    radius: R,
-    deflectionAngle: Delta,
-    tangentLength: parseFloat(T.toFixed(4)),
-    curveLength: parseFloat(L.toFixed(4)),
-    longChord: parseFloat(C.toFixed(4)),
-    midOrdinate: parseFloat(M.toFixed(4)),
-    externalDistance: parseFloat(E.toFixed(4)),
-    chainage_TC: parseFloat(chainage_TC.toFixed(3)),
-    chainage_CC: parseFloat(chainage_CC.toFixed(3)),
-    chainage_CT: parseFloat(chainage_CT.toFixed(3)),
-    settingOutTable
+    radius, deflectionAngle, tangentLength: result.tangentLength, curveLength: result.curveLength,
+    longChord: result.longChord, midOrdinate: result.midOrdinate, externalDistance: result.externalDistance,
+    chainage_TC: result.tcChainage, chainage_CC: result.ccChainage, chainage_CT: result.ctChainage,
+    settingOutTable: setout.rows.map(row => ({ chainage: row.chainage,
+      deflectionFromTC: (row.chainage - result.tcChainage) / radius * 90 / Math.PI,
+      chordFromTC: radius * (2 * Math.sin((row.chainage - result.tcChainage) / radius / 2)),
+      chordIncrement: row.chord })),
+    standardCompliance: 'NOT_ASSESSED', coordinateReferenceStatus: 'NOT_VERIFIED',
   }
 }
 

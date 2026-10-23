@@ -12,7 +12,8 @@
 
 import { CurveElements, CurveStakeoutResult } from './types';
 import { bearingToString } from './angles';
-import { horizontalCurveElements, curveSetOut, verticalCurve as sharedVerticalCurve } from '../computations/roadDesignEngine';
+import { horizontalCurveElements, curveSetOut, horizontalCurveInputFromDecimal as circularInput,
+  verticalCurve as sharedVerticalCurve } from '../computations/roadDesignEngine';
 
 export function curveElements(
   radius: number,
@@ -26,13 +27,6 @@ export function curveElements(
     degreeOfCurve: result.degreeOfCurve };
 }
 
-function circularInput(radius: number, angle: number, station: number) {
-  if (!Number.isFinite(angle) || angle <= 0 || angle >= 180) throw new RangeError('Deflection must be finite, positive and less than 180 degrees.');
-  const degrees = Math.floor(angle), decimalMinutes = (angle - degrees) * 60, minutes = Math.floor(decimalMinutes);
-  return { radius, deflectionAngleDeg: degrees, deflectionAngleMin: minutes,
-    deflectionAngleSec: (decimalMinutes - minutes) * 60, ipChainage: station };
-}
-
 export function curveStakeout(piChainage: number, bearingIn: number, radius: number, deflectionAngle: number, interval = 20): CurveStakeoutResult {
   if (!Number.isFinite(bearingIn)) throw new RangeError('Incoming bearing must be finite.');
   const input = circularInput(radius, deflectionAngle, piChainage);
@@ -42,7 +36,7 @@ export function curveStakeout(piChainage: number, bearingIn: number, radius: num
     points: setout.rows.map(row => {
       const angle = (row.chainage - result.tcChainage) / radius;
       return { chainage: row.chainage, deflectionAngle: bearingToString(angle * 180 / Math.PI),
-        totalDeflection: row.totalDeflection, chordLength: 2 * radius * Math.sin(angle / 2) };
+        totalDeflection: row.totalDeflection, chordLength: radius * (2 * Math.sin(angle / 2)) };
     }) };
 }
 

@@ -355,3 +355,14 @@ the road panel checks a draft before retaining it and shows endpoints/evidence.
 rechecks; five source CSV hashes are unchanged. Actual source-preview anonymous
 HTTP returns 401. See `VERTICAL_SCALAR_INTEGRITY_2026-10-23.md` for the synthetic
 auth/rate boundaries and absent fresh browser/signed-in/production/field proof.
+
+23 October horizontal-adapter checkpoint: scalar/project helpers and the
+remaining legacy simple schedule now share reviewed geometry and decimal-angle
+conversion. The table includes PC/PT and actual successive-peg chords without
+internal rounding; strict scalar API and guarded form entry reject invalid
+geometry. Shared station precision and stable products prevent unusable or
+nonfinite outputs. 133 focused tests, 70 CLI checks and independent 80-digit
+verification of 130 stations pass. Seven plan draft pairs and 64 CAD checks also
+pass; actual source-preview anonymous HTTP is 401. See
+`HORIZONTAL_ADAPTER_INTEGRITY_2026-10-23.md` for compatibility/evidence boundaries.
+Criteria, saved project/revision, browser, production and field gates remain open.

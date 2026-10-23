@@ -135,3 +135,21 @@ existing 60 requests/minute configuration remain in that wrapper.
 See `VERTICAL_SCALAR_INTEGRITY_2026-10-23.md` for source, numerical, synthetic
 wrapper and actual anonymous-HTTP evidence boundaries. No live authenticated
 acceptance or production promotion is implied.
+
+## Scalar horizontal endpoint
+
+`POST /api/engineering/compute/horizontal-curve` requires finite numeric
+`radius > 0`, `0 < delta < 180` (decimal degrees), and `piChainage` (signed
+metres). The object is strict; it does not accept numeric strings, nulls,
+speed/criteria or CRS fields as substitutes for geometry. A representability
+failure returns 400 / `INVALID_HORIZONTAL_GEOMETRY`, rather than JSON nulls or
+an unhandled 500.
+
+Its version-2 flat result retains the scalar elements and PC/PT stations,
+declares distance/station metres and angle degrees, and adds unassessed standards
+and unverified coordinate-reference status. PT follows PC plus arc length.
+This unsigned-angle contract does not place the curve in a map, choose a turn
+direction or verify project control. Successful/numerical-error responses are
+private/no-store; authentication and the existing 60/minute configuration remain
+in the common wrapper. See `HORIZONTAL_ADAPTER_INTEGRITY_2026-10-23.md` for
+proof boundaries and legacy-helper sampling/output changes.

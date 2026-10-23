@@ -53,16 +53,21 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
       setFormError('Enter radius > 0, deflection between 0° and 180°, and a non-negative PI chainage.');
       return;
     }
-    const curve = computeHorizontalCurve(r, d, pi);
-    if (![curve.pcChainage, curve.ptChainage, curve.curveLength].every(Number.isFinite) || curve.pcChainage < 0) {
-      setFormError('This curve places the PC before chainage zero. Check the entered PI chainage and geometry.');
-      return;
-    }
-    if (horizontalCurves.some(existing => {
-      const prior = computeHorizontalCurve(existing.radius, existing.delta, existing.piChainage);
-      return curve.pcChainage < prior.ptChainage && curve.ptChainage > prior.pcChainage;
-    })) {
-      setFormError('This curve overlaps a curve already in the list.');
+    try {
+      const curve = computeHorizontalCurve(r, d, pi);
+      if (curve.pcChainage < 0) {
+        setFormError('This curve places the PC before chainage zero. Check the entered PI chainage and geometry.');
+        return;
+      }
+      if (horizontalCurves.some(existing => {
+        const prior = computeHorizontalCurve(existing.radius, existing.delta, existing.piChainage);
+        return curve.pcChainage < prior.ptChainage && curve.ptChainage > prior.pcChainage;
+      })) {
+        setFormError('This curve overlaps a curve already in the list.');
+        return;
+      }
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Review the horizontal curve geometry.');
       return;
     }
     setHorizontalCurves([...horizontalCurves, { radius: r, delta: d, piChainage: pi }]);
@@ -207,9 +212,10 @@ export function RoadPanel({ projectId: _projectId, subtype: _subtype }: Engineer
                 <div><span className="text-zinc-400">PC:</span> {curve.pcChainage.toFixed(3)}m</div>
                 <div><span className="text-zinc-400">PT:</span> {curve.ptChainage.toFixed(3)}m</div>
               </div>
+              <p className="mt-2 text-xs text-amber-200/80">Geometry only. Design standards and the coordinate reference are not verified.</p>
             </div>
           ))}
-          {horizontalCurves.length === 0 && <p className="text-sm text-zinc-400">Enter a curve from the approved horizontal alignment. Nothing is assumed.</p>}
+          {horizontalCurves.length === 0 && <p className="text-sm text-zinc-400">Enter the radius, deflection and PI chainage.</p>}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-2 mt-3">
             {([
               ['radius', 'Radius (m)', horizontalDraft.radius],
