@@ -114,3 +114,17 @@ test('sub-resolution stationary point near EVC cannot remove exact EVC', () => {
 test('large chainage cannot silently collapse curve endpoints', () => {
   expect(() => verticalCurve({ ...sag, vpiChainage: 1e25 })).toThrow(/precision/i)
 })
+
+test('a large level cannot round a nonflat profile entirely to the VPI level', () => {
+  expect(() => verticalCurve({ ...sag, vpiRL: 1e30 })).toThrow(/precision/i)
+})
+
+test('nonzero grades cannot underflow into an entirely flat zero-level profile', () => {
+  expect(() => verticalCurve({ ...sag, vpiRL: 0, g1: Number.MIN_VALUE, g2: Number.MIN_VALUE })).toThrow(/precision/i)
+})
+
+test('an explicitly flat profile can retain a large finite caller level', () => {
+  const result = verticalCurve({ ...sag, vpiRL: 1e30, g1: 0, g2: 0 })
+  expect(result.rows.every(row => row.rl === 1e30)).toBe(true)
+  expect(result.curveType).toBe('straight')
+})

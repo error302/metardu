@@ -267,3 +267,14 @@ source-preview browser downloads, with mobile containment and stale-result
 removal verified. See `ROAD_QUICK_COMPUTE_INTEGRITY_2026-10-23.md` for exact scope.
 Global type acceptance is not claimed while concurrent topographic errors remain;
 other legacy curves and project-bound/revisioned output acceptance stay open.
+
+### Explicit vertical and transition API geometry — 23 October
+
+The curve endpoint no longer supplies a zero elevation, inferred spiral length
+or ambiguous start station on its vertical/transition paths. Explicit references
+feed the reviewed shared engines; local station tables, geometry-only assessment
+and unverified datum/CRS boundaries are recorded. 147 focused tests and 22 native
+source-handler cases pass; an independent reader checks 438 vertical samples and
+70 transition stations. Full working-tree app/test TypeScript now passes. See
+`CURVE_API_GEOMETRY_INTEGRITY_2026-10-23.md` and `ENGINEERING_CURVE_API.md` for the
+breaking request migration, evidence and remaining live/project/field gates.

@@ -83,8 +83,8 @@ const API_GROUPS = [
     title: 'Engineering',
     routes: [
       { method: 'POST', path: '/api/engineering/compute/volume', desc: 'Compute earthwork volume.' },
-      { method: 'POST', path: '/api/engineering/compute/curve', desc: 'Compute horizontal curve geometry.' },
-      { method: 'POST', path: '/api/engineering/compute/vertical-curve', desc: 'Compute vertical curve with AASHTO K-factor compliance.' },
+      { method: 'POST', path: '/api/engineering/compute/curve', desc: 'Compute horizontal geometry, or explicit VPI/length-or-K vertical and PI/spiral transition geometry. Geometry only; no standard or datum verification.' },
+      { method: 'POST', path: '/api/engineering/compute/vertical-curve', desc: 'Compute vertical geometry from supplied PVI, grades and length. Design-standard compliance is not assessed.' },
       { method: 'POST', path: '/api/engineering/stations', desc: 'Save cross-section station data.' },
       { method: 'POST', path: '/api/engineering/vips', desc: 'Save vertical intersection points.' },
     ],

@@ -6,6 +6,8 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { z } from 'zod'
 import { horizontalCurve } from '@/lib/engineering/compute'
+import { verticalCurve } from '@/lib/computations/roadDesignEngine'
+import { computeSpiralAlignment, stationSpiralAlignment } from '@/lib/survey/curves/spiralAlignment'
 
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
@@ -20,20 +22,22 @@ const CurveComputeSchema = z.discriminatedUnion('curveType', [
   }),
   z.object({
     curveType: z.literal('vertical'),
-    R: z.number().positive(),
-    chainageStart: z.number().min(0).default(0),
-    designSpeed: z.number().positive(),
-    g1: z.number(),  // initial gradient (%)
-    g2: z.number(),  // final gradient (%)
-  }),
+    g1: z.number().finite(), // incoming percent grade
+    g2: z.number().finite(), // outgoing percent grade
+    vpiChainage: z.number().finite(),
+    vpiRL: z.number().finite(),
+    curveLength: z.number().finite().positive().optional(),
+    kValue: z.number().finite().positive().optional(), // metres per percent
+    interval: z.number().finite().positive().default(20), // output sampling only
+  }).strict(),
   z.object({
     curveType: z.literal('transition'),
-    R: z.number().positive().max(2000),
-    deltaDeg: z.number().positive().max(180),
-    chainageStart: z.number().min(0).default(0),
-    designSpeed: z.number().positive(),
-    transitionLength: z.number().positive().optional(),
-  }),
+    radius: z.number().finite().positive(),
+    intersectionAngleDeg: z.number().finite().gt(-180).lt(180), // positive right, negative left
+    spiralLength: z.number().finite().nonnegative(), // explicit zero is the circular limit
+    piChainage: z.number().finite(),
+    interval: z.number().finite().positive().default(20),
+  }).strict(),
 ])
 
 /** Legacy schema for backward compatibility (no curveType field) */
@@ -72,65 +76,34 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // For vertical and transition curves, return computed values
+    // Geometry-only v2 contracts require explicit references. No radius-to-K
+    // conversion, zero starting level or spiral length is inferred.
     if (input.curveType === 'vertical') {
-      const { R, g1, g2, designSpeed, chainageStart } = input
-      const A = g2 - g1 // algebraic difference in grades
-      const L = Math.abs(A) * R / 100 // curve length
-      const K = R / 100 // rate of vertical curvature
-      const elevationPC = 0 // assumed
-      const elevationPI = elevationPC + (g1 / 100) * (L / 2)
-      const elevationPT = elevationPI + (g2 / 100) * (L / 2)
-
-      return NextResponse.json({
-        curveType: 'vertical',
-        R,
-        designSpeed,
-        g1,
-        g2,
-        A,
-        L,
-        K,
-        chainageStart,
-        chainagePI: chainageStart + L / 2,
-        chainagePC: chainageStart,
-        chainagePT: chainageStart + L,
-        elevationPC,
-        elevationPI,
-        elevationPT,
-      })
+      let geometry: ReturnType<typeof verticalCurve>
+      try { geometry = verticalCurve(input) }
+      catch (cause) { return NextResponse.json({ error: cause instanceof Error ? cause.message : 'Vertical geometry cannot be represented safely.' }, { status: 400 }) }
+      return NextResponse.json({ contractVersion: 2, curveType: 'vertical', model: 'symmetric-parabolic', input, geometry,
+        units: { chainage: 'm', level: 'm', grade: 'percent', k: 'm/percent' },
+        reference: { kind: 'caller-stations-and-levels', verticalDatum: null, status: 'NOT_VERIFIED' },
+        assessmentBasis: 'geometry-only', standardCompliance: 'NOT_ASSESSED',
+      }, { headers: { 'Cache-Control': 'private, no-store' } })
     }
 
     if (input.curveType === 'transition') {
-      const { R, deltaDeg, designSpeed, chainageStart, transitionLength } = input
-      const deltaRad = (deltaDeg * Math.PI) / 180
-      // Spiral length defaults
-      const Ls = transitionLength ?? Math.max(R * 0.1, 20)
-      // Shift
-      const shift = (Ls * Ls) / (24 * R)
-      // Tangent length
-      const T = (R + shift) * Math.tan(deltaRad / 2) + Ls / 2
-      // Curve length
-      const Lc = R * deltaRad - Ls
-      // Total curve length
-      const Ltotal = Lc + 2 * Ls
-
-      return NextResponse.json({
-        curveType: 'transition',
-        R,
-        deltaDeg,
-        designSpeed,
-        chainageStart,
-        transitionLength: Ls,
-        shift,
-        tangentLength: T,
-        curveLength: Lc,
-        totalLength: Ltotal,
-        chainageTS: chainageStart,
-        chainageSC: chainageStart + Ls,
-        chainageCS: chainageStart + Ls + Lc,
-        chainageST: chainageStart + Ltotal,
-      })
+      let geometry: ReturnType<typeof computeSpiralAlignment>
+      let stations: ReturnType<typeof stationSpiralAlignment>
+      try { geometry = computeSpiralAlignment(input); stations = stationSpiralAlignment(geometry, input.interval) }
+      catch (cause) { return NextResponse.json({ error: cause instanceof Error ? cause.message : 'Transition geometry cannot be represented safely.' }, { status: 400 }) }
+      return NextResponse.json({ contractVersion: 2, curveType: 'transition', model: 'symmetric-clothoid-circular-clothoid', input, geometry,
+        stations: stations.map(row => ({ chainage: row.chainage, distanceFromTS: row.distanceFromTS,
+          x: row.easting, y: row.northing, offset: row.offset, segment: row.segment,
+          deflectionFromTsTangentDeg: row.deflectionDeg,
+          tangentDeflectionDeg: row.tangentBearingDeg > 180 ? row.tangentBearingDeg - 360 : row.tangentBearingDeg,
+        })),
+        units: { chainage: 'm', coordinate: 'm', angle: 'degree' },
+        reference: { kind: 'local', origin: 'TS', xAxis: 'forward incoming tangent', yAxis: 'right of incoming tangent', horizontalCrs: null, geographicBearing: null },
+        assessmentBasis: 'geometry-only', standardCompliance: 'NOT_ASSESSED',
+      }, { headers: { 'Cache-Control': 'private, no-store' } })
     }
 
     return NextResponse.json({ error: 'Unknown curve type' }, { status: 400 })

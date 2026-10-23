@@ -289,3 +289,16 @@ source fixtures plus actual browser downloads. See
 `ROAD_QUICK_COMPUTE_INTEGRITY_2026-10-23.md`. Concurrent topographic type failures
 are preserved; whole-checkout type acceptance, other legacy curves, saved
 revision/export authority and production/field gates remain open.
+
+23 October explicit curve API checkpoint: vertical requests now require the VPI
+station/level and exactly one length or K; transition requests require radius,
+signed intersection angle, spiral length and PI station. Both use reviewed shared
+engines and geometry-only metadata, with no guessed datum, level or spiral length.
+A shared guard refuses nonflat profiles wholly lost to numerical resolution.
+147 focused tests, 22 native source-handler cases and independent Decimal/
+integration checks of 438 profile samples and 70 transition stations pass. Full
+working-tree app/test TypeScript now passes; the prior concurrent topographic type
+failures are no longer reproduced. Existing DXF bytes and 64 CAD checks remain
+valid. See `CURVE_API_GEOMETRY_INTEGRITY_2026-10-23.md` and
+`ENGINEERING_CURVE_API.md` for the intentional API migration and exact proof
+boundaries. Other legacy UI/standards paths and release/field gates remain open.

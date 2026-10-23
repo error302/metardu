@@ -264,6 +264,9 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   const evcChainage = vpiChainage + L / 2
   const bvcRL = vpiRL - (g1 / 100) * (L / 2)
   const evcRL = vpiRL + (g2 / 100) * (L / 2)
+  if ((g1 !== 0 || g2 !== 0) && bvcRL === vpiRL && evcRL === vpiRL) {
+    throw new Error('Nonzero grades cannot be represented at this elevation precision.')
+  }
   const precision = 32 * Number.EPSILON * Math.max(1, Math.abs(bvcChainage), Math.abs(evcChainage), L)
   if (![bvcChainage, evcChainage, bvcRL, evcRL].every(Number.isFinite) ||
       !(bvcChainage < vpiChainage && vpiChainage < evcChainage) || precision > L * 1e-8) {
