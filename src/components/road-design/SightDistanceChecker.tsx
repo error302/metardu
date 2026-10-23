@@ -1,190 +1,74 @@
-'use client';
+'use client'
 
 import { useState } from 'react'
-import { sightDistanceCheck, checkRadiusCompliance, getMinRadius, type SightDistanceInput } from '@/lib/computations/roadDesignEngine'
+import { sightDistanceCheck, checkRadiusCompliance } from '@/lib/computations/roadDesignEngine'
+import { CriterionFields, CriterionResult, CriterionSteps, roadNumber, optionalRoadNumber, type RoadField } from './RoadCriteriaForm'
 
+const sightFields: RoadField[] = [
+  { key: 'speed', label: 'Design Speed (km/h)' }, { key: 'gradient', label: 'Gradient (%)' },
+  { key: 'reference', label: 'Criteria Reference / Revision', text: true },
+  { key: 'friction', label: 'Longitudinal Friction Factor' }, { key: 'reaction', label: 'Reaction Time (s)' },
+  { key: 'minimumSSD', label: 'Adopted Minimum SSD (m) — optional' },
+  { key: 'availableSSD', label: 'Available SSD (m) — optional' },
+  { key: 'minimumPSD', label: 'Adopted Minimum PSD (m) — optional' },
+  { key: 'availablePSD', label: 'Available PSD (m) — optional' },
+]
+const radiusFields: RoadField[] = [
+  { key: 'radius', label: 'Proposed Radius R (m)' }, { key: 'minimumRadius', label: 'Adopted Minimum Radius (m)' },
+]
 export default function SightDistanceChecker() {
-  const [designSpeed, setDesignSpeed] = useState('80')
-  const [terrain, setTerrain] = useState<'flat' | 'rolling' | 'mountainous'>('rolling')
-  const [gradient, setGradient] = useState('0')
-  const [proposedSSD, setProposedSSD] = useState('')
-  const [proposedRadius, setProposedRadius] = useState('')
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries([...sightFields, ...radiusFields].map(field => [field.key, ''])))
   const [result, setResult] = useState<ReturnType<typeof sightDistanceCheck> | null>(null)
   const [radiusResult, setRadiusResult] = useState<ReturnType<typeof checkRadiusCompliance> | null>(null)
-
-  async function computeSSD() {
-    const input: SightDistanceInput = {
-      designSpeed: parseInt(designSpeed) || 80,
-      roadClass: 'DR4',
-      terrain,
-      gradient: parseFloat(gradient) || 0,
-      proposedSSD: proposedSSD ? parseFloat(proposedSSD) : undefined,
-    }
-    setResult(sightDistanceCheck(input))
-    
-    // Call Python Engine for true RDM 1.3 Verification
-    const { validateGeometry } = await import('@/lib/compute/pythonService')
-    const pyRes = await validateGeometry({
-      terrain,
-      designSpeed: parseInt(designSpeed) || 80,
-      gradient: parseFloat(gradient) || 0,
-      radius: parseFloat(proposedRadius) || 9999,
-      ssd: proposedSSD ? parseFloat(proposedSSD) : undefined
-    })
-    setPythonValidation(pyRes)
+  const [error, setError] = useState('')
+  function edit(key: string, value: string) { setValues(previous => ({ ...previous, [key]: value })); setResult(null); setRadiusResult(null); setError('') }
+  const label = (key: string) => [...sightFields, ...radiusFields].find(field => field.key === key)?.label ?? key
+  const n = (key: string) => roadNumber(values[key], label(key))
+  const optional = (key: string) => optionalRoadNumber(values[key], label(key))
+  function compute() {
+    setResult(null); setRadiusResult(null); setError('')
+    try {
+      setResult(sightDistanceCheck({ designSpeed: n('speed'), gradient: n('gradient'),
+        proposedSSD: optional('availableSSD'), proposedPSD: optional('availablePSD'),
+        criteria: { reference: values.reference, longitudinalFriction: n('friction'), reactionTimeSeconds: n('reaction'), minimumStoppingDistanceM: optional('minimumSSD'), minimumPassingDistanceM: optional('minimumPSD') },
+      }))
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to assess sight distance.') }
   }
-
-  async function computeRadius() {
-    const R = parseFloat(proposedRadius)
-    if (!R) return
-    const tsRes = checkRadiusCompliance(R, parseInt(designSpeed) || 80, terrain)
-    setRadiusResult(tsRes)
-    
-    // Call Python Engine for true RDM 1.3 Verification
-    const { validateGeometry } = await import('@/lib/compute/pythonService')
-    const pyRes = await validateGeometry({
-      terrain,
-      designSpeed: parseInt(designSpeed) || 80,
-      gradient: parseFloat(gradient) || 0,
-      radius: R,
-      ssd: proposedSSD ? parseFloat(proposedSSD) : undefined
-    })
-    setPythonValidation(pyRes)
+  function compareRadius() {
+    setResult(null); setRadiusResult(null); setError('')
+    try { setRadiusResult(checkRadiusCompliance(n('radius'), { reference: values.reference, minimumRadiusM: n('minimumRadius') })) }
+    catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to compare radius.') }
   }
-
-  const [pythonValidation, setPythonValidation] = useState<{ status: string; flags: string[]; fallback?: boolean } | null>(null)
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="design-speed-km-h">Design Speed (km/h)</label>
-          <input id="design-speed-km-h" aria-label="Design Speed (km/h)" value={designSpeed} onChange={e => setDesignSpeed(e.target.value)} type="number" min="30" max="120"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="terrain">Terrain</label>
-          <select id="terrain" value={terrain} onChange={e => setTerrain(e.target.value as typeof terrain)}
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm">
-            <option value="flat">Flat</option>
-            <option value="rolling">Rolling</option>
-            <option value="mountainous">Mountainous</option>
-          </select>
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="gradient">Gradient (%)</label>
-          <input id="gradient" aria-label="Gradient (%)" value={gradient} onChange={e => setGradient(e.target.value)} type="number" step="0.1"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-          <p className="text-[10px] text-[var(--text-muted)] mt-0.5">+ uphill, − downhill</p>
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="proposed-ssd-m-optional">Proposed SSD (m) — optional</label>
-          <input id="proposed-ssd-m-optional" aria-label="Proposed SSD (m) — optional" value={proposedSSD} onChange={e => setProposedSSD(e.target.value)} type="number" min="0"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-      </div>
-
-      <div className="flex gap-3">
-        <button onClick={computeSSD} className="px-5 py-2 bg-[var(--accent)] text-black rounded text-sm font-medium hover:opacity-90">
-          Check Sight Distance
-        </button>
-      </div>
-
-      {result && (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {[
-              ['Computed SSD (level)', `${result.ssdComputed.toFixed(2)} m`, 'RDM 1.3 §3.3'],
-              ['Grade Correction', `${result.ssdGradeCorrection.toFixed(2)} m`, 'RDM 1.3 §3.3'],
-              ['Minimum SSD', `${result.ssdMin} m`, 'RDM 1.3 Table 3-5'],
-              ['SSD Status', result.ssdStatus === 'GREEN' ? ` PASS (${result.ssdMin}m min)` : `[x] FAIL`, result.ssdStatus === 'GREEN' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'],
-              ['Minimum PSD', `${result.psdMin} m`, 'RDM 1.3 Table 3-6'],
-              ['Friction Factor f', result.frictionFactor.toFixed(2), 'RDM 1.3 Table 3-4'],
-            ].map(([label, value, source]) => (
-              <div key={label} className={`bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-3 ${label === 'SSD Status' ? (result.ssdStatus === 'GREEN' ? 'border-green-800' : 'border-red-800') : ''}`}>
-                <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-                <p className={`text-lg font-mono ${label === 'SSD Status' ? (result.ssdStatus === 'GREEN' ? 'text-green-400' : 'text-red-400') : 'text-[var(--text-primary)]'}`}>{value}</p>
-                <p className="text-[10px] text-[var(--text-muted)] mt-1">{source}</p>
-              </div>
-            ))}
-          </div>
-
-          <details className="text-xs">
-            <summary className="cursor-pointer text-[var(--text-muted)] hover:text-[var(--text-primary)] font-medium mb-2">Show Computation Steps</summary>
-            <div className="space-y-1">
-              {result.steps.map((step) => (
-                <div key={step.value} className="grid grid-cols-[1fr_auto_1fr_auto] gap-x-2 font-mono py-1 border-b border-[color-mix(in_srgb,var(--border-color)_20%,transparent)]">
-                  <span className="text-[var(--text-secondary)]">{step.description}</span>
-                  <span className="text-[var(--text-muted)]">=</span>
-                  <span className="text-[var(--text-primary)]">{step.value}</span>
-                  <span className="text-[var(--text-muted)] text-right">{step.formula}</span>
-                </div>
-              ))}
-            </div>
-          </details>
-        </>
-      )}
-
-      <hr className="border-[color-mix(in_srgb,var(--border-color)_50%,transparent)]" />
-
-      <h3 className="text-sm font-semibold text-[var(--text-primary)]">Minimum Radius Compliance</h3>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="proposed-radius-r-m">Proposed Radius R (m)</label>
-          <input id="proposed-radius-r-m" aria-label="Proposed Radius R (m)" value={proposedRadius} onChange={e => setProposedRadius(e.target.value)} type="number" min="1"
-            className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
-        </div>
-        <div>
-          <label className="block text-xs text-[var(--text-muted)] mb-1">Min Radius for {designSpeed}km/h, {terrain}</label>
-          <div className="px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm font-mono h-[42px] flex items-center">
-            {getMinRadius(parseInt(designSpeed) || 80, terrain)} m
-          </div>
-        </div>
-        <div className="flex items-end">
-          <button onClick={computeRadius} className="px-5 py-2 bg-[var(--accent)] text-black rounded text-sm font-medium hover:opacity-90">
-            Check Compliance
-          </button>
-        </div>
-      </div>
-
-      {radiusResult && (
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {[
-            ['Minimum Radius', `${radiusResult.minRadius.toFixed(0)} m`, 'RDM 1.3 Table 3-3'],
-            ['Proposed / Min Ratio', `${radiusResult.ratio.toFixed(3)}×`, 'RDM 1.3 Table 3-3'],
-            ['Compliance Status', radiusResult.status === 'GREEN' ? ' PASS — R ≥ Rmin' : '[x] FAIL — R < Rmin', radiusResult.status === 'GREEN' ? 'bg-green-900/30 text-green-400' : 'bg-red-900/30 text-red-400'],
-          ].map(([label, value, source]) => (
-            <div key={label} className={`bg-[var(--bg-tertiary)] border rounded p-3 ${radiusResult.status === 'GREEN' && label.includes('Compliance') ? 'border-green-800' : label.includes('Compliance') ? 'border-red-800' : 'border-[var(--border-color)]'}`}>
-              <p className="text-xs text-[var(--text-muted)] mb-1">{label}</p>
-              <p className={`text-lg font-mono ${label.includes('Compliance') ? (radiusResult.status === 'GREEN' ? 'text-green-400' : 'text-red-400') : 'text-[var(--text-primary)]'}`}>{value}</p>
-              <p className="text-[10px] text-[var(--text-muted)] mt-1">{source}</p>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {pythonValidation && (
-        <>
-          <h3 className="text-sm font-semibold text-[var(--accent)] mt-8">Python RDM 1.3 Validation Engine</h3>
-          <div className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] p-4 rounded mt-3">
-            <div className="flex items-center gap-3">
-              <span className={`px-2 py-1 text-xs font-bold rounded ${pythonValidation.status === 'GREEN' ? 'bg-green-900/30 text-green-400' : pythonValidation.status === 'YELLOW' ? 'bg-yellow-900/30 text-yellow-500' : 'bg-red-900/30 text-red-400'}`}>
-                {pythonValidation.status}
-              </span>
-              <span className="text-sm text-[var(--text-primary)]">
-                {pythonValidation.status === 'GREEN' ? 'Design meets all RDM 1.3 requirements.' : 'Departures from standard detected.'}
-              </span>
-            </div>
-            {pythonValidation.flags?.length > 0 && (
-              <ul className="mt-3 space-y-1 text-sm text-[var(--text-muted)] list-disc pl-5">
-                {pythonValidation.flags.map((f: string, i: number) => (
-                  <li key={`item-${i}`} className={f.includes('RED') || f.includes('FAIL') || f.includes('DEPARTURE') ? 'text-red-400' : 'text-yellow-500'}>{f}</li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </>
-      )}
-    </div>
-  )
+  return <div className="min-w-0 space-y-5">
+    <p className="text-sm text-[var(--text-muted)]">Enter adopted braking criteria and the available sight distance to compare. Gradient is positive uphill and negative downhill. A calculated stopping requirement supplies no evidence of the visibility available on site.</p>
+    <form noValidate onSubmit={event => { event.preventDefault(); compute() }} className="space-y-4">
+      <CriterionFields fields={sightFields} values={values} onChange={edit} prefix="sight" />
+      <button type="submit" className="px-5 py-2 bg-[var(--accent)] text-black rounded text-sm font-medium">Check Sight Distance</button>
+    </form>
+    {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+    {result && <>
+      <p role="status" className="text-sm">SSD comparison: {result.ssdStatus}. PSD comparison: {result.psdStatus}. Whole-design compliance is not assessed.</p>
+      <CriterionResult rows={[
+        ['Criteria reference', result.criteriaReference], ['Criteria verification', 'User-declared; independent verification not recorded'],
+        ['Model SSD on Level', `${result.ssdFlat.toFixed(3)} m`], ['Model SSD on Grade', `${result.ssdComputed.toFixed(3)} m`],
+        ['Signed Grade Correction', `${result.ssdGradeCorrection.toFixed(3)} m`], ['Required SSD for Comparison', `${result.requiredSSD.toFixed(3)} m`],
+        ['Available SSD Result', result.ssdStatus], ['Available PSD Result', result.psdStatus],
+        ['Adopted Minimum PSD', result.psdMin === null ? 'Not supplied' : `${result.psdMin.toFixed(3)} m`],
+      ]} />
+      <p className="text-xs text-[var(--text-muted)]">SSD requires an available distance to assess. PSD requires both available distance and an adopted minimum. Criteria and their reference are user-declared; their applicability and site measurements require professional review.</p>
+      <CriterionSteps steps={result.steps} />
+    </>}
+    <section className="min-w-0 space-y-3 border-t border-[var(--border-color)] pt-5">
+      <h3 className="text-sm font-semibold">Radius against adopted minimum</h3>
+      <p className="text-sm text-[var(--text-muted)]">Use the reference above and a project minimum applicable to the speed, surface and superelevation. Radius alone cannot establish sight distance: sight lines also depend on obstructions, curve length and lane position.</p>
+      <CriterionFields fields={radiusFields} values={values} onChange={edit} prefix="sight" />
+      <button type="button" onClick={compareRadius} className="px-5 py-2 bg-[var(--accent)] text-black rounded text-sm font-medium">Compare Radius</button>
+      {radiusResult && <>
+        <p role="status" className="text-sm">Radius comparison: {radiusResult.status}. Visibility is not assessed.</p>
+        <CriterionResult rows={[
+          ['Radius Criteria Reference', radiusResult.criteriaReference], ['Adopted Minimum Radius', `${radiusResult.minRadius.toFixed(3)} m`], ['Proposed / Minimum', `${radiusResult.ratio.toFixed(4)}×`],
+        ]} />
+      </>}
+    </section>
+  </div>
 }

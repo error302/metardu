@@ -229,3 +229,17 @@ scoped lint and the security gate. Host-browser checks verify the independent
 containment. See `VERTICAL_CURVE_INTEGRITY_2026-10-23.md`; production promotion,
 project-standard compliance, other vertical engines and physical acceptance
 remain open.
+
+### Explicit road safety criteria — 23 October
+
+The public road-design comparisons no longer infer approved criteria from
+untraced tables or claim passing visibility from radius alone. Shared calculators
+require explicit project references/values, distinguish longitudinal and side
+friction, compare available SSD/PSD and retain missing evidence as unassessed.
+Banking is preserved rather than silently capped; the local mock no longer
+appears as Python verification. The combined focused run passes 168 tests across
+twelve suites, app/test types, scoped lint and the security gate. Owned browser
+checks reproduce failing/unassessed SSD, correct rotation length, over-limit
+banking and mobile containment. See
+`ROAD_SAFETY_CRITERIA_INTEGRITY_2026-10-23.md`. Declared criteria remain distinct
+from verified project adoption, site observations and whole-design approval.

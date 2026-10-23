@@ -254,3 +254,15 @@ checks across nine suites, with host-browser length/K equivalence and mobile
 containment verified. `VERTICAL_CURVE_INTEGRITY_2026-10-23.md` records the
 fixtures, contract changes and limits. Deployment, other engines and physical
 field acceptance remain separate; the full production goal remains active.
+
+23 October road-safety checkpoint: the public banking and sight-distance paths
+now require explicit project criteria/references, separate side/braking friction,
+compare actual available distances and preserve unassessed states. Radius alone
+no longer claims visibility, supplied banking is not silently capped, and the
+mock labeled as Python verification no longer grants approval. Both standalone
+pages share the integrated calculators. Final focused verification passes 168
+checks across twelve suites, app/test types, scoped lint and the security gate;
+owned desktop/mobile browser cases pass. See
+`ROAD_SAFETY_CRITERIA_INTEGRITY_2026-10-23.md` for reference provenance, changed
+source contracts and exact limits. Other standard packs, project-bound adoption,
+production promotion and physical/professional acceptance remain open.

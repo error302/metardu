@@ -13,8 +13,8 @@ type Tab = 'horizontal' | 'vertical' | 'superelevation' | 'sight'
 const TABS: Array<{ id: Tab; label: string; desc: string }> = [
   { id: 'horizontal', label: 'Horizontal Curve', desc: 'T, L, C, M, E, D — TC/CC/CT chainages — set-out table' },
   { id: 'vertical', label: 'Vertical Curve', desc: 'BVC/EVC chainages+RLs, RL at any point, peak/sag point' },
-  { id: 'superelevation', label: 'Superelevation', desc: 'Required e, design e (capped 8%), transition length Ls' },
-  { id: 'sight', label: 'Sight Distance', desc: 'SSD, PSD, minimum radius compliance (RDM 1.3 Tables 3-3 to 3-6)' },
+  { id: 'superelevation', label: 'Superelevation', desc: 'Banking and crossfall rotation against declared project criteria' },
+  { id: 'sight', label: 'Sight Distance', desc: 'Available SSD, PSD and radius comparisons against declared criteria' },
 ]
 
 export default function RoadDesignPage() {
@@ -55,14 +55,14 @@ export default function RoadDesignPage() {
         {tab === 'superelevation' && (
           <>
             <h2 className="text-lg font-semibold mb-1">Superelevation Design</h2>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Source: RDM 1.3 §5.3 | RDM 1.3 Table 3-4 (friction factors)</p>
+            <p className="text-xs text-[var(--text-muted)] mb-4">Enter the adopted side friction, banking limit and relative gradient with their project reference.</p>
             <SuperelevationCalculator />
           </>
         )}
         {tab === 'sight' && (
           <>
-            <h2 className="text-lg font-semibold mb-1">Sight Distance &amp; Radius Compliance</h2>
-            <p className="text-xs text-[var(--text-muted)] mb-4">Source: RDM 1.3 §3.3 | Tables 3-3 to 3-6</p>
+            <h2 className="text-lg font-semibold mb-1">Sight Distance &amp; Radius Comparisons</h2>
+            <p className="text-xs text-[var(--text-muted)] mb-4">Use the criteria adopted for the project. <a className="underline" href="https://kura.go.ke/wp-content/uploads/2025/06/RDM-1.3-Geometric-Design-of-Highways-Rural-Roads-and-Urban-Roads.pdf">Reference library: Kenya RDM 1.3 (2025)</a>. This reference is not automatically adopted or certified.</p>
             <SightDistanceChecker />
           </>
         )}

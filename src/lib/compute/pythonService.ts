@@ -27,8 +27,6 @@
 import { transformCoordinates } from '@/lib/geo/transform'
 import { generateContours as localGenerateContours, type SpotHeight } from '@/lib/engine/contours'
 import computeContract from '../../../python_worker/compute-contract.json'
-// Note: We avoid heavy turf imports here unless validateGeometry is used
-// import * as turf from '@turf/turf'
 
 /** Legacy coordinate-field adapter; both CRS must be explicit and heights stay unchanged. */
 export async function convertDatum(
@@ -55,36 +53,19 @@ export async function convertDatum(
     horizontalCrs: result.toCRS, horizontalUnits: result.toUnits, heightTransformed: false as const }))
 }
 
-export async function validateGeometry(params: {
+/** Legacy adapter retained for callers; it supplies no verified criteria or worker proof. */
+export async function validateGeometry(_params: {
   terrain: string
   designSpeed: number
   gradient: number
   radius: number
   ssd?: number
 }) {
-  // A simplified local validation for geometric design based on standard AASHTO / local guidelines.
-  // We mock the most important checks that the python service used to do.
-  try {
-    const flags: string[] = []
-    let status = 'PASS'
-    
-    // Example basic checks:
-    if (params.gradient > 12) {
-      flags.push('Gradient exceeds 12% maximum for standard terrain.')
-      status = 'WARNING'
-    }
-    
-    // Minimum radius check based on design speed (simplified eMax=8%, f=0.15)
-    // R = V^2 / (127 * (e + f))
-    const minRadius = Math.pow(params.designSpeed, 2) / (127 * (0.08 + 0.15))
-    if (params.radius < minRadius) {
-      flags.push(`Radius ${params.radius}m is below minimum ${minRadius.toFixed(1)}m for ${params.designSpeed}km/h.`)
-      status = 'FAIL'
-    }
-    
-    return { status, flags }
-  } catch {
-    return { status: 'UNKNOWN', flags: ['Local validation failed'], fallback: true }
+  return {
+    status: 'UNASSESSED' as const,
+    flags: ['Geometry approval requires explicit adopted project criteria and measured design evidence. Use the road-design comparisons; this legacy adapter performs no validation.'],
+    fallback: true,
+    source: 'not-assessed' as const,
   }
 }
 
