@@ -1,7 +1,12 @@
 .admin-workspace { font-variant-numeric: tabular-nums; }
 .admin-shell-header { border-bottom: 1px solid var(--border-color); background: var(--bg-secondary); }
 .admin-shell-inner { max-width: 1440px; margin-inline: auto; padding: 1rem 2rem; display: flex; align-items: center; gap: 1.5rem; }
-.admin-shell-label { display: flex; align-items: center; gap: .5rem; padding-left: 1.5rem; border-left: 1px solid var(--border-color); font-size: .75rem; color: var(--text-secondary); }
+.admin-shell-header .admin-shell-inner { flex-wrap: wrap; row-gap: .75rem; }
+.admin-shell-brand { flex-shrink: 0; }
+.admin-shell-actions { margin-left: auto; display: flex; align-items: center; gap: .75rem; flex-shrink: 0; }
+.admin-shell-actions > * { flex-shrink: 0; }
+.admin-shell-actions a { white-space: nowrap; }
+.admin-shell-label { display: flex; align-items: center; gap: .5rem; padding-left: 1.5rem; border-left: 1px solid var(--border-color); font-size: .75rem; color: var(--text-secondary); white-space: nowrap; }
 .admin-primary-nav { border-bottom: 1px solid var(--border-color); }
 .admin-primary-nav .admin-shell-inner { padding-block: 0; gap: 1.75rem; overflow-x: auto; }
 .admin-primary-nav a { white-space: nowrap; padding-block: 1rem; font-size: .8rem; color: var(--text-secondary); border-bottom: 2px solid transparent; }

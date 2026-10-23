@@ -160,7 +160,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
     )
   }
 
-  // Admin routes: hide NavBar, Footer, QuickCompute, FeedbackWidget, MobileNav
+  // AdminLayout owns its header controls; keep this shell free of floating duplicates.
   if (admin) {
     return (
       <>
@@ -175,10 +175,6 @@ export default function AppShell({ children }: { children: ReactNode }) {
               <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
                 {children}
               </main>
-              <div className="fixed top-4 right-4 z-50 flex items-center gap-2">
-                <NotificationBell />
-                <FieldModeToggle />
-              </div>
               <CommandPalette />
               <HotkeyHelpOverlay />
               <NotificationToast />

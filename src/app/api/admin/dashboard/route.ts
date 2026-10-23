@@ -98,7 +98,7 @@ export const GET = apiHandler(
     const [totalParcelsRes, totalBeaconsRes] = await Promise.all([
       db.query<CountRow>('SELECT COUNT(*)::int AS count FROM parcels'),
       db.query<CountRow>(
-        'SELECT (SELECT COUNT(*) FROM public_beacons) + (SELECT COUNT(*) FROM rim_beacons) AS count'
+        'SELECT ((SELECT COUNT(*) FROM public_beacons) + (SELECT COUNT(*) FROM rim_beacons))::int AS count'
       ),
     ])
 

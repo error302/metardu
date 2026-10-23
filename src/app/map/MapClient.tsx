@@ -195,7 +195,7 @@ export default function MapClient() {
 
   // ── UI state ──
   const [mapReady, setMapReady] = useState(false)
-  const [mobileToolsExpanded, setMobileToolsExpanded] = useState(false)
+  const [toolsExpanded, setToolsExpanded] = useState(false)
   const [initError, setInitError] = useState('')
   const [projectCount, setProjectCount] = useState(0)
   const [basemap, setBasemap] = useState<BasemapMode>('osm')
@@ -801,7 +801,7 @@ export default function MapClient() {
       <div
         id="metardu-global-map"
         className="map-workspace h-[calc(100dvh-9rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
-        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': isMobile && mobileToolsExpanded ? '54px' : '0px' } as React.CSSProperties}
+        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': toolsExpanded ? '54px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
       >
@@ -818,7 +818,7 @@ export default function MapClient() {
               <MapBasemapBar />
 
               {/* ── Unified Tool Dock (matching UX on desktop & mobile) ── */}
-              <MapToolDock expanded={mobileToolsExpanded} onExpandedChange={setMobileToolsExpanded} />
+              <MapToolDock expanded={toolsExpanded} onExpandedChange={setToolsExpanded} />
 
               {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />

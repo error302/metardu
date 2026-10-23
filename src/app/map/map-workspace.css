@@ -185,11 +185,11 @@
   font-weight: 600;
 }
 
-/* ── Map Tools: Toggle & Bottom Dock ── */
+/* ── Map Tools: Shared Mobile/Desktop Bottom Dock ── */
 .map-mobile-tools-toggle {
   position: absolute;
-  left: 12px;
-  bottom: calc(var(--map-bottom-clearance) + 48px);
+  left: 8px;
+  bottom: calc(var(--map-bottom-clearance) + 64px);
   z-index: 35;
   display: flex;
   align-items: center;
@@ -216,25 +216,27 @@
 
 .map-workspace .map-mobile-tool-bar {
   position: absolute;
-  left: 12px;
-  bottom: calc(var(--map-bottom-clearance) + 48px);
+  left: 0;
+  right: 0;
+  bottom: 0;
   z-index: 35;
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   align-items: center;
-  gap: 4px;
-  padding: 4px 6px;
+  gap: 0;
+  padding: 4px;
   background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 14px;
+  border-top: 1px solid var(--border-color);
+  border-radius: 0;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.36);
 }
 
 .map-mobile-tool-bar > button {
-  width: 50px;
-  height: 48px;
-  border-radius: 10px;
+  width: 100%;
+  height: 46px;
+  border-radius: 6px;
   cursor: pointer;
 }
 
@@ -244,16 +246,16 @@
 
 .map-workspace .map-mobile-tool-panel {
   position: absolute;
-  left: 12px;
-  bottom: calc(var(--map-bottom-clearance) + 110px);
+  left: 8px;
+  bottom: calc(var(--map-bottom-clearance) + 56px);
   width: 380px;
   max-width: calc(100vw - 24px);
   height: fit-content;
-  max-height: max(80px, calc(100% - 216px));
+  max-height: max(80px, calc(100% - var(--map-bottom-clearance) - 190px));
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.12);
-  border-radius: 16px;
+  border-radius: 14px;
   background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
@@ -270,13 +272,13 @@
 /* ── Navigation Dock (Right: Zoom, N, GPS, Print) ── */
 .map-navigation-dock {
   position: absolute;
-  bottom: calc(var(--map-bottom-clearance) + 48px);
-  right: 12px;
+  bottom: calc(var(--map-bottom-clearance) + 76px);
+  right: 8px;
   z-index: 30;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 6px;
+  gap: 4px;
 }
 
 .map-zoom-buttons {
@@ -449,13 +451,6 @@
   -webkit-backdrop-filter: none;
 }
 
-/* On a narrow tablet the centred scale otherwise sits behind the left dock. */
-@media (min-width: 768px) and (max-width: 959px) {
-  .map-workspace .ol-scale-line {
-    bottom: calc(var(--map-bottom-clearance) + 108px);
-  }
-}
-
 @media (max-width: 767px) {
   .map-workspace-header {
     top: 8px;
@@ -482,11 +477,6 @@
   .map-basemap-bar button {
     padding: 6px 10px;
     font-size: 10px;
-  }
-  .map-navigation-dock {
-    right: 8px;
-    bottom: calc(var(--map-bottom-clearance) + 76px);
-    gap: 4px;
   }
   .map-navigation-dock > div {
     gap: 4px;
@@ -524,36 +514,9 @@
     left: 116px;
     max-width: calc(100% - 250px);
   }
-  .map-workspace .map-mobile-tool-bar {
-    left: 0;
-    right: 0;
-    bottom: 0;
-    display: grid;
-    grid-template-columns: repeat(7, minmax(0, 1fr));
-    gap: 0;
-    padding: 4px 4px;
-    border-radius: 0;
-    border-left: none;
-    border-right: none;
-    border-bottom: none;
-    border-top: 1px solid var(--border-color);
-  }
-  .map-mobile-tool-bar > button {
-    width: 100%;
-    height: 46px;
-    border-radius: 6px;
-  }
   .map-workspace .map-mobile-tool-panel {
-    left: 8px;
     right: 8px;
-    bottom: calc(var(--map-bottom-clearance) + 56px);
     width: auto;
     max-width: none;
-    max-height: max(80px, calc(100% - var(--map-bottom-clearance) - 190px));
-    border-radius: 14px;
-  }
-  .map-mobile-tools-toggle {
-    left: 8px;
-    bottom: calc(var(--map-bottom-clearance) + 64px);
   }
 }
