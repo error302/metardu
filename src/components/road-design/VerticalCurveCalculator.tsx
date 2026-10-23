@@ -1,11 +1,16 @@
 'use client';
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { verticalCurve, type VerticalCurveInput, type VerticalCurveResult } from '@/lib/computations/roadDesignEngine'
 import { VerticalCurveProfile } from '@/components/tools/VerticalCurveProfile'
+import { verticalCurveDraftCsv } from '@/lib/engineering/verticalCurveDraftCsv'
 
 export default function VerticalCurveCalculator() {
   const [result, setResult] = useState<VerticalCurveResult | null>(null)
+  const [calculatedInput, setCalculatedInput] = useState<VerticalCurveInput | null>(null)
+  const [exporting, setExporting] = useState(false)
+  const revision = useRef(0)
+  useEffect(() => () => { revision.current++ }, [])
   const [error, setError] = useState('')
   const [g1, setG1] = useState('')
   const [g2, setG2] = useState('')
@@ -17,7 +22,10 @@ export default function VerticalCurveCalculator() {
   const [interval, setInterval] = useState('20')
 
   function edit(change: () => void) {
+    revision.current++
     setResult(null)
+    setCalculatedInput(null)
+    setExporting(false)
     setError('')
     change()
   }
@@ -27,7 +35,10 @@ export default function VerticalCurveCalculator() {
     return Number(text)
   }
   function compute() {
+    revision.current++
     setResult(null)
+    setCalculatedInput(null)
+    setExporting(false)
     setError('')
     try {
       const input: VerticalCurveInput = {
@@ -38,9 +49,36 @@ export default function VerticalCurveCalculator() {
         interval: number(interval, 'RL table interval'),
       }
       setResult(verticalCurve(input))
+      setCalculatedInput(input)
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Unable to calculate this vertical curve.')
     }
+  }
+
+  async function exportDraft(format: 'pdf' | 'csv') {
+    if (!calculatedInput) return
+    const snapshot = calculatedInput
+    const current = revision.current
+    setExporting(true)
+    setError('')
+    try {
+      let content: string | Uint8Array
+      if (format === 'csv') content = verticalCurveDraftCsv(snapshot)
+      else {
+        const exporter = await import('@/lib/engineering/verticalCurveDraft')
+        if (current !== revision.current) return
+        content = exporter.verticalCurveDraftPdf(snapshot)
+      }
+      const bytes = typeof content === 'string' ? content : new Uint8Array(content).buffer
+      const url = URL.createObjectURL(new Blob([bytes], { type: format === 'pdf' ? 'application/pdf' : 'text/csv;charset=utf-8' }))
+      const anchor = document.createElement('a')
+      try {
+        anchor.href = url; anchor.download = `vertical-curve-local-draft.${format}`
+        document.body.appendChild(anchor); anchor.click()
+      } finally { anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000) }
+    } catch (cause) {
+      if (current === revision.current) setError(cause instanceof Error ? cause.message : 'Unable to export this curve.')
+    } finally { if (current === revision.current) setExporting(false) }
   }
 
   function fmtCh(ch: number) {
@@ -108,6 +146,13 @@ export default function VerticalCurveCalculator() {
       </div>
       {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
       {!result && !error && <p className="text-sm text-[var(--text-muted)]">Enter or update the inputs, then compute to show current results.</p>}
+      {result && calculatedInput && <div className="space-y-2">
+        <div className="flex flex-wrap gap-2">
+          <button type="button" disabled={exporting} onClick={() => void exportDraft('pdf')} className="px-4 py-2 border border-[var(--border-color)] rounded text-sm disabled:opacity-50">Export Local Draft PDF</button>
+          <button type="button" disabled={exporting} onClick={() => void exportDraft('csv')} className="px-4 py-2 border border-[var(--border-color)] rounded text-sm disabled:opacity-50">Export Local Draft CSV</button>
+        </div>
+        <p className="text-xs text-[var(--text-muted)]">Local calculation draft. Datum and project placement are unverified; standard compliance is not assessed. PDF uses four decimal places; CSV retains calculation precision.</p>
+      </div>}
 
       {result && (
         <>

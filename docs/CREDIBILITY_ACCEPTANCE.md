@@ -278,3 +278,14 @@ source-handler cases pass; an independent reader checks 438 vertical samples and
 70 transition stations. Full working-tree app/test TypeScript now passes. See
 `CURVE_API_GEOMETRY_INTEGRITY_2026-10-23.md` and `ENGINEERING_CURVE_API.md` for the
 breaking request migration, evidence and remaining live/project/field gates.
+
+### Curves vertical tab and draft exports — 23 October
+
+The older curves-page vertical tab now shares the reviewed geometry and clears
+stale output after edits. PDF/CSV record actual inputs, exact endpoint/stationary
+rows, draft status and unverified level reference. Every schedule page carries
+an explicit unapproved-construction footer. 89 focused tests and independent
+checks of six draft pairs / 241 rows / 11 pages pass, including retained actual
+browser downloads. See `CURVES_VERTICAL_UI_INTEGRITY_2026-10-23.md` for mobile,
+rendered-PDF evidence and the final source-only loading-change boundary. Other
+curve tabs and production/project/field acceptance remain open.

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import VerticalCurveCalculator from './VerticalCurveCalculator'
 
 function enterCurve() {
@@ -59,4 +59,23 @@ test('equal grades show straight profile and no invented K or turning point', ()
   expect(screen.getByText('Undefined (equal grades)')).toBeInTheDocument()
   expect(screen.getByText('No unique point on curve')).toBeInTheDocument()
   expect(screen.queryByText('LOW POINT')).not.toBeInTheDocument()
+})
+
+test('an edit during a lazy export prevents a late download of the old calculation', async () => {
+  const originalCreate = URL.createObjectURL
+  const originalRevoke = URL.revokeObjectURL
+  URL.createObjectURL = () => 'blob:synthetic-download'
+  URL.revokeObjectURL = () => {}
+  const click = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {})
+  try {
+    enterCurve()
+    fireEvent.click(screen.getByRole('button', { name: 'Compute' }))
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Export Local Draft PDF' }))
+      fireEvent.change(screen.getByLabelText('VPI Reduced Level (m)'), { target: { value: '0' } })
+      await Promise.resolve()
+    })
+    expect(click).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: 'Export Local Draft PDF' })).not.toBeInTheDocument()
+  } finally { click.mockRestore(); URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke }
 })

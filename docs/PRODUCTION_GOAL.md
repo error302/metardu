@@ -302,3 +302,15 @@ failures are no longer reproduced. Existing DXF bytes and 64 CAD checks remain
 valid. See `CURVE_API_GEOMETRY_INTEGRITY_2026-10-23.md` and
 `ENGINEERING_CURVE_API.md` for the intentional API migration and exact proof
 boundaries. Other legacy UI/standards paths and release/field gates remain open.
+
+23 October vertical UI/output checkpoint: `/tools/curves` now uses the reviewed
+shared vertical calculator, with blank design inputs, exact sag/crest endpoints
+and stationary points, straight-profile handling and cleared stale exports.
+PDF/CSV preserve current geometry and explicit draft/unverified-datum evidence;
+every engineering-schedule PDF page now carries an unapproved-construction
+footer. 89 focused tests and an independent reader pass six draft pairs, 241
+rows and 11 PDF pages, including actual source-preview downloads. Desktop/mobile
+geometry and download checks preceded a final source-tested CSV dependency split;
+browser access then became disabled, so that final loading change has no repeat
+browser proof. See `CURVES_VERTICAL_UI_INTEGRITY_2026-10-23.md`. Other curve tabs,
+project-bound outputs and broader release/field gates remain open.

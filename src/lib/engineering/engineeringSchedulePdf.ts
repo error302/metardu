@@ -132,7 +132,7 @@ export function generateEngineeringSchedulePdf(options: EngineeringSchedulePdfOp
     doc.setFont('helvetica', 'normal')
     doc.setFontSize(7)
     doc.setTextColor(90, 98, 108)
-    doc.text('METARDU | Preliminary engineering schedule | Verify against approved project documents and field conditions', margin, pageHeight - 6)
+    doc.text('METARDU | DRAFT - NOT APPROVED FOR CONSTRUCTION | Verify against approved project documents and field conditions', margin, pageHeight - 6)
     doc.text(`Page ${page} of ${pageCount}`, pageWidth - margin, pageHeight - 6, { align: 'right' })
   }
 

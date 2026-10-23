@@ -9,32 +9,11 @@ import { PageHeader } from '@/components/shared/PageHeader'
 import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
-interface VerticalCurveTableRow { chainage: number; x: number; RL: number; grade: number }
 interface StakePoint { chainage: number; chordLength?: number; totalDeflection?: string; deflectionAngle?: string }
-interface VerticalCurveResult {
-  steps: SolutionStep[]
-  A: number
-  curveLen: number
-  BVC_chainage: number
-  EVC_chainage: number
-  BVC_RL: number
-  EVC_RL: number
-  vpiChainage: number
-  vpiRL: number
-  arithmeticCheck: number
-  arithPass: boolean
-  peakPoint: { chainage: number; RL: number } | null
-  tableRows: VerticalCurveTableRow[]
-  minK: number
-  kPass: boolean
-  K_computed: number
-  isCrest: boolean
-  designSpeed: number
-}
 interface RdmValidation { status: string; flags: string[] }
 import { SpiralAlignmentTab } from '@/components/tools/SpiralAlignmentTab'
 import { SimpleCurveDiagram } from '@/components/tools/SimpleCurveDiagram'
-import { VerticalCurveProfile } from '@/components/tools/VerticalCurveProfile'
+import VerticalCurveCalculator from '@/components/road-design/VerticalCurveCalculator'
 
 type CurveType = 'simple' | 'compound' | 'reverse' | 'vertical' | 'spiral-alignment';
 
@@ -59,108 +38,6 @@ export default function CurvesCalculator() {
   });
   const [result, setResult] = useState<null | { type: CurveType; title?: string; steps: SolutionStep[]; stakePoints?: StakePoint[]; stakeout?: import('@/lib/engine/types').CurveStakeoutResult }>(null);
   const [rdmValidation, setRdmValidation] = useState<RdmValidation | null>(null);
-
-  const [vInput, setVInput] = useState({
-    g1: '-4.0',
-    g2: '2.5',
-    vpiChainageKm: '2',
-    vpiChainageM: '500',
-    vpiRL: '1890.00',
-    kValue: '40',
-    useLength: false,
-    length: '200',
-  });
-  const [vResult, setVResult] = useState<VerticalCurveResult | null>(null);
-  const [vError, setVError] = useState('');
-
-  const MIN_K: Record<number, number> = {
-    120: 160, 110: 130, 100: 100, 90: 80, 80: 50,
-    70: 35, 65: 25, 60: 20, 50: 15, 40: 9, 30: 5,
-  };
-  const designSpeedOptions = [30, 40, 50, 60, 65, 70, 80, 90, 100, 110, 120];
-  const [designSpeed, setDesignSpeed] = useState(80);
-
-  const calcVertical = () => {
-    setVError('');
-    const G1 = parseFloat(vInput.g1);
-    const G2 = parseFloat(vInput.g2);
-    const vpiKm = parseInt(vInput.vpiChainageKm) || 0;
-    const vpiM = parseFloat(vInput.vpiChainageM) || 0;
-    const vpiChainage = vpiKm * 1000 + vpiM;
-    const vpiRL = parseFloat(vInput.vpiRL);
-    const K = parseFloat(vInput.kValue);
-    const L = parseFloat(vInput.length);
-
-    if (isNaN(G1) || isNaN(G2) || isNaN(vpiChainage) || isNaN(vpiRL)) {
-      setVError('Enter all numeric values.'); return;
-    }
-    if (G1 === G2) { setVError('G1 and G2 cannot be equal.'); return; }
-
-    const A = G2 - G1;
-    const curveLen = vInput.useLength && !isNaN(L) ? L : K * Math.abs(A);
-    if (curveLen <= 0) { setVError('Curve length must be positive.'); return; }
-
-    const BVC_chainage = vpiChainage - curveLen / 2;
-    const EVC_chainage = vpiChainage + curveLen / 2;
-    const BVC_RL = vpiRL - G1 * (curveLen / 2) / 100;
-    const EVC_RL = vpiRL + G2 * (curveLen / 2) / 100;
-
-    const rlAtEVC = BVC_RL + (G1 / 100) * curveLen + (A / (200 * curveLen)) * curveLen * curveLen;
-    const arithmeticCheck = Math.abs(rlAtEVC - EVC_RL);
-    const arithPass = arithmeticCheck < 0.001;
-
-    const isCrest = A < 0;
-    let peakPoint: { chainage: number; RL: number } | null = null;
-    if (isCrest) {
-      const xPeak = -G1 * curveLen / A;
-      if (xPeak > 0 && xPeak < curveLen) {
-        const RL_peak = BVC_RL + (G1 / 100) * xPeak + (A / (200 * curveLen)) * xPeak * xPeak;
-        peakPoint = { chainage: BVC_chainage + xPeak, RL: RL_peak };
-      }
-    }
-
-    const interval = 20;
-    const tableRows: Array<{ chainage: number; x: number; RL: number; grade: number }> = [];
-    for (let x = 0; x <= curveLen; x += interval) {
-      const ch = BVC_chainage + x;
-      const RL = BVC_RL + (G1 / 100) * x + (A / (200 * curveLen)) * x * x;
-      const grade = G1 + (A / curveLen) * x;
-      tableRows.push({ chainage: ch, x, RL, grade });
-    }
-    if (tableRows.length > 0 && tableRows[tableRows.length - 1].x !== curveLen) {
-      const x = curveLen;
-      const ch = BVC_chainage + x;
-      const RL = BVC_RL + (G1 / 100) * x + (A / (200 * curveLen)) * x * x;
-      const grade = G2;
-      tableRows.push({ chainage: ch, x, RL, grade });
-    }
-
-    const minK = MIN_K[designSpeed] ?? 40;
-    const kPass = curveLen / Math.abs(A) >= minK;
-
-    const steps: SolutionStep[] = [
-      { label: 'Algebraic grade difference', formula: 'A = G2 - G1', computation: `${A.toFixed(4)} %` },
-      { label: 'Curve length', formula: vInput.useLength ? 'L given directly' : 'L = K × |A|', computation: `${curveLen.toFixed(4)} m` },
-      { label: 'BVC chainage', formula: 'VPI - L/2', computation: `${BVC_chainage.toFixed(3)} m` },
-      { label: 'EVC chainage', formula: 'VPI + L/2', computation: `${EVC_chainage.toFixed(3)} m` },
-      { label: 'BVC reduced level', formula: 'VPI RL - G1×(L/2)/100', computation: `${BVC_RL.toFixed(4)} m` },
-      { label: 'EVC reduced level (grade)', formula: 'VPI RL + G2×(L/2)/100', computation: `${EVC_RL.toFixed(4)} m` },
-      { label: 'EVC RL from parabola', formula: 'y = BVC_RL + G1×x/100 + A×x²/(200L)', computation: `${rlAtEVC.toFixed(4)} m` },
-      { label: 'Arithmetic check', formula: '|EVC_grade - EVC_formula| < 0.001 m', result: `${arithmeticCheck.toFixed(6)} m — ${arithPass ? 'PASS' : 'FAIL'}` },
-      { label: 'K-value', formula: 'L / |A|', result: `${(curveLen / Math.abs(A)).toFixed(2)} m/%` },
-      { label: `RDM 1.3 min K @ ${designSpeed} km/h`, formula: 'RDM 1.3 Table 3-1', result: `min K = ${minK} — ${kPass ? 'PASS' : 'FAIL'}` },
-    ];
-
-    setVResult({
-      steps,
-      A, curveLen, BVC_chainage, EVC_chainage, BVC_RL, EVC_RL,
-      vpiChainage, vpiRL,
-      arithmeticCheck, arithPass, peakPoint, tableRows, minK, kPass,
-      K_computed: curveLen / Math.abs(A),
-      isCrest,
-      designSpeed,
-    });
-  };
 
   const calculate = async () => {
     if (curveType === 'simple') {
@@ -208,21 +85,23 @@ export default function CurvesCalculator() {
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
-        title={t('tools.curves')}
+        title={curveType === 'vertical' ? 'Vertical Curve' : t('tools.curves')}
         subtitle={t('tools.curvesDesc')}
-        reference={curveType === 'spiral-alignment' ? 'Symmetric clothoid transitions · Draft design geometry' : 'RDM 1.1 (2025) Geometric Design | Kenya Highway Design Manual'}
+        reference={curveType === 'vertical' ? 'Symmetrical parabolic geometry · Criteria and datum not verified' : curveType === 'spiral-alignment' ? 'Symmetric clothoid transitions · Draft design geometry' : 'RDM 1.1 (2025) Geometric Design | Kenya Highway Design Manual'}
       />
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        <button onClick={() => { setCurveType('simple'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Simple Curve</button>
-        <button onClick={() => { setCurveType('compound'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Compound Curve</button>
-        <button onClick={() => { setCurveType('reverse'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Reverse Curve</button>
-        <button onClick={() => { setCurveType('vertical'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'vertical' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Vertical Curve</button>
-        <button onClick={() => { setCurveType('spiral-alignment'); setResult(null); setVResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'spiral-alignment' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`} title="Clothoid entry and exit transitions with station schedules">Spiral Alignment</button>
+        <button onClick={() => { setCurveType('simple'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Simple Curve</button>
+        <button onClick={() => { setCurveType('compound'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Compound Curve</button>
+        <button onClick={() => { setCurveType('reverse'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Reverse Curve</button>
+        <button onClick={() => { setCurveType('vertical'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'vertical' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Vertical Curve</button>
+        <button onClick={() => { setCurveType('spiral-alignment'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'spiral-alignment' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`} title="Clothoid entry and exit transitions with station schedules">Spiral Alignment</button>
       </div>
 
       {curveType === 'spiral-alignment' ? (
         <SpiralAlignmentTab />
+      ) : curveType === 'vertical' ? (
+        <div className="min-w-0 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl p-4 sm:p-6"><VerticalCurveCalculator /></div>
       ) : (
       <div className="grid md:grid-cols-2 gap-8">
         <div className="space-y-6">
@@ -267,75 +146,18 @@ export default function CurvesCalculator() {
                 <div className="mt-4"><label htmlFor="cv-ab-dist" className="label">Distance AB (m)</label><input id="cv-ab-dist" className="input" value={input.abDistance} onChange={e => setInput({...input, abDistance: e.target.value})} /></div>
               </>
             )}
-            {curveType === 'vertical' && (
-              <>
-                <p className="text-xs text-[var(--text-muted)] mb-3">Source: RDM 1.3 Kenya August 2023, Section 5.4 | Ghilani &amp; Wolf, Elementary Surveying 16th Ed., Chapter 25</p>
-                <div className="grid grid-cols-2 gap-4">
-                  <div><label htmlFor="cv-g1" className="label">G1 — Entry Grade (%)</label><input id="cv-g1" className="input" value={vInput.g1} onChange={e => setVInput({...vInput, g1: e.target.value})} /></div>
-                  <div><label htmlFor="cv-g2" className="label">G2 — Exit Grade (%)</label><input id="cv-g2" className="input" value={vInput.g2} onChange={e => setVInput({...vInput, g2: e.target.value})} /></div>
-                </div>
-                <div className="grid grid-cols-3 gap-2 mt-4">
-                  <div><label htmlFor="cv-vpi-km" className="label">VPI km</label><input id="cv-vpi-km" className="input" value={vInput.vpiChainageKm} onChange={e => setVInput({...vInput, vpiChainageKm: e.target.value})} /></div>
-                  <div><label htmlFor="cv-vpi-m" className="label">VPI m</label><input id="cv-vpi-m" className="input" value={vInput.vpiChainageM} onChange={e => setVInput({...vInput, vpiChainageM: e.target.value})} /></div>
-                  <div><label htmlFor="cv-vpi-rl" className="label">VPI RL (m)</label><input id="cv-vpi-rl" className="input" value={vInput.vpiRL} onChange={e => setVInput({...vInput, vpiRL: e.target.value})} /></div>
-                </div>
-                <div className="mt-4">
-                  <label className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={vInput.useLength} onChange={e => setVInput({...vInput, useLength: e.target.checked})} className="accent-[var(--accent)]" />
-                    <span>Enter curve length directly</span>
-                  </label>
-                </div>
-                {vInput.useLength ? (
-                  <div className="mt-2"><label htmlFor="cv-length" className="label">Curve Length L (m)</label><input id="cv-length" className="input" value={vInput.length} onChange={e => setVInput({...vInput, length: e.target.value})} /></div>
-                ) : (
-                  <div className="mt-2"><label htmlFor="cv-kvalue" className="label">K-value (m/%)</label><input id="cv-kvalue" className="input" value={vInput.kValue} onChange={e => setVInput({...vInput, kValue: e.target.value})} /></div>
-                )}
-                <div className="mt-4">
-                  <div className="label">Design Speed (km/h) — for K compliance</div>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {designSpeedOptions.map((s) => (
-                      <button key={s} onClick={() => setDesignSpeed(s)}
-                        className={`px-2 py-1 text-xs rounded border ${designSpeed === s ? 'bg-[var(--accent)] text-black border-[var(--accent)]' : 'border-[var(--border-color)] text-[var(--text-secondary)]'}`}>
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
           </div>
           <div className="space-y-3">
             <button
-              onClick={curveType === 'vertical' ? calcVertical : calculate}
+              onClick={calculate}
               className="w-full px-6 py-4 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-bold rounded-lg">
-              {curveType === 'vertical' ? 'Calculate Vertical Curve' : t('toolUI.calculate')}
+              {t('toolUI.calculate')}
             </button>
-            {(result || vResult) && (
+            {result && (
               <div className="flex gap-2">
                 <button
                   onClick={() => {
-                    if (curveType === 'vertical' && vResult) {
-                      generatePDF(
-                        { title: 'Vertical Curve Computation', reference: 'RDM 1.3 Kenya | RDM 1.1 (2025)' },
-                        [
-                          { title: 'Vertical Curve Parameters', rows: [
-                            { label: 'Curve Type', value: vResult.isCrest ? 'Crest' : 'Sag' },
-                            { label: 'Curve Length L', value: `${vResult.curveLen.toFixed(3)} m` },
-                            { label: 'Algebraic A', value: `${vResult.A.toFixed(4)} %` },
-                            { label: 'K-value', value: `${vResult.K_computed.toFixed(2)} m/%` },
-                            { label: 'BVC Chainage', value: `${vResult.BVC_chainage.toFixed(3)} m` },
-                            { label: 'EVC Chainage', value: `${vResult.EVC_chainage.toFixed(3)} m` },
-                            { label: 'BVC RL', value: `${vResult.BVC_RL.toFixed(4)} m` },
-                            { label: 'EVC RL', value: `${vResult.EVC_RL.toFixed(4)} m` },
-                            { label: 'Arithmetic Check', value: vResult.arithPass ? 'PASS' : 'FAIL' },
-                            { label: 'K-Compliance', value: vResult.kPass ? 'PASS' : 'FAIL' },
-                          ]},
-                        ],
-                        [
-                          { title: 'RL Table — 20m Intervals', headers: ['Chainage (m)', 'x from BVC (m)', 'RL (m)', 'Grade (%)'], rows: vResult.tableRows.map((r: VerticalCurveTableRow) => [r.chainage.toFixed(3), r.x.toFixed(3), r.RL.toFixed(4), r.grade.toFixed(4)]) },
-                        ],
-                      )
-                    } else if (result && result.steps) {
+                    if (result && result.steps) {
                       generatePDF(
                         { title: `${curveType.charAt(0).toUpperCase() + curveType.slice(1)} Curve Data Sheet`, reference: 'RDM 1.1 (2025) | Kenya Highway Design Manual' },
                         [
@@ -353,13 +175,7 @@ export default function CurvesCalculator() {
                 </button>
                 <button
                   onClick={() => {
-                    if (curveType === 'vertical' && vResult) {
-                      const csv = toCSV(
-                        ['Chainage (m)', 'x from BVC (m)', 'RL (m)', 'Grade (%)'],
-                        vResult.tableRows.map((r: VerticalCurveTableRow) => [r.chainage.toFixed(3), r.x.toFixed(3), r.RL.toFixed(4), r.grade.toFixed(4)]),
-                      )
-                      downloadCSV(csv, 'vertical-curve-data')
-                    } else if (result) {
+                    if (result) {
                       const csv = toCSV(
                         ['Parameter', 'Value'],
                         result.steps.map((s: SolutionStep) => [s.label, s.result || s.computation || '—']),
@@ -376,9 +192,8 @@ export default function CurvesCalculator() {
           </div>
         </div>
 
-        {vError && <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">{vError}</div>}
 
-        {result && curveType !== 'vertical' && (
+        {result && (
           <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl p-6">
             <SolutionStepsRenderer title={result.title} steps={result.steps} />
             {result.type === 'simple' && result.stakeout?.elements && (
@@ -433,99 +248,6 @@ export default function CurvesCalculator() {
           </div>
         )}
 
-        {vResult && curveType === 'vertical' && (
-          <div className="space-y-4">
-            <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl p-6">
-              <SolutionStepsRenderer title="Vertical Curve Computation" steps={vResult.steps} />
-            </div>
-
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                ['Curve Type', vResult.isCrest ? 'Crest' : 'Sag'],
-                ['Length L', `${vResult.curveLen.toFixed(3)} m`],
-                ['Algebraic A', `${vResult.A.toFixed(4)} %`],
-                ['K-value', `${vResult.K_computed.toFixed(2)} m/%`],
-                ['BVC Ch', `${vResult.BVC_chainage.toFixed(3)} m`],
-                ['EVC Ch', `${vResult.EVC_chainage.toFixed(3)} m`],
-                ['BVC RL', `${vResult.BVC_RL.toFixed(4)} m`],
-                ['EVC RL', `${vResult.EVC_RL.toFixed(4)} m`],
-              ].map(([label, value]) => (
-                <div key={label} className="bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded p-3">
-                  <p className="text-xs text-[var(--text-muted)]">{label}</p>
-                  <p className="text-sm font-mono text-[var(--text-primary)]">{value}</p>
-                </div>
-              ))}
-            </div>
-
-            {vResult.tableRows && vResult.tableRows.length > 0 && (
-              <VerticalCurveProfile
-                rows={vResult.tableRows}
-                bvcChainage={vResult.BVC_chainage}
-                evcChainage={vResult.EVC_chainage}
-                vpiChainage={vResult.vpiChainage}
-                bvcRL={vResult.BVC_RL}
-                evcRL={vResult.EVC_RL}
-                vpiRL={vResult.vpiRL}
-                g1={parseFloat(vInput.g1) || 0}
-                g2={parseFloat(vInput.g2) || 0}
-                isCrest={vResult.isCrest}
-                peakPoint={vResult.peakPoint}
-              />
-            )}
-
-            <div className="flex gap-3 flex-wrap">
-              <div className="px-3 py-2 rounded border font-medium text-sm" style={{ backgroundColor: vResult.arithPass ? '#10b98120' : '#ef444420', borderColor: vResult.arithPass ? '#10b981' : '#ef4444', color: vResult.arithPass ? '#10b981' : '#ef4444' }}>
-                Arithmetic Check {vResult.arithPass ? 'PASS' : 'FAIL'} ({vResult.arithmeticCheck.toFixed(6)} m)
-              </div>
-              <div className="px-3 py-2 rounded border font-medium text-sm" style={{ backgroundColor: vResult.kPass ? '#10b98120' : '#ef444420', borderColor: vResult.kPass ? '#10b981' : '#ef4444', color: vResult.kPass ? '#10b981' : '#ef4444' }}>
-                K-Compliance @ {vResult.designSpeed} km/h {vResult.kPass ? 'PASS' : 'FAIL'} (min K = {vResult.minK})
-              </div>
-            </div>
-
-            {vResult.peakPoint && (
-              <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl p-4">
-                <h4 className="font-semibold text-sm mb-2">{vResult.isCrest ? 'Crest Peak' : 'Sag Low Point'}</h4>
-                <div className="grid grid-cols-2 gap-3">
-                  <div><p className="text-xs text-[var(--text-muted)]">Chainage</p><p className="font-mono text-sm">{vResult.peakPoint.chainage.toFixed(3)} m</p></div>
-                  <div><p className="text-xs text-[var(--text-muted)]">Reduced Level</p><p className="font-mono text-sm">{vResult.peakPoint.RL.toFixed(4)} m</p></div>
-                </div>
-              </div>
-            )}
-
-            <div className="bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)] border border-[var(--border-color)] rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-[var(--border-color)]">
-                <h4 className="font-semibold text-sm">RL Table — 20m Intervals</h4>
-              </div>
-              <div className="overflow-x-auto max-h-64">
-                <table className="w-full text-xs font-mono">
-                  <thead>
-                    <tr className="bg-[var(--bg-tertiary)]">
-                      <th className="px-3 py-2 text-left text-[var(--text-secondary)]">Chainage (m)</th>
-                      <th className="px-3 py-2 text-left text-[var(--text-secondary)]">x from BVC (m)</th>
-                      <th className="px-3 py-2 text-right text-[var(--text-secondary)]">RL (m)</th>
-                      <th className="px-3 py-2 text-right text-[var(--text-secondary)]">Grade (%)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {vResult.tableRows.map((r: VerticalCurveTableRow, i: number) => {
-                      const isBVC = i === 0;
-                      const isEVC = i === vResult.tableRows.length - 1;
-                      const isPeak = !!(vResult.peakPoint && Math.abs(r.chainage - vResult.peakPoint.chainage) < 1);
-                      return (
-                        <tr key={`item-${i}`} className={`border-t border-[color-mix(in_srgb,var(--border-color)_30%,transparent)] ${isPeak ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)]' : ''}`}>
-                          <td className="px-3 py-1">{r.chainage.toFixed(3)}</td>
-                          <td className="px-3 py-1">{r.x.toFixed(3)}</td>
-                          <td className={`px-3 py-1 text-right font-semibold ${isBVC || isEVC || isPeak ? 'text-[var(--accent)]' : ''}`}>{r.RL.toFixed(4)}</td>
-                          <td className="px-3 py-1 text-right">{r.grade.toFixed(4)}</td>
-                        </tr>
-                      )
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </div>
-        )}
       </div>
       )}
     </div>
