@@ -20,6 +20,7 @@
 
 import { NextResponse } from 'next/server'
 import { createHash } from 'node:crypto'
+import type { PoolClient } from 'pg'
 import { apiHandler } from '@/lib/apiHandler'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
 import { db, setRlsContext } from '@/lib/db'
@@ -157,6 +158,40 @@ function sameStoredNumber(stored: number | string | null, requested: number | nu
 
 function sameStoredText(stored: string | null, requested: unknown): boolean {
   return (stored ?? null) === (typeof requested === 'string' ? requested : null)
+}
+
+interface GenerationProjectSource {
+  user_id: string | null
+  utm_zone: number | null
+  hemisphere: string | null
+  datum: string | null
+  engineering_data: Record<string, unknown> | null
+}
+
+function generationReferenceHash(reference: Record<string, unknown> | undefined, project: Omit<GenerationProjectSource, 'user_id' | 'engineering_data'>): string {
+  // Include the full canonical declaration, not only its display CRS/datum:
+  // benchmark, geoid, scale/calibration and provenance edits also invalidate a
+  // preparation. The legacy fields remain part of the reference when present.
+  return createHash('sha256').update(JSON.stringify({
+    reference: reference ?? null,
+    utm_zone: project.utm_zone, hemisphere: project.hemisphere, datum: project.datum,
+  })).digest('hex')
+}
+
+async function lockGenerationSource(client: PoolClient, projectId: string, userId: string) {
+  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [projectId])
+  // Use the same order as reference-system updates. Row locks also protect
+  // against writers which do not take this advisory lock (including transfers).
+  const { rows: references } = await client.query<Record<string, unknown>>(
+    'SELECT * FROM project_reference_systems WHERE project_id = $1 FOR SHARE', [projectId])
+  const { rows: projects } = await client.query<GenerationProjectSource>(
+    'SELECT user_id, utm_zone, hemisphere, datum, engineering_data FROM projects WHERE id = $1 FOR SHARE', [projectId])
+  const project = projects[0]
+  if (!project) return { error: NextResponse.json({ error: 'Project not found' }, { status: 404 }) }
+  if (!project.user_id || project.user_id !== userId) {
+    return { error: NextResponse.json({ error: 'Project ownership changed; refresh before generating field targets.', code: 'FORBIDDEN' }, { status: 403 }) }
+  }
+  return { project, reference: references[0] }
 }
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 120, windowMs: 60000 } }, async (req, ctx) => {
@@ -521,34 +556,16 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     }
 
     const client = await db.getClient()
+    let discardClient = false
     try {
       await client.query('BEGIN')
       await setRlsContext(client)
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [projectId])
-
-      // Revalidate the exact source after acquiring the save lock. The shared
-      // row locks keep both the design/legacy CRS columns and the canonical
-      // CRS declaration stable until the field job has been committed.
-      const { rows: lockedReferenceRows } = await client.query<Record<string, unknown>>(
-        'SELECT * FROM project_reference_systems WHERE project_id = $1 FOR SHARE',
-        [projectId]
-      )
-      const { rows: lockedProjectRows } = await client.query<{
-        utm_zone: number | null
-        hemisphere: string | null
-        datum: string | null
-        engineering_data: Record<string, unknown> | null
-      }>(
-        'SELECT utm_zone, hemisphere, datum, engineering_data FROM projects WHERE id = $1 FOR SHARE',
-        [projectId]
-      )
-      const lockedProject = lockedProjectRows[0]
-      if (!lockedProject) {
+      const source = await lockGenerationSource(client, projectId, userId)
+      if (source.error) {
         await client.query('ROLLBACK')
-        return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+        return source.error
       }
-      const lockedReference = resolveStageReference(lockedReferenceRows[0], lockedProject)
-      const lockedEngineeringData = lockedProject.engineering_data
+      const lockedEngineeringData = source.project.engineering_data
       const lockedDrainage = lockedEngineeringData && typeof lockedEngineeringData === 'object'
         ? (lockedEngineeringData as Record<string, unknown>).drainage
         : null
@@ -556,9 +573,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         ? createHash('sha256').update(JSON.stringify(lockedDrainage)).digest('hex')
         : null
       if (lockedSourceHash !== sourceHash
-        || lockedReference.code !== crs
-        || lockedReference.verticalDatum !== projectReference.verticalDatum
-        || lockedReference.distanceMode !== projectReference.distanceMode) {
+        || generationReferenceHash(source.reference, source.project) !== generationReferenceHash(referenceRows[0], project)) {
         await client.query('ROLLBACK')
         return NextResponse.json(
           {
@@ -677,13 +692,14 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
           )
           return `($1,$2,${fields.join(',')})`
         }).join(',')
-        await client.query(
+        const insertedPoints = await client.query(
           `INSERT INTO setout_points
              (definition_id, revision, label, row_index, column_index, easting, northing, design_rl, point_type, metadata)
            VALUES ${rowsSql}
            ON CONFLICT (definition_id, revision, label) DO NOTHING`,
           values
         )
+        if (insertedPoints.rowCount !== batch.length) throw new Error('The complete drainage target batch was not stored')
       }
       await client.query('COMMIT')
       return NextResponse.json(
@@ -691,9 +707,11 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         { status: 201 }
       )
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => {})
+      await client.query('ROLLBACK').catch(() => { discardClient = true })
       logger.error('[setout] save drainage definition failed', { error })
       return NextResponse.json({ error: 'Could not store the drainage set-out definition' }, { status: 500 })
+    } finally {
+      client.release(discardClient)
     }
   }
 
@@ -812,21 +830,31 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     }
 
     const client = await db.getClient();
+    let discardClient = false;
     try {
       await client.query('BEGIN');
       await setRlsContext(client);
+      const source = await lockGenerationSource(client, projectId, userId);
+      if (source.error) {
+        await client.query('ROLLBACK');
+        return source.error;
+      }
+      if (generationReferenceHash(source.reference, source.project) !== generationReferenceHash(referenceRows[0], project)) {
+        await client.query('ROLLBACK');
+        return NextResponse.json({ error: 'The project reference system changed while field targets were being prepared. Refresh and generate the set-out again.', code: 'SETOUT_REFERENCE_CHANGED' }, { status: 409 });
+      }
 
       let definitionId = body.definitionId ?? null;
       if (definitionId) {
         const owned = await client.query(
-          'SELECT id FROM setout_definitions WHERE id = $1 AND project_id = $2',
+          'SELECT id FROM setout_definitions WHERE id = $1 AND project_id = $2 FOR UPDATE',
           [definitionId, projectId]
         );
         if (!owned.rows[0]) {
           await client.query('ROLLBACK');
           return NextResponse.json({ error: 'Definition not found' }, { status: 404 });
         }
-        await client.query(
+        const updatedDefinition = await client.query(
           `UPDATE setout_definitions
               SET name = $2, structure_type = $3, origin_easting = $4, origin_northing = $5,
                   origin_rl = $6, rows = $7, columns = $8, row_spacing = $9, column_spacing = $10,
@@ -854,6 +882,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
             crs,
           ]
         );
+        if (updatedDefinition.rowCount !== 1) throw new Error('The grid definition update was not stored');
       } else {
         const inserted = await client.query<{ id: string }>(
           `INSERT INTO setout_definitions
@@ -905,9 +934,10 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         setoutToleranceProfileSnapshot: toleranceProfileDraft.profile && toleranceRules && toleranceProfileId
           ? { id: toleranceProfileId, ...toleranceProfileDraft.profile, rules: toleranceRules } : null,
       }
-      await client.query(
+      const updatedMetadata = await client.query(
         `UPDATE setout_definitions SET tolerance_profile_id = $2, metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb WHERE id = $1`,
         [definitionId, toleranceProfileId, JSON.stringify(metadata)])
+      if (updatedMetadata.rowCount !== 1) throw new Error('The grid definition metadata was not stored')
 
       // Every save writes a fresh design revision; existing shots keep the
       // revision they were taken against.
@@ -936,13 +966,14 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
           );
           return `($1,$2,${Array.from({ length: 8 }, (_, valueIndex) => `$${base + valueIndex}${valueIndex === 7 ? '::jsonb' : ''}`).join(',')})`;
         }).join(',');
-        await client.query(
+        const insertedPoints = await client.query(
           `INSERT INTO setout_points
              (definition_id, revision, label, row_index, column_index, easting, northing, design_rl, point_type, metadata)
            VALUES ${rowsSql}
            ON CONFLICT (definition_id, revision, label) DO NOTHING`,
           values
         );
+        if (insertedPoints.rowCount !== batch.length) throw new Error('The complete grid target batch was not stored');
       }
 
       await client.query('COMMIT');
@@ -952,9 +983,11 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         { status: 201 }
       );
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => {});
+      await client.query('ROLLBACK').catch(() => { discardClient = true });
       logger.error('[setout] save definition failed', { error });
       return NextResponse.json({ error: 'Could not store the set-out definition' }, { status: 500 });
+    } finally {
+      client.release(discardClient);
     }
   }
 

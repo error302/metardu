@@ -15,7 +15,12 @@ const invoke=async(payload:Record<string,unknown>)=>(POST as unknown as(req:Next
 beforeEach(()=>{
   jest.clearAllMocks()
   ;(db.query as jest.Mock).mockResolvedValue({rows:[{utm_zone:37,hemisphere:'S',datum:'WGS84'}]})
-  clientQuery.mockImplementation(async(sql:string)=>({rows:sql.includes('INSERT INTO tolerance_profiles')?[{id:'profile-1'}]:sql.includes('INSERT INTO setout_definitions')?[{id:'definition-1'}]:sql.includes('MAX(revision)')?[{revision:1}]:[]}))
+  clientQuery.mockImplementation(async(sql:string,values?:unknown[])=>({
+    rows:sql.includes('FROM projects')?[{user_id:'alice',utm_zone:37,hemisphere:'S',datum:'WGS84'}]
+      :sql.includes('FROM project_reference_systems')?[{utm_zone:37,hemisphere:'S',datum:'WGS84'}]
+      :sql.includes('INSERT INTO tolerance_profiles')?[{id:'profile-1'}]:sql.includes('INSERT INTO setout_definitions')?[{id:'definition-1'}]:sql.includes('MAX(revision)')?[{revision:1}]:[],
+    rowCount:sql.includes('INSERT INTO setout_points')?((values?.length??2)-2)/8:1,
+  }))
   ;(db.getClient as jest.Mock).mockResolvedValue({query:clientQuery,release:jest.fn()})
 })
 it('retains the supplied pile-grid tolerance profile and snapshot on its stored definition',async()=>{

@@ -20,3 +20,15 @@ Project reference-system updates now use the same per-project advisory transacti
 ## Release boundary
 
 These changes have not been promoted to the production `metardu-app` stack. Runtime health and inventory must still be checked with `npm run docker:verify`, followed by the repository's migration/recovery review and the planned single application promotion. Production and physical field-device behavior remain unverified.
+
+## 23 October native persistence follow-up
+
+`SETOUT_GENERATION_PERSISTENCE_2026-10-23.md` records reproduced pool leaks,
+unconfirmed target/definition writes, ownership changes and grid reference
+changes. Both generation paths now release clients, revalidate their locked
+source and require complete persistence. The focused suites pass 41 tests;
+22 native PostgreSQL checks include real failure triggers, prior-revision
+preservation, 25 saves in a two-connection pool, actual transfer blocking and
+exact original-record/ledger preservation and fixture cleanup. Authentication,
+RLS, production promotion and field acceptance retain the separate boundaries
+in that record.

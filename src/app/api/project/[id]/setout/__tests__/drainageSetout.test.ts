@@ -32,7 +32,19 @@ const lockedSourceSnapshot = async (sql: string) => {
       ? 0
       : -1
   if (index < 0) return null
-  return await mockDbQuery.mock.results[index]?.value as { rows: unknown[] } | undefined ?? { rows: [] }
+  const result = await mockDbQuery.mock.results[index]?.value as { rows: Record<string, unknown>[] } | undefined ?? { rows: [] }
+  return index === 0 ? { ...result, rows: result.rows.map(row => ({ ...row, user_id: 'alice' })) } : result
+}
+
+function generationClient(query: jest.Mock) {
+  const implementation = query.getMockImplementation()
+  query.mockImplementation(async (sql: string, values?: unknown[]) => {
+    const result = await implementation?.(sql, values) as { rows: unknown[]; rowCount?: number }
+    return sql.includes('INSERT INTO setout_points')
+      ? { ...result, rowCount: ((values?.length ?? 2) - 2) / 8 }
+      : result
+  })
+  return { query, release: jest.fn() }
 }
 
 const drainage = (setoutToleranceProfile?: Record<string, unknown>) => ({
@@ -85,7 +97,7 @@ test('recomputes saved drainage data into a CRS-bound revisioned field set-out',
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
     return { rows: [] }
   })
-  mockGetClient.mockResolvedValue({ query: clientQuery })
+  mockGetClient.mockResolvedValue(generationClient(clientQuery))
 
   const response = await invoke()
   expect(response.status).toBe(201)
@@ -122,13 +134,13 @@ test('refuses to save targets when the drainage design changes before the transa
 
   const clientQuery = jest.fn(async (sql: string, _values?: unknown[]) => {
     if (sql.includes('FROM projects') && sql.includes('FOR SHARE')) {
-      return { rows: [{ utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: changed } }] }
+      return { rows: [{ user_id: 'alice', utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: changed } }] }
     }
     const locked = await lockedSourceSnapshot(sql)
     if (locked) return locked
     return { rows: [] }
   })
-  mockGetClient.mockResolvedValue({ query: clientQuery })
+  mockGetClient.mockResolvedValue(generationClient(clientQuery))
 
   const response = await invoke()
   const calls = clientQuery.mock.calls as Array<[string, unknown[]?]>
@@ -152,7 +164,7 @@ test('the v4 server field job records the external crown from actual internal an
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
     return { rows: [] }
   })
-  mockGetClient.mockResolvedValue({ query })
+  mockGetClient.mockResolvedValue(generationClient(query))
   expect((await invoke()).status).toBe(201)
   const calls = query.mock.calls as Array<[string, unknown[]?]>
   const points = calls.find(([sql]) => sql.includes('INSERT INTO setout_points'))
@@ -196,7 +208,7 @@ test('persists routed-alignment provenance and stations a bent drainage run in t
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
     return { rows: [] }
   })
-  mockGetClient.mockResolvedValue({ query: clientQuery })
+  mockGetClient.mockResolvedValue(generationClient(clientQuery))
 
   const response = await invoke()
   const calls = clientQuery.mock.calls as Array<[string, unknown[]?]>
@@ -264,7 +276,7 @@ test('stores a validated project tolerance profile with the drainage definition 
     if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
     return { rows: [] }
   })
-  mockGetClient.mockResolvedValue({ query: clientQuery })
+  mockGetClient.mockResolvedValue(generationClient(clientQuery))
 
   const response = await invoke()
   const calls = clientQuery.mock.calls as Array<[string, unknown[]?]>
