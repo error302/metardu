@@ -26,7 +26,7 @@ export interface EllipsoidParameters {
 }
 
 export const ELLIPSOIDS: Record<string, EllipsoidParameters> = {
-  clarke1880_modified: {
+  clarke1880_kenya: {
     name: 'Clarke 1880 (Modified) - Arc 1960',
     a: 6378249.145,
     invF: 293.465,
@@ -57,7 +57,7 @@ export interface GeodeticReductionInput {
     elevation: number
     geoidUndulation?: number
   }
-  ellipsoid?: 'clarke1880_modified' | 'clarke1858' | 'wgs84'
+  ellipsoid?: 'clarke1880_kenya' | 'clarke1858' | 'wgs84'
   utmZone?: number // e.g. 36 or 37 for Kenya
   centralMeridian?: number // longitude in degrees (e.g. 33 for 36S, 39 for 37S)
   falseEasting?: number // default 500,000 m
@@ -87,9 +87,9 @@ export interface GeodeticReductionOutput {
  */
 export function calculateMeanRadiusOfCurvature(
   latRadians: number,
-  ellipsoidKey: 'clarke1880_modified' | 'clarke1858' | 'wgs84' = 'clarke1880_modified'
+  ellipsoidKey: 'clarke1880_kenya' | 'clarke1858' | 'wgs84' = 'clarke1880_kenya'
 ): number {
-  const el = ELLIPSOIDS[ellipsoidKey] || ELLIPSOIDS.clarke1880_modified
+  const el = ELLIPSOIDS[ellipsoidKey] || ELLIPSOIDS.clarke1880_kenya
   const f = 1 / el.invF
   const e2 = 2 * f - f * f
 
@@ -136,7 +136,7 @@ export function reduceGroundToGrid(input: GeodeticReductionInput): GeodeticReduc
     groundDistance,
     fromPoint,
     toPoint,
-    ellipsoid = 'clarke1880_modified',
+    ellipsoid = 'clarke1880_kenya',
     falseEasting = 500000,
     k0 = 0.9996,
   } = input
@@ -189,7 +189,7 @@ export function reduceGroundToGrid(input: GeodeticReductionInput): GeodeticReduc
   const calculationSteps = [
     `1. Mean Coordinates: E = ${meanEasting.toFixed(3)}m, N = ${meanNorthing.toFixed(3)}m`,
     `2. Mean Orthometric Height H = ${meanElevation.toFixed(3)}m, Geoid Undulation N = ${meanN.toFixed(3)}m (h = ${ellipsoidalHeight.toFixed(3)}m)`,
-    `3. Mean Earth Curvature Radius Rm = ${Rm.toFixed(1)}m on ${ELLIPSOIDS[ellipsoid].name}`,
+    `3. Mean Earth Curvature Radius Rm = ${Rm.toFixed(1)}m on ${(ELLIPSOIDS[ellipsoid] || ELLIPSOIDS.clarke1880_kenya).name}`,
     `4. Elevation Factor = Rm / (Rm + h) = ${elevationFactor.toFixed(8)}`,
     `5. Ellipsoidal Distance Sell = ${ellipsoidalDistance.toFixed(4)}m`,
     `6. UTM Point Scale Factor k = ${gridPointScaleFactor.toFixed(8)} (Distance from CM: ${(deltaE / 1000).toFixed(2)} km)`,
