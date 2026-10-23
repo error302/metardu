@@ -17,13 +17,13 @@ const GSI8_COORDINATE_DATA = [
 ].join('\n')
 
 const GSI8_OBSERVATION_DATA = [
-  '110001+00000001 21.324+01234567 22.324+09876543 31..00+00102345',
-  '110001+00000002 21.324+02345678 22.324+08765432 31..00+00105432',
+  '110001+00000001 21.324+01234567 22.324+09000000 31..00+00102345',
+  '110001+00000002 21.324+02345568 22.324+09130000 31..00+00105432',
 ].join('\n')
 
 const GSI16_DATA = [
-  '*110001+0000000000001 21.324+00001234567 22.324+00009876543 31..00+00000102345 81..00+00000298432 82..00+00001234567 83..00+00000001542',
-  '*110001+0000000000002 21.324+00002345678 22.324+00008765432 31..00+00000105432 81..00+00000298543 82..00+00001235678 83..00+00000001653',
+  '*110001+000000000PNC0055 21.002+0000000013384650 22.002+0000000005371500',
+  '*110002+000000000PNC0056 21.002+0000000012802530 22.002+0000000005255000',
 ].join('\n')
 
 const GSI8_WITH_FEATURE_CODE = [
@@ -146,11 +146,10 @@ describe('parseGSI', () => {
   })
 
   describe('face detection', () => {
-    it('detects face-left for vertical angle < 200', () => {
+    it('infers face-left from the normalized zenith angle below 180 degrees', () => {
       const result = parseGSI(GSI8_OBSERVATION_DATA)
-      // Our test data has vertical angles that are WI 22 values / 100000
-      // which could be < 200 (gon) or > 200 depending on the raw value
-      expect(result.statistics.faceLeftCount + result.statistics.faceRightCount).toBeGreaterThan(0)
+      expect(result.statistics.faceLeftCount).toBe(2)
+      expect(result.statistics.faceRightCount).toBe(0)
     })
   })
 

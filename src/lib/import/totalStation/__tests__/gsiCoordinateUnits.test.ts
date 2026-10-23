@@ -7,7 +7,7 @@ test.each([['0','00005387'],['6','00053870'],['8','00538700']])('GSI linear prec
   expect(parse(point(unit,value)).records[0].easting).toBeCloseTo(5.387,9)
 })
 test('station easting WI84 uses the word unit, not a different arbitrary divisor',()=>{
-  expect(parse(point('0','00005387','84')).records[0].easting).toBeCloseTo(5.387,9)
+  expect(parse(point('0','00005387','84')).records[0].stationEasting).toBeCloseTo(5.387,9)
 })
 test('an angular or unknown unit flag cannot become a coordinate',()=>{
   const result=parse(point('4','00005387'))

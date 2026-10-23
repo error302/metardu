@@ -1,12 +1,12 @@
 /**
- * GSI Adapter — wraps the already-excellent GSI parser.
+ * GSI Adapter — preserves normalized measurements and original setup uncertainty.
  *
  * The GSI parser already produces structured records with angles,
- * distances, face position, and coordinates. This adapter simply
- * maps GSIRecord[] → UnifiedObservation[] and runs face pairing.
+ * distances, inferred face position, and coordinates. This adapter maps records
+ * without inferring station identity or merging shots across unknown setups.
  */
 
-import { parseGSI, pairFaces } from '../parseGSI'
+import { parseGSI } from '../parseGSI'
 import {
   UnifiedObservation,
   UnifiedRawPoint,
@@ -22,7 +22,7 @@ export function adaptGSI(content: string, foot?: 'international' | 'USSurveyFoot
   const errors: string[] = []
 
   if (!parsed.ok) {
-    errors.push('GSI parser returned ok=false — no usable records')
+    errors.push('GSI parser refused the file structure or found no usable records. Review its word-width and measurement diagnostics.')
   }
 
   // ── Map raw records → observations + raw points ─────────────────────
@@ -35,10 +35,12 @@ export function adaptGSI(content: string, foot?: 'international' | 'USSurveyFoot
     if (
       rec.horizontalAngle !== undefined ||
       rec.verticalAngle !== undefined ||
-      rec.slopeDistance !== undefined
+      rec.slopeDistance !== undefined ||
+      rec.horizontalDistance !== undefined ||
+      rec.heightDifference !== undefined
     ) {
       observations.push({
-        stationId: '',   // GSI doesn't encode station explicitly per record
+        stationId: '',   // This adapter has not established the setup identity.
         targetId: rec.pointId,
         face: rec.facePosition || 'unknown',
         horizontalAngle: rec.horizontalAngle,
@@ -70,65 +72,22 @@ export function adaptGSI(content: string, foot?: 'international' | 'USSurveyFoot
     }
   }
 
-  // ── Face pairing → meaned observations ─────────────────────────────
-
-  const meanedObservations: UnifiedObservation[] = []
-
+  // File order and repeated target IDs do not establish an instrument setup,
+  // backsight or shared face-pair context. Keep originals for explicit review.
   if (observations.length > 0) {
-    const pairs = pairFaces(parsed.records)
-    for (const pair of pairs) {
-      meanedObservations.push({
-        stationId: '',
-        targetId: pair.pointId,
-        face: 'FL',
-        horizontalAngle: pair.meanHorizontalAngle,
-        verticalAngle: pair.meanVerticalAngle,
-        slopeDistance: pair.meanSlopeDistance,
-        horizontalDistance: pair.horizontalDistance,
-        heightDifference: pair.heightDifference,
-        prismHeight: pair.faceLeft.reflectorHeight,
-        instrumentHeight: pair.faceLeft.instrumentHeight,
-      })
-    }
-
-    // Populate stationId from the first record if all observations share
-    // a common station (heuristic: first record is often the station point)
-    if (rawPoints.length > 0) {
-      const firstCoord = rawPoints[0]
-      // Use first coordinate record as station name
-      for (const obs of observations) {
-        if (!obs.stationId && obs.targetId !== firstCoord.id) {
-          obs.stationId = firstCoord.id
-        }
-      }
-      for (const obs of meanedObservations) {
-        if (!obs.stationId) {
-          obs.stationId = firstCoord.id
-        }
-      }
-    }
+    warnings.push('GSI station/backsight setup is not declared. Original observations are retained; review the setup before face pairing or reduction.')
   }
-
-  // ── Detect station coordinates ──────────────────────────────────────
-
-  let stationCoords: UnifiedImportResult['stationCoords'] = undefined
-  if (rawPoints.length > 0) {
-    const first = rawPoints[0]
-    stationCoords = {
-      easting: first.easting,
-      northing: first.northing,
-      elevation: first.elevation,
-    }
+  if (parsed.records.some(record => record.stationCoordinateRecord)) {
+    warnings.push('GSI station coordinate words (WI 84-86) are retained in the source and excluded from target points. Review station identity and setup separately.')
   }
 
   return {
     format: 'gsi',
     normalizedMetres: true,
     instrument: 'Leica',
-    stationName: rawPoints.length > 0 ? rawPoints[0].id : '',
-    stationCoords,
+    stationName: '',
     observations,
-    meanedObservations,
+    meanedObservations: [],
     rawPoints,
     errors,
     warnings,

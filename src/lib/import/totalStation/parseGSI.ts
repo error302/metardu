@@ -1,12 +1,11 @@
 /**
- * Leica GSI Format Parser — Full Implementation
+ * Leica GSI Format Parser
  * GSI-8 and GSI-16 formats
  *
- * Phase 23: Complete parser with all 40+ Word Identifier codes,
- * face-left/face-right pairing, and mean face reduction.
+ * Supported coordinate and observation words retain their declared units.
+ * Instrument setup and face-reduction context require separate review.
  *
- * Reference: Leica TPS1200/TS06/TS16 GSI Format Specification
- * Reference: Ghilani & Wolf, Elementary Surveying 16th Ed.
+ * Reference: Leica GSI ONLINE for Leica TPS, data format and word-unit tables.
  *
  * WI Code Groups:
  *  11-19: Point identification
@@ -20,10 +19,15 @@
 
 export interface GSIRecord {
   coordinateRecord?: boolean
+  stationCoordinateRecord?: boolean
   pointId: string
   easting?: number
   northing?: number
   elevation?: number
+  /** WI 84-86 describe the instrument station, never the target point. */
+  stationEasting?: number
+  stationNorthing?: number
+  stationElevation?: number
   horizontalAngle?: number  // degrees (decimal)
   verticalAngle?: number    // degrees (decimal)
   slopeDistance?: number     // metres
@@ -55,7 +59,7 @@ export interface GSIParseResult {
 
 /**
  * Parse a GSI-8 or GSI-16 format file from a Leica total station.
- * Handles all standard Word Identifier codes.
+ * Unsupported measurement units produce diagnostics instead of guessed values.
  */
 export function parseGSI(content: string, options: { foot?: 'international' | 'USSurveyFoot' } = {}): GSIParseResult {
   const warnings: string[] = []
@@ -69,19 +73,31 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
     }
   }
 
-  // Detect format: GSI-16 lines start with '*'
+  // GSI-16 commonly carries '*', but Leica's published examples also omit it.
+  // Its first word still explicitly has 7 information/sign + 16 data characters.
   const firstLine = lines[0].trim()
-  const format: 'GSI-8' | 'GSI-16' = firstLine.startsWith('*') ? 'GSI-16' : 'GSI-8'
+  const firstWord = firstLine.replace(/^\*/, '').split(/\s+/, 1)[0]
+  const format: 'GSI-8' | 'GSI-16' = firstLine.startsWith('*') || firstWord.length === 23 ? 'GSI-16' : 'GSI-8'
   const wordLength = format === 'GSI-16' ? 24 : 16
 
   let coordinateRecords = 0
   let observationRecords = 0
   let faceLeftCount = 0
   let faceRightCount = 0
+  let malformedStructure = false
 
-  for (const line of lines) {
-    const cleanLine = line.trim().replace(/^\*/, '')
-    if (!cleanLine) continue
+  for (const [lineIndex, line] of lines.entries()) {
+    const sourceLine = line.trim().replace(/^\*/, '')
+    if (!sourceLine) continue
+    const words = sourceLine.split(/\s+/)
+    if (words.some(word => word.length !== wordLength - 1)) {
+      warnings.push(`Line ${lineIndex + 1}: inconsistent GSI word width; the file structure was not accepted.`)
+      malformedStructure = true
+      continue
+    }
+    // Normalize separators only; rawLine and the original import source remain
+    // available, and data fields have already passed their exact width check.
+    const cleanLine = words.join(' ')
 
     const record: GSIRecord = { pointId: '', rawLine: line.trim() }
 
@@ -110,24 +126,52 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
 
       // Parse the numeric data value
       const rawNumValue = parseFloat(dataStr)
-      if (isNaN(rawNumValue) && !/^(?:11|4[1-9]|7[1-9])$/.test(wi)) {
+      if (isNaN(rawNumValue) && !/^(?:11|21|22|24|31|32|33|4[1-9]|7[1-9]|8[1-8])$/.test(wi)) {
         pos += wordLength
         continue
       }
 
       const numValue = signMultiplier * rawNumValue
       const linearValue = () => {
-        if (!/^(?:\d{8}|\d{16})$/.test(dataStr)) { warnings.push(`WI ${wi}: invalid coordinate payload; no numeric prefix was used.`); return undefined }
+        if (!/^[+-]$/.test(sign) || !/^(?:\d{8}|\d{16})$/.test(dataStr) || !Number.isSafeInteger(rawNumValue)) { warnings.push(`WI ${wi}: invalid or unsafe measurement payload; no rounded numeric value was used.`); return undefined }
         const unit = word[5]
         const factors: Record<string,number> = { '0':0.001, '6':0.0001, '8':0.00001 }
         if (unit==='1' || unit==='7') {
           if (options.foot) return numValue*(options.foot==='international'?0.3048:1200/3937)/(unit==='1'?1000:10000)
-          warnings.push(`WI ${wi}: confirm the GSI foot unit definition before importing coordinates.`)
+          warnings.push(`WI ${wi}: confirm the GSI foot unit definition before importing measurements.`)
           return undefined
         }
         if (factors[unit]!==undefined && Number.isFinite(numValue)) return numValue*factors[unit]
-        warnings.push(`WI ${wi}: unsupported linear unit flag ${unit}; no coordinate was inferred.`)
+        warnings.push(`WI ${wi}: unsupported linear unit flag ${unit}; no linear measurement was inferred.`)
         return undefined
+      }
+      const angularValue = () => {
+        if (!/^[+-]$/.test(sign) || !/^(?:\d{8}|\d{16})$/.test(dataStr) || !Number.isSafeInteger(rawNumValue)) {
+          warnings.push(`WI ${wi}: invalid angle payload; no numeric prefix was used.`)
+          return undefined
+        }
+        const unit = word[5]
+        let angle: number
+        if (unit === '2') angle = rawNumValue / 100000 * 0.9
+        else if (unit === '3') angle = rawNumValue / 100000
+        else if (unit === '4') {
+          const degrees = Math.floor(rawNumValue / 100000)
+          const minutes = Math.floor(rawNumValue % 100000 / 1000)
+          const seconds = rawNumValue % 1000 / 10
+          if (minutes >= 60 || seconds >= 60) {
+            warnings.push(`WI ${wi}: invalid sexagesimal angle minutes/seconds.`)
+            return undefined
+          }
+          angle = degrees + minutes / 60 + seconds / 3600
+        } else {
+          warnings.push(`WI ${wi}: unsupported angular unit flag ${unit}; no angle was inferred.`)
+          return undefined
+        }
+        if (!Number.isFinite(angle) || angle > 360) {
+          warnings.push(`WI ${wi}: angle is outside one complete revolution.`)
+          return undefined
+        }
+        return signMultiplier * angle
       }
 
       switch (wi) {
@@ -147,26 +191,26 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
 
         // ─── Angles ────────────────────────────────────────────────────
         case '21': // Horizontal angle (Hz)
-          record.horizontalAngle = numValue / 100000 // GSI stores as ddddggggg (100000ths of gon) or dddmmss.s
+          record.horizontalAngle = angularValue()
           break
         case '22': // Vertical angle (V)
-          record.verticalAngle = numValue / 100000
+          record.verticalAngle = angularValue()
           break
         case '24': // Horizontal angle (Hz) in Hz increments
-          record.horizontalAngle = numValue / 100000
+          record.horizontalAngle = angularValue()
           break
         case '25': // Horizontal difference (Hz delta)
           break
 
         // ─── Distances ─────────────────────────────────────────────────
         case '31': // Slope distance (m)
-          record.slopeDistance = numValue / 1000
+          record.slopeDistance = linearValue()
           break
         case '32': // Horizontal distance (m)
-          record.horizontalDistance = numValue / 1000
+          record.horizontalDistance = linearValue()
           break
         case '33': // Height difference (m)
-          record.heightDifference = numValue / 1000
+          record.heightDifference = linearValue()
           break
 
         // ─── Code / Description ────────────────────────────────────────
@@ -218,29 +262,29 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
           break
 
         // ─── Coordinates ───────────────────────────────────────────────
-        case '81': // Easting (E) in mm
+        case '81': // Target easting; unit declared in the word
           record.coordinateRecord = true; record.easting = linearValue()
           break
-        case '82': // Northing (N) in mm
+        case '82': // Target northing
           record.coordinateRecord = true; record.northing = linearValue()
           break
-        case '83': // Elevation (H) in mm
+        case '83': // Target elevation
           record.coordinateRecord = true; record.elevation = linearValue()
           break
-        case '84': // Easting (E) in 0.1mm
-          record.coordinateRecord = true; record.easting = linearValue()
+        case '84': // Station easting (E0)
+          record.stationCoordinateRecord = true; record.stationEasting = linearValue()
           break
-        case '85': // Northing (N) in 0.1mm
-          record.coordinateRecord = true; record.northing = linearValue()
+        case '85': // Station northing (N0)
+          record.stationCoordinateRecord = true; record.stationNorthing = linearValue()
           break
-        case '86': // Elevation (H) in 0.1mm
-          record.coordinateRecord = true; record.elevation = linearValue()
+        case '86': // Station elevation (H0)
+          record.stationCoordinateRecord = true; record.stationElevation = linearValue()
           break
         case '87': // Reflector height (m) — stored in mm
-          record.reflectorHeight = numValue / 1000
+          record.reflectorHeight = linearValue()
           break
         case '88': // Instrument height (m) — stored in mm
-          record.instrumentHeight = numValue / 1000
+          record.instrumentHeight = linearValue()
           break
 
         default:
@@ -253,13 +297,12 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
 
     if (record.pointId) {
       // Detect face position from vertical angle
-      // FL: vertical angle 0-200 gon (0-180°)
-      // FR: vertical angle 200-400 gon (180-360°)
+      // Parsed angles above are decimal degrees, regardless of source units.
       if (record.verticalAngle !== undefined) {
-        if (record.verticalAngle >= 0 && record.verticalAngle < 200) {
+        if (record.verticalAngle >= 0 && record.verticalAngle < 180) {
           record.facePosition = 'FL'
           faceLeftCount++
-        } else if (record.verticalAngle >= 200) {
+        } else if (record.verticalAngle >= 180 && record.verticalAngle <= 360) {
           record.facePosition = 'FR'
           faceRightCount++
         } else {
@@ -270,7 +313,8 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
       if (record.easting !== undefined || record.northing !== undefined) {
         coordinateRecords++
       }
-      if (record.horizontalAngle !== undefined || record.slopeDistance !== undefined) {
+      if (record.horizontalAngle !== undefined || record.verticalAngle !== undefined || record.slopeDistance !== undefined
+        || record.horizontalDistance !== undefined || record.heightDifference !== undefined) {
         observationRecords++
       }
 
@@ -279,7 +323,7 @@ export function parseGSI(content: string, options: { foot?: 'international' | 'U
   }
 
   return {
-    ok: records.length > 0,
+    ok: !malformedStructure && records.length > 0,
     records,
     warnings,
     format,

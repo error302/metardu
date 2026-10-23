@@ -44,3 +44,22 @@ test('unselected invalid records are retained in the source and require review a
   expect(result.points).toHaveLength(1)
   expect(result.excludedCount).toBe(1)
 })
+
+test('GSI station coordinates cannot be committed as target points even with warning acknowledgement',()=>{
+  const sourceText='*110001+0000000000000001 84..00+0000000500000000 85..00+0000009850000000'
+  expect(()=>preparePointImport(body({fileName:'station.gsi',sourceText,
+    coordinateUnit:'file',heightUnit:'file',confirmWarnings:true}),reference)).toThrow(/no coordinate points/i)
+})
+
+test('unprefixed GSI16 target coordinates reach the shared import authority without truncation',()=>{
+  const sourceText='110001+0000000000000001 81..00+0000000500000000 82..00+0000009850000000 83..00+0000000000000000'
+  const result=preparePointImport(body({fileName:'unprefixed.gsi',sourceText,
+    coordinateUnit:'file',heightUnit:'file',confirmVerticalDatum:true}),reference)
+  expect(result.points[0]).toMatchObject({pointName:'1',easting:500000,northing:9850000,elevation:0})
+})
+
+test('mixed GSI word widths refuse the file even when warnings are acknowledged',()=>{
+  const sourceText='*110001+0000000000000001 81..00+0000000500000000 82..00+0000009850000000\n110001+00000002 81..00+00500000 82..00+01000000'
+  expect(()=>preparePointImport(body({fileName:'mixed.gsi',sourceText,
+    coordinateUnit:'file',heightUnit:'file',confirmWarnings:true}),reference)).toThrow(/GSI.*width|structure/i)
+})

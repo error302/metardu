@@ -113,9 +113,11 @@ describe('Unified Total Station Import', () => {
       expect(result.rawPoints[0].northing).toBeCloseTo(9876.543)
     })
 
-    it('produces meaned observations via face pairing', () => {
+    it('retains original observations until the station/backsight context is reviewed', () => {
       const result = adaptGSI(GSI_SAMPLE)
-      expect(result.meanedObservations.length).toBeGreaterThan(0)
+      expect(result.observations.length).toBeGreaterThan(0)
+      expect(result.meanedObservations).toEqual([])
+      expect(result.warnings.join(' ')).toMatch(/setup/i)
     })
 
     it('returns empty result for empty input', () => {
