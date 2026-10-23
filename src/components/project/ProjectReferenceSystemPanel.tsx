@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { assertProjectedCrs, combinedScaleFactor } from '@/lib/spatial/projectCrs'
+import { readReferenceResponse, referenceNumber, requiredReferenceNumber } from '@/lib/spatial/referenceDeclaration'
 import {
   horizontalCrsFor,
   type ProjectReferenceSystemRecord,
@@ -36,7 +37,11 @@ function humanize(err: unknown): string {
   return message.replace(/^\[[A-Z_]+\]\s*/, '')
 }
 
-export default function ProjectReferenceSystemPanel({
+export default function ProjectReferenceSystemPanel(props: PanelProps) {
+  return <ReferenceSystemPanelState key={props.projectId} {...props} />
+}
+
+function ReferenceSystemPanelState({
   projectId,
   datum,
   utmZone,
@@ -44,6 +49,7 @@ export default function ProjectReferenceSystemPanel({
 }: PanelProps) {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [declared, setDeclared] = useState<ProjectReferenceSystemRecord | null>(null)
   const [description, setDescription] = useState<string[]>([])
   const [message, setMessage] = useState<{ kind: 'error' | 'ok'; text: string } | null>(null)
@@ -60,6 +66,7 @@ export default function ProjectReferenceSystemPanel({
   const [csfEasting, setCsfEasting] = useState('')
   const [csfNorthing, setCsfNorthing] = useState('')
   const [csfHeight, setCsfHeight] = useState('')
+  const [computedFor, setComputedFor] = useState<string | null>(null)
   const [coordinatePrecision, setCoordinatePrecision] = useState(3)
   const [notes, setNotes] = useState('')
 
@@ -72,21 +79,27 @@ export default function ProjectReferenceSystemPanel({
       return { code: null, name: null, error: humanize(err) }
     }
   }, [datum, utmZone, hemisphere])
+  const referenceKey = JSON.stringify([derived.code, csfEasting.trim(), csfNorthing.trim(), csfHeight.trim()])
+  useEffect(() => {
+    if (computedFor && computedFor !== referenceKey) {
+      if (csfProvenance === 'computed') {
+        setCsf('')
+        setCsfProvenance('')
+        setMessage({ kind: 'error', text: 'The reference point or CRS changed. Recompute the combined factor before declaring it.' })
+      }
+      setComputedFor(null)
+    }
+  }, [computedFor, referenceKey, csfProvenance])
 
   const load = useCallback(async () => {
-    // jsdom (component evidence tests) has no fetch — report "not loaded"
-    // rather than throwing out of the effect. Browsers always have fetch.
-    if (typeof fetch !== 'function') {
-      setLoading(false)
-      return
-    }
+    setLoading(true)
+    setLoadError(null)
     try {
+      if (typeof fetch !== 'function') throw new Error('Network unavailable — the saved reference system could not be loaded.')
       const res = await fetch(`/api/project/${projectId}/reference-system`)
-      if (res.ok) {
-        const json = (await res.json()) as {
-          referenceSystem: ProjectReferenceSystemRecord | null
-          description?: string[]
-        }
+      if (!res.ok) throw new Error(`Could not load the saved reference system (HTTP ${res.status}). Retry before declaring it.`)
+      {
+        const json = readReferenceResponse(await res.json())
         setDeclared(json.referenceSystem)
         setDescription(json.description ?? [])
         const record = json.referenceSystem
@@ -109,14 +122,17 @@ export default function ProjectReferenceSystemPanel({
           setCsfHeight(
             record.csfReference?.height !== undefined ? String(record.csfReference.height) : ''
           )
+          setComputedFor(record.csfProvenance === 'computed' && record.csfReference
+            ? JSON.stringify([record.prs.horizontalCrs, String(record.csfReference.easting), String(record.csfReference.northing), record.csfReference.height === undefined ? '' : String(record.csfReference.height)]) : null)
           setCoordinatePrecision(record.prs.coordinatePrecision)
           setNotes(record.prs.notes ?? '')
         }
       }
-    } catch {
-      // Offline / test environment — leave the panel in its undeclared state.
+    } catch (error) {
+      setLoadError(humanize(error))
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
   }, [projectId])
 
   useEffect(() => {
@@ -127,16 +143,13 @@ export default function ProjectReferenceSystemPanel({
     setMessage(null)
     try {
       if (!derived.code) throw new Error('The selected datum/zone does not resolve to a registered projected CRS.')
-      const easting = Number(csfEasting)
-      const northing = Number(csfNorthing)
-      if (!Number.isFinite(easting) || !Number.isFinite(northing)) {
-        throw new Error('Enter the reference easting and northing (grid metres) where the factor applies.')
-      }
-      const height = csfHeight.trim() === '' ? 0 : Number(csfHeight)
-      if (!Number.isFinite(height)) throw new Error('Reference height must be a number (metres).')
+      const easting = requiredReferenceNumber(csfEasting, 'Reference easting')
+      const northing = requiredReferenceNumber(csfNorthing, 'Reference northing')
+      const height = requiredReferenceNumber(csfHeight, 'Reference ellipsoidal height')
       const factor = combinedScaleFactor(easting, northing, derived.code, height)
       setCsf(factor.toFixed(9))
       setCsfProvenance('computed')
+      setComputedFor(referenceKey)
       setMessage({
         kind: 'ok',
         text: `Computed combined scale factor at E ${easting.toFixed(3)}, N ${northing.toFixed(3)}: ${factor.toFixed(9)}`,
@@ -148,26 +161,21 @@ export default function ProjectReferenceSystemPanel({
 
   const save = async () => {
     setMessage(null)
-    const factor = csf.trim() === '' ? undefined : Number(csf)
-    if (factor !== undefined && (!Number.isFinite(factor) || factor <= 0)) {
-      setMessage({ kind: 'error', text: 'Combined scale factor must be a positive number, or left empty.' })
-      return
-    }
-    if (factor !== undefined && !csfProvenance) {
-      setMessage({
-        kind: 'error',
-        text: 'State whether the adopted combined scale factor was computed or surveyor-adopted.',
-      })
-      return
-    }
-
-    if (typeof fetch !== 'function') {
-      setMessage({ kind: 'error', text: 'Network unavailable — cannot declare the reference system.' })
-      return
-    }
-
-    setSaving(true)
-    const res = await fetch(`/api/project/${projectId}/reference-system`, {
+    if (saving || loadError) return
+    let requestStarted = false
+    try {
+      const factor = referenceNumber(csf, 'Combined scale factor')
+      if (factor !== undefined && factor <= 0) throw new Error('Combined scale factor must be positive, or left empty.')
+      if (factor !== undefined && !csfProvenance) throw new Error('State whether the adopted combined scale factor was computed or surveyor-adopted.')
+      if (factor !== undefined && csfProvenance === 'computed' && computedFor !== referenceKey) throw new Error('Use Compute at Point before declaring a factor as computed from this reference.')
+      let point: { easting: number; northing: number; height?: number } | undefined
+      if ([csfEasting, csfNorthing, csfHeight].some(value => value.trim())) {
+        point = { easting: requiredReferenceNumber(csfEasting, 'Reference easting'), northing: requiredReferenceNumber(csfNorthing, 'Reference northing'), height: referenceNumber(csfHeight, 'Reference ellipsoidal height') }
+      }
+      if (typeof fetch !== 'function') throw new Error('Network unavailable — the declaration was not confirmed. Your entries are retained.')
+      setSaving(true)
+      requestStarted = true
+      const res = await fetch(`/api/project/${projectId}/reference-system`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -183,32 +191,26 @@ export default function ProjectReferenceSystemPanel({
         distanceMode,
         combinedScaleFactor: factor ?? null,
         csfProvenance: factor !== undefined ? csfProvenance : undefined,
-        csfReference:
-          csfEasting.trim() !== '' && csfNorthing.trim() !== ''
-            ? {
-                easting: Number(csfEasting),
-                northing: Number(csfNorthing),
-                height: csfHeight.trim() === '' ? undefined : Number(csfHeight),
-              }
-            : undefined,
+        csfReference: point,
         coordinatePrecision,
         notes: notes || undefined,
       }),
     })
 
-    const json = (await res.json().catch(() => ({}))) as {
-      error?: string
-      referenceSystem?: ProjectReferenceSystemRecord
-      description?: string[]
-    }
-    if (!res.ok) {
-      setMessage({ kind: 'error', text: json.error ?? `Declaration failed (HTTP ${res.status}).` })
-    } else {
-      setDeclared(json.referenceSystem ?? null)
-      setDescription(json.description ?? [])
+      const raw: unknown = await res.json().catch(() => null)
+      if (!res.ok) {
+        const error = raw && typeof raw === 'object' && 'error' in raw && typeof raw.error === 'string' ? raw.error : `Declaration failed (HTTP ${res.status}).`
+        throw new Error(error)
+      }
+      const json = readReferenceResponse(raw, true)
+      setDeclared(json.referenceSystem)
+      setDescription(json.description)
       setMessage({ kind: 'ok', text: 'Project reference system declared and saved.' })
+    } catch (error) {
+      setMessage({ kind: 'error', text: requestStarted ? `Declaration not confirmed. ${humanize(error)} Your entries are retained; check the saved declaration before retrying.` : humanize(error) })
+    } finally {
+      setSaving(false)
     }
-    setSaving(false)
   }
 
   if (loading) {
@@ -221,7 +223,7 @@ export default function ProjectReferenceSystemPanel({
 
   return (
     <div className="border-t border-[var(--border-color)] pt-6 mt-6">
-      <div className="flex items-center justify-between mb-1">
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
         <h3 className="text-lg font-semibold text-[var(--text-primary)]">
           Project Reference System
         </h3>
@@ -232,7 +234,7 @@ export default function ProjectReferenceSystemPanel({
               : 'bg-amber-900/40 text-amber-400'
           }`}
         >
-          {declared
+          {loadError ? 'Status unavailable' : declared
             ? `Declared ${declared.declaredAt ? new Date(declared.declaredAt).toLocaleDateString() : ''}`
             : 'Not declared'}
         </span>
@@ -242,7 +244,13 @@ export default function ProjectReferenceSystemPanel({
         METARDU never substitutes a default — an undeclared project reports that it has none.
       </p>
 
-      {!declared && (
+      {loadError && (
+        <div className="p-3 rounded mb-4 bg-red-900/30 text-red-300 text-sm" role="alert">
+          <p>{loadError}</p>
+          <button type="button" onClick={load} className="mt-2 underline underline-offset-4">Retry loading reference system</button>
+        </div>
+      )}
+      {!declared && !loadError && (
         <div className="p-3 rounded mb-4 bg-amber-900/20 text-amber-400 text-sm">
           This project has no declared reference system yet. Deliverables cannot state a CRS
           until you declare one below.
@@ -251,6 +259,7 @@ export default function ProjectReferenceSystemPanel({
 
       {message && (
         <div
+          role={message.kind === 'error' ? 'alert' : 'status'}
           className={`p-3 rounded mb-4 text-sm ${
             message.kind === 'ok'
               ? 'bg-green-900/30 text-green-400'
@@ -261,6 +270,7 @@ export default function ProjectReferenceSystemPanel({
         </div>
       )}
 
+      <fieldset disabled={saving || !!loadError} className="min-w-0 border-0 p-0" aria-label="Reference-system declaration">
       <div className="bg-[var(--bg-tertiary)] p-4 rounded border border-[var(--border-color)] mb-4">
         <div className="text-xs uppercase tracking-wide text-[var(--text-secondary)] mb-2">
           Horizontal (from the datum / zone / hemisphere selectors above)
@@ -275,7 +285,7 @@ export default function ProjectReferenceSystemPanel({
         )}
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
           <label
             htmlFor="verticalDatum"
@@ -372,7 +382,7 @@ export default function ProjectReferenceSystemPanel({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
         <div>
           <label htmlFor="combinedScaleFactor" className="block text-sm text-[var(--text-primary)] mb-2">
             Adopted Combined Scale Factor
@@ -382,7 +392,7 @@ export default function ProjectReferenceSystemPanel({
             type="text"
             inputMode="decimal"
             value={csf}
-            onChange={(e) => setCsf(e.target.value)}
+            onChange={(e) => { setCsf(e.target.value); if (csfProvenance === 'computed') { setCsfProvenance(''); setComputedFor(null) } }}
             placeholder="Empty = compute per point"
             className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] font-mono"
           />
@@ -435,10 +445,10 @@ export default function ProjectReferenceSystemPanel({
         </div>
       </div>
 
-      <div className="flex items-end gap-4 mt-4">
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-end gap-4 mt-4">
         <div>
           <label htmlFor="csfHeight" className="block text-sm text-[var(--text-primary)] mb-2">
-            Reference Height (m)
+            Reference Ellipsoidal Height (m)
           </label>
           <input
             id="csfHeight"
@@ -447,7 +457,7 @@ export default function ProjectReferenceSystemPanel({
             value={csfHeight}
             onChange={(e) => setCsfHeight(e.target.value)}
             placeholder="e.g. 1600"
-            className="w-40 px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] font-mono"
+            className="w-full sm:w-40 px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] font-mono"
           />
         </div>
         <button
@@ -459,7 +469,7 @@ export default function ProjectReferenceSystemPanel({
         </button>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
         <div>
           <label
             htmlFor="coordinatePrecision"
@@ -473,7 +483,7 @@ export default function ProjectReferenceSystemPanel({
             onChange={(e) => setCoordinatePrecision(Number(e.target.value))}
             className="w-full px-4 py-3 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]"
           >
-            {[2, 3, 4, 5, 6].map((dp) => (
+            {[0, 1, 2, 3, 4, 5, 6].map((dp) => (
               <option key={dp} value={dp}>
                 {dp} dp
               </option>
@@ -541,12 +551,13 @@ export default function ProjectReferenceSystemPanel({
         <button
           type="button"
           onClick={save}
-          disabled={saving || !derived.code}
+          disabled={saving || !!loadError || !derived.code}
           className="px-6 py-3 bg-amber-500 text-black font-bold rounded hover:bg-amber-400 disabled:opacity-50"
         >
           {saving ? 'Declaring...' : declared ? 'Update Declaration' : 'Declare Reference System'}
         </button>
       </div>
+      </fieldset>
     </div>
   )
 }

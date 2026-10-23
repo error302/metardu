@@ -11,9 +11,9 @@ const ctx={userId:'reader',params:{id:'project'},body:{},session:null}
 beforeEach(()=>{
   jest.clearAllMocks()
   jest.mocked(requireProjectOwnership).mockResolvedValue({ok:false,error:NextResponse.json({error:'Forbidden'},{status:403})})
-  jest.mocked(requireProjectReadAccess).mockResolvedValue({ok:true})
+  jest.mocked(requireProjectReadAccess).mockResolvedValue({ok:true,projectUserId:'owner'})
   jest.mocked(setRlsContext).mockResolvedValue(undefined)
-  jest.mocked(db.query).mockResolvedValue({rows:[{horizontal_crs:projectCrs,horizontal_name:'WGS84 UTM 37S',datum_name:'WGS84',units:'metres',zone:37,hemisphere:'S',vertical_datum:'Synthetic BM',distance_mode:'grid',coordinate_precision:3}],rowCount:1,command:'SELECT',oid:0,fields:[]})
+  jest.mocked(db.query).mockResolvedValue({rows:[{project_owner:'owner',reference:{horizontal_crs:projectCrs,horizontal_name:'WGS84 UTM 37S',datum_name:'WGS84',units:'metres',zone:37,hemisphere:'S',vertical_datum:'Synthetic BM',distance_mode:'grid',coordinate_precision:3}}],rowCount:1,command:'SELECT',oid:0,fields:[]})
 })
 it('allows an authorized project reader to load the declared reference privately',async()=>{
   const response=await GET(new NextRequest('http://127.0.0.1:3021/api/project/project/reference-system'),ctx)
@@ -30,14 +30,17 @@ it('still reserves reference changes for the recorded project owner',async()=>{
 it('commits a reference declaration under the project set-out lock',async()=>{
   jest.mocked(requireProjectOwnership).mockResolvedValue({ok:true,projectUserId:'owner'})
   const savedRow={project_id:'project',horizontal_crs:projectCrs,horizontal_name:'WGS84 UTM 37S',datum_name:'WGS84',units:'metres',zone:37,hemisphere:'S',vertical_datum:'Synthetic BM',distance_mode:'grid',coordinate_precision:3,declared_by:'owner',declared_at:'2026-10-17T00:00:00.000Z'}
-  const query=jest.fn(async(sql:string)=>({rows:sql.includes('INSERT INTO project_reference_systems')?[savedRow]:[],rowCount:1,command:'UPDATE',oid:0,fields:[]}))
+  const query=jest.fn(async(sql:string,values?:unknown[])=>{
+    const columns=sql.match(/INSERT INTO project_reference_systems \(([^)]+)\)/)?.[1].split(',').map(column=>column.trim())??[]
+    return {rows:columns.length?[{...savedRow,...Object.fromEntries(columns.map((column,index)=>[column,values?.[index]]))}]:sql.includes('FROM projects')?[{user_id:'owner'}]:[],rowCount:1,command:'UPDATE',oid:0,fields:[]}
+  })
   const release=jest.fn()
   const client={query,release} as never
   jest.mocked(db.getClient).mockResolvedValue(client)
   const form={datum:'WGS84',utmZone:37,hemisphere:'S',verticalDatum:'Synthetic BM',distanceMode:'grid',coordinatePrecision:3}
   const response=await PUT(
     new NextRequest('http://127.0.0.1:3021/api/project/project/reference-system',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(form)}),
-    {...ctx,body:form} as never,
+    {...ctx,userId:'owner',body:form} as never,
   )
   const sqlCalls=query.mock.calls.map(([sql])=>sql)
 

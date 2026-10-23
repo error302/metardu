@@ -9,7 +9,8 @@ import path from 'node:path'
 import pg from 'pg'
 
 const phase = process.argv[2]
-assert.ok(['red', 'green'].includes(phase) && process.argv.length === 3, 'Use red or green with the fixed synthetic service.')
+const referenceMode = process.argv[3] === '--reference'
+assert.ok(['red', 'green'].includes(phase) && (process.argv.length === 3 || referenceMode && process.argv.length === 4), 'Use red or green, optionally --reference, with the fixed synthetic service.')
 const service = JSON.parse(execFileSync('docker', ['inspect', '--format', '{"Id":{{json .Id}},"Labels":{{json .Config.Labels}},"Running":{{json .State.Running}},"Ports":{{json .NetworkSettings.Ports}}}', 'metardu-schema-rehearsal-20261008'], { encoding: 'utf8', windowsHide: true, timeout: 30000 }))
 assert.equal(service.Id, 'ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0')
 assert.equal(service.Labels['metardu.purpose'], 'schema-rehearsal'); assert.equal(service.Running, true)
@@ -21,9 +22,12 @@ const options = { connectionString: 'postgresql://release_verify:local_release_v
 const admin = new pg.Client(options)
 const pool = new pg.Pool({ ...options, max: 2, options: `-c search_path=${schema},public` })
 const leased = new Set()
-let beforeClient = null, afterProjectLock = null, insertMode = 'normal'
+let beforeClient = null, beforeRead = null, afterProjectLock = null, insertMode = 'normal'
 const database = {
-  query: (sql, values) => pool.query(sql, values),
+  query: async (sql, values) => {
+    if (beforeRead && (/AS project_owner/.test(sql) || /SELECT \* FROM project_reference_systems/.test(sql))) { const hook = beforeRead; beforeRead = null; await hook() }
+    return pool.query(sql, values)
+  },
   getClient: async () => {
     if (beforeClient) { const hook = beforeClient; beforeClient = null; await hook() }
     const client = await pool.connect(); leased.add(client)
@@ -31,7 +35,7 @@ const database = {
       query: async (sql, values) => {
         const result = await client.query(sql, values)
         if (sql === 'BEGIN') await client.query("SELECT set_config('metardu_fixture.point_insert_mode',$1,true)", [insertMode])
-        if (afterProjectLock && /FROM projects.*FOR SHARE/s.test(sql)) { const hook = afterProjectLock; afterProjectLock = null; await hook() }
+        if (afterProjectLock && /FROM projects.*FOR (?:SHARE|UPDATE)/s.test(sql)) { const hook = afterProjectLock; afterProjectLock = null; await hook() }
         return result
       },
       release: error => { assert.ok(leased.delete(client), 'Fixture client released exactly once'); client.release(error) },
@@ -43,8 +47,9 @@ Module._load = function (request, parent, ...rest) {
   if (request === '@/lib/db') return { db: database, setRlsContext: async () => {} }
   if (request === '@/lib/apiHandler') return { apiHandler: (_options, handler) => async (req, userId, projectId) => {
     if (!userId) return Response.json({ error: 'Unauthenticated fixture caller' }, { status: 401 })
-    return handler(req, { userId, params: { id: projectId }, body: await req.json() })
-  } }
+    try { return await handler(req, { userId, params: { id: projectId }, body: ['POST','PUT'].includes(req.method) ? await req.json() : undefined }) }
+    catch (error) { return Response.json({ error: error.message, code: error.code ?? 'INTERNAL_ERROR' }, { status: error.statusCode ?? 500 }) }
+  }, apiSuccess: (data, status = 200) => Response.json(data, { status }) }
   const resolved = request.startsWith('@/') ? path.join(process.cwd(), 'src', request.slice(2)) : request
   return originalLoad.call(this, resolved, parent, ...rest)
 }
@@ -52,6 +57,7 @@ Module._extensions['.ts'] = function (module, filename) {
   module._compile(ts.transpileModule(readFileSync(filename, 'utf8'), { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020, esModuleInterop: true } }).outputText, filename)
 }
 const { POST } = require('../src/app/api/project/[id]/setout/route.ts')
+const { GET: readReference, PUT: saveReference } = require('../src/app/api/project/[id]/reference-system/route.ts')
 const { NextRequest } = require('next/server')
 const owner = randomUUID(), other = randomUUID(), projectId = randomUUID()
 const drainage = { action: 'save_drainage_definition' }
@@ -61,16 +67,17 @@ const design = { projectCrs: 'EPSG:32737', minimumCoverM: 1.2, setoutIntervalM: 
   { id: 'B', name: 'MH-B', chainage: 200, easting: 500100, northing: 9800000, coverLevel: 101, invertLevelIn: 99 },
 ] }
 const invoke = (body, user = owner) => POST(new NextRequest(`http://127.0.0.1:3021/api/project/${projectId}/setout`, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }), user, projectId)
-const root = '.cache/setout-generation'
+const invokeReference = (body, user = owner) => (body === undefined ? readReference : saveReference)(new NextRequest(`http://127.0.0.1:3021/api/project/${projectId}/reference-system`, { method: body === undefined ? 'GET' : 'PUT', ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }) }), user, projectId)
+const root = referenceMode ? '.cache/reference-declaration' : '.cache/setout-generation'
 mkdirSync(root, { recursive: true })
-const files = ['scripts/verify-setout-generation.mjs', 'src/app/api/project/[id]/setout/route.ts', 'src/lib/db.ts', 'src/lib/auth/ownership.ts', 'src/lib/workspaces/stageReference.ts', 'src/lib/engineering/projectDrainageEngine.ts', 'src/lib/engineering/pileGrid.ts']
+const files = ['scripts/verify-setout-generation.mjs', 'src/app/api/project/[id]/setout/route.ts', 'src/app/api/project/[id]/reference-system/route.ts', 'src/components/project/ProjectReferenceSystemPanel.tsx', 'src/lib/spatial/projectReferenceSystem.ts', 'src/lib/spatial/referenceDeclaration.ts', 'src/lib/db.ts', 'src/lib/auth/ownership.ts', 'src/lib/workspaces/stageReference.ts', 'src/lib/engineering/projectDrainageEngine.ts', 'src/lib/engineering/pileGrid.ts']
 const hashes = () => Object.fromEntries(files.map(file => [file, createHash('sha256').update(readFileSync(file)).digest('hex')]))
 const report = { checkedAt: new Date().toISOString(), phase, source: hashes(), fixtureSchema: schema, authentication: 'bounded adapter, not ordinary-account HTTP', rls: 'isolated fixture tables, not an RLS acceptance test', checks: [] }
 const save = () => writeFileSync(`${root}/${phase}.json`, JSON.stringify(report, null, 2) + '\n')
 const state = async () => ({ definitions: (await pool.query('SELECT * FROM setout_definitions ORDER BY id')).rows, points: (await pool.query('SELECT * FROM setout_points ORDER BY definition_id,revision,label')).rows })
 async function reset() {
-  beforeClient = null; afterProjectLock = null; insertMode = 'normal'
-  await pool.query('TRUNCATE setout_points, setout_definitions, project_reference_systems, projects')
+  beforeClient = null; beforeRead = null; afterProjectLock = null; insertMode = 'normal'
+  await pool.query('TRUNCATE setout_points, setout_definitions, project_reference_systems, projects, project_members')
   await pool.query('INSERT INTO projects(id,user_id,utm_zone,hemisphere,datum,engineering_data) VALUES($1,$2,37,\'S\',\'WGS84\',$3::jsonb)', [projectId, owner, JSON.stringify({ drainage: design })])
   await pool.query(`INSERT INTO project_reference_systems(project_id,horizontal_crs,horizontal_name,datum_name,units,zone,hemisphere,vertical_datum,distance_mode,coordinate_precision)
     VALUES($1,'EPSG:32737','WGS84 UTM 37S','WGS84','metres',37,'S','SYNTHETIC BM','grid',3)`, [projectId])
@@ -103,7 +110,8 @@ try {
   await admin.query(`CREATE SCHEMA ${schema}`); created = true
   await admin.query(`COMMENT ON SCHEMA ${schema} IS '${marker}'`)
   assert.equal((await pool.query('SELECT current_schema() name')).rows[0].name, schema)
-  await pool.query(`CREATE TABLE projects(id uuid PRIMARY KEY,user_id uuid,utm_zone int,hemisphere text,datum text,engineering_data jsonb);
+  await pool.query(`CREATE TABLE projects(id uuid PRIMARY KEY,user_id uuid,organization_id uuid,utm_zone int,hemisphere text,datum text,engineering_data jsonb,updated_at timestamptz DEFAULT NOW());
+    CREATE TABLE project_members(user_id uuid,project_id uuid,role text);
     CREATE TABLE project_reference_systems(LIKE public.project_reference_systems INCLUDING ALL);
     CREATE TABLE setout_definitions(LIKE public.setout_definitions INCLUDING ALL);
     CREATE TABLE setout_points(LIKE public.setout_points INCLUDING ALL);
@@ -120,6 +128,79 @@ try {
     IF current_setting('metardu_fixture.point_insert_mode',true)='suppress_definition_update' THEN RETURN NULL; END IF;
     RETURN NEW; END $$;
     CREATE TRIGGER owned_definition_fault BEFORE UPDATE ON setout_definitions FOR EACH ROW EXECUTE FUNCTION owned_definition_fault();`)
+  if (referenceMode) {
+    await pool.query(`CREATE FUNCTION owned_reference_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF current_setting('metardu_fixture.point_insert_mode',true)='suppress_reference' THEN RETURN NULL; END IF;
+      IF current_setting('metardu_fixture.point_insert_mode',true)='invalid_reference' THEN NEW.horizontal_crs:='EPSG:4326'; END IF;
+      RETURN NEW; END $$;
+      CREATE TRIGGER owned_reference_fault BEFORE INSERT OR UPDATE ON project_reference_systems FOR EACH ROW EXECUTE FUNCTION owned_reference_fault();
+      CREATE FUNCTION owned_legacy_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
+      IF current_setting('metardu_fixture.point_insert_mode',true)='suppress_legacy' THEN RETURN NULL; END IF;
+      IF current_setting('metardu_fixture.point_insert_mode',true)='raise_legacy' THEN RAISE EXCEPTION 'Synthetic legacy reference failure'; END IF;
+      RETURN NEW; END $$;
+      CREATE TRIGGER owned_legacy_fault BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION owned_legacy_fault();`)
+    const form = { datum: 'WGS84', utmZone: 36, hemisphere: 'S', verticalDatum: 'SYNTHETIC NEW BM', verticalReference: 'local', distanceMode: 'grid', coordinatePrecision: 0 }
+    const referenceState = async () => ({ projects: (await pool.query('SELECT * FROM projects ORDER BY id')).rows, references: (await pool.query('SELECT * FROM project_reference_systems ORDER BY project_id')).rows })
+    await check('reference: owner commits canonical and legacy declarations together', async () => {
+      const response = await invokeReference(form); assert.equal(response.status, 200)
+      assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
+      const current = await referenceState(); assert.equal(current.projects[0].utm_zone, 36); assert.equal(current.references[0].horizontal_crs, 'EPSG:32736'); assert.equal(current.references[0].coordinate_precision, 0); assert.equal(leased.size, 0)
+    })
+    for (const newOwner of [other,null]) await check(`reference: committed owner change to ${newOwner ? 'another owner' : 'unassigned'} is refused`, async () => {
+      beforeClient = () => admin.query(`UPDATE ${schema}.projects SET user_id=$1 WHERE id=$2`, [newOwner, projectId])
+      const previous = (await referenceState()).references
+      assert.equal((await invokeReference(form)).status, 403); assert.deepEqual((await referenceState()).references, previous); assert.equal(leased.size, 0)
+    })
+    await check('reference: deleted project cannot acquire an orphaned declaration', async () => {
+      beforeClient = () => admin.query(`DELETE FROM ${schema}.projects WHERE id=$1`, [projectId])
+      assert.equal((await invokeReference(form)).status, 404); assert.equal((await referenceState()).references[0].horizontal_crs, 'EPSG:32737'); assert.equal(leased.size, 0)
+    })
+    for (const mode of ['suppress_reference','invalid_reference','suppress_legacy','raise_legacy']) await check(`reference: ${mode} preserves both original representations`, async () => {
+      const previous = await referenceState(); insertMode = mode
+      assert.equal((await invokeReference(form)).status, 500); assert.deepEqual(await referenceState(), previous); assert.equal(leased.size, 0)
+    })
+    await check('reference: unassigned records stay private', async () => {
+      await pool.query('UPDATE projects SET user_id=NULL WHERE id=$1', [projectId]); assert.equal((await invokeReference(undefined)).status, 403)
+    })
+    await check('reference: a shared viewer can read privately but cannot declare', async () => {
+      await pool.query("INSERT INTO project_members VALUES($1,$2,'viewer')", [other, projectId])
+      const response = await invokeReference(undefined, other); assert.equal(response.status, 200); assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
+      assert.equal((await response.json()).referenceSystem.prs.horizontalCrs, 'EPSG:32737')
+      const previous = await referenceState(); assert.equal((await invokeReference(form, other)).status, 403); assert.deepEqual(await referenceState(), previous)
+    })
+    await check('reference: owner transfer before the read snapshot cannot expose the declaration', async () => {
+      beforeRead = () => admin.query(`UPDATE ${schema}.projects SET user_id=$1 WHERE id=$2`, [other,projectId])
+      const response = await invokeReference(undefined); assert.equal(response.status, 403); assert.equal((await response.json()).referenceSystem, undefined)
+    })
+    await check('reference: deleted project is not reported as merely undeclared', async () => {
+      beforeRead = () => admin.query(`DELETE FROM ${schema}.projects WHERE id=$1`, [projectId]); assert.equal((await invokeReference(undefined)).status, 404)
+    })
+    for (const patch of [{ combinedScaleFactor: 'unknown', csfProvenance: 'surveyor' }, { coordinatePrecision: 'unmeasured' }, { utmZone: [36] }, { csfReference: { easting: 500000 } }, { csfReference: { easting: 500000, northing: 9800000, height: 'unknown' } }, { verticalDatum: { name: 'Synthetic BM' } }]) await check(`reference: invalid supplied input ${JSON.stringify(patch)} is refused`, async () => {
+      const previous = await referenceState(); assert.equal((await invokeReference({ ...form, ...patch })).status, 400); assert.deepEqual(await referenceState(), previous); assert.equal(leased.size, 0)
+    })
+    await check('reference: zero ellipsoidal height and precision survive actual SQL', async () => {
+      const response = await invokeReference({ ...form, combinedScaleFactor: 0.9996, csfProvenance: 'surveyor', csfReference: { easting: 500000, northing: 9800000, height: 0 } }); assert.equal(response.status, 200)
+      const row = (await referenceState()).references[0]; assert.equal(Number(row.csf_reference_height), 0); assert.equal(row.coordinate_precision, 0)
+    })
+    await check('reference: concurrent owner transfer waits until declaration commits', async () => {
+      const editor = new pg.Client(options); await editor.connect(); let transfer
+      try {
+        const pid = (await editor.query('SELECT pg_backend_pid() pid')).rows[0].pid
+        afterProjectLock = async () => {
+          transfer = editor.query(`UPDATE ${schema}.projects SET user_id=$1 WHERE id=$2`, [other,projectId]); transfer.catch(() => {})
+          let waiting = false
+          for(let i=0;i<20;i++) { if((await admin.query('SELECT wait_event_type FROM pg_stat_activity WHERE pid=$1',[pid])).rows[0]?.wait_event_type==='Lock') { waiting=true; break } await new Promise(resolve=>setTimeout(resolve,25)) }
+          assert.ok(waiting, 'Owner transfer did not wait on the declaration transaction')
+        }
+        assert.equal((await invokeReference(form)).status, 200); assert.ok(transfer, 'No project row was locked'); await transfer; assert.equal(leased.size, 0)
+      } finally { await transfer?.catch(()=>{}); await editor.end() }
+    })
+    await check('reference: changed declaration invalidates targets prepared against the old reference', async () => {
+      beforeClient = async () => { assert.equal((await invokeReference(form)).status, 200) }
+      const result = await invoke(drainage); assert.equal(result.status, 409); assert.equal((await result.json()).code, 'DRAINAGE_SOURCE_CHANGED'); assert.deepEqual(await state(), { definitions: [], points: [] })
+    })
+    await check('reference: anonymous adapter control refuses admission', async () => { assert.equal((await invokeReference(undefined,null)).status,401) })
+  } else {
   for (const [name, body, count] of [['drainage', drainage, 3], ['grid', grid, 4]]) {
     await check(`${name}: complete schedule commits and returns its pool client`, async () => {
       const response = await invoke(body); assert.equal(response.status, 201, JSON.stringify(await response.clone().json()))
@@ -202,6 +283,7 @@ try {
       await transfer; assert.equal((await state()).points.length, 3); assert.equal(leased.size, 0)
     } finally { await transfer?.catch(() => {}); await editor.end() }
   })
+  }
   assert.deepEqual(await fingerprint(), original); report.originalRecordsPreserved = true
   assert.deepEqual((await admin.query('SELECT version,checksum FROM public.schema_migrations ORDER BY version')).rows, ledger); report.migrationLedgerPreserved = true
 } finally {

@@ -101,8 +101,9 @@ outer authentication/rate-limit layer is a bounded test adapter. The copied
 fixture tables do not establish production RLS or ordinary-account HTTP/browser
 acceptance. Lost COMMIT acknowledgement, request-bound generation recovery,
 actual export/print and the other set-out recording paths retain their separate
-acceptance requirements. The reference-system PUT path's own transaction
-authorization still needs an independent audit; this generation guard does not
+acceptance requirements. The follow-up reference-system read/write and panel
+audit is recorded in `REFERENCE_DECLARATION_INTEGRITY_2026-10-23.md`, including
+the later native ownership/atomicity proof. This generation guard does not
 claim to repair every project writer.
 
 Live: the required read-only `npm run docker:verify` passed the existing one-app

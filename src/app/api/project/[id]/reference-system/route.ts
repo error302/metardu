@@ -26,6 +26,7 @@ import { requireProjectOwnership, requireProjectReadAccess } from '@/lib/auth/ow
 import { db, setRlsContext } from '@/lib/db'
 import { CacheKeys, projectCache } from '@/lib/cache/memory-cache'
 import { CrsError, describeProjectReferenceSystem } from '@/lib/spatial/projectCrs'
+import { referenceNumber, referenceText, requiredReferenceNumber } from '@/lib/spatial/referenceDeclaration'
 import {
   buildProjectReferenceSystem,
   fromReferenceSystemRow,
@@ -42,20 +43,9 @@ function ownershipError(ownership: Awaited<ReturnType<typeof requireProjectOwner
   return null
 }
 
-function str(value: unknown): string | undefined {
-  if (value === null || value === undefined) return undefined
-  const text = String(value).trim()
-  return text === '' ? undefined : text
-}
-
-function num(value: unknown): number | undefined {
-  if (value === null || value === undefined || value === '') return undefined
-  const parsed = Number(value)
-  return Number.isFinite(parsed) ? parsed : undefined
-}
-
 /** Narrow the raw PUT body into a form without inventing any values. */
 function readForm(body: unknown): ProjectReferenceSystemForm {
+  if (!body || typeof body !== 'object' || Array.isArray(body)) throw new CrsError('CRS_INVALID', 'Supply a reference-system declaration object.')
   const raw = (body ?? {}) as Record<string, unknown>
 
   if (typeof raw.hemisphere !== 'string' || (raw.hemisphere !== 'N' && raw.hemisphere !== 'S')) {
@@ -97,31 +87,34 @@ function readForm(body: unknown): ProjectReferenceSystemForm {
     )
   }
 
+  if (raw.csfReference != null && (typeof raw.csfReference !== 'object' || Array.isArray(raw.csfReference))) {
+    throw new CrsError('CRS_INVALID', 'The factor reference point must contain an easting and northing.')
+  }
   const reference = (raw.csfReference ?? null) as Record<string, unknown> | null
-  const easting = reference ? num(reference.easting) : undefined
-  const northing = reference ? num(reference.northing) : undefined
-  const height = reference ? num(reference.height) : undefined
+  const easting = reference ? requiredReferenceNumber(reference.easting, 'Reference easting') : undefined
+  const northing = reference ? requiredReferenceNumber(reference.northing, 'Reference northing') : undefined
+  const height = reference ? referenceNumber(reference.height, 'Reference ellipsoidal height') : undefined
 
   const form: ProjectReferenceSystemForm = {
-    datum: String(raw.datum ?? ''),
-    utmZone: num(raw.utmZone) ?? Number.NaN,
+    datum: referenceText(raw.datum, 'Datum') ?? '',
+    utmZone: requiredReferenceNumber(raw.utmZone, 'UTM zone'),
     hemisphere: raw.hemisphere,
-    verticalDatum: str(raw.verticalDatum),
+    verticalDatum: referenceText(raw.verticalDatum, 'Vertical datum'),
     verticalReference: (raw.verticalReference ?? undefined) as
       | 'orthometric'
       | 'ellipsoidal'
       | 'trig'
       | 'local'
       | undefined,
-    geoidModel: str(raw.geoidModel),
-    benchmarkBasis: str(raw.benchmarkBasis),
-    calibrationVersion: str(raw.calibrationVersion),
-    calibrationNotes: str(raw.calibrationNotes),
+    geoidModel: referenceText(raw.geoidModel, 'Geoid model'),
+    benchmarkBasis: referenceText(raw.benchmarkBasis, 'Benchmark basis'),
+    calibrationVersion: referenceText(raw.calibrationVersion, 'Calibration version'),
+    calibrationNotes: referenceText(raw.calibrationNotes, 'Calibration notes'),
     distanceMode: (raw.distanceMode ?? undefined) as 'grid' | 'ground' | undefined,
-    combinedScaleFactor: num(raw.combinedScaleFactor),
+    combinedScaleFactor: referenceNumber(raw.combinedScaleFactor, 'Combined scale factor'),
     csfProvenance: (raw.csfProvenance ?? undefined) as 'computed' | 'surveyor' | undefined,
-    coordinatePrecision: num(raw.coordinatePrecision),
-    notes: str(raw.notes),
+    coordinatePrecision: referenceNumber(raw.coordinatePrecision, 'Coordinate precision'),
+    notes: referenceText(raw.notes, 'Reference notes'),
   }
   if (easting !== undefined && northing !== undefined) {
     form.csfReference = { easting, northing, height }
@@ -135,12 +128,19 @@ export const GET = apiHandler(
     const ownership = await requireProjectReadAccess(ctx.params.id, ctx.userId)
     const denied = ownershipError(ownership)
     if (denied) return denied
+    if (!ownership.projectUserId) return NextResponse.json({ error: 'Recorded project ownership is required.' }, { status: 403 })
 
-    const { rows } = await db.query<Record<string, unknown>>(
-      'SELECT * FROM project_reference_systems WHERE project_id = $1',
-      [ctx.params.id]
+    const { rows } = await db.query<{ project_owner: string | null; reference: Record<string, unknown> | null }>(
+      `SELECT project.user_id AS project_owner, to_jsonb(reference) AS reference
+         FROM projects project
+         LEFT JOIN project_reference_systems reference
+           ON reference.project_id = project.id AND project.user_id = $2
+        WHERE project.id = $1`,
+      [ctx.params.id, ownership.projectUserId]
     )
-    const record = fromReferenceSystemRow(rows[0])
+    if (!rows[0]) return NextResponse.json({ error: 'Project no longer exists.' }, { status: 404 })
+    if (rows[0].project_owner !== ownership.projectUserId) return NextResponse.json({ error: 'Project ownership changed; refresh before reading.' }, { status: 403 })
+    const record = fromReferenceSystemRow(rows[0].reference ?? undefined)
     if (!record) {
       return NextResponse.json({ referenceSystem: null, description: [] }, { headers: { 'Cache-Control': 'private, no-store' } })
     }
@@ -202,13 +202,26 @@ export const PUT = apiHandler(
       .join(', ')
 
     const client = await db.getClient()
-    let rows: Record<string, unknown>[]
+    let saved: ReturnType<typeof fromReferenceSystemRow>
+    let discardClient = false
     try {
       await client.query('BEGIN')
       await setRlsContext(client)
       // Share the project lock with drainage set-out generation so a CRS
       // declaration cannot change between its source check and field-job save.
       await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ctx.params.id])
+      // Match generation's reference-then-project lock order. The owner must
+      // still be the caller at the write boundary, not only at admission.
+      await client.query('SELECT project_id FROM project_reference_systems WHERE project_id = $1 FOR UPDATE', [ctx.params.id])
+      const locked = await client.query<{ user_id: string | null }>('SELECT user_id FROM projects WHERE id = $1 FOR UPDATE', [ctx.params.id])
+      if (!locked.rows[0]) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'Project no longer exists.' }, { status: 404 })
+      }
+      if (!locked.rows[0].user_id || locked.rows[0].user_id !== ctx.userId) {
+        await client.query('ROLLBACK')
+        return NextResponse.json({ error: 'Project ownership changed; refresh before declaring the reference system.' }, { status: 403 })
+      }
       const result = await client.query<Record<string, unknown>>(
         `INSERT INTO project_reference_systems (${columns.join(', ')})
          VALUES (${placeholders})
@@ -216,31 +229,41 @@ export const PUT = apiHandler(
          RETURNING *`,
         columns.map((column) => row[column])
       )
-      rows = result.rows
+      if (result.rowCount !== 1 || result.rows.length !== 1) throw new Error('Reference-system persistence was not confirmed.')
+      const returned = result.rows[0]
+      for (const column of columns) {
+        const expected = row[column], actual = returned[column]
+        const matches = typeof expected === 'number'
+          ? actual != null && Number(actual) === expected
+          : actual instanceof Date ? actual.toISOString() === expected : actual === expected
+        if (!matches) throw new Error('Stored reference-system declaration differs from the submitted values.')
+      }
+      saved = fromReferenceSystemRow(returned)
+      if (!saved) throw new Error('Reference system upsert returned no valid declaration')
 
       // Keep the denormalized display columns on projects in step with the
       // declaration (reports, title blocks, and map layers read those).
-      await client.query(
+      const legacy = await client.query(
         `UPDATE projects
             SET utm_zone = $1, hemisphere = $2, datum = $3, updated_at = NOW()
-          WHERE id = $4`,
-        [form.utmZone, form.hemisphere, normalizeDatumSelection(form.datum), ctx.params.id]
+          WHERE id = $4 AND user_id = $5`,
+        [form.utmZone, form.hemisphere, normalizeDatumSelection(form.datum), ctx.params.id, ctx.userId]
       )
+      if (legacy.rowCount !== 1) throw new Error('Project reference display fields were not stored.')
       await client.query('COMMIT')
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => {})
+      await client.query('ROLLBACK').catch(() => { discardClient = true })
       throw error
     } finally {
-      client.release()
+      client.release(discardClient)
     }
     projectCache.invalidate(CacheKeys.project(ctx.params.id))
 
-    const saved = fromReferenceSystemRow(rows[0])
-    if (!saved) throw new Error('Reference system upsert returned no row')
-
-    return apiSuccess({
+    const response = apiSuccess({
       referenceSystem: saved,
       description: describeProjectReferenceSystem(saved.prs),
     })
+    response.headers.set('Cache-Control', 'private, no-store')
+    return response
   }
 )
