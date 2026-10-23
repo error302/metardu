@@ -1,16 +1,14 @@
 'use client';
 
-import { useState } from 'react';
-import { Download } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
 import SolutionStepsRenderer from '@/components/SolutionStepsRenderer'
 import type { SolutionStep } from '@/lib/engine/solution/solutionBuilder'
 import { compoundCurveSolved, reverseCurveSolved, simpleCurveSolved } from '@/lib/engine/solution/wrappers/curves'
 import { PageHeader } from '@/components/shared/PageHeader'
-import { generatePDF, downloadCSV, toCSV } from '@/lib/export/helpers'
+import { curvePlanDraftCsv, type CurvePlanSnapshot } from '@/lib/engineering/curvePlanDraftCsv'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 interface StakePoint { chainage: number; chordLength?: number; totalDeflection?: string; deflectionAngle?: string }
-interface RdmValidation { status: string; flags: string[] }
 import { SpiralAlignmentTab } from '@/components/tools/SpiralAlignmentTab'
 import { SimpleCurveDiagram } from '@/components/tools/SimpleCurveDiagram'
 import VerticalCurveCalculator from '@/components/road-design/VerticalCurveCalculator'
@@ -21,81 +19,96 @@ export default function CurvesCalculator() {
   const { t } = useLanguage()
   const [curveType, setCurveType] = useState<CurveType>('simple');
   const [input, setInput] = useState({
-    radius: '300',
-    defDeg: '20',
+    radius: '',
+    defDeg: '',
     defMin: '00',
     defSec: '00',
-    piChain: '2500.00',
+    piChain: '',
     interval: '20',
-    r1: '200',
-    r2: '400',
-    delta1: '15',
-    delta2: '15',
-    commonChainage: '1000',
-    r1_rev: '250',
-    r2_rev: '300',
-    abDistance: '150'
+    r1: '',
+    r2: '',
+    delta1: '',
+    delta2: '',
+    commonChainage: '',
+    r1_rev: '',
+    r2_rev: '',
+    revDelta1: '', revDelta2: '',
+    abDistance: ''
   });
-  const [result, setResult] = useState<null | { type: CurveType; title?: string; steps: SolutionStep[]; stakePoints?: StakePoint[]; stakeout?: import('@/lib/engine/types').CurveStakeoutResult }>(null);
-  const [rdmValidation, setRdmValidation] = useState<RdmValidation | null>(null);
-
-  const calculate = async () => {
-    if (curveType === 'simple') {
-      const R = parseFloat(input.radius);
-      const piChainage = parseFloat(input.piChain);
-      const interval = parseFloat(input.interval);
-      const deflectionDec = (parseFloat(input.defDeg) || 0) + (parseFloat(input.defMin) || 0) / 60 + (parseFloat(input.defSec) || 0) / 3600
-      if (isNaN(R) || isNaN(deflectionDec) || isNaN(piChainage) || isNaN(interval)) return;
-      const s = simpleCurveSolved({ radius: R, deflectionDeg: deflectionDec, piChainage, interval });
-      setResult({ type: 'simple', title: s.solution.title, steps: s.steps, stakePoints: s.result.points, stakeout: s.result });
-    } else if (curveType === 'compound') {
-      const R1 = parseFloat(input.r1);
-      const R2 = parseFloat(input.r2);
-      const delta1 = parseFloat(input.delta1);
-      const delta2 = parseFloat(input.delta2);
-      const commonChainage = parseFloat(input.commonChainage);
-      if ([R1, R2, delta1, delta2, commonChainage].some((n) => isNaN(n))) return;
-      const s = compoundCurveSolved({ R1, R2, delta1Deg: delta1, delta2Deg: delta2, junctionChainage: commonChainage });
-      setResult({ type: 'compound', title: s.solution.title, steps: s.steps });
-    } else if (curveType === 'reverse') {
-      const R1 = parseFloat(input.r1_rev);
-      const R2 = parseFloat(input.r2_rev);
-      const AB = parseFloat(input.abDistance);
-      if (isNaN(R1) || isNaN(R2) || isNaN(AB)) return;
-      const s = reverseCurveSolved({ R1, R2, AB });
-      setResult({ type: 'reverse', title: s.solution.title, steps: s.steps });
-    }
-
+  const [result, setResult] = useState<null | { snapshot: CurvePlanSnapshot; type: CurveType; title?: string; steps: SolutionStep[]; stakePoints?: StakePoint[]; stakeout?: import('@/lib/engine/types').CurveStakeoutResult }>(null);
+  const [error, setError] = useState('');
+  const [exporting, setExporting] = useState(false);
+  const revision = useRef(0);
+  useEffect(() => () => { revision.current++ }, []);
+  function clear() { revision.current++; setResult(null); setError(''); setExporting(false); }
+  function edit(values: typeof input) { clear(); setInput(values); }
+  function numeric(text: string, name: string) {
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$/.test(text.trim()) || !Number.isFinite(Number(text))) throw new Error(`${name} requires a finite number.`);
+    return Number(text);
+  }
+  const calculate = () => {
+    clear();
     try {
-      const radius = curveType === 'simple'
-        ? parseFloat(input.radius || '0')
-        : curveType === 'compound'
-        ? Math.min(parseFloat(input.r1 || '0'), parseFloat(input.r2 || '0'))
-        : Math.min(parseFloat(input.r1_rev || '0'), parseFloat(input.r2_rev || '0'))
-      const rdmRes = await fetch('/api/validate-geometry', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ radius, designSpeed: 80, terrain: 'rolling', gradient: 0 })
-      });
-      const rdmData = await rdmRes.json() as RdmValidation;
-      setRdmValidation(rdmData);
-    } catch {}
+      if (curveType === 'simple') {
+        const radius = numeric(input.radius, 'Radius'), piChainage = numeric(input.piChain, 'PI chainage'), interval = numeric(input.interval, 'Interval');
+        const degrees = numeric(input.defDeg, 'Degrees'), minutes = numeric(input.defMin, 'Minutes'), seconds = numeric(input.defSec, 'Seconds');
+        if (!Number.isInteger(degrees) || degrees < 0 || degrees >= 180 || !Number.isInteger(minutes) || minutes < 0 || minutes >= 60 || seconds < 0 || seconds >= 60) throw new Error('Supply valid DMS: integer degrees 0–179, minutes 0–59, seconds 0 to less than 60.');
+        const deflectionDeg = degrees + minutes / 60 + seconds / 3600;
+        const supplied = { radius, piChainage, interval, deflectionDeg };
+        const s = simpleCurveSolved(supplied), r = s.result, e = r.elements;
+        setResult({ type: 'simple', title: s.solution.title, steps: s.steps, stakePoints: r.points, stakeout: r,
+          snapshot: { kind: 'simple', input: supplied, values: { tangent_m: e.tangentLength, arc_m: e.arcLength, long_chord_m: e.longChord,
+            external_m: e.externalDistance, mid_ordinate_m: e.midOrdinate, PC_m: r.pcChainage, PI_m: r.piChainage, PT_m: r.ptChainage }, points: r.points } });
+      } else if (curveType === 'compound') {
+        const supplied = { R1: numeric(input.r1, 'First radius'), R2: numeric(input.r2, 'Second radius'), delta1Deg: numeric(input.delta1, 'First deflection'),
+          delta2Deg: numeric(input.delta2, 'Second deflection'), junctionChainage: numeric(input.commonChainage, 'PCC chainage') };
+        const s = compoundCurveSolved(supplied), r = s.result;
+        setResult({ type: 'compound', title: s.solution.title, steps: s.steps,
+          snapshot: { kind: 'compound', input: supplied, values: { first_tangent_m: r.t1, second_tangent_m: r.t2, first_arc_m: r.l1, second_arc_m: r.l2, total_arc_m: r.totalLength, PC_m: r.chainT1, PCC_m: r.chainJ, PT_m: r.chainT2 } } });
+      } else if (curveType === 'reverse') {
+        const supplied = { R1: numeric(input.r1_rev, 'First radius'), R2: numeric(input.r2_rev, 'Second radius'), AB: numeric(input.abDistance, 'PI distance'),
+          delta1: numeric(input.revDelta1, 'First deflection'), delta2: numeric(input.revDelta2, 'Second deflection') };
+        const s = reverseCurveSolved(supplied), r = s.result;
+        setResult({ type: 'reverse', title: s.solution.title, steps: s.steps,
+          snapshot: { kind: 'reverse', input: supplied, values: { first_tangent_m: r.t1, second_tangent_m: r.t2, first_arc_m: r.l1, second_arc_m: r.l2,
+            intervening_tangent_m: r.commonTangent, arc_sum_m: r.arcLength, total_path_m: r.totalLength } } });
+      }
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'Unable to calculate this geometry.'); }
   };
+  async function exportDraft(format: 'pdf' | 'csv') {
+    if (!result) return;
+    const snapshot = result.snapshot, current = revision.current;
+    setExporting(true); setError('');
+    try {
+      let content: string | Uint8Array;
+      if (format === 'csv') content = curvePlanDraftCsv(snapshot);
+      else {
+        const renderer = await import('@/lib/engineering/curvePlanDraftPdf');
+        if (current !== revision.current) return;
+        content = renderer.curvePlanDraftPdf(snapshot);
+      }
+      const url = URL.createObjectURL(new Blob([typeof content === 'string' ? content : new Uint8Array(content).buffer], { type: format === 'csv' ? 'text/csv;charset=utf-8' : 'application/pdf' }));
+      const anchor = document.createElement('a');
+      try { anchor.href = url; anchor.download = `${snapshot.kind}-curve-local-draft.${format}`; document.body.appendChild(anchor); anchor.click(); }
+      finally { anchor.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000); }
+    } catch (cause) { if (current === revision.current) setError(cause instanceof Error ? cause.message : 'Unable to export this calculation.'); }
+    finally { if (current === revision.current) setExporting(false); }
+  }
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
       <PageHeader
         title={curveType === 'vertical' ? 'Vertical Curve' : t('tools.curves')}
         subtitle={t('tools.curvesDesc')}
-        reference={curveType === 'vertical' ? 'Symmetrical parabolic geometry · Criteria and datum not verified' : curveType === 'spiral-alignment' ? 'Symmetric clothoid transitions · Draft design geometry' : 'RDM 1.1 (2025) Geometric Design | Kenya Highway Design Manual'}
+        reference={curveType === 'vertical' ? 'Symmetrical parabolic geometry · Criteria and datum not verified' : curveType === 'spiral-alignment' ? 'Symmetric clothoid transitions · Draft design geometry' : 'Declared circular geometry · Standard compliance and project placement not assessed'}
       />
 
       <div className="flex gap-2 mb-6 flex-wrap">
-        <button onClick={() => { setCurveType('simple'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Simple Curve</button>
-        <button onClick={() => { setCurveType('compound'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Compound Curve</button>
-        <button onClick={() => { setCurveType('reverse'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Reverse Curve</button>
-        <button onClick={() => { setCurveType('vertical'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'vertical' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Vertical Curve</button>
-        <button onClick={() => { setCurveType('spiral-alignment'); setResult(null); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'spiral-alignment' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`} title="Clothoid entry and exit transitions with station schedules">Spiral Alignment</button>
+        <button onClick={() => { setCurveType('simple'); clear(); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'simple' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Simple Curve</button>
+        <button onClick={() => { setCurveType('compound'); clear(); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'compound' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Compound Curve</button>
+        <button onClick={() => { setCurveType('reverse'); clear(); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'reverse' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Reverse Curve</button>
+        <button onClick={() => { setCurveType('vertical'); clear(); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'vertical' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`}>Vertical Curve</button>
+        <button onClick={() => { setCurveType('spiral-alignment'); clear(); }} className={`px-4 py-2 rounded-lg font-medium ${curveType === 'spiral-alignment' ? 'bg-[var(--accent)] text-black' : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)]'}`} title="Clothoid entry and exit transitions with station schedules">Spiral Alignment</button>
       </div>
 
       {curveType === 'spiral-alignment' ? (
@@ -109,41 +122,46 @@ export default function CurvesCalculator() {
             {curveType === 'simple' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label htmlFor="cv-radius" className="label">Radius (m)</label><input id="cv-radius" className="input" value={input.radius} onChange={e => setInput({...input, radius: e.target.value})} /></div>
+                  <div><label htmlFor="cv-radius" className="label">Radius (m)</label><input id="cv-radius" className="input" value={input.radius} onChange={e => edit({...input, radius: e.target.value})} /></div>
                   <div><div className="label">Deflection (DMS)</div>
                     <div className="grid grid-cols-3 gap-1">
-                      <input aria-label="Deflection degrees" className="input" value={input.defDeg} onChange={e => setInput({...input, defDeg: e.target.value})} />
-                      <input aria-label="Deflection minutes" className="input" value={input.defMin} onChange={e => setInput({...input, defMin: e.target.value})} />
-                      <input aria-label="Deflection seconds" className="input" value={input.defSec} onChange={e => setInput({...input, defSec: e.target.value})} />
+                      <input aria-label="Deflection degrees" className="input" value={input.defDeg} onChange={e => edit({...input, defDeg: e.target.value})} />
+                      <input aria-label="Deflection minutes" className="input" value={input.defMin} onChange={e => edit({...input, defMin: e.target.value})} />
+                      <input aria-label="Deflection seconds" className="input" value={input.defSec} onChange={e => edit({...input, defSec: e.target.value})} />
                     </div>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div><label htmlFor="cv-pi-chain" className="label">PI Chainage (m)</label><input id="cv-pi-chain" className="input" value={input.piChain} onChange={e => setInput({...input, piChain: e.target.value})} /></div>
-                  <div><label htmlFor="cv-interval" className="label">Interval (m)</label><input id="cv-interval" className="input" value={input.interval} onChange={e => setInput({...input, interval: e.target.value})} /></div>
+                  <div><label htmlFor="cv-pi-chain" className="label">PI Chainage (m)</label><input id="cv-pi-chain" className="input" value={input.piChain} onChange={e => edit({...input, piChain: e.target.value})} /></div>
+                  <div><label htmlFor="cv-interval" className="label">Interval (m)</label><input id="cv-interval" className="input" value={input.interval} onChange={e => edit({...input, interval: e.target.value})} /></div>
                 </div>
               </>
             )}
             {curveType === 'compound' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label htmlFor="cv-r1" className="label">Radius R1 (m)</label><input id="cv-r1" className="input" value={input.r1} onChange={e => setInput({...input, r1: e.target.value})} /></div>
-                  <div><label htmlFor="cv-r2" className="label">Radius R2 (m)</label><input id="cv-r2" className="input" value={input.r2} onChange={e => setInput({...input, r2: e.target.value})} /></div>
+                  <div><label htmlFor="cv-r1" className="label">Radius R1 (m)</label><input id="cv-r1" className="input" value={input.r1} onChange={e => edit({...input, r1: e.target.value})} /></div>
+                  <div><label htmlFor="cv-r2" className="label">Radius R2 (m)</label><input id="cv-r2" className="input" value={input.r2} onChange={e => edit({...input, r2: e.target.value})} /></div>
                 </div>
                 <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div><label htmlFor="cv-delta1" className="label">Δ1 (degrees)</label><input id="cv-delta1" className="input" value={input.delta1} onChange={e => setInput({...input, delta1: e.target.value})} /></div>
-                  <div><label htmlFor="cv-delta2" className="label">Δ2 (degrees)</label><input id="cv-delta2" className="input" value={input.delta2} onChange={e => setInput({...input, delta2: e.target.value})} /></div>
+                  <div><label htmlFor="cv-delta1" className="label">Δ1 (degrees)</label><input id="cv-delta1" className="input" value={input.delta1} onChange={e => edit({...input, delta1: e.target.value})} /></div>
+                  <div><label htmlFor="cv-delta2" className="label">Δ2 (degrees)</label><input id="cv-delta2" className="input" value={input.delta2} onChange={e => edit({...input, delta2: e.target.value})} /></div>
                 </div>
-                <div className="mt-4"><label htmlFor="cv-common-chain" className="label">Junction Chainage (m)</label><input id="cv-common-chain" className="input" value={input.commonChainage} onChange={e => setInput({...input, commonChainage: e.target.value})} /></div>
+                <div className="mt-4"><label htmlFor="cv-common-chain" className="label">Junction Chainage (m)</label><p className="text-xs text-[var(--text-muted)]">PCC station where the two same-direction arcs join; PC = PCC - first arc, PT = PCC + second arc.</p><input id="cv-common-chain" className="input" value={input.commonChainage} onChange={e => edit({...input, commonChainage: e.target.value})} /></div>
               </>
             )}
             {curveType === 'reverse' && (
               <>
                 <div className="grid grid-cols-2 gap-4">
-                  <div><label htmlFor="cv-r1-rev" className="label">Radius R1 (m)</label><input id="cv-r1-rev" className="input" value={input.r1_rev} onChange={e => setInput({...input, r1_rev: e.target.value})} /></div>
-                  <div><label htmlFor="cv-r2-rev" className="label">Radius R2 (m)</label><input id="cv-r2-rev" className="input" value={input.r2_rev} onChange={e => setInput({...input, r2_rev: e.target.value})} /></div>
+                  <div><label htmlFor="cv-r1-rev" className="label">Radius R1 (m)</label><input id="cv-r1-rev" className="input" value={input.r1_rev} onChange={e => edit({...input, r1_rev: e.target.value})} /></div>
+                  <div><label htmlFor="cv-r2-rev" className="label">Radius R2 (m)</label><input id="cv-r2-rev" className="input" value={input.r2_rev} onChange={e => edit({...input, r2_rev: e.target.value})} /></div>
                 </div>
-                <div className="mt-4"><label htmlFor="cv-ab-dist" className="label">Distance AB (m)</label><input id="cv-ab-dist" className="input" value={input.abDistance} onChange={e => setInput({...input, abDistance: e.target.value})} /></div>
+                <p className="text-xs text-[var(--text-muted)] mt-3">Opposite-turn arcs. AB is the distance from PI1 to PI2 measured along their shared tangent. The intervening gap is AB - T1 - T2; transitions and banking are not assessed.</p>
+                <div className="grid grid-cols-2 gap-4 mt-3">
+                  <div><label htmlFor="cv-rev-delta1" className="label">Δ1 (degrees)</label><input id="cv-rev-delta1" className="input" value={input.revDelta1} onChange={e => edit({...input, revDelta1: e.target.value})} /></div>
+                  <div><label htmlFor="cv-rev-delta2" className="label">Δ2 (degrees)</label><input id="cv-rev-delta2" className="input" value={input.revDelta2} onChange={e => edit({...input, revDelta2: e.target.value})} /></div>
+                </div>
+                <div className="mt-4"><label htmlFor="cv-ab-dist" className="label">Distance AB (m)</label><input id="cv-ab-dist" className="input" value={input.abDistance} onChange={e => edit({...input, abDistance: e.target.value})} /></div>
               </>
             )}
           </div>
@@ -153,42 +171,14 @@ export default function CurvesCalculator() {
               className="w-full px-6 py-4 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-bold rounded-lg">
               {t('toolUI.calculate')}
             </button>
-            {result && (
-              <div className="flex gap-2">
-                <button
-                  onClick={() => {
-                    if (result && result.steps) {
-                      generatePDF(
-                        { title: `${curveType.charAt(0).toUpperCase() + curveType.slice(1)} Curve Data Sheet`, reference: 'RDM 1.1 (2025) | Kenya Highway Design Manual' },
-                        [
-                          { title: 'Computation Steps', rows: result.steps.map((s: SolutionStep) => ({ label: s.label, value: s.result || s.computation || '—' })) },
-                        ],
-                        result.stakePoints ? [
-                          { title: 'Stakeout Table', headers: ['Chainage', 'Chord (m)', 'Deflection'], rows: result.stakePoints.map((p: StakePoint) => [p.chainage.toFixed(3), p.chordLength?.toFixed(3) ?? '—', p.totalDeflection ?? p.deflectionAngle ?? '—']) },
-                        ] : [],
-                      )
-                    }
-                  }}
-                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" /> {t('toolUI.exportPdf')}
-                </button>
-                <button
-                  onClick={() => {
-                    if (result) {
-                      const csv = toCSV(
-                        ['Parameter', 'Value'],
-                        result.steps.map((s: SolutionStep) => [s.label, s.result || s.computation || '—']),
-                      )
-                      downloadCSV(csv, `${curveType}-curve-data`)
-                    }
-                  }}
-                  className="btn btn-secondary flex-1 inline-flex items-center justify-center gap-2"
-                >
-                  <Download className="w-4 h-4" /> {t('toolUI.exportCsv')}
-                </button>
+            {error && <p role="alert" className="text-sm text-red-500">{error}</p>}
+            {result && <div className="space-y-2">
+              <div className="flex flex-wrap gap-2">
+                <button type="button" disabled={exporting} onClick={() => void exportDraft('pdf')} className="btn btn-secondary">Export Local Draft PDF</button>
+                <button type="button" disabled={exporting} onClick={() => void exportDraft('csv')} className="btn btn-secondary">Export Local Draft CSV</button>
               </div>
-            )}
+              <p role="status" className="text-xs text-[var(--text-muted)]">Local calculation draft. Standard compliance, sight distance, transition design and CRS placement are NOT ASSESSED.</p>
+            </div>}
           </div>
         </div>
 
@@ -220,7 +210,7 @@ export default function CurvesCalculator() {
                     <thead>
                       <tr className="bg-gray-950/40">
                         <th className="text-left px-3 py-2">Chainage</th>
-                        <th className="text-right px-3 py-2">Chord (m)</th>
+                        <th className="text-right px-3 py-2">Chord from PC (m)</th>
                         <th className="text-right px-3 py-2">Deflection</th>
                       </tr>
                     </thead>
@@ -237,14 +227,7 @@ export default function CurvesCalculator() {
                 </div>
               </div>
             ) : null}
-            {rdmValidation && (
-              <div className="mt-6 p-4 border rounded-lg" style={{ backgroundColor: rdmValidation.status === 'GREEN' ? '#10b98120' : rdmValidation.status === 'YELLOW' ? '#f59e0b20' : '#ef444420' }}>
-                <h4 className="font-bold mb-2">RDM 1.3 Compliance: <span style={{ color: rdmValidation.status === 'GREEN' ? '#10b981' : rdmValidation.status === 'YELLOW' ? '#f59e0b' : '#ef4444' }}>{rdmValidation.status}</span></h4>
-                {rdmValidation.flags.map((flag: string, i: number) => (
-                  <p key={`item-${i}`} className="text-sm mb-1">{flag}</p>
-                ))}
-              </div>
-            )}
+
           </div>
         )}
 

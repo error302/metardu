@@ -57,15 +57,14 @@ describe('compoundCurveElements', () => {
 
 describe('reverseCurveApprox', () => {
   it('returns commonTangent and totalLength', () => {
-    const r = reverseCurveApprox({ R1: 200, R2: 150, AB: 500 })
+    const r = reverseCurveApprox({ R1: 200, R2: 150, AB: 500, delta1: 30, delta2: 45 })
     expect(Number.isFinite(r.commonTangent)).toBe(true)
     expect(Number.isFinite(r.totalLength)).toBe(true)
     expect(r.commonTangent).toBeGreaterThan(0)
     expect(r.totalLength).toBeGreaterThan(0)
   })
 
-  it('totalLength = π(R1 + R2)', () => {
-    const r = reverseCurveApprox({ R1: 200, R2: 200, AB: 600 })
-    expect(approxEqual(r.totalLength, Math.PI * 400, 10 ** -3)).toBe(true)
+  it('refuses legacy missing-angle requests rather than inventing two semicircles', () => {
+    expect(() => reverseCurveApprox({ R1: 200, R2: 200, AB: 600 })).toThrow(/angle|deflection/i)
   })
 })

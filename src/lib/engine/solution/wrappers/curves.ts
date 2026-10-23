@@ -84,11 +84,11 @@ export function compoundCurveSolved(input: {
       { label: 'Δ2', value: `${fullNumber(input.delta2Deg)}°` },
       { label: 'Junction chainage (J)', value: `${fullNumber(input.junctionChainage)} m` },
     ],
-    toFind: ['t1, t2', 'l1, l2', 'T1, T2 chainages'],
+    toFind: ['t1, t2', 'l1, l2', 'PC, PCC, PT arc chainages'],
     solution: [
       { title: 'Tangents', formula: 't = R·tan(Δ/2)', computation: `t1=${fullNumber(r.t1)} m, t2=${fullNumber(r.t2)} m` },
       { title: 'Arc lengths', formula: 'l = R·Δ (radians)', computation: `l1=${fullNumber(r.l1)} m, l2=${fullNumber(r.l2)} m` },
-      { title: 'Key chainages', formula: 'T1 = J − t1,  T2 = J + t2', computation: `T1=${fullNumber(r.chainT1)} m, T2=${fullNumber(r.chainT2)} m` },
+      { title: 'Key chainages', formula: 'PC = PCC − l1,  PT = PCC + l2', computation: `PC=${fullNumber(r.chainT1)} m, PCC=${fullNumber(r.chainJ)} m, PT=${fullNumber(r.chainT2)} m` },
     ],
     result: [
       { label: 't1', value: `${r.t1.toFixed(4)} m` },
@@ -96,8 +96,8 @@ export function compoundCurveSolved(input: {
       { label: 'l1', value: `${r.l1.toFixed(4)} m` },
       { label: 'l2', value: `${r.l2.toFixed(4)} m` },
       { label: 'Total curve length', value: `${r.totalLength.toFixed(4)} m` },
-      { label: 'T1 chainage', value: `${r.chainT1.toFixed(3)} m` },
-      { label: 'T2 chainage', value: `${r.chainT2.toFixed(3)} m` },
+      { label: 'PC chainage', value: `${r.chainT1.toFixed(3)} m` },
+      { label: 'PT chainage', value: `${r.chainT2.toFixed(3)} m` },
     ],
   })
 
@@ -114,40 +114,36 @@ export function compoundCurveSolution(input: {
   return compoundCurveSolved(input).solution
 }
 
-export function reverseCurveSolved(input: { R1: number; R2: number; AB: number }): Solved<ReturnType<typeof reverseCurveApprox>> & { solution: Solution } {
+export function reverseCurveSolved(input: { R1: number; R2: number; AB: number; delta1?: number; delta2?: number }): Solved<ReturnType<typeof reverseCurveApprox>> & { solution: Solution } {
   const r = reverseCurveApprox(input)
 
   const solution = createSolutionV1({
-    title: 'Reverse Curve (Approx. Elements)',
+    title: 'Reverse Curve (Declared Arcs and Tangent Gap)',
     given: [
       { label: 'R1', value: `${fullNumber(input.R1)} m` },
       { label: 'R2', value: `${fullNumber(input.R2)} m` },
-      { label: 'AB', value: `${fullNumber(input.AB)} m` },
+      { label: 'PI distance along shared tangent', value: `${fullNumber(input.AB)} m` },
+      { label: 'First deflection', value: `${fullNumber(input.delta1 ?? NaN)} degrees` },
+      { label: 'Second deflection', value: `${fullNumber(input.delta2 ?? NaN)} degrees` },
     ],
-    toFind: ['Common tangent length', 'Total length (approx.)'],
+    toFind: ['Intervening tangent gap', 'Arc sum and total path length'],
     solution: [
-      {
-        title: 'Common Tangent',
-        formula: 'T = √(AB² − (R2 − R1)²)',
-        substitution: `T = √(${fullNumber(input.AB)}² − (${fullNumber(input.R2)} − ${fullNumber(input.R1)})²)`,
-        computation: `T = ${fullNumber(r.commonTangent)} m`,
-      },
-      {
-        title: 'Total length (approx.)',
-        formula: 'L ≈ πR1 + πR2',
-        computation: `L = ${fullNumber(r.totalLength)} m`,
-        result: `${r.totalLength.toFixed(4)} m`,
-      },
+      { title: 'Simple arc tangents', formula: 'Ti = Ri tan(Δi/2)', computation: `T1=${fullNumber(r.t1)} m; T2=${fullNumber(r.t2)} m` },
+      { title: 'Intervening tangent gap', formula: 'gap = PI distance - T1 - T2', computation: `${fullNumber(r.commonTangent)} m` },
+      { title: 'Arc sum', formula: 'L1 + L2 = R1Δ1 + R2Δ2 (angles in radians)', computation: `${fullNumber(r.arcLength)} m` },
+      { title: 'Total path length', formula: 'L1 + gap + L2', computation: `${fullNumber(r.totalLength)} m` },
     ],
+    check: [{ label: 'Assessment', value: 'Declared local geometry only. Transitions, CRS placement and standards approval NOT ASSESSED.' }],
     result: [
-      { label: 'Common tangent', value: `${r.commonTangent.toFixed(4)} m` },
-      { label: 'Total length', value: `${r.totalLength.toFixed(4)} m` },
+      { label: 'Intervening tangent gap', value: `${r.commonTangent.toFixed(4)} m` },
+      { label: 'Arc sum', value: `${r.arcLength.toFixed(4)} m` },
+      { label: 'Total path length', value: `${r.totalLength.toFixed(4)} m` },
     ],
   })
 
   return solveWithSteps(r, solution)
 }
 
-export function reverseCurveSolution(input: { R1: number; R2: number; AB: number }): Solution {
+export function reverseCurveSolution(input: { R1: number; R2: number; AB: number; delta1?: number; delta2?: number }): Solution {
   return reverseCurveSolved(input).solution
 }

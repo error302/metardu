@@ -289,3 +289,14 @@ checks of six draft pairs / 241 rows / 11 pages pass, including retained actual
 browser downloads. See `CURVES_VERTICAL_UI_INTEGRITY_2026-10-23.md` for mobile,
 rendered-PDF evidence and the final source-only loading-change boundary. Other
 curve tabs and production/project/field acceptance remain open.
+
+### Circular plan calculations and local exports — 23 October
+
+Compound stations now follow actual arc lengths through the declared PCC.
+Reverse geometry requires both deflections and an explicit shared-tangent PI
+distance; missing or overlapping geometry cannot produce guessed lengths.
+Simple set-out includes exact endpoints through the bounded shared engine.
+82 focused tests and independent checks of seven CSV/PDF pairs, 118 set-out
+stations and 10 PDF pages pass. See `CIRCULAR_CURVE_PLAN_INTEGRITY_2026-10-23.md`
+for changed contracts and the absent fresh browser/mobile proof. Local drafts
+remain distinct from CRS-bound saved designs and approved field deliverables.

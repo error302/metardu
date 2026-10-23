@@ -10,92 +10,40 @@
 
 // METARDU Engine - Curve calculations
 
-import { CurveElements, CurveStakeoutResult, CurveStakeoutPoint } from './types';
-import { toRadians, bearingToString } from './angles';
+import { CurveElements, CurveStakeoutResult } from './types';
+import { bearingToString } from './angles';
+import { horizontalCurveElements, curveSetOut } from '../computations/roadDesignEngine';
 
 export function curveElements(
   radius: number,
   deflectionAngle: number,
   _isExternal?: boolean
 ): CurveElements {
-  const delta = toRadians(deflectionAngle);
-  const halfDelta = delta / 2;
-  
-  // Source: RDM 1.3 Section 5.2 / Basak Chapter 14
-  // Tangent length: T = R × tan(Δ/2)
-  const T = radius * Math.tan(halfDelta);
-
-  // Arc length: L = R × Δ (radians)
-  const L = radius * delta;
-
-  // Long chord: C = 2R × sin(Δ/2)
-  const C = 2 * radius * Math.sin(halfDelta);
-
-  // External distance: E = R × (sec(Δ/2) - 1)
-  const E = radius * (1 / Math.cos(halfDelta) - 1);
-
-  // Mid-ordinate: M = R × (1 - cos(Δ/2))
-  const M = radius * (1 - Math.cos(halfDelta));
-
-  // Degree of curve (arc definition): D = 1718.873/R
-  const D = 1718.873 / radius;
-  
-  return {
-    radius,
-    deflectionAngle,
-    tangentLength: T,
-    arcLength: L,
-    longChord: C,
-    externalDistance: E,
-    midOrdinate: M,
-    degreeOfCurve: D
-  };
+  const input = circularInput(radius, deflectionAngle, 0);
+  const result = horizontalCurveElements(input);
+  return { radius, deflectionAngle, tangentLength: result.tangentLength, arcLength: result.curveLength,
+    longChord: result.longChord, externalDistance: result.externalDistance, midOrdinate: result.midOrdinate,
+    degreeOfCurve: result.degreeOfCurve };
 }
 
-export function curveStakeout(
-  piChainage: number,
-  bearingIn: number,
-  radius: number,
-  deflectionAngle: number,
-  interval: number = 20
-): CurveStakeoutResult {
-  const elements = curveElements(radius, deflectionAngle);
-  
-  // Calculate chainages
-  const pcChainage = piChainage - elements.tangentLength;
-  const ptChainage = pcChainage + elements.arcLength;
-  
-  const points: CurveStakeoutPoint[] = [];
-  
-  // Generate stakeout points
-  const numPoints = Math.floor(elements.arcLength / interval);
-  
-  for (let i = 0; i <= numPoints; i++) {
-    const arcLength = Math.min(i * interval, elements.arcLength);
-    const chainage = pcChainage + arcLength;
-    
-    // Deflection angle to this point
-    const deflectionToPoint = (arcLength / elements.arcLength) * deflectionAngle;
-    const totalDeflection = deflectionToPoint / 2;
-    
-    // Chord length to this point
-    const chordLength = 2 * radius * Math.sin(toRadians(deflectionToPoint / 2));
-    
-    points.push({
-      chainage,
-      deflectionAngle: bearingToString(deflectionToPoint),
-      totalDeflection: bearingToString(totalDeflection),
-      chordLength
-    });
-  }
-  
-  return {
-    elements,
-    points,
-    pcChainage,
-    piChainage,
-    ptChainage
-  };
+function circularInput(radius: number, angle: number, station: number) {
+  if (!Number.isFinite(angle) || angle <= 0 || angle >= 180) throw new RangeError('Deflection must be finite, positive and less than 180 degrees.');
+  const degrees = Math.floor(angle), decimalMinutes = (angle - degrees) * 60, minutes = Math.floor(decimalMinutes);
+  return { radius, deflectionAngleDeg: degrees, deflectionAngleMin: minutes,
+    deflectionAngleSec: (decimalMinutes - minutes) * 60, ipChainage: station };
+}
+
+export function curveStakeout(piChainage: number, bearingIn: number, radius: number, deflectionAngle: number, interval = 20): CurveStakeoutResult {
+  if (!Number.isFinite(bearingIn)) throw new RangeError('Incoming bearing must be finite.');
+  const input = circularInput(radius, deflectionAngle, piChainage);
+  const result = horizontalCurveElements(input);
+  const setout = curveSetOut({ ...input, tcChainage: result.tcChainage, ctChainage: result.ctChainage, interval });
+  return { elements: curveElements(radius, deflectionAngle), pcChainage: result.tcChainage, piChainage, ptChainage: result.ctChainage,
+    points: setout.rows.map(row => {
+      const angle = (row.chainage - result.tcChainage) / radius;
+      return { chainage: row.chainage, deflectionAngle: bearingToString(angle * 180 / Math.PI),
+        totalDeflection: row.totalDeflection, chordLength: 2 * radius * Math.sin(angle / 2) };
+    }) };
 }
 
 export function verticalCurve(
@@ -174,94 +122,43 @@ export function compoundCurveElements(input: {
   delta2Deg: number
   junctionChainage: number
 }): CompoundCurveElements {
-  const toRad = (deg: number) => toRadians(deg)
-
-  const t1 = input.R1 * Math.tan(toRad(input.delta1Deg) / 2)
-  const t2 = input.R2 * Math.tan(toRad(input.delta2Deg) / 2)
-  const l1 = input.R1 * toRad(input.delta1Deg)
-  const l2 = input.R2 * toRad(input.delta2Deg)
-
-  const chainJ = input.junctionChainage
-  const chainT1 = chainJ - t1
-  const chainT2 = chainJ + t2
-
-  return {
-    R1: input.R1,
-    R2: input.R2,
-    delta1Deg: input.delta1Deg,
-    delta2Deg: input.delta2Deg,
-    t1,
-    t2,
-    l1,
-    l2,
-    totalLength: l1 + l2,
-    chainT1,
-    chainJ,
-    chainT2,
-  }
+  const first = curveElements(input.R1, input.delta1Deg);
+  const second = curveElements(input.R2, input.delta2Deg);
+  if (input.delta1Deg + input.delta2Deg >= 180) throw new RangeError('Compound total deflection must be less than 180 degrees.');
+  const chainJ = input.junctionChainage;
+  const chainT1 = chainJ - first.arcLength, chainT2 = chainJ + second.arcLength;
+  const totalLength = first.arcLength + second.arcLength;
+  const precision = 32 * Number.EPSILON * Math.max(1, Math.abs(chainJ), Math.abs(chainT1), Math.abs(chainT2));
+  if (![chainT1, chainJ, chainT2, totalLength].every(Number.isFinite) || !(chainT1 < chainJ && chainJ < chainT2) ||
+      precision > Math.min(first.arcLength, second.arcLength) * 1e-8) throw new RangeError('Compound chainages cannot resolve the supplied arc lengths.');
+  return { ...input, t1: first.tangentLength, t2: second.tangentLength, l1: first.arcLength, l2: second.arcLength,
+    totalLength, chainT1, chainJ, chainT2 };
 }
 
 export type ReverseCurveApprox = {
-  R1: number
-  R2: number
-  AB: number
-  commonTangent: number
-  totalLength: number
-  /** True when the total length is the rigorous value (deflection angles supplied); false when it's the 180°-arc approximation. */
-  isApprox: boolean
+  R1: number; R2: number; AB: number;
+  commonTangent: number; arcLength: number; totalLength: number;
+  t1: number; t2: number; l1: number; l2: number;
+  isApprox: boolean;
 }
 
-/**
- * Reverse curve (approx.) helper used by the UI tool.
- *
- * AUDIT FIX (M3, 2026-07-02):
- *   The previous implementation computed `totalLength = π·R1 + π·R2`,
- *   which assumes both arcs deflect by 180°. That's wrong for the
- *   general case where Δ1 ≠ Δ2. The correct formula is
- *   `L = R1·Δ1 + R2·Δ2` (radians). When deflection angles are supplied
- *   via the optional `delta1`/`delta2` parameters (decimal degrees),
- *   the rigorous length is returned and `isApprox = false`. When angles
- *   are not supplied, the old 180° approximation is preserved for
- *   backward compatibility, and `isApprox = true` flags it.
- *
- * @param input.R1     Radius of first arc (metres)
- * @param input.R2     Radius of second arc (metres)
- * @param input.AB     Distance between PIs of the two curves (metres)
- * @param input.delta1 Optional deflection angle of first arc (decimal degrees)
- * @param input.delta2 Optional deflection angle of second arc (decimal degrees)
+/** Historical name retained. Requires both deflections; no semicircle fallback.
+ * AB is the PI1-to-PI2 distance along their shared tangent, not circle-centre
+ * separation. The gap between arc endpoints is AB - T1 - T2. No world placement,
+ * transitions, superelevation runout or standards approval are assessed.
  */
-export function reverseCurveApprox(input: {
-  R1: number
-  R2: number
-  AB: number
-  delta1?: number
-  delta2?: number
-}): ReverseCurveApprox {
-  const diff = input.R2 - input.R1
-  const commonTangent = Math.sqrt(Math.max(0, input.AB * input.AB - diff * diff))
-
-  let totalLength: number
-  let isApprox: boolean
-
-  if (
-    typeof input.delta1 === 'number' &&
-    typeof input.delta2 === 'number' &&
-    !isNaN(input.delta1) &&
-    !isNaN(input.delta2)
-  ) {
-    // Rigorous: L = R1·Δ1 + R2·Δ2 (angles in radians)
-    const d1Rad = (input.delta1 * Math.PI) / 180
-    const d2Rad = (input.delta2 * Math.PI) / 180
-    totalLength = input.R1 * Math.abs(d1Rad) + input.R2 * Math.abs(d2Rad)
-    isApprox = false
-  } else {
-    // Approximation: assumes both arcs are 180° (semicircles).
-    // Flagged via isApprox = true so callers can warn the user.
-    totalLength = Math.PI * input.R1 + Math.PI * input.R2
-    isApprox = true
-  }
-
-  return { ...input, commonTangent, totalLength, isApprox }
+export function reverseCurveApprox(input: { R1: number; R2: number; AB: number; delta1?: number; delta2?: number }): ReverseCurveApprox {
+  if (input.delta1 === undefined || input.delta2 === undefined) throw new RangeError('Both reverse-curve deflection angles are required.');
+  if (!Number.isFinite(input.AB) || input.AB <= 0) throw new RangeError('PI distance along the common tangent must be finite and positive.');
+  const first = curveElements(input.R1, input.delta1), second = curveElements(input.R2, input.delta2);
+  const tangentSum = first.tangentLength + second.tangentLength;
+  const commonTangent = input.AB - tangentSum;
+  if (commonTangent < 0) throw new RangeError('Reverse arcs overlap: PI distance must be at least the sum of tangent lengths.');
+  const arcLength = first.arcLength + second.arcLength, totalLength = arcLength + commonTangent;
+  if (![tangentSum, commonTangent, arcLength, totalLength].every(Number.isFinite) || totalLength <= 0 ||
+      (commonTangent > 0 && totalLength === arcLength) || totalLength === commonTangent) throw new RangeError('Reverse geometry exceeds available numerical precision.');
+  return { R1: input.R1, R2: input.R2, AB: input.AB, t1: first.tangentLength, t2: second.tangentLength,
+    l1: first.arcLength, l2: second.arcLength, commonTangent, arcLength, totalLength, isApprox: false };
 }
 
 // ─── CLOTHOID TRANSITION SPIRALS (EULER SPIRALS) ────────────────────────────

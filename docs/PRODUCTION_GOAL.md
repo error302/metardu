@@ -314,3 +314,14 @@ geometry and download checks preceded a final source-tested CSV dependency split
 browser access then became disabled, so that final loading change has no repeat
 browser proof. See `CURVES_VERTICAL_UI_INTEGRITY_2026-10-23.md`. Other curve tabs,
 project-bound outputs and broader release/field gates remain open.
+
+23 October circular plan checkpoint: simple/compound/reverse tabs now require
+entered finite geometry, clear stale output and export explicit local drafts.
+Simple set-out shares the bounded reviewed engine and includes exact PT.
+Compound PC/PT stations use PCC plus/minus arc lengths; reverse lengths require
+both angles and a defined PI distance along the common tangent, refusing overlap
+and fictional semicircles. 82 focused tests and independent checks of seven
+draft pairs, 118 set-out stations and 10 PDF pages pass. Full TypeScript, scoped
+lint and security checks pass. See `CIRCULAR_CURVE_PLAN_INTEGRITY_2026-10-23.md`
+for the intentional helper/sampling changes. No fresh browser proof is available
+while local browser use is disabled. Production/project/field gates remain open.
