@@ -2,7 +2,8 @@
 
 import { useState } from 'react';
 import { Download } from 'lucide-react';
-import { riseAndFall, heightOfCollimation } from '@/lib/engine/leveling';
+import { computeLevelBook } from '@/lib/fieldbook/computeLevelBook';
+import { getLevelingClosureStatus } from '@/lib/compute/levelingRunner';
 import { trackEvent } from '@/lib/analytics/events';
 import type { LevelingInput } from '@/lib/engine/leveling'
 import type { LevelingReading, LevelingResult } from '@/lib/engine/types';
@@ -22,15 +23,12 @@ interface Reading {
 
 export default function LevelingCalculator() {
   const { t } = useLanguage()
-  const [bm, setBm] = useState('100.0000');
+  const [bm, setBm] = useState('');
   const [closingBm, setClosingBm] = useState('');
-  const [distanceKm, setDistanceKm] = useState('1');
+  const [distanceKm, setDistanceKm] = useState('');
   const [method, setMethod] = useState<'rf' | 'hoc'>('rf');
   const [readings, setReadings] = useState<Reading[]>([
-    { id: 1, station: '1', bs: '1.523', fs: '' },
-    { id: 2, station: '2', bs: '', fs: '1.234' },
-    { id: 3, station: '3', bs: '', fs: '1.456' },
-    { id: 4, station: '4', bs: '', fs: '1.789' },
+    { id: 1, station: '1', bs: '', fs: '' },
   ]);
   const [result, setResult] = useState<LevelingResult | null>(null);
   const [steps, setSteps] = useState<SolutionStep[] | null>(null)
@@ -39,12 +37,19 @@ export default function LevelingCalculator() {
   const [calcError, setCalcError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false)
   const [calculating, setCalculating] = useState(false);
+  const closure = result ? getLevelingClosureStatus(result) : null
+  const closureLabel = !closure || closure.status === 'unknown' ? 'Closure not assessed'
+    : closure.status === 'acceptable' ? 'Within numerical reference' : 'Exceeds numerical reference'
+  const misclosureLabel = result?.closingRLProvided ? `${result.misclosure.toFixed(6)} m` : 'Not assessed (closing benchmark required)'
+  const clearResult = () => { setResult(null); setSteps(null); setSolutionTitle(undefined); setCalcError(null); setCopied(false); setShowProfile(false) }
 
   const addReading = () => {
+    clearResult()
     setReadings([...readings, { id: Date.now(), station: String(readings.length + 1), bs: '', fs: '' }]);
   };
 
   const updateReading = (id: number, field: 'bs' | 'fs', value: string) => {
+    clearResult()
     setReadings(readings.map((r: Reading) => r.id === id ? { ...r, [field]: value } : r));
   };
 
@@ -56,11 +61,12 @@ export default function LevelingCalculator() {
     const lines = [
       `METARDU Levelling — ${methodLabel}`,
       `Opening RL: ${bm} m`,
-      `Misclosure: ${result.misclosure.toFixed(6)} m`,
+      `Misclosure: ${misclosureLabel}`,
       result.allowableMisclosure !== undefined
         ? `Allowable (10√K mm, K=${distanceKm} km): ±${(result.allowableMisclosure * 1000).toFixed(3)} mm`
         : 'Allowable: Unverified (route distance required)',
-      `Check: ${result.isAcceptable ? 'PASS' : 'FAIL'}`,
+      `Closure: ${closureLabel}`,
+      'Numerical reference only; not field verification or project acceptance.',
       '',
       ...result.readings.map((r: LevelingReading) =>
         `${r.station.padEnd(8)} ${r.reducedLevel !== undefined ? r.reducedLevel.toFixed(4) : '      '}${r.adjustedRL !== undefined ? ` (adj ${r.adjustedRL.toFixed(4)})` : ''}`
@@ -73,23 +79,14 @@ export default function LevelingCalculator() {
 
   const calculate = () => {
     setCalculating(true);
-    setCalcError(null);
-    const openingRL = parseFloat(bm);
-    const closing = closingBm ? parseFloat(closingBm) : undefined;
-    if (isNaN(openingRL)) { setCalculating(false); return; }
-
-    const obs = readings.map((r: Reading) => ({
-      station: r.station,
-      bs: r.bs ? parseFloat(r.bs) : undefined,
-      fs: r.fs ? parseFloat(r.fs) : undefined
-    }));
-
-    const levelingInput: LevelingInput =
-      method === 'rf'
-        ? { readings: obs, openingRL, closingRL: closing, method: 'rise_and_fall', distanceKm: parseFloat(distanceKm) || 1 }
-        : { readings: obs, openingRL, closingRL: closing, method: 'height_of_collimation', distanceKm: parseFloat(distanceKm) || 1 }
-
-    const r = method === 'rf' ? riseAndFall(levelingInput) : heightOfCollimation(levelingInput);
+    clearResult()
+    const checked = computeLevelBook({ openingRL: bm, closingRL: closingBm, distanceKm,
+      method: method === 'rf' ? 'rise_and_fall' : 'height_of_collimation', rows: readings.map(row => ({ ...row, is: '' })) })
+    if (!checked.ok) { setCalcError(checked.errors.join(' ')); setCalculating(false); return }
+    const r = checked.calc
+    const levelingInput: LevelingInput = { openingRL: Number(bm), closingRL: closingBm.trim() ? Number(closingBm) : undefined,
+      distanceKm: distanceKm.trim() ? Number(distanceKm) : undefined, method: r.method,
+      readings: readings.map(row => ({ station: row.station, bs: row.bs.trim() ? Number(row.bs) : undefined, fs: row.fs.trim() ? Number(row.fs) : undefined })) }
 
     // BLOCK RESULTS if arithmetic check fails (Basak rule)
     if (!r.arithmeticCheck) {
@@ -123,15 +120,15 @@ export default function LevelingCalculator() {
       <div className="grid md:grid-cols-3 gap-4 mb-6">
         <div className="card p-4">
           <label className="label" htmlFor="opening-benchmark-m">Opening Benchmark (m)</label>
-          <input id="opening-benchmark-m" aria-label="Opening Benchmark (m)" className="input" value={bm} onChange={e => setBm(e.target.value)} />
+          <input id="opening-benchmark-m" aria-label="Opening Benchmark (m)" className="input" value={bm} onChange={e => { clearResult(); setBm(e.target.value) }} />
         </div>
         <div className="card p-4">
           <label className="label" htmlFor="closing-benchmark-m">Closing Benchmark (m)</label>
-          <input id="closing-benchmark-m" className="input" value={closingBm} onChange={e => setClosingBm(e.target.value)} placeholder="Optional" />
+          <input id="closing-benchmark-m" className="input" value={closingBm} onChange={e => { clearResult(); setClosingBm(e.target.value) }} placeholder="Optional" />
         </div>
         <div className="card p-4">
           <label className="label" htmlFor="distance-km-for-allowable-error">Distance (km) for allowable error</label>
-          <input id="distance-km-for-allowable-error" className="input" value={distanceKm} onChange={e => setDistanceKm(e.target.value)} placeholder="1" />
+          <input id="distance-km-for-allowable-error" className="input" value={distanceKm} onChange={e => { clearResult(); setDistanceKm(e.target.value) }} placeholder="Unknown until entered" />
         </div>
         <div className="card p-4">
           <div className="label">Method</div>
@@ -148,8 +145,8 @@ export default function LevelingCalculator() {
       </div>
 
       {calcError && (
-        <div className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
-          <p className="font-semibold mb-1">Arithmetic check failed</p>
+        <div role="alert" className="mb-6 rounded-lg border border-red-500/40 bg-red-500/10 p-4 text-sm text-red-300">
+          <p className="font-semibold mb-1">Review the leveling inputs</p>
           <p>{calcError}</p>
         </div>
       )}
@@ -159,8 +156,8 @@ export default function LevelingCalculator() {
           <span className="label">Level Book — {methodLabel}</span>
         </div>
         <div className="overflow-x-auto">
-          <table className="table">
-            <thead>
+          <table className="w-full min-w-[48rem] text-sm tabular-nums [&_th]:px-3 [&_th]:py-3 [&_th]:text-left [&_td]:px-3 [&_td]:py-2 [&_td]:whitespace-nowrap">
+            <thead className="border-b border-[var(--border-color)] text-[var(--text-secondary)]">
               <tr>
                 <th>Station</th>
                 <th>BS (m)</th>
@@ -174,11 +171,11 @@ export default function LevelingCalculator() {
             <tbody>
               <tr>
                 <td className="text-left font-semibold">BM</td>
-                <td colSpan={2} className="text-left text-[var(--text-muted)]">{bm}</td>
+                  <td colSpan={2} className="text-left text-[var(--text-muted)]">Opening benchmark</td>
                 <td></td>
                 <td></td>
-                <td className="font-mono">{bm}</td>
-                <td className="font-mono">{bm}</td>
+                <td className="font-mono">{bm || '—'}</td>
+                {result && <td className="font-mono">{bm || '—'}</td>}
               </tr>
               {readings.map((r, i) => (
                 <tr key={r.id}>
@@ -193,7 +190,7 @@ export default function LevelingCalculator() {
                       <td className="font-mono">{result.readings[i + 1]?.adjustedRL?.toFixed(4) || '—'}</td>
                     </>
                   ) : (
-                    <td colSpan={4}></td>
+                    <td colSpan={3}></td>
                   )}
                 </tr>
               ))}
@@ -222,10 +219,11 @@ export default function LevelingCalculator() {
                     { title: 'Computation Summary', rows: [
                       { label: 'Method', value: methodLabel },
                       { label: 'Opening RL', value: `${bm} m` },
-                      { label: 'Misclosure', value: `${result.misclosure.toFixed(6)} m` },
-                      { label: 'Allowable (10√K mm)', value: result.allowableMisclosure !== undefined ? `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` : 'Unverified' },
+                      { label: 'Misclosure', value: misclosureLabel },
+                      { label: 'Reference (10 x sqrt(K) mm)', value: result.allowableMisclosure !== undefined ? `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` : 'Unverified' },
                       { label: 'Arithmetic Check', value: result.arithmeticCheck ? 'PASS' : 'FAIL' },
-                      { label: 'Status', value: result.isAcceptable ? 'Acceptable' : 'Unacceptable' },
+                      { label: 'Status', value: closureLabel === 'Closure not assessed' ? 'Not assessed' : closureLabel },
+                      { label: 'Evidence', value: 'Numerical reference only; not field verification or professional approval.' },
                     ]},
                   ],
                   [
@@ -268,8 +266,8 @@ export default function LevelingCalculator() {
             <div className="card-header flex justify-between items-center">
               <span className="label">Results — {methodLabel}</span>
               <div className="flex items-center gap-2">
-                <span className={`badge ${result.isAcceptable ? 'badge-success' : 'badge-error'}`}>
-                  {result.isAcceptable ? 'Acceptable' : 'Unacceptable'}
+                <span className={`badge ${closure?.status === 'unknown' ? '' : closure?.status === 'acceptable' ? 'badge-success' : 'badge-error'}`}>
+                  {closureLabel}
                 </span>
                 <button
                   onClick={copyResults}
@@ -281,7 +279,8 @@ export default function LevelingCalculator() {
             </div>
             <div className="card-body space-y-3">
               <ResultRow label="Method" value={methodLabel} />
-              <ResultRow label="Misclosure" value={`${result.misclosure.toFixed(6)} m`} />
+              <ResultRow label="Misclosure" value={misclosureLabel} />
+              <p className="text-sm text-[var(--text-muted)]">{closure?.message}. Numerical results do not establish field verification, adopted project criteria or professional approval.</p>
               <ResultRow
                 label="Allowable (C = 10√K mm)"
                 value={result.allowableMisclosure !== undefined ? `±${(result.allowableMisclosure * 1000).toFixed(3)} mm` : 'Unverified (route length required)'}
@@ -309,7 +308,7 @@ export default function LevelingCalculator() {
                   <span className="font-mono">{result.readings[result.readings.length - 1]?.reducedLevel?.toFixed(4)} m</span>
                 </div>
               )}
-              {result.readings.some((r: LevelingReading) => r.adjustedRL) && (
+              {result.readings.some((r: LevelingReading) => r.adjustedRL !== undefined) && (
                 <div className="flex justify-between py-2 border-b border-[var(--border-color)]">
                   <span className="text-[var(--text-secondary)]">Final RL (Adjusted)</span>
                   <span className="font-mono result-accent">
@@ -373,11 +372,11 @@ function LevelingProfile({ readings }: { readings: LevelingReading[] }) {
   const maxRL = Math.max(...rls) + 0.5;
   const maxIdx = validReadings.length - 1;
 
-  const toX = (idx: number) => padding + (idx / maxIdx) * (width - padding * 2);
+  const toX = (idx: number) => maxIdx > 0 ? padding + (idx / maxIdx) * (width - padding * 2) : width / 2;
   const toY = (rl: number) => height - padding - ((rl - minRL) / (maxRL - minRL)) * (height - padding * 2);
 
   const pathData = validReadings.map((r, i) => {
-    const rl = r.adjustedRL || r.reducedLevel;
+    const rl = r.adjustedRL ?? r.reducedLevel;
     return `${i === 0 ? 'M' : 'L'} ${toX(i)} ${toY(rl)}`;
   }).join(' ');
 
@@ -391,7 +390,7 @@ function LevelingProfile({ readings }: { readings: LevelingReading[] }) {
       <rect width={width} height={height} fill="url(#grid)"/>
       <path d={pathData} stroke="#D17B47" strokeWidth={2} fill="none"/>
       {validReadings.map((r, i) => {
-        const rl = r.adjustedRL || r.reducedLevel;
+        const rl = r.adjustedRL ?? r.reducedLevel;
         return (
           <g key={r.station}>
             <circle cx={toX(i)} cy={toY(rl)} r={4} fill="#D17B47"/>

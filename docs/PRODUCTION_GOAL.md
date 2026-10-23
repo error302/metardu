@@ -221,3 +221,16 @@ preceding writes. No customer archive, rejected clone, production service or
 applied migration was changed. Customer/uploads/offsite/key recovery, final
 release and the wider engineering/paid/field requirements remain open. See
 `RECOVERY_FAILURE_PATH_AUDIT_2026-10-22.md` for the precise boundary.
+
+23 October continuation: the source leveling API/calculator/process chain now
+keeps unknown closure/length explicit, removes guessed benchmarks and row-count
+distances, preserves entered zero and combined turning-point sights, and clears
+stale calculator results. The final focused run passes 96 checks across ten
+suites plus a native computation-PDF layout regression.
+`LEVELING_CLOSURE_EVIDENCE_2026-10-23.md` records the reproduced defects, exact
+fixtures and boundaries: eleven ordinary synthetic HTTP checks and independent
+exact account cleanup now pass; public calculator CUA and actual PDF inspection
+verify the 4 mm fixture, unknown evidence, stale-result removal, precision and
+complete statements. Uploaded-notes browser, adopted project criteria, release
+and physical field acceptance remain open. Production and deferred signing-key
+rotation remain unchanged, and the broader goal stays active.

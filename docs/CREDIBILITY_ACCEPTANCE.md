@@ -184,3 +184,19 @@ safety dumps, complete restoration of the trusted synthetic archive, rollback
 after deliberate SQL failure, original rehearsal preservation and exact owned
 temporary cleanup. Production health remains unchanged. Customer archives,
 uploads/offsite/key recovery and deployment remain separate acceptance gates.
+
+### Leveling evidence consistency — 23 October
+
+The active leveling API, public calculator and uploaded-notes workflow contained
+guessed benchmark/run-length and false closure-verdict paths. The source repair
+retains unknown evidence, uses supplied run length, preserves zero, clears stale
+calculator outputs and keeps turning-point FS/BS rows together during CSV
+interpretation. The final focused source run passes 96 checks across ten suites;
+the native PDF layout regression also passes.
+See `LEVELING_CLOSURE_EVIDENCE_2026-10-23.md` for exact numerical fixtures,
+transport/CSV limits and verification boundaries. Eleven ordinary synthetic
+HTTP checks and independent exact cleanup now pass. Public-calculator CUA and
+actual downloaded-PDF inspection additionally verify unknown closure, the 4 mm
+reference fixture, stale-result removal, millimetre display precision and
+complete evidence text. Production deployment, adopted project criteria and
+physical field acceptance remain open.

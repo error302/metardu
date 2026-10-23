@@ -41,6 +41,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-
       - run: npm run typecheck
+      - name: Verify computation PDF wrapping and retained evidence
+        run: node --test tests/export-pdf-layout.test.mjs
       - name: Verify PDF parser through the Next Webpack compiler
         run: node scripts/verify-pdf-parser-webpack.mjs
       - uses: actions/upload-artifact@v4

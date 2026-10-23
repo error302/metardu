@@ -64,19 +64,20 @@ export function runLevelingComputation(input: LevelingComputeInput): LevelingRes
 export function getLevelingClosureStatus(result: LevelingResult): {
   status: 'acceptable' | 'excessive' | 'unknown';
   message: string;
-  misclosureMm: number;
-  allowableMm: number;
+  misclosureMm: number | null;
+  allowableMm: number | null;
 } {
-  if (!result.closingRLProvided || result.allowableMisclosure === undefined || result.allowableMisclosure === 0) {
-    return { status: 'unknown', message: !result.closingRLProvided ? 'No closing benchmark provided' : 'Survey route distance required for allowable misclosure', misclosureMm: 0, allowableMm: 0 };
+  const misclosureMm = result.closingRLProvided ? Math.abs(result.misclosure) * 1000 : null;
+  const allowableMm = result.allowableMisclosure === undefined ? null : result.allowableMisclosure * 1000;
+  if (misclosureMm === null || allowableMm === null || allowableMm === 0) {
+    return { status: 'unknown', message: !result.closingRLProvided ? 'Closure not assessed: no closing benchmark provided' : 'Closure not assessed: survey route distance required', misclosureMm, allowableMm };
   }
 
-  const misclosureMm = Math.abs(result.misclosure) * 1000;
-  const allowableMm = result.allowableMisclosure * 1000;
+  if (!result.arithmeticCheck) return { status: 'unknown', message: 'Closure not assessed: arithmetic check failed', misclosureMm, allowableMm };
 
   if (result.isAcceptable) {
-    return { status: 'acceptable', message: `Closure within tolerance (${misclosureMm.toFixed(1)}mm / ${allowableMm.toFixed(1)}mm)`, misclosureMm, allowableMm };
+    return { status: 'acceptable', message: `Closure within the 10√K numerical reference (${misclosureMm.toFixed(1)}mm / ${allowableMm.toFixed(1)}mm)`, misclosureMm, allowableMm };
   }
 
-  return { status: 'excessive', message: `Closure exceeds tolerance (${misclosureMm.toFixed(1)}mm / ${allowableMm.toFixed(1)}mm)`, misclosureMm, allowableMm };
+  return { status: 'excessive', message: `Closure exceeds the 10√K numerical reference (${misclosureMm.toFixed(1)}mm / ${allowableMm.toFixed(1)}mm)`, misclosureMm, allowableMm };
 }

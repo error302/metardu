@@ -115,12 +115,25 @@ export async function generatePDF(
       if (y > 275) { doc.addPage(); y = margin }
       doc.setFontSize(9)
       doc.setFont('helvetica', 'normal')
-      doc.setTextColor(80, 80, 80)
-      doc.text(row.label, margin, y)
+      const labelLines = doc.splitTextToSize(row.label, 56) as string[]
       doc.setFont('courier', 'bold')
-      doc.setTextColor(0, 0, 0)
-      doc.text(row.value, margin + 60, y)
-      y += 5
+      const valueLines = doc.splitTextToSize(row.value, contentWidth - 60) as string[]
+      // Keep complete labels/values inside their own columns, including when
+      // a retained evidence statement continues onto another page.
+      for (let line = 0; line < Math.max(labelLines.length, valueLines.length, 1); line++) {
+        if (y > 275) { doc.addPage(); y = margin }
+        if (labelLines[line] !== undefined) {
+          doc.setFont('helvetica', 'normal')
+          doc.setTextColor(80, 80, 80)
+          doc.text(labelLines[line], margin, y)
+        }
+        if (valueLines[line] !== undefined) {
+          doc.setFont('courier', 'bold')
+          doc.setTextColor(0, 0, 0)
+          doc.text(valueLines[line], margin + 60, y)
+        }
+        y += 5
+      }
     }
     y += 3
   }

@@ -11,6 +11,7 @@
 import { bowditchAdjustment, TraverseInput } from '../engine/traverse'
 import { riseAndFall, LevelingInput } from '../engine/leveling'
 import { radiation } from '../engine/cogo'
+import { getLevelingClosureStatus } from '../compute/levelingRunner'
 
 export type SurveyType = 'traverse' | 'leveling' | 'radiation' | 'coordinates' | 'unknown'
 
@@ -27,6 +28,8 @@ export interface SurveyObservation {
   value1?: number
   value2?: number
   value3?: number
+  /** All sights on this original leveling row, including an FS/BS turning point. */
+  leveling?: { bs?: number; is?: number; fs?: number }
 }
 
 export interface WorkflowResult {
@@ -94,6 +97,8 @@ export interface LevelingWorkflowData {
   }>
   openingRL: number
   closingRL?: number
+  /** Supplied survey route length; never inferred from observation count. */
+  distanceKm?: number
 }
 
 export interface RadiationWorkflowData {
@@ -247,17 +252,25 @@ export function runLevelingWorkflow(data: LevelingWorkflowData): WorkflowResult 
   let validation: ValidationResult
 
   try {
+    if (!Number.isFinite(data.openingRL) || data.closingRL !== undefined && !Number.isFinite(data.closingRL)) throw new Error('Finite opening and supplied closing benchmarks are required.')
+    if (data.distanceKm !== undefined && (!Number.isFinite(data.distanceKm) || data.distanceKm <= 0)) throw new Error('Supplied route length must be positive and finite.')
+    if (!data.readings.length || data.readings[0].bs === undefined || data.readings[0].is !== undefined || data.readings[0].fs !== undefined) throw new Error('Start with a backsight on the opening benchmark.')
+    if (data.readings.some(row => !row.station.trim() || ![row.bs, row.is, row.fs].some(value => value !== undefined)
+      || [row.bs, row.is, row.fs].some(value => value !== undefined && !Number.isFinite(value)))) throw new Error('Every named station needs finite readings.')
     const levelingInput: LevelingInput = {
       readings: data.readings,
       openingRL: data.openingRL,
       closingRL: data.closingRL,
+      distanceKm: data.distanceKm,
       method: 'rise_and_fall'
     }
 
     const result = riseAndFall(levelingInput)
+    if (result.readings.some(row => Object.values(row).some(value => typeof value === 'number' && !Number.isFinite(value))) || !Number.isFinite(result.misclosure * 1000)) throw new Error('The leveling reduction produced a nonfinite result.')
 
     const arithmeticPassed = result.arithmeticCheck
-    const arithmeticDiff = result.misclosure
+    const lastRL = [...result.readings].reverse().find(row => row.reducedLevel !== undefined)?.reducedLevel ?? data.openingRL
+    const arithmeticDiff = result.readings.reduce((sum, row) => sum + (row.bs ?? 0) - (row.fs ?? 0), 0) - (lastRL - data.openingRL)
 
     const checks: ValidationCheck[] = []
 
@@ -270,18 +283,10 @@ export function runLevelingWorkflow(data: LevelingWorkflowData): WorkflowResult 
       value: arithmeticDiff
     })
 
-    if (data.closingRL && result.misclosure !== undefined) {
-      const closingErrorMm = Math.abs(result.misclosure) * 1000
-      const distanceKm = data.readings.length * 0.1
-      const allowableMm = 10 * Math.sqrt(distanceKm)
-      
-      checks.push({
-        name: 'Closing Error',
-        passed: closingErrorMm <= allowableMm,
-        message: `Closing error ${closingErrorMm.toFixed(1)}mm vs allowable ${allowableMm.toFixed(1)}mm`,
-        value: closingErrorMm
-      })
-    }
+    const closure = getLevelingClosureStatus(result)
+    checks.push({ name: 'Closing Error', assessed: closure.status !== 'unknown', passed: closure.status === 'acceptable',
+      message: closure.message, ...(closure.misclosureMm === null ? {} : { value: closure.misclosureMm }) })
+    if (closure.status === 'unknown') warnings.push(closure.message)
 
     validation = {
       passed: checks.every(c => c.passed),

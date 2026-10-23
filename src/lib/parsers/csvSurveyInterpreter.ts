@@ -36,6 +36,34 @@ export function interpretCSV(csvText: string): CSVInterpretResult {
     if (surveyType === 'unknown') {
       warnings.push('Could not auto-detect survey type. Check column headers.')
     }
+
+    if (surveyType === 'leveling') {
+      const sightHeaders = headers.filter(header => ['bs', 'is', 'fs'].includes(header.toLowerCase()))
+      if (new Set(sightHeaders.map(header => header.toLowerCase())).size !== sightHeaders.length
+        || lines.some(line => line.includes('"') || line.split(',').length !== headers.length)) {
+        return { ok: false, error: 'Ambiguous leveling columns or quoted/uneven CSV rows. Use one Station, BS, IS and FS column per row.', warnings }
+      }
+      const stationHeaders = headers.filter(header => ['station', 'point', 'from'].includes(header.toLowerCase()))
+      if (stationHeaders.length !== 1) return { ok: false, error: 'Leveling CSV needs one station-name column.', warnings }
+      const observations: SurveyObservation[] = []
+      for (const [index, row] of rows.entries()) {
+        const station = row[stationHeaders[0]]
+        if (!station) return { ok: false, error: `Leveling row ${index + 1} needs a station name.`, warnings }
+        const leveling: NonNullable<SurveyObservation['leveling']> = {}
+        for (const header of sightHeaders) {
+          const raw = row[header]
+          if (!raw) continue
+          if (!/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(raw) || !Number.isFinite(Number(raw))) {
+            return { ok: false, error: `Leveling row ${index + 1} has an invalid ${header.toUpperCase()} reading.`, warnings }
+          }
+          leveling[header.toLowerCase() as keyof typeof leveling] = Number(raw)
+        }
+        if (!Object.keys(leveling).length) return { ok: false, error: `Leveling row ${index + 1} needs a sight reading; blank is not zero.`, warnings }
+        const type = leveling.fs !== undefined ? 'FS' : leveling.is !== undefined ? 'IS' : 'BS'
+        observations.push({ station, type, value1: type === 'FS' ? leveling.fs : type === 'IS' ? leveling.is : leveling.bs, leveling })
+      }
+      return { ok: true, dataset: { surveyType, observations, metadata: {} }, warnings }
+    }
     
     // Build observations. For multi-measurement rows, value1/value2 must map to
     // the workflow engine's expectations rather than the first numeric cell.

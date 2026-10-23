@@ -1,6 +1,21 @@
 import { checkTolerance, formatToleranceCheck } from '../toleranceEngine'
 
 describe('toleranceEngine', () => {
+  it.each([
+    { closingError: null, distanceKm: null }, { closingError: 0, distanceKm: null },
+    { closingError: null, distanceKm: 1 }, { closingError: 0, distanceKm: 0 },
+  ])('does not certify incomplete leveling evidence %j', evidence => {
+    const result = checkTolerance({ leveling: { arithmeticCheckPassed: true, arithmeticDiff: 0, ...evidence } }, 'engineering')
+    expect(result.assessmentComplete).toBe(false)
+    expect(result.passed).toBe(false)
+    expect(formatToleranceCheck(result)).toContain('INCOMPLETE')
+  })
+
+  it('retains actual zero closure with a declared length', () => {
+    const result = checkTolerance({ leveling: { arithmeticCheckPassed: true, arithmeticDiff: 0, closingError: 0, distanceKm: 1 } }, 'engineering')
+    expect(result.assessmentComplete).toBe(true)
+    expect(result.passed).toBe(true)
+  })
   it('marks a traverse incomplete when linear precision passes but angular closure is unavailable', () => {
     const result = checkTolerance({
       traverse: {

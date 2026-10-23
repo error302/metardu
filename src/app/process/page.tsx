@@ -9,6 +9,7 @@ import { bowditchAdjustmentSolvedFromResult } from '@/lib/engine/solution/wrappe
 import type { TraverseAdjustmentSolvedResult } from '@/lib/engine/solution/wrappers/traverse'
 import { levelingSolved } from '@/lib/engine/solution/wrappers/leveling'
 import type { LevelingResult } from '@/lib/engine/types'
+import { computeLevelBook } from '@/lib/fieldbook/computeLevelBook'
 import { radiationSolved } from '@/lib/engine/solution/wrappers/radiation'
 import { 
   SurveyDataset,
@@ -63,7 +64,10 @@ import { createClient } from '@/lib/api-client/client'
 import { logger } from '@/lib/logger'
 
 export default function ProcessPage() {
-  const [, setProcessError] = useState<string | null>(null)
+  const [processError, setProcessError] = useState<string | null>(null)
+  const [levelOpening, setLevelOpening] = useState('')
+  const [levelClosing, setLevelClosing] = useState('')
+  const [levelDistance, setLevelDistance] = useState('')
   const [dragActive, setDragActive] = useState(false)
   const [fileContent, setFileContent] = useState<string | null>(null)
   const [interpretResult, setInterpretResult] = useState<CSVInterpretResult | null>(null)
@@ -121,6 +125,8 @@ export default function ProcessPage() {
     
     const files = e.dataTransfer.files
     if (files && files[0]) {
+      setProcessed(false); setWorkflowResult(null); setWorkflowSolutions([]); setToleranceResult(null); setProcessError(null)
+      setLevelOpening(''); setLevelClosing(''); setLevelDistance('')
       const content = await files[0].text()
       setFileContent(content)
       const result = interpretCSV(content)
@@ -132,6 +138,8 @@ export default function ProcessPage() {
   const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files
     if (files && files[0]) {
+      setProcessed(false); setWorkflowResult(null); setWorkflowSolutions([]); setToleranceResult(null); setProcessError(null)
+      setLevelOpening(''); setLevelClosing(''); setLevelDistance('')
       const content = await files[0].text()
       setFileContent(content)
       const result = interpretCSV(content)
@@ -156,6 +164,8 @@ export default function ProcessPage() {
     if (!interpretResult?.ok || !interpretResult.dataset) return
 
     setProcessing(true)
+    setProcessError(null)
+    setToleranceResult(null)
 
     try {
       const dataset = interpretResult.dataset
@@ -186,20 +196,29 @@ export default function ProcessPage() {
           } catch {}
         }
       } else if (surveyType === 'leveling') {
+        const readings = dataset.observations.map((obs: SurveyObservation) => ({
+          station: obs.station,
+          bs: obs.leveling?.bs !== undefined ? String(obs.leveling.bs) : obs.type === 'BS' && obs.value1 !== undefined ? String(obs.value1) : '',
+          is: obs.leveling?.is !== undefined ? String(obs.leveling.is) : obs.type === 'IS' && obs.value1 !== undefined ? String(obs.value1) : '',
+          fs: obs.leveling?.fs !== undefined ? String(obs.leveling.fs) : obs.type === 'FS' && obs.value1 !== undefined ? String(obs.value1) : '',
+        }))
+        const checked = computeLevelBook({ openingRL: levelOpening, closingRL: levelClosing, distanceKm: levelDistance,
+          method: 'rise_and_fall', rows: readings })
+        if (!checked.ok) { setProcessError(checked.errors.join(' ')); setProcessing(false); return }
         const levelingData: LevelingWorkflowData = {
-          readings: dataset.observations.map((obs: SurveyObservation) => ({
-            station: obs.station,
-            bs: obs.type === 'BS' ? obs.value1 : undefined,
-            is: obs.type === 'IS' ? obs.value1 : undefined,
-            fs: obs.type === 'FS' ? obs.value1 : undefined
+          readings: readings.map(row => ({
+            station: row.station, bs: row.bs ? Number(row.bs) : undefined,
+            is: row.is ? Number(row.is) : undefined, fs: row.fs ? Number(row.fs) : undefined,
           })),
-          openingRL: (dataset.metadata as { openingRL?: number })?.openingRL || 100
+          openingRL: Number(levelOpening),
+          closingRL: levelClosing.trim() ? Number(levelClosing) : undefined,
+          distanceKm: levelDistance.trim() ? Number(levelDistance) : undefined,
         }
         result = runWorkflow('leveling', levelingData)
         if (result.success && (result.results as LevelingResult | undefined)?.readings) {
           try {
             const s = levelingSolved(
-              { readings: levelingData.readings, openingRL: levelingData.openingRL, closingRL: levelingData.closingRL, method: 'rise_and_fall', distanceKm: 1 },
+              { ...levelingData, method: 'rise_and_fall' },
               result.results as LevelingResult
             )
             solutions.push({ title: s.solution.title, steps: s.steps })
@@ -268,18 +287,14 @@ export default function ProcessPage() {
             setToleranceResult(traverseTol)
           }
         } else if (surveyType === 'leveling' && result.results) {
-          const res = result.results as {
-            readings?: LevelingReading[]
-            arithmeticCheck?: boolean
-            misclosure?: number
-          }
+          const res = result.results as LevelingResult
           if (res.readings) {
             const levelingTol = checkTolerance({
               leveling: {
                 arithmeticCheckPassed: res.arithmeticCheck || false,
-                arithmeticDiff: res.misclosure || 0,
-                closingError: res.misclosure || 0,
-                distanceKm: (res.readings.length || 0) * 0.1 || 1
+                arithmeticDiff: result.validation.checks.find(check => check.name === 'Arithmetic Check')?.value ?? NaN,
+                closingError: res.closingRLProvided ? res.misclosure : null,
+                distanceKm: levelDistance.trim() ? Number(levelDistance) : null,
               }
             }, selectedProfile)
             setToleranceResult(levelingTol)
@@ -291,6 +306,7 @@ export default function ProcessPage() {
       setProcessed(true)
     } catch (e) {
       logger.error('Processing error:', { error: e })
+      setProcessError('Processing failed. Your uploaded source remains open; review the inputs and retry.')
       setProcessing(false)
     }
   }
@@ -466,6 +482,17 @@ export default function ProcessPage() {
 
               {!processed && (
                 <>
+                  {detectSurveyTypeFromDataset(interpretResult.dataset) === 'leveling' && <fieldset className="mt-6 space-y-3">
+                    <legend className="font-semibold">Leveling setup</legend>
+                    <p className="text-sm text-[var(--text-secondary)]">Declare project vertical control and measured run length. Unknown closing control or length leaves closure unassessed.</p>
+                    <div className="grid gap-3 md:grid-cols-3">
+                      <label className="text-sm">Opening RL (m)<input className="input mt-1" value={levelOpening} onChange={event => setLevelOpening(event.target.value)} /></label>
+                      <label className="text-sm">Closing RL (m)<input className="input mt-1" value={levelClosing} placeholder="Unknown" onChange={event => setLevelClosing(event.target.value)} /></label>
+                      <label className="text-sm">Run length (km)<input className="input mt-1" value={levelDistance} placeholder="Unknown" onChange={event => setLevelDistance(event.target.value)} /></label>
+                    </div>
+                    <p className="text-xs text-[var(--text-muted)]">Numerical profile checks do not establish adopted project criteria, field verification or professional approval.</p>
+                  </fieldset>}
+                  {processError && <p role="alert" className="mt-4 text-sm text-red-300">{processError}</p>}
                   <div className="mt-6">
                     <div className="block text-sm text-[var(--text-secondary)] mb-2">Tolerance Profile</div>
                     <div className="grid grid-cols-3 gap-3">
@@ -498,6 +525,7 @@ export default function ProcessPage() {
                     <button
                       onClick={() => {
                         setFileContent(null)
+                        setLevelOpening(''); setLevelClosing(''); setLevelDistance(''); setProcessError(null)
                         setInterpretResult(null)
                         setProcessed(false)
                         setWorkflowResult(null)

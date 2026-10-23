@@ -80,8 +80,8 @@ export interface TraverseValidationInput {
 export interface LevelingValidationInput {
   arithmeticCheckPassed: boolean
   arithmeticDiff: number
-  closingError: number
-  distanceKm: number
+  closingError: number | null
+  distanceKm: number | null
 }
 
 export interface ValidationInput {
@@ -160,7 +160,7 @@ export function checkTolerance(
         : `Arithmetic check failed (diff: ${arithmeticDiff.toFixed(4)}m) - BLOCKED`
     })
 
-    if (distanceKm > 0 && closingError !== undefined) {
+    if (distanceKm !== null && Number.isFinite(distanceKm) && distanceKm > 0 && closingError !== null && Number.isFinite(closingError)) {
       const closingErrorMm = Math.abs(closingError) * 1000
       const allowableMm = config.closingErrorMmPerKm * Math.sqrt(distanceKm)
       
@@ -178,12 +178,16 @@ export function checkTolerance(
   }
 
   const allPassed = checks.every(c => c.passed)
-  const assessmentComplete = !input.traverse || input.traverse.angularMisclosure !== null
+  const traverseComplete = !input.traverse || input.traverse.angularMisclosure !== null
+  const levelingComplete = !input.leveling || input.leveling.closingError !== null && Number.isFinite(input.leveling.closingError)
+    && input.leveling.distanceKm !== null && Number.isFinite(input.leveling.distanceKm) && input.leveling.distanceKm > 0
+  const assessmentComplete = traverseComplete && levelingComplete
   const precisionGrade = getPrecisionGrade(checks)
 
-  if (!assessmentComplete) {
+  if (!traverseComplete) {
     recommendations.push('Angular closure was not assessed; provide observed angles or a known closing azimuth before treating the traverse as accepted.')
   }
+  if (!levelingComplete) recommendations.push('Leveling closure was not assessed; provide the closing benchmark and measured route length before treating the run as accepted.')
 
   if (!allPassed) {
     const failedChecks = checks.filter((c) => !c.passed)
