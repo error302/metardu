@@ -4,6 +4,35 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
+import { projectSettingsPatchSchema } from '@/lib/validation/projectSettings'
+import { CacheKeys, projectCache } from '@/lib/cache/memory-cache'
+
+/** Save only explicitly changed metadata; the database merges closure evidence atomically. */
+export const PATCH = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
+  const parsed = projectSettingsPatchSchema.safeParse(ctx.body)
+  if (!parsed.success) {
+    return NextResponse.json({ error: 'Invalid project details', issues: parsed.error.issues }, { status: 400 })
+  }
+  const values: unknown[] = []
+  const assignments = Object.entries(parsed.data).map(([column, value]) => {
+    values.push(column === 'linear_error_m' ? JSON.stringify(value) : value)
+    // Column names come exclusively from the strict schema, never directly from request keys.
+    return column === 'linear_error_m'
+      ? `traverse = jsonb_set(COALESCE(traverse, '{}'::jsonb), '{linearError}', $${values.length}::jsonb, true)`
+      : `"${column}" = $${values.length}`
+  })
+  values.push(ctx.params.id, ctx.userId)
+  const result = await db.query<{ id: string }>(
+    `UPDATE projects SET ${assignments.join(', ')} WHERE id = $${values.length - 1} AND user_id = $${values.length}
+     ${'linear_error_m' in parsed.data ? "AND (traverse IS NULL OR jsonb_typeof(traverse) = 'object')" : ''} RETURNING id`,
+    values,
+  )
+  if (result.rowCount !== 1 || result.rows.length !== 1 || result.rows[0].id !== ctx.params.id) {
+    return NextResponse.json({ error: 'Project update was not confirmed. Access or saved evidence may have changed; reload before retrying.' }, { status: 409 })
+  }
+  projectCache.invalidate(CacheKeys.project(ctx.params.id))
+  return NextResponse.json({ data: { id: result.rows[0].id }, success: true }, { headers: { 'Cache-Control': 'private, no-store' } })
+})
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params

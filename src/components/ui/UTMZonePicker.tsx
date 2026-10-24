@@ -2,9 +2,9 @@
 import { getUTMZoneFromLatLng } from '@/lib/geodesy/utmZones'
 
 interface UTMZonePickerProps {
-  value: number
-  hemisphere: 'N' | 'S'
-  onChange: (zone: number, hemisphere: 'N' | 'S') => void
+  value: number | null
+  hemisphere: 'N' | 'S' | ''
+  onChange: (zone: number | null, hemisphere: 'N' | 'S' | '') => void
 }
 
 export default function UTMZonePicker({ 
@@ -13,14 +13,8 @@ export default function UTMZonePicker({
   onChange 
 }: UTMZonePickerProps) {
   const commonZones = [
-    { zone: 30, label: 'W.Africa/UK' },
-    { zone: 32, label: 'C.Europe' },
-    { zone: 33, label: 'E.Africa' },
-    { zone: 36, label: 'Tanzania' },
-    { zone: 37, label: 'Kenya/Uganda' },
-    { zone: 43, label: 'India' },
-    { zone: 54, label: 'Japan' },
-    { zone: 55, label: 'Australia' },
+    { zone: 30 }, { zone: 32 }, { zone: 33 }, { zone: 36 },
+    { zone: 37 }, { zone: 43 }, { zone: 54 }, { zone: 55 },
   ]
 
   const detectFromGPS = () => {
@@ -45,25 +39,26 @@ export default function UTMZonePicker({
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-4 items-end">
+      <div className="flex flex-wrap gap-4 items-end">
         <div>
           <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="utm-zone">UTM Zone</label>
           <input id="utm-zone"
             type="number"
             min={1}
             max={60}
-            value={value}
-            onChange={e => onChange(Number(e.target.value), hemisphere)}
-            className="w-20 bg-[var(--bg-tertiary)] text-white px-3 py-2 rounded border border-[var(--border-color)] font-mono"
+            value={value ?? ''}
+            onChange={e => onChange(e.target.value === '' ? null : Number(e.target.value), hemisphere)}
+            className="w-20 bg-[var(--bg-tertiary)] text-[var(--text-primary)] px-3 py-2 rounded border border-[var(--border-color)] font-mono"
           />
         </div>
         <div>
           <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="hemisphere">Hemisphere</label>
           <select id="hemisphere"
             value={hemisphere}
-            onChange={e => onChange(value, e.target.value as 'N' | 'S')}
-            className="bg-[var(--bg-tertiary)] text-white px-3 py-2 rounded border border-[var(--border-color)]"
+            onChange={e => onChange(value, e.target.value as 'N' | 'S' | '')}
+            className="bg-[var(--bg-tertiary)] text-[var(--text-primary)] px-3 py-2 rounded border border-[var(--border-color)]"
           >
+            <option value="">Select hemisphere</option>
             <option value="N">N — Northern</option>
             <option value="S">S — Southern</option>
           </select>
@@ -71,7 +66,9 @@ export default function UTMZonePicker({
         <div className="flex-1">
           <div className="block text-sm text-[var(--text-secondary)] mb-1">Coverage</div>
           <p className="text-amber-500 text-sm">
-            Zone {value}{hemisphere} — {(value - 1) * 6 - 180}° to {value * 6 - 180}°
+            {value != null && Number.isInteger(value) && value >= 1 && value <= 60 && hemisphere
+              ? `Zone ${value}${hemisphere} — ${(value - 1) * 6 - 180}° to ${value * 6 - 180}°`
+              : 'Select a zone and hemisphere'}
           </p>
         </div>
       </div>
@@ -89,7 +86,7 @@ export default function UTMZonePicker({
                   : 'bg-[var(--bg-tertiary)] text-[var(--text-primary)] border-[var(--border-color)] hover:border-amber-500'
               }`}
             >
-              {cz.zone} — {cz.label}
+              Zone {cz.zone}
             </button>
           ))}
         </div>
@@ -99,6 +96,7 @@ export default function UTMZonePicker({
         {Array.from({ length: 60 }, (_, i) => i + 1).map((zone) => (
           <button
             key={zone}
+            aria-label={`UTM zone ${zone}`}
             onClick={() => onChange(zone, hemisphere)}
             className={`flex-none w-6 h-8 text-xs rounded transition ${
               value === zone
@@ -115,8 +113,9 @@ export default function UTMZonePicker({
         onClick={detectFromGPS}
         className="text-sm text-amber-500 underline"
       >
-        [Pin] Detect from my GPS location
+        Suggest zone from browser location
       </button>
+      <p className="text-xs text-[var(--text-muted)]">A location suggestion does not establish the project datum or survey control.</p>
     </div>
   )
 }

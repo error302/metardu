@@ -85,3 +85,11 @@ it.each(['Reference Point Easting (m)', 'Reference Point Northing (m)', 'Referen
   expect(screen.getByLabelText(/Combined Scale Factor/)).toHaveValue('')
   expect(screen.getByLabelText('Factor Provenance')).toHaveValue('')
 })
+
+it('keeps declaration disabled for an explicitly unset parent reference', async () => {
+  render(<ProjectReferenceSystemPanel {...props} datum="" utmZone={null} hemisphere="" />)
+  await screen.findByRole('button', { name: 'Declare Reference System' })
+  expect(screen.getByRole('button', { name: 'Declare Reference System' })).toBeDisabled()
+  expect(screen.getByText(/Select the datum, UTM zone and hemisphere before declaring/)).toBeInTheDocument()
+  expect(fetchMock).toHaveBeenCalledTimes(1)
+})

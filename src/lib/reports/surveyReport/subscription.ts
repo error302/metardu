@@ -60,27 +60,6 @@ export async function checkReportAccess(userId: string, email?: string): Promise
   }
 }
 
-export async function seedProfessionalTier(userId: string): Promise<void> {
-  const dbClient = createClient()
-
-  const { data: existing } = (await dbClient
-    .from('user_subscriptions')
-    .select('id')
-    .eq('user_id', userId)
-    .maybeSingle()) as { data: { id: string } | null; error: unknown }
-
-  if (existing) return
-
-  await dbClient
-    .from('user_subscriptions')
-    .insert({
-      user_id: userId,
-      plan_id: 'pro',
-      status: 'active',
-      current_period_end: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
-    })
-}
-
 export const SUBSCRIPTION_PLANS = [
   {
     tier: 'professional' as SubscriptionTier,

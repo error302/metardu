@@ -22,8 +22,8 @@ interface PanelProps {
   projectId: string
   /** Current (parent) settings selection — the CRS is derived from these. */
   datum: string
-  utmZone: number
-  hemisphere: 'N' | 'S'
+  utmZone: number | null
+  hemisphere: 'N' | 'S' | ''
 }
 
 interface DerivedCrs {
@@ -73,6 +73,7 @@ function ReferenceSystemPanelState({
   // Derived horizontal CRS from the settings selectors (authority-checked).
   const derived: DerivedCrs = useMemo(() => {
     try {
+      if (!datum || utmZone == null || !hemisphere) throw new Error('Select the datum, UTM zone and hemisphere before declaring the project reference.')
       const info = assertProjectedCrs(horizontalCrsFor(datum, utmZone, hemisphere))
       return { code: info.code, name: info.name, error: null }
     } catch (err) {

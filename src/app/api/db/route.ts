@@ -201,6 +201,22 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   }
 
   // ─── Read-only shared table check ────────────────────────────
+  // Owning an account is not authority to grant, extend or erase its paid entitlement.
+  if (table === 'user_subscriptions' && operation !== 'select') {
+    return NextResponse.json(
+      { data: null, error: { message: 'Use the authorized billing or administrator workflow for subscription changes', code: 'BILLING_WORKFLOW_REQUIRED' } },
+      { status: 403 },
+    )
+  }
+  if (table === 'projects' && (operation === 'update' || operation === 'upsert')) {
+    const rows = Array.isArray(payload) ? payload : [payload]
+    if (rows.some(row => row && ['datum', 'utm_zone', 'hemisphere'].some(column => Object.prototype.hasOwnProperty.call(row, column)))) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Use the project reference declaration workflow to change the survey grid', code: 'REFERENCE_DECLARATION_REQUIRED' } },
+        { status: 403 },
+      )
+    }
+  }
   // Raw readings enter only through the content-bound capture transaction.
   // Generic writes could bypass its receipt/archive or delete the bound source.
   if (table === 'fieldbooks' && operation !== 'select') {
