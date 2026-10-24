@@ -15,7 +15,7 @@
  * hydrographic, and mining observations.
  */
 
-import { Suspense, useState, useEffect, useCallback } from 'react'
+import { Suspense, useState, useEffect, useCallback, useRef } from 'react'
 import type { CapturedBeaconPhoto } from '@/components/fieldbook/BeaconPhotoCapture'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
@@ -58,8 +58,8 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
   const [projectName, setProjectName] = useState('Unknown Project')
   const [isOnline, setIsOnline] = useState(true)
   const [isSyncing, setIsSyncing] = useState(false)
-  const [pendingCount, setPendingCount] = useState(0)
-  const [failedCount, setFailedCount] = useState(0)
+  const [pendingCount, setPendingCount] = useState<number|null>(null)
+  const [failedCount, setFailedCount] = useState<number|null>(null)
   const [lastSync, setLastSync] = useState<string | null>(null)
   const [syncMessage, setSyncMessage] = useState<string | null>(null)
 
@@ -70,6 +70,10 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
 
   // Observations
   const [recentObservations, setRecentObservations] = useState<FieldObservation[]>([])
+  const [observationStatus,setObservationStatus] = useState<'loading'|'ready'|'failed'>('loading')
+  const [statsError,setStatsError] = useState(false)
+  const [reloadingDevice,setReloadingDevice] = useState(false)
+  const deviceReads=useRef({observations:0,stats:0})
 
   // Instrument store
   const isConnected = useInstrumentStore((s) => s.status === 'connected' || s.status === 'streaming')
@@ -87,22 +91,43 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
 
   const loadObservations = useCallback(async () => {
     if (!projectId) return
-    const observations = await offlineStorage.getFieldObservations(projectId, ownerId)
-    setRecentObservations(observations.slice(-10).reverse())
+    const ticket=++deviceReads.current.observations
+    setObservationStatus('loading')
+    try {
+      const observations = await offlineStorage.getFieldObservations(projectId, ownerId, 10)
+      if(ticket===deviceReads.current.observations){setRecentObservations(observations);setObservationStatus('ready')}
+    } catch(error) {
+      if(ticket===deviceReads.current.observations){setRecentObservations([]);setObservationStatus('failed')}
+      throw error
+    }
   }, [projectId, ownerId])
 
   const loadStats = useCallback(async () => {
-    const stats = await offlineStorage.getStorageStats(ownerId)
-    setPendingCount(stats.pendingSync)
-    setFailedCount(stats.failedSync)
+    const ticket=++deviceReads.current.stats
+    setPendingCount(null);setFailedCount(null);setStatsError(false)
+    try {
+      const stats = await offlineStorage.getStorageStats(ownerId)
+      if(ticket===deviceReads.current.stats){setPendingCount(stats.pendingSync);setFailedCount(stats.failedSync)}
+    } catch(error) {
+      if(ticket===deviceReads.current.stats){setPendingCount(null);setFailedCount(null);setStatsError(true)}
+      throw error
+    }
   }, [ownerId])
+
+  const reloadDevice=async()=>{
+    if(reloadingDevice)return
+    setReloadingDevice(true)
+    try {await Promise.allSettled([loadObservations(),loadStats()])}
+    finally {setReloadingDevice(false)}
+  }
 
   // ─── Initialize ────────────────────
   useEffect(() => {
+    const reads=deviceReads.current
     if (projectId) {
       loadProject()
-      loadObservations()
-      loadStats()
+      void loadObservations().catch(()=>undefined)
+      void loadStats().catch(()=>undefined)
     }
 
     setIsOnline(navigator.onLine)
@@ -119,6 +144,7 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
       window.removeEventListener('online', handleOnline)
       window.removeEventListener('offline', handleOffline)
       syncService.stopAutoSync()
+      reads.observations++;reads.stats++
     }
   }, [projectId, loadProject, loadObservations, loadStats])
   // ─── Sync ─────────────────────────────────────────────
@@ -301,7 +327,7 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
       <div className="bg-gray-900/50 px-4 py-2 flex justify-between items-center text-xs border-b border-gray-800">
         <div className="flex items-center gap-3">
           <span className="text-gray-500">
-            Pending: <span className="text-yellow-400 font-mono">{pendingCount}</span>
+            Pending: <span className="text-yellow-400 font-mono">{pendingCount??'Unknown'}</span>
           </span>
           {isConnected && (
             <span className="flex items-center gap-1 text-green-400">
@@ -316,9 +342,16 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
           </span>
         )}
       </div>
-      {failedCount > 0 && (
-        <p className="px-4 py-2 text-xs text-amber-300">Needs review: {failedCount}. Device records retained. Sync retries rejected records after the retry delay.</p>
+      {failedCount!==null&&failedCount > 0 && (
+        <p className="px-4 py-2 text-xs text-amber-300">Needs review: {failedCount}. Device records retained. Review their sources before manual Sync; it retries up to 20 held records and respects the retry delay.</p>
       )}
+      {(statsError||observationStatus==='failed')&&<div className="px-4 py-3 border-b border-amber-800 space-y-2">
+        <div role="alert" className="text-sm text-amber-300">
+          {statsError&&<p>Device queue status is unavailable. Counts remain unknown until a successful read.</p>}
+          {observationStatus==='failed'&&<p>Device readings could not be loaded. No stored source was changed.</p>}
+        </div>
+        <button type="button" className="min-h-11 rounded border border-gray-600 px-3 text-sm" disabled={reloadingDevice||isSyncing} onClick={()=>void reloadDevice()}>Reload device readings</button>
+      </div>}
       {syncMessage && (
         <p role="status" className="px-4 py-2 text-xs text-gray-300 border-b border-gray-800">{syncMessage}</p>
       )}
@@ -403,7 +436,7 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
                       <p className="font-medium text-sm text-gray-200">{obs.pointName}</p>
                       {!obs.ownerId && obs.deliveryReceipt?.legacyRecoveryReview && <p className="text-xs text-amber-300">Capture author unknown · recovery reviewed</p>}
                       <p className="text-xs text-gray-500">
-                        {new Date(obs.timestamp || 0).toLocaleTimeString()}
+                        {typeof obs.timestamp==='number'&&Number.isFinite(new Date(obs.timestamp).getTime())?new Date(obs.timestamp).toLocaleTimeString():'Capture time unknown'}
                       </p>
                     </div>
                   </div>
@@ -421,7 +454,7 @@ function MobileFieldContent({ ownerId }: { ownerId: string }) {
         )}
 
         {/* Empty state */}
-        {recentObservations.length === 0 && (
+        {observationStatus==='ready'&&recentObservations.length === 0 && (
           <div className="px-4 py-12 text-center">
             <MapPin className="w-12 h-12 text-gray-700 mx-auto mb-3" />
             <p className="text-gray-500 text-sm">No observations yet</p>

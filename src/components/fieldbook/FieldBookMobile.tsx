@@ -182,6 +182,7 @@ function OwnedFieldBookMobile({ projectId, ownerId }: { projectId: string; owner
         </div>
       </div>
 
+      {unsyncedCount>0&&<p className="px-4 py-2 text-xs text-gray-600">Manual Sync sends pending readings and retries up to 20 held records. Review their original sources before retrying; server retry delays still apply.</p>}
       {syncResult && (
         <div className={[
           'flex items-center gap-2 px-4 py-2 text-sm',

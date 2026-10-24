@@ -69,6 +69,56 @@ test('a paused attempt explains retained records and never labels the attempt as
   expect(screen.getByText(/Needs review:/)).toHaveTextContent('1')
 })
 
+test('the collector requests only ten recent readings and preserves capture-time order',async()=>{
+  jest.mocked(offlineStorage.getFieldObservations).mockResolvedValue([
+    {id:'new',ownerId:mockOwner??undefined,projectId:'synthetic-project',pointName:'RECENT-NEW',observationType:'manual',timestamp:2000},
+    {id:'old',ownerId:mockOwner??undefined,projectId:'synthetic-project',pointName:'RECENT-OLD',observationType:'manual',timestamp:1000},
+  ])
+  render(<MobileFieldPage/>)
+  await screen.findByText('RECENT-NEW')
+  expect(offlineStorage.getFieldObservations).toHaveBeenCalledWith('synthetic-project',mockOwner,10)
+  expect(screen.getAllByText(/^RECENT-/).map(element=>element.textContent)).toEqual(['RECENT-NEW','RECENT-OLD'])
+})
+
+test('an unknown retained capture time is labelled instead of becoming the Unix epoch',async()=>{
+  jest.mocked(offlineStorage.getFieldObservations).mockResolvedValue([
+    {id:'unknown',ownerId:mockOwner??undefined,projectId:'synthetic-project',pointName:'UNDATED-RAW',observationType:'manual'},
+  ])
+  render(<MobileFieldPage/>)
+  await screen.findByText('UNDATED-RAW')
+  expect(screen.getByText('Capture time unknown')).toBeInTheDocument()
+})
+
+test('an unavailable device queue is unknown rather than zero and can be reloaded',async()=>{
+  jest.mocked(offlineStorage.getStorageStats).mockRejectedValueOnce(new Error('Synthetic storage read aborted'))
+  render(<MobileFieldPage/>)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Device queue status is unavailable')
+  expect(screen.getByText(/Pending:/)).toHaveTextContent('Unknown')
+  fireEvent.click(screen.getByRole('button',{name:'Reload device readings'}))
+  await waitFor(()=>expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  expect(screen.getByText(/Pending:/)).toHaveTextContent('2')
+})
+
+test('an unreadable device source is visible as a read failure instead of an empty job',async()=>{
+  jest.mocked(offlineStorage.getFieldObservations).mockRejectedValueOnce(new Error('Synthetic source read aborted'))
+  render(<MobileFieldPage/>)
+  expect(await screen.findByRole('alert')).toHaveTextContent('Device readings could not be loaded')
+  expect(screen.queryByText('No observations yet')).not.toBeInTheDocument()
+})
+
+test('a late old queue read cannot replace the newer reload count',async()=>{
+  let finishOld:(value:Awaited<ReturnType<typeof offlineStorage.getStorageStats>>)=>void=()=>undefined
+  jest.mocked(offlineStorage.getFieldObservations).mockRejectedValueOnce(new Error('Synthetic initial source failure'))
+  jest.mocked(offlineStorage.getStorageStats).mockImplementationOnce(()=>new Promise(resolve=>{finishOld=resolve}))
+  render(<MobileFieldPage/>)
+  await screen.findByRole('alert')
+  fireEvent.click(screen.getByRole('button',{name:'Reload device readings'}))
+  await waitFor(()=>expect(screen.getByText(/Pending:/)).toHaveTextContent('2'))
+  finishOld({observations:0,photos:0,pendingSync:0,failedSync:0,storageUsed:'0 B'})
+  await waitFor(()=>expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  expect(screen.getByText(/Pending:/)).toHaveTextContent('2')
+})
+
 test('saving a new reading uses ordinary delivery and preserves previously blocked records', async () => {
   render(<MobileFieldPage />)
   fireEvent.click(screen.getByRole('button', { name: 'New Traverse Reading' }))

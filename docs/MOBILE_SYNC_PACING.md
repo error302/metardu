@@ -116,3 +116,14 @@ Production services, images, database, signing configuration and customer data
 were not changed. The known signing-key rotation remains explicitly deferred
 by the owner. Consolidated source/build/recovery and live acceptance gates must
 pass before any production-readiness claim.
+
+## 24 October large-job storage continuation
+
+`MOBILE_LARGE_JOB_STORAGE_2026-10-24.md` records source repairs for the remaining
+manual-reset/statistics paths: atomic twenty-record retries, streaming counts,
+fifty-record observation batches, the collector's ten most recent captures,
+shared version-1 initialization and explicit unknown/read-failure states.
+123 focused tests in fifteen suites include fourteen emulated IndexedDB cases.
+The separate full fieldbook observation/photo listing still needs bounded UI
+work, and emulated transactions do not close real browser, quota, controller,
+offline reopening, rollback or release/field acceptance.

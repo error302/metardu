@@ -20,6 +20,7 @@ const SYNC_STATE_DB_NAME = 'MetarduFieldDeliveryState'
 const SYNC_STATE_STORE = 'state'
 export const SYNC_RECOVERY_LEASE_MS = 15 * 60 * 1000
 export const MOBILE_SYNC_BATCH_SIZE = 20
+const OBSERVATION_READ_BATCH_SIZE = 50
 
 // Store names
 const STORES = {
@@ -79,6 +80,7 @@ const STORE_CONFIGS: Record<string, DBConfig> = {
 class OfflineStorage {
   private db: IDBDatabase | null = null
   private syncStateDb: IDBDatabase | null = null
+  private opening:Promise<void>|null = null
 
   private requireDb(): IDBDatabase {
     if (!this.db) throw new Error('OfflineStorage not initialized - call init() first')
@@ -106,12 +108,15 @@ class OfflineStorage {
   }
 
   async init(): Promise<void> {
-    return new Promise((resolve, reject) => {
+    if(this.db)return
+    if(this.opening)return this.opening
+    this.opening=new Promise((resolve, reject) => {
       const request = indexedDB.open(DB_NAME, DB_VERSION)
-
+      let rejected=false
       request.onerror = () => reject(request.error)
-      request.onblocked = () => reject(new Error('Close other METARDU field tabs, then retry. Their saved device records will be retained.'))
+      request.onblocked = () => {rejected=true;reject(new Error('Close other METARDU field tabs, then retry. Their saved device records will be retained.'))}
       request.onsuccess = () => {
+        if(rejected){request.result.close();return}
         this.db = request.result
         this.db.onversionchange = () => {
           request.result.close()
@@ -136,6 +141,7 @@ class OfflineStorage {
         })
       }
     })
+    try {await this.opening}finally{this.opening=null}
   }
 
   // Generic CRUD operations
@@ -303,8 +309,22 @@ class OfflineStorage {
     })
   }
 
-  async getFieldObservations(projectId: string, ownerId?: string): Promise<FieldObservation[]> {
+  /** A bounded recent view for collectors; omitted limit preserves the full
+   * explicit-read API used by the fieldbook. It is not a timestamp correction. */
+  async getFieldObservations(projectId: string, ownerId?: string, limit?: number): Promise<FieldObservation[]> {
     if (!ownerId) return []
+    if(limit!==undefined) {
+      if(!Number.isInteger(limit)||limit<1||limit>100)throw new RangeError('Choose 1–100 recent observations.')
+      const recent:FieldObservation[]=[]
+      const rank=(row:FieldObservation)=>typeof row.timestamp==='number'&&Number.isFinite(row.timestamp)?row.timestamp:Number.NEGATIVE_INFINITY
+      await this.visitObservationBatches(async row=>{
+        if(row.projectId!==projectId || !await isMobileRecordVisibleTo(row,ownerId))return
+        recent.push(row)
+        recent.sort((a,b)=>rank(a)===rank(b)?String(a.id).localeCompare(String(b.id)):rank(a)>rank(b)?-1:1)
+        if(recent.length>limit)recent.pop()
+      })
+      return recent
+    }
     const rows = await this.getAll<FieldObservation>(STORES.FIELD_OBSERVATIONS, 'project_id', projectId)
     const visible = await Promise.all(rows.map(row => isMobileRecordVisibleTo(row, ownerId)))
     return rows.filter((_row, index) => visible[index])
@@ -489,17 +509,31 @@ class OfflineStorage {
 
   async retryFailedSyncItems(ownerId?: string): Promise<void> {
     if (!ownerId) return
-    const failed = await this.getAll<SyncQueueItem>(STORES.SYNC_QUEUE, 'status', 'failed')
-    for (const item of failed) {
-      if (!item.id || !(isSyncItemOwnedBy(item, ownerId) || isLegacyReviewQueuedFor(item, ownerId))) continue
-      await this.update(STORES.SYNC_QUEUE, item.id, {
-      status: 'pending',
-      retryCount: 0,
-      error: undefined,
-      // Explicit review may retry a blocked item, but cannot bypass its delay.
-      deliveryRetry: item.deliveryRetry ? { ...item.deliveryRetry, blocked: false } : undefined,
-      })
-    }
+    if(!this.db)await this.init()
+    return new Promise((resolve,reject)=>{
+      // A stale getAll followed by separate writes could overwrite another
+      // tab's newer claim, and leave a partially reset job after an abort.
+      const tx=this.requireDb().transaction([STORES.SYNC_QUEUE],'readwrite')
+      const request=tx.objectStore(STORES.SYNC_QUEUE).index('status').openCursor('failed')
+      let retried=0, failure:unknown
+      request.onsuccess=()=>{
+        const cursor=request.result
+        if(!cursor)return
+        try {
+          const item=cursor.value as SyncQueueItem
+          if(item.id&&(isSyncItemOwnedBy(item,ownerId)||isLegacyReviewQueuedFor(item,ownerId))) {
+            cursor.update({...item,status:'pending',retryCount:0,error:undefined,lastAttempt:Date.now(),
+              // Review cannot bypass a retained server retry delay.
+              deliveryRetry:item.deliveryRetry?{...item.deliveryRetry,blocked:false}:undefined})
+            retried++
+          }
+          if(retried<MOBILE_SYNC_BATCH_SIZE)cursor.continue()
+        } catch(error) {failure=error;tx.abort()}
+      }
+      tx.oncomplete=()=>resolve()
+      tx.onerror=()=>reject(failure??tx.error??new Error('Could not retry the reviewed device records.'))
+      tx.onabort=()=>reject(failure??tx.error??new Error('Device retry was aborted; its entire batch was retained.'))
+    })
   }
 
   async removeFromSyncQueue(id: string, delivered: SyncQueueItem): Promise<void> {
@@ -608,21 +642,67 @@ class OfflineStorage {
   }
 
   // Storage stats
+  /** Async receipt verification happens outside each committed read transaction.
+   * At most fifty raw observation objects are held per batch. */
+  private async visitObservationBatches(visit:(row:FieldObservation)=>Promise<void>):Promise<void> {
+    if(!this.db)await this.init()
+    let after:IDBValidKey|undefined
+    do {
+      const page=await new Promise<{rows:FieldObservation[];after:IDBValidKey|undefined}>((resolve,reject)=>{
+        const tx=this.requireDb().transaction([STORES.FIELD_OBSERVATIONS],'readonly')
+        const request=tx.objectStore(STORES.FIELD_OBSERVATIONS).openCursor(after===undefined?undefined:IDBKeyRange.lowerBound(after,true))
+        const rows:FieldObservation[]=[]
+        let last:IDBValidKey|undefined
+        request.onsuccess=()=>{
+          const cursor=request.result
+          if(!cursor)return
+          rows.push(cursor.value as FieldObservation);last=cursor.primaryKey
+          if(rows.length<OBSERVATION_READ_BATCH_SIZE)cursor.continue()
+        }
+        tx.oncomplete=()=>resolve({rows,after:rows.length===OBSERVATION_READ_BATCH_SIZE?last:undefined})
+        tx.onerror=()=>reject(tx.error??new Error('Could not read device observations.'))
+        tx.onabort=()=>reject(tx.error??new Error('Device observation read was aborted.'))
+      })
+      for(const row of page.rows)await visit(row)
+      after=page.after
+    } while(after!==undefined)
+  }
+
+  /** Synchronous reducers retain counters only, never an array of photo bytes. */
+  private async reduceStoredRecords<T>(storeName:string,visit:(row:T)=>void):Promise<void> {
+    if(!this.db)await this.init()
+    return new Promise((resolve,reject)=>{
+      const tx=this.requireDb().transaction([storeName],'readonly'),request=tx.objectStore(storeName).openCursor()
+      let failure:unknown
+      request.onsuccess=()=>{
+        const cursor=request.result
+        if(!cursor)return
+        try {visit(cursor.value as T);cursor.continue()}
+        catch(error){failure=error;tx.abort()}
+      }
+      tx.oncomplete=()=>resolve()
+      tx.onerror=()=>reject(failure??tx.error??new Error('Could not inspect device storage.'))
+      tx.onabort=()=>reject(failure??tx.error??new Error('Device storage inspection was aborted.'))
+    })
+  }
+
   async getStorageStats(ownerId?: string): Promise<StorageStats> {
     if (!ownerId) return { observations: 0, photos: 0, pendingSync: 0, failedSync: 0, storageUsed: '0 B' }
-    const allObservations = await this.getAll<FieldObservation>(STORES.FIELD_OBSERVATIONS)
-    const visible = await Promise.all(allObservations.map(row => isMobileRecordVisibleTo(row, ownerId)))
-    const observations = allObservations.filter((_row, index) => visible[index])
-    const photos = (await this.getAll<PhotoData>(STORES.PHOTOS)).filter(row => row.ownerId === ownerId)
-    const queue = (await this.getAll<SyncQueueItem>(STORES.SYNC_QUEUE)).filter(row => isSyncItemOwnedBy(row, ownerId) || isLegacyReviewQueuedFor(row, ownerId))
-
-    return {
-      observations: observations.length,
-      photos: photos.length,
-      pendingSync: (queue as SyncQueueItem[]).filter((i) => i.status === 'pending' || i.status === 'syncing').length,
-      failedSync: (queue as SyncQueueItem[]).filter((i) => i.status === 'failed').length,
-      storageUsed: this.estimateStorageSize(observations, photos as Array<{ data?: string }>),
-    }
+    let observations=0,photos=0,pendingSync=0,failedSync=0,observationSize=2,photoSize=0
+    await this.visitObservationBatches(async row=>{
+      if(!await isMobileRecordVisibleTo(row,ownerId))return
+      observationSize+=JSON.stringify(row).length+(observations>0?1:0)
+      observations++
+    })
+    await this.reduceStoredRecords<PhotoData>(STORES.PHOTOS,row=>{
+      if(row.ownerId===ownerId){photos++;photoSize+=row.data?.length||0}
+    })
+    await this.reduceStoredRecords<SyncQueueItem>(STORES.SYNC_QUEUE,row=>{
+      if(!isSyncItemOwnedBy(row,ownerId)&&!isLegacyReviewQueuedFor(row,ownerId))return
+      if(row.status==='pending'||row.status==='syncing')pendingSync++
+      if(row.status==='failed')failedSync++
+    })
+    return {observations,photos,pendingSync,failedSync,storageUsed:this.formatStorageEstimate(observationSize+photoSize)}
   }
 
   // Clear all data (use with caution)
@@ -647,11 +727,9 @@ class OfflineStorage {
     return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
   }
 
-  private estimateStorageSize(observations: unknown[], photos: Array<{ data?: string }>): string {
-    const obsSize = JSON.stringify(observations).length
-    const photoSize = photos.reduce((sum, p) => sum + (p.data?.length || 0), 0)
-    const totalBytes = obsSize + photoSize
-
+  /** Preserve the existing serialized-payload estimate; this is not IDB quota
+   * usage, filesystem bytes, or an offline durability acknowledgement. */
+  private formatStorageEstimate(totalBytes:number): string {
     if (totalBytes < 1024) return `${totalBytes} B`
     if (totalBytes < 1024 * 1024) return `${(totalBytes / 1024).toFixed(1)} KB`
     return `${(totalBytes / (1024 * 1024)).toFixed(1)} MB`
