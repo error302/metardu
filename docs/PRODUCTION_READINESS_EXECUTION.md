@@ -33,6 +33,8 @@ Preserved local commits, with no push or production promotion:
 - `26f4ecbc`: bounded mobile retries and honest device read failures.
 - `4fc9bbc5`: owner-bound subscription reads and account error/retry behavior.
 - `1c17bf73`: server submission admission refuses missing or unassessed evidence.
+- `d3a28ec2`: dashboard/work-mode navigation, real project register, layout and
+  map-chunk repairs, owner-bound stage summaries and activity response handling.
 
 The combined source baseline now passes 473 tests in 46 suites, including the
 new server-admission regressions and the retained civil suites. Detailed server
@@ -44,7 +46,9 @@ page loading through administration, responsive layout and overlap cleanup
 first in the current implementation pass. The server fix is committed separately.
 `WORKSPACE_NAVIGATION_AND_LAYOUT_2026-10-24.md` records the new dashboard entry,
 real Projects register, overlap and map-chunk repairs, actual Chrome observations,
-106 focused source tests and pending privileged/page-family acceptance. Keep server
+106 focused source tests, the seven rendered project stages and a 13-test
+evidence/register read-state follow-up. Privileged and remaining page-family
+acceptance are still open. Keep server
 snapshot/file binding, field recovery and the remaining release gates in the
 same queue; UI work does not replace them.
 

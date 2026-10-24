@@ -8,11 +8,19 @@
  *   §15 Deliverable system
  */
 
-import React, { useCallback, useEffect, useState } from 'react'
-import { Package, FileText, Download, CheckCircle2, FileCode, Layers, ShieldCheck, ExternalLink, Printer, History } from 'lucide-react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
+import { z } from 'zod'
+import { Package, FileText, Download, FileCode, Layers, ExternalLink, Printer, History } from 'lucide-react'
 import Link from 'next/link'
 import FormC22Generator from '@/components/workspace/FormC22Generator'
-import type { DeliverableRecord } from '@/lib/deliverables/deliverableRegister'
+
+const registerResponseSchema = z.object({ data: z.object({ deliverables: z.array(z.object({
+  id: z.string().min(1), project_id: z.string().min(1), document_type: z.string().min(1),
+  title: z.string().nullable(), source_revision: z.string().nullable(),
+  current_revision: z.number().int().positive(),
+  status: z.enum(['DRAFT', 'IN_REVIEW', 'APPROVED', 'SUPERSEDED', 'VOID']),
+})) }) })
+type RegisterItem = z.infer<typeof registerResponseSchema>['data']['deliverables'][number]
 
 interface Props {
   projectId: string
@@ -21,8 +29,18 @@ interface Props {
 
 export default function DeliverStagePanel({ projectId, projectName }: Props) {
   const [downloading, setDownloading] = useState<string | null>(null)
-  const [deliverables, setDeliverables] = useState<DeliverableRecord[]>([])
-  const [registerError, setRegisterError] = useState<string | null>(null)
+  const [register, setRegister] = useState<{ projectId: string; items: RegisterItem[] } | null>(null)
+  const [readError, setReadError] = useState<{ projectId: string; message: string } | null>(null)
+  const [loadingProject, setLoadingProject] = useState<string | null>(null)
+  const requestRef = useRef<AbortController | null>(null)
+  const activeProjectRef = useRef(projectId)
+  activeProjectRef.current = projectId
+  const hasLoaded = register?.projectId === projectId
+  const deliverables = hasLoaded ? register.items : []
+  const registerError = readError?.projectId === projectId ? readError.message : null
+  const loadingRegister = loadingProject === projectId
+  const approvalKnown = hasLoaded && !registerError
+  const hasApprovedPlan = approvalKnown && deliverables.some(item => item.document_type === 'deed_plan' && item.status === 'APPROVED')
 
   /**
    * The document register (blueprint §15). Every export issued from this stage
@@ -31,21 +49,29 @@ export default function DeliverStagePanel({ projectId, projectName }: Props) {
    * download produced a deliverable.
    */
   const fetchRegister = useCallback(async () => {
+    if (activeProjectRef.current !== projectId) return
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
     try {
-      const res = await fetch(`/api/project/${projectId}/deliverables`)
+      setLoadingProject(projectId)
+      const res = await fetch(`/api/project/${projectId}/deliverables`, { signal: controller.signal })
       if (!res.ok) throw new Error('Deliverable register unavailable')
-      const json = (await res.json()) as { data?: { deliverables?: DeliverableRecord[] } }
-      setDeliverables(json.data?.deliverables ?? [])
-      setRegisterError(null)
+      const json = registerResponseSchema.parse(await res.json())
+      if (json.data.deliverables.some(item => item.project_id !== projectId)) throw new Error('Register belongs to another project')
+      if (controller.signal.aborted) return
+      setRegister({ projectId, items: json.data.deliverables })
+      setReadError(null)
     } catch {
-      setRegisterError(
-        'Deliverable register unavailable — run the database migrations (npm run migrate) before issuing professional documents.',
-      )
+      if (!controller.signal.aborted) setReadError({ projectId, message: 'Document register could not be loaded. Approval status is not confirmed. Try again; your saved records have not changed.' })
+    } finally {
+      if (!controller.signal.aborted) setLoadingProject(null)
     }
   }, [projectId])
 
   useEffect(() => {
     fetchRegister()
+    return () => { requestRef.current?.abort() }
   }, [fetchRegister])
 
   const handleExport = async (format: 'dxf' | 'geojson' | 'csv' | 'landxml') => {
@@ -84,23 +110,29 @@ export default function DeliverStagePanel({ projectId, projectName }: Props) {
           </div>
           <button
             onClick={fetchRegister}
+            aria-label="Refresh document register"
+            disabled={loadingRegister}
             className="text-[11px] text-[var(--text-muted)] hover:text-white underline"
           >
             Refresh
           </button>
         </div>
-        {registerError ? (
-          <p className="text-[11px] text-amber-400">{registerError}</p>
-        ) : deliverables.length === 0 ? (
+        {registerError && <div role="alert" className="space-y-2 text-xs text-amber-400">
+          <p>{registerError}</p>
+          {hasLoaded && <p>Showing the last loaded records below.</p>}
+          <button onClick={fetchRegister} disabled={loadingRegister} className="text-[var(--accent)] underline disabled:opacity-50">Retry document register</button>
+        </div>}
+        {loadingRegister && !hasLoaded ? <p role="status" className="text-xs text-[var(--text-muted)]">Loading document register…</p>
+        : !hasLoaded ? null : deliverables.length === 0 ? (!registerError && (
           <p className="text-[11px] text-[var(--text-muted)]">
             Nothing issued yet. Exports below are recorded here with their revision, source data
             revision and content hash.
           </p>
-        ) : (
+        )) : (
           <ul className="divide-y divide-[var(--border-color)] text-[11px]">
             {deliverables.map((d) => (
-              <li key={d.id} className="py-1.5 flex items-center justify-between gap-3">
-                <span className="text-[var(--text-primary)]">
+              <li key={d.id} className="py-1.5 flex flex-wrap items-center justify-between gap-3">
+                <span className="min-w-0 break-words text-[var(--text-primary)]">
                   {d.title ?? d.document_type}
                   {d.source_revision ? ` · ${d.source_revision}` : ''}
                 </span>
@@ -126,7 +158,7 @@ export default function DeliverStagePanel({ projectId, projectName }: Props) {
 
       {/* Official Kenya Deed Plan Form No. 4 */}
       <div className="p-4 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] space-y-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <Printer className="w-5 h-5 text-[var(--accent)]" />
             <h3 className="text-xs font-bold uppercase tracking-wider text-[var(--text-primary)]">
@@ -135,20 +167,20 @@ export default function DeliverStagePanel({ projectId, projectName }: Props) {
           </div>
           <span
             className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-              deliverables.some((d) => d.document_type === 'deed_plan' && d.status === 'APPROVED')
+                      hasApprovedPlan
                 ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
                 : 'bg-amber-500/15 text-amber-400 border-amber-500/30'
             }`}
           >
-            {deliverables.some((d) => d.document_type === 'deed_plan' && d.status === 'APPROVED')
+            {!approvalKnown ? 'APPROVAL NOT CONFIRMED' : hasApprovedPlan
               ? 'APPROVED PLAN ON RECORD'
               : 'NOT YET APPROVED'}
           </span>
         </div>
         <p className="text-xs text-[var(--text-secondary)]">
-          Generates statutory Survey of Kenya deed plans with certified title block, north arrow, coordinate schedule, beacon references, and true ground-scale dimensions.
+          Prepare a draft deed-plan sheet with a title block, coordinate schedule and beacon references. Confirm the project reference, scale and required evidence before professional review.
         </p>
-        <div className="flex items-center gap-2 pt-1">
+        <div className="flex flex-wrap items-center gap-2 pt-1">
           <Link
             href={`/deed-plan?projectId=${projectId}`}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg bg-[var(--accent)] text-black text-xs font-semibold hover:bg-[var(--accent-dim)] transition-colors"
@@ -174,7 +206,7 @@ export default function DeliverStagePanel({ projectId, projectName }: Props) {
       {/* Multi-Format Engineering Exports */}
       <div className="space-y-3">
         <h4 className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">
-          Certified Digital Exports
+          Project Data Exports
         </h4>
         <div className="grid grid-cols-2 gap-2 text-xs">
           <button
@@ -232,7 +264,7 @@ export default function DeliverStagePanel({ projectId, projectName }: Props) {
         <h4 className="text-[11px] font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-2">
           Manual Submission Package
         </h4>
-        <div className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] flex items-center justify-between">
+        <div className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] flex flex-wrap items-center justify-between gap-3">
           <div className="space-y-0.5">
             <span className="text-xs font-semibold text-[var(--text-primary)]">
               Statutory Submission Package (ZIP)

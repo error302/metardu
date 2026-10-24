@@ -10,10 +10,19 @@
  *   §14.3 Evidence events timeline
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react'
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react'
+import { z } from 'zod'
 import { ShieldCheck, History, RefreshCw, Lock } from 'lucide-react'
 import { QADashboard } from '@/components/dashboard/QADashboard'
-import type { EvidenceEvent } from '@/lib/observations/observationBatches'
+
+const timelineResponseSchema = z.object({ events: z.array(z.object({
+  id: z.string().min(1), project_id: z.string().min(1),
+  entity_type: z.string().min(1), event_type: z.string().min(1),
+  event_hash: z.string().regex(/^[a-f0-9]{64}$/i),
+  previous_hash: z.string().regex(/^[a-f0-9]{64}$/i).nullable(),
+  created_at: z.string().datetime({ offset: true }),
+})).max(100) })
+type TimelineEvent = z.infer<typeof timelineResponseSchema>['events'][number]
 
 interface Props {
   projectId: string
@@ -38,8 +47,14 @@ interface StationLike {
 
 export default function VerifyStagePanel({ projectId, projectName, boundaryData }: Props) {
   const [activeTab, setActiveTab] = useState<'qa' | 'evidence'>('qa')
-  const [events, setEvents] = useState<EvidenceEvent[]>([])
-  const [loadingEvents, setLoadingEvents] = useState(false)
+  const [timeline, setTimeline] = useState<{ projectId: string; events: TimelineEvent[] } | null>(null)
+  const [readError, setReadError] = useState<{ projectId: string; message: string } | null>(null)
+  const [loadingProject, setLoadingProject] = useState<string | null>(null)
+  const requestRef = useRef<AbortController | null>(null)
+  const hasLoaded = timeline?.projectId === projectId
+  const events = hasLoaded ? timeline.events : []
+  const loadingEvents = loadingProject === projectId
+  const error = readError?.projectId === projectId ? readError.message : null
 
   /**
    * Build the QA input from the project's own measured geometry (adjusted
@@ -62,17 +77,22 @@ export default function VerifyStagePanel({ projectId, projectName, boundaryData 
   }, [boundaryData, projectId, projectName]);
 
   const fetchEvidence = useCallback(async () => {
+    requestRef.current?.abort()
+    const controller = new AbortController()
+    requestRef.current = controller
     try {
-      setLoadingEvents(true)
-      const res = await fetch(`/api/project/${projectId}/evidence`)
+      setLoadingProject(projectId)
+      const res = await fetch(`/api/project/${projectId}/evidence`, { signal: controller.signal })
       if (!res.ok) throw new Error('Failed to load evidence timeline')
-      const json: unknown = await res.json()
-      const events = (json as { data?: { events?: unknown } } | null)?.data?.events
-      setEvents(Array.isArray(events) ? events as EvidenceEvent[] : [])
+      const { events: loadedEvents } = timelineResponseSchema.parse(await res.json())
+      if (loadedEvents.some(event => event.project_id !== projectId)) throw new Error('Evidence belongs to a different project')
+      if (controller.signal.aborted) return
+      setTimeline({ projectId, events: loadedEvents })
+      setReadError(null)
     } catch {
-      // Preserve the empty timeline when evidence cannot be loaded.
+      if (!controller.signal.aborted) setReadError({ projectId, message: 'Evidence could not be loaded. Your saved records have not changed. Try again.' })
     } finally {
-      setLoadingEvents(false)
+      if (!controller.signal.aborted) setLoadingProject(null)
     }
   }, [projectId])
 
@@ -80,12 +100,13 @@ export default function VerifyStagePanel({ projectId, projectName, boundaryData 
     if (activeTab === 'evidence') {
       fetchEvidence()
     }
+    return () => { requestRef.current?.abort() }
   }, [activeTab, fetchEvidence])
 
   return (
     <div className="space-y-4">
       {/* Tab Switcher */}
-      <div className="flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] pb-2">
         <button
           onClick={() => setActiveTab('qa')}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${
@@ -106,7 +127,7 @@ export default function VerifyStagePanel({ projectId, projectName, boundaryData 
           }`}
         >
           <History className="w-3.5 h-3.5" />
-          Evidence Ledger ({events.length})
+          Evidence Ledger{hasLoaded ? ` (${events.length})` : ''}
         </button>
       </div>
 
@@ -133,6 +154,8 @@ export default function VerifyStagePanel({ projectId, projectName, boundaryData 
             </div>
             <button
               onClick={fetchEvidence}
+              aria-label="Refresh evidence"
+              disabled={loadingEvents}
               className="p-1.5 rounded-md hover:bg-white/5 text-[var(--text-muted)] transition-colors"
               title="Refresh"
             >
@@ -144,11 +167,16 @@ export default function VerifyStagePanel({ projectId, projectName, boundaryData 
             This timeline records observation batch creation and status changes with linked SHA-256 hashes. Review the source observations and QA results before relying on an output.
           </p>
 
-          {loadingEvents && events.length === 0 ? (
-            <div className="p-8 text-center text-xs text-[var(--text-muted)]">
+          {error && <div role="alert" className="rounded-lg border border-amber-500/30 p-3 text-xs text-[var(--text-secondary)]">
+            <p>{error}</p>
+            <button onClick={fetchEvidence} disabled={loadingEvents} className="mt-2 text-[var(--accent)] underline disabled:opacity-50">Retry evidence</button>
+          </div>}
+
+          {loadingEvents && !hasLoaded ? (
+            <div role="status" className="p-8 text-center text-xs text-[var(--text-muted)]">
               Loading evidence chain...
             </div>
-          ) : events.length === 0 ? (
+          ) : !hasLoaded ? null : events.length === 0 ? (
             <div className="p-8 text-center text-xs text-[var(--text-muted)] border border-[var(--border-color)] rounded-xl bg-[var(--bg-secondary)]">
               No evidence events recorded yet. Record an observation batch to start the timeline.
             </div>
@@ -159,7 +187,7 @@ export default function VerifyStagePanel({ projectId, projectName, boundaryData 
                   key={ev.id}
                   className="p-3 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] space-y-1.5"
                 >
-                  <div className="flex items-center justify-between text-xs">
+                  <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
                     <div className="flex items-center gap-2">
                       <span className="font-bold text-[var(--text-primary)]">
                         #{events.length - idx} {ev.event_type}

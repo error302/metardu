@@ -95,3 +95,45 @@ Production is unchanged. Worker artifact drift, migration/recovery compatibility
 rollback and coherent promotion, the owner's signing-key deferral, payment
 provider acceptance, receiving CAD and physical surveyor/field acceptance remain
 separate open gates in `PRODUCTION_READINESS_EXECUTION.md`.
+
+## 25 October stage follow-up
+
+The seven project stages now have actual Chrome rendering observations at 1270
+CSS pixels. Control shows the empty control register with review required;
+Observe loads the retained coordinate-import batch and hash; Compute shows its
+saved-traverse inputs requirement; Design does not invent a computed boundary;
+Verify and Deliver render their actual data panels. None has document horizontal
+overflow in this observation. The read-only stage receipt is
+`.cache/workspace-ui/browser-stages.json`; hidden responsive DOM copies are
+included in some heading metadata, while visible content was checked with CUA
+accessibility snapshots.
+
+That audit found and repaired another real contract mismatch: the Verify panel
+expected `{ data: { events } }`, but its endpoint returns `{ events }`. It now
+validates the actual response, project identity, dates and displayed hashes.
+Loading/unavailable evidence has no invented zero count or empty-ledger claim.
+Failed refreshes preserve the last loaded events and expose retry. Project
+changes and unmounts abort reads; late events cannot replace another project's
+view. Displaying linked hashes does not itself verify their chain or establish
+professional approval.
+
+The Deliver register now validates its existing enveloped response and project
+identity, distinguishes loading/failure from an empty successful read, preserves
+confirmed records on failure, exposes retry and leaves approval unconfirmed
+while the register is unavailable. A project switch hides old records and
+aborts their request. Product error text no longer tells customers to run
+database migrations. Read-state regressions pass 13 tests in two suites:
+`.cache/workspace-ui/stage-read-tests.json`. Type checking passes after these
+changes; scoped lint passes after removing two existing unused icon imports.
+The combined UI/fieldbook checkpoint passes 119 tests in 21 suites
+(`.cache/workspace-ui/complete-ui-tests.json`). The security/bug gate also passes
+with 119 migration pins, 708 test files and 3223 source files scanned.
+
+The topographic workspace also renders its retained ground table, boundary /
+breakline controls and saved-revision selector. Choosing existing revision
+`6305f3af-6c96-4537-9009-e6e7fcd8cbac` loads its exact hash, five source points,
+three contour levels and 240 m2 reviewed footprint with eight derived clip
+vertices. `.cache/workspace-ui/retained-terrain.png` shows the actual drawing.
+No observations, boundary definition, review confirmation or saved drawing were
+changed. New boundary creation, paid export and receiving-CAD acceptance remain
+separate from this saved-revision read/render proof.
