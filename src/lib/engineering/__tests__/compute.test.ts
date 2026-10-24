@@ -94,30 +94,17 @@ describe('verticalCurve', () => {
 })
 
 describe('superelevationCalc', () => {
-  // Test case: R = 200m, V = 80 km/h
-  // Reference: RDM 1.1 Section 3.4
-  test('calculates superelevation for R=200, V=80', () => {
+  test('retains declared banking above the limit and flags it', () => {
     const result = superelevationCalc({
-      R: 200,
-      V: 80,
-      eMax: 0.07
+      designSpeed: 80, radius: 200, numLanes: 2, laneWidth: 3.5,
+      initialCrossfall: -0.025, providedSuperelevation: 0.09,
+      criteria: { reference: 'Synthetic revision 1', lateralFriction: 0.15,
+        maximumSuperelevation: 0.07, maximumRelativeGradient: 0.005 },
     })
-
-    // e = V²/(225R) - 0.01 = 6400/(45000) - 0.01 = 0.142 - 0.01 = 0.132
-    // But capped at eMax = 0.07
-    expect(result.eDesign).toBeLessThanOrEqual(7) // percentage
-    expect(result.transitionLength).toBeGreaterThanOrEqual(30) // minimum 30m per KeRRA
-  })
-
-  test('uses minimum transition length per KeRRA', () => {
-    const result = superelevationCalc({
-      R: 500,
-      V: 60,
-      eMax: 0.07
-    })
-
-    // L = 0.6V²/R = 0.6 × 3600 / 500 = 4.32m, but minimum 30m
-    expect(result.transitionLength).toBeGreaterThanOrEqual(30)
+    expect(result.designE).toBe(0.09)
+    expect(result.status).toBe('FAIL')
+    expect(result.standardCompliance).toBe('NOT_ASSESSED')
+    expect(result.transitionLength).toBeCloseTo(161, 12)
   })
 })
 

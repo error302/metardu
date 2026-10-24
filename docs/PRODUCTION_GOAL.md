@@ -376,3 +376,14 @@ version 1.3.0 changes the former regulatory-labelled road IDs to METARDU QC IDs.
 142 focused tests, 70 CLI checks and 15 native cases / 11 independent Decimal
 comparisons pass. See `ROAD_EXPORT_GATE_INTEGRITY_2026-10-23.md`. Saved-project
 road/criteria loading, legacy helpers and broader release/field gates remain open.
+
+24 October legacy-banking checkpoint: the compute and both volume banking entry
+points now validate complete declared criteria and share the existing banking
+authority. Entered banking is retained above the limit and flagged; fabricated
+stationing/spiral outputs and untraced minimum transitions are removed. This is
+an intentional internal input/output contract change, with no active app caller
+found. 124 focused tests, full TypeScript, scoped lint, 70 CLI checks and the
+security gate pass; six native fixtures/90 refusals and 30 independent Decimal
+comparisons pass. See `LEGACY_BANKING_ADAPTER_INTEGRITY_2026-10-24.md`. Remaining
+scalar safety/widening helpers, saved criteria/revision loading, browser,
+production promotion, recovery and field gates remain open.

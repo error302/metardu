@@ -1,4 +1,8 @@
-import { crossSectionVolume as computeCrossSectionVolume } from './compute'
+import { crossSectionVolume as computeCrossSectionVolume, superelevationCalc as computeSuperelevation,
+  type SuperelevationInput, type SuperelevationResult } from './compute'
+
+export type { SuperelevationInput, SuperelevationResult } from './compute'
+export type SuperelevationCalcResult = SuperelevationResult
 
 export interface CrossSection {
   station: number
@@ -23,28 +27,6 @@ export interface VolumeResult {
   method: string
 }
 
-export interface SuperelevationInput {
-  R: number
-  V: number
-  eMax: number
-}
-
-export interface SuperelevationResult {
-  eRequired: number
-  eRequiredPercent: number
-  minTransitionLength: number
-  tangentialRunout: number
-  totalTransition: number
-}
-
-export interface SuperelevationCalcResult extends SuperelevationResult {
-  A: number
-  L1: number
-  L2: number
-  BVC: number
-  EVC: number
-}
-
 export function calculateVolumes(input: VolumeInput): VolumeResult {
   const result = computeCrossSectionVolume(input)
   return {
@@ -64,38 +46,15 @@ export function crossSectionVolume(input: {
   return calculateVolumes(input)
 }
 
+/** Historical entry points share the strict declared-criteria contract.
+ * No BVC/EVC, spiral lengths or absolute station origin can be inferred here.
+ */
 export function calculateSuperelevation(input: SuperelevationInput): SuperelevationCalcResult {
-  const { R, V, eMax } = input
-
-  const eRequired = (V * V) / (225 * R) - 0.01
-  const eRequiredPercent = eRequired * 100
-
-  const minTransitionLength = Math.max(0.6 * (V * V) / R, 30)
-  const tangentialRunout = (eMax * V * 1000) / (47 * 3.6)
-  const totalTransition = minTransitionLength + tangentialRunout
-
-  const L1 = minTransitionLength
-  const L2 = minTransitionLength
-  const A = Math.sqrt(minTransitionLength * R)
-  const BVC = 0
-  const EVC = L1 + L2
-
-  return {
-    eRequired,
-    eRequiredPercent,
-    minTransitionLength,
-    tangentialRunout,
-    totalTransition,
-    A,
-    L1,
-    L2,
-    BVC,
-    EVC
-  }
+  return computeSuperelevation(input)
 }
 
 export function superelevationCalc(input: SuperelevationInput): SuperelevationCalcResult {
-  return calculateSuperelevation(input)
+  return computeSuperelevation(input)
 }
 
 export function massHaulDiagram(input: {

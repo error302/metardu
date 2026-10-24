@@ -10,6 +10,7 @@
  */
 
 import { z } from 'zod';
+import { superelevationDesign, type SuperelevationResult as DeclaredSuperelevationResult } from '@/lib/computations/roadSafetyCriteria';
 import { horizontalCurveElements, curveSetOut, horizontalCurveInputFromDecimal } from '@/lib/computations/roadDesignEngine';
 import { verticalCurve as legacyVerticalProfile, type VerticalCurveResult as LegacyVerticalResult,
   type VerticalCurvePoint as LegacyVerticalPoint } from './curves';
@@ -94,15 +95,22 @@ export const VerticalCurveSchema = z.object({
 
 export type VerticalCurveInput = z.infer<typeof VerticalCurveSchema>;
 
-// Superelevation Input
-// Reference: RDM 1.1 Volume 2, Section 3.4 - Superelevation
-// KeRRA Rural Roads Design Manual Section 4.2
+// No defaults or legacy aliases: callers must supply the complete rotated-width
+// model and their declared project criteria. Slopes are ratios, not percentages.
 export const SuperelevationSchema = z.object({
-  R: z.number().positive().max(2000, 'Maximum radius 2000m'),
-  V: z.number().positive().min(20).max(120, 'Design speed 20-120 km/h'),
-  eMax: z.number().positive().max(0.12).default(0.07),
-  transitionLength: z.number().positive().optional(),
-});
+  designSpeed: z.number().finite().positive(),
+  radius: z.number().finite().positive(),
+  numLanes: z.number().finite().int().positive(),
+  laneWidth: z.number().finite().positive(),
+  initialCrossfall: z.number().finite().gt(-1).lt(1),
+  providedSuperelevation: z.number().finite().min(0).lt(1),
+  criteria: z.object({
+    reference: z.string().trim().min(1).max(512),
+    lateralFriction: z.number().finite().min(0).lt(1),
+    maximumSuperelevation: z.number().finite().positive().lt(1),
+    maximumRelativeGradient: z.number().finite().positive().lt(1),
+  }).strict(),
+}).strict();
 
 export type SuperelevationInput = z.infer<typeof SuperelevationSchema>;
 
@@ -228,69 +236,15 @@ export function verticalCurve(input: VerticalCurveInput): VerticalCurveResult {
   };
 }
 
-/**
- * Superelevation Calculation
- * 
- * Per RDM 1.1 Section 3.4 and KeRRA Design Manual:
- * - Maximum superelevation eMax = 7% for rural roads (can be 8% in special cases)
- * - Minimum transition length per KeRRA
- * - Rate of superelevation application
- * 
- * @param input - Superelevation parameters
- * @returns Applied superelevation and transition table
+/** Declared banking assessment; no inferred stationing or standards approval.
+ * Breaking legacy contract: banking is returned as a ratio, with explicit
+ * limit/demand outcomes and the caller's criteria reference. Transition length
+ * describes crossfall rotation about the supplied width, not a spiral layout.
  */
-export interface SuperelevationResult {
-  eDesign: number;
-  eMax: number;
-  transitionLength: number;
-  rate: number;
-  table: SuperelevationRow[];
-}
+export type SuperelevationResult = DeclaredSuperelevationResult;
 
-export interface SuperelevationRow {
-  chainageOffset: number;
-  eApplied: number;
-  rotation: 'left' | 'right' | 'both';
-}
-
-/**
- * Calculate superelevation for a curve
- * 
- * Formula: e = V²/(225R) - f (where f = 0.01 minimum normal crown)
- * Reference: RDM 1.1 Equation 3.1
- */
 export function superelevationCalc(input: SuperelevationInput): SuperelevationResult {
-  const parsed = SuperelevationSchema.parse(input);
-  const { R, V, eMax, transitionLength } = parsed;
-
-  // RDM 1.1 formula: e = V²/(225R) - 0.01
-  const e = (V * V) / (225 * R) - 0.01;
-  const eDesign = Math.min(Math.max(e, 0), eMax);
-
-  // KeRRA minimum transition length: L = 0.6V²/R (minimum 30m)
-  const L = transitionLength || Math.max(0.6 * (V * V) / R, 30);
-  
-  const rate = eDesign / L;
-
-  // Generate transition table
-  const table: SuperelevationRow[] = [];
-  const steps = 10;
-  for (let i = 0; i <= steps; i++) {
-    const progress = i / steps;
-    table.push({
-      chainageOffset: parseFloat((progress * L).toFixed(2)),
-      eApplied: parseFloat((eDesign * progress * 100).toFixed(2)),
-      rotation: 'both'
-    });
-  }
-
-  return {
-    eDesign: parseFloat((eDesign * 100).toFixed(2)),
-    eMax: parseFloat((eMax * 100).toFixed(2)),
-    transitionLength: parseFloat(L.toFixed(2)),
-    rate: parseFloat((rate * 100).toFixed(4)),
-    table
-  };
+  return superelevationDesign(SuperelevationSchema.parse(input));
 }
 
 /**
