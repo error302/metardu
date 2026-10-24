@@ -25,13 +25,12 @@ import { db } from '@/lib/db'
 import type { SurveyPoint } from '@/types/surveyPoint'
 import type { SurveyType } from '@/types/project'
 import type { StatutoryGateInput } from './statutoryGate'
-import { shoelaceArea } from '@/lib/engine/area'
 
 // ─── Types matching DB row shapes ───────────────────────────────────────
 
 interface ProjectRow {
   id: string
-  boundary_data?: Record<string,any>
+  boundary_data?: Record<string, unknown>
   survey_type: string | null
   utm_zone: number | null
   hemisphere: string | null
@@ -39,9 +38,7 @@ interface ProjectRow {
 
 interface TraverseRow {
   id: string
-  linear_misclosure: number | null
-  precision_ratio: number | null
-  angular_misclosure: number | null
+  evidence: Record<string, unknown>
 }
 
 interface TraverseCoordinateRow {
@@ -60,8 +57,7 @@ interface FieldBookEntryRow {
 interface ParcelRow {
   id: string
   parcel_number: string | null
-  boundary_points: unknown
-  area_sqm: number | string | null
+  boundary_geometry: { type?: string; coordinates?: unknown } | null
 }
 
 // ─── Helpers ────────────────────────────────────────────────────────────
@@ -90,14 +86,14 @@ function countStations(entries: FieldBookEntryRow[]): number {
   return stations.size
 }
 
-/**
- * Parse boundary points from a parcel row. The boundary_points column
- * can be either a JSON array of {easting, northing} objects, or a JSON
- * string of the same. Returns an empty array if unparseable.
- */
-function parseBoundaryPoints(raw: unknown, fallbackAreaSqm: number | null): {
+function evidenceNumber(value: unknown): number {
+  return (typeof value === 'number' || (typeof value === 'string' && value.trim() !== ''))
+    ? Number(value) : NaN
+}
+
+/** Normalize explicit coordinates; unknown ordinates remain invalid. */
+function parseBoundaryPoints(raw: unknown): {
   vertices: SurveyPoint[]
-  areaHectares: number | null
 } {
   let pts: Array<{ easting?: number; northing?: number; name?: string }> = []
 
@@ -113,23 +109,12 @@ function parseBoundaryPoints(raw: unknown, fallbackAreaSqm: number | null): {
   }
 
   const vertices: SurveyPoint[] = pts.map((p, i) => ({
-    name: p.name ?? `P${i + 1}`,
-    easting: Number(p.easting ?? 0),
-    northing: Number(p.northing ?? 0),
+    name: p?.name ?? `P${i + 1}`,
+    easting: evidenceNumber(p?.easting),
+    northing: evidenceNumber(p?.northing),
   }))
-
-  // Prefer the stored area; fall back to shoelace if vertices exist
-  let areaHectares: number | null = null
-  if (fallbackAreaSqm !== null && !Number.isNaN(Number(fallbackAreaSqm))) {
-    areaHectares = Number(fallbackAreaSqm) / 10000
-  } else if (vertices.length >= 3) {
-    areaHectares = shoelaceArea(vertices) / 10000
-  }
-
-  return { vertices, areaHectares }
+  return { vertices }
 }
-
-// shoelaceArea is imported from @/lib/engine/area (canonical implementation)
 
 // ─── Public API ─────────────────────────────────────────────────────────
 
@@ -139,10 +124,8 @@ function parseBoundaryPoints(raw: unknown, fallbackAreaSqm: number | null): {
  *
  * Returns null if the project cannot be found.
  *
- * The loader is defensive: missing tables or NULL columns degrade
- * gracefully (the corresponding gate input field is omitted) rather
- * than throwing. This means the gate can run on partial data and
- * report which rules couldn't be evaluated.
+ * Failed evidence reads are retained as blocking, unassessed issues.
+ * Absent observations never acquire invented zero errors or coordinates.
  */
 export async function loadGateInputForProject(
   projectId: string
@@ -155,45 +138,55 @@ export async function loadGateInputForProject(
   if (projectRes.rows.length === 0) return null
   const project = projectRes.rows[0] as ProjectRow
   const surveyType = normalizeSurveyType(project.survey_type)
+  const evidenceIssues: NonNullable<StatutoryGateInput['evidenceIssues']> = []
 
-  // 2. Traverse + coordinates (via parcels → parcel_traverses)
+  const boundary = project.boundary_data
+  const computation = boundary?.computation
+  const hasFieldComputation = computation !== null && typeof computation === 'object' && 'source' in computation && computation.source === 'field-observations'
+  // 2. Prefer the explicit project computation. Legacy coordinates alone
+  // cannot establish observed closure, and canonical parcel_traverses has
+  // no linear_misclosure/angular_misclosure columns.
   let traverse: StatutoryGateInput['traverse'] | undefined
-  try {
+  if (boundary && hasFieldComputation) {
+    const ratioText = String(boundary.precision_ratio ?? '').replace(/,/g, '').replace(/^1\s*:\s*/, '').trim()
+    traverse = {
+      stationCount: Array.isArray(boundary.adjustedStations) ? boundary.adjustedStations.length : 0,
+      angularMisclosureSeconds: boundary.angular_misclosure == null ? undefined : evidenceNumber(boundary.angular_misclosure),
+      linearErrorM: evidenceNumber(boundary.linear_misclosure), totalDistanceM: evidenceNumber(boundary.perimeter_m),
+      precisionRatio: ratioText === '∞' ? Number.MAX_SAFE_INTEGER : evidenceNumber(ratioText),
+    }
+  } else try {
     const traverseRes = await db.query(
-      `SELECT pt.id, pt.linear_misclosure, pt.precision_ratio, pt.angular_misclosure
+      `SELECT pt.id, to_jsonb(pt) AS evidence
        FROM parcel_traverses pt
-       JOIN parcels p ON p.id = pt.parcel_id
-       JOIN blocks b ON b.id = p.block_id
-       WHERE b.project_id = $1
+       WHERE pt.project_id = $1
        ORDER BY pt.created_at DESC LIMIT 1`,
       [projectId]
     )
     if (traverseRes.rows.length > 0) {
       const t = traverseRes.rows[0] as TraverseRow
       const coordsRes = await db.query(
-        'SELECT station, easting, northing, rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY station',
+        'SELECT station_name AS station, easting, northing, elevation AS rl FROM traverse_coordinates WHERE traverse_id = $1 ORDER BY created_at, id',
         [t.id]
       )
       const stationCount = coordsRes.rows.length
 
-      // Compute total traverse distance from consecutive coordinates
-      let totalDistanceM = 0
       const coords = coordsRes.rows as TraverseCoordinateRow[]
-      for (let i = 1; i < coords.length; i++) {
-        const dx = Number(coords[i].easting) - Number(coords[i - 1].easting)
-        const dy = Number(coords[i].northing) - Number(coords[i - 1].northing)
-        totalDistanceM += Math.sqrt(dx * dx + dy * dy)
+      if (coords.some(c => !Number.isFinite(evidenceNumber(c.easting)) || !Number.isFinite(evidenceNumber(c.northing)))) {
+        evidenceIssues.push({ field: 'traverse.coordinates', message: 'Retained traverse coordinates are incomplete or invalid.' })
       }
-
-      const linearErrorM = t.linear_misclosure ?? 0
+      // Read retained results when present in an upgraded schema. Do not
+      // manufacture closure from an alphabetical adjusted-coordinate loop.
+      const totalDistanceM = evidenceNumber(t.evidence?.total_perimeter)
+      const linearErrorM = evidenceNumber(t.evidence?.linear_error)
       // precision_ratio in DB is typically stored as the large number (e.g. 5000 = 1:5000)
       // If it's stored as a decimal (e.g. 0.0002), convert.
-      const storedRatio = t.precision_ratio ?? 0
+      const storedRatio = evidenceNumber(t.evidence?.precision_ratio)
       const precisionRatio = storedRatio > 0 && storedRatio < 1
         ? 1 / storedRatio
         : storedRatio
 
-      const angularMisclosureSeconds = t.angular_misclosure ?? undefined
+      const angularMisclosureSeconds = t.evidence?.angular_misclosure == null ? undefined : evidenceNumber(t.evidence.angular_misclosure)
 
       traverse = {
         stationCount,
@@ -204,15 +197,7 @@ export async function loadGateInputForProject(
       }
     }
   } catch {
-    // traverse tables may not exist — skip
-  }
-
-  const boundary=project.boundary_data;
-  if(boundary?.computation?.source==='field-observations') {
-    const ratioText=String(boundary.precision_ratio ?? '').replace(/,/g,'').replace(/^1\s*:\s*/,'').trim();
-    const ratio=ratioText==='∞'?Number.MAX_SAFE_INTEGER:Number(ratioText);
-    traverse={stationCount:boundary.adjustedStations?.length ?? 0,angularMisclosureSeconds:undefined,
-      linearErrorM:Number(boundary.linear_misclosure),totalDistanceM:Number(boundary.perimeter_m),precisionRatio:ratio};
+    evidenceIssues.push({ field: 'traverse', message: 'Traverse evidence could not be loaded. Restore it before generating a submission.' })
   }
 
   // 3. Field book entries (for station count fallback if no traverse)
@@ -227,69 +212,64 @@ export async function loadGateInputForProject(
         traverse = {
           stationCount: countStations(entries),
           angularMisclosureSeconds: undefined,
-          linearErrorM: 0,
-          totalDistanceM: 0,
-          precisionRatio: 0,
+          linearErrorM: NaN,
+          totalDistanceM: NaN,
+          precisionRatio: NaN,
         }
       }
     } catch {
-      // field book table may not exist — skip
+      evidenceIssues.push({ field: 'traverse', message: 'Field book evidence could not be loaded. No traverse assessment is available.' })
     }
   }
 
   // 4. Parcels + parent parcel (for cadastral)
   let parcels: StatutoryGateInput['parcels'] | undefined
-  let parentParcel: StatutoryGateInput['parentParcel'] | undefined
   try {
     const parcelRes = await db.query(
-      'SELECT id, parcel_number, boundary_points, area_sqm FROM parcels WHERE project_id = $1 ORDER BY created_at ASC',
+      'SELECT id, parcel_number, ST_AsGeoJSON(geom)::jsonb AS boundary_geometry FROM parcels WHERE project_id = $1 ORDER BY created_at ASC',
       [projectId]
     )
     if (parcelRes.rows.length > 0) {
       const parcelRows = parcelRes.rows as ParcelRow[]
-      const parsed = parcelRows.map((p) =>
-        parseBoundaryPoints(p.boundary_points, p.area_sqm === null ? null : Number(p.area_sqm))
-      )
+      const parsed = parcelRows.map(p => {
+        const geometry = p.boundary_geometry
+        const rings = geometry?.coordinates
+        if (geometry?.type !== 'Polygon' || !Array.isArray(rings) || rings.length !== 1 || !Array.isArray(rings[0])) {
+          evidenceIssues.push({ field: 'parcels', message: 'A complete single-ring parcel boundary is required for these checks. Holes and multipart boundaries need a supported review workflow.' })
+          return { vertices: [] }
+        }
+        const ring: unknown[] = rings[0] as unknown[]
+        // PostGIS polygons repeat the first vertex; the gate uses open rings.
+        const points = ring.length > 1 && JSON.stringify(ring[0]) === JSON.stringify(ring[ring.length - 1]) ? ring.slice(0, -1) : ring
+        return parseBoundaryPoints(points.map((point: unknown) => {
+          const pair: unknown[] = Array.isArray(point) ? point as unknown[] : []
+          return { easting: pair[0], northing: pair[1] }
+        }))
+      })
       parcels = parsed.map((p, i) => ({
         vertices: p.vertices,
         parcelNumber: parcelRows[i].parcel_number ?? `Parcel ${i + 1}`,
       }))
 
-      // First parcel is treated as the parent if there's only one,
-      // otherwise the parent is unknown (subdivisions should have a
-      // separate parent parcel reference — for now we use the largest).
-      if (parsed.length === 1 && parsed[0].areaHectares !== null) {
-        parentParcel = {
-          areaHectares: parsed[0].areaHectares,
-          vertices: parsed[0].vertices,
-        }
-      } else if (parsed.length > 1) {
-        // Find the largest parcel as the likely parent
-        let maxIdx = 0
-        let maxArea = -1
-        for (let i = 0; i < parsed.length; i++) {
-          if (parsed[i].areaHectares !== null && (parsed[i].areaHectares ?? 0) > maxArea) {
-            maxArea = parsed[i].areaHectares ?? 0
-            maxIdx = i
-          }
-        }
-        const maxAreaHectares = parsed[maxIdx].areaHectares
-        if (maxAreaHectares != null) {
-          parentParcel = {
-            areaHectares: maxAreaHectares,
-            vertices: parsed[maxIdx].vertices,
-          }
-        }
-      }
+      // Resulting parcels are not authoritative parent references.
+      // A separate retained parent-evidence workflow is still required.
     }
   } catch {
-    // parcels table may not exist — skip
+    evidenceIssues.push({ field: 'parcels', message: 'Parcel evidence could not be loaded. Boundary checks are unassessed.' })
   }
 
-  // 5. Surveyor (no DB table yet — use placeholder, real value comes from
-  // the auth session or a future surveyor_profile table)
-  // For now we use empty strings; the gate will block on missing name/license
-  // and the caller must supply these from the request context.
+  // A saved field-observation computation can define this project's single
+  // boundary when no separate resulting parcels exist. It is never a parent.
+  if (!parcels && boundary && hasFieldComputation && Array.isArray(boundary.adjustedStations)) {
+    const points = boundary.adjustedStations.map((point: unknown) => {
+      const value = point !== null && typeof point === 'object' ? point as Record<string, unknown> : {}
+      return { name: value.pointName, easting: value.adjustedEasting, northing: value.adjustedNorthing }
+    })
+    parcels = [{ vertices: parseBoundaryPoints(points).vertices, parcelNumber: String(boundary.parcelNumber ?? '') }]
+  }
+
+  // 5. The server caller supplies the project owner's resolved profile.
+  // Empty values remain blockers until resolved; no placeholder credentials.
   const surveyor = {
     name: '',
     licenseNumber: '',
@@ -299,7 +279,7 @@ export async function loadGateInputForProject(
     surveyType,
     traverse,
     parcels,
-    parentParcel,
+    evidenceIssues,
     surveyor,
   }
 }
@@ -333,6 +313,8 @@ export function mergeGateInput(
     submissionType: override.submissionType ?? base.submissionType,
     toleranceProfileOverride: override.toleranceProfileOverride ?? base.toleranceProfileOverride,
     areaToleranceHectares: override.areaToleranceHectares ?? base.areaToleranceHectares,
+    evidenceIssues: [...(base.evidenceIssues ?? []), ...(override.evidenceIssues ?? [])],
+    requiredEvidence: [...new Set([...(base.requiredEvidence ?? []), ...(override.requiredEvidence ?? [])])],
   }
   return result
 }

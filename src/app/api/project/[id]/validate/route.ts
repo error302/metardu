@@ -24,12 +24,10 @@
 
 export const dynamic = 'force-dynamic'
 
-import { NextResponse } from 'next/server'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
-import { runStatutoryGate, formatGateResult } from '@/lib/validation/statutoryGate'
-import { loadGateInputForProject, mergeGateInput } from '@/lib/validation/statutoryGateLoader'
-import { fetchSurveyorProfile } from '@/lib/survey/fetchSurveyorProfile'
+import { formatGateResult } from '@/lib/validation/statutoryGate'
+import { evaluateSubmissionAdmission } from '@/lib/submission/submissionAdmission'
 
 export const GET = apiHandler(
   { auth: true, rateLimit: { max: 30, windowMs: 60000 } },
@@ -43,26 +41,7 @@ export const GET = apiHandler(
   return ownership.error
 }
 
-    // Load gate input from DB
-    const loadedInput = await loadGateInputForProject(id)
-    if (!loadedInput) {
-      return NextResponse.json(
-        { error: 'Project not found' },
-        { status: 404 }
-      )
-    }
-
-    // Merge in surveyor profile (loaded from project + surveyor_profiles)
-    const profile = await fetchSurveyorProfile(id)
-    const gateInput = mergeGateInput(loadedInput, {
-      surveyor: {
-        name: profile.surveyorName || loadedInput.surveyor.name,
-        licenseNumber: profile.licenseNumber || loadedInput.surveyor.licenseNumber,
-      },
-    })
-
-    // Run the gate (pure function — no side effects)
-    const gateResult = runStatutoryGate(gateInput)
+    const { gate: gateResult } = await evaluateSubmissionAdmission(id)
 
     return apiSuccess({
       gate: gateResult,

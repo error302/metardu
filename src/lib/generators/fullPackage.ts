@@ -3,6 +3,7 @@ import db from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
 import { downloadFile } from '@/lib/storage';
+import { requireSubmissionAdmission } from '@/lib/submission/submissionAdmission';
 
 interface DocRow {
   document_id: string;
@@ -41,6 +42,7 @@ export async function generateFullPackage(
   userId?: string,
   customGenerator?: DocumentGeneratorFn
 ): Promise<Buffer> {
+  await requireSubmissionAdmission(projectId, 'full-package');
   const projRes = await db.query<ProjectMetaRow>(
     'SELECT name, survey_type, lr_number, plot_parcel_number AS parcel_number, county FROM projects WHERE id = $1',
     [projectId]

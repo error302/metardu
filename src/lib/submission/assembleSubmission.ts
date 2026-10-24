@@ -20,6 +20,7 @@ import { coordinateArea } from '@/lib/engine/area'
 import { angularClosureTolerance } from '@/lib/engine/traverse'
 import type { SubmissionPackage, QAGateResult, SurveySubtype, SupportingDocument } from './types'
 import { logger } from '@/lib/logger'
+import { requireSubmissionAdmission } from './submissionAdmission'
 
 /** Row shape for survey_points (typed callback params for the legacy client reads). */
 interface SurveyPointRow {
@@ -86,6 +87,7 @@ interface ProjectData {
 export async function assembleSubmissionPackage(
   projectId: string
 ): Promise<{ zipBuffer: Buffer; ref: string; qa: QAGateResult }> {
+  await requireSubmissionAdmission(projectId, 'full-package')
   const dbClient = await createClient()
   const surveyor = await getActiveSurveyorProfile()
   if (!surveyor) {

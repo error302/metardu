@@ -75,6 +75,8 @@ import { shoelaceArea } from '@/lib/engine/area'
  * Record the change in CHANGELOG below.
  *
  * CHANGELOG:
+ *   1.4.0 (2026-10) — Unavailable evidence, invalid numbers and rule
+ *     exceptions block admission. Server callers declare required evidence.
  *   1.3.0 (2026-10) — Road checks require declared criteria/evidence;
  *     no assumed grade, friction, reaction time or national banking limits.
  *   1.2.0 (2026-07) — Added a configured overlap review rule for
@@ -89,7 +91,7 @@ import { shoelaceArea } from '@/lib/engine/area'
  *     checks into a single pre-export gate. Source labels are references,
  *     not independently verified current requirements.
  */
-export const RULE_VERSION = '1.3.0'
+export const RULE_VERSION = '1.4.0'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -130,6 +132,11 @@ export interface Violation {
 
 export interface StatutoryGateInput {
   surveyType: SurveyType
+
+  /** Server evidence reads that failed or could not be interpreted. */
+  evidenceIssues?: Array<{ field: string; message: string }>
+  /** Required by the specific output workflow; partial advisory checks may omit these. */
+  requiredEvidence?: Array<'traverse' | 'parcels' | 'parentParcel'>
 
   /** Traverse observations — required for cadastral, engineering, geodetic */
   traverse?: {
@@ -253,6 +260,45 @@ function selectProfile(input: StatutoryGateInput): ToleranceProfile {
 // shoelaceArea is imported from @/lib/engine/area (canonical implementation)
 
 // ─── Rule implementations ──────────────────────────────────────────────
+function ruleEvidenceIntegrity(input: StatutoryGateInput, _profile: ToleranceProfile, violations: Violation[]): void {
+  const unassessed = (field: string, message: string) => violations.push({
+    rule: 'metardu_qc.evidence_integrity', source: 'metardu_qc', severity: 'block',
+    assessment: 'UNASSESSED', field, message,
+  })
+  for (const issue of input.evidenceIssues ?? []) unassessed(issue.field, issue.message)
+  for (const field of input.requiredEvidence ?? []) {
+    if (!input[field] || (field === 'parcels' && input.parcels?.length === 0)) {
+      unassessed(field, `Required ${field} evidence is missing. Complete and review it before generating this submission.`)
+    }
+  }
+  if (input.traverse) {
+    const t = input.traverse
+    for (const field of ['stationCount', 'linearErrorM', 'totalDistanceM', 'precisionRatio'] as const) {
+      if (!Number.isFinite(t[field])) unassessed(`traverse.${field}`, `Traverse ${field} must be a finite measured or computed value.`)
+    }
+    if (Number.isFinite(t.stationCount) && (!Number.isInteger(t.stationCount) || t.stationCount <= 0)) unassessed('traverse.stationCount', 'Traverse station count must be a positive integer.')
+    if (Number.isFinite(t.totalDistanceM) && t.totalDistanceM <= 0) unassessed('traverse.totalDistanceM', 'Traverse distance must be greater than zero.')
+    if (Number.isFinite(t.precisionRatio) && t.precisionRatio <= 0) unassessed('traverse.precisionRatio', 'Traverse precision evidence is missing or invalid.')
+    if (t.angularMisclosureSeconds !== undefined && !Number.isFinite(t.angularMisclosureSeconds)) unassessed('traverse.angularMisclosureSeconds', 'Angular misclosure is invalid.')
+  }
+  if (input.leveling) {
+    for (const field of ['sumBS', 'sumFS', 'firstRL', 'lastRL', 'distanceKm'] as const) {
+      if (!Number.isFinite(input.leveling[field])) unassessed(`leveling.${field}`, `Leveling ${field} is missing or invalid.`)
+    }
+    if (input.leveling.distanceKm <= 0) unassessed('leveling.distanceKm', 'Leveling distance must be greater than zero.')
+  }
+  const checkVertices = (vertices: Array<{ easting: number; northing: number }>, field: string) => {
+    if (vertices.some(v => !Number.isFinite(v.easting) || !Number.isFinite(v.northing))) {
+      unassessed(field, 'Boundary coordinates are missing or invalid. Unknown coordinates cannot be replaced with zero.')
+    }
+  }
+  for (const [index, parcel] of (input.parcels ?? []).entries()) checkVertices(parcel.vertices, `parcels[${index}].vertices`)
+  if (input.parentParcel) {
+    checkVertices(input.parentParcel.vertices, 'parentParcel.vertices')
+    if (!Number.isFinite(input.parentParcel.areaHectares) || input.parentParcel.areaHectares <= 0) unassessed('parentParcel.areaHectares', 'A positive, finite parent area is required.')
+  }
+}
+
 
 /**
  * Rule: Traverse precision ratio meets profile minimum.
@@ -672,6 +718,10 @@ interface RuleDef {
 
 const RULES: RuleDef[] = [
   {
+    id: 'metardu_qc.evidence_integrity', description: 'Required evidence is available and supplied values are valid',
+    source: 'metardu_qc', severity: 'block', run: ruleEvidenceIntegrity,
+  },
+  {
     id: 'cap299.min_stations',
     description: 'Cadastral survey requires ≥3 traverse stations',
     source: 'cap299',
@@ -790,15 +840,13 @@ export function runStatutoryGate(input: StatutoryGateInput): StatutoryGateResult
   for (const rule of RULES) {
     try {
       rule.run(input, profile, violations)
-    } catch (err) {
-      // A rule throwing should never block the export silently —
-      // record it as a warning so the surveyor knows the gate
-      // didn't fully evaluate.
+    } catch {
       violations.push({
         rule: rule.id,
         source: rule.source,
-        severity: 'warn',
-        message: `Internal error evaluating rule "${rule.id}": ${err instanceof Error ? err.message : String(err)}`,
+        severity: 'block',
+        assessment: 'UNASSESSED',
+        message: `Quality check "${rule.id}" could not be assessed. Generation is blocked until it can be evaluated.`,
       })
     }
   }
@@ -837,7 +885,8 @@ export function runStatutoryGate(input: StatutoryGateInput): StatutoryGateResult
       }
     }
   } catch {
-    // Cross-check module not available — non-blocking
+    violations.push({ rule: 'cross_check.unavailable', source: 'metardu_qc', severity: 'block',
+      assessment: 'UNASSESSED', message: 'Calculation cross-checks could not be assessed. Retry after restoring the required evidence.' })
   }
 
   // Order violations by severity: block → warn → info

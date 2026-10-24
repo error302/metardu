@@ -5,6 +5,8 @@ import { computeDeedPlanGeometry } from '@/lib/generators/deedPlanGeometry'
 import { generateFullPackage } from '@/lib/generators/fullPackage'
 import { downloadFile } from '@/lib/storage'
 jest.mock('@/lib/storage', () => ({ downloadFile: jest.fn().mockResolvedValue(Buffer.from('local document')) }))
+// Packaging mechanics are isolated here; real server admission is exercised in submission-admission.test.ts.
+jest.mock('@/lib/submission/submissionAdmission', () => ({ requireSubmissionAdmission: jest.fn(async () => ({})) }))
 
 jest.mock('@/lib/db', () => ({ __esModule: true, default: { query: jest.fn() } }))
 jest.mock('@/lib/logger', () => ({ logger: { warn: jest.fn() } }))

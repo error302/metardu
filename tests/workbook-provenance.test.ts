@@ -3,6 +3,9 @@ import ExcelJS from 'exceljs'
 import { generateDocument } from '@/lib/submission/assembleDocument'
 import { uploadFile, getSignedUrl } from '@/lib/storage'
 import db from '@/lib/db'
+import { defined } from '@/test-utils/defined'
+// Exercise draft content after admission; refusal and fresh evidence reads have separate integration tests.
+jest.mock('@/lib/submission/submissionAdmission', () => ({ requireSubmissionAdmission: jest.fn(async () => ({})) }))
 jest.mock('@/lib/storage', () => ({ uploadFile: jest.fn().mockResolvedValue('submissions/p/actual-stored-report.xlsx'), getSignedUrl: jest.fn().mockResolvedValue('https://files.example/report.xlsx') }))
 jest.mock('@/lib/db', () => {
   const db = { query: jest.fn() }
@@ -32,11 +35,11 @@ test('exported workbook does not invent raw observations, credentials, CRS or QA
   ;(db.query as jest.Mock).mockImplementation(async (sql: string) => ({ rows: sql.includes('SELECT name,') ? [{ name: 'Review', survey_type: 'cadastral' }] : [] }))
   await generateDocument({ projectId: 'p', documentId: 'statutory-workbook', surveyType: 'cadastral' })
   expect(getSignedUrl).toHaveBeenCalledWith('submissions/p/actual-stored-report.xlsx', 604800)
-  const args = (uploadFile as jest.Mock).mock.calls[0]
-  const buffer = args.find((v: unknown) => Buffer.isBuffer(v))
+  const args = defined(jest.mocked(uploadFile).mock.calls[0])
+  const buffer = defined(args.find((v): v is Buffer => Buffer.isBuffer(v)))
   expect(buffer).toBeDefined()
   const wb = new ExcelJS.Workbook()
-  await wb.xlsx.load(buffer)
+  await wb.xlsx.load(Uint8Array.from(buffer).buffer)
   const cells: string[] = []
   wb.eachSheet(sheet => sheet.eachRow(row => row.eachCell(cell => cells.push(cell.text))))
   expect(cells.join('\n')).not.toContain('MISK-001')
@@ -44,7 +47,7 @@ test('exported workbook does not invent raw observations, credentials, CRS or QA
   expect(cells.join('\n')).not.toContain('ALL CHECKS PASS')
   expect(cells.join('\n')).not.toContain('Beacon verified')
   expect(cells.join('\n')).toContain('UNVERIFIED')
-  const field = wb.getWorksheet('2. Field Abstract')!
+  const field = defined(wb.getWorksheet('2. Field Abstract'))
   expect(field.getRow(6).getCell(1).text).not.toBe('A')
 })
 
@@ -52,7 +55,7 @@ test.each(['form-c22', 'traverse-computation-sheet'])('%s labels coordinate-deri
   jest.clearAllMocks()
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [] })
   await generateDocument({ projectId: 'p', documentId, surveyType: 'cadastral' })
-  const buffer = (uploadFile as jest.Mock).mock.calls[0].find((v: unknown) => Buffer.isBuffer(v)) as Buffer
+  const buffer = defined(defined(jest.mocked(uploadFile).mock.calls[0]).find((v): v is Buffer => Buffer.isBuffer(v)))
   const pdf = buffer.toString('latin1')
   expect(pdf).toContain('UNVERIFIED')
   expect(pdf).toContain('DERIVED')

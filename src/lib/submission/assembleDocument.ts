@@ -4,6 +4,7 @@ import { uploadFile, getSignedUrl } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { loadPreAdjustedFromDB } from '../generators/deedPlanGeometry';
 import { logger } from '@/lib/logger'
+import { requireSubmissionAdmission } from './submissionAdmission'
 
 // ── Row interfaces for the queries below (typed via db.query<T>) ──────────────
 interface ProjectDetailRow {
@@ -162,6 +163,7 @@ export async function generateDocument(
   input: GenerateDocumentInput
 ): Promise<GenerateDocumentResult> {
   const { projectId, documentId, surveyType, userId } = input;
+  const admission = await requireSubmissionAdmission(projectId, documentId);
 
   let buffer: Buffer;
   let fileName: string;
@@ -218,42 +220,18 @@ export async function generateDocument(
       break;
     }
     case 'deed-plan': {
-      if (surveyType !== 'cadastral') {
+      if (surveyType !== 'cadastral' || admission.input.surveyType !== 'cadastral') {
         throw new Error('Deed Plan is only available for cadastral surveys.');
       }
-
-      // Statutory Validation Gate — refuse to produce a deed plan that
-      // ArdhiSasa will reject. See src/lib/validation/statutoryGate.ts.
-      const { loadGateInputForProject, mergeGateInput } = await import('../validation/statutoryGateLoader');
-      const { runStatutoryGate, formatGateResult } = await import('../validation/statutoryGate');
-      const profile = await fetchSurveyorProfile(projectId);
-      const loadedInput = await loadGateInputForProject(projectId);
-      if (loadedInput) {
-        const gateInput = mergeGateInput(loadedInput, {
-          surveyor: {
-            name: profile.surveyorName || loadedInput.surveyor.name,
-            licenseNumber: profile.licenseNumber || loadedInput.surveyor.licenseNumber,
-          },
-          submissionType: 'mutation',
-        });
-        const gateResult = runStatutoryGate(gateInput);
-        if (!gateResult.passed) {
-          const blockCount = gateResult.summary.block;
-          const detail = formatGateResult(gateResult);
-          throw new Error(
-            `Statutory validation failed — ${blockCount} blocking violation(s) prevent deed plan generation.\n\n${detail}`
-          );
-        }
-      }
+      const { profile, gate } = admission;
 
       const { generateDeedPlan } = await import('../generators/deedPlan');
       buffer = await generateDeedPlan(projectId);
       fileName = `deed-plan-${projectId}.pdf`;
       mimeType = 'application/pdf';
 
-      // Audit chain — record that a deed plan was generated.
-      // This is the tamper-evident log entry that proves the plan
-      // left the system in a known state. See src/lib/audit/auditLog.ts.
+      // Record the evaluated rule version. This does not bind later
+      // generator reads to an immutable snapshot or establish authority approval.
       try {
         const { appendAuditEntry } = await import('../audit/auditLog');
         await appendAuditEntry({
@@ -265,8 +243,8 @@ export async function generateDocument(
           action: 'generate',
           payload: {
             new: { fileName, mimeType, sizeBytes: buffer.length },
-            reason: 'Deed plan generated after statutory gate passed',
-            metadata: { gateRuleVersion: '1.1.0' },
+            reason: 'Deed plan generated after configured METARDU quality checks',
+            metadata: { gateRuleVersion: gate.ruleVersion, gateEvaluatedAt: gate.evaluatedAt },
           },
         });
       } catch (auditErr) {

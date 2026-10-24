@@ -2,10 +2,11 @@
 import {generateDocument} from '@/lib/submission/assembleDocument'
 import {db} from '@/lib/db'
 import {mergeGateInput} from '@/lib/validation/statutoryGateLoader'
+import type { StatutoryGateInput } from '@/lib/validation/statutoryGate'
 jest.mock('@/lib/storage',()=>({uploadFile:async()=> 'qa/file.pdf',getSignedUrl:async()=>'/api/storage?path=qa%2Ffile.pdf'}))
 jest.mock('@/lib/db',()=>{const db={query:jest.fn(async()=>({rows:[]}))};return {__esModule:true,default:db,db}})
 jest.mock('@/lib/survey/fetchSurveyorProfile',()=>({fetchSurveyorProfile:async()=>({surveyorName:'QA',licenseNumber:'LICENCE-QA',iskNumber:'ISK-QA'})}))
-jest.mock('@/lib/validation/statutoryGateLoader',()=>({loadGateInputForProject:async()=>({surveyor:{}}),mergeGateInput:jest.fn((a,b)=>({...a,...b}))}))
+jest.mock('@/lib/validation/statutoryGateLoader',()=>({loadGateInputForProject:async()=>({surveyType:'cadastral',surveyor:{}}),mergeGateInput:jest.fn((a: StatutoryGateInput,b: Partial<StatutoryGateInput>)=>({...a,...b}))}))
 jest.mock('@/lib/validation/statutoryGate',()=>({runStatutoryGate:()=>({passed:true}),formatGateResult:()=>''}))
 jest.mock('@/lib/generators/deedPlan',()=>({generateDeedPlan:async()=>Buffer.from('%PDF fixture')}))
 jest.mock('@/lib/audit/auditLog',()=>({appendAuditEntry:async()=>{}}))
