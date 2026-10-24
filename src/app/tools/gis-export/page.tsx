@@ -101,6 +101,7 @@ function GISExportPage() {
   const [prs, setPrs]             = useState<PrsRow | null>(null)
   const [loading, setLoading]     = useState(false)
   const [exports, setExports]     = useState<Set<string>>(new Set())
+  const [exportError,setExportError] = useState('')
 
   useEffect(() => {
     const sb = createClient()
@@ -135,13 +136,14 @@ function GISExportPage() {
   })
   const ptsMapped = points.map((p) => ({
     name: p.name, easting: p.easting, northing: p.northing,
-    elevation: p.elevation ?? 0, is_control: p.is_control ?? false,
+    elevation: p.elevation ?? null, is_control: p.is_control ?? false,
   }))
 
   const markExported = (key: string) => setExports(prev => { const s = new Set(Array.from(prev)); s.add(key); return s })
 
   const doExport = (type: string) => {
     if (!project || !points.length) return
+    setExportError('')
     // Fail closed: converting UTM to lat/lon without a declared zone would
     // silently assume one and produce wrong coordinates.
     if (!crs.verified) {
@@ -158,7 +160,7 @@ function GISExportPage() {
       benchmarkBasis: prs?.benchmark_basis ?? undefined,
     }
 
-    switch(type) {
+    try { switch(type) {
       case 'geojson':
         download(generateGeoJSON(ptsMapped, name, z, h, datum, vertical), `${name}_WGS84.geojson`, 'application/geo+json')
         break
@@ -210,6 +212,7 @@ function GISExportPage() {
         break
     }
     markExported(type)
+    }catch(error){setExportError(error instanceof Error?error.message:'The export could not be generated. Source points are retained.')}
   }
 
   const exportAll = () => {
@@ -251,7 +254,7 @@ function GISExportPage() {
     {
       key: 'landxml', icon: '</>',
       title: 'LandXML',
-      desc: 'ISO standard for survey data exchange between CAD/GIS systems.',
+      desc: 'LandXML 1.2 coordinate exchange for CAD and survey systems.',
       note: 'Includes CgPoints with full coordinate metadata.',
       software: 'Civil 3D · 12d · QGIS · Trimble Business Center',
     },
@@ -288,6 +291,7 @@ function GISExportPage() {
         />
 
         {/* Project selector */}
+        {exportError&&<p role="alert" className="mb-4 rounded-lg border border-red-400 bg-red-950 p-3 text-sm text-red-100">{exportError}</p>}
         <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-5 mb-6">
           <div className="flex items-center gap-4 flex-wrap">
             <div className="flex-1 min-w-48">

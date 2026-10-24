@@ -122,10 +122,10 @@ export function mapGeometryToDxfEntities(
         }
         const ring = Array.from({ length: CIRCLE_SEGMENTS }, (_, index) => {
           const angle = (index / CIRCLE_SEGMENTS) * Math.PI * 2
-          return convertCoordinate([
+          return [
             center[0] + Math.cos(angle) * radius,
             center[1] + Math.sin(angle) * radius,
-          ])
+          ] as Coordinate2D
         })
         addLine([...ring, ring[0]], label, true, sourceLayer)
         return

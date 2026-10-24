@@ -9,7 +9,7 @@ const points = [{ name: 'P1', easting: 250000, northing: 9945000, is_control: tr
 describe('generateLandXML — coordinate system statements', () => {
   it('emits the declared datum and projection', () => {
     const xml = generateLandXML(baseProject, points)
-    expect(xml).toContain('<Datum name="ARC1960">')
+    expect(xml).toContain('horizontalDatum="ARC1960"')
     expect(xml).toContain('UTM Zone 37S')
   })
 
@@ -17,7 +17,7 @@ describe('generateLandXML — coordinate system statements', () => {
     expect(() => generateLandXML({ name: 'X' }, points)).toThrow(/declared, supported project CRS/)
   })
 
-  it('carries the declared vertical datum as a machine-readable VerticalDatum element', () => {
+  it('carries the declared vertical datum using schema-defined attributes and metadata', () => {
     const xml = generateLandXML(
       {
         ...baseProject,
@@ -28,19 +28,19 @@ describe('generateLandXML — coordinate system statements', () => {
       points,
     )
     expect(xml).toContain(
-      `<VerticalDatum name="Orthometric heights ${EM} Kenya Vertical Datum 2005 (geoid: EGM2008)"/>`,
+      `value="Orthometric heights ${EM} Kenya Vertical Datum 2005 (geoid: EGM2008)"`,
     )
     const cs = xml.slice(xml.indexOf('<CoordinateSystem '), xml.indexOf('</CoordinateSystem>'))
-    expect(cs).toContain('<VerticalDatum')
-    // LandXML 1.2 requires <Units>; a file without it is schema-invalid.
-    expect(cs).toContain('<Units>')
-    expect(cs).toContain('linearUnit="meter"')
+    expect(cs).toContain('verticalDatum="Kenya Vertical Datum 2005"')
+    // The official schema defines Units at the LandXML root, not inside CoordinateSystem.
+    expect(cs).not.toContain('<Units>')
+    expect(xml).toContain('linearUnit="meter"')
   })
 
   it('states the undeclared vertical case explicitly', () => {
     const xml = generateLandXML(baseProject, points)
     expect(xml).toContain(
-      `<VerticalDatum name="UNVERIFIED ${EM} no vertical datum declared"/>`,
+      `value="UNVERIFIED ${EM} no vertical datum declared"`,
     )
   })
 })

@@ -71,6 +71,7 @@ describe('mapGeometryToDxfEntities', () => {
     expect(entities[2].kind).toBe('boundary')
     if (entities[2].kind === 'boundary') {
       expect(entities[2].coordinates).toHaveLength(65)
+      expect(entities[2].coordinates[0]).toEqual([115,-30])
       expect(entities[2].coordinates[0]).toEqual(entities[2].coordinates[64])
     }
   })

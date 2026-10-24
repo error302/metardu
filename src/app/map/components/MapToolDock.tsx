@@ -448,9 +448,9 @@ export const SetOutContent = memo(function SetOutContent() {
       />
       <GpsTrackPanel />
 
-      <SectionLabel>Setting-Out Export</SectionLabel>
+      <SectionLabel>Drawing Handoff</SectionLabel>
       <ActionBtn
-        label="Export Setting-Out (LandXML)"
+        label="Export map drawing (LandXML)"
         icon={<FileOutput className="w-4 h-4" />}
         isActive={false}
         onClick={() => exportFeatures('LandXML')}

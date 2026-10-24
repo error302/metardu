@@ -18,7 +18,6 @@ import type VectorLayer from 'ol/layer/Vector'
 import type { Interaction as RealInteraction } from 'ol/interaction'
 import type Select from 'ol/interaction/Select'
 import type Feature from 'ol/Feature'
-import type Point from 'ol/geom/Point'
 import type Polygon from 'ol/geom/Polygon'
 import type LineString from 'ol/geom/LineString'
 import type { MapBrowserEvent } from 'ol'
@@ -27,7 +26,8 @@ import type { ModifyEvent } from 'ol/interaction/Modify'
 import type { FeatureLike } from 'ol/Feature'
 import { downloadDXF } from '@/lib/export/generateDXF'
 import { mapGeometryToDxfEntities, type MapDxfGeometryLike } from '@/lib/export/mapGeometryToDxf'
-import { downloadLandXML, type LandXMLProject, type LandXMLPoint } from '@/lib/export/generateLandXML'
+import { downloadLandXML, type LandXMLProject } from '@/lib/export/generateLandXML'
+import { mapDrawingToLandXML } from '@/lib/export/mapDrawingLandXml'
 import { describeCrs, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { reportCrs } from '@/lib/generators/reportCrs'
 import type { ProjectReferenceSystemRecord } from '@/lib/spatial/projectReferenceSystem'
@@ -544,47 +544,22 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         return
       }
 
-      const features = drawSourceRef.current.getFeatures()
-      const { transform } = await import('ol/proj')
-      const points: LandXMLPoint[] = []
-      for (const f of features) {
-        const geom = f.getGeometry()
-        if (!geom) continue
-        const geomType = geom.getType()
-        if (geomType === 'Point') {
-          const coord = (geom as Point).getCoordinates()
-          try {
-            const [e, n] = transform(coord, 'EPSG:3857', crs.epsgCode) as [number, number]
-            points.push({ name: (f.get('name') as string | undefined) || (f.get('label') as string | undefined) || `P${points.length + 1}`, easting: e, northing: n, is_control: false })
-          } catch { /* skip */ }
-        } else if (geomType === 'LineString' || geomType === 'Polygon') {
-          const coords = geomType === 'Polygon' ? ((geom as Polygon).getCoordinates()[0] || []) : (geom as LineString).getCoordinates()
-          for (const coord of coords) {
-            try {
-              const [e, n] = transform(coord, 'EPSG:3857', crs.epsgCode)
-              points.push({ name: `V${points.length + 1}`, easting: e, northing: n, is_control: false })
-            } catch { /* skip */ }
-          }
-        }
-      }
-      if (points.length === 0) {
-        setSaveMsg('No project geometry points are available for LandXML export.')
-        return
-      }
       const project: LandXMLProject = {
-        name: 'metardu-map-export',
+        name: `metardu-${projectId}-map`,
         utm_zone: crs.zone,
         hemisphere: crs.hemi,
         datum: crs.datum,
-        vertical_datum: declared.verticalDatum,
-        vertical_reference: declared.verticalReference,
-        geoid_model: declaration?.geoidModel,
-        benchmark_basis: declaration?.benchmarkBasis,
+        // A declared project height datum does not establish the meaning of imported
+        // GeoJSON Z. Retain that source ordinate without relabelling it as surveyed RL.
+        metadata:{evidenceStatus:'map_drawing_unverified',heightStatus:'source_ordinates_unverified',
+          projectVerticalDatum:declared.verticalDatum??'undeclared',projectVerticalReference:declared.verticalReference??'undeclared'},
       }
       try {
-        downloadLandXML(project, points)
+        const exported=mapDrawingToLandXML(encodeMapDrawing(drawSourceRef.current.getFeatures()),crs.epsgCode)
+        downloadLandXML(project,exported.points,exported.planFeatures)
+        setSaveMsg(`LandXML exported: ${exported.points.length} coordinates and ${exported.planFeatures.length} plan features in ${crs.epsgCode}. Map drawings and source heights remain unverified.`)
       } catch (error) {
-        setSaveMsg(error instanceof Error ? error.message : 'LandXML export failed.')
+        setSaveMsg(`Error: ${error instanceof Error ? error.message : 'LandXML export failed.'}`)
       }
       return
     }

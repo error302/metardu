@@ -68,13 +68,15 @@ describe('LandXML project metadata (P0: fix LandXML project metadata)', () => {
       { name: 'P', utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960' },
       [POINT],
     )
-    expect(xml).toContain('<Datum name="Arc 1960">')
-    expect(xml).toContain('name="Clarke 1880 (RGS)" a="6378249.145" invF="293.465"')
-    expect(xml).not.toContain('<Datum name="WGS84">')
+    expect(xml).toContain('horizontalDatum="Arc 1960"')
+    expect(xml).toContain('ellipsoidName="Clarke 1880 (RGS)"')
+    expect(xml).toContain('label="ellipsoidA" value="6378249.145"')
+    expect(xml).toContain('label="ellipsoidInvF" value="293.465"')
+    expect(xml).not.toContain('horizontalDatum="WGS84"')
     // UTM zone 37: central meridian 39°E, southern false northing 10,000,000
-    expect(xml).toContain('originLong="39"')
-    expect(xml).toContain('falseNorthing="10000000"')
-    expect(xml).toContain('zone="37"')
+    expect(xml).toContain('label="centralMeridian" value="39"')
+    expect(xml).toContain('label="falseNorthing" value="10000000"')
+    expect(xml).toContain('label="zone" value="37"')
     expect(xml).toContain('epsgCode="21037"')
   })
 
@@ -83,10 +85,10 @@ describe('LandXML project metadata (P0: fix LandXML project metadata)', () => {
       { name: 'P', utm_zone: 36, hemisphere: 'S', datum: 'WGS84' },
       [POINT],
     )
-    expect(xml).toContain('<Datum name="WGS84">')
-    expect(xml).toContain('a="6378137"')
-    expect(xml).toContain('zone="36"')
-    expect(xml).toContain('originLong="33"')
+    expect(xml).toContain('horizontalDatum="WGS84"')
+    expect(xml).toContain('label="ellipsoidA" value="6378137"')
+    expect(xml).toContain('label="zone" value="36"')
+    expect(xml).toContain('label="centralMeridian" value="33"')
     expect(xml).toContain('epsgCode="32736"')
   })
 
