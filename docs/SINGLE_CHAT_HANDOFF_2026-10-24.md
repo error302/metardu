@@ -138,8 +138,14 @@ Current WIP includes `src/lib/export/retainedCivilSurface.ts`, changes to
 `src/app/api/project/[id]/civil-surface-export/route.ts`, related tests and
 `scripts/verify-civil-surface.mjs`.
 
-The latest inspected chat reports source/component checks, strict typing, lint,
-security and native synthetic PostgreSQL/schema validation. Its exclusion
+The detailed delivery-chat record is
+[CIVIL_MAP_AND_OPERATIONS_HANDOFF_2026-10-24.md](CIVIL_MAP_AND_OPERATIONS_HANDOFF_2026-10-24.md).
+It includes the original request register, owned file allowlist,
+provider/operations decisions and next commands. The subsequent source checkpoint
+is [RETAINED_CIVIL_SURFACE_HANDOFF_2026-10-24.md](RETAINED_CIVIL_SURFACE_HANDOFF_2026-10-24.md):
+67 focused tests, final component/type/lint/security checks, seven native checks
+and two XSD-valid XML files. It also repairs false empty inventory and stale
+project response/download states. Its exclusion
 fixture retains eight faces covering 84 m² around a 16 m² hole. Receipts are
 under `.cache/civil-surface/`. Browser QA reached the Pro-plan gate; paid ordinary
 server/browser download and receiving-CAD import remain unproven. It was still

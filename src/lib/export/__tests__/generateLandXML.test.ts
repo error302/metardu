@@ -49,21 +49,16 @@ describe('generateLandXML — coordinate system statements', () => {
 describe('LandXML surface CRS gate', () => {
   const surfacePoints = [{ ...points[0], elevation: 12 }]
 
-  it('uses the declared Arc 1960 EPSG code without inventing a vertical datum', () => {
-    const xml = exportLandXMLSurface(surfacePoints, 'Test Parcel', 37, 'S', 'ARC1960')
-    expect(xml).toContain('epsgCode="21037"')
-    expect(xml).toContain('horizontalDatum="ARC1960"')
-    expect(xml).not.toContain('verticalDatum="MSL"')
+  it('refuses the legacy point-list surface path without retained revision evidence', () => {
+    expect(()=>exportLandXMLSurface(surfacePoints,'Test Parcel',37,'S','ARC1960')).toThrow(/retained surface revision/)
   })
 
   it('refuses an unsupported datum instead of exporting an UNVERIFIED code', () => {
     expect(() => exportLandXMLSurface(surfacePoints, 'Test Parcel', 37, 'S', 'Unknown Datum'))
-      .toThrow(/declared, supported project CRS/)
+      .toThrow(/retained surface revision/)
   })
 
-  it('escapes project and point names in the XML', () => {
-    const xml = exportLandXMLSurface([{ ...surfacePoints[0], name: 'P&1' }], 'A&B', 37, 'S', 'WGS84')
-    expect(xml).toContain('name="A&amp;B"')
-    expect(xml).toContain('name="P&amp;1"')
+  it('cannot create a surface merely by renaming a point list', () => {
+    expect(()=>exportLandXMLSurface([{...surfacePoints[0],name:'P&1'}],'A&B',37,'S','WGS84')).toThrow(/retained surface revision/)
   })
 })

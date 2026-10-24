@@ -6,6 +6,7 @@ import { exportCivil, CIVIL_FORMATS, CivilFormat, CivilPoint } from '@/lib/expor
 import { PageHeader } from '@/components/shared/PageHeader'
 import Link from 'next/link'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import {CivilSurfaceDownload} from '@/components/export/CivilSurfaceDownload'
 
 interface ProjectRow { id: string; name: string; utm_zone: number; hemisphere: 'N' | 'S'; datum: string | null }
 interface SurveyPointRow {
@@ -30,8 +31,9 @@ function CivilExportPage() {
   const [allPoints, setAllPoints] = useState<CivilPoint[]>([])
   const [format, setFormat]       = useState<CivilFormat>('civil3d')
   const [filter, setFilter]       = useState<'all' | 'control' | 'survey'>('all')
-  const [, setLoading] = useState(false)
+  const [loading, setLoading] = useState(false)
   const [preview, setPreview]     = useState('')
+  const [pointError,setPointError] = useState('')
 
   useEffect(() => {
     const sb = createClient()
@@ -45,21 +47,26 @@ function CivilExportPage() {
   }, [])
 
   useEffect(() => {
-    if (!projectId) { setAllPoints([]); return }
+    if (!projectId) { setAllPoints([]);setLoading(false);setPointError(''); return }
+    let active=true
+    setAllPoints([]);setPreview('');setPointError('')
     setLoading(true)
     const sb = createClient()
     sb.from('survey_points').select('*').eq('project_id', projectId)
-      .then(({ data }) => {
+      .then(({ data,error }) => {
+        if(!active)return
+        if(error)throw new Error(error.message)
         if (data) setAllPoints((data as SurveyPointRow[]).map((p) => ({
           name: p.name ?? '',
-          easting: p.easting ?? 0,
-          northing: p.northing ?? 0,
-          elevation: p.elevation ?? 0,
+          easting: p.easting ?? null,
+          northing: p.northing ?? null,
+          elevation: p.elevation ?? null,
           is_control: p.is_control ?? false,
           code: p.code ?? undefined,
         })))
         setLoading(false)
-      })
+      }).catch(error=>{if(active){setPointError(error instanceof Error?error.message:'Survey points could not be loaded.');setLoading(false)}})
+    return()=>{active=false}
   }, [projectId])
 
   const project = projects.find((p) => p.id === projectId)
@@ -69,7 +76,7 @@ function CivilExportPage() {
   )
 
   useEffect(() => {
-    if (!filteredPoints.length || !project) { setPreview(''); return }
+    if (format==='landxml_surface'||!filteredPoints.length || !project) { setPreview(''); return }
     try {
       const { content } = exportCivil(filteredPoints, format, project.name, project.utm_zone, project.hemisphere, project.datum ?? '')
       setPreview(content.slice(0, 1000) + (content.length > 1000 ? '\n…' : ''))
@@ -77,6 +84,7 @@ function CivilExportPage() {
   }, [filteredPoints, format, project])
 
   const handleExport = () => {
+    if(loading||format==='landxml_surface')return
     if (!filteredPoints.length || !project) return
     const fmt = CIVIL_FORMATS.find((f) => f.id === format)
     if (!fmt) return
@@ -95,6 +103,7 @@ function CivilExportPage() {
           title={t('tools.civilExport')}
           subtitle={t('tools.civilExportDesc')}
         />
+        {pointError&&<p role="alert" className="mb-4 rounded-lg border border-red-400 bg-red-950 p-3 text-sm text-red-100">{pointError}</p>}
 
         <div className="grid lg:grid-cols-2 gap-6">
           <div className="space-y-5">
@@ -153,7 +162,7 @@ function CivilExportPage() {
               <div className="space-y-2">
                 {CIVIL_FORMATS.map((f) => (
                   <label key={f.id} className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${format === f.id ? 'bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border-[color-mix(in_srgb,var(--accent)_30%,transparent)]' : 'bg-[var(--bg-secondary)] border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'}`}>
-                    <input aria-label="Fmt" type="radio" name="fmt" value={f.id} checked={format === f.id} onChange={() => setFormat(f.id)} className="mt-0.5 flex-shrink-0" />
+                    <input aria-label={f.label} type="radio" name="fmt" value={f.id} checked={format === f.id} onChange={() => setFormat(f.id)} className="mt-0.5 flex-shrink-0" />
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-[var(--text-primary)]">{f.label}</p>
                       <p className="text-xs text-[var(--text-muted)]">{f.software}</p>
@@ -165,10 +174,10 @@ function CivilExportPage() {
               </div>
             </div>
 
-            <button onClick={handleExport} disabled={!filteredPoints.length}
+            {format==='landxml_surface'?(projectId?<CivilSurfaceDownload key={projectId} projectId={projectId}/>:<p>Choose a project to review saved surface revisions.</p>):<button onClick={handleExport} disabled={loading||!filteredPoints.length}
               className="btn btn-primary w-full text-base py-3 disabled:opacity-50">
               Download {filteredPoints.length > 0 ? `${filteredPoints.length} points` : ''} — {CIVIL_FORMATS.find((f) => f.id === format)?.label}
-            </button>
+            </button>}
           </div>
 
           <div className="space-y-5">
@@ -216,8 +225,8 @@ function CivilExportPage() {
                   <p><strong className="text-[var(--text-primary)]">Civil 3D Existing Ground:</strong></p>
                   <ol className="list-decimal list-inside space-y-1 text-xs">
                     <li>Toolspace → Prospector → Surfaces → right-click → Import LandXML</li>
-                    <li>The surface imports as a TIN surface with all survey points as breaklines</li>
-                    <li>Use for cut/fill volumes against a design surface</li>
+                    <li>Check the retained revision, original grid/height reference, vertex and face counts</li>
+                    <li>Review boundaries, exclusions and breaklines in the receiving application before design or volume use</li>
                   </ol>
                 </>}
                 {format === 'pointcloud' && <>
@@ -243,9 +252,9 @@ function CivilExportPage() {
             {/* Value prop for engineers */}
             <div className="bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] rounded-xl p-4 text-sm">
               <p className="text-[var(--text-secondary)] leading-relaxed">
-                <strong className="text-[var(--text-primary)]">For civil engineers:</strong> Survey data from METARDU is always correctly georeferenced in UTM with the datum declared. 
-                You won't receive DXF files in unknown coordinate systems or CSV with missing elevations. 
-                The LandXML Surface format creates an existing ground surface in Civil 3D ready for road design and earthwork volumes immediately.
+                <strong className="text-[var(--text-primary)]">For civil engineers:</strong> Keep the declared grid and height reference with each handoff.
+                Point exports refuse missing coordinates or heights. The LandXML surface download uses an explicit retained revision;
+                it does not regenerate a mesh from today’s points. Receiving-software checks, field evidence and professional review remain required.
               </p>
             </div>
           </div>

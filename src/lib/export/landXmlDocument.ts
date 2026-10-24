@@ -61,7 +61,7 @@ export function generateLandXML(project:LandXMLProject,points:LandXMLPoint[],pla
 </LandXML>`
 }
 
-function escapeXml(value:string):string {
+export function escapeXml(value:string):string {
   for(const character of value){
     const code=character.codePointAt(0)??0
     if(code<32&&![9,10,13].includes(code)||code>=0xd800&&code<=0xdfff||code===0xfffe||code===0xffff)throw new Error('LandXML contains an illegal XML character. Retain the original record and correct its text before exporting.')
