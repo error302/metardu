@@ -1,0 +1,91 @@
+METARDU handoff inventory; this is not a backup or a lock.
+Captured UTC: 2026-10-24T14:49:29.0852122+00:00
+Other editing chats were still active. Re-read current Git status before acting.
+
+Branch: codex/metardu-workflow-readiness-2026-10-12
+HEAD: fbad2385889560db54be6b6f50a898b631670857
+
+Staged paths:
+
+Worktree paths (including the handoff itself when present):
+ M docs/CREDIBILITY_ACCEPTANCE.md
+ M next-env.d.ts
+ M scripts/verify-surface-http.mjs
+ M src/app/account/page.test.tsx
+ M src/app/account/page.tsx
+ M src/app/api/project/[id]/surfaces/route.ts
+ M src/app/api/storage/route.ts
+ M src/app/api/subscription/project-count/route.ts
+ M src/app/api/subscription/route.ts
+ M src/app/api/topo/export/dxf/route.ts
+ M src/app/mobile/field/page.test.tsx
+ M src/app/mobile/field/page.tsx
+ M src/app/project/[id]/topo/page.tsx
+ M src/app/tools/civil-export/page.tsx
+ M src/app/topographic-workflow/page.tsx
+ M src/components/drawing/TopoEntityCanvas.tsx
+ M src/components/topo/TopoDrawingComposer.tsx
+ M src/lib/db/migrations/README.md
+ M src/lib/deliverables/deliverableRegister.ts
+ M src/lib/drawing/__tests__/topoEntities.test.ts
+ M src/lib/drawing/topoEntities.ts
+ M src/lib/export/__tests__/generateLandXML.test.ts
+ M src/lib/export/civilHandoff.ts
+ M src/lib/export/landXmlDocument.ts
+ M src/lib/mobile/offlineStorage.ts
+ M src/lib/surveyMapEngine/__tests__/topoSurfacePersistence.test.ts
+ M tests/storage-ownership-regression.test.ts
+ M tsconfig.json
+?? docs/PRODUCTION_AND_INTERNATIONAL_READINESS_RECOMMENDATIONS.md
+?? docs/PRODUCTION_READINESS_EXECUTION.md
+?? docs/SAVED_SURFACE_AND_RETAINED_DXF_ACCEPTANCE_2026-10-23.md
+?? docs/SINGLE_CHAT_HANDOFF_2026-10-24.md
+?? docs/SURFACE_REQUEST_RECOVERY_2026-10-23.md
+?? docs/TERRAIN_DOMAIN_AND_BREAKLINE_ACCEPTANCE_2026-10-24.md
+?? docs/TOPOGRAPHIC_DRAWING_AND_SUBSCRIPTION_ACCEPTANCE_2026-10-23.md
+?? docs/TOPOGRAPHIC_PILOT_AND_GSI_INTEGRITY_2026-10-23.md
+?? docs/TOPOGRAPHIC_PROJECT_REVIEW.md
+?? docs/TOPOGRAPHIC_SOURCE_ACCEPTANCE_2026-10-23.md
+?? docs/marketing/FIRST-PAYING-SURVEYORS-CAMPAIGN.md
+?? docs/marketing/INTERNATIONAL_AUDIENCE_AND_REVENUE_PLAN.md
+?? scripts/hold-surface-recovery-fixture.mjs
+?? scripts/record-terrain-domain-evidence.mjs
+?? scripts/verify-browser-surface-recovery.mjs
+?? scripts/verify-civil-surface.mjs
+?? scripts/verify-retained-surface-dxf.py
+?? scripts/verify-surface-revisions.mjs
+?? scripts/verify-terrain-domain-artifact.py
+?? scripts/verify-topographic-acceptance-files.py
+?? scripts/verify-topographic-drawing-files.py
+?? src/app/api/project/[id]/civil-surface-export/
+?? src/app/topographic-workflow/page.test.tsx
+?? src/components/export/
+?? src/components/topo/TerrainDefinitionEditor.tsx
+?? src/components/topo/TopographicProjectReview.tsx
+?? src/lib/db/migrations/116_surface_request_recovery.sql
+?? src/lib/export/retainedCivilSurface.ts
+?? src/lib/mobile/__tests__/largeJobStorage.test.ts
+?? src/lib/topo/__tests__/terrainDomain.test.ts
+?? src/lib/topo/drawingSource.ts
+?? src/lib/topo/surfaceDrawing.ts
+?? src/lib/topo/surfaceExport.ts
+?? src/lib/topo/surfacePending.ts
+?? src/lib/topo/surfaceRequest.ts
+?? src/lib/topo/surfaceRevision.ts
+?? src/lib/topo/terrainDefinitionDraft.ts
+?? src/lib/topo/terrainDomain.ts
+?? src/lib/topo/terrainDomainTypes.ts
+?? src/lib/topo/terrainDomainValidation.ts
+?? tests/civil-handoff-integrity.test.ts
+?? tests/civil-surface-download.test.tsx
+?? tests/civil-surface-export-api.test.ts
+?? tests/civil-surface-fixture.ts
+?? tests/retained-civil-surface.test.ts
+?? tests/saved-surface-workspace.test.tsx
+?? tests/subscription-request-context.test.ts
+?? tests/surface-pending-recovery.test.ts
+?? tests/surface-revision-binding.test.ts
+?? tests/surface-source-integrity.test.ts
+?? tests/terrain-definition-draft.test.ts
+?? tests/topo-drawing-project.test.tsx
+?? tests/topo-drawing-source.test.ts
