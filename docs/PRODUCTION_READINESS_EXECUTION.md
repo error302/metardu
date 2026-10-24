@@ -35,6 +35,7 @@ Preserved local commits, with no push or production promotion:
 - `1c17bf73`: server submission admission refuses missing or unassessed evidence.
 - `d3a28ec2`: dashboard/work-mode navigation, real project register, layout and
   map-chunk repairs, owner-bound stage summaries and activity response handling.
+- `d2317c77`: validated, project-bound evidence and document-register read states.
 
 The combined source baseline now passes 473 tests in 46 suites, including the
 new server-admission regressions and the retained civil suites. Detailed server
@@ -51,6 +52,11 @@ evidence/register read-state follow-up. Privileged and remaining page-family
 acceptance are still open. Keep server
 snapshot/file binding, field recovery and the remaining release gates in the
 same queue; UI work does not replace them.
+
+`CRS_DECLARATION_READ_ALIAS_2026-10-25.md` records the Settings SQL alias defect
+found by actual browser review, its 24 native PostgreSQL checks and recovered
+saved reference fields. The same review repairs the body overflow context that
+prevented sticky work-mode navigation on long forms. No saved CRS was rewritten.
 
 Local preview `next-env.d.ts`/`tsconfig.json`, the independent credibility/ops
 edit, advisory notes and marketing drafts are preserved outside the source

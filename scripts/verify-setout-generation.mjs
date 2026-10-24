@@ -68,7 +68,7 @@ const design = { projectCrs: 'EPSG:32737', minimumCoverM: 1.2, setoutIntervalM: 
 ] }
 const invoke = (body, user = owner) => POST(new NextRequest(`http://127.0.0.1:3021/api/project/${projectId}/setout`, { method: 'POST', body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }), user, projectId)
 const invokeReference = (body, user = owner) => (body === undefined ? readReference : saveReference)(new NextRequest(`http://127.0.0.1:3021/api/project/${projectId}/reference-system`, { method: body === undefined ? 'GET' : 'PUT', ...(body === undefined ? {} : { body: JSON.stringify(body), headers: { 'Content-Type': 'application/json' } }) }), user, projectId)
-const root = referenceMode ? '.cache/reference-declaration' : '.cache/setout-generation'
+const root = referenceMode ? '.cache/reference-declaration/alias-read' : '.cache/setout-generation'
 mkdirSync(root, { recursive: true })
 const files = ['scripts/verify-setout-generation.mjs', 'src/app/api/project/[id]/setout/route.ts', 'src/app/api/project/[id]/reference-system/route.ts', 'src/components/project/ProjectReferenceSystemPanel.tsx', 'src/lib/spatial/projectReferenceSystem.ts', 'src/lib/spatial/referenceDeclaration.ts', 'src/lib/db.ts', 'src/lib/auth/ownership.ts', 'src/lib/workspaces/stageReference.ts', 'src/lib/engineering/projectDrainageEngine.ts', 'src/lib/engineering/pileGrid.ts']
 const hashes = () => Object.fromEntries(files.map(file => [file, createHash('sha256').update(readFileSync(file)).digest('hex')]))
@@ -110,7 +110,7 @@ try {
   await admin.query(`CREATE SCHEMA ${schema}`); created = true
   await admin.query(`COMMENT ON SCHEMA ${schema} IS '${marker}'`)
   assert.equal((await pool.query('SELECT current_schema() name')).rows[0].name, schema)
-  await pool.query(`CREATE TABLE projects(id uuid PRIMARY KEY,user_id uuid,organization_id uuid,utm_zone int,hemisphere text,datum text,engineering_data jsonb,updated_at timestamptz DEFAULT NOW());
+  await pool.query(`CREATE TABLE projects(id uuid PRIMARY KEY,user_id uuid,organization_id uuid,utm_zone int,hemisphere text,datum text,reference text,engineering_data jsonb,updated_at timestamptz DEFAULT NOW());
     CREATE TABLE project_members(user_id uuid,project_id uuid,role text);
     CREATE TABLE project_reference_systems(LIKE public.project_reference_systems INCLUDING ALL);
     CREATE TABLE setout_definitions(LIKE public.setout_definitions INCLUDING ALL);
@@ -141,6 +141,16 @@ try {
       CREATE TRIGGER owned_legacy_fault BEFORE UPDATE ON projects FOR EACH ROW EXECUTE FUNCTION owned_legacy_fault();`)
     const form = { datum: 'WGS84', utmZone: 36, hemisphere: 'S', verticalDatum: 'SYNTHETIC NEW BM', verticalReference: 'local', distanceMode: 'grid', coordinatePrecision: 0 }
     const referenceState = async () => ({ projects: (await pool.query('SELECT * FROM projects ORDER BY id')).rows, references: (await pool.query('SELECT * FROM project_reference_systems ORDER BY project_id')).rows })
+    for (const legacyReference of [null, 'SYNTHETIC legacy file reference']) await check(`reference: saved declaration survives the legacy reference column (${legacyReference === null ? 'null' : 'text'})`, async () => {
+      await pool.query('UPDATE projects SET reference=$1 WHERE id=$2', [legacyReference, projectId])
+      const previous = await referenceState()
+      const response = await invokeReference(undefined)
+      assert.equal(response.status, 200)
+      const actual = await response.json()
+      assert.equal(actual.referenceSystem?.prs.horizontalCrs, 'EPSG:32737')
+      assert.equal(actual.referenceSystem?.prs.verticalDatum, 'SYNTHETIC BM')
+      assert.deepEqual(await referenceState(), previous, 'Reading the declaration changed retained data')
+    })
     await check('reference: owner commits canonical and legacy declarations together', async () => {
       const response = await invokeReference(form); assert.equal(response.status, 200)
       assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
@@ -298,7 +308,7 @@ try {
     if (original) { assert.deepEqual(await fingerprint(), original); report.originalRecordsPreserved = true }
     if (ledger) { assert.deepEqual((await admin.query('SELECT version,checksum FROM public.schema_migrations ORDER BY version')).rows, ledger); report.migrationLedgerPreserved = true }
     assert.deepEqual(hashes(), report.source); report.sourcePreserved = true
-    report.status = report.checks.length === 22 && report.checks.every(item => item.passed) && report.ownedFixtureRemoved && report.originalRecordsPreserved && report.migrationLedgerPreserved ? 'passed' : 'failed'
+    report.status = report.checks.length === (referenceMode ? 24 : 22) && report.checks.every(item => item.passed) && report.ownedFixtureRemoved && report.originalRecordsPreserved && report.migrationLedgerPreserved ? 'passed' : 'failed'
     save()
   } catch (error) {
     report.status = 'failed'; report.finalizationError = error.message; save(); throw error

@@ -640,7 +640,7 @@ html.field-mode small {
     font-family: var(--font-sans);
     max-width: 100%;
     overflow-x: clip;
-    overflow-y: auto;
+    overflow-y: visible;
   }
 
   /* Editorial serif for display headings — applied via .font-display utility or h1.display */

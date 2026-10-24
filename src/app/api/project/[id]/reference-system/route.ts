@@ -131,7 +131,7 @@ export const GET = apiHandler(
     if (!ownership.projectUserId) return NextResponse.json({ error: 'Recorded project ownership is required.' }, { status: 403 })
 
     const { rows } = await db.query<{ project_owner: string | null; reference: Record<string, unknown> | null }>(
-      `SELECT project.user_id AS project_owner, to_jsonb(reference) AS reference
+      `SELECT project.user_id AS project_owner, to_jsonb(reference.*) AS reference
          FROM projects project
          LEFT JOIN project_reference_systems reference
            ON reference.project_id = project.id AND project.user_id = $2
