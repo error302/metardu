@@ -24,20 +24,26 @@ function validGeometry(value: unknown, depth = 0, budget = { positions: 0 }): va
   }
 }
 
-const drawnFeaturesSchema = z.object({
+export const displayCircleSchema = z.object({
+  type:z.literal('Circle'),coordinateCrs:z.literal('EPSG:3857'),
+  center:z.array(z.number().finite()).min(2).max(4),radius:z.number().finite().nonnegative(),
+}).strict()
+export const mapFeatureCollectionSchema = z.object({
     type: z.literal('FeatureCollection'),
     features: z.array(z.object({
-      type: z.literal('Feature'), geometry: z.custom<Geometry>(value => validGeometry(value), 'Drawing geometry must contain finite, valid longitude/latitude coordinates'),
+      type: z.literal('Feature'), geometry: z.custom<Geometry|null>(value => value === null || validGeometry(value), 'Drawing geometry must contain finite, valid longitude/latitude coordinates'),
       properties: z.record(z.unknown()).nullable(), id: z.union([z.string(), z.number().finite()]).optional(),
-    }).passthrough()).min(1).max(5000),
+    }).passthrough().superRefine((feature,context)=>{
+      if(feature.geometry===null&&!displayCircleSchema.safeParse(feature.metarduDisplayGeometry).success) context.addIssue({code:z.ZodIssueCode.custom,message:'A geometry-less feature needs an explicit retained display-circle definition.'})
+    })).max(5000),
   }).passthrough()
 const withinSaveLimit = (value: unknown) => new TextEncoder().encode(JSON.stringify(value)).length <= 4 * 1024 * 1024
 
 export const mapDrawingSchema = z.object({
   source: z.literal('map-drawing'), createdFrom: z.literal('map-client'),
   coordinateCrs: z.literal('EPSG:4326'), measurementCrs: z.string().min(1),
-  drawnFeatures: drawnFeaturesSchema,
-  drawnAreaSqM: z.number().finite().nonnegative(), drawnPerimeterM: z.number().finite().nonnegative(),
+  drawnFeatures: mapFeatureCollectionSchema.refine(value => value.features.length > 0, 'Draw at least one feature'),
+  drawnAreaSqM: z.number().finite().nonnegative().nullable(), drawnPerimeterM: z.number().finite().nonnegative().nullable(),
 }).strict().refine(withinSaveLimit, 'Drawing exceeds the 4 MiB save limit; retain it and split it into smaller drawings')
 
 /** A site sketch may be retained before survey control has established a grid. */
@@ -45,7 +51,7 @@ export const reconnaissanceDrawingSchema = z.object({
   source: z.literal('site-reconnaissance'), createdFrom: z.literal('project-create-map'),
   coordinateCrs: z.literal('EPSG:4326'), evidenceStatus: z.literal('reconnaissance_unverified'),
   areaMethod: z.literal('spherical-geodesic-preview'), estimatedAreaSqM: z.number().finite().nonnegative(),
-  drawnFeatures: drawnFeaturesSchema,
+  drawnFeatures: mapFeatureCollectionSchema.refine(value => value.features.length > 0, 'Draw at least one feature'),
 }).strict().refine(withinSaveLimit, 'Site sketch exceeds the 4 MiB save limit; retain it and split it into smaller drawings')
 
 export function siteReconnaissanceDrawing(coordinates: number[][], estimatedAreaSqM: number | null) {

@@ -17,10 +17,10 @@ export const MapNotifications = memo(function MapNotifications() {
     <div aria-live="polite" aria-atomic="true">
       {projectPointsError && (
         <div
-          className={`map-notification absolute left-1/2 -translate-x-1/2 max-w-[min(92vw,36rem)] px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold ${
+          className={`map-notification absolute left-1/2 -translate-x-1/2 w-max max-w-[min(92vw,36rem)] px-5 py-3 rounded-xl shadow-2xl text-sm font-semibold ${
             pointDisplayIsPartial
               ? 'bg-amber-100 text-amber-950 border border-amber-300'
-              : 'bg-[var(--error)] text-[var(--text-primary)]'
+              : 'bg-red-950 text-red-100 border border-red-400'
           }`}
           role={pointDisplayIsPartial ? 'status' : 'alert'}
         >
@@ -28,14 +28,14 @@ export const MapNotifications = memo(function MapNotifications() {
         </div>
       )}
       {importMsg && (
-        <div className="map-notification absolute left-1/2 -translate-x-1/2 bg-[#D17B47] text-[var(--text-primary)] px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold" role="status">
+        <div className="map-notification absolute left-1/2 -translate-x-1/2 w-max max-w-[min(92vw,36rem)] bg-amber-100 text-amber-950 border border-amber-300 px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold" role="status">
           {importMsg}
         </div>
       )}
       {saveMsg && (
-        <div className={`map-notification absolute left-1/2 -translate-x-1/2 px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold ${
-          saveMsg.startsWith('Error') ? 'bg-[var(--error)] text-[var(--text-primary)]' : 'bg-[var(--success)] text-[var(--text-primary)]'
-        }`} role="status">
+        <div className={`map-notification absolute left-1/2 -translate-x-1/2 w-max max-w-[min(92vw,36rem)] px-5 py-2.5 rounded-xl shadow-2xl text-sm font-semibold border ${
+          saveMsg.startsWith('Error') ? 'bg-red-950 text-red-100 border-red-400' : 'bg-[var(--bg-secondary)] text-[var(--text-primary)] border-[var(--border-color)]'
+        }`} role={saveMsg.startsWith('Error')?'alert':'status'}>
           {saveMsg}
         </div>
       )}

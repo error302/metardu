@@ -1,11 +1,12 @@
 'use client'
 
 import { useRef, useState, useCallback } from 'react'
-import type { HistoryEntry, MapContext, SerializedFeature, SerializedGeometry } from './useMapTypes'
+import type { HistoryEntry, MapContext } from './useMapTypes'
+import { cloneMapDrawingFeature } from '@/lib/mapDrawing/codec'
 
 /**
  * Manages undo/redo history for the draw source features.
- * Maintains a stack of serialized feature snapshots (max 50 entries).
+ * Maintains a stack of complete cloned feature snapshots (max 50 entries).
  */
 export function useMapHistory(ctx: MapContext) {
   const historyRef = useRef<HistoryEntry[]>([])
@@ -17,33 +18,10 @@ export function useMapHistory(ctx: MapContext) {
   const pushHistory = useCallback(() => {
     const drawSource = ctx.drawSourceRef.current
     if (!drawSource) return
-    const json = JSON.stringify(
-      drawSource.getFeatures().map((f) => {
-        // OL v10 geometries have no toJSON() (verified on 10.8.0) — serialize
-        // explicitly into the SerializedGeometry shape restoreEntry reads.
-        const geom = f.getGeometry()
-        let geometry: SerializedGeometry | null = null
-        if (geom) {
-          const type = geom.getType()
-          if (type === 'Point') {
-            geometry = { type, coordinates: (geom as import('ol/geom/Point').default).getCoordinates() }
-          } else if (type === 'LineString') {
-            geometry = { type, coordinates: (geom as import('ol/geom/LineString').default).getCoordinates() }
-          } else if (type === 'Polygon') {
-            geometry = { type, coordinates: (geom as import('ol/geom/Polygon').default).getCoordinates() }
-          } else if (type === 'Circle') {
-            const circle = geom as import('ol/geom/Circle').default
-            geometry = { type, center: circle.getCenter(), radius: circle.getRadius() }
-          }
-        }
-        return {
-          geometry,
-          properties: f.getProperties(),
-        }
-      })
-    )
+    // Clone before changing history; unsupported/circular metadata cannot clear the live drawing.
+    const features = drawSource.getFeatures().map(cloneMapDrawingFeature)
     const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1)
-    newHistory.push({ featuresJson: json })
+    newHistory.push({ features })
     if (newHistory.length > 50) newHistory.shift()
     historyRef.current = newHistory
     historyIndexRef.current = newHistory.length - 1
@@ -53,71 +31,37 @@ export function useMapHistory(ctx: MapContext) {
   }, [])
 
   // ── Restore features from a history entry ──
-  const restoreEntry = useCallback(async (entry: HistoryEntry) => {
-    // Guard: the draw source is lazily created during map init and can be
-    // null before the map is ready — never deref it without a check.
+  const restoreEntry = useCallback((entry: HistoryEntry): boolean => {
     const drawSource = ctx.drawSourceRef.current
-    if (!drawSource) return
-    const features = JSON.parse(entry.featuresJson) as SerializedFeature[]
+    if (!drawSource) return false
+    const features = entry.features.map(cloneMapDrawingFeature)
+    ctx.selectInteractionRef.current?.getFeatures().clear()
+    ctx.setSelectedFeature(null)
+    ctx.setFeatureName('')
     drawSource.clear()
-    for (const f of features) {
-      if (f.geometry) {
-        const { default: Feature } = await import('ol/Feature')
-        const geomType = f.geometry.type
-        let geom: import('ol/geom/Geometry').default | null = null
-        if (geomType === 'Point') {
-          const { default: Point } = await import('ol/geom/Point')
-          geom = new Point(f.geometry.coordinates)
-        } else if (geomType === 'LineString') {
-          const { default: LineString } = await import('ol/geom/LineString')
-          geom = new LineString(f.geometry.coordinates)
-        } else if (geomType === 'Polygon') {
-          const { default: Polygon } = await import('ol/geom/Polygon')
-          geom = new Polygon(f.geometry.coordinates)
-        } else if (geomType === 'Circle') {
-          const { default: Circle } = await import('ol/geom/Circle')
-          geom = new Circle(f.geometry.center, f.geometry.radius)
-        }
-        if (geom) {
-          const feature = new Feature({ geometry: geom })
-          if (f.properties) {
-            Object.entries(f.properties).forEach(([k, v]) => {
-              if (k !== 'geometry') feature.set(k, v)
-            })
-          }
-          drawSource.addFeature(feature)
-        }
-      }
-    }
-    ctx.setFeatureCount(drawSource.getFeatures().length)
+    drawSource.addFeatures(features)
+    ctx.setFeatureCount(features.length)
+    return true
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // ── Undo ──
   const undo = useCallback(async () => {
     if (historyIndexRef.current <= 0 || !ctx.drawSourceRef.current) return
-    historyIndexRef.current--
-    const entry = historyRef.current[historyIndexRef.current]
-    try {
-      await restoreEntry(entry)
-    } catch { /* ignore */ }
-    setCanUndo(historyIndexRef.current > 0)
-    setCanRedo(historyIndexRef.current < historyRef.current.length - 1)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const index = historyIndexRef.current - 1
+    if (!restoreEntry(historyRef.current[index])) return
+    historyIndexRef.current = index
+    setCanUndo(index > 0)
+    setCanRedo(index < historyRef.current.length - 1)
+  }, [ctx.drawSourceRef,restoreEntry])
 
-  // ── Redo ──
   const redo = useCallback(async () => {
     if (historyIndexRef.current >= historyRef.current.length - 1 || !ctx.drawSourceRef.current) return
-    historyIndexRef.current++
-    const entry = historyRef.current[historyIndexRef.current]
-    try {
-      await restoreEntry(entry)
-    } catch { /* ignore */ }
-    setCanUndo(historyIndexRef.current > 0)
-    setCanRedo(historyIndexRef.current < historyRef.current.length - 1)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+    const index = historyIndexRef.current + 1
+    if (!restoreEntry(historyRef.current[index])) return
+    historyIndexRef.current = index
+    setCanUndo(index > 0)
+    setCanRedo(index < historyRef.current.length - 1)
+  }, [ctx.drawSourceRef,restoreEntry])
 
   // ── Clear history (used by "Clear All") ──
   const clearHistory = useCallback(() => {

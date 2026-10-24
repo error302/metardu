@@ -15,6 +15,9 @@ import MapGlobalStyles from '@/app/map/MapGlobalStyles'
 import type { BasemapMode, DrawMode, MeasureMode } from '@/app/map/mapTypes'
 import { useIsMobile } from '@/hooks/use-mobile'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { useSession } from 'next-auth/react'
+import { useSavedProjectDrawing } from '@/app/map/hooks/useSavedProjectDrawing'
+import { MapDrawingStatus } from '@/app/map/components/MapDrawingStatus'
 import dynamic from 'next/dynamic'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { useSchemeLayers } from '@/app/map/hooks/useSchemeLayers'
@@ -161,6 +164,13 @@ function renderPopup(popupElement: HTMLDivElement, data: {
  *  MAIN COMPONENT
  * ══════════════════════════════════════════════════════════════════════ */
 export default function MapClient() {
+  const search = useSearchParams()
+  const session = useSession()
+  const projectId = search.get('projectId')
+  return <MapWorkspace key={projectId ? `${projectId}:${session.data?.user?.id ?? 'loading'}` : 'unlinked'} />
+}
+
+function MapWorkspace() {
   const router = useRouter()
   const isMobile = useIsMobile()
   const searchParams = useSearchParams()
@@ -195,6 +205,8 @@ export default function MapClient() {
 
   // ── UI state ──
   const [mapReady, setMapReady] = useState(false)
+  const [browserDrawingReady,setBrowserDrawingReady] = useState(false)
+  const [browserDrawingError,setBrowserDrawingError] = useState('')
   const [toolsExpanded, setToolsExpanded] = useState(false)
   const [initError, setInitError] = useState('')
   const [projectCount, setProjectCount] = useState(0)
@@ -326,11 +338,15 @@ export default function MapClient() {
     popupRef,
     createBasemaps,
     currentSurveyCrs,
+    onBrowserDrawingRestored: error => {setBrowserDrawingError(error??'');setBrowserDrawingReady(!error)},
     onPopupRender: renderPopup,
   })
 
   // ── Map state persistence ──
-  useMapState(mapInstance, drawSourceRef, mapReady)
+  useMapState(mapInstance, drawSourceRef, mapReady, schemeProjectId, browserDrawingReady, setBrowserDrawingError)
+  const projectDrawing = useSavedProjectDrawing({ projectId:schemeProjectId,mapReady,source:drawSourceRef,map:mapInstance,
+    pushHistory,clearHistory,setMessage:setSaveMsg,
+    clearSelection:()=>{selectInteractionRef.current?.getFeatures().clear();setSelectedFeature(null);setSelectedFeatures([]);setFeatureName('')} })
 
   // ── Interactions hook ──
 
@@ -429,6 +445,8 @@ export default function MapClient() {
     gpsPosInSurveyCrs,
     currentSurveyCrs,
     projectId: schemeProjectId,
+    saveLinkedDrawing: projectDrawing.save,
+    onProjectCreated: id => router.push(`/map?projectId=${encodeURIComponent(id)}`),
     onDrawEnd: (areaSqM, perimeterM, featureType) => {
       if (featureType === 'Polygon') {
         setSaveMsg(`Area: ${areaSqM.toFixed(1)} m² (${(areaSqM / 10000).toFixed(4)} ha) · Perimeter: ${perimeterM.toFixed(1)} m`)
@@ -819,6 +837,15 @@ export default function MapClient() {
 
               {/* ── Unified Tool Dock (matching UX on desktop & mobile) ── */}
               <MapToolDock expanded={toolsExpanded} onExpandedChange={setToolsExpanded} />
+              {schemeProjectId && <MapDrawingStatus drawing={projectDrawing} />}
+              {!schemeProjectId&&browserDrawingError&&<div role="alert" className="absolute z-20 left-3 bottom-24 max-w-[min(90vw,28rem)] rounded-lg bg-[var(--bg-secondary)] border border-[var(--error)] p-3 text-sm">
+                <p>{browserDrawingError}</p>
+                <button className="underline mt-2" onClick={()=>{
+                  const raw=localStorage.getItem('metardu-map-features')
+                  const url=URL.createObjectURL(new Blob([raw??''],{type:'application/json'})),a=document.createElement('a')
+                  a.href=url;a.download='retained-original-browser-map.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)
+                }}>Download retained browser record</button>
+              </div>}
 
               {/* ── Mobile Gesture Lock (bottom-left, above status bar) ── */}
               <MapInteractionToggle mapInstance={mapInstance} />

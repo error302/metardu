@@ -30,6 +30,8 @@ import { registerProjectProjection } from '@/lib/map/projection'
 import { assertProjectedCrs, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 import { reportCrs } from '@/lib/generators/reportCrs'
+import { mapFeatureCollectionSchema } from '@/lib/validation/mapDrawing'
+import { decodeMapDrawing,encodeMapDrawing } from '@/lib/mapDrawing/codec'
 
 interface UseMapInitParams {
   mapRef: React.RefObject<HTMLDivElement | null>
@@ -58,6 +60,7 @@ interface UseMapInitParams {
   onPopupRender: (popupElement: HTMLDivElement, data: { coordinate?: import('ol/coordinate').Coordinate; projectName?: string; stationName?: string; geometryType?: string; projectId?: string; onDelete?: () => void }, hidePopup: () => void) => void
   /** T1.5 FIX (2026-07-09): UTM EPSG for mouse position coordinate display */
   currentSurveyCrs: string | null
+  onBrowserDrawingRestored: (error:string|null) => void
 }
 
 export function useMapInit(params: UseMapInitParams) {
@@ -432,6 +435,7 @@ export function useMapInit(params: UseMapInitParams) {
         }
 
         // ── Create the map ──
+        if(cancelled||!mapRef.current) return
         map = new Map({
           target: mapRef.current,
           layers: [basemaps.osm, basemaps.satellite, basemaps.dark, basemaps.terrain, clusterLayer, drawLayer, measureLayer],
@@ -488,6 +492,8 @@ export function useMapInit(params: UseMapInitParams) {
         mapInstance.current = map
         const mapNonNull = map
 
+        // A linked project loads only its server/owner-scoped drawing, never the unlinked workspace.
+        if (!searchParams.get('projectId')) {
         // Restore saved map view state
         try {
           const savedView = localStorage.getItem('metardu-map-view')
@@ -501,21 +507,20 @@ export function useMapInit(params: UseMapInitParams) {
           }
         } catch { /* ignore */ }
 
-        // Restore saved drawn features
+        // Decode every retained feature before changing the drawing source.
         try {
           const savedFeatures = localStorage.getItem('metardu-map-features')
           if (savedFeatures) {
-            const { default: GeoJSONFmt } = await import('ol/format/GeoJSON')
-            const fmt = new GeoJSONFmt()
-            const parsed = JSON.parse(savedFeatures) as object
-            const features = fmt.readFeatures(parsed, {
-              dataProjection: 'EPSG:4326',
-              featureProjection: 'EPSG:3857',
-            })
-            drawSource.addFeatures(features)
+            const first:unknown = JSON.parse(savedFeatures)
+            const collection = mapFeatureCollectionSchema.parse(typeof first === 'string' ? JSON.parse(first) as unknown : first)
+            drawSource.addFeatures(decodeMapDrawing(collection))
             setFeatureCount(drawSource.getFeatures().length)
           }
-        } catch { /* ignore */ }
+          params.onBrowserDrawingRestored(null)
+        } catch {
+          params.onBrowserDrawingRestored('The retained browser drawing could not be fully restored. Its original record has been preserved; download it before reviewing or replacing it.')
+        }
+        }
 
         // ── Select interaction ──
         const select = new Select({
@@ -614,7 +619,11 @@ export function useMapInit(params: UseMapInitParams) {
         dragAndDrop.on('addfeatures', (evt: DragAndDropEvent) => {
           const features = evt.features
           if (features && features.length > 0) {
-            drawSource.addFeatures(features as InstanceType<typeof Feature>[])
+            // Assign distinct internal IDs before VectorSource can discard duplicate source IDs.
+            let imported: InstanceType<typeof Feature>[]
+            try { imported=decodeMapDrawing(encodeMapDrawing(features as InstanceType<typeof Feature>[])) }
+            catch(error) { setImportMsg(error instanceof Error?error.message:'The file could not be imported. The existing drawing is retained.');return }
+            drawSource.addFeatures(imported)
             setFeatureCount(drawSource.getFeatures().length)
             const extent = drawSource.getExtent()
             if (extent && extent[0] !== Infinity) {

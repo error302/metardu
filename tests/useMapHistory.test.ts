@@ -21,6 +21,8 @@ import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import LineString from 'ol/geom/LineString'
 import Circle from 'ol/geom/Circle'
+import { decodeMapDrawing,encodeMapDrawing } from '../src/lib/mapDrawing/codec'
+import type { MapFeatureCollection } from '../src/lib/mapDrawing/wire'
 import { useMapHistory } from '../src/hooks/useMapHistory'
 import type { MapContext } from '../src/hooks/useMapTypes'
 
@@ -83,6 +85,20 @@ function renderHistory(ctx: MapContext) {
 }
 
 describe('useMapHistory', () => {
+  it('undo retains mixed collections, duplicate source IDs and nested metadata',async()=>{
+    const original:MapFeatureCollection={type:'FeatureCollection',features:[
+      {type:'Feature',id:0,properties:{geometry:{retained:true}},geometry:{type:'GeometryCollection',geometries:[{type:'MultiPoint',coordinates:[[30,-2],[30.001,-2.001]]},{type:'MultiLineString',coordinates:[[[30,-2],[30.002,-2.001]]]}]}},
+      {type:'Feature',id:0,properties:{name:'SYNTHETIC'},geometry:{type:'MultiPolygon',coordinates:[[[[30,-2],[30.002,-2],[30.002,-2.002],[30,-2]]]]}},
+    ]}
+    const source=new VectorSource({features:decodeMapDrawing(original)}),{ctx}=makeCtx(source),h=renderHistory(ctx)
+    try{
+      act(()=>h.api().pushHistory())
+      source.clear();source.addFeature(new Feature(new Point([10,20])))
+      act(()=>h.api().pushHistory())
+      await act(async()=>{await h.api().undo()})
+      expect(encodeMapDrawing(source.getFeatures())).toEqual(original)
+    }finally{await h.unmount()}
+  })
   it('round-trips push/undo/redo, restoring geometry and properties exactly', async () => {
     const source = new VectorSource()
     const { ctx, setFeatureCount } = makeCtx(source)

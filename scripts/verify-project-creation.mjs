@@ -95,7 +95,10 @@ try {
   await check('map features properties IDs zero metrics and CRS provenance round-trip exactly', async () => {
     const response = await invoke({ ...base, datum: 'WGS84', utm_zone: 37, hemisphere: 'S', boundary_data: drawing })
     assert.equal(response.status, 201); const row = (await state()).projects[0]
-    assert.deepEqual(row.boundary_data, drawing); assert.equal(row.utm_zone, 37); assert.equal(row.hemisphere, 'S'); assert.equal(row.datum, 'WGS84')
+    assert.deepEqual(Object.fromEntries(Object.keys(drawing).map(key=>[key,row.boundary_data[key]])), drawing)
+    assert.equal(row.boundary_data.mapDrawing.metrics.status,'available')
+    assert.equal(row.boundary_data.mapDrawing.metrics.areaSqM,0)
+    assert.equal(row.utm_zone, 37); assert.equal(row.hemisphere, 'S'); assert.equal(row.datum, 'WGS84')
   })
   await check('site sketch remains explicitly unverified without assigning a survey grid', async () => {
     const sketch = siteReconnaissanceDrawing([[39,-4],[39.001,-4],[39.001,-4.001],[39,-4]], 0)

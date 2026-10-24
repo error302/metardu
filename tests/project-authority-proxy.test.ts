@@ -1,6 +1,6 @@
 /** @jest-environment node */
 import { NextRequest, type NextResponse } from 'next/server'
-const mockQuery = jest.fn().mockResolvedValue({ rows: [{ id: 'synthetic' }], rowCount: 1 })
+const mockQuery = jest.fn<Promise<{rows:{id:string}[];rowCount:number}>,unknown[]>().mockResolvedValue({ rows: [{ id: 'synthetic' }], rowCount: 1 })
 jest.mock('@/lib/db', () => ({ db: { query: (...args: unknown[]) => mockQuery(...args) }, setCurrentRlsServiceRole: jest.fn(), setCurrentTillClaimCode: jest.fn() }))
 jest.mock('next-auth', () => ({ getServerSession: jest.fn(async () => ({ user: { id: '11111111-1111-4111-8111-111111111111', email: 'synthetic@example.invalid' } })) }))
 jest.mock('@/lib/auth', () => ({ authOptions: {} }))
@@ -30,6 +30,13 @@ test.each(['projects', 'user_subscriptions'])('%s reads remain available to the 
 test('workflow progress writes remain available without reference changes', async () => {
   expect((await POST(request('projects', 'update', { workflow_step: 2, workflow_max_unlocked: 2 }))).status).toBe(200)
   expect(mockQuery).toHaveBeenCalled()
+})
+
+test('generic boundary replacement cannot bypass versioned map saves', async () => {
+  const response=await POST(request('projects','update',{boundary_data:{drawnFeatures:{type:'FeatureCollection',features:[]}}}))
+  expect(response.status).toBe(403)
+  expect(await response.json()).toMatchObject({error:{code:'MAP_DRAWING_VERSION_REQUIRED'}})
+  expect(mockQuery).not.toHaveBeenCalled()
 })
 
 test.each(['insert', 'upsert'])('generic project %s cannot bypass quota-checked creation', async operation => {

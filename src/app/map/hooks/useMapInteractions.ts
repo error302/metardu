@@ -50,6 +50,8 @@ import {
   type StakeoutPosition,
 } from '@/lib/surveyMapEngine/ol/stakeout'
 import { logger } from '@/lib/logger'
+import { measureMapGridDrawing } from '@/lib/mapDrawing/metrics'
+import { encodeMapDrawing } from '@/lib/mapDrawing/codec'
 import { zoomToSurveyPointCluster } from '@/lib/surveyMapEngine/ol/pointLoading'
 
 interface UseMapInteractionsParams {
@@ -93,6 +95,8 @@ interface UseMapInteractionsParams {
   projectId: string | null
   /** Saved project CRS, or an explicitly selected grid on an unlinked map. */
   currentSurveyCrs: string | null
+  saveLinkedDrawing?: () => Promise<void>
+  onProjectCreated?: (id: string) => void
   /** Called when a feature is drawn — used to compute live area/perimeter */
   onDrawEnd?: (areaSqM: number, perimeterM: number, featureType: string) => void
   /** Called when a feature is identified by single-click */
@@ -323,70 +327,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (!source) return
 
     const modify = new Modify({ source })
-    modify.on('modifyend', async (e: ModifyEvent) => {
+    modify.on('modifyend', (_event: ModifyEvent) => {
       setTimeout(p.pushHistory, 100)
 
-      // ── Vertex editing persistence: save modified geometry to project ──
-      if (p.projectId && e.features) {
-        try {
-          const features = e.features.getArray()
-          for (const feature of features) {
-            const geom = feature.getGeometry()
-            if (!geom) continue
+      if (p.projectId) p.setSaveMsg('Vertices edited locally. Use Save drawing to write a checked project version; the local draft is retained.')
 
-            const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
-            const fmt = new GeoJSONFormat()
-
-            // Convert modified feature to GeoJSON
-            const geojson = fmt.writeFeatureObject(feature, {
-              featureProjection: 'EPSG:3857',
-              dataProjection: 'EPSG:4326',
-            })
-
-            // Update the project's boundary_data with the modified feature
-            const { createClient } = await import('@/lib/api-client/client')
-            const dbClient = createClient()
-            const projRow = (await dbClient
-              .from('projects')
-              .select('boundary_data')
-              .eq('id', p.projectId)
-              .single()) as { data: { boundary_data?: { drawnFeatures?: { features?: unknown[] } } } | null }
-            const bd = projRow.data?.boundary_data || {}
-            const drawnFeatures: import('ol/format/GeoJSON').GeoJSONFeature[] = (bd.drawnFeatures?.features as import('ol/format/GeoJSON').GeoJSONFeature[] | undefined) || []
-
-            // Find and replace the modified feature (by id if available)
-            const featureId = feature.getId?.() || (feature.get('ol_uid') as string | number | undefined) || String(Date.now())
-            const idx = drawnFeatures.findIndex((f) =>
-              f.id === featureId || f.properties?.ol_uid === featureId
-            )
-
-            if (idx >= 0) {
-              drawnFeatures[idx] = geojson
-            } else {
-              drawnFeatures.push(geojson)
-            }
-
-            await dbClient
-              .from('projects')
-              .update({
-                boundary_data: {
-                  ...bd,
-                  drawnFeatures: { type: 'FeatureCollection', features: drawnFeatures },
-                  lastModifiedAt: new Date().toISOString(),
-                },
-              })
-              .eq('id', p.projectId)
-
-            if (p.setSaveMsg) {
-              const setSaveMsg = p.setSaveMsg
-              setSaveMsg(`Vertex edited — saved to project`)
-              setTimeout(() => setSaveMsg?.(''), 3000)
-            }
-          }
-        } catch (err) {
-          logger.error('[VertexEdit] Failed to persist:', { error: err })
-        }
-      }
     })
     p.mapInstance.current.addInteraction(modify)
     p.modifyInteractionRef.current = modify
@@ -649,11 +594,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     let mimeType = ''
 
     if (format === 'GeoJSON') {
-      const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
-      const fmt = new GeoJSONFormat()
-      output = fmt.writeFeatures(drawSourceRef.current.getFeatures(), {
-        featureProjection: 'EPSG:3857', dataProjection: 'EPSG:4326',
-      })
+      output = JSON.stringify(encodeMapDrawing(drawSourceRef.current.getFeatures()))
       filename = 'metardu-export.geojson'
       mimeType = 'application/geo+json'
     } else if (format === 'KML') {
@@ -948,9 +889,16 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   // ── SAVE TO PROJECT — saves drawn features to current project (not throwaway) ──
   const drawingSaveInFlight = useRef(false)
+  const linkedProjectSave = p.saveLinkedDrawing
+  const onProjectCreated = p.onProjectCreated
   const saveToProject = useCallback(async () => {
     if (drawingSaveInFlight.current) return
     const setSaveMsg = p.setSaveMsg
+    if (p.projectId) {
+      if (!linkedProjectSave) { setSaveMsg('Error: The project drawing has not loaded. Local features are retained.'); return }
+      await linkedProjectSave()
+      return
+    }
     if (!epsg) {
       setSaveMsg('Declare or select a supported project CRS before saving survey geometry.')
       return
@@ -974,79 +922,12 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         return
       }
 
-      // Convert features to GeoJSON in EPSG:4326
-      const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
-      const fmt = new GeoJSONFormat()
-      const geojson = fmt.writeFeatures(features, {
-        featureProjection: 'EPSG:3857',
-        dataProjection: 'EPSG:4326',
-      })
-      const featuresJson = JSON.parse(geojson) as { features?: import('ol/format/GeoJSON').GeoJSONFeature[] }
+      // Preserve native display circles explicitly; standard GeoJSON geometry remains WGS84.
+      const featuresJson = encodeMapDrawing(features)
 
-      // Compute total area and perimeter in the project CRS (survey maths —
-      // Web Mercator areas are inflated by 1/cos²(latitude) and must not be
-      // persisted as drawnAreaSqM).
-      let totalArea = 0
-      let totalPerimeter = 0
-      for (const f of features) {
-        const geom = f.getGeometry()
-        if (!geom) continue
-        const type = geom.getType()
-        try {
-          if (type === 'Polygon' || type === 'MultiPolygon') {
-            const polys = (type === 'Polygon'
-              ? [(geom as Polygon).getCoordinates()]
-              : (geom as Polygon).getCoordinates()) as unknown as number[][][][]
-            for (const poly of polys) {
-              const outer = poly[0] || []
-              if (outer.length < 3) continue
-              totalArea += polygonAreaInCrs(outer, epsg)
-              totalPerimeter += polygonPerimeterInCrs(outer, epsg)
-            }
-          } else if (type === 'LineString') {
-            totalPerimeter += polylineLengthInCrs((geom as LineString).getCoordinates(), epsg)
-          }
-        } catch { /* skip feature whose CRS could not be resolved */ }
-      }
+      const metrics = measureMapGridDrawing(featuresJson as import('geojson').FeatureCollection,epsg)
+      const totalArea = metrics.areaSqM, totalPerimeter = metrics.totalLengthM
 
-      if (p.projectId) {
-        // ── Save to current project ──
-        // Fetch existing boundary_data to merge
-        const existingRow = (await dbClient
-          .from('projects')
-          .select('name, boundary_data')
-          .eq('id', p.projectId)
-          .single()) as { data: { name?: string; boundary_data?: { drawnFeatures?: { features?: unknown[] } } } | null }
-        const existing = existingRow.data
-
-        const existingBd: { drawnFeatures?: { features?: unknown[] } } = existing?.boundary_data || {}
-        const existingDrawn: unknown[] = existingBd.drawnFeatures?.features || []
-        const newFeatures: unknown[] = featuresJson.features || []
-
-        const { error } = await dbClient
-          .from('projects')
-          .update({
-            boundary_data: {
-              ...existingBd,
-              source: 'map-drawing',
-              drawnFeatures: {
-                type: 'FeatureCollection',
-                features: [...existingDrawn, ...newFeatures],
-              },
-              lastDrawnAt: new Date().toISOString(),
-              drawnAreaSqM: totalArea,
-              drawnPerimeterM: totalPerimeter,
-            },
-          })
-          .eq('id', p.projectId)
-
-        if (error) {
-          setSaveMsg(`Error: ${error.message}`)
-        } else {
-          const areaStr = totalArea > 0 ? ` · ${totalArea.toFixed(1)} m²` : ''
-          setSaveMsg(`Saved ${features.length} feature(s) to "${existing?.name || 'project'}"${areaStr}`)
-        }
-      } else {
         // ── No project linked — create a new one ──
         const projectName = prompt('Enter a name for the new project:', `Map Drawing — ${new Date().toLocaleDateString()}`)
         if (!projectName) {
@@ -1085,14 +966,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         if (!response.ok) throw new Error(result.error || `Project save failed (HTTP ${response.status}). Your drawing is retained.`)
         const newProject = result.data
         if (!newProject?.id || typeof newProject.name !== 'string') throw new Error('Project save was not confirmed. Your drawing is retained; review Projects before retrying.')
-        const areaStr = totalArea > 0 ? ` · ${totalArea.toFixed(1)} m²` : ''
+        const areaStr = totalArea != null ? ` · grid area sum ${totalArea.toFixed(1)} m²` : ' · grid measurements unavailable'
         setSaveMsg(`Saved to "${newProject.name}"${areaStr}`)
-      }
+        onProjectCreated?.(newProject.id)
       setTimeout(() => setSaveMsg(''), 5000)
     } catch (err: unknown) {
       setSaveMsg(`Error: ${err instanceof Error ? err.message : 'Save failed'}. Your drawing remains on this map. If the save was interrupted, review Projects before retrying.`)
     } finally { drawingSaveInFlight.current = false }
-  }, [p.projectId, p.setSaveMsg, p.drawSourceRef, epsg])
+  }, [p.projectId, p.setSaveMsg, p.drawSourceRef, linkedProjectSave, onProjectCreated, epsg])
 
   // ── ANNOTATIONS ──
   const annotationMapRef = p.mapInstance

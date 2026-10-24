@@ -4,7 +4,7 @@ export function canonicalJson(value:unknown):string {
     if(Array.isArray(item))return item.map(sorted)
     if(item&&typeof item==='object')return Object.keys(item as Record<string,unknown>).sort().reduce<Record<string,unknown>>((result,key)=>{
       result[key]=sorted((item as Record<string,unknown>)[key]);return result
-    },{})
+    },Object.create(null) as Record<string,unknown>)
     return item
   }
   return JSON.stringify(sorted(value))

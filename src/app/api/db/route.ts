@@ -216,6 +216,12 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   }
   if (table === 'projects' && (operation === 'update' || operation === 'upsert')) {
     const rows = Array.isArray(payload) ? payload : [payload]
+    if (rows.some(row => row && Object.prototype.hasOwnProperty.call(row, 'boundary_data'))) {
+      return NextResponse.json(
+        { data: null, error: { message: 'Use the version-checked map drawing workflow; retain the local draft on conflict', code: 'MAP_DRAWING_VERSION_REQUIRED' } },
+        { status: 403 },
+      )
+    }
     if (rows.some(row => row && ['datum', 'utm_zone', 'hemisphere'].some(column => Object.prototype.hasOwnProperty.call(row, column)))) {
       return NextResponse.json(
         { data: null, error: { message: 'Use the project reference declaration workflow to change the survey grid', code: 'REFERENCE_DECLARATION_REQUIRED' } },

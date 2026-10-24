@@ -3,19 +3,22 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db, setRlsContext } from '@/lib/db'
 import { checkProjectLimit } from '@/lib/subscription/subscriptionEngine'
 import { POST } from '@/app/api/projects/route'
-const mockQuery = jest.fn()
+const mockQuery = jest.fn<Promise<{rows:unknown[];rowCount:number}>,[sql:string,values?:unknown[]]>()
 const mockRelease = jest.fn()
 const mockClient = { query: mockQuery, release: mockRelease }
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn(), getClient: jest.fn() }, setRlsContext: jest.fn() }))
 jest.mock('@/lib/subscription/subscriptionEngine', () => ({ checkProjectLimit: jest.fn() }))
 jest.mock('@/lib/logger', () => ({ logger: { error: jest.fn() } }))
 jest.mock('@/lib/api/handler', () => ({
-  AppError: jest.requireActual('@/lib/api/errors').AppError,
-  apiHandler: (config: { schema: { safeParse: (value: unknown) => any }; handler: (ctx: unknown) => Promise<NextResponse> }) => async (req: NextRequest) => {
-    const parsed = config.schema.safeParse(await req.json())
+  AppError: jest.requireActual<typeof import('@/lib/api/errors')>('@/lib/api/errors').AppError,
+  apiHandler: (config: { schema: { safeParse: (value: unknown) => {success:boolean;data?:unknown} }; handler: (ctx: unknown) => Promise<NextResponse> }) => async (req: NextRequest) => {
+    const parsed = config.schema.safeParse(await req.json() as unknown)
     if (!parsed.success) return NextResponse.json({ error: 'Invalid input' }, { status: 422 })
     try { return await config.handler({ input: parsed.data, userId: 'owner', userEmail: 'synthetic@example.invalid' }) }
-    catch (error: any) { return NextResponse.json({ error: error.message }, { status: error.statusCode ?? 500 }) }
+    catch (error: unknown) {
+      const status=error&&typeof error==='object'&&'statusCode' in error&&typeof error.statusCode==='number'?error.statusCode:500
+      return NextResponse.json({error:error instanceof Error?error.message:'Creation failed'},{status})
+    }
   },
 }))
 const base = { name: 'Synthetic creation', survey_type: 'road' }
@@ -40,9 +43,12 @@ test('creation checks the plan on the same client after acquiring the account lo
 })
 test('map drawing features and their coordinate provenance survive canonical creation', async () => {
   expect((await invoke({ ...base, datum: 'WGS84', utm_zone: 37, hemisphere: 'S', boundary_data: drawing } as typeof base)).status).toBe(201)
-  const insert = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO projects'))!
+  const insert = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO projects'))
+  if(!insert)throw new Error('Expected a canonical project insert')
   expect(insert[0]).toContain('boundary_data')
-  expect(insert[1]).toContainEqual(JSON.stringify(drawing))
+  const boundary = insert[1]?.find(value => typeof value === 'string' && value.includes('"drawnFeatures"'))
+  expect(JSON.parse(String(boundary)) as unknown).toMatchObject(drawing)
+  expect(JSON.parse(String(boundary)) as unknown).toHaveProperty('mapDrawing.referenceSource','selected_grid_preview')
 })
 test('plan denial rolls back before inserting a project', async () => {
   jest.mocked(checkProjectLimit).mockResolvedValue({ allowed: false, reason: 'Limit reached' })

@@ -6,6 +6,8 @@ import { db, setRlsContext } from '@/lib/db'
 import { checkProjectLimit } from '@/lib/subscription/subscriptionEngine'
 import { createProjectSchema } from '@/lib/validation/projectCreation'
 import { logger } from '@/lib/logger'
+import { horizontalCrsFor } from '@/lib/spatial/projectReferenceSystem'
+import { measureMapGridDrawing } from '@/lib/mapDrawing/metrics'
 
 interface ProjectRow {
   id: string
@@ -27,6 +29,15 @@ export const POST = apiHandler({
   schema: createProjectSchema,
   handler: async (ctx) => {
     const validated = ctx.input
+    const boundaryToSave = (() => {
+      const drawing = validated.boundary_data
+      if (drawing?.source !== 'map-drawing') return drawing
+      if (!validated.datum || validated.utm_zone == null || !validated.hemisphere) throw new AppError('The drawing grid is incomplete',400,'DRAWING_REFERENCE_REQUIRED')
+      const grid = horizontalCrsFor(validated.datum,validated.utm_zone,validated.hemisphere)
+      const metrics = measureMapGridDrawing(drawing.drawnFeatures,grid)
+      return { ...drawing,drawnAreaSqM:metrics.areaSqM,drawnPerimeterM:metrics.totalLengthM,
+        mapDrawing:{ coordinateCrs:'EPSG:4326',evidenceStatus:'map_drawing_unverified',referenceSource:'selected_grid_preview',metrics } }
+    })()
 
     const client = await db.getClient()
     let discardClient = false
@@ -48,7 +59,7 @@ export const POST = apiHandler({
           validated.utm_zone ?? null, validated.hemisphere ?? null, validated.project_type,
           validated.client_name ?? null, validated.surveyor_name ?? null,
           validated.country ?? null, validated.datum ?? null,
-          validated.boundary_data ? JSON.stringify(validated.boundary_data) : null,
+          boundaryToSave ? JSON.stringify(boundaryToSave) : null,
         ],
       )
       if (projectResult.rowCount !== 1 || projectResult.rows.length !== 1 || !projectResult.rows[0].id) {

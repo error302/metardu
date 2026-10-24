@@ -9,19 +9,23 @@
  * Uses JSON+GeoJSON format for feature serialization.
  * Only runs when map is ready.
  *
- * Note: Uses dynamic import() instead of require() for ESM compatibility.
+ * Linked projects use their separate versioned drawing/recovery workflow.
  */
 
 import { useEffect } from 'react'
 import type Map from 'ol/Map'
+import { encodeMapDrawing } from '@/lib/mapDrawing/codec'
 
 export function useMapState(
   mapInstance: React.MutableRefObject<Map | null>,
   drawSourceRef: React.MutableRefObject<import('ol/source/Vector').default | null>,
-  mapReady: boolean
+  mapReady: boolean,
+  linkedProjectId: string | null = null,
+  browserDrawingReady = true,
+  onRecoveryError?: (message: string) => void
 ) {
   useEffect(() => {
-    if (!mapInstance.current) return
+    if (!mapInstance.current || linkedProjectId || !browserDrawingReady) return
 
     const saveViewState = () => {
       try {
@@ -33,7 +37,7 @@ export function useMapState(
             localStorage.setItem('metardu-map-view', JSON.stringify({ center, zoom }))
           }
         }
-      } catch { /* ignore */ }
+      } catch { /* keep the prior view record */ }
     }
 
     const saveFeatures = async () => {
@@ -41,18 +45,15 @@ export function useMapState(
         if (drawSourceRef.current) {
           const features = drawSourceRef.current.getFeatures()
           if (features.length > 0) {
-            const { default: GeoJSONFormat } = await import('ol/format/GeoJSON')
-            const fmt = new GeoJSONFormat()
-            const geojson = fmt.writeFeatures(features, {
-              featureProjection: 'EPSG:3857',
-              dataProjection: 'EPSG:4326',
-            })
+            const geojson = JSON.stringify(encodeMapDrawing(features))
             localStorage.setItem('metardu-map-features', JSON.stringify(geojson))
           } else {
             localStorage.removeItem('metardu-map-features')
           }
         }
-      } catch { /* ignore */ }
+      } catch {
+        onRecoveryError?.('The current browser drawing could not be retained. The older record is unchanged; download the current drawing before closing this page.')
+      }
     }
 
     const interval = setInterval(() => {
@@ -63,6 +64,7 @@ export function useMapState(
     return () => {
       clearInterval(interval)
       saveViewState()
+      void saveFeatures()
     }
-  }, [mapReady, drawSourceRef, mapInstance])
+  }, [mapReady, drawSourceRef, mapInstance, linkedProjectId, browserDrawingReady, onRecoveryError])
 }

@@ -43,6 +43,16 @@ credentials. A completed backup at `2026-10-23T10:25:43Z` was reported by
 
 ## Provider and integration boundaries
 
+Follow-up on **24 October 2026 at 09:20:52 UTC**: the same five read-only
+origin/public checks passed with HTTP 200. Public health still reported release
+ID `unknown`. `npm run docker:verify` passed for the existing single application
+stack and required supporting services; the latest backup completed at
+`2026-10-24T02:00:04Z` (archive/header evidence, not restore proof). A subsequent
+service read confirmed Cloudflared was Running, Auto, with the same PID 7324 and
+the approved 5/15/60-second restart policy. This follow-up made no service change
+or production promotion. Map source acceptance is documented separately in
+`MAP_DRAWING_WORKFLOW_INTEGRITY_2026-10-24.md`.
+
 Read-only provider diagnostics at 16:45:20 UTC returned:
 
 - PayPal live credential exchange: HTTP 200. All 12 Pro/Team/Firm plans across
