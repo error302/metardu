@@ -44,7 +44,7 @@ export interface AccessCheck {
   canAddSeats?: boolean
 }
 
-export async function getSubscription(userId: string, email?: string): Promise<SubscriptionInfo | null> {
+export async function getSubscription(userId: string, email?: string, reader: Pick<typeof db, 'query'> = db): Promise<SubscriptionInfo | null> {
   // Admin emails bypass all subscription checks - free enterprise access
   if (isAdminEmail(email)) {
     const now = new Date().toISOString()
@@ -66,7 +66,7 @@ export async function getSubscription(userId: string, email?: string): Promise<S
     }
   }
 
-  const { rows } = await db.query<{
+  const { rows } = await reader.query<{
     plan_id?: string
     status?: string
     trial_ends_at?: string | null
@@ -132,11 +132,13 @@ export async function getSubscription(userId: string, email?: string): Promise<S
   }
 }
 
-export async function getUsage(userId: string): Promise<UsageInfo> {
-  const [projectResult, memberResult] = await Promise.all([
-    db.query<{ count?: string }>('SELECT COUNT(*) as count FROM projects WHERE user_id = $1', [userId]),
-    db.query<{ count?: string }>('SELECT COUNT(*) as count FROM project_members WHERE user_id = $1', [userId]),
-  ])
+export async function getUsage(userId: string, reader: Pick<typeof db, 'query'> = db): Promise<UsageInfo> {
+  const projectCount = () => reader.query<{ count?: string }>('SELECT COUNT(*) as count FROM projects WHERE user_id = $1', [userId])
+  const memberCount = () => reader.query<{ count?: string }>('SELECT COUNT(*) as count FROM project_members WHERE user_id = $1', [userId])
+  // A transaction client executes one query at a time; independent pooled reads may run in parallel.
+  const [projectResult, memberResult] = reader === db
+    ? await Promise.all([projectCount(), memberCount()])
+    : [await projectCount(), await memberCount()]
 
   return {
     projectCount: parseInt(projectResult.rows[0]?.count || '0', 10),
@@ -177,10 +179,12 @@ export async function checkFeatureAccess(
   return { allowed: true }
 }
 
-export async function checkProjectLimit(userId: string, email?: string): Promise<AccessCheck> {
+export async function checkProjectLimit(userId: string, email?: string, reader: Pick<typeof db, 'query'> = db): Promise<AccessCheck> {
   if (isAdminEmail(email)) return { allowed: true }
 
-  const [sub, usage] = await Promise.all([getSubscription(userId, email), getUsage(userId)])
+  const [sub, usage] = reader === db
+    ? await Promise.all([getSubscription(userId, email, reader), getUsage(userId, reader)])
+    : [await getSubscription(userId, email, reader), await getUsage(userId, reader)]
   if (!sub) {
     // No subscription — enforce free tier limits
     const freeLimit = getLimit('free', 'projects')

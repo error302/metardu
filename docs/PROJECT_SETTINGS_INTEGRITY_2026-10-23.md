@@ -1,5 +1,10 @@
 # Project settings and protected account authority — 23 October 2026
 
+24 October follow-up: the active map creation bypass and canonical quota race
+are repaired and verified in source. See `PROJECT_CREATION_INTEGRITY_2026-10-24.md`
+for transaction, drawing-preservation and ordinary-account refusal evidence,
+and the remaining map restoration/measurement acceptance work.
+
 ## Verified source defects and repairs
 
 The original Project Settings form displayed Arc 1960 / 37S when the saved

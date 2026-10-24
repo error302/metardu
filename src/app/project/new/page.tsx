@@ -11,6 +11,7 @@ import { SURVEY_TYPE_LABELS, SurveyType } from '@/types/project'
 import type { ProjectType } from '@/types/scheme'
 import { Landmark, Route, Mountain } from 'lucide-react'
 import { createProjectSchema } from '@/lib/validation/projectCreation'
+import { siteReconnaissanceDrawing } from '@/lib/validation/mapDrawing'
 import { markOnboardingStepComplete } from '@/components/shared/OnboardingChecklist'
 
 export default function NewProjectPage() {
@@ -77,8 +78,7 @@ export default function NewProjectPage() {
         surveyor_name: surveyorName || undefined,
         country: selectedCountry,
         datum: datum || null,
-        boundary: polygonCoordinates.length > 0 ? { type: 'Polygon', coordinates: [polygonCoordinates] } : undefined,
-        area_sqm: estimatedArea || undefined,
+        boundary_data: siteReconnaissanceDrawing(polygonCoordinates, estimatedArea),
       }
 
       if (projectType === 'scheme') {
@@ -280,7 +280,7 @@ export default function NewProjectPage() {
             />
             {estimatedArea && (
               <p className="text-xs text-green-600 dark:text-green-400">
-                Estimated Area: {(estimatedArea / 10000).toFixed(4)} Hectares ({(estimatedArea / 4046.86).toFixed(4)} Acres)
+                Site sketch estimate: {(estimatedArea / 10000).toFixed(4)} Hectares ({(estimatedArea / 4046.86).toFixed(4)} Acres). This map drawing is unverified reconnaissance, not a measured parcel boundary.
               </p>
             )}
           </div>

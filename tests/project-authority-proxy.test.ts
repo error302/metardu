@@ -31,3 +31,8 @@ test('workflow progress writes remain available without reference changes', asyn
   expect((await POST(request('projects', 'update', { workflow_step: 2, workflow_max_unlocked: 2 }))).status).toBe(200)
   expect(mockQuery).toHaveBeenCalled()
 })
+
+test.each(['insert', 'upsert'])('generic project %s cannot bypass quota-checked creation', async operation => {
+  expect((await POST(request('projects', operation, { name: 'Synthetic bypass' }))).status).toBe(403)
+  expect(mockQuery).not.toHaveBeenCalled()
+})

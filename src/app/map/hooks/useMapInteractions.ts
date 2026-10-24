@@ -947,7 +947,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   }, [p.stakeoutTarget, p.gpsPosInSurveyCrs, epsg])
 
   // ── SAVE TO PROJECT — saves drawn features to current project (not throwaway) ──
+  const drawingSaveInFlight = useRef(false)
   const saveToProject = useCallback(async () => {
+    if (drawingSaveInFlight.current) return
     const setSaveMsg = p.setSaveMsg
     if (!epsg) {
       setSaveMsg('Declare or select a supported project CRS before saving survey geometry.')
@@ -961,6 +963,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       return
     }
 
+    drawingSaveInFlight.current = true
     try {
       const { createClient } = await import('@/lib/api-client/client')
       const dbClient = createClient()
@@ -1060,10 +1063,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
           return
         }
 
-        const newProjectRow = (await dbClient
-          .from('projects')
-          .insert({
-            user_id: session.user.id,
+        const response = await fetch('/api/projects', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
             name: projectName,
             survey_type: 'cadastral',
             location: 'Drawn on map',
@@ -1071,30 +1074,24 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
             hemisphere: crsInfo.hemisphere,
             datum: crsInfo.datum,
             boundary_data: {
-              source: 'map-drawing',
+              source: 'map-drawing', createdFrom: 'map-client',
+              coordinateCrs: 'EPSG:4326', measurementCrs: crsInfo.code,
               drawnFeatures: featuresJson,
-              createdFrom: 'map-client',
-              drawnAreaSqM: totalArea,
-              drawnPerimeterM: totalPerimeter,
+              drawnAreaSqM: totalArea, drawnPerimeterM: totalPerimeter,
             },
-          })
-          .select('id, name')
-          .single()) as { data: { name?: string } | null; error: { message: string } | null }
-        const newProject = newProjectRow.data
-        const { error } = newProjectRow
-
-        if (error) {
-          setSaveMsg(`Error: ${error.message}`)
-        } else {
-          const areaStr = totalArea > 0 ? ` · ${totalArea.toFixed(1)} m²` : ''
-          setSaveMsg(`Saved to "${newProject?.name}"${areaStr}`)
-        }
+          }),
+        })
+        const result = await response.json() as { data?: { id?: string; name?: string }; error?: string }
+        if (!response.ok) throw new Error(result.error || `Project save failed (HTTP ${response.status}). Your drawing is retained.`)
+        const newProject = result.data
+        if (!newProject?.id || typeof newProject.name !== 'string') throw new Error('Project save was not confirmed. Your drawing is retained; review Projects before retrying.')
+        const areaStr = totalArea > 0 ? ` · ${totalArea.toFixed(1)} m²` : ''
+        setSaveMsg(`Saved to "${newProject.name}"${areaStr}`)
       }
       setTimeout(() => setSaveMsg(''), 5000)
     } catch (err: unknown) {
-      setSaveMsg(`Error: ${err instanceof Error ? (err as Error).message : 'Save failed'}`)
-      setTimeout(() => setSaveMsg(''), 4000)
-    }
+      setSaveMsg(`Error: ${err instanceof Error ? err.message : 'Save failed'}. Your drawing remains on this map. If the save was interrupted, review Projects before retrying.`)
+    } finally { drawingSaveInFlight.current = false }
   }, [p.projectId, p.setSaveMsg, p.drawSourceRef, epsg])
 
   // ── ANNOTATIONS ──

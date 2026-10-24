@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server'
 import { apiHandler, AppError } from '@/lib/api/handler'
-import { db } from '@/lib/db'
+import { db, setRlsContext } from '@/lib/db'
 import { checkProjectLimit } from '@/lib/subscription/subscriptionEngine'
 import { createProjectSchema } from '@/lib/validation/projectCreation'
 import { logger } from '@/lib/logger'
@@ -28,57 +28,57 @@ export const POST = apiHandler({
   handler: async (ctx) => {
     const validated = ctx.input
 
-    // SECURITY (audit H-04, 2026-08-30): server-side entitlement check.
-    // Free-tier project limits were previously enforced only in the UI —
-    // the entitlement engine existed but was never called anywhere.
-    const limitCheck = await checkProjectLimit(ctx.userId, ctx.userEmail)
-    if (!limitCheck.allowed) {
-      throw new AppError(
-        limitCheck.reason || 'Plan limit reached',
-        402,
-        'PLAN_LIMIT_REACHED'
+    const client = await db.getClient()
+    let discardClient = false
+    try {
+      await client.query('BEGIN')
+      await setRlsContext(client)
+      // Every admitted create for this account counts after the previous create commits.
+      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`project-create:${ctx.userId}`])
+      const limitCheck = await checkProjectLimit(ctx.userId, ctx.userEmail, client)
+      if (!limitCheck.allowed) throw new AppError(limitCheck.reason || 'Plan limit reached', 402, 'PLAN_LIMIT_REACHED')
+
+      const projectResult = await client.query<ProjectRow>(
+        `INSERT INTO projects (user_id, name, survey_type, location, utm_zone, hemisphere,
+          project_type, client_name, surveyor_name, country, datum, boundary_data, created_at)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12::jsonb,NOW())
+         RETURNING id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at`,
+        [
+          ctx.userId, validated.name, validated.survey_type, validated.location,
+          validated.utm_zone ?? null, validated.hemisphere ?? null, validated.project_type,
+          validated.client_name ?? null, validated.surveyor_name ?? null,
+          validated.country ?? null, validated.datum ?? null,
+          validated.boundary_data ? JSON.stringify(validated.boundary_data) : null,
+        ],
       )
-    }
-
-    const projectResult = await db.query<ProjectRow>(
-      `INSERT INTO projects (user_id, name, survey_type, location, utm_zone, hemisphere,
-        project_type, client_name, surveyor_name, country, datum, created_at)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,NOW())
-       RETURNING id, name, survey_type, location, utm_zone, hemisphere, project_type, created_at`,
-      [
-        ctx.userId, validated.name, validated.survey_type, validated.location,
-        validated.utm_zone ?? null, validated.hemisphere ?? null, validated.project_type,
-        validated.client_name ?? null, validated.surveyor_name ?? null,
-        validated.country ?? null, validated.datum ?? null,
-      ]
-    )
-
-    if (projectResult.rows.length === 0) {
-      throw new AppError('Failed to create project', 500, 'PROJECT_CREATE_FAILED')
-    }
-
-    const project = projectResult.rows[0]
-
-    if (validated.project_type === 'scheme') {
-      try {
-        await db.query<never>(
-          `INSERT INTO scheme_details (project_id, scheme_number, county, sub_county, ward,
-            planned_parcels, adjudication_section)
-           VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-          [
-            project.id, validated.scheme_number ?? null, validated.county ?? null,
-            validated.sub_county ?? null, validated.ward ?? null,
-            validated.planned_parcels ?? 0, validated.adjudication_section ?? null,
-          ]
-        )
-      } catch (schemeErr) {
-        await db.query<never>('DELETE FROM projects WHERE id = $1', [project.id])
-        logger.error('scheme_details insert failed:', { error: schemeErr })
-        throw new AppError('Failed to create scheme details', 500, 'SCHEME_CREATE_FAILED')
+      if (projectResult.rowCount !== 1 || projectResult.rows.length !== 1 || !projectResult.rows[0].id) {
+        throw new AppError('Project creation was not confirmed', 500, 'PROJECT_CREATE_FAILED')
       }
-    }
+      const project = projectResult.rows[0]
+      if (validated.project_type === 'scheme') {
+        const scheme = await client.query<{ project_id: string }>(
+          `INSERT INTO scheme_details (project_id, scheme_number, county, sub_county, ward,
+              planned_parcels, adjudication_section)
+           VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING project_id`,
+          [project.id, validated.scheme_number ?? null, validated.county ?? null,
+            validated.sub_county ?? null, validated.ward ?? null, validated.planned_parcels ?? 0,
+            validated.adjudication_section ?? null],
+        )
+        if (scheme.rowCount !== 1 || scheme.rows.length !== 1 || scheme.rows[0].project_id !== project.id) {
+          throw new AppError('Scheme creation was not confirmed', 500, 'SCHEME_CREATE_FAILED')
+        }
+      }
+      await client.query('COMMIT')
+      return NextResponse.json({ data: project }, { status: 201 })
+    } catch (error) {
+      try { await client.query('ROLLBACK') }
+      catch {
+        discardClient = true
+        logger.error('[POST /api/projects] Rollback failed; discarding the database connection')
+      }
+      throw error
+    } finally { client.release(discardClient ? true : undefined) }
 
-    return NextResponse.json({ data: project }, { status: 201 })
   },
 })
 

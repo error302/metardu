@@ -201,6 +201,12 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   }
 
   // ─── Read-only shared table check ────────────────────────────
+  if (table === 'projects' && (operation === 'insert' || operation === 'upsert')) {
+    return NextResponse.json(
+      { data: null, error: { message: 'Use the quota-checked project creation workflow; your map drawing is retained', code: 'PROJECT_CREATION_REQUIRED' } },
+      { status: 403 },
+    )
+  }
   // Owning an account is not authority to grant, extend or erase its paid entitlement.
   if (table === 'user_subscriptions' && operation !== 'select') {
     return NextResponse.json(
