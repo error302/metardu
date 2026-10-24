@@ -1,59 +1,66 @@
 'use client';
 import { useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
+import type { Session } from 'next-auth'
 import { z } from 'zod'
 import { apiGet, apiPost, ApiError } from '@/lib/api/client'
 
 // ── Schemas ────────────────────────────────────────────────────────────────
 const subscriptionResponseSchema = z.object({
-  plan: z.string().optional(),
-  status: z.string().optional(),
-  trialEndsAt: z.string().optional(),
-  periodEnd: z.string().optional(),
+  plan: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']),
+  status: z.enum(['active', 'cancelled', 'expired', 'trial']),
+  trialEndsAt: z.string().datetime().nullish(),
+  periodEnd: z.string().datetime().nullish(),
 }).passthrough()
 const updatePasswordMutationSchema = z.object({ confirmationEmailSent: z.boolean().optional() }).passthrough()
 
 interface Subscription {
   plan_id: string
   status: string
-  trial_ends_at: string
-  current_period_end: string
+  trial_ends_at: string | null
+  current_period_end: string | null
   subscription_plans?: { name: string }
 }
 
 export default function AccountPage() {
   const { data: session, status } = useSession()
+  if (status === 'loading') return <p role="status" className="p-8">Loading account…</p>
+  if (!session?.user?.id) return <p className="p-8"><a href="/login?next=%2Faccount" className="underline">Sign in to view your account.</a></p>
+  return <AccountDetails key={session.user.id} user={session.user} />
+}
+
+function AccountDetails({ user }: { user: NonNullable<Session['user']> }) {
   const [subscription, setSubscription] = useState<Subscription | null>(null)
+  const [subscriptionLoading, setSubscriptionLoading] = useState(true)
+  const [subscriptionError, setSubscriptionError] = useState('')
+  const [subscriptionAttempt, setSubscriptionAttempt] = useState(0)
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
-  const user = session?.user ?? null
-  const loading = status === 'loading'
-
   useEffect(() => {
-    if (!user?.id) return
+    const controller = new AbortController()
+    setSubscriptionLoading(true); setSubscriptionError('')
     async function loadSubscription() {
       try {
         const data = await apiGet(
           '/api/subscription',
           subscriptionResponseSchema,
-          { ttlMs: 0 },
+          { ttlMs: 0, signal: controller.signal, init: { cache: 'no-store' } },
         )
+        if (controller.signal.aborted) return
         setSubscription({
           plan_id: data.plan || 'free',
           status: data.status || 'active',
-          trial_ends_at: data.trialEndsAt || '',
-          current_period_end: data.periodEnd || new Date(Date.now() + 30 * 86400000).toISOString(),
+          trial_ends_at: data.trialEndsAt ?? null,
+          current_period_end: data.periodEnd ?? null,
         })
-      } catch (err) {
-        if (err instanceof ApiError) {
-          // Subscription fetch failed — keep default
-        }
-      }
+      } catch {
+        if (!controller.signal.aborted) { setSubscription(null); setSubscriptionError('Could not load your subscription. Check your connection and retry.') }
+      } finally { if (!controller.signal.aborted) setSubscriptionLoading(false) }
     }
     loadSubscription()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user?.id])
+    return () => controller.abort()
+  }, [user.id, subscriptionAttempt])
 
   async function updatePassword(currentPassword: string, newPassword: string, confirmPassword: string) {
     if (newPassword !== confirmPassword) { setMessage('Error: Passwords do not match'); return }
@@ -78,14 +85,6 @@ export default function AccountPage() {
     } finally {
       setSaving(false)
     }
-  }
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-[var(--bg-primary)] flex items-center justify-center">
-        <div className="text-[var(--accent)]">Loading...</div>
-      </div>
-    )
   }
 
   return (
@@ -156,7 +155,7 @@ export default function AccountPage() {
           </Section>
 
           <Section title="Subscription">
-            {subscription ? (
+            {subscriptionLoading ? <p role="status">Loading subscription…</p> : subscriptionError ? <div><p role="alert">{subscriptionError}</p><button type="button" className="mt-3 underline" onClick={() => setSubscriptionAttempt(value => value + 1)}>Retry subscription</button></div> : subscription ? (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
@@ -164,10 +163,10 @@ export default function AccountPage() {
                       {subscription.subscription_plans?.name || subscription.plan_id} Plan
                     </p>
                     <p className="text-[var(--text-secondary)] text-sm">
-                      {subscription.status === 'trial' 
-                        ? `Trial ends ${new Date(subscription.trial_ends_at).toLocaleDateString()}`
-                        : `Renews ${new Date(subscription.current_period_end).toLocaleDateString()}`
-                      }
+                      {subscription.plan_id === 'free' ? 'Free access'
+                        : subscription.status === 'trial' ? subscription.trial_ends_at ? `Trial ends ${new Date(subscription.trial_ends_at).toLocaleDateString()}` : 'Trial end not supplied'
+                        : subscription.status !== 'active' ? `${subscription.status === 'cancelled' ? 'Cancelled' : 'Expired'} subscription`
+                        : subscription.current_period_end ? `Current period ends ${new Date(subscription.current_period_end).toLocaleDateString()}` : 'Period end not supplied'}
                     </p>
                   </div>
                   <span className={`text-xs px-2 py-1 rounded ${
@@ -188,12 +187,12 @@ export default function AccountPage() {
                 </a>
               </div>
             ) : (
-              <p className="text-[var(--text-secondary)]">No active subscription</p>
+              <p className="text-[var(--text-secondary)]">Subscription details are unavailable.</p>
             )}
           </Section>
 
           <Section title="Payment History">
-            <p className="text-[var(--text-secondary)]">No payment history yet.</p>
+            <a href="/account/billing" className="text-[var(--text-secondary)] underline">Open billing records</a>
           </Section>
 
           <Section title="Danger Zone">

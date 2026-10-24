@@ -5,6 +5,7 @@ import { getSubscription } from '@/lib/subscription/subscriptionEngine'
 import type { PlanId } from '@/lib/subscription/catalog'
 import { z } from 'zod'
 import { logger } from '@/lib/logger'
+import { setAuthenticatedDatabaseContext } from '@/lib/auth/requestContext'
 
 export const dynamic = 'force-dynamic'
 
@@ -33,6 +34,7 @@ export async function GET() {
     }
 
     const userId = session.user.id
+    setAuthenticatedDatabaseContext(userId)
     const email = session.user.email ?? undefined
 
     const sub = await getSubscription(userId, email)
@@ -103,6 +105,8 @@ export async function POST(request: NextRequest) {
 
     const { action } = parsed.data
     const userId = session.user.id
+    // Bind in this caller after the awaited body parse; RLS must see the owner.
+    setAuthenticatedDatabaseContext(userId)
 
     // Import db dynamically to avoid circular deps
     const { db } = await import('@/lib/db')
