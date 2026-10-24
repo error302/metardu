@@ -1,6 +1,11 @@
 'use client';
 
-import React, { useState, useMemo, useCallback, useRef } from 'react'
+import React, { useState, useMemo, useCallback, useRef, useEffect } from 'react'
+import { useSession } from 'next-auth/react'
+import { coordinateNumber } from '@/lib/import/totalStation/coordinateNumber'
+import { readDrawingCsv, readProjectDrawingSource, drawingReferenceIssue, MAX_DRAWING_POINTS } from '@/lib/topo/drawingSource'
+import { resolveEpsg } from '@/lib/spatial/projectCrs'
+import { resolveDeclaredStageReference } from '@/lib/workspaces/stageReference'
 import {
   Upload,
   Download,
@@ -24,7 +29,7 @@ import {
   getFeatureCode,
   aciToHex,
 } from '@/lib/topo/featureCodes'
-import { buildTopoEntities, entitiesToDxfString } from '@/lib/drawing/topoEntities'
+import { buildTopoEntities, entitiesToDxfString, computeExtents } from '@/lib/drawing/topoEntities'
 import type { ContourLine } from '@/lib/topo/contourGenerator'
 import { buildBreaklineTIN } from '@/lib/topo/breaklineTIN'
 import { generateTINContours } from '@/lib/topo/tinContours'
@@ -183,40 +188,7 @@ function computeStats(
 // ─── CSV parser ─────────────────────────────────────────────────────────────
 
 function parseCSV(text: string): SurveyPointRow[] {
-  const lines = text.trim().split('\n').map(l => l.trim()).filter(Boolean)
-  if (lines.length < 2) return []
-
-  const header = lines[0].toUpperCase()
-  const points: SurveyPointRow[] = []
-
-  // Detect column order from header
-  const cols = header.split(/[,;\t]+/)
-  const eIdx = cols.findIndex(c => c.includes('EAST') || c.includes('E') || c.includes('X'))
-  const nIdx = cols.findIndex(c => c.includes('NORTH') || c.includes('N') || c.includes('Y'))
-  const rlIdx = cols.findIndex(c => c.includes('RL') || c.includes('ELEV') || c.includes('Z') || c.includes('H'))
-  const codeIdx = cols.findIndex(c => c.includes('CODE') || c.includes('FC') || c.includes('FEATURE'))
-  const ptIdx = cols.findIndex(c => c.includes('POINT') || c.includes('NO') || c.includes('ID') || c.includes('NUM'))
-  const descIdx = cols.findIndex(c => c.includes('DESC') || c.includes('REMARK'))
-
-  for (let i = 1; i < lines.length; i++) {
-    const vals = lines[i].split(/[,;\t]+/).map(v => v.trim())
-    if (vals.length < 2) continue
-
-    const easting = eIdx >= 0 ? parseFloat(vals[eIdx]) : parseFloat(vals[0])
-    const northing = nIdx >= 0 ? parseFloat(vals[nIdx]) : parseFloat(vals[1])
-    if (isNaN(easting) || isNaN(northing)) continue
-
-    points.push({
-      id: `csv-${i}`,
-      pointNumber: ptIdx >= 0 && vals[ptIdx] ? vals[ptIdx] : `${i}`,
-      easting,
-      northing,
-      elevation: rlIdx >= 0 ? parseFloat(vals[rlIdx]) || undefined : undefined,
-      code: codeIdx >= 0 ? (vals[codeIdx] || 'UNK').toUpperCase() : 'UNK',
-      description: descIdx >= 0 ? vals[descIdx] : '',
-    })
-  }
-  return points
+  return readDrawingCsv(text)
 }
 
 
@@ -228,18 +200,19 @@ function ManualAddRow({ onAdd }: { onAdd: (pt: SurveyPointRow) => void }) {
   const [northing, setNorthing] = useState('')
   const [rl, setRl] = useState('')
   const [code, setCode] = useState('SH')
+  const [error, setError] = useState('')
 
   const handleAdd = useCallback(() => {
-    const e = parseFloat(easting)
-    const n = parseFloat(northing)
-    if (isNaN(e) || isNaN(n)) return
+    const e = coordinateNumber(easting), n = coordinateNumber(northing), elevation = coordinateNumber(rl)
+    if (!Number.isFinite(e) || !Number.isFinite(n) || elevation !== undefined && !Number.isFinite(elevation)) { setError('Enter complete finite coordinates and a finite height, or leave height unknown.'); return }
+    setError('')
 
     onAdd({
-      id: `manual-${Date.now()}`,
+      id: `manual-${crypto.randomUUID()}`,
       pointNumber: ptNum || undefined,
-      easting: e,
-      northing: n,
-      elevation: rl ? parseFloat(rl) || undefined : undefined,
+      easting: e as number,
+      northing: n as number,
+      elevation,
       code: code.toUpperCase(),
       description: getFeatureCode(code)?.description ?? '',
     })
@@ -252,6 +225,7 @@ function ManualAddRow({ onAdd }: { onAdd: (pt: SurveyPointRow) => void }) {
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 p-2 bg-zinc-900/50 border border-zinc-800 rounded-md">
+      {error && <p role="alert">{error}</p>}
       <Input
         placeholder="#"
         value={ptNum}
@@ -297,7 +271,48 @@ interface TopoDrawingComposerProps {
 }
 
 export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerProps) {
+  const { data: session, status } = useSession()
+  const userId = session?.user?.id
+  if (projectId && (status !== 'authenticated' || !userId)) return <p role="status">{status === 'loading' ? 'Checking account…' : 'Sign in to load this project drawing.'}</p>
+  return <DrawingWorkspace key={`${userId ?? 'anonymous'}:${projectId ?? 'local'}`} projectId={projectId} />
+}
+
+function DrawingWorkspace({ projectId }: TopoDrawingComposerProps) {
   const [points, setPoints] = useState<SurveyPointRow[]>([])
+  const [horizontalCrs, setHorizontalCrs] = useState('')
+  const [verticalDatum, setVerticalDatum] = useState('')
+  const [metresConfirmed, setMetresConfirmed] = useState(false)
+  const [referenceHash, setReferenceHash] = useState('')
+  const [sourceError, setSourceError] = useState('')
+  const [projectLoading, setProjectLoading] = useState(Boolean(projectId))
+  const [loadAttempt, setLoadAttempt] = useState(0)
+  const [exporting, setExporting] = useState(false)
+  const exportLock = useRef(false)
+  const alive = useRef(true)
+  const importVersion = useRef(0)
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  useEffect(() => {
+    if (!projectId) return
+    const controller = new AbortController()
+    setProjectLoading(true); setSourceError(''); setPoints([]); setReferenceHash(''); setHorizontalCrs(''); setVerticalDatum('')
+    void (async () => {
+      try {
+        const options = { cache: 'no-store' as const, signal: controller.signal }
+        const [pointResponse, contextResponse] = await Promise.all([
+          fetch(`/api/project/${encodeURIComponent(projectId)}/points?includeIncomplete=true`, options),
+          fetch(`/api/project/${encodeURIComponent(projectId)}/point-imports`, options),
+        ])
+        if (!pointResponse.ok || !contextResponse.ok) throw new Error('Could not load this private project. Check access and retry.')
+        const source = readProjectDrawingSource(projectId, await pointResponse.json(), await contextResponse.json())
+        if (controller.signal.aborted) return
+        setPoints(source.points); setHorizontalCrs(source.reference.code ?? ''); setVerticalDatum(source.reference.verticalDatum ?? '')
+        setReferenceHash(source.referenceHash); setMetresConfirmed(true)
+        if (!source.points.length) setSourceError('This project has no saved points. Import observations through the project first.')
+      } catch (failure) { if (!controller.signal.aborted) setSourceError(failure instanceof Error ? failure.message : 'Could not load project observations.') }
+      finally { if (!controller.signal.aborted) setProjectLoading(false) }
+    })()
+    return () => controller.abort()
+  }, [projectId, loadAttempt])
   const [isDemoData, setIsDemoData] = useState(false)
   const [settings, setSettings] = useState<DrawingSettings>(DEFAULT_SETTINGS)
   const [codeDialogOpen, setCodeDialogOpen] = useState(false)
@@ -312,6 +327,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
   // Contours use the same TIN engine as saved project surfaces.
   const contourResult = useMemo<{ contours: ContourLine[]; error: string | null }>(() => {
     const zPts = points.filter(p => p.elevation !== undefined)
+    if (zPts.length !== points.length) return { contours: [], error: 'Some source heights are unknown. Review the full observations before generating terrain; no rows were excluded.' }
     if (zPts.length < 3) return { contours: [], error: null }
     try {
       const tin = buildBreaklineTIN(zPts.map(p => ({ x: p.easting, y: p.northing, z: p.elevation as number })))
@@ -326,15 +342,24 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
     () => points.map(({ id: _id, description: _description, ...rest }) => rest),
     [points],
   )
+  const drawingCrs = useMemo(() => { try { return resolveEpsg(horizontalCrs).code } catch { return '' } }, [horizontalCrs])
 
   // One shared entity model → preview AND DXF stay identical
   const drawing = useMemo(
-    () => buildTopoEntities(surveyPoints, settings, {
-      projectName: projectId ?? 'Topographic Survey',
-      contours,
-    }),
-    [surveyPoints, settings, projectId, contours],
+    () => {
+      try {
+        return { ...buildTopoEntities(surveyPoints, settings, {
+          projectName: projectId ?? 'Topographic Survey', contours,
+          reference: drawingCrs ? { horizontalCrs: drawingCrs, verticalDatum: verticalDatum || null } : undefined,
+        }), error: null }
+      } catch (failure) {
+        return { entities: [], layers: [], layerResults: [], extents: computeExtents([]), error: failure instanceof Error ? failure.message : 'Drawing preparation failed. Review its settings.' }
+      }
+    },
+    [surveyPoints, settings, projectId, contours, drawingCrs, verticalDatum],
   )
+  const currentDrawing = useRef(drawing)
+  currentDrawing.current = drawing
 
   const layerResults = drawing.layerResults
 
@@ -378,36 +403,47 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
   const handleImportCSV = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
+    const version = ++importVersion.current
 
+    setSourceError('')
+    if (file.size > 2_000_000) { setSourceError('Import at most 2 MB of coordinate text.'); e.target.value = ''; return }
     const reader = new FileReader()
     reader.onload = () => {
-      const parsed = parseCSV(reader.result as string)
-      if (parsed.length > 0) {
-        setPoints(prev => isDemoData ? parsed : [...prev, ...parsed])
+      if (!alive.current || version !== importVersion.current) return
+      try {
+        const parsed = parseCSV(reader.result as string)
+        setPoints(parsed)
         setIsDemoData(false)
-      }
+        setHorizontalCrs(''); setVerticalDatum(''); setMetresConfirmed(false)
+      } catch (failure) { setSourceError(failure instanceof Error ? failure.message : 'Could not read coordinate CSV. No rows were imported.') }
     }
+    reader.onerror = () => { if (alive.current && version === importVersion.current) setSourceError('Could not read coordinate CSV. No rows were imported.') }
     reader.readAsText(file)
     e.target.value = ''
-  }, [isDemoData])
+  }, [])
 
   const handleLoadDemo = useCallback(() => {
+    importVersion.current++
     setPoints(generateDemoPoints())
     setIsDemoData(true)
   }, [])
 
   const handleClearPoints = useCallback(() => {
+    importVersion.current++
     setPoints([])
     setIsDemoData(false)
   }, [])
 
   const handleRemovePoint = useCallback((id: string) => {
+    importVersion.current++
     setPoints(prev => prev.filter(p => p.id !== id))
   }, [])
 
   const handleAddPoint = useCallback((pt: SurveyPointRow) => {
+    importVersion.current++
+    if (points.length >= MAX_DRAWING_POINTS || points.some(point => point.pointNumber && point.pointNumber === pt.pointNumber)) { setSourceError('Point limit or duplicate point name. No point was added.'); return }
     setPoints(prev => [...prev, pt])
-  }, [])
+  }, [points])
 
   const handleCodeSelect = useCallback((code: FeatureCodeDef) => {
     if (editingPointId) {
@@ -428,12 +464,27 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
     setCodeDialogOpen(true)
   }, [])
 
-  const handleExportDXF = useCallback(() => {
-    if (points.length === 0 || isDemoData || contourError) return
-    const dxf = entitiesToDxfString(drawing.entities, drawing.layers)
-    const date = new Date().toISOString().split('T')[0]
-    downloadDXF(dxf, `topo_${projectId ?? 'survey'}_${date}.dxf`)
-  }, [points, drawing, projectId, isDemoData, contourError])
+  const referenceIssue = drawingReferenceIssue(points, horizontalCrs, verticalDatum)
+  const exportIssue = drawing.error || referenceIssue || (!metresConfirmed ? 'Confirm that horizontal coordinates and measured heights use metres.' : null)
+  const handleExportDXF = useCallback(async () => {
+    if (points.length === 0 || isDemoData || contourError || exportIssue || projectLoading || exportLock.current) return
+    exportLock.current = true
+    setExporting(true); setSourceError('')
+    try {
+      if (projectId) {
+        const response = await fetch(`/api/project/${encodeURIComponent(projectId)}/point-imports`, { cache: 'no-store' })
+        const body: unknown = await response.json()
+        const context = body && typeof body === 'object' && 'data' in body ? body.data : null
+        if (!response.ok || !context || typeof context !== 'object' || !('referenceHash' in context) || context.referenceHash !== referenceHash || !('referenceSystem' in context) || resolveDeclaredStageReference(context.referenceSystem).code !== horizontalCrs) throw new Error('Project reference or access changed. Reload project points before exporting.')
+      }
+      if (!alive.current) return
+      if (currentDrawing.current !== drawing) throw new Error('The drawing changed while export was being checked. Review the current drawing and export again.')
+      const dxf = entitiesToDxfString(drawing.entities, drawing.layers)
+      const date = new Date().toISOString().split('T')[0]
+      downloadDXF(dxf, `topo_${projectId ?? 'survey'}_${date}.dxf`)
+    } catch (failure) { if (alive.current) setSourceError(failure instanceof Error ? failure.message : 'DXF export failed.') }
+    finally { exportLock.current = false; if (alive.current) setExporting(false) }
+  }, [points, drawing, projectId, isDemoData, contourError, exportIssue, projectLoading, referenceHash, horizontalCrs])
 
   // ─── Render ────────────────────────────────────────────────────────────
 
@@ -453,6 +504,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
+          {!projectId && <>
           <Button variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} className="text-xs border-zinc-600 text-zinc-300 hover:bg-zinc-800">
             <Upload size={14} />
             Import CSV
@@ -462,20 +514,38 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
             <FilePlus size={14} />
             Load Example (fictional)
           </Button>
+          </>}
           {points.length > 0 && (
             <>
+              {!projectId &&
               <Button variant="outline" size="sm" onClick={handleClearPoints} className="text-xs border-red-800/50 text-red-400 hover:bg-red-900/20">
                 <Trash2 size={14} />
                 Clear
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleExportDXF} disabled={isDemoData || Boolean(contourError)} className="text-xs border-blue-600/50 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300">
+              </Button>}
+              <Button variant="outline" size="sm" onClick={handleExportDXF} disabled={isDemoData || Boolean(contourError) || Boolean(exportIssue) || projectLoading || exporting} className="text-xs border-blue-600/50 text-blue-400 hover:bg-blue-900/20 hover:text-blue-300">
                 <Download size={14} />
-                Export DXF
+                {exporting ? 'Checking export…' : 'Export DXF'}
               </Button>
             </>
           )}
         </div>
       </div>
+
+      {projectId ? <div className="space-y-2 rounded-lg border border-zinc-700 p-4 text-sm text-zinc-300">
+        <p>Project observations · {horizontalCrs || 'Reference not loaded'} · Height reference: {verticalDatum || 'Not declared'}</p>
+        <p>Saved coordinates are read only here. Feature-code changes affect this draft only. No field verification or professional approval is established.</p>
+        <a className="underline" href={`/project/${encodeURIComponent(projectId)}/observe`}>Review original observations and imports</a>
+        <button className="ml-4 underline" disabled={projectLoading || exporting} onClick={() => setLoadAttempt(value => value + 1)}>Reload project points</button>
+      </div> : <div className="space-y-3 rounded-lg border border-zinc-700 p-4 text-sm text-zinc-300">
+        <p>Local draft. Importing CSV replaces this local set. Use id, easting, northing, elevation and code headers; no measurements are transformed here.</p>
+        <label className="block">Horizontal CRS (projected metres)<Input value={horizontalCrs} onChange={event => setHorizontalCrs(event.target.value)} placeholder="EPSG code" /></label>
+        <label className="block">Height reference<Input value={verticalDatum} onChange={event => setVerticalDatum(event.target.value)} /></label>
+        <label className="flex items-center gap-2"><input type="checkbox" checked={metresConfirmed} onChange={event => setMetresConfirmed(event.target.checked)} />Horizontal coordinates and measured heights are in metres.</label>
+      </div>}
+      {projectLoading && <p role="status">Loading private project observations…</p>}
+      {sourceError && <p role="alert" className="text-red-300">{sourceError}</p>}
+      {drawing.error && <p role="alert" className="text-red-300">Drawing could not be prepared: {drawing.error}</p>}
+      {points.length > 0 && exportIssue && <p role="status" className="text-amber-200">{exportIssue}</p>}
 
       {contourError && <div role="alert" className="rounded-lg border border-red-800 bg-red-950/40 p-4 text-sm text-red-200">Contours could not be computed: {contourError} Review the observations or contour interval before exporting.</div>}
 
@@ -520,7 +590,7 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
           {activeTab === 'points' && (
             <div className="space-y-3">
               {/* Manual add row */}
-              <ManualAddRow onAdd={handleAddPoint} />
+              {!projectId && <ManualAddRow onAdd={handleAddPoint} />}
 
               {/* Points table */}
               <div className="border border-zinc-700 rounded-lg overflow-hidden bg-zinc-900">
@@ -579,13 +649,13 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                               {p.description || def?.description || '—'}
                             </td>
                             <td className="px-2 py-1.5 text-center">
-                              <button
+                              {!projectId && <button
                                 onClick={() => handleRemovePoint(p.id)}
                                 className="text-zinc-600 hover:text-red-400 transition-colors"
                                 title="Remove point"
                               >
                                 <X size={12} />
-                              </button>
+                              </button>}
                             </td>
                           </tr>
                         )
@@ -774,8 +844,8 @@ export default function TopoDrawingComposer({ projectId }: TopoDrawingComposerPr
                       type="number"
                       step="10"
                       min="10"
-                      value={settings.gridTickInterval}
-                      onChange={e => setSettings(prev => ({ ...prev, gridTickInterval: parseFloat(e.target.value) || 50 }))}
+                      value={Number.isFinite(settings.gridTickInterval) ? settings.gridTickInterval : ''}
+                      onChange={e => setSettings(prev => ({ ...prev, gridTickInterval: parseFloat(e.target.value) }))}
                       className="h-8 mt-1 text-xs bg-zinc-800 border-zinc-700 text-zinc-300"
                     />
                   </div>

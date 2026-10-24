@@ -5,7 +5,7 @@
  * to Konva with neatline clipping to ensure no contours or grid lines bleed
  * outside the drawing sheet.
  */
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Konva from 'konva'
 import type { DrawingEntity, DrawingLayerInfo, Extents } from '@/lib/drawing/topoEntities'
 
@@ -30,6 +30,21 @@ export function TopoEntityCanvas({
   emptyMessage = 'Import points to see the drawing preview',
 }: TopoEntityCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
+  const [availableWidth, setAvailableWidth] = useState<number | null>(null)
+  useEffect(() => {
+    const container = containerRef.current
+    if (!container) return
+    const measure = () => setAvailableWidth(container.clientWidth)
+    measure()
+    if (typeof ResizeObserver === 'undefined') {
+      window.addEventListener('resize', measure)
+      return () => window.removeEventListener('resize', measure)
+    }
+    const observer = new ResizeObserver(measure)
+    observer.observe(container)
+    return () => observer.disconnect()
+  }, [])
+  const canvasWidth = Math.max(1, Math.min(width, availableWidth ?? width))
   const layerColorMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const l of layers) m.set(l.name, l.colorHex)
@@ -38,11 +53,14 @@ export function TopoEntityCanvas({
 
   useEffect(() => {
     if (!containerRef.current) return
+    const width = canvasWidth
     containerRef.current.querySelector('.konva-container')?.remove()
 
     const stage = new Konva.Stage({ container: containerRef.current, width, height })
     const layer = new Konva.Layer()
     stage.add(layer)
+    const scene = new Konva.Group()
+    layer.add(scene)
 
     const worldW = extents.maxX - extents.minX || 1
     const worldH = extents.maxY - extents.minY || 1
@@ -80,7 +98,7 @@ export function TopoEntityCanvas({
         height: Math.abs(neatMaxY - neatMinY),
       },
     })
-    layer.add(clippedGroup)
+    scene.add(clippedGroup)
 
     // Text heights are in world units → convert to px, clamp for legibility
     const textScale = scale
@@ -90,7 +108,7 @@ export function TopoEntityCanvas({
       const color = layerColorMap.get(e.layer) ?? '#d4d4d8'
       const targetContainer = (e.layer === 'CONTOURS' || e.layer === 'CONTOUR_I' || e.layer === 'GRID')
         ? clippedGroup
-        : layer
+        : scene
 
       switch (e.kind) {
         case 'line':
@@ -99,13 +117,14 @@ export function TopoEntityCanvas({
             stroke: color, strokeWidth: e.layer === 'GRID' ? 0.6 : 1, listening: false,
           }))
           break
-        case 'polyline': {
+        case 'polyline':
+        case 'polyline3d': {
           const flat: number[] = []
           for (const [en, nn] of e.pts) flat.push(toX(en), toY(nn))
           targetContainer.add(new Konva.Line({
             points: flat,
             stroke: color, strokeWidth: 1.1,
-            closed: !!e.closed, listening: false,
+            closed: e.kind === 'polyline' && !!e.closed, listening: false,
           }))
           break
         }
@@ -123,13 +142,23 @@ export function TopoEntityCanvas({
       }
     }
 
+    // Fit the actual rendered bounds, including title/reference text outside
+    // the neatline. Survey coordinates and the neatline clip remain unchanged.
+    const content = scene.getClientRect({ skipTransform: true })
+    if (content.width > 0 && content.height > 0) {
+      const fit = Math.min(1, Math.max(1, width - padding * 2) / content.width, Math.max(1, height - padding * 2) / content.height)
+      scene.scale({ x: fit, y: fit })
+      scene.position({ x: (width - content.width * fit) / 2 - content.x * fit, y: (height - content.height * fit) / 2 - content.y * fit })
+    }
     layer.draw()
     return () => stage.destroy()
-  }, [entities, layers, extents, layerColorMap, hiddenLayers, width, height, emptyMessage])
+  }, [entities, layers, extents, layerColorMap, hiddenLayers, canvasWidth, height, emptyMessage])
 
   return (
     <div
       ref={containerRef}
+      role="img"
+      aria-label="Topographic drawing preview, including draft and reference annotations"
       className="rounded-lg overflow-hidden bg-zinc-950 border border-zinc-800"
       style={{ width: '100%', height }}
     />

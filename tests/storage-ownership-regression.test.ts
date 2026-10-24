@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { promises as fs } from 'fs'
 import { db } from '@/lib/db'
 import { GET, POST, DELETE } from '@/app/api/storage/route'
+import { createHash } from 'node:crypto'
 
 jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: (request: NextRequest, context: { userId: string }) => Promise<Response>) =>
   (request: NextRequest) => handler(request, { userId: 'alice' }) }))
@@ -122,4 +123,22 @@ test('uses the actual file_uploads columns for uploads and ownership lookups', a
   expect((await POST(upload(key), ctx)).status).toBe(200)
   expect((await GET(request(key), ctx)).status).toBe(200)
   expect((await DELETE(request(key), ctx)).status).toBe(200)
+})
+
+test.each(['surface-exports/alice/project/revision/file.dxf', 'SURFACE-EXPORTS/alice/project/revision/file.dxf'])('generic upload/delete cannot replace or erase retained surface artifacts: %s', async key => {
+  expect((await POST(upload(key), ctx)).status).toBe(409)
+  expect((await DELETE(request(key), ctx)).status).toBe(409)
+  expect(fs.writeFile).not.toHaveBeenCalled(); expect(fs.unlink).not.toHaveBeenCalled()
+})
+test('a retained artifact is delivered only when the stored bytes match its acknowledgement', async () => {
+  const sha256 = createHash('sha256').update('private report').digest('hex')
+  ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ id: 'file', user_id: 'alice', sha256 }] })
+  const key = 'surface-exports/alice/project/revision/file.dxf'
+  expect((await GET(request(key), ctx)).status).toBe(200)
+  ;(fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('changed'))
+  expect((await GET(request(key), ctx)).status).toBe(409)
+})
+test('unacknowledged retained artifacts cannot fall back to a user-looking path', async () => {
+  expect((await GET(request('surface-exports/alice/project/revision/file.dxf'), ctx)).status).toBe(409)
+  expect(fs.readFile).not.toHaveBeenCalled()
 })

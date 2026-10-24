@@ -24,7 +24,11 @@ interface FileUploadRow {
   user_id: string
   id: string
   project_id?: string | null
+  sha256?: string | null
 }
+// Generated revision artifacts have a dedicated namespace. Generic upload and
+// delete cannot rewrite the document register's retained bytes (also on Windows).
+const retainedSurfacePath = (value: string) => value.split('/')[0].toLowerCase() === 'surface-exports'
 
 const STORAGE_ROOT = process.env.STORAGE_ROOT || path.join(process.cwd(), 'upload')
 const MAX_FILE_SIZE = 50 * 1024 * 1024
@@ -79,6 +83,7 @@ export const POST = apiHandler({ auth: true, rawBody: true }, async (request, ct
 
   const fullPath = safeResolvePath(storagePath)
   if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+  if (retainedSurfacePath(storagePath)) return NextResponse.json({ error: 'Saved surface artifacts are retained. Generate a new revision instead of replacing this file.' }, { status: 409 })
 
   const buffer = Buffer.from(await file.arrayBuffer())
   const saved = await db.transaction(async client => {
@@ -124,7 +129,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
 
   const { rows } = await db.query<FileUploadRow>(
-    'SELECT user_id FROM file_uploads WHERE storage_path = $1',
+    'SELECT user_id, sha256 FROM file_uploads WHERE storage_path = $1',
     [filePath]
   )
 
@@ -136,6 +141,9 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   }
   if (rows.length === 0 && !pathOwnedByUser) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  if (retainedSurfacePath(filePath) && (rows.length !== 1 || !/^[a-f0-9]{64}$/.test(rows[0]?.sha256 ?? ''))) {
+    return NextResponse.json({ error: 'The retained artifact has no unambiguous file acknowledgement.' }, { status: 409 })
   }
 
   const ext = path.extname(filePath).toLowerCase()
@@ -155,6 +163,9 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
   try {
     const buffer = await downloadFile(filePath)
+    if (retainedSurfacePath(filePath) && crypto.createHash('sha256').update(buffer).digest('hex') !== rows[0].sha256) {
+      return NextResponse.json({ error: 'The stored artifact does not match its retained content hash. No file was delivered.' }, { status: 409 })
+    }
     const contentType = mimeMap[ext] ?? 'application/octet-stream'
     return new NextResponse(new Uint8Array(buffer), {
       headers: {
@@ -176,6 +187,7 @@ export const DELETE = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6
 
   const fullPath = safeResolvePath(filePath)
   if (!fullPath) return NextResponse.json({ error: 'Invalid path' }, { status: 400 })
+  if (retainedSurfacePath(filePath)) return NextResponse.json({ error: 'Saved surface artifacts are retained; deletion is unavailable.' }, { status: 409 })
 
   // SECURITY (audit H-05, 2026-08-30): ownership is verified BEFORE any
   // filesystem mutation. Previously fs.unlink ran unconditionally — any

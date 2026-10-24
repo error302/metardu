@@ -83,3 +83,4 @@ node /app/migrate.js || echo "WARNING: Migration failed"
 | 048 | trial_reminder.sql | Trial-ending reminder idempotency column (trial_reminder_sent_at) |
 | 049 | trial_final_reminder.sql | 24-hour final trial reminder idempotency column (trial_reminder_2_sent_at) |
 | 105 | marketing_email_deliveries.sql | Monthly opt-in plan reminder idempotency and scheduler RLS |
+| 116 | surface_request_recovery.sql | Partial unique request identities for immutable surface and draft DXF recovery; preserves legacy rows |

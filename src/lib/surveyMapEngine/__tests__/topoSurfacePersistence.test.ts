@@ -62,11 +62,12 @@ describe('surfaces are computed and stored server-side', () => {
     expect(route).toMatch(/current_revision_id\s*=\s*\$2/)
   })
 
-  test('the topo page persists on compute and hydrates on load', () => {
-    expect(page).toMatch(/fetch\(`\/api\/project\/\$\{id\}\/surfaces`, \{\s*method: 'POST'/)
-    expect(page).toMatch(/loadStoredSurface/)
+  test('the topo page persists selected source and loads an exact retained revision', () => {
+    expect(page).toMatch(/pointIds: \[\.\.\.selected\]/)
+    expect(page).toMatch(/expectedReferenceHash: source.referenceHash/)
+    expect(page).toMatch(/loadRevision/)
     expect(page).toMatch(/contourRevision=/)
-    expect(page).toMatch(/R\$\{surfaceRevision\} stored/)
+    expect(page).toMatch(/surfaceRevisionId: revisionId/)
     // The browser no longer owns the interpolation.
     expect(page).not.toMatch(/computeIDW\(/)
     expect(page).not.toMatch(/generateContours\(/)

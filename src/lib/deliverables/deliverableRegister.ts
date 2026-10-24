@@ -13,6 +13,7 @@
  */
 
 import { createHash } from 'crypto'
+import type { PoolClient } from 'pg'
 import { db } from '@/lib/db'
 import { recordEvidenceEvent, type EvidenceEventType } from '@/lib/observations/observationBatches'
 
@@ -111,6 +112,8 @@ export interface RegisterDeliverableResult {
  */
 export async function registerDeliverable(
   input: RegisterDeliverableInput,
+  /** Join an existing transaction when file metadata must commit with the register. */
+  transactionClient?: PoolClient,
 ): Promise<RegisterDeliverableResult> {
   // Keep metadata consistent while waiting for the per-document stream lock.
   input = { ...input }
@@ -121,7 +124,7 @@ export async function registerDeliverable(
       ? Buffer.byteLength(input.content, 'utf8')
       : input.content.byteLength ?? input.content.length
 
-  return db.transaction(async client => {
+  const append = async (client: PoolClient): Promise<RegisterDeliverableResult> => {
     // Serialize the first append too, when there is no current row to lock yet.
     const stream = `deliverables:${input.projectId.toLowerCase()}:${input.documentType}`
     await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [stream])
@@ -222,7 +225,8 @@ export async function registerDeliverable(
       revision: revisionRow.rows[0],
       supersededDeliverableId,
     }
-  })
+  }
+  return transactionClient ? append(transactionClient) : db.transaction(append)
 }
 
 /** Mark a deliverable superseded by another (never deleted). */
