@@ -23,7 +23,7 @@
  * field book or traverse adjustment.
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { z } from 'zod';
 import { apiGet, apiInvalidate, ApiError } from '@/lib/api/client';
 
@@ -101,27 +101,40 @@ interface Props {
   /**
    * Called whenever the gate result changes (including on initial load
    * and on every Re-run). Parent components can use this to disable
-   * export buttons when `result.summary.block > 0`.
+   * export buttons unless a current result passed with no blocking findings.
+   * Null means pending/unavailable, including the start of every Re-run.
    */
   onResult?: (result: GateResult | null) => void;
 }
 
 export function StatutoryGatePanel({ projectId, onResult }: Props) {
+  // A project change must discard the previous project's visible result too.
+  return <ProjectGatePanel key={projectId} projectId={projectId} onResult={onResult} />;
+}
+
+function ProjectGatePanel({ projectId, onResult }: Props) {
   const [result, setResult] = useState<GateResult | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState(false);
+  const requestId = useRef(0);
+  const onResultRef = useRef(onResult);
+  useEffect(() => { onResultRef.current = onResult; }, [onResult]);
+  const invalidatePending = useCallback(() => { requestId.current++; }, []);
 
   // Keep the parent informed whenever the result changes.
   // useCallback wraps the setter so it's stable across renders.
   const updateResult = useCallback((next: GateResult | null) => {
     setResult(next);
-    if (onResult) onResult(next);
-  }, [onResult]);
+    onResultRef.current?.(next);
+  }, []);
 
   const runValidation = useCallback(async () => {
+    const currentRequest = ++requestId.current;
+    updateResult(null);
     setStatus('loading');
     setError(null);
+    setExpanded(false);
     try {
       // Bust the apiGet cache so we get a fresh result on re-run
       apiInvalidate(`/api/project/${projectId}/validate`);
@@ -130,6 +143,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
         responseSchema,
         { ttlMs: 0 } // never cache — surveyor wants fresh result on each click
       );
+      if (requestId.current !== currentRequest) return;
       updateResult(res.gate);
       setStatus('ready');
       // Auto-expand if there are block violations
@@ -137,6 +151,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
         setExpanded(true);
       }
     } catch (err) {
+      if (requestId.current !== currentRequest) return;
       const msg = err instanceof ApiError
         ? err.message
         : err instanceof Error
@@ -150,8 +165,9 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
   }, [projectId, updateResult]);
 
   useEffect(() => {
-    runValidation();
-  }, [runValidation]);
+    void runValidation();
+    return invalidatePending;
+  }, [runValidation, invalidatePending]);
 
   // ─── Loading ──────────────────────────────────────────────────────────
 
@@ -195,7 +211,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
   if (!result) return null;
 
   const isPassed = result.passed;
-  const hasBlock = result.summary.block > 0;
+  const hasBlock = !result.passed || result.summary.block > 0;
   const hasWarn = result.summary.warn > 0;
   const unassessedRoad = result.violations.filter(v => v.assessment === 'UNASSESSED' && v.field?.startsWith('engineering'));
   const needsReview = hasWarn || unassessedRoad.length > 0;

@@ -78,13 +78,13 @@ interface SubmissionPackage {
 export default function SubmissionClient({ project, existingDocs, projectId }: Props) {
   const dbClient = createClient();
   const [previewPkg, setPreviewPkg] = useState<SubmissionPackage | null>(null);
-  // Statutory gate block state — when true, Generate buttons are disabled
-  // because the project would fail ArdhiSasa pre-flight. Lifted up from
-  // StatutoryGatePanel via the onResult callback.
-  const [gateBlocked, setGateBlocked] = useState(true);
-  const handleGateResult = useCallback((result: {summary: {block: number}} | null) => {
-    setGateBlocked(result ? result.summary.block > 0 : true);
-  }, []);
+  // A result belongs to one project. Pending, unavailable or failed checks
+  // cannot reuse a previous project's permission to request generated files.
+  const [gateVerdict, setGateVerdict] = useState<{ projectId: string; passed: boolean } | null>(null);
+  const gateBlocked = gateVerdict?.projectId !== project.id || !gateVerdict.passed;
+  const handleGateResult = useCallback((result: { passed: boolean; summary: { block: number } } | null) => {
+    setGateVerdict(result ? { projectId: project.id, passed: result.passed && result.summary.block === 0 } : null);
+  }, [project.id]);
   const [portalCopied, setPortalCopied] = useState(false);
   const [docStates, setDocStates] = useState<Record<string, DocState>>(() => {
     const initial: Record<string, DocState> = {};
@@ -136,6 +136,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   }, [projectId]);
 
   const handleAssemblePackage = useCallback(async () => {
+    if (gateBlocked) return;
     setAssembling(true);
     try {
       const result = await apiPost(
@@ -154,9 +155,10 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
     } finally {
       setAssembling(false);
     }
-  }, [project.id]);
+  }, [project.id, gateBlocked]);
 
   const generateDocument = useCallback(async (docId: string) => {
+    if (gateBlocked) return;
     setDocStates((prev) => ({
       ...prev,
       [docId]: { ...prev[docId], status: 'generating', progress: 10, error: undefined },
@@ -224,7 +226,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
         },
       }));
     }
-  }, [documents, project.id, dbClient]);
+  }, [documents, project.id, dbClient, gateBlocked]);
 
   const retryDocument = useCallback((docId: string) => {
     generateDocument(docId);
@@ -512,31 +514,15 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
 
       {readyCount === totalCount && totalCount > 0 && (
         <div className="mt-8 p-4 bg-green-950/20 border border-green-800/40 rounded-lg">
-          <h3 className="font-semibold text-green-400">Submission Package Complete</h3>
+          <h3 className="font-semibold text-green-400">Submission files ready</h3>
           <p className="text-sm text-green-300 mt-1">
-            All {totalCount} documents are ready. You can now submit your survey package to the relevant authority.
+            All {totalCount} documents have been generated. Review their current evidence and obtain professional sign-off before filing.
           </p>
           <div className="mt-4 flex gap-3">
             <button
-              onClick={async () => {
-                try {
-                  const result = await apiPost(
-                    '/api/submission/package',
-                    packageResponseSchema,
-                    { projectId: project.id },
-                  );
-                  if (result.downloadUrl) {
-                    window.open(result.downloadUrl, '_blank');
-                  }
-                } catch (err) {
-                  if (err instanceof ApiError) {
-                    logger.error('Package download failed:', { message: err.message });
-                  } else {
-                    logger.error('Package download failed:', { error: err });
-                  }
-                }
-              }}
-              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 transition"
+              onClick={handleAssemblePackage}
+              disabled={assembling || gateBlocked}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded hover:bg-green-700 disabled:opacity-50 transition"
             >
               Download Full Package (ZIP)
             </button>
@@ -557,12 +543,13 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
       )}
 
       <div className="mt-8 p-4 border border-orange-800/40 bg-orange-950/20 rounded-lg">
-        <h3 className="font-semibold text-orange-400">Generate Compliant Submission Package</h3>
+        <h3 className="font-semibold text-orange-400">Generate submission draft archive</h3>
         <p className="text-sm text-orange-300 mt-1">
           Generate a complete submission package with Form No. 4 DXF, computation workbook, and supporting documents.
         </p>
         <button
           onClick={async () => {
+            if (gateBlocked) return;
             setAssembling(true);
             try {
               // ponytail: binary download bypasses typed client (ZIP response with custom headers, not JSON)
@@ -608,7 +595,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
               setAssembling(false);
             }
           }}
-          disabled={assembling}
+          disabled={assembling || gateBlocked}
           className="mt-4 px-4 py-2 bg-orange-500 hover:bg-orange-600 disabled:opacity-50 text-white font-semibold rounded transition"
         >
           {assembling ? 'Generating Package...' : 'Generate Submission Package'}
@@ -641,7 +628,7 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
               Package generated: {packageResult.ref}
             </p>
             <p className="text-sm text-green-300 mt-1">
-              Your submission ZIP has downloaded. Submit to the Director of Surveys office.
+              Your draft ZIP has downloaded. Review the files and confirm current filing requirements before submission.
             </p>
           </div>
         )}

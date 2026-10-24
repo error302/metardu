@@ -387,3 +387,14 @@ security gate pass; six native fixtures/90 refusals and 30 independent Decimal
 comparisons pass. See `LEGACY_BANKING_ADAPTER_INTEGRITY_2026-10-24.md`. Remaining
 scalar safety/widening helpers, saved criteria/revision loading, browser,
 production promotion, recovery and field gates remain open.
+
+24 October submission-freshness checkpoint: rerunning quality checks now
+revokes the previous verdict, late old-project/unmounted responses are ignored,
+and the parent admits generation only for a successful current-project result.
+Previously bypassing archive controls now honor the gate, and generated-file
+copy no longer implies official approval. 98 focused tests across six suites,
+application/test TypeScript, scoped lint and the security gate pass. See
+`SUBMISSION_GATE_FRESHNESS_2026-10-24.md`. Source browser navigation/health
+observations timed out while the existing preview process remained live; it was
+preserved. Authenticated browser, saved revision/criteria binding, server-side
+concurrency, production promotion and field acceptance remain open.
