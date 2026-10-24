@@ -110,3 +110,13 @@ public home, pricing, login and public health all returned 200. Public health
 still reports release ID `unknown`. New source fixes are therefore not claimed
 as deployed. A preceding restricted-network attempt failed with EACCES/ENOTFOUND;
 that was an access restriction, not evidence of another public outage.
+
+## Network interruption observed on 24 October
+
+A subsequent public check returned 530 while the origin remained healthy. The
+running service had zero active tunnel connections and logged resolver errors.
+It reconnected automatically; a guarded manual restart refused admission once
+the connection state recovered, so no restart actually ran. All five checks
+returned 200 at 00:38:04 UTC, with four active connector connections. See
+`TUNNEL_NETWORK_RECOVERY_2026-10-24.md` for the evidence and remaining operations
+acceptance. Service configuration does not establish uninterrupted availability.
