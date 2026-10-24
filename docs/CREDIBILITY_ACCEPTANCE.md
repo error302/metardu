@@ -344,3 +344,14 @@ invalid/unrepresentable input from appearing valid or crashing draft entry.
 pass. Seven plan draft pairs / ten pages and 64 CAD checks also pass. See
 `HORIZONTAL_ADAPTER_INTEGRITY_2026-10-23.md` for unchanged local/synthetic versus
 saved-project/browser/production/professional/field acceptance boundaries.
+
+### Road evidence in export quality checks — 23 October
+
+The export gate no longer guesses road friction, reaction time, grade or national
+banking/radius limits. Requested checks require declared criteria; invalid or
+missing evidence blocks as unassessed. Informational successful comparisons
+retain exact consumed parameters and make no standards-approval claim. Missing
+road context is visible even when details are collapsed. 142 focused tests,
+70 CLI checks and independent checks of 15 cases / 11 comparisons pass. See
+`ROAD_EXPORT_GATE_INTEGRITY_2026-10-23.md` for rule-version/ID changes and the
+unfulfilled saved-project, authenticated-browser, production and field boundaries.

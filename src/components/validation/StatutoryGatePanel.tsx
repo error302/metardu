@@ -32,6 +32,10 @@ import { apiGet, apiInvalidate, ApiError } from '@/lib/api/client';
 type Severity = 'block' | 'warn' | 'info';
 
 interface Violation {
+  assessment?: 'PASS' | 'FAIL' | 'UNASSESSED';
+  criteriaReference?: string;
+  roadEvidence?: Record<string, number | null>;
+  standardCompliance?: 'NOT_ASSESSED';
   rule: string;
   source: string;
   severity: Severity;
@@ -63,6 +67,10 @@ const responseSchema = z.object({
     passed: z.boolean(),
     violations: z.array(
       z.object({
+        assessment: z.enum(['PASS', 'FAIL', 'UNASSESSED']).optional(),
+        criteriaReference: z.string().optional(),
+        roadEvidence: z.record(z.union([z.number().finite(), z.null()])).optional(),
+        standardCompliance: z.literal('NOT_ASSESSED').optional(),
         rule: z.string(),
         source: z.string(),
         severity: z.enum(['block', 'warn', 'info']),
@@ -189,22 +197,26 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
   const isPassed = result.passed;
   const hasBlock = result.summary.block > 0;
   const hasWarn = result.summary.warn > 0;
+  const unassessedRoad = result.violations.filter(v => v.assessment === 'UNASSESSED' && v.field?.startsWith('engineering'));
+  const needsReview = hasWarn || unassessedRoad.length > 0;
 
   // Color scheme: red if blocked, green if clean, amber if passed-with-warnings
   const cardClass = hasBlock
     ? 'border-red-700/50 bg-red-950/20'
-    : hasWarn
+    : needsReview
       ? 'border-amber-700/50 bg-amber-950/20'
       : 'border-green-700/50 bg-green-950/20';
 
   const titleClass = hasBlock
     ? 'text-red-400'
-    : hasWarn
+    : needsReview
       ? 'text-amber-400'
       : 'text-green-400';
 
   const statusLabel = hasBlock
     ? 'METARDU checks block export'
+    : unassessedRoad.length > 0
+      ? 'Road checks unassessed'
     : isPassed && hasWarn
       ? 'Review recommended'
       : 'No configured check flagged an issue';
@@ -217,7 +229,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
           <div className="flex items-center gap-2">
             <h3 className={`font-semibold ${titleClass}`}>METARDU Quality Checks</h3>
             <span className={`text-xs px-2 py-0.5 rounded-full ${
-              hasBlock ? 'bg-red-900/40 text-red-300' : hasWarn ? 'bg-amber-900/40 text-amber-300' : 'bg-green-900/40 text-green-300'
+              hasBlock ? 'bg-red-900/40 text-red-300' : needsReview ? 'bg-amber-900/40 text-amber-300' : 'bg-green-900/40 text-green-300'
             }`}>
               {statusLabel}
             </span>
@@ -242,6 +254,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
         <CountBadge label="Warn" count={result.summary.warn} variant="warn" />
         <CountBadge label="Info" count={result.summary.info} variant="info" />
       </div>
+      {unassessedRoad.length > 0 && !hasBlock && <p role="status" className="mt-3 text-sm text-amber-300">{unassessedRoad.map(v => v.message).join(' ')}</p>}
 
       <p className="mt-3 text-xs text-[var(--text-muted)]">
         These configured checks and reference labels are not independently verified against current official requirements. They do not certify legal compliance or predict registry acceptance. Have a licensed surveyor review the work and confirm current requirements before filing.
@@ -255,7 +268,7 @@ export function StatutoryGatePanel({ projectId, onResult }: Props) {
             className="text-sm text-[var(--text-secondary)] hover:text-[var(--text-primary)] transition flex items-center gap-1"
           >
             <span>{expanded ? '▼' : '▶'}</span>
-            <span>{expanded ? 'Hide' : 'Show'} {result.violations.length} violation{result.violations.length === 1 ? '' : 's'}</span>
+            <span>{expanded ? 'Hide' : 'Show'} {result.violations.length} finding{result.violations.length === 1 ? '' : 's'}</span>
           </button>
 
           {expanded && (

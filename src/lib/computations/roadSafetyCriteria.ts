@@ -29,6 +29,7 @@ export interface SuperelevationInput {
   criteria?: SuperelevationCriteria
 }
 export interface RadiusCriteria extends CriterionReference { minimumRadiusM: number }
+export interface SuperelevationLimitCriteria extends CriterionReference { maximumSuperelevation: number }
 type Step = { description: string; formula: string; value: string }
 type AssessmentStatus = 'PASS' | 'FAIL' | 'UNASSESSED'
 
@@ -99,6 +100,16 @@ export function sightDistanceCheck(input: SightDistanceInput) {
 }
 export type SightDistanceResult = ReturnType<typeof sightDistanceCheck>
 
+/** A banking-limit comparison alone does not assess friction, transition or drainage. */
+export function checkSuperelevationLimit(provided: number, criteria?: SuperelevationLimitCriteria) {
+  const criteriaReference = reference(criteria)
+  const providedE = fraction(provided, 'Provided superelevation')
+  const maximumE = fraction((criteria as SuperelevationLimitCriteria).maximumSuperelevation, 'Maximum superelevation', false)
+  const meetsLimit = providedE <= maximumE
+  return { providedE, maximumE, meetsLimit, status: meetsLimit ? 'PASS' as const : 'FAIL' as const,
+    criteriaReference, assessmentBasis: 'declared-project-criteria' as const, standardCompliance: 'NOT_ASSESSED' as const }
+}
+
 export function superelevationDesign(input: SuperelevationInput) {
   const criteriaReference = reference(input.criteria)
   const criteria = input.criteria as SuperelevationCriteria
@@ -119,7 +130,7 @@ export function superelevationDesign(input: SuperelevationInput) {
   const transitionLength = width * (crossfallChange / relativeGradient)
   const minimumRadiusAtLimit = V * V / (127 * (f + maximumE))
   if (![width, lateralDemand, requiredE, transitionLength, minimumRadiusAtLimit].every(Number.isFinite) || width <= 0 || lateralDemand <= 0 || minimumRadiusAtLimit <= 0 || (crossfallChange > 0 && transitionLength <= 0)) throw new Error('Superelevation calculation exceeds numerical range.')
-  const checks = { withinSuperelevationLimit: providedE <= maximumE, lateralDemandMet: providedE + f >= lateralDemand }
+  const checks = { withinSuperelevationLimit: checkSuperelevationLimit(providedE, criteria).meetsLimit, lateralDemandMet: providedE + f >= lateralDemand }
   const steps: Step[] = [
     { description: 'Declared criteria reference', formula: criteriaReference, value: 'User-declared; no automatic jurisdiction or design-standard approval' },
     { description: 'Lateral demand', formula: `V²/(127R) = ${V}²/(127 × ${radius})`, value: lateralDemand.toFixed(6) },

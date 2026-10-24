@@ -366,3 +366,13 @@ verification of 130 stations pass. Seven plan draft pairs and 64 CAD checks also
 pass; actual source-preview anonymous HTTP is 401. See
 `HORIZONTAL_ADAPTER_INTEGRITY_2026-10-23.md` for compatibility/evidence boundaries.
 Criteria, saved project/revision, browser, production and field gates remain open.
+
+23 October road export-check checkpoint: requested radius, stopping-distance and
+banking checks now require declared criteria and complete consumed evidence.
+Missing/invalid requests block as unassessed; successful comparisons retain
+criteria and parameter snapshots without claiming standards adoption. Absent
+road context is visibly unassessed in the panel and formatted report. Rule
+version 1.3.0 changes the former regulatory-labelled road IDs to METARDU QC IDs.
+142 focused tests, 70 CLI checks and 15 native cases / 11 independent Decimal
+comparisons pass. See `ROAD_EXPORT_GATE_INTEGRITY_2026-10-23.md`. Saved-project
+road/criteria loading, legacy helpers and broader release/field gates remain open.
