@@ -160,17 +160,14 @@ export default function IndustrialPage() {
               <DownloadButton
                 platform="Windows"
                 extension=".msi"
-                href="/download/metardu-industrial-0.1.0-windows.msi"
               />
               <DownloadButton
                 platform="macOS"
                 extension=".dmg"
-                href="/download/metardu-industrial-0.1.0-macos.dmg"
               />
               <DownloadButton
                 platform="Linux"
                 extension=".AppImage"
-                href="/download/metardu-industrial-0.1.0-linux.AppImage"
               />
             </div>
             <div className="mt-4 text-xs text-slate-500">
@@ -197,22 +194,20 @@ export default function IndustrialPage() {
               <DownloadButton
                 platform="Windows"
                 extension=".exe"
-                href="/download/metardu-verify-windows.exe"
                 free
               />
               <DownloadButton
                 platform="macOS"
                 extension=""
-                href="/download/metardu-verify-macos"
                 free
               />
               <DownloadButton
                 platform="Linux"
                 extension=""
-                href="/download/metardu-verify-linux"
                 free
               />
             </div>
+            <p className="mt-4 text-xs text-slate-400">Verifier binaries have not been published. Downloads will be enabled after the release artifacts are available and verified.</p>
           </div>
 
           {/* License Info */}
@@ -272,23 +267,24 @@ export default function IndustrialPage() {
 }
 
 function DownloadButton({
-  platform, extension, href, free = false,
+  platform, extension, free = false,
 }: {
-  platform: string; extension: string; href: string; free?: boolean
+  platform: string; extension: string; free?: boolean
 }) {
   return (
-    <a
-      href={href}
-      className={`flex items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+    <button
+      type="button" disabled aria-label={`${platform} download unavailable`}
+      className={`flex flex-wrap items-center justify-center gap-2 rounded-lg border px-4 py-3 text-sm font-medium cursor-not-allowed opacity-60 ${
         free
-          ? 'border-green-700/30 bg-green-900/20 text-green-300 hover:bg-green-900/30'
-          : 'border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700'
+          ? 'border-green-700/30 bg-green-900/20 text-green-300'
+          : 'border-slate-700 bg-slate-800 text-slate-200'
       }`}
     >
       <Download className="h-4 w-4" />
       {platform}
       {extension && <span className="text-xs opacity-60">{extension}</span>}
-    </a>
+      <span className="w-full text-xs font-normal">Not available yet</span>
+    </button>
   )
 }
 

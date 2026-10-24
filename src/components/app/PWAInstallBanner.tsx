@@ -126,9 +126,9 @@ export function PWAInstallBanner() {
     <>
       {/* ─── Banner ─── */}
       <div
-        role="dialog"
+        role="region"
         aria-label={t('pwa.installTitle')}
-        className="fixed left-1/2 -translate-x-1/2 bottom-4 sm:bottom-6 z-[60] w-[calc(100%-1.5rem)] max-w-md animate-[slideUp_0.3s_ease-out]"
+        className="relative mx-auto my-3 w-[calc(100%-2rem)] max-w-3xl"
       >
         <div className="relative bg-[var(--bg-card)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-2xl shadow-2xl shadow-[color-mix(in_srgb,var(--accent)_10%,transparent)] overflow-hidden">
           {/* Top accent stripe */}

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation'
-import { getAuthUser, isAdmin as checkIsAdmin } from '@/lib/auth/session'
+import { getAuthUser, isPlatformAdmin as checkIsAdmin } from '@/lib/auth/session'
+import { setAuthenticatedDatabaseContext } from '@/lib/auth/requestContext'
 import { createClient } from '@/lib/api-client/server'
 import { db } from '@/lib/db'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
@@ -55,6 +56,7 @@ export default async function StagePage({ params, stageId }: Props) {
   let summary: StageSummary | null = null
   if (stageId === 'overview') {
     try {
+      setAuthenticatedDatabaseContext(user.id)
       const { rows } = await db.query<SummaryRow>(
         `SELECT
            (SELECT COUNT(*)::int FROM survey_points WHERE project_id = $1) AS point_count,

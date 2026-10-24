@@ -29,7 +29,7 @@ export function OfflineIndicator() {
   return (
     <div
       role="alert"
-      className="fixed top-0 left-0 right-0 z-[200] bg-amber-600 text-black text-center text-sm font-semibold py-2 px-4 flex flex-wrap items-center justify-center gap-3"
+      className="relative bg-amber-600 text-black text-center text-sm font-semibold py-2 px-4 flex flex-wrap items-center justify-center gap-3"
     >
       <svg
         className="w-4 h-4 flex-shrink-0"

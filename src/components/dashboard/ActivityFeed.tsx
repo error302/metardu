@@ -22,11 +22,11 @@ import {
   Loader2, Clock,
 } from 'lucide-react'
 
-const activityResponseSchema = z.object({ data: z.object({ activities: z.array(z.object({
+const activityResponseSchema = z.object({ activities: z.array(z.object({
   id: z.string(), project_id: z.string().nullable(), activity_type: z.string(),
   entity_type: z.string().nullable(), description: z.string(), created_at: z.string(),
-})) }) })
-type Activity = z.infer<typeof activityResponseSchema>['data']['activities'][number]
+})) })
+type Activity = z.infer<typeof activityResponseSchema>['activities'][number]
 
 const ACTIVITY_ICONS: Record<string, typeof FolderKanban> = {
   project_created: FolderKanban,
@@ -73,7 +73,7 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
       if (!res.ok) throw new Error('Failed to load activity')
       const data = activityResponseSchema.parse(await res.json())
       if (controller.signal.aborted) return
-      setActivities(data.data.activities)
+      setActivities(data.activities)
       setHasLoaded(true)
       setError(null)
     } catch {

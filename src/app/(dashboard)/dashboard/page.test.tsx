@@ -6,9 +6,10 @@ type MockBuilder = { select: () => MockBuilder; eq: () => MockBuilder; order: ()
 const mockFrom = jest.fn<MockBuilder, [string]>()
 const mockSubscription = jest.fn<Promise<{ plan: string; status: string; trialEndsAt: string | null }>, unknown[]>()
 const mockUser = jest.fn<Promise<{ id: string; name: string; email: string } | null>, []>()
+const mockPlatformAdmin = jest.fn<Promise<boolean>, []>()
 
 jest.mock('next/navigation', () => ({ redirect: (href: string) => { throw new Error(`REDIRECT:${href}`) } }))
-jest.mock('@/lib/auth/session', () => ({ getAuthUser: () => mockUser(), isAdmin: async () => false }))
+jest.mock('@/lib/auth/session', () => ({ getAuthUser: () => mockUser(), isPlatformAdmin: () => mockPlatformAdmin() }))
 jest.mock('@/lib/api-client/server', () => ({ createClient: async () => ({ from: (table: string) => mockFrom(table) }) }))
 jest.mock('@/lib/db', () => ({ db: { query: async () => ({ rows: [{ email_verified: true }] }) }, setCurrentUserId: jest.fn() }))
 jest.mock('@/lib/logger', () => ({ log: jest.fn() }))
@@ -30,6 +31,7 @@ const project = { id: 'p1', name: 'Road survey', created_at: '2026-10-17T12:00:0
 const mockResults: Record<string, QueryResult> = {}
 
 beforeEach(() => {
+  mockPlatformAdmin.mockReset().mockResolvedValue(false)
   mockUser.mockReset().mockResolvedValue({ id: 'owner-1', name: 'Amina Surveyor', email: 'amina@example.com' })
   mockSubscription.mockReset().mockResolvedValue({ plan: 'pro', status: 'active', trialEndsAt: null })
   mockResults.projects = { data: [project], error: null }
@@ -44,6 +46,17 @@ beforeEach(() => {
     }
     return builder
   })
+})
+
+it('offers platform administrators a direct administration switch', async () => {
+  mockPlatformAdmin.mockResolvedValue(true)
+  render(await DashboardPage())
+  expect(screen.getByRole('link', { name: 'Administration' })).toHaveAttribute('href', '/admin')
+})
+
+it('keeps the administration switch out of an ordinary workspace', async () => {
+  render(await DashboardPage())
+  expect(screen.queryByRole('link', { name: 'Administration' })).not.toBeInTheDocument()
 })
 
 function totals() {

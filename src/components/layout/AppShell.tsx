@@ -136,11 +136,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <SkipToContent />
         <AppUpdateBanner />
         <OfflineIndicator />
-        <PWAInstallBanner />
         <ProjectionInit />
         <LanguageProvider>
           <CountryProvider>
             <SubscriptionProvider>
+              <PWAInstallBanner />
               <main id="main-content" className="overflow-hidden">
                 {children}
               </main>
@@ -167,11 +167,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
         <SkipToContent />
         <AppUpdateBanner />
         <OfflineIndicator />
-        <PWAInstallBanner />
         <ProjectionInit />
         <LanguageProvider>
           <CountryProvider>
             <SubscriptionProvider>
+              <PWAInstallBanner />
               <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
                 {children}
               </main>
@@ -199,11 +199,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <SkipToContent />
       <AppUpdateBanner />
       <OfflineIndicator />
-      <PWAInstallBanner />
       <ProjectionInit />
       <LanguageProvider>
         <CountryProvider>
           <SubscriptionProvider>
+            <PWAInstallBanner />
             {/* NavBar renders on ALL app routes. (An earlier audit hid it on
                 /dashboard because that group used the AppSidebar layout — that
                 layout is gone, so hiding it here left the dashboard with no

@@ -205,7 +205,9 @@ export default function NavBar() {
   const user = session?.user as { email?: string; name?: string; id?: string; role?: string } | undefined
   const isAuthenticated = !!session
   const userRole = user?.role ?? ''
-  const isAdminUser = ['super_admin', 'admin', 'org_admin'].includes(userRole)
+  const isAdminUser = ['super_admin', 'admin'].includes(userRole)
+  const hasAdministrativeRole = isAdminUser || userRole === 'org_admin'
+  const roleLabel = userRole === 'super_admin' ? 'SUPER ADMIN' : userRole === 'org_admin' ? 'ORG ADMIN' : 'ADMIN'
 
   const { language, setLanguage, t } = useLanguage()
   const pathname = usePathname()
@@ -350,16 +352,17 @@ export default function NavBar() {
   const currentLang = languages.find((l) => l.code === language) || languages[0]
   const shellVariant = !isAuthenticated && isExplicitPublicRoute(pathname) ? 'public' : 'app'
   const landingPage = pathname === '/'
+  const showDashboardEntry = landingPage || shellVariant === 'public'
   const shellLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
   const desktopLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
   const mobileLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
-  const useGroupedDesktopNav = isAuthenticated && shellVariant === 'app' && !landingPage
+  const useGroupedDesktopNav = shellVariant === 'app' && !landingPage
 
   return (
     <nav aria-label="Primary navigation" className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
       <div ref={navRef} className="max-w-7xl mx-auto px-4">
         {/* Main Navbar */}
-        <div className="relative h-16 flex items-center justify-between">
+        <div className="flex min-h-16 min-w-0 items-center justify-between gap-2 py-2">
           {/* Mobile Back Button (only on sub-pages) */}
           <div className="flex md:hidden items-center">
             {!isRootPath(pathname) ? (
@@ -376,22 +379,23 @@ export default function NavBar() {
               </Link>
             ) : (
               /* Default Logo on mobile root pages */
-              <Link href="/" prefetch={false}>
+              <Link href={showDashboardEntry ? '/' : '/dashboard'} prefetch={false}>
                 <MetarduLogo color="var(--text-primary)" size={24} showWordmark={true} />
               </Link>
             )}
           </div>
 
           {/* Desktop Logo (always visible on desktop) */}
-          <div className="hidden md:flex items-center">
-            <Link href="/" prefetch={false}>
+          <div className="hidden shrink-0 md:flex items-center gap-3">
+            <Link href={showDashboardEntry ? '/' : '/dashboard'} prefetch={false}>
               <MetarduLogo color="var(--text-primary)" size={28} showWordmark={true} />
             </Link>
+            {!showDashboardEntry && <span className="hidden xl:block border-l border-[var(--border-color)] pl-3 text-[10px] font-medium text-[var(--text-muted)]">Work mode</span>}
           </div>
 
           {/* Centered Page Title on Mobile Sub-pages */}
           {!isRootPath(pathname) && (
-            <div className="absolute left-1/2 -translate-x-1/2 md:hidden text-sm font-bold text-[var(--text-primary)] max-w-[45%] truncate tracking-wide uppercase">
+            <div className="min-w-0 flex-1 px-2 text-center md:hidden text-sm font-semibold text-[var(--text-primary)] truncate">
               {pageTitle}
             </div>
           )}
@@ -399,7 +403,7 @@ export default function NavBar() {
           {/* Desktop Navigation — signed-in workspace: grouped menus from md up,
               so desktop never depends on the collapsible menu. */}
           {useGroupedDesktopNav ? (
-            <div className="hidden md:flex items-center gap-0.5 min-w-0">
+            <div className="hidden lg:flex items-center gap-0.5 min-w-0">
               {APP_DESKTOP_NAV.map((entry) => {
                 if (entry.kind === 'link') {
                   const active = isNavItemActive(pathname, entry.item.href)
@@ -505,13 +509,17 @@ export default function NavBar() {
           )}
 
           {/* Right Side */}
-          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+          <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 min-w-0">
+            {showDashboardEntry && <Link href="/dashboard" prefetch={false} aria-label="Open dashboard"
+              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-black transition-colors hover:bg-[var(--accent-dim)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:[outline-color:var(--accent)] sm:text-sm">
+              Dashboard <span aria-hidden="true">→</span>
+            </Link>}
             {/* Quick action: the most common start-of-day step */}
             {useGroupedDesktopNav && (
               <Link
                 href="/project/new"
                 prefetch={false}
-                className="hidden xl:inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[13px] font-semibold text-black hover:bg-[var(--accent-dim)] transition-colors"
+                className="hidden 2xl:inline-flex items-center gap-1 rounded-lg bg-[var(--accent)] px-3 py-1.5 text-[13px] font-semibold text-black hover:bg-[var(--accent-dim)] transition-colors"
               >
                 <svg aria-hidden="true" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth={2.2} viewBox="0 0 24 24">
                   <path strokeLinecap="round" d="M12 5v14M5 12h14" />
@@ -520,10 +528,10 @@ export default function NavBar() {
               </Link>
             )}
             {/* Global Search — opens CommandPalette via synthetic Cmd+K (UI-5) */}
-            {!landingPage && <SearchTrigger t={t} />}
+            {!landingPage && <div className="hidden md:block"><SearchTrigger t={t} /></div>}
 
-            {/* Language Selector — compact on mobile */}
-            <div className={useGroupedDesktopNav ? (isRootPath(pathname) ? 'block md:hidden xl:block' : 'hidden xl:block') : (isRootPath(pathname) ? "block" : "hidden md:block")}>
+            {/* Narrow screens use the language control inside the menu. */}
+            <div className={useGroupedDesktopNav ? 'hidden xl:block' : 'hidden md:block'}>
               <Dropdown
                 label={`${currentLang.flag} ${currentLang.code.toUpperCase()}`}
                 isOpen={openDropdown === 'lang'}
@@ -556,12 +564,13 @@ export default function NavBar() {
               </div>
             )}
 
-            {authStatus === 'loading' ? (
+            {authStatus === 'loading' ? (!showDashboardEntry && (
               <div className="w-20 h-8 bg-[var(--bg-tertiary)] animate-pulse rounded"></div>
-            ) : isAuthenticated ? (
-              <div className={`hidden ${useGroupedDesktopNav ? 'md:block' : 'lg:block'} relative`}>
+            )) : isAuthenticated ? (
+              <div className="hidden lg:block relative">
                 <button
                   onClick={() => handleDropdownToggle('user')}
+                  aria-label="Account menu"
                   aria-expanded={openDropdown === 'user'}
                   aria-haspopup="menu"
                   className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-secondary)_40%,transparent)] hover:border-[var(--accent)] transition-colors"
@@ -573,9 +582,9 @@ export default function NavBar() {
                     <span className="text-sm text-[var(--text-primary)] max-w-[180px] truncate leading-tight">{user?.email}</span>
                     {/* AUDIT FIX (M-005, 2026-07-27): Admin users shouldn't show "FREE"
                         even on the free plan — it's confusing. Show role badge instead. */}
-                    {isAdminUser ? (
+                    {hasAdministrativeRole ? (
                       <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-900/50 text-amber-400 border border-amber-700/50">
-                        {userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN'}
+                        {roleLabel}
                       </span>
                     ) : (
                       <SubscriptionBadge plan={userPlan} compact />
@@ -592,9 +601,9 @@ export default function NavBar() {
                       <div className="px-4 pb-2 flex items-center justify-between">
                         <div className="text-xs text-[var(--text-muted)] uppercase tracking-wider font-semibold">Account</div>
                         {/* AUDIT FIX (M-005, 2026-07-27): show ADMIN badge for admin users. */}
-                        {isAdminUser ? (
+                        {hasAdministrativeRole ? (
                           <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-bold bg-amber-900/50 text-amber-400 border border-amber-700/50">
-                            {userRole === 'super_admin' ? 'SUPER ADMIN' : 'ADMIN'}
+                            {roleLabel}
                           </span>
                         ) : (
                           <SubscriptionBadge plan={userPlan} compact />
@@ -683,7 +692,7 @@ export default function NavBar() {
                   </div>
                 )}
               </div>
-              ) : authStatus === 'unauthenticated' && (
+              ) : authStatus === 'unauthenticated' && !showDashboardEntry && (
               <div className="hidden lg:flex items-center gap-2">
                 <Link href="/login" className="px-4 py-2 text-sm border border-[var(--accent)] text-[var(--accent)] rounded hover:bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] transition-colors">
                   Log In
@@ -695,13 +704,13 @@ export default function NavBar() {
             )}
 
             {/* Mobile hamburger */}
-            <div className={isRootPath(pathname) ? "block" : "hidden md:block"}>
+            <div className="block lg:hidden">
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
                 aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}
                 aria-expanded={mobileMenuOpen}
                 aria-controls="primary-nav-menu"
-                className={`${useGroupedDesktopNav ? 'md:hidden' : 'lg:hidden'} p-2 text-[var(--text-primary)]`}
+                className="inline-flex min-h-10 min-w-10 items-center justify-center rounded-lg text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)]"
               >
                 <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   {mobileMenuOpen ? (
@@ -717,8 +726,17 @@ export default function NavBar() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div id="primary-nav-menu" className={`${useGroupedDesktopNav ? 'md:hidden' : 'lg:hidden'} bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[80vh] overflow-y-auto pb-4`}>
+          <div id="primary-nav-menu" className="lg:hidden bg-[var(--bg-primary)] border-t border-[var(--border-color)] max-h-[calc(100dvh-5rem)] overflow-y-auto pb-4">
             <div className="py-2">
+              <label className="mx-4 mb-3 flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] py-3 text-sm text-[var(--text-secondary)]">
+                Language
+                <select aria-label="Language" value={language} onChange={event => {
+                  const selected = languages.find(item => item.code === event.target.value)
+                  if (selected) setLanguage(selected.code)
+                }} className="min-h-10 max-w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 text-[var(--text-primary)]">
+                  {languages.map(item => <option key={item.code} value={item.code}>{item.name}</option>)}
+                </select>
+              </label>
               {mobileLinks.map((item) => (
                 <Link
                   key={item.href}

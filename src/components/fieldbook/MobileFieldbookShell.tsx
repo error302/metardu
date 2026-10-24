@@ -8,10 +8,10 @@
  * the surveyor's primary device is a phone.
  *
  * Includes:
- *   • Sticky top status bar (online/offline, sync, last saved)
+ *   • Online/offline status, sync and last-saved information
  *   • Survey type selector as horizontally scrollable chips
  *   • Card list of readings with swipe-to-delete
- *   • Floating Action Button (FAB) for quick add
+ *   • Quick-add control for a new reading
  *   • Pull-to-refresh-style sync affordance
  */
 
@@ -172,8 +172,8 @@ export function MobileFieldbookShell({
   return (
     <div className="flex flex-col min-h-[calc(100dvh-3.5rem)] bg-[var(--bg-primary)]">
       <FieldbookInstallPrompt />
-      {/* ─── Sticky status bar ─── */}
-      <div className="sticky top-0 z-30 bg-[color-mix(in_srgb,var(--bg-secondary)_90%,transparent)] backdrop-blur-md border-b border-[var(--border-color)] px-4 py-2.5 flex items-center justify-between">
+      {/* ─── Capture status ─── */}
+      <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className={[
             'flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium',
@@ -224,7 +224,7 @@ export function MobileFieldbookShell({
       </div>
 
       {/* ─── Survey type chips ─── */}
-      <div className="sticky top-[64px] z-20 bg-[color-mix(in_srgb,var(--bg-primary)_95%,transparent)] backdrop-blur-sm border-b border-[var(--border-color)] px-4 py-2.5">
+      <div className="bg-[var(--bg-primary)] border-b border-[var(--border-color)] px-4 py-2.5">
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
           {(Object.keys(TYPE_LABELS) as MobileSurveyType[]).map((t) => {
             const meta = TYPE_LABELS[t]

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import ProjectTabs from '@/components/project/ProjectTabs'
-import { getAuthUser, isAdmin as checkIsAdmin } from '@/lib/auth/session'
+import { getAuthUser, isPlatformAdmin as checkIsAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/api-client/server'
 import { redirect } from 'next/navigation'
 import type { SurveyType } from '@/types/project'

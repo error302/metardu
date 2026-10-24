@@ -1084,7 +1084,7 @@ export default function DigitalFieldBookPage() {
         >
         <InstrumentStreamBar
           key={`${projectId}-${type}`}
-          docked={isMobile}
+          docked={false}
           onManualEntry={() => {
             if (isMobile) setEntryRequest(value => value + 1)
             else document.getElementById('fieldbook-entry')?.scrollIntoView({ behavior: 'smooth' })
@@ -1222,8 +1222,9 @@ export default function DigitalFieldBookPage() {
   if (isMobile) {
     return (
       <>
-        <div className="pb-[26rem]">
+        <div className="pb-8">
           {workspace}
+          <div className="mx-4 my-5">{instrumentPanel}</div>
           <MobileFieldbookShell
             entryRequest={entryRequest}
             surveyType={type}
@@ -1266,15 +1267,6 @@ export default function DigitalFieldBookPage() {
             setControlStation={setControlStation}
           />
         </div>
-        {/* AUDIT FIX (2026-07-05): Replaced MobileMeasurementCapture with
-            InstrumentStreamBar — provides zero-manual-entry data collection
-            via total station (Web Serial) and GNSS rover (Web Bluetooth).
-            The old MobileMeasurementCapture was manual-only. The new bar
-            auto-detects the best mode based on survey type + browser support.
-            AUDIT FIX (2026-07-10): wrapped in ErrorBoundary so a stale chunk
-            (chunk 2723 etc.) doesn't take down the whole field book page —
-            the surveyor can still manually enter readings while we recover. */}
-        {instrumentPanel}
         <FieldbookAuditDrawer
           open={auditDrawerOpen}
           onClose={() => setAuditDrawerOpen(false)}

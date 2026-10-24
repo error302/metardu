@@ -3,7 +3,7 @@ import type { SurveyType } from '@/types/project'
 import { getWorkflow } from '@/lib/workflows/workflowRegistry'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 import ProjectWorkspaceClient, { type ProjectBoundaryData } from '../ProjectWorkspaceClient'
-import { getAuthUser, isAdmin as checkIsAdmin } from '@/lib/auth/session'
+import { getAuthUser, isPlatformAdmin as checkIsAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/api-client/server'
 
 interface Props {

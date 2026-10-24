@@ -33,6 +33,13 @@ export async function getAuthUser(): Promise<AuthUser | null> {
   }
 }
 
+/** Match the platform administration shell; organisation roles remain scoped. */
+export async function isPlatformAdmin(): Promise<boolean> {
+  const session = await getServerSession(authOptions)
+  const role = (session?.user as { role?: string } | undefined)?.role
+  return role === 'admin' || role === 'super_admin'
+}
+
 /**
  * Check if the current user is an admin.
  * Checks both 'admin' and 'super_admin' roles, as well as ADMIN_EMAILS.

@@ -7,11 +7,8 @@ export default function ManualsPage() {
         <section>
           <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-4">Fundamentals</h2>
           <div className="grid gap-4">
-            <a 
-              href="/manual/surveying-and-levelling-n-n-basak.pdf"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)] hover:border-[var(--accent)] transition-colors"
+            <article
+              className="flex flex-wrap items-center gap-4 p-4 bg-[var(--bg-secondary)] rounded-lg border border-[var(--border-color)]"
             >
               <div className="w-10 h-10 bg-red-500/10 rounded-lg flex items-center justify-center">
                 <svg className="w-5 h-5 text-red-500" fill="currentColor" viewBox="0 0 24 24">
@@ -22,8 +19,8 @@ export default function ManualsPage() {
                 <h3 className="font-medium text-[var(--text-primary)]">Surveying and Levelling by N.N. Basak</h3>
                 <p className="text-sm text-[var(--text-secondary)]">Comprehensive textbook covering fundamental surveying techniques, levelling methods, and field procedures</p>
               </div>
-              <div className="ml-auto text-[var(--accent)]">PDF →</div>
-            </a>
+              <p className="w-full text-xs text-[var(--text-muted)]">Reference title only. A downloadable copy is not available in METARDU.</p>
+            </article>
           </div>
         </section>
       </div>

@@ -217,7 +217,7 @@ export default function HelpPage() {
       <div className="mt-12 grid grid-cols-2 md:grid-cols-4 gap-3">
         <QuickLink href="/docs" icon={BookOpen} label="Documentation" />
         <QuickLink href="/docs/quick-start" icon={Compass} label="Quick Start" />
-        <QuickLink href="/docs/api" icon={FileText} label="API Reference" />
+        <QuickLink href="/api-docs" icon={FileText} label="API Reference" />
         <QuickLink href="/community" icon={MessageSquare} label="Community" />
       </div>
 

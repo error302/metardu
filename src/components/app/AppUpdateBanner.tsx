@@ -40,7 +40,7 @@ export function AppUpdateBanner() {
 
   if (!waitingWorker || dismissed) return null
   return (
-    <div role="status" className="fixed top-0 left-0 right-0 z-[210] bg-[var(--accent)] text-black text-center text-sm font-semibold py-2.5 px-4 flex flex-wrap items-center justify-center gap-3">
+    <div role="status" className="relative bg-[var(--accent)] text-black text-center text-sm font-semibold py-2.5 px-4 flex flex-wrap items-center justify-center gap-3">
       <span>A new version is ready. Save your work in all open METARDU tabs before reloading.</span>
       <button onClick={update} disabled={updating} className="bg-black text-[var(--accent)] px-3 py-2 rounded font-semibold text-sm disabled:opacity-60">
         {updating ? 'Preparing update…' : 'Reload when ready'}

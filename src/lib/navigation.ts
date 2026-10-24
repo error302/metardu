@@ -87,7 +87,7 @@ export const NAV_ITEMS: NavItem[] = [
   { label: 'SurveyFlow', href: '/automator', icon: Workflow, group: 'AI_MODULES', badge: 'NEW', description: 'Drag-and-drop workflow automation builder', requiresSubscription: 'pro' },
 
   // DATA
-  { label: 'Projects', href: '/project', icon: FolderKanban, group: 'DATA', description: 'Manage survey projects and revision history' },
+  { label: 'Projects', href: '/projects', icon: FolderKanban, group: 'DATA', description: 'Manage survey projects and revision history' },
   { label: 'Online Services', href: '/online', icon: Globe, group: 'DATA', description: 'GNSS baseline, coordinate API, Sentinel-2 imagery' },
   { label: 'Parcel Records', href: '/parcel', icon: IdCard, group: 'DATA', description: 'Account records, shared references, and official Ardhisasa handoff' },
   { label: 'Land Law', href: '/land-law', icon: Scale, group: 'DATA', badge: 'NEW', description: 'Boundary law, dispute resolution, plan compliance' },

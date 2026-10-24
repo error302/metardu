@@ -4,7 +4,8 @@ import { ActivityFeed } from './ActivityFeed'
 const mockFetch = jest.fn<Promise<Response>, Parameters<typeof fetch>>()
 const originalFetch = global.fetch
 const activity = { id: 'a1', project_id: 'p1', activity_type: 'project_created', entity_type: 'project', description: 'Ridge survey created', created_at: '2026-10-18T00:00:00Z' }
-const ok = (activities: unknown) => ({ ok: true, json: async () => ({ data: { activities } }) }) as Response
+// GET /api/activity uses apiSuccess({ activities, pagination }), without an envelope.
+const ok = (activities: unknown) => ({ ok: true, json: async () => ({ activities, pagination: { limit: 10, offset: 0, total: Array.isArray(activities) ? activities.length : 0 } }) }) as Response
 
 beforeEach(() => { jest.useFakeTimers(); mockFetch.mockReset(); global.fetch = mockFetch })
 afterEach(() => { jest.useRealTimers(); global.fetch = originalFetch })

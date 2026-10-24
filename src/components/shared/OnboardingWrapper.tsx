@@ -12,7 +12,7 @@ const DISMISSED_KEY = 'metardu_onboarding_dismissed'
  * Checks localStorage for the 'metardu_onboarding_dismissed' key.
  * If present, renders nothing. Otherwise, renders the checklist.
  */
-export default function OnboardingWrapper() {
+export default function OnboardingWrapper({ compact = false }: { compact?: boolean }) {
   const [dismissed, setDismissed] = useState<boolean | null>(null)
 
   useEffect(() => {
@@ -31,5 +31,11 @@ export default function OnboardingWrapper() {
   // User previously dismissed — don't show
   if (dismissed) return null
 
+  if (compact) return <details className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]">
+    <summary className="cursor-pointer rounded-xl px-4 py-3 text-sm font-medium text-[var(--text-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:[outline-color:var(--accent)]">
+      Getting started <span className="ml-2 text-xs font-normal text-[var(--text-muted)]">Optional setup guide</span>
+    </summary>
+    <div className="px-3 pb-3"><OnboardingChecklist /></div>
+  </details>
   return <OnboardingChecklist />
 }

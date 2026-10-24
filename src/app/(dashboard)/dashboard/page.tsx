@@ -3,10 +3,9 @@ export const dynamic = 'force-dynamic'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import SubscriptionStatus from '@/components/SubscriptionStatus'
-import UpgradePrompt from '@/components/UpgradePrompt'
 import { getServerTranslator } from '@/lib/i18n/server'
 import { log } from '@/lib/logger'
-import { getAuthUser, isAdmin as checkIsAdmin } from '@/lib/auth/session'
+import { getAuthUser, isPlatformAdmin as checkIsAdmin } from '@/lib/auth/session'
 import { createClient } from '@/lib/api-client/server'
 
 import ProjectCard, { type ProjectCardProject } from '@/components/ProjectCard'
@@ -192,7 +191,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-5 sm:px-6 md:py-8 lg:px-8">
-      <OnboardingWrapper />
       <header className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,var(--bg-card))] px-5 py-6 sm:px-7 sm:py-7">
         <div className="pointer-events-none absolute -right-8 -top-10 opacity-[0.045]" aria-hidden="true">
           <Ruler className="h-56 w-56 rotate-[-24deg]" strokeWidth={0.8} />
@@ -213,6 +211,7 @@ export default async function DashboardPage() {
             </p>
           </div>
           <div className="relative flex shrink-0 flex-wrap items-center gap-3">
+            {userIsAdmin && <Link href="/admin" prefetch={false} className="btn btn-secondary inline-flex items-center gap-2">Administration <ArrowUpRight className="h-4 w-4" aria-hidden="true" /></Link>}
             {!projectsLoadFailed && (!subscriptionLoadFailed || projects.length === 0) && canCreateProject ? (
               <Link href="/project/new" prefetch={false} className="btn btn-primary inline-flex items-center gap-2">
                 <Plus className="h-4 w-4" aria-hidden="true" />
@@ -227,6 +226,7 @@ export default async function DashboardPage() {
           </div>
         </div>
       </header>
+      <OnboardingWrapper compact />
 
       <section aria-label="Workspace totals" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {dashboardMetrics.map(({ label, value, note, icon: Icon }) => (
@@ -282,8 +282,6 @@ export default async function DashboardPage() {
           Project point and parcel totals could not be refreshed. Open a project to review its current records.
         </div>
       )}
-
-      {!projectsLoadFailed && !subscriptionLoadFailed && !canCreateProject && <UpgradePrompt type="projects" />}
 
       {!projectsLoadFailed && projectsWithCounts.length > 0 && (
         <section aria-label="Search survey records" className="flex flex-col gap-3 border-y border-[var(--border-color)] py-4 sm:flex-row sm:items-center sm:justify-between">
