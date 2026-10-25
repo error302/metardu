@@ -42,19 +42,7 @@ export const CreateProjectSchema = z.object({
 
 // ─── Block Schemas ───────────────────────────────────────────────────────────
 
-export const CreateBlockSchema = z.object({
-  project_id: z.string().uuid(),
-  block_number: z.string().min(1).max(20).trim(),
-  block_name: z.string().max(100).trim().optional(),
-  description: z.string().max(500).trim().optional(),
-})
-
-export const UpdateBlockSchema = z.object({
-  block_number: z.string().min(1).max(20).trim().optional(),
-  block_name: z.string().max(100).trim().optional(),
-  description: z.string().max(500).trim().optional(),
-  updated_at: z.string().datetime({ offset: true }).optional(),
-})
+export { CreateBlockSchema, UpdateBlockSchema } from './blockInputs'
 
 // ─── Parcel Schemas ──────────────────────────────────────────────────────────
 

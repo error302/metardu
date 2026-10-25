@@ -110,8 +110,10 @@ large-project acceptance.
    and explicit unknown/read-failure states for the overview. Complete the same
    bounded/validated approach in map and legacy consumer paths. Block detail now
    has 50-row reads, global totals and exact-version metadata commands recorded
-   in `BLOCK_PARCEL_REGISTER_ACCEPTANCE_2026-10-25.md`; block-management and the
-   broader map/traverse/crew workflows still need their own acceptance.
+   in `BLOCK_PARCEL_REGISTER_ACCEPTANCE_2026-10-25.md`. Block management now has
+   24-row reads, exact-version commands and retained-record deletion safeguards
+   recorded in `BLOCK_MANAGEMENT_ACCEPTANCE_2026-10-25.md`; migration 118 is
+   fixture-only. Broader map/traverse/crew workflows still need acceptance.
 3. Validate crew/member access, assignments, concurrent changes and cross-account
    isolation with ordinary identities. Do not confuse organisation administration
    with platform access or subscription privileges.

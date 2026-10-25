@@ -51,6 +51,15 @@ fixture passes 42 native cases and the focused regression run passes 59 tests.
 The concurrency timeout, trigger/RLS compatibility limits and the remaining
 manual-command recovery, block-management, map and traverse work stay explicit.
 
+`BLOCK_MANAGEMENT_ACCEPTANCE_2026-10-25.md` adds a 24-row directory with global
+numeric counts, UUID/sparse/exact-version metadata commands and refusal to delete
+blocks retaining parcels, assignments, import receipts or geometry. Pending
+migration 118 adds unique identities and deferred retention constraints, tested
+only in the owned fixture, including whole-project graph deletion and protection
+for inconsistent cross-project children. Missing receipt storage preserves read
+access while disabling deletion. Manual replay, browser/RLS/restore, broader
+map/traverse/crew and release acceptance remain open.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the
