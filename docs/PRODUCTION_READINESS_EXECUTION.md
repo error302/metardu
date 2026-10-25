@@ -209,3 +209,23 @@ no broad cleanup, no drawing/storage manipulation through browser internals.
 Source, native synthetic database, browser, production, provider and field
 evidence remain separately labelled. This file tracks execution; detailed proof
 belongs to the named evidence records.
+
+## 26 October traverse and deployed-activity checkpoint
+
+`TRAVERSE_NUMERICAL_INTEGRITY_2026-10-26.md` records strict observation admission,
+unknown-height/closure handling, circular paired-face averaging, explicit
+job-limit comparisons, coherent draft UI/print/connector behavior, 94 passing
+focused tests and scoped real-browser evidence. The existing shared Bowditch
+kernel is retained. This is source/preview evidence, not a deployment or field
+acceptance.
+
+The deployed activity-refresh error is now traced to an old dashboard bundle
+requiring `data.activities` while the live API returns `activities`. Current
+source already handles the actual response. Promote that existing repair with a
+reviewed coherent release; do not add another envelope or hot-patch production.
+
+Next: make the legacy scheme traverse intake use owner-bound UUIDs, explicit
+reference/observation conventions, retained input/result revisions and atomic
+replay-safe receipts, then connect it to reviewed boundary/export evidence.
+Its destructive write pattern and inferred parcel-area update remain open.
+Preserve the active parcel-API containment and all existing release/field gates.

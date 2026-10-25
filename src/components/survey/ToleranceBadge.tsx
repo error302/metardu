@@ -18,10 +18,10 @@
 
 import React, { memo, useState } from 'react'
 import { TriangleAlert } from 'lucide-react'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
 import {
   getToleranceBadgeColor,
   getToleranceBadgeLabel,
-  getToleranceIcon,
   type ToleranceCheckResult,
 } from '@/lib/survey/liveToleranceChecker'
 
@@ -47,7 +47,6 @@ export const ToleranceBadge = memo(function ToleranceBadge({
 
   const color = getToleranceBadgeColor(result.status)
   const label = getToleranceBadgeLabel(result.status)
-  const icon = getToleranceIcon(result.status)
 
   // Color classes
   const colorClasses: Record<string, string> = {
@@ -64,20 +63,21 @@ export const ToleranceBadge = memo(function ToleranceBadge({
     return (
       <button
         onClick={() => setShowDetails(!showDetails)}
-        className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg border ${cls} text-[10px] font-mono font-bold transition-all hover:scale-105`}
+        className={`inline-flex flex-wrap items-center gap-1.5 px-2.5 py-1 rounded-lg border ${cls} text-[10px] font-mono font-bold transition-all`}
+        aria-expanded={showDetails}
         title={result.summary}
       >
-        <span className="text-sm leading-none">{icon}</span>
+        <GeomaticsIcon symbol="traverse" width={16} height={16} />
         <span>{label}</span>
         {result.precisionRatio && (
           <span className="text-[9px] opacity-70">1:{Math.round(result.precisionRatio).toLocaleString()}</span>
         )}
         {showDetails && result.worstLeg && (
-          <div className="absolute top-full mt-1 left-0 right-0 bg-[#0d0d14]/95 border border-red-500/30 rounded-lg p-2 text-[9px] text-left z-50 shadow-xl">
-            <div className="text-red-400 font-bold mb-0.5">WORST LEG</div>
-            <div className="text-gray-300">{result.worstLeg.diagnosis}</div>
-            <div className="text-yellow-400 mt-1">{result.worstLeg.recommendation}</div>
-          </div>
+          <span className="basis-full rounded border border-current/20 p-2 text-[9px] text-left font-normal">
+            <span className="block font-bold mb-0.5">Largest allocated correction</span>
+            <span className="block">{result.worstLeg.diagnosis}</span>
+            <span className="block mt-1">{result.worstLeg.recommendation}</span>
+          </span>
         )}
       </button>
     )
@@ -90,8 +90,9 @@ export const ToleranceBadge = memo(function ToleranceBadge({
       <button
         onClick={() => setShowDetails(!showDetails)}
         className="w-full flex items-center gap-2 px-3 py-2 text-left"
+        aria-expanded={showDetails}
       >
-        <span className="text-lg leading-none">{icon}</span>
+        <GeomaticsIcon symbol="traverse" width={20} height={20} />
         <div className="flex-1 min-w-0">
           <div className="text-xs font-bold font-mono">{label}</div>
           <div className="text-[10px] opacity-80 truncate">{result.summary}</div>
@@ -117,7 +118,7 @@ export const ToleranceBadge = memo(function ToleranceBadge({
             </div>
             <div>
               <span className="opacity-60">Misclosure:</span>{' '}
-              <span className="font-bold">{result.linearMisclosureMm.toFixed(1)}mm</span>
+              <span className="font-bold">{result.linearMisclosureMm === null ? 'Unknown' : result.linearMisclosureMm.toFixed(1) + ' mm'}</span>
             </div>
             <div>
               <span className="opacity-60">Perimeter:</span>{' '}
@@ -140,7 +141,7 @@ export const ToleranceBadge = memo(function ToleranceBadge({
           {/* Worst leg */}
           {result.worstLeg && (
             <div className="p-2 rounded-md bg-red-500/10 border border-red-500/20">
-              <div className="text-red-400 font-bold mb-0.5"><TriangleAlert className="mr-1 inline h-4 w-4" aria-hidden="true" /> WORST LEG: {result.worstLeg.from} → {result.worstLeg.to}</div>
+              <div className="text-red-400 font-bold mb-0.5"><TriangleAlert className="mr-1 inline h-4 w-4" aria-hidden="true" /> Largest allocated correction: {result.worstLeg.from} → {result.worstLeg.to}</div>
               <div className="text-gray-300">{result.worstLeg.diagnosis}</div>
               <div className="text-yellow-400 mt-1 font-medium">→ {result.worstLeg.recommendation}</div>
             </div>

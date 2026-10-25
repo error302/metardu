@@ -6,11 +6,7 @@
  * 
  * Source: Basak Chapter 10-11, Ghilani & Wolf Chapter 10, 12
  * 
- * VA convention: VA = vertical angle (elevation angle from horizontal).
- *   VA = 0° means horizontal shot (HD = SD × cos(0°) = SD).
- *   VA = 90° means vertical shot upward (HD = SD × cos(90°) = 0).
- *   This is the ELEVATION angle convention, NOT the zenith angle convention.
- *   If your field book uses zenith angles: VA = 90° - zenith_angle.
+ * VA convention: zenith angle, 90° = horizontal (HD = SD × sin(VA)).
  */
 
 import { computeTraverse } from '../traverseEngine'

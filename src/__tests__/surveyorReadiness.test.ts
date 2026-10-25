@@ -12,8 +12,8 @@ import { AsciiRasterEngine } from '../components/ascii/AsciiRasterEngine'
 
 const syntheticProjectCrs = 'EPSG:21037'
 
-describe('METARDU Surveyor Readiness & Live Job Verification Suite', () => {
-  it('T1 - Closed-loop 4-station Bowditch adjustment meets Cap 299 survey standard', () => {
+describe('METARDU synthetic survey computation and export checks', () => {
+  it('T1 - Synthetic four-leg loop preserves analytical Bowditch geometry', () => {
     const result = computeTraverse({
       openingEasting: 250000.0,
       openingNorthing: 9800000.0,

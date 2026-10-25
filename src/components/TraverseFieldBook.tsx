@@ -2,8 +2,9 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
 import { useSearchParams } from 'next/navigation'
-import { computeTraverse, type RawObservation, type TraverseComputationResult } from '@/lib/computations/traverseEngine'
+import { computeTraverse, parseTraverseDecimal, type RawObservation, type TraverseComputationResult } from '@/lib/computations/traverseEngine'
 import { parseTraverseCSV } from '@/lib/parsers/totalStation'
 import { PrintHeader } from '@/hooks/usePrint'
 // XSS guard (2026-08-03): station names are user-entered and interpolated
@@ -44,7 +45,7 @@ function computeMeanAngleDMS(obs: RawObservation): string {
 
 export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) {
   const [observations, setObservations] = useState<RawObservation[]>([
-    { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' },
+    { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '', th: '' },
   ])
   const [openingName, setOpeningName] = useState('')
   const [openingE, setOpeningE] = useState('')
@@ -57,6 +58,10 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
   const [closingE, setClosingE] = useState('')
   const [closingN, setClosingN] = useState('')
   const [result, setResult] = useState<TraverseComputationResult | null>(null)
+  const [allowableMm, setAllowableMm] = useState('')
+  const [toleranceReference, setToleranceReference] = useState('')
+
+  useEffect(() => { setResult(null) }, [observations, openingE, openingN, openingRL, openingName, closingE, closingN, closingName, bsDeg, bsMin, bsSec, allowableMm, toleranceReference])
   const [error, setError] = useState('')
   const [activeTab, setActiveTab] = useState<'input' | 'compute' | 'print'>('input')
   const [printMeta, setPrintMeta] = useState<PrintMeta>(defaultPrintMeta)
@@ -87,17 +92,17 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
       const stations = JSON.parse(decodeURIComponent(raw)) as TraverseStationInput[]
       const mapped = stations.map(s => ({
         station: s.label,
-        bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5'
+        bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '', th: ''
       }))
       setObservations(mapped.length > 0 ? mapped : [
-        { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5' }
+        { station: '', bs: '', fs: '', hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '', slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '', th: '' }
       ])
       
       if (stations.length > 0) {
         setOpeningName(stations[0].label)
         setOpeningE(stations[0].easting.toString())
         setOpeningN(stations[0].northing.toString())
-        if (stations[0].elevation) setOpeningRL(stations[0].elevation.toString())
+        setOpeningRL(stations[0].elevation === undefined || stations[0].elevation === null ? '' : stations[0].elevation.toString())
       }
     } catch {
       logger.error('Failed to parse field_import param')
@@ -108,7 +113,7 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
     station: '', bs: '', fs: '',
     hclDeg: '', hclMin: '', hclSec: '',
     hcrDeg: '', hcrMin: '', hcrSec: '',
-    slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5',
+    slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '', th: '',
   }])
 
   const removeRow = (i: number) => setObservations(prev => prev.filter((_, idx) => idx !== i))
@@ -151,8 +156,8 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
         vaDeg: vaD >= 0 ? row[vaD] || '' : '',
         vaMin: vaM >= 0 ? row[vaM] || '' : '',
         vaSec: vaS >= 0 ? row[vaS] || '' : '',
-        ih: ihIdx >= 0 ? row[ihIdx] || '1.5' : '1.5',
-        th: thIdx >= 0 ? row[thIdx] || '1.5' : '1.5',
+        ih: ihIdx >= 0 ? row[ihIdx] || '' : '',
+        th: thIdx >= 0 ? row[thIdx] || '' : '',
       }))
       if (imported.length > 0) { setObservations(imported); onImport?.(imported) }
       else setError('No valid data rows found in CSV')
@@ -165,34 +170,22 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
     setError('')
     if (!openingE || !openingN) { setError('Enter opening point coordinates'); return }
     if (!bsDeg) { setError('Enter backsight bearing'); return }
-    // FIX: Closing control coordinates are REQUIRED per Survey Regulations Reg. 60 & 67.
-    // Source: Basak Ch.10-11 — A cadastral traverse must close between two known points.
-    // Without closing control, this is a swinging/hanging traverse with no position check.
-    if (!closingE || !closingN) {
-      setError('Closing control coordinates are REQUIRED per Survey Regulations Reg. 60(2)(c) and Reg. 67. A cadastral traverse must close between two known control points. Without closing control, this is a swinging/hanging traverse — prohibited. Enter closing Easting and Northing above.')
-      return
-    }
-    // Validate: closing point must be DIFFERENT from opening point
-    const coordDiff = Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN))
-    if (coordDiff < 0.001) {
-      setError('Closing control point must be DIFFERENT from opening control point. A cadastral traverse requires minimum 2 distinct known control points for position verification per Survey Regulations Reg. 60 & 67. A 1-point traverse has no absolute position check.')
-      return
-    }
-    const validObs = observations.filter((o) => o.station && o.slopeDist)
-    if (validObs.length === 0) { setError('At least one valid observation required'); return }
     try {
+      const closingSupplied = closingE.trim() !== '' || closingN.trim() !== ''
+      const criterionSupplied = allowableMm.trim() !== '' || toleranceReference.trim() !== ''
       const res = computeTraverse({
-        openingEasting: parseFloat(openingE),
-        openingNorthing: parseFloat(openingN),
-        openingRL: openingRL ? parseFloat(openingRL) : undefined,
-        openingStation: openingName || 'CP1',
-        closingEasting: closingE ? parseFloat(closingE) : undefined,
-        closingNorthing: closingN ? parseFloat(closingN) : undefined,
+        openingEasting: parseTraverseDecimal(openingE, 'Opening easting'),
+        openingNorthing: parseTraverseDecimal(openingN, 'Opening northing'),
+        openingRL: openingRL.trim() ? parseTraverseDecimal(openingRL, 'Opening level') : undefined,
+        openingStation: openingName,
+        closingEasting: closingSupplied ? parseTraverseDecimal(closingE, 'Closing easting') : undefined,
+        closingNorthing: closingSupplied ? parseTraverseDecimal(closingN, 'Closing northing') : undefined,
         closingStation: closingName,
-        observations: validObs,
-        backsightBearingDeg: parseInt(bsDeg) || 0,
-        backsightBearingMin: parseInt(bsMin) || 0,
-        backsightBearingSec: parseFloat(bsSec) || 0,
+        observations,
+        backsightBearingDeg: parseTraverseDecimal(bsDeg, 'Backsight degrees'),
+        backsightBearingMin: parseTraverseDecimal(bsMin, 'Backsight minutes'),
+        backsightBearingSec: parseTraverseDecimal(bsSec, 'Backsight seconds'),
+        criterion: criterionSupplied ? { allowableMisclosureMm: parseTraverseDecimal(allowableMm, 'Criterion limit'), reference: toleranceReference } : undefined,
       })
       setResult(res)
       setActiveTab('compute')
@@ -287,13 +280,13 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
 <div class="summary-box">
   <div>
     <p><strong>Total Perimeter:</strong> ${r.totalPerimeter.toFixed(3)} m</p>
-    <p><strong>Linear Misclosure:</strong> ${r.linearError.toFixed(4)} m</p>
-    <p><strong>Precision Ratio:</strong> 1 : ${r.precisionRatio > 0 ? Math.round(r.precisionRatio).toLocaleString() : '—'}</p>
+    <p><strong>Linear Misclosure:</strong> ${r.linearError === null ? 'Unknown' : r.linearError.toFixed(4) + ' m'}</p>
+    <p><strong>Precision Ratio:</strong> ${r.precisionRatio !== null ? '1 : ' + Math.round(r.precisionRatio).toLocaleString() : 'No finite ratio'}</p>
   </div>
   <div>
     <p><strong>Sum Departures:</strong> ${r.sumDepartures.toFixed(4)}</p>
     <p><strong>Sum Latitudes:</strong> ${r.sumLatitudes.toFixed(4)}</p>
-    <p><strong>Accuracy Class:</strong> ${r.accuracyOrder} (${r.C_mm <= r.allowable ? 'PASS' : 'FAIL'})</p>
+    <p><strong>Linear Closure Comparison:</strong> ${escapeXml(r.accuracyOrder)}</p>
   </div>
 </div>
 
@@ -319,7 +312,7 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
 
     <div className="space-y-4">
       <PrintHeader title="Traverse Field Book" />
-      <div className="flex items-center gap-2 border-b border-[var(--border-color)] pb-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] pb-2">
         {(['input', 'compute', 'print'] as const).map((tab) => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`px-3 py-1.5 rounded text-sm font-medium capitalize transition-colors ${
@@ -342,7 +335,8 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
 
       {activeTab === 'input' && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-4 p-4 bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded border border-[var(--border-color)]">
+          <p className="text-sm text-[var(--text-secondary)]">Numerical draft. Use one declared projected grid in metres. This tool does not verify the reference system or approve a survey. Each observation names the target of the next leg; paired angles must be clockwise from backsight to foresight. Zenith 90° is horizontal.</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-4 bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded border border-[var(--border-color)]">
             <div>
               <label htmlFor="tfb-opening-station" className="block text-xs text-[var(--text-muted)] mb-1">Opening Station</label>
               <input id="tfb-opening-station" value={openingName} onChange={e => setOpeningName(e.target.value)} placeholder="CP1"
@@ -375,22 +369,30 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
               </div>
             </div>
             <div>
-              <label htmlFor="tfb-closing-station" className="block text-xs text-[var(--text-muted)] mb-1">Closing Station <span className="text-red-400 font-semibold">(Required)</span></label>
+              <label htmlFor="tfb-closing-station" className="block text-xs text-[var(--text-muted)] mb-1">Closing Station (optional)</label>
               <input id="tfb-closing-station" value={closingName} onChange={e => setClosingName(e.target.value)} placeholder="CP2"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
-              <label htmlFor="tfb-closing-e" className="block text-xs text-[var(--text-muted)] mb-1">Closing Easting (m) <span className="text-red-400">*</span></label>
-              <input id="tfb-closing-e" value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" placeholder="Required"
+              <label htmlFor="tfb-closing-e" className="block text-xs text-[var(--text-muted)] mb-1">Closing Easting (m)</label>
+              <input id="tfb-closing-e" value={closingE} onChange={e => setClosingE(e.target.value)} type="number" step="0.001" placeholder="Both coordinates, or neither"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
             <div>
-              <label htmlFor="tfb-closing-n" className="block text-xs text-[var(--text-muted)] mb-1">Closing Northing (m) <span className="text-red-400">*</span></label>
-              <input id="tfb-closing-n" value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" placeholder="Required"
+              <label htmlFor="tfb-closing-n" className="block text-xs text-[var(--text-muted)] mb-1">Closing Northing (m)</label>
+              <input id="tfb-closing-n" value={closingN} onChange={e => setClosingN(e.target.value)} type="number" step="0.001" placeholder="Both coordinates, or neither"
                 className="w-full px-2 py-1.5 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)] text-sm" />
             </div>
           </div>
 
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <label className="block text-xs text-[var(--text-muted)]">Allowable linear misclosure (mm)
+              <input type="number" min="0" step="any" value={allowableMm} onChange={e => setAllowableMm(e.target.value)} placeholder="Optional job limit" className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-2 text-[var(--text-primary)]" />
+            </label>
+            <label className="block text-xs text-[var(--text-muted)]">Job specification reference
+              <input value={toleranceReference} onChange={e => setToleranceReference(e.target.value)} maxLength={200} placeholder="Supply with the limit" className="mt-1 w-full rounded border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-2 text-[var(--text-primary)]" />
+            </label>
+          </div>
           {/* Atmospheric Conditions & EDM Settings — for the correction pipeline */}
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
             <button onClick={() => setAtmOpen(!atmOpen)}
@@ -556,7 +558,7 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
               </thead>
               <tbody>
                 {observations.map((obs, i) => (
-                  <tr key={obs.station} className="border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
+                  <tr key={i} className="border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
                     <td className="px-1.5 py-1 text-[var(--text-muted)]">{i + 1}</td>
                     <td className="px-1 py-1"><input value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)}
                       className="w-full px-1 py-1 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-primary)]" aria-label="Station" placeholder="T1" /></td>
@@ -598,8 +600,8 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
 
           {/* Regulatory warning when no closing control */}
           {(!closingE || !closingN) && (
-            <div className="p-3 bg-red-900/30 border border-red-600 rounded text-red-400 text-sm">
-              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> CLOSING CONTROL IS MANDATORY — Without closing control coordinates, this is a swinging/hanging traverse — prohibited by Survey Regulations Reg. 67 and Reg. 60(2)(c). A cadastral traverse must close between two previously fixed stations (minimum 2 distinct known control points). Enter closing control point coordinates above.
+            <div className="p-3 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-[var(--text-secondary)] text-sm">
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Without both closing coordinates, linear closure is unknown. An open computation remains a numerical draft.
             </div>
           )}
           {/* Warning when closing = opening (1-point traverse) */}
@@ -607,7 +609,7 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
             Math.abs(parseFloat(closingE) - parseFloat(openingE)) + Math.abs(parseFloat(closingN) - parseFloat(openingN)) < 0.001
           ) && (
             <div className="p-3 bg-amber-900/30 border border-amber-600 rounded text-amber-400 text-sm">
-              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Closing point is the SAME as opening point — this is a 1-point traverse with no absolute position check. For cadastral surveys, minimum 2 DISTINCT known control points are required. The traverse could be shifted/rotated from true position undetected.
+              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Loop closure checks return to the stated opening coordinate. It does not independently verify position or orientation. Review the governing job specification and independent control.
             </div>
           )}
 
@@ -620,8 +622,15 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
         </div>
       )}
 
+      {activeTab === 'compute' && !result && (
+        <div role="status" className="rounded border border-[var(--border-color)] p-4 text-[var(--text-secondary)]">
+          Recompute the current observations and control to view results.
+          <button onClick={() => setActiveTab('input')} className="block mt-3 text-[var(--accent)]">Return to field book</button>
+        </div>
+      )}
       {activeTab === 'compute' && result && (
         <div className="space-y-4">
+          <p className="text-sm text-[var(--text-secondary)]">Numerical draft. The comparison covers linear closure only. Reference systems, angle closure, independent control and professional approval remain unverified.</p>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-3">
               <p className="text-xs text-[var(--text-secondary)]">Total Perimeter</p>
@@ -629,15 +638,15 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
             </div>
             <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-3">
               <p className="text-xs text-[var(--text-secondary)]">Linear Misclosure</p>
-              <p className="text-lg font-mono text-[var(--text-primary)]">{result.linearError.toFixed(4)} m</p>
+              <p className="text-lg font-mono text-[var(--text-primary)]">{result.linearError === null ? 'Unknown' : result.linearError.toFixed(4) + ' m'}</p>
             </div>
             <div className="bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded p-3">
               <p className="text-xs text-[var(--text-secondary)]">Precision</p>
-              <p className="text-lg font-mono text-[var(--text-primary)]">1 : {result.precisionRatio > 0 ? Math.round(result.precisionRatio).toLocaleString() : '—'}</p>
+              <p className="text-lg font-mono text-[var(--text-primary)]">{result.precisionRatio === null ? result.linearError === 0 ? 'No finite ratio (zero computed misclosure)' : 'Unknown' : '1 : ' + Math.round(result.precisionRatio).toLocaleString()}</p>
             </div>
-            <div className={`rounded p-3 ${result.C_mm <= result.allowable ? 'bg-green-900/30' : 'bg-red-900/30'}`}>
-              <p className="text-xs text-[var(--text-secondary)]">Accuracy Order</p>
-              <p className={`text-lg font-semibold ${result.C_mm <= result.allowable ? 'text-green-400' : 'text-red-400'}`}>{result.accuracyOrder}</p>
+            <div className="rounded p-3 bg-[var(--bg-tertiary)]">
+              <p className="text-xs text-[var(--text-secondary)]">Linear closure comparison</p>
+              <p className={`text-lg font-semibold ${result.assessment.status === 'pass' ? 'text-green-400' : result.assessment.status === 'fail' ? 'text-red-400' : 'text-[var(--text-secondary)]'}`}>{result.accuracyOrder}</p>
             </div>
           </div>
 
@@ -682,7 +691,7 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
             <button onClick={() => setEdmOpen(!edmOpen)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
-              <span>[Compass] EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
+              <span className="inline-flex flex-wrap items-center gap-2"><GeomaticsIcon symbol="total-station" width={18} height={18} /> EDM Corrections <span className="text-[var(--text-muted)] font-normal">(Survey Engine · IAG/ISO · UTM 37S)</span></span>
               <span className="text-[var(--text-muted)]">{edmOpen ? '▲' : '▼'}</span>
             </button>
             {edmOpen && (
@@ -712,8 +721,8 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
                         fromNorthing: result.coordinates[i]?.northing,
                         toEasting: result.coordinates[i + 1]?.easting,
                         toNorthing: result.coordinates[i + 1]?.northing,
-                        instrumentHeight: obs.ih,
-                        targetHeight: obs.th,
+                        instrumentHeight: obs.ih ?? undefined,
+                        targetHeight: obs.th ?? undefined,
                         temperature: temperature ? parseFloat(temperature) : undefined,
                         pressure: pressure ? parseFloat(pressure) : undefined,
                         humidity: humidity ? parseFloat(humidity) : undefined,
@@ -750,8 +759,8 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
                 fromNorthing: result.coordinates[i]?.northing,
                 toEasting: result.coordinates[i + 1]?.easting,
                 toNorthing: result.coordinates[i + 1]?.northing,
-                instrumentHeight: obs.ih,
-                targetHeight: obs.th,
+                instrumentHeight: obs.ih ?? undefined,
+                targetHeight: obs.th ?? undefined,
                 temperature: temperature ? parseFloat(temperature) : undefined,
                 pressure: pressure ? parseFloat(pressure) : undefined,
                 humidity: humidity ? parseFloat(humidity) : undefined,
@@ -784,7 +793,7 @@ export default function TraverseFieldBook({ onImport }: TraverseFieldBookProps) 
           <div className="border border-[var(--border-color)] rounded overflow-hidden">
             <button onClick={() => setShowPlot(!showPlot)}
               className="w-full flex items-center justify-between px-4 py-2.5 bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] text-[var(--text-primary)] text-sm font-medium hover:bg-[var(--border-hover)] transition-colors">
-              <span>[Map] Plot Traverse</span>
+              <span className="inline-flex items-center gap-2"><GeomaticsIcon symbol="traverse" width={18} height={18} /> Plot Traverse</span>
               <span className="text-[var(--text-muted)]">{showPlot ? '▲ Hide' : '▼ Show'}</span>
             </button>
             {showPlot && result && (() => {

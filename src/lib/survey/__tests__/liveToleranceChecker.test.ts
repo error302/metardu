@@ -2,11 +2,9 @@
  * Tests for LiveToleranceChecker
  *
  * Verifies that the field-side tolerance checker correctly:
- * - Reports insufficient data when < 3 observations
- * - Passes a good traverse (small misclosure)
- * - Fails a bad traverse (large misclosure)
- * - Identifies the worst leg
- * - Returns the correct RDM 1.1 order classification
+ * - Preserves missing closure and criterion as unknown / not assessed
+ * - Compares linear misclosure only to a supplied job limit and reference
+ * - Reports allocated corrections without diagnosing a bad observation
  */
 
 import {
@@ -58,14 +56,14 @@ function makeInput(surveyType: SurveyType, observations: RawObservation[], _misc
 // ─── Insufficient Data ──────────────────────────────────────────────────────
 
 describe('LiveToleranceChecker — insufficient data', () => {
-  it('returns insufficient_data status with < 3 observations', () => {
+  it('can compute a one-leg draft but makes no tolerance decision without a criterion', () => {
     const result = checkTolerance(makeInput('cadastral', [
       { station: 'CP1', bs: '', fs: 'CP2', hclDeg: '0', hclMin: '00', hclSec: '00', hcrDeg: '180', hcrMin: '00', hcrSec: '00', slopeDist: '100', vaDeg: '90', vaMin: '00', vaSec: '00', ih: '1.5', th: '1.5' },
     ]))
 
-    expect(result.status).toBe('insufficient_data')
-    expect(result.hasEnoughData).toBe(false)
-    expect(result.summary).toContain('Need at least 3')
+    expect(result.status).toBe('not_assessed')
+    expect(result.hasEnoughData).toBe(true)
+    expect(result.summary).toContain('No adopted job criterion')
   })
 
   it('returns insufficient_data with empty observations', () => {
@@ -77,24 +75,24 @@ describe('LiveToleranceChecker — insufficient data', () => {
 // ─── Survey Type Requirements ───────────────────────────────────────────────
 
 describe('LiveToleranceChecker — survey type requirements', () => {
-  it('cadastral requires Second Order Class II (1:10,000)', () => {
+  it('cadastral metadata does not adopt an accuracy order', () => {
     const result = checkTolerance(makeInput('cadastral', makeSquareTraverse()))
-    expect(result.requiredOrder).toBe('Second Order Class II')
+    expect(result.requiredOrder).toBe('Not specified')
   })
 
-  it('engineering requires Second Order Class I (1:20,000)', () => {
+  it('engineering metadata does not adopt an accuracy order', () => {
     const result = checkTolerance(makeInput('engineering', makeSquareTraverse()))
-    expect(result.requiredOrder).toBe('Second Order Class I')
+    expect(result.requiredOrder).toBe('Not specified')
   })
 
-  it('monitoring requires First Order Class II (1:50,000)', () => {
+  it('monitoring metadata does not adopt an accuracy order', () => {
     const result = checkTolerance(makeInput('monitoring', makeSquareTraverse()))
-    expect(result.requiredOrder).toBe('First Order Class II')
+    expect(result.requiredOrder).toBe('Not specified')
   })
 
-  it('topographic requires Third Order (1:5,000)', () => {
+  it('topographic metadata does not adopt an accuracy order', () => {
     const result = checkTolerance(makeInput('topographic', makeSquareTraverse()))
-    expect(result.requiredOrder).toBe('Third Order')
+    expect(result.requiredOrder).toBe('Not specified')
   })
 })
 
@@ -189,5 +187,30 @@ describe('LiveToleranceChecker — result structure', () => {
     const result = checkTolerance(makeInput('cadastral', makeSquareTraverse()))
     expect(Array.isArray(result.recommendations)).toBe(true)
     expect(result.recommendations.length).toBeGreaterThan(0)
+  })
+})
+
+describe('live closure evidence integrity', () => {
+  it('does not infer a governing criterion or angle check from the survey type', () => {
+    expect(checkTolerance(makeInput('cadastral', makeSquareTraverse()))).toMatchObject({
+      status: 'not_assessed', requiredOrder: 'Not specified', achievedOrder: null,
+      angularMisclosureArcsec: null, rdmChecks: { passed: false, checks: [], overallGrade: null },
+    })
+  })
+
+  it.each([[2, 'pass'], [4, 'fail']] as const)('compares a %s mm misclosure to the supplied 3 mm limit', (error, status) => {
+    const request = { ...makeInput('cadastral', makeSquareTraverse(error)), criterion: { allowableMisclosureMm: 3, reference: 'Synthetic specification 4' } }
+    expect(checkTolerance(request)).toMatchObject({ status, requiredOrder: 'Synthetic specification 4' })
+  })
+
+  it('keeps open closure unknown, even when a criterion is supplied', () => {
+    const request = { ...makeInput('cadastral', makeSquareTraverse()), closingEasting: undefined, closingNorthing: undefined, criterion: { allowableMisclosureMm: 3, reference: 'Job' } }
+    expect(checkTolerance(request)).toMatchObject({ status: 'not_assessed', linearMisclosureMm: null, precisionRatio: null })
+  })
+
+  it('does not diagnose a bad observation from the largest Bowditch correction', () => {
+    const result = checkTolerance(makeInput('cadastral', makeSquareTraverse(100)))
+    expect(result.worstLeg).not.toBeNull()
+    expect(result.worstLeg?.diagnosis).toContain('does not identify')
   })
 })

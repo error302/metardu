@@ -1,20 +1,23 @@
 // METARDU Traverse Computation Engine
 // Source: N.N. Basak, Surveying and Levelling, Chapters 10-11
 // Source: Ghilani & Wolf, Elementary Surveying 16th Ed., Chapters 10, 12
-// Source: RDM 1.1 Kenya 2025, Table 2.4 — Accuracy Classification
-// Source: Survey Regulations 1994, Cap 299, Regulation 97
+// Numerical reduction only. A job-specific criterion must be supplied for a
+// linear-closure comparison; no jurisdiction or accuracy order is inferred.
 
 import { dmsToDecimal } from '@/lib/engine/angles'
 import { bowditchCorrections } from '@/lib/engine/traverse'
 
 function angleDMS(angleDeg: number): string {
   const norm = ((angleDeg % 360) + 360) % 360
-  const d = Math.floor(norm)
-  const mFloat = (norm - d) * 60
-  const m = Math.floor(mFloat)
-  const s = (mFloat - m) * 60
+  // Round display ticks before splitting, carrying 60 seconds/minutes correctly.
+  const ticks = Math.round(norm * 36000) % 12960000
+  const d = Math.floor(ticks / 36000)
+  const m = Math.floor((ticks % 36000) / 600)
+  const s = (ticks % 600) / 10
   return `${String(d).padStart(3,'0')}° ${String(m).padStart(2,'0')}' ${s.toFixed(1)}"`
 }
+
+export { angleDMS as formatTraverseAngleDMS }
 
 export interface RawObservation {
   station: string
@@ -41,13 +44,14 @@ export interface ReducedObservation {
   hcr: number
   meanAngle: number
   meanAngleDMS: string
+  faceDifferenceArcsec: number
   slopeDist: number
   verticalAngle: number
   verticalAngleRad: number
   horizontalDist: number
-  deltaH: number
-  ih: number
-  th: number
+  deltaH: number | null
+  ih: number | null
+  th: number | null
   remarks?: string
 }
 
@@ -76,78 +80,74 @@ export interface TraverseComputationResult {
   totalPerimeter: number
   sumDepartures: number
   sumLatitudes: number
-  linearError: number
-  precisionRatio: number
+  linearError: number | null
+  precisionRatio: number | null
   accuracyOrder: string
-  C_mm: number
+  C_mm: number | null
   K_km: number
   formula: string
-  allowable: number
+  /** Stated allowable linear misclosure, millimetres; null if not supplied. */
+  allowable: number | null
+  assessment: TraverseAssessment
   openingPoint: { easting: number; northing: number; rl?: number }
   closingPoint?: { easting: number; northing: number }
   isClosed: boolean
 }
 
-export interface AccuracyClass {
-  order: string
-  C_mm: number
-  K_km: number
-  allowable: number
-  formula: string
-  pass: boolean
+export interface TraverseCriterion {
+  allowableMisclosureMm: number
+  reference: string
 }
 
-function classifyAccuracy(C_mm: number, K_km: number): AccuracyClass {
-  // Source: RDM 1.1 Kenya 2025, Table 2.4 — Accuracy Classification
-  // m = C/√K (mm/√km), where C = closing error in mm, K = perimeter in km
-  // Source: Ghilani & Wolf, Chapter 12 — Traverse accuracy standards
-  //
-  // FIXED: Previous version computed m = C_mm/1000 (metres) but compared against
-  // allowable values in mm — units mismatch made everything classify as 1st Order.
-  // Now correctly computes m in mm/√km and compares against RDM 1.1 coefficients.
-  const K = K_km
-  const m = K > 0 ? C_mm / Math.sqrt(K) : 0  // mm/√km — the RDM 1.1 classification metric
+export interface TraverseAssessment {
+  status: 'not_assessed' | 'pass' | 'fail'
+  reference: string | null
+  reason: string
+}
 
-  // Source: RDM 1.1 Table 2.4 — allowable m values in mm/√km for each order
-  const allow1a = 0.5   // First Order Class I: m ≤ 0.5 mm/√km
-  const allow1b = 0.7   // First Order Class II: m ≤ 0.7 mm/√km
-  const allow2a = 1.0   // Second Order Class I: m ≤ 1.0 mm/√km
-  const allow2b = 1.3   // Second Order Class II: m ≤ 1.3 mm/√km
-  const allow3 = 2.0    // Third Order: m ≤ 2.0 mm/√km
+function finite(value: number, label: string): number {
+  if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`${label} must be finite`)
+  return value
+}
 
-  // The allowable closing error in mm = coefficient × √K
-  let order: string
-  let allowableCoeff: number
-  if (m <= allow1a) {
-    order = 'FIRST ORDER CLASS I'
-    allowableCoeff = allow1a
-  } else if (m <= allow1b) {
-    order = 'FIRST ORDER CLASS II'
-    allowableCoeff = allow1b
-  } else if (m <= allow2a) {
-    order = 'SECOND ORDER CLASS I'
-    allowableCoeff = allow2a
-  } else if (m <= allow2b) {
-    order = 'SECOND ORDER CLASS II'
-    allowableCoeff = allow2b
-  } else if (m <= allow3) {
-    order = 'THIRD ORDER'
-    allowableCoeff = allow3
-  } else {
-    order = 'FOURTH ORDER'
-    allowableCoeff = allow3
+function decimal(value: string, label: string): number {
+  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) {
+    throw new Error(`${label} requires a complete decimal value`)
   }
+  return finite(Number(value), label)
+}
 
-  const allowableMm = allowableCoeff * Math.sqrt(K)  // allowable closing error in mm
+/** Strict decimal admission shared by text-entry callers; never prefix-parse. */
+export { decimal as parseTraverseDecimal }
 
-  return {
-    order,
-    C_mm,
-    K_km: K,
-    allowable: allowableMm,
-    formula: `m = ${m.toFixed(2)} mm/√km, C = ${C_mm.toFixed(2)} mm, K = ${K.toFixed(3)} km, Allowable C = ${allowableMm.toFixed(2)} mm (${allowableCoeff} mm/√km × √${K.toFixed(3)})`,
-    pass: m <= allow3,
+function dms(degrees: number, minutes: number, seconds: number, maximum: number, label: string): number {
+  if (![degrees, minutes, seconds].every(v => typeof v === 'number' && Number.isFinite(v)) ||
+      !Number.isInteger(degrees) || !Number.isInteger(minutes) || degrees < 0 ||
+      minutes < 0 || minutes >= 60 || seconds < 0 || seconds >= 60) {
+    throw new Error(`${label} requires valid degrees, minutes and seconds`)
   }
+  const value = dmsToDecimal({ degrees, minutes, seconds, direction: 'N' })
+  if (value > maximum) throw new Error(`${label} exceeds ${maximum} degrees`)
+  return value
+}
+
+function optionalHeight(value: string, label: string): number | null {
+  if (value === undefined || value === null || value.trim() === '') return null
+  const height = decimal(value, label)
+  if (height < 0) throw new Error(`${label} must be nonnegative`)
+  return height
+}
+
+/** Paired clockwise BS-to-FS angles. Setup-network reduction is a separate step. */
+export function reduceTraverseFaces(o: Pick<RawObservation, 'hclDeg' | 'hclMin' | 'hclSec' | 'hcrDeg' | 'hcrMin' | 'hcrSec'>) {
+  const circle = (prefix: 'hcl' | 'hcr', label: string) => dms(decimal(o[`${prefix}Deg`], label), decimal(o[`${prefix}Min`], label), decimal(o[`${prefix}Sec`], label), 360, label)
+  const hcl = circle('hcl', 'Face left')
+  const hcr = circle('hcr', 'Face right')
+  const hcrAdj = (hcr + 180) % 360
+  const difference = ((hcrAdj - hcl + 540) % 360) - 180
+  if (Math.abs(difference) === 180) throw new Error('Ambiguous opposite face readings')
+  const meanAngle = ((hcl + difference / 2) % 360 + 360) % 360
+  return { hcl, hcr, meanAngle, meanAngleDMS: angleDMS(meanAngle), faceDifferenceArcsec: difference * 3600 }
 }
 
 export function computeTraverse(input: {
@@ -162,40 +162,43 @@ export function computeTraverse(input: {
   backsightBearingDeg: number
   backsightBearingMin: number
   backsightBearingSec: number
+  criterion?: TraverseCriterion
 }): TraverseComputationResult {
-  const obs = input.observations.filter((o) => o.station && o.slopeDist)
-  if (obs.length === 0) throw new Error('No valid observations')
+  finite(input.openingEasting, 'Opening easting')
+  finite(input.openingNorthing, 'Opening northing')
+  if (input.openingRL !== undefined) finite(input.openingRL, 'Opening level')
+  if (!input.openingStation?.trim()) throw new Error('Opening station is required')
+  if ((input.closingEasting === undefined) !== (input.closingNorthing === undefined)) throw new Error('Both closing coordinate components are required')
+  if (input.closingEasting !== undefined) finite(input.closingEasting, 'Closing easting')
+  if (input.closingNorthing !== undefined) finite(input.closingNorthing, 'Closing northing')
+  const criterion = input.criterion
+  if (criterion && (finite(criterion.allowableMisclosureMm, 'Criterion limit') < 0 || !criterion.reference?.trim())) {
+    throw new Error('Criterion requires a nonnegative limit and a reference')
+  }
+  const obs = input.observations
+  if (!Array.isArray(obs) || obs.length === 0) throw new Error('At least one observation is required')
 
   const reduced: ReducedObservation[] = obs.map((o) => {
     // Source: Basak, Chapter 10 — Mean angle from face-left and face-right horizontal circle readings
     // Source: Ghilani & Wolf, Chapter 12 — HCR_adj = HCR + 180° when HCR < 180°
-    const hcl = dmsToDecimal({ degrees: parseInt(o.hclDeg) || 0, minutes: parseInt(o.hclMin) || 0, seconds: parseFloat(o.hclSec) || 0, direction: 'N' })
-    const hcr = dmsToDecimal({ degrees: parseInt(o.hcrDeg) || 0, minutes: parseInt(o.hcrMin) || 0, seconds: parseFloat(o.hcrSec) || 0, direction: 'N' })
-    let hcrAdj = hcr + 180
-    if (hcrAdj >= 360) hcrAdj -= 360
-    // Source: Basak, Eq. 10.2 — meanAngle = (HCL + HCR_adj) / 2
-    const meanAngle = (hcl + hcrAdj) / 2
-    const meanAngleNorm = meanAngle >= 360 ? meanAngle - 360 : meanAngle < 0 ? meanAngle + 360 : meanAngle
+    if (!o?.station?.trim()) throw new Error('Every observation requires a target station')
+    const faces = reduceTraverseFaces(o)
 
-    const sd = parseFloat(o.slopeDist) || 0
-    const vaDeg = parseFloat(o.vaDeg) || 0
-    const vaMin = parseFloat(o.vaMin) || 0
-    const vaSec = parseFloat(o.vaSec) || 0
-    const va = dmsToDecimal({ degrees: vaDeg, minutes: vaMin, seconds: vaSec, direction: 'N' })
+    const sd = decimal(o.slopeDist, 'Slope distance')
+    if (sd <= 0) throw new Error('Slope distance must be positive')
+    const va = dms(decimal(o.vaDeg, 'Zenith'), decimal(o.vaMin, 'Zenith'), decimal(o.vaSec, 'Zenith'), 180, 'Zenith')
+    if (va <= 0 || va >= 180) throw new Error('A traverse leg requires a zenith strictly between 0 and 180 degrees')
     const vaRad = va * Math.PI / 180
     // Canonical: VA is zenith (90°=horizontal) — see verticalAngle.ts
     const hd = sd * Math.sin(vaRad)
-    const ih = parseFloat(o.ih) || 0
-    const th = parseFloat(o.th) || 0
+    const ih = optionalHeight(o.ih, 'Instrument height')
+    const th = optionalHeight(o.th, 'Target height')
     // ΔH = SD·cos(zenith) + IH − TH (zenith → vertical)
-    const deltaH = sd * Math.cos(vaRad) + ih - th
+    const deltaH = ih === null || th === null ? null : finite(sd * Math.cos(vaRad) + ih - th, 'Height difference')
 
     return {
       station: o.station,
-      hcl,
-      hcr,
-      meanAngle: meanAngleNorm,
-      meanAngleDMS: angleDMS(meanAngleNorm),
+      ...faces,
       slopeDist: sd,
       verticalAngle: va,
       verticalAngleRad: vaRad,
@@ -207,12 +210,7 @@ export function computeTraverse(input: {
     }
   })
 
-  const backsightRad = dmsToDecimal({
-    degrees: input.backsightBearingDeg,
-    minutes: input.backsightBearingMin,
-    seconds: input.backsightBearingSec,
-    direction: 'N',
-  }) * Math.PI / 180
+  const backsightRad = dms(input.backsightBearingDeg, input.backsightBearingMin, input.backsightBearingSec, 360, 'Backsight bearing') * Math.PI / 180
 
   const legs: TraverseComputationLeg[] = []
   let currentWCB = backsightRad
@@ -267,13 +265,14 @@ export function computeTraverse(input: {
   let sumDep = legs.reduce((s, l) => s + l.departure, 0)
   let sumLat = legs.reduce((s, l) => s + l.latitude, 0)
 
-  let linearError = 0
-  let precisionRatio = 0
-  let C_mm = 0
-  let K_km = 0
+  let linearError: number | null = null
+  let precisionRatio: number | null = null
+  let C_mm: number | null = null
+  const totalPerimeter = finite(legs.reduce((s, l) => s + l.hd, 0), 'Total horizontal distance')
+  if (totalPerimeter <= 0) throw new Error('Horizontal distance must be positive')
+  const K_km = totalPerimeter / 1000
 
   if (isClosed && closingE !== undefined && closingN !== undefined) {
-    const totalDist = legs.reduce((s, l) => s + l.hd, 0)
 
     // FIXED: Previous version added actualDep/actualLat to sumDep/sumLat before
     // computing corrections. This was WRONG — for a loop traverse (closing=opening),
@@ -287,10 +286,10 @@ export function computeTraverse(input: {
     // After correction, ΣadjDep = Eclosing − Eopening, ΣadjLat = Nclosing − Nopening
     const eDep = sumDep - (closingE - input.openingEasting)   // departure misclosure
     const eLat = sumLat - (closingN - input.openingNorthing)  // latitude misclosure
-    linearError = Math.sqrt(eDep * eDep + eLat * eLat)
-    K_km = totalDist / 1000
-    precisionRatio = totalDist / Math.max(linearError, 1e-12)
-    C_mm = linearError * 1000
+    linearError = finite(Math.hypot(eDep, eLat), 'Linear misclosure')
+    const ratio = linearError > 0 ? totalPerimeter / linearError : null
+    precisionRatio = ratio !== null && Number.isFinite(ratio) ? ratio : null
+    C_mm = finite(linearError * 1000, 'Linear misclosure in millimetres')
 
     // Bowditch rule via the shared kernel in engine/traverse (single
     // implementation of correction_i = −(misclosure/ΣD) × D_i).
@@ -317,24 +316,28 @@ export function computeTraverse(input: {
 
   let adjE = input.openingEasting
   let adjN = input.openingNorthing
-  let adjRL = input.openingRL ?? 0
+  let adjRL = input.openingRL
 
   for (let i = 0; i < legs.length; i++) {
-    adjE += legs[i].adjDep
-    adjN += legs[i].adjLat
-    adjRL += reduced[i].deltaH
+    adjE = finite(adjE + legs[i].adjDep, 'Computed easting')
+    adjN = finite(adjN + legs[i].adjLat, 'Computed northing')
+    const deltaH = reduced[i].deltaH
+    adjRL = adjRL === undefined || deltaH === null ? undefined : finite(adjRL + deltaH, 'Computed level')
     coords.push({ station: legs[i].to, easting: adjE, northing: adjN, rl: adjRL })
   }
 
-  const totalPerimeter = legs.reduce((s, l) => s + l.hd, 0)
-  K_km = totalPerimeter / 1000
-  if (isClosed) C_mm = linearError * 1000
-  else C_mm = 0
-
-  const accClass = classifyAccuracy(C_mm, K_km)
+  finite(sumDep, 'Sum of departures')
+  finite(sumLat, 'Sum of latitudes')
+  const assessment: TraverseAssessment = {
+    status: C_mm === null || !criterion ? 'not_assessed' : C_mm <= criterion.allowableMisclosureMm ? 'pass' : 'fail',
+    reference: criterion?.reference ?? null,
+    reason: C_mm === null ? 'No closing control supplied; linear misclosure is unknown.' : !criterion
+      ? 'No adopted job criterion supplied; no accuracy order or tolerance decision is inferred.'
+      : 'Linear misclosure compared only to the supplied job limit. This is not survey approval.',
+  }
 
   return {
-    rawObservations: obs,
+    rawObservations: obs.map(observation => ({ ...observation })),
     observations: reduced,
     legs,
     coordinates: coords,
@@ -343,11 +346,12 @@ export function computeTraverse(input: {
     sumLatitudes: sumLat,
     linearError,
     precisionRatio,
-    accuracyOrder: accClass.order,
+    accuracyOrder: assessment.status === 'not_assessed' ? 'NOT ASSESSED' : assessment.status === 'pass' ? 'WITHIN STATED LIMIT' : 'EXCEEDS STATED LIMIT',
     C_mm,
     K_km,
-    formula: accClass.formula,
-    allowable: accClass.allowable,
+    formula: criterion ? `Stated limit: ${criterion.allowableMisclosureMm} mm; ${criterion.reference}` : assessment.reason,
+    allowable: criterion?.allowableMisclosureMm ?? null,
+    assessment,
     openingPoint: { easting: input.openingEasting, northing: input.openingNorthing, rl: input.openingRL },
     closingPoint: isClosed ? { easting: closingE ?? 0, northing: closingN ?? 0 } : undefined,
     isClosed,

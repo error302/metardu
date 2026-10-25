@@ -16,6 +16,8 @@
  * - Over time, survey engine fills gaps and old engine calls are removed
  */
 
+import { reduceTraverseFaces } from '@/lib/computations/traverseEngine'
+
 // ─── Re-export everything from the survey engine for convenience ──
 export {
   processObservation,
@@ -280,27 +282,9 @@ export function computeMeanAngleDMS(
   hclDeg: string, hclMin: string, hclSec: string,
   hcrDeg: string, hcrMin: string, hcrSec: string
 ): string {
-  const hasHCL = hclDeg !== '' || hclMin !== '' || hclSec !== ''
-  const hasHCR = hcrDeg !== '' || hcrMin !== '' || hcrSec !== ''
-  if (!hasHCL || !hasHCR) return '—'
-
-  const hclDecimal = (parseInt(hclDeg) || 0) + (parseInt(hclMin) || 0) / 60 + (parseFloat(hclSec) || 0) / 3600
-  const hcrDecimal = (parseInt(hcrDeg) || 0) + (parseInt(hcrMin) || 0) / 60 + (parseFloat(hcrSec) || 0) / 3600
-
-  // Source: Basak, Eq. 10.2 — Mean angle = (HCL + HCR_adj) / 2
-  // HCR_adj = HCR + 180° (to bring face-right reading to same reference as face-left)
-  let hcrAdj = hcrDecimal + 180
-  if (hcrAdj >= 360) hcrAdj -= 360
-
-  const mean = (hclDecimal + hcrAdj) / 2
-  const normMean = ((mean % 360) + 360) % 360
-
-  const deg = Math.floor(normMean)
-  const minFloat = (normMean - deg) * 60
-  const min = Math.floor(minFloat)
-  const sec = (minFloat - min) * 60
-
-  return `${deg}°${String(min).padStart(2, '0')}'${sec.toFixed(1)}"`
+  try {
+    return reduceTraverseFaces({ hclDeg, hclMin, hclSec, hcrDeg, hcrMin, hcrSec }).meanAngleDMS
+  } catch { return '—' }
 }
 
 /**

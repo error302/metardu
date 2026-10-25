@@ -42,6 +42,7 @@ export const POST = apiHandler(
         requiredOrder: '',
         precisionRatio: body.precisionRatio,
         linearMisclosureMm: 0,
+        angularMisclosureArcsec: null,
         perimeterKm: 0,
         worstLeg: null,
         hasEnoughData: true,

@@ -1,18 +1,16 @@
 /**
  * METARDU — Traverse Computation Sheet Print Generator
  *
- * Produces a formal traverse computation sheet for submission.
+ * Produces an unapproved numerical draft for independent review.
  *
  * Includes:
  *   - Table 1: Reduced Observations (station, HCL, HCR, mean angle, SD, HD, VA, ΔH)
  *   - Table 2: Traverse Computation (WCB, departure, latitude, Bowditch corrections, adjusted)
  *   - Table 3: Final Coordinates Schedule (station, adjusted E, N, RL)
- *   - Closure Summary (linear error, precision ratio, accuracy order per RDM 1.1 Table 2.4)
- *   - Surveyor's Certificate
+ *   - Closure Summary and comparison to a caller-supplied job limit
+ *   - Draft review block without a prewritten certification assertion
  *
  * References:
- *   Survey Act Cap 299, Survey Regulations 1994, Regulation 97
- *   RDM 1.1 Kenya (2025), Table 2.4 — Accuracy Classification
  *   N.N. Basak — Surveying and Levelling, Chapters 10-11
  *   Ghilani & Wolf — Elementary Surveying 16th Ed., Chapters 10, 12
  */
@@ -20,38 +18,37 @@
 import { buildPrintDocument, openPrint } from './buildPrintDocument'
 import type { PrintMeta } from './buildPrintDocument'
 import type { TraverseComputationResult } from '@/lib/computations/traverseEngine'
+import { formatTraverseAngleDMS } from '@/lib/computations/traverseEngine'
+import { escapeXml } from '@/lib/xml/escape'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 export interface TraverseSheetInput {
   result: TraverseComputationResult
   meta: PrintMeta
+  /** Supplied reference labels, not independently verified by this renderer. */
+  coordinateReference?: string
+  verticalDatum?: string
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function fmtN(n: number, dp: number = 3): string {
-  return n.toFixed(dp)
+function fmtN(n: number | null, dp: number = 3): string {
+  return n === null ? 'Unknown' : n.toFixed(dp)
 }
 
-function fmtSign(n: number, dp: number = 3): string {
-  return (n >= 0 ? '+' : '') + n.toFixed(dp)
+function fmtSign(n: number | null, dp: number = 3): string {
+  return n === null ? 'Unknown' : (n >= 0 ? '+' : '') + n.toFixed(dp)
 }
 
 /**
  * Convert decimal degrees to DMS string.
- * Used for HCL, HCR circle readings — must be DMS on formal computation sheets.
- * DoLS will reject decimal-degree circle readings.
+ * Uses the same display rounding/carry as the engine and field-book preview.
  *
  * e.g. 45.5355 → "045°32'07.8""
  */
 function decToDMS(decDeg: number): string {
-  const absVal = Math.abs(decDeg)
-  const d = Math.floor(absVal)
-  const mFloat = (absVal - d) * 60
-  const m = Math.floor(mFloat)
-  const s = (mFloat - m) * 60
-  return `${String(d).padStart(3, '0')}\u00b0${String(m).padStart(2, '0')}\u2019${s.toFixed(1).padStart(4, '0')}\u201d`
+  return formatTraverseAngleDMS(decDeg)
 }
 
 // ── Body builder ──────────────────────────────────────────────────────────────
@@ -66,7 +63,7 @@ function buildBody(inp: TraverseSheetInput): string {
   const obsRows = r.observations.map((o, i) => `
 <tr>
   <td class="center">${i + 1}</td>
-  <td class="bold mono">${o.station}</td>
+  <td class="bold mono">${escapeXml(o.station)}</td>
   <td class="right mono">${decToDMS(o.hcl)}</td>
   <td class="right mono">${decToDMS(o.hcr)}</td>
   <td class="mono">${o.meanAngleDMS}</td>
@@ -112,8 +109,8 @@ function buildBody(inp: TraverseSheetInput): string {
   const legRows = r.legs.map((l, i) => `
 <tr>
   <td class="center">${i + 1}</td>
-  <td class="mono">${l.from}</td>
-  <td class="mono">${l.to}</td>
+  <td class="mono">${escapeXml(l.from)}</td>
+  <td class="mono">${escapeXml(l.to)}</td>
   <td class="mono">${l.meanAngleDMS}</td>
   <td class="mono">${l.wcbDMS}</td>
   <td class="right mono">${fmtN(l.hd)}</td>
@@ -166,21 +163,22 @@ function buildBody(inp: TraverseSheetInput): string {
 </table>
 <p style="font-size:7.5pt;color:#666;margin-top:3px;">
   Dep = HD &times; sin(WCB) &nbsp;|&nbsp; Lat = HD &times; cos(WCB) &nbsp;|&nbsp;
-  Bowditch: &delta;Dep = &minus;&Sigma;Dep &times; (HD/&Sigma;HD), &delta;Lat = &minus;&Sigma;Lat &times; (HD/&Sigma;HD)
+  Bowditch: &delta;Dep = &minus;(&Sigma;Dep &minus; target &Delta;E) &times; (HD/&Sigma;HD), &delta;Lat = &minus;(&Sigma;Lat &minus; target &Delta;N) &times; (HD/&Sigma;HD), where target offsets are closing minus opening coordinates.
 </p>`
 
   // ── Table 3: Final Coordinate Schedule ──────────────────
   const coordRows = r.coordinates.map((c, i) => `
 <tr>
   <td class="center">${i + 1}</td>
-  <td class="bold mono">${c.station}</td>
+  <td class="bold mono">${escapeXml(c.station)}</td>
   <td class="right mono">${fmtN(c.easting)}</td>
   <td class="right mono">${fmtN(c.northing)}</td>
-  <td class="right mono">${c.rl !== undefined ? fmtN(c.rl) : '&mdash;'}</td>
+  <td class="right mono">${c.rl !== undefined ? fmtN(c.rl) : 'Unknown'}</td>
 </tr>`).join('')
 
   const coordTable = `
-<h2>3. Final Coordinate Schedule &mdash; Arc 1960 / UTM Zone 37S</h2>
+<h2>3. Computed Coordinate Schedule &mdash; Draft</h2>
+<p>Coordinate reference (as supplied): ${escapeXml(inp.coordinateReference || 'Unknown')}. Vertical datum (as supplied): ${escapeXml(inp.verticalDatum || 'Unknown')}.</p>
 <table>
   <thead>
     <tr>
@@ -206,10 +204,10 @@ function buildBody(inp: TraverseSheetInput): string {
   <div class="summary-row"><span class="summary-label">&Sigma;Departures (raw)</span><span class="summary-value">${fmtSign(r.sumDepartures, 4)} m</span></div>
   <div class="summary-row"><span class="summary-label">&Sigma;Latitudes (raw)</span><span class="summary-value">${fmtSign(r.sumLatitudes, 4)} m</span></div>
   <div class="summary-row"><span class="summary-label">Linear Closing Error (Linear Misclosure)</span><span class="summary-value">${fmtN(r.linearError, 4)} m (${fmtN(r.C_mm, 2)} mm)</span></div>
-  <div class="summary-row"><span class="summary-label">Precision Ratio</span><span class="summary-value bold">1 : ${r.precisionRatio > 0 ? Math.round(r.precisionRatio).toLocaleString() : '&infin;'}</span></div>
-  <div class="summary-row"><span class="summary-label">Accuracy Order (RDM 1.1 Table 2.4)</span><span class="summary-value ${r.precisionRatio > 5000 ? 'pass' : r.precisionRatio > 1000 ? 'warn' : 'fail'} bold">${r.accuracyOrder}</span></div>
-  <div class="summary-row"><span class="summary-label">Allowable Misclosure</span><span class="summary-value">${fmtN(r.allowable, 3)} m</span></div>
-  <div class="summary-row"><span class="summary-label">Formula</span><span class="summary-value">${r.formula}</span></div>
+  <div class="summary-row"><span class="summary-label">Precision Ratio</span><span class="summary-value bold">${r.precisionRatio !== null ? `1 : ${Math.round(r.precisionRatio).toLocaleString()}` : r.linearError === 0 ? 'No finite ratio (zero computed misclosure)' : 'Unknown'}</span></div>
+  <div class="summary-row"><span class="summary-label">Linear Closure Comparison</span><span class="summary-value ${r.assessment.status === 'not_assessed' ? 'warn' : r.assessment.status} bold">${escapeXml(r.accuracyOrder)}</span></div>
+  <div class="summary-row"><span class="summary-label">Stated Allowable Misclosure</span><span class="summary-value">${fmtN(r.allowable, 3)} mm</span></div>
+  <div class="summary-row"><span class="summary-label">Comparison Basis</span><span class="summary-value">${escapeXml(r.formula)}</span></div>
   ${r.closingPoint ? `
   <div class="summary-row"><span class="summary-label">Opening Coordinates</span><span class="summary-value mono">${fmtN(r.openingPoint.easting)}, ${fmtN(r.openingPoint.northing)}</span></div>
   <div class="summary-row"><span class="summary-label">Closing Coordinates (given)</span><span class="summary-value mono">${fmtN(r.closingPoint.easting)}, ${fmtN(r.closingPoint.northing)}</span></div>
@@ -220,12 +218,11 @@ function buildBody(inp: TraverseSheetInput): string {
   const notes = `
 <h3>Notes</h3>
 <ol style="font-size:8pt;color:#555;line-height:1.6;padding-left:16px;">
-  <li>Horizontal angles measured on both faces (Face Left &amp; Face Right). Mean = (HCL + HCR + 180&deg;) / 2 per Basak, Chapter 10.</li>
-  <li>Bowditch (compass) rule applied &mdash; corrections proportional to leg length. Source: Ghilani &amp; Wolf, Ch.12.</li>
-  <li>Accuracy classification per RDM 1.1 (2025) Table 2.4 and Survey Regulations 1994, Reg. 97.</li>
-  <li>Coordinates computed in Arc 1960 / UTM Zone 37S (SRID 21037) unless otherwise stated.</li>
-  <li>All heights are MSL (Nairobi Datum) unless otherwise stated.</li>
-  <li>HCL and HCR shown as D&deg;M&prime;S&Prime; as read from instrument. Mean angle used for WCB propagation.</li>
+  <li>Face-right readings are reduced by 180 degrees, then averaged with face-left readings along the shorter circular arc. Supplied angles must use the declared clockwise backsight-to-foresight convention.</li>
+  <li>${r.isClosed ? 'Bowditch corrections are proportional to horizontal leg length. Adjusted endpoint agreement is a mathematical constraint, not independent field verification.' : 'Open traverse: no closing control or Bowditch adjustment; closure is unknown.'}</li>
+  <li>Only a supplied job limit and reference enable a linear-closure comparison. No accuracy order, jurisdictional acceptance or professional approval is inferred.</li>
+  <li>Zenith convention: 90 degrees is horizontal. Unknown instrument/target heights or opening level leave subsequent reduced levels unknown.</li>
+  <li>Original field records, control, reference systems and this draft require independent professional review.</li>
 </ol>`
 
   return `
@@ -243,7 +240,8 @@ export function generateTraverseSheet(inp: TraverseSheetInput): string {
   const meta: PrintMeta = {
     ...inp.meta,
     title: inp.meta.title || 'Traverse Computation Sheet',
-    reference: 'Survey Regulations 1994 Reg. 97 | RDM 1.1 Table 2.4 | Basak Ch.10-11 | Ghilani &amp; Wolf Ch.12',
+    reviewOnly: true,
+    reference: 'Numerical draft | Supplied job criterion only | Basak Ch.10-11 | Ghilani & Wolf Ch.12',
   }
   return buildPrintDocument(buildBody(inp), meta)
 }

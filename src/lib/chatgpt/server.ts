@@ -85,11 +85,11 @@ const projectOutputSchemas = {
       computation: { const: 'closed_traverse' }, method: { type: 'string' }, units: { const: 'metres' },
       coordinate_reference: { type: 'string' }, coordinate_reference_verified: { const: false },
       closure: { type: 'object', properties: {
-        linear_error_m: { type: 'number' }, precision_ratio: { type: 'number' }, perimeter_m: { type: 'number' },
+        linear_error_m: { type: 'number' }, precision_ratio: nullableNumber, perimeter_m: { type: 'number' },
         closing_control: { type: 'object', properties: { easting: { type: 'number' }, northing: { type: 'number' } }, required: ['easting', 'northing'], additionalProperties: false },
       }, required: ['linear_error_m', 'precision_ratio', 'perimeter_m', 'closing_control'], additionalProperties: false },
       accuracy_classification: { type: 'object', properties: {
-        value: { type: 'string' }, basis: { type: 'string' }, allowable_closing_error_mm: { type: 'number' }, formula: { type: 'string' },
+        value: { type: 'string' }, basis: { type: 'string' }, allowable_closing_error_mm: nullableNumber, formula: { type: 'string' },
       }, required: ['value', 'basis', 'allowable_closing_error_mm', 'formula'], additionalProperties: false },
       legs: { type: 'array', items: { type: 'object', properties: {
         from: { type: 'string' }, to: { type: 'string' }, mean_angle_degrees: { type: 'number' }, whole_circle_bearing_degrees: { type: 'number' },
@@ -170,7 +170,7 @@ export const projectTools = [
   },
   {
     name: 'compute_closed_traverse', title: 'Compute a closed traverse',
-    description: 'Run METARDU’s traverse-reduction and Bowditch adjustment engine on readings supplied in this request. Requires opening and closing control coordinates in the same projected metre grid, a coordinate-reference label, and face-left/face-right horizontal-circle readings. The label is recorded but not validated. The accuracy class and allowable error use Kenya RDM 1.1 Table 2.4 as implemented in METARDU; this is not a universal or project-specific acceptance decision. It does not save data. Verify readings, CRS, control, units, and the governing job specification.',
+    description: 'Run METARDU’s numerical traverse-reduction and Bowditch engine. Requires opening and closing control in the same projected metre grid and paired face readings using the clockwise backsight-to-foresight convention. The station field names the target coordinate of each successive leg; backsight/foresight names are recorded metadata, not a solved setup network. The CRS label is supplied and not validated. An optional allowable linear misclosure in millimetres must be paired with its job-specification reference; otherwise no accuracy order or tolerance decision is inferred. Unknown opening level or instrument/target heights leave subsequent levels unknown. Does not save data or certify a survey.',
     inputSchema: {
       type: 'object' as const,
       properties: {
@@ -178,6 +178,7 @@ export const projectTools = [
         opening_easting: { type: 'number' as const }, opening_northing: { type: 'number' as const }, opening_rl: { type: 'number' as const }, opening_station: textInput,
         closing_easting: { type: 'number' as const }, closing_northing: { type: 'number' as const }, closing_station: textInput,
         backsight_bearing: dmsSchema,
+        allowable_misclosure_mm: { type: 'number' as const, minimum: 0 }, tolerance_reference: { type: 'string' as const, minLength: 1, maxLength: 200 },
         observations: { type: 'array' as const, minItems: 1, maxItems: 100, items: {
           type: 'object' as const,
           properties: {
@@ -187,7 +188,7 @@ export const projectTools = [
             zenith_angle: { ...dmsSchema, properties: { degrees: { type: 'number' as const, minimum: 0, maximum: 180 }, minutes: { type: 'number' as const, minimum: 0, maximum: 59 }, seconds: { type: 'number' as const, minimum: 0, exclusiveMaximum: 60 } } },
             instrument_height_m: { type: 'number' as const, minimum: 0 }, target_height_m: { type: 'number' as const, minimum: 0 },
           },
-          required: ['station', 'backsight', 'foresight', 'horizontal_circle_left', 'horizontal_circle_right', 'slope_distance_m', 'zenith_angle', 'instrument_height_m', 'target_height_m'],
+          required: ['station', 'backsight', 'foresight', 'horizontal_circle_left', 'horizontal_circle_right', 'slope_distance_m', 'zenith_angle'],
           additionalProperties: false,
         } },
       },
@@ -251,20 +252,21 @@ export const projectTools = [
 const listInput = z.object({ query: z.string().max(100).optional(), after_id: z.string().uuid().optional(), limit: z.number().int().min(1).max(25).default(10) }).strict()
 const getInput = z.object({ project_id: z.string().uuid() }).strict()
 const observationsInput = z.object({ project_id: z.string().uuid(), after_id: z.string().uuid().optional(), limit: z.number().int().min(1).max(100).default(50) }).strict()
-const dmsInput = z.object({ degrees: z.number().finite().min(0).max(359), minutes: z.number().finite().min(0).max(59), seconds: z.number().finite().min(0).lt(60) }).strict()
+const dmsInput = z.object({ degrees: z.number().finite().int().min(0).max(359), minutes: z.number().finite().int().min(0).max(59), seconds: z.number().finite().min(0).lt(60) }).strict()
 const traverseInput = z.object({
   coordinate_reference: z.string().trim().min(1).max(200),
   opening_easting: z.number().finite(), opening_northing: z.number().finite(), opening_rl: z.number().finite().optional(), opening_station: z.string().min(1).max(100),
   closing_easting: z.number().finite(), closing_northing: z.number().finite(), closing_station: z.string().min(1).max(100),
   backsight_bearing: dmsInput,
+  allowable_misclosure_mm: z.number().finite().min(0).optional(), tolerance_reference: z.string().trim().min(1).max(200).optional(),
   observations: z.array(z.object({
     station: z.string().min(1).max(100), backsight: z.string().min(1).max(100), foresight: z.string().min(1).max(100),
     horizontal_circle_left: dmsInput, horizontal_circle_right: dmsInput,
     slope_distance_m: z.number().finite().gt(0),
-    zenith_angle: z.object({ degrees: z.number().finite().min(0).max(180), minutes: z.number().finite().min(0).max(59), seconds: z.number().finite().min(0).lt(60) }).strict(),
-    instrument_height_m: z.number().finite().min(0), target_height_m: z.number().finite().min(0),
+    zenith_angle: z.object({ degrees: z.number().finite().int().min(0).max(180), minutes: z.number().finite().int().min(0).max(59), seconds: z.number().finite().min(0).lt(60) }).strict(),
+    instrument_height_m: z.number().finite().min(0).optional(), target_height_m: z.number().finite().min(0).optional(),
   }).strict()).min(1).max(100),
-}).strict()
+}).strict().refine(input => (input.allowable_misclosure_mm === undefined) === (input.tolerance_reference === undefined), 'Provide both the allowable misclosure and its reference, or neither.')
 const stakeoutInput = z.object({
   coordinate_reference: z.string().trim().min(1).max(200),
   setup_station: z.string().min(1).max(100), setup_easting_m: z.number().finite(), setup_northing_m: z.number().finite(),
@@ -370,12 +372,13 @@ export function runTraverse(raw: unknown) {
     openingStation: input.opening_station, closingEasting: input.closing_easting, closingNorthing: input.closing_northing,
     closingStation: input.closing_station, backsightBearingDeg: input.backsight_bearing.degrees,
     backsightBearingMin: input.backsight_bearing.minutes, backsightBearingSec: input.backsight_bearing.seconds,
+    criterion: input.allowable_misclosure_mm !== undefined && input.tolerance_reference !== undefined ? { allowableMisclosureMm: input.allowable_misclosure_mm, reference: input.tolerance_reference } : undefined,
     observations: input.observations.map(row => ({
       station: row.station, bs: row.backsight, fs: row.foresight,
       hclDeg: String(row.horizontal_circle_left.degrees), hclMin: String(row.horizontal_circle_left.minutes), hclSec: String(row.horizontal_circle_left.seconds),
       hcrDeg: String(row.horizontal_circle_right.degrees), hcrMin: String(row.horizontal_circle_right.minutes), hcrSec: String(row.horizontal_circle_right.seconds),
       slopeDist: String(row.slope_distance_m), vaDeg: String(row.zenith_angle.degrees), vaMin: String(row.zenith_angle.minutes), vaSec: String(row.zenith_angle.seconds),
-      ih: String(row.instrument_height_m), th: String(row.target_height_m),
+      ih: row.instrument_height_m === undefined ? '' : String(row.instrument_height_m), th: row.target_height_m === undefined ? '' : String(row.target_height_m),
     })),
   })
   if (!result.isClosed) throw new Error('Both closing control coordinates are required for this calculation.')
@@ -386,18 +389,17 @@ export function runTraverse(raw: unknown) {
     closure: { linear_error_m: result.linearError, precision_ratio: result.precisionRatio, perimeter_m: result.totalPerimeter, closing_control: result.closingPoint },
     accuracy_classification: {
       value: result.accuracyOrder,
-      basis: 'Kenya RDM 1.1 Table 2.4 (METARDU implementation)',
+      basis: result.assessment.reference ?? 'No adopted job criterion supplied',
       allowable_closing_error_mm: result.allowable,
       formula: result.formula,
     },
     legs: result.legs.map(leg => ({ from: leg.from, to: leg.to, mean_angle_degrees: leg.meanAngle, whole_circle_bearing_degrees: leg.wcb, horizontal_distance_m: leg.hd, departure_m: leg.departure, latitude_m: leg.latitude, departure_correction_m: leg.depCorrection, latitude_correction_m: leg.latCorrection, adjusted_departure_m: leg.adjDep, adjusted_latitude_m: leg.adjLat })),
-    // The core engine calculates relative vertical deltas from zero when no
-    // opening RL is supplied. Do not present those deltas as reduced levels.
+    // Unknown heights and levels remain absent throughout the reduction chain.
     coordinates: result.coordinates.map(({ station, easting, northing, rl }) => ({
       station, easting, northing,
       ...(input.opening_rl !== undefined && rl !== undefined ? { rl } : {}),
     })),
-    note: 'Calculated by METARDU’s traverse engine. The displayed accuracy class and allowable error use Kenya RDM 1.1 Table 2.4; they are not a universal or project-specific acceptance decision. Verify original readings, units, coordinate reference system, control, and the governing specification. This result is not a surveyor’s approval or certification.',
+    note: 'Numerical draft calculated by METARDU. A supplied linear limit is compared only as stated; no accuracy order or governing standard is inferred. Bowditch endpoint agreement is imposed by the adjustment and is not independent field verification. Verify the original readings, angle convention, reference systems, control and governing specification. This result is not a surveyor’s approval or certification.',
   }
 }
 

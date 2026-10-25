@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import { db } from '@/lib/db'
-import { createProjectServer, projectTools } from './server'
+import { createProjectServer, projectTools, runTraverse } from './server'
 
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn() } }))
 
@@ -279,7 +279,7 @@ describe('METARDU ChatGPT survey tools', () => {
     }
   })
 
-  it('reduces a closed traverse and labels its Kenya-specific accuracy classification', async () => {
+  it('reduces a closed traverse without inventing an adopted accuracy standard', async () => {
     const { client, server } = await connectedClient({ userId: USER_ID, scopes: ['survey:compute'] })
     const observation = (station: string, backsight: string, foresight: string, left: number, right: number) => ({
       station, backsight, foresight,
@@ -307,12 +307,26 @@ describe('METARDU ChatGPT survey tools', () => {
       expect(output.coordinates[1]).toMatchObject({ station: 'B', easting: 1100, northing: 2000 })
       expect(output.coordinates[1]).not.toHaveProperty('rl')
       expect(output).toMatchObject({ coordinate_reference: TEST_PROJECT_CRS, coordinate_reference_verified: false })
-      expect(output.accuracy_classification.basis).toContain('Kenya RDM 1.1 Table 2.4')
-      expect(output.note).toContain('not a universal')
+      expect(output.accuracy_classification).toMatchObject({ value: 'NOT ASSESSED', allowable_closing_error_mm: null })
+      expect(output.accuracy_classification.basis).toContain('No adopted job criterion')
+      expect(output.note).toContain('not a surveyor')
     } finally {
       await client.close()
       await server.close()
     }
+  })
+
+  it('compares traverse closure only against an explicit paired limit and reference', () => {
+    const request = {
+      coordinate_reference: TEST_PROJECT_CRS,
+      opening_easting: 0, opening_northing: 0, opening_station: 'A', closing_easting: 0, closing_northing: 100.002, closing_station: 'B',
+      backsight_bearing: { degrees: 0, minutes: 0, seconds: 0 },
+      allowable_misclosure_mm: 3, tolerance_reference: 'Synthetic specification 4',
+      observations: [{ station: 'B', backsight: 'BACK', foresight: 'B', horizontal_circle_left: { degrees: 0, minutes: 0, seconds: 0 }, horizontal_circle_right: { degrees: 180, minutes: 0, seconds: 0 }, slope_distance_m: 100, zenith_angle: { degrees: 90, minutes: 0, seconds: 0 }, instrument_height_m: 0, target_height_m: 0 }],
+    }
+    expect(runTraverse(request).accuracy_classification).toMatchObject({ value: 'WITHIN STATED LIMIT', allowable_closing_error_mm: 3, basis: request.tolerance_reference })
+    expect(() => runTraverse({ ...request, tolerance_reference: undefined })).toThrow()
+    expect(runTraverse({ ...request, closing_northing: 100 }).closure.precision_ratio).toBeNull()
   })
 
   it('computes multi-point grid stakeout bearings, distances, and clockwise turns', async () => {
