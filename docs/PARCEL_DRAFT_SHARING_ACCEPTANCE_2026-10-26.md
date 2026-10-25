@@ -156,3 +156,20 @@ CAD, printing and independent-surveyor/field acceptance remain outstanding.
 Legacy traverse intake and the shared cross-workflow evidence chain still need
 their documented integrity work. The active production/international goal remains
 open.
+
+## Subsequent deployed containment
+
+After this source checkpoint, the legacy handler was confirmed publicly
+reachable using only the reserved nil UUID. With the owner's Cloudflare access,
+the exact temporary Block rule `0865888cf7b3440cb255daf61fb3a045` was deployed
+and independently verified on both METARDU tunnel hostnames. Canonical,
+versioned, uppercase and encoded lookup probes now return Cloudflare 403
+without a challenge. Normal public pages/health and the existing signed-in
+dashboard remain reachable; its recent-activity refresh error is still open.
+
+See [deployed privacy containment](DEPLOYED_PARCEL_PRIVACY_CONTAINMENT_2026-10-26.md)
+for the exact scope, receipts and removal/rollback requirements. This closes the
+observed anonymous API exposure through those two hostnames while containment
+is active. It does not deploy this capability-sharing implementation or migration
+121. Valid public sharing remains unavailable until the reviewed release is
+promoted and the temporary rule is separately removed and verified.
