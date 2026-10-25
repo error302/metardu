@@ -27,13 +27,14 @@ for (const file of sources) {
       const route = value.split(/[?#]/)[0] || '/'
       const assetPath = path.resolve('public', '.' + route), relativeAsset = path.relative(path.resolve('public'), assetPath)
       const asset = !relativeAsset.startsWith('..') && !path.isAbsolute(relativeAsset) && existsSync(assetPath) ? normalize(assetPath) : null
-      links.push({ file: normalize(file), line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, href: value, route, page: routes.find(item => item.matches.test(route))?.file ?? null, asset })
+      const unresolvedParameter = !asset && /(?:\[|%5b)[^/]*(?:\]|%5d)/i.test(route)
+      links.push({ file: normalize(file), line: source.getLineAndCharacterOfPosition(node.getStart(source)).line + 1, href: value, route, page: routes.find(item => item.matches.test(route))?.file ?? null, asset, unresolvedParameter })
     }
     ts.forEachChild(node, visit)
   }
   visit(source)
 }
-const missing = links.filter(link => !link.page && !link.asset)
+const missing = links.filter(link => link.unresolvedParameter || !link.page && !link.asset)
 const report = { checkedAt: new Date().toISOString(), scope: 'static local hrefs and App Router page files only; no runtime, access, data or layout proof', pages: routes.map(({ file, route }) => ({ file, route })), links, missing }
 mkdirSync('.cache/workspace-ui', { recursive: true })
 writeFileSync('.cache/workspace-ui/navigation-routes.json', JSON.stringify(report, null, 2) + '\n')

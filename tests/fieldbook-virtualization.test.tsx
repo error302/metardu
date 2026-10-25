@@ -36,7 +36,8 @@ describe('DynamicFieldBook Virtualization', () => {
     })
 
     expect(host.textContent).toContain('5 rows')
-    expect(host.textContent).not.toContain('⚡ Virtualized')
+    expect(host.textContent).not.toMatch(/Showing \d+ of \d+ stations/)
+    expect(host.querySelectorAll('tbody tr')).toHaveLength(5)
 
     await act(async () => root.unmount())
     host.remove()
@@ -64,7 +65,8 @@ describe('DynamicFieldBook Virtualization', () => {
     })
 
     expect(host.textContent).toContain('80 rows')
-    expect(host.textContent).toContain('⚡ Virtualized')
+    expect(host.textContent).toMatch(/Showing \d+ of 80 stations/)
+    expect(host.querySelectorAll('tbody tr').length).toBeLessThan(80)
 
     await act(async () => root.unmount())
     host.remove()

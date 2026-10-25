@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Settings, Target, List, Cloud, ChevronRight, X, Camera } from 'lucide-react'
+import { Settings, Target, List, Cloud, ChevronRight, X, Camera, Volume2, VolumeX, Check } from 'lucide-react'
 import { FieldConnectionBar } from './FieldConnectionBar'
 import { FieldMeasureButton } from './FieldMeasureButton'
 import { FieldObservationList } from './FieldObservationList'
@@ -867,7 +867,8 @@ function StakeoutPanel({
               voiceEnabled ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] border-[var(--accent)]' : 'bg-transparent text-[var(--text-muted)] border-[var(--border-color)]'
             }`}
           >
-            {voiceEnabled ? '🔊 Voice On' : '🔇 Voice Muted'}
+            {voiceEnabled ? <Volume2 className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> : <VolumeX className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" />}
+            {voiceEnabled ? 'Voice On' : 'Voice Muted'}
           </button>
         </div>
         <div className="grid grid-cols-2 gap-2">
@@ -901,7 +902,7 @@ function StakeoutPanel({
             </div>
             {distToTarget <= 0.02 && (
               <div className="mt-2 text-center text-xs font-bold text-[var(--success)] bg-[color-mix(in_srgb,var(--success)_15%,transparent)] py-1 rounded">
-                ✓ ON TARGET (Within 2cm tolerance)
+                <Check className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> ON TARGET (Within 2cm tolerance)
               </div>
             )}
           </div>
@@ -911,7 +912,7 @@ function StakeoutPanel({
           onClick={triggerVoiceGuidance}
           className="w-full py-2 bg-[var(--accent)] text-[var(--bg-primary)] font-bold text-xs rounded hover:bg-[var(--accent-dim)] transition-colors flex items-center justify-center gap-2"
         >
-          <span>🗣️ Speak Navigation Guidance</span>
+          <Volume2 className="h-4 w-4" aria-hidden="true" /><span>Speak Navigation Guidance</span>
         </button>
 
         {lastSpoken && (

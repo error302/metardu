@@ -384,7 +384,7 @@ SendNMEA=1
             </div>
 
             <div className="p-3 rounded-xl bg-black/20 border border-[var(--border-color)] text-xs text-[var(--text-secondary)] leading-relaxed">
-              💡 <strong>KENCORS Notice:</strong> Survey of Kenya KENCORS stream operates in standard RTCM 3.2 MSM5 protocol. Registered land surveyors can authenticate using their SRB-issued NTRIP credentials.
+              <AlertTriangle className="mr-1 inline h-4 w-4" aria-hidden="true" /> <strong>KENCORS Notice:</strong> Survey of Kenya KENCORS stream operates in standard RTCM 3.2 MSM5 protocol. Registered land surveyors can authenticate using their SRB-issued NTRIP credentials.
             </div>
           </div>
         </div>

@@ -401,8 +401,8 @@ export function LocalCalibrationPanel() {
                       <td className="px-3 py-2 border border-zinc-700 font-mono">{p.residualMagnitude.toFixed(4)}</td>
                       <td className="px-3 py-2 border border-zinc-700">
                         {p.isOutlier
-                          ? <span className="text-red-400 font-medium">⚠ OUTLIER</span>
-                          : <span className="text-green-400">✓ OK</span>
+                          ? <span className="text-red-400 font-medium"><AlertTriangle className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> OUTLIER</span>
+                          : <span className="text-green-400"><CheckCircle className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> OK</span>
                         }
                       </td>
                     </tr>

@@ -180,7 +180,7 @@ export default function SettingOutPage() {
 
       {warnings.length > 0 && (
         <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-lg p-3 mb-4 text-xs text-yellow-400">
-          {warnings.map((w, i) => <div key={i}>⚠ {w}</div>)}
+          {warnings.map((w, i) => <div key={i}><AlertCircle className="mr-1 inline h-4 w-4" aria-hidden="true" /> {w}</div>)}
         </div>
       )}
       {error && <div role="alert" className="bg-red-500/10 border border-red-500/20 rounded-lg p-3 mb-4 text-xs text-red-400 flex items-center gap-2"><AlertCircle className="w-4 h-4" /> {error}</div>}

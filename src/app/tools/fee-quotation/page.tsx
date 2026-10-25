@@ -13,6 +13,7 @@ import {
   ShieldCheck,
   Clock,
   Printer,
+  Info,
 } from 'lucide-react'
 import {
   computeSurveyFee,
@@ -723,7 +724,7 @@ export default function FeeQuotationPage() {
                   </div>
 
                   <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200 leading-relaxed">
-                    💡 <strong className="font-semibold">Professional Practice Tip:</strong> Under
+                    <Info className="mr-1 inline h-4 w-4" aria-hidden="true" /> <strong className="font-semibold">Professional Practice Tip:</strong> Under
                     SRB practice guidelines, mobilizing field survey crews before receipt of the
                     50% initial disbursement is strongly discouraged.
                   </div>

@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { TriangleAlert, Check } from 'lucide-react'
 import {
   calibrateTransformation,
   validateCommonPoints,
@@ -297,8 +298,8 @@ export default function SiteCalibrationPage() {
                           <td className="py-1.5 text-right font-mono font-medium">{(tp.residualMagnitude * 1000).toFixed(2)}</td>
                           <td className="py-1.5 text-center">
                             {tp.isOutlier
-                              ? <span className="text-[var(--error)]">⚠ OUTLIER</span>
-                              : <span className="text-[var(--success)]">✓</span>
+                              ? <span className="text-[var(--error)]"><TriangleAlert className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> OUTLIER</span>
+                              : <span className="text-[var(--success)]"><Check className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> OK</span>
                             }
                           </td>
                         </tr>

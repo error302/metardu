@@ -6,7 +6,7 @@ const sections = [
     items: [
       { href: '/docs/quick-start', label: 'Quick Start Guide' },
       { href: '/project/new', label: 'Creating Your First Project' },
-      { href: '/project/[id]', label: 'Adding Survey Points' },
+      { href: '/docs/quick-start#step-3', label: 'Adding Survey Points' },
       { href: '/tools/traverse', label: 'Running a Traverse' },
     ]
   },

@@ -18,6 +18,16 @@ their remaining families.
 
 ## Current execution order
 
+### Owner's large-project and design direction, 25 October
+
+`LARGE_PROJECT_FIELD_TO_FINISH_PLAN_2026-10-25.md` applies the owner's Mwavumbo
+subdivision example to individual and team work, direct instruments and imported
+observations, other disciplines, measured scale and international core reuse.
+Prioritise the discovered scheme-import UUID/ownership/CSV/truncation defects,
+authoritative aggregate/paged reads and recoverable large-job processing. Keep
+the active navigation/admin audit and release/field gates. Visible product UI
+must use coherent geomatics/interface icons, with no emojis.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the

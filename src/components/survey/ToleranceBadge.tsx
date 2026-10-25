@@ -17,6 +17,7 @@
  */
 
 import React, { memo, useState } from 'react'
+import { TriangleAlert } from 'lucide-react'
 import {
   getToleranceBadgeColor,
   getToleranceBadgeLabel,
@@ -139,7 +140,7 @@ export const ToleranceBadge = memo(function ToleranceBadge({
           {/* Worst leg */}
           {result.worstLeg && (
             <div className="p-2 rounded-md bg-red-500/10 border border-red-500/20">
-              <div className="text-red-400 font-bold mb-0.5">⚠ WORST LEG: {result.worstLeg.from} → {result.worstLeg.to}</div>
+              <div className="text-red-400 font-bold mb-0.5"><TriangleAlert className="mr-1 inline h-4 w-4" aria-hidden="true" /> WORST LEG: {result.worstLeg.from} → {result.worstLeg.to}</div>
               <div className="text-gray-300">{result.worstLeg.diagnosis}</div>
               <div className="text-yellow-400 mt-1 font-medium">→ {result.worstLeg.recommendation}</div>
             </div>

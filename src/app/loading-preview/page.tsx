@@ -13,7 +13,8 @@ import {
   type RenderMode,
   type AnimStyle,
 } from '@/components/ascii/types'
-import { ArrowLeft, Sparkles, Sliders, Play, RotateCcw } from 'lucide-react'
+import { ArrowLeft, Sparkles, Sliders, RotateCcw } from 'lucide-react'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
 
 const ALL_RENDER_MODES: RenderMode[] = [
   'stars',
@@ -87,7 +88,7 @@ export default function LoadingPreviewStudio() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            ✨ ad (Stars)
+            <Sparkles className="mr-1 inline h-3.5 w-3.5" aria-hidden="true" /> ad (Stars)
           </button>
           <button
             onClick={() => loadPreset('Contour', CADASTRAL_CONTOUR_RECIPE)}
@@ -97,7 +98,7 @@ export default function LoadingPreviewStudio() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            📐 Cadastral Contour
+            <GeomaticsIcon symbol="terrain" className="mr-1 inline h-3.5 w-3.5" /> Cadastral Contour
           </button>
           <button
             onClick={() => loadPreset('Matrix', GEODETIC_MATRIX_RECIPE)}
@@ -107,7 +108,7 @@ export default function LoadingPreviewStudio() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            🟢 Geodetic Matrix
+            <GeomaticsIcon symbol="control-point" className="mr-1 inline h-3.5 w-3.5" /> Geodetic Matrix
           </button>
           <button
             onClick={() => loadPreset('Cross', SURVEYOR_CROSS_RECIPE)}
@@ -117,7 +118,7 @@ export default function LoadingPreviewStudio() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            🎯 Surveyor Cross
+            <GeomaticsIcon symbol="traverse" className="mr-1 inline h-3.5 w-3.5" /> Surveyor Cross
           </button>
           <button
             onClick={() => loadPreset('Voxel', ELEVATION_VOXEL_RECIPE)}
@@ -127,7 +128,7 @@ export default function LoadingPreviewStudio() {
                 : 'text-gray-400 hover:text-white'
             }`}
           >
-            🧊 Elevation Voxel
+            <GeomaticsIcon symbol="terrain" className="mr-1 inline h-3.5 w-3.5" /> Elevation Voxel
           </button>
         </div>
 

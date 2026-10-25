@@ -1,5 +1,6 @@
 'use client'
 import { useParams } from 'next/navigation'
+import { z } from 'zod'
 
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import {
@@ -10,50 +11,36 @@ import {
   Phone,
   Share2,
   ExternalLink,
-  ChevronRight,
   AlertTriangle,
   Layers,
-  Sparkles,
   Info,
   CheckCircle2,
   Target,
   Volume2,
   VolumeX,
+  Scale,
+  Construction,
+  MessagesSquare,
 } from 'lucide-react'
 
-interface Beacon {
-  id: string
-  name: string
-  easting: number
-  northing: number
-  lat: number
-  lng: number
-  monument: string
-  markStatus: string
-}
-
-interface ParcelData {
-  id: string
-  name: string
-  lrNumber: string
-  clientName: string
-  locality: string
-  county: string
-  surveyType: string
-  surveyorName: string
-  surveyorLicense: string
-  surveyorFirm: string
-  surveyorPhone: string
-  datum: string
-  areaHa: number
-  areaAcres: number
-  beaconsCount: number
-  beacons: Beacon[]
-  boundaryPoints: Array<[number, number]>
-  center: { lat: number; lng: number }
-  bounds: { minLat: number; maxLat: number; minLng: number; maxLng: number }
-  certifiedDate: string
-}
+const finiteNumber = z.number().finite()
+const parcelDataSchema = z.object({
+  id: z.string(), name: z.string(), lrNumber: z.string(), clientName: z.string(),
+  locality: z.string(), county: z.string(), surveyType: z.string(),
+  surveyorName: z.string(), surveyorLicense: z.string(), surveyorFirm: z.string(),
+  surveyorPhone: z.string(), datum: z.string(),
+  areaHa: finiteNumber, areaAcres: finiteNumber, beaconsCount: z.number().int().nonnegative(),
+  beacons: z.array(z.object({
+    id: z.string(), name: z.string(), easting: finiteNumber, northing: finiteNumber,
+    lat: finiteNumber.min(-90).max(90), lng: finiteNumber.min(-180).max(180),
+    monument: z.string(), markStatus: z.string(),
+  })),
+  boundaryPoints: z.array(z.tuple([finiteNumber, finiteNumber])),
+  center: z.object({ lat: finiteNumber, lng: finiteNumber }),
+  bounds: z.object({ minLat: finiteNumber, maxLat: finiteNumber, minLng: finiteNumber, maxLng: finiteNumber }),
+  certifiedDate: z.string(),
+})
+type ParcelData = z.infer<typeof parcelDataSchema>
 
 // Great-circle distance between two GPS lat/lng points in meters
 function computeHaversineDistance(
@@ -128,13 +115,16 @@ export default function ClientParcelPortal() {
         setError(null)
         const res = await fetch(`/api/public/parcel/${params.id}`)
         if (!res.ok) {
-          const body = await res.json().catch(() => ({}))
-          throw new Error(body.error || 'Failed to load parcel details')
+          const body: unknown = await res.json().catch(() => null)
+          const parsedError = z.object({ error: z.string() }).safeParse(body)
+          throw new Error(parsedError.success ? parsedError.data.error : 'Failed to load parcel details')
         }
-        const data = await res.json()
-        setParcel(data.parcel)
-        if (data.parcel.beacons?.length > 0) {
-          setSelectedBeaconId(data.parcel.beacons[0].id)
+        const body: unknown = await res.json()
+        const data = z.object({ parcel: parcelDataSchema }).safeParse(body)
+        if (!data.success) throw new Error('The parcel response is incomplete. Please contact the surveyor.')
+        setParcel(data.data.parcel)
+        if (data.data.parcel.beacons.length > 0) {
+          setSelectedBeaconId(data.data.parcel.beacons[0].id)
         }
       } catch (err: unknown) {
         setError(err instanceof Error ? err.message : 'Unable to find survey record')
@@ -184,10 +174,9 @@ export default function ClientParcelPortal() {
 
     const handleOrientation = (e: DeviceOrientationEvent) => {
       // webkitCompassHeading for iOS Safari
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const anyEvent = e as any
-      if (typeof anyEvent.webkitCompassHeading === 'number') {
-        setHeading(anyEvent.webkitCompassHeading)
+      const compassHeading = (e as DeviceOrientationEvent & { webkitCompassHeading?: number }).webkitCompassHeading
+      if (typeof compassHeading === 'number' && Number.isFinite(compassHeading)) {
+        setHeading(compassHeading)
       } else if (e.alpha !== null) {
         // Standard alpha (0-360deg counterclockwise)
         setHeading((360 - e.alpha) % 360)
@@ -286,7 +275,7 @@ export default function ClientParcelPortal() {
   const handleShare = async () => {
     const shareData = {
       title: `Plot Boundaries: ${parcel?.lrNumber || 'Land Survey Record'}`,
-      text: `View verified boundary beacons and GPS walking directions for ${parcel?.lrNumber || 'my plot'}:`,
+      text: `View the parcel record and approximate walking directions for ${parcel?.lrNumber || 'my plot'}:`,
       url: window.location.href,
     }
 
@@ -314,7 +303,7 @@ export default function ClientParcelPortal() {
     return (
       <div className="min-h-screen bg-zinc-950 text-white flex flex-col items-center justify-center p-6 text-center space-y-4">
         <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
-        <p className="text-zinc-400 text-sm font-medium">Retrieving verified survey records...</p>
+        <p className="text-zinc-400 text-sm font-medium">Retrieving parcel record...</p>
       </div>
     )
   }
@@ -344,7 +333,7 @@ export default function ClientParcelPortal() {
             </div>
             <div>
               <div className="text-[10px] uppercase font-bold tracking-wider text-amber-500">
-                Verified Survey Record
+                Parcel Record
               </div>
               <h1 className="text-sm font-bold text-white truncate max-w-[200px] sm:max-w-xs">
                 {parcel.lrNumber}
@@ -578,12 +567,12 @@ export default function ClientParcelPortal() {
                   {navMetrics.proximity === 'ARRIVED' && (
                     <div className="p-3 rounded-2xl bg-emerald-500/20 border border-emerald-500 text-emerald-300 text-sm font-bold flex items-center justify-center gap-2 animate-pulse">
                       <CheckCircle2 className="w-5 h-5" />
-                      <span>YOU HAVE ARRIVED AT {currentBeacon?.name}!</span>
+                      <span>Approximate navigation location reached: {currentBeacon?.name}</span>
                     </div>
                   )}
                   {navMetrics.proximity === 'CLOSE' && (
                     <div className="text-xs font-semibold text-amber-400">
-                      🎯 Within beacon vicinity. Look at ground for concrete beacon with iron pin.
+                      <Target className="mr-1 inline h-4 w-4" aria-hidden="true" /> Near the mapped beacon location. Check the source record and field evidence before identifying the mark.
                     </div>
                   )}
                   {navMetrics.proximity === 'APPROACHING' && (
@@ -795,42 +784,39 @@ export default function ClientParcelPortal() {
             <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-6 space-y-4">
               <h3 className="text-base font-bold text-white flex items-center gap-2">
                 <ShieldCheck className="w-5 h-5 text-amber-400" />
-                Landowner Rights & Boundary Laws (Survey Act Cap 299)
+                Boundary records and field guidance
               </h3>
 
               <div className="space-y-3 text-xs text-zinc-300 leading-relaxed">
                 <div className="p-3.5 rounded-xl bg-amber-500/10 border border-amber-500/20 space-y-1">
                   <div className="font-bold text-amber-400 text-sm">
-                    ⚖️ Section 26 — Penalty for Tampering with Beacons
+                    <Scale className="mr-1 inline h-4 w-4" aria-hidden="true" /> Protection of survey marks
                   </div>
                   <p>
-                    Under Section 26 of the Survey Act (Cap 299), any person who willfully defaces,
-                    removes, damages or alters any survey mark, beacon or monument commits a criminal
-                    offense punishable by imprisonment, heavy statutory fines, and mandatory cost
-                    re-imbursement for official re-establishment.
+                    Survey marks are protected under the Survey Act. Do not move, damage or
+                    alter a mark. Consult a licensed land surveyor before work that may disturb it.
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-zinc-800/60 border border-zinc-700/60 space-y-1">
                   <div className="font-bold text-white text-sm">
-                    🚧 Fencing & Construction Best Practice
+                    <Construction className="mr-1 inline h-4 w-4" aria-hidden="true" /> Fencing and construction
                   </div>
                   <p>
-                    When constructing boundary walls, live fences, or farm trenches, always ensure
-                    your foundation sits at least 5 centimetres inside your confirmed boundary line.
-                    Never dig out or cover a concrete beacon pillar under foundation concrete.
+                    Confirm the surveyed boundary, applicable setbacks and approved construction
+                    details before building. A map navigation position does not locate a legal
+                    boundary or establish where a foundation may be placed. Preserve survey marks.
                   </p>
                 </div>
 
                 <div className="p-3.5 rounded-xl bg-zinc-800/60 border border-zinc-700/60 space-y-1">
                   <div className="font-bold text-white text-sm">
-                    🤝 Boundary Disputes & Neighbor Encroachments
+                    <MessagesSquare className="mr-1 inline h-4 w-4" aria-hidden="true" /> Boundary questions and disputes
                   </div>
                   <p>
-                    If a neighboring landowner attempts to shift a fence or challenges your beacon
-                    positions, do not engage in physical altercations. Request an official joint
-                    boundary verification under Section 18 of the Survey Act through your licensed land
-                    surveyor or the County Surveyor.
+                    Retain the relevant title and survey records and record the concern without
+                    altering marks or fences. Seek guidance from a licensed land surveyor and the
+                    appropriate land office about the applicable boundary-review process.
                   </p>
                 </div>
               </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
+import { TriangleAlert } from 'lucide-react';
 
 export interface EpochData {
   date: string;            // ISO date
@@ -266,13 +267,13 @@ export function DeformationTimeSeries({
         <div className="flex flex-col gap-2">
           {alerts.thresholdExceeded && (
             <div className="bg-red-900/50 border border-red-500 text-red-200 px-4 py-2 rounded flex items-center gap-2">
-              <span className="font-bold">⚠️ CRITICAL:</span>
+              <span className="font-bold"><TriangleAlert className="mr-1 inline h-4 w-4" aria-hidden="true" /> CRITICAL:</span>
               <span>One or more monitoring points have exceeded the {alertThresholdMm}mm displacement threshold.</span>
             </div>
           )}
           {alerts.accelerating && (
             <div className="bg-amber-900/50 border border-amber-500 text-amber-200 px-4 py-2 rounded flex items-center gap-2">
-              <span className="font-bold">⚠️ WARNING:</span>
+              <span className="font-bold"><TriangleAlert className="mr-1 inline h-4 w-4" aria-hidden="true" /> WARNING:</span>
               <span>Acceleration detected in deformation rates. Suggest increasing observation frequency.</span>
             </div>
           )}
@@ -435,7 +436,7 @@ export function DeformationTimeSeries({
           <div className="min-w-[800px]">
             <svg width={planWidth} height={planHeight} className="bg-gray-900 rounded border border-gray-800 font-sans">
               {/* Draw reference points and latest vectors */}
-              {referenceEpoch.points.map((p, idx) => {
+              {referenceEpoch.points.map((p) => {
                 const px = toPlanX(p.easting);
                 const py = toPlanY(p.northing);
                 const stats = pointStats[p.id];

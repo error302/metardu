@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState, useMemo, useCallback } from 'react'
+import React, { useState, useMemo } from 'react'
 import {
   analyzePinCushion,
   MonumentRecovery,
@@ -23,9 +23,6 @@ import {
   Plus,
   Trash2,
   Upload,
-  CheckCircle2,
-  AlertTriangle,
-  FileCheck,
   ScatterChart,
   ShieldCheck,
   Scale,
@@ -62,7 +59,7 @@ function escapeHtml(value: unknown): string {
     '>': '&gt;',
     '"': '&quot;',
     "'": '&#39;',
-  })[character]!)
+  })[character] ?? character)
 }
 
 function csvCell(value: string | number): string {
@@ -97,7 +94,7 @@ export default function PinCushionPage() {
   }
 
   // Edit recovery item
-  const updateRecovery = (index: number, field: keyof MonumentRecovery, value: any) => {
+  const updateRecovery = <K extends keyof MonumentRecovery,>(index: number, field: K, value: MonumentRecovery[K]) => {
     const next = [...recoveries]
     next[index] = { ...next[index], [field]: value }
     setRecoveries(next)
@@ -179,8 +176,7 @@ export default function PinCushionPage() {
         useWeightedMean,
       }
       return analyzePinCushion(input)
-    } catch (e) {
-      console.error(e)
+    } catch {
       return null
     }
   }, [recoveries, monumentId, monumentType, useWeightedMean, coordinateReference, coordinatesConfirmed])
@@ -716,7 +712,7 @@ export default function PinCushionPage() {
                 )}
 
                 <div className="absolute bottom-2 left-2 text-[10px] text-[var(--text-secondary)] bg-black/70 px-2 py-1 rounded">
-                  🟢 Resolved Centroid &nbsp;|&nbsp; 🟡 Observed Epochs &nbsp;|&nbsp; 🔴 Outliers
+                  <span className="text-green-400">Resolved Centroid</span> &nbsp;|&nbsp; <span className="text-amber-400">Observed Epochs</span> &nbsp;|&nbsp; <span className="text-red-400">Outliers</span>
                 </div>
               </div>
             </div>

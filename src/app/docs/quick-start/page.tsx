@@ -4,28 +4,33 @@ export default function QuickStartPage() {
   const steps = [
     {
       number: '1',
-      title: 'Create Account',
-      desc: 'Go to metardu.app → Get Started → Register with your email and password',
+      title: 'Open your workspace',
+      desc: 'Open Dashboard and sign in, or create an account. Your dashboard is the starting point for projects, field records and deliverables.',
+      href: '/dashboard', linkLabel: 'Open Dashboard',
     },
     {
       number: '2',
-      title: 'Create Your First Project',
-      desc: 'Dashboard → New Project → Enter project name, location, UTM zone, and hemisphere',
+      title: 'Create and reference the project',
+      desc: 'Choose the survey type and record the job scope. In Project Settings, declare the reference system, height basis and grid or ground distance basis supported by your control.',
+      href: '/project/new', linkLabel: 'Create a project',
     },
     {
       number: '3',
-      title: 'Add Survey Points',
-      desc: 'Open your project → Add Point → Enter coordinates (Easting, Northing, Elevation)',
+      title: 'Bring in observations and survey points',
+      desc: 'Use Field Book with a supported instrument, enter observations manually, or import an existing field file. Confirm source units and CRS, retain the original records, and keep missing heights unknown.',
+      href: '/import', linkLabel: 'Open data import',
     },
     {
       number: '4',
-      title: 'Run a Traverse',
-      desc: 'Sidebar → Run Traverse → Enter legs with distances and bearings → Calculate',
+      title: 'Compute and review the survey',
+      desc: 'Open the project stages to review control and observations, then run the supported computation for your job. Topographic terrain, traverses and other survey types need their own inputs and checks.',
+      href: '/projects', linkLabel: 'Choose a project',
     },
     {
       number: '5',
-      title: 'Generate Report',
-      desc: 'Sidebar → Generate Report → PDF downloads with full working shown',
+      title: 'Prepare and check deliverables',
+      desc: 'Use the project Deliver stage for available drawings, schedules and reports. Review the saved revision, reference system and evidence, then check the output in the receiving application before professional issue.',
+      href: '/reports', linkLabel: 'Open documents',
     },
   ]
 
@@ -40,22 +45,23 @@ export default function QuickStartPage() {
 
         <div className="space-y-8">
           {steps.map((step) => (
-            <div key={step.number} className="flex gap-6">
+            <div key={step.number} id={`step-${step.number}`} className="flex scroll-mt-24 gap-6">
               <div className="flex-shrink-0 w-12 h-12 bg-[var(--accent)] rounded-full flex items-center justify-center text-black font-bold text-xl">
                 {step.number}
               </div>
               <div className="flex-1">
                 <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">{step.title}</h2>
                 <p className="text-[var(--text-secondary)]">{step.desc}</p>
+                <Link href={step.href} className="mt-3 inline-flex text-sm font-medium text-[var(--accent)] hover:underline">{step.linkLabel}</Link>
               </div>
             </div>
           ))}
         </div>
 
         <div className="mt-12 p-6 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)]">
-          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">That's It!</h3>
+          <h3 className="text-lg font-semibold text-[var(--text-primary)] mb-4">Continue project review</h3>
           <p className="text-[var(--text-secondary)] mb-4">
-            Your first survey is complete. You've created a project, added points, run a traverse, and generated a report.
+            Keep source observations, computations, review notes and output revisions together. A generated file does not establish field verification or professional approval.
           </p>
           <Link
             href="/dashboard"

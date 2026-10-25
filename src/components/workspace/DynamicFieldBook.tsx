@@ -467,7 +467,7 @@ export default function DynamicFieldBook({ projectId, surveyType, initialRows = 
         <div className="flex items-center gap-3">
           {isVirtualized && (
             <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-              ⚡ Virtualized ({visibleRows.length}/{rows.length} stations in DOM)
+              Showing {visibleRows.length} of {rows.length} stations
             </span>
           )}
           {hasEmptyRequired && <span className="text-xs text-amber-600">Required fields (*) must be filled.</span>}

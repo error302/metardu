@@ -8,14 +8,19 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import {
   Crosshair, Loader2, Check,
-  MapPin, Satellite, Cable, Plus, Activity,
-  AlertCircle, Zap, Circle,
+  MapPin, Plus, Activity,
+  AlertCircle, Zap, X,
 } from 'lucide-react'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
 import { useHaptics } from './MobileFieldUX'
 import type { GNSSBleConnection, GNSSPosition } from '@/lib/instruments/gnssBleConnection'
 import type { TotalStationConnection, InstrumentBrand } from '@/lib/instruments/totalStationSerial'
 
 export type CollectionMode = 'total-station' | 'gnss' | 'manual'
+function CollectionModeIcon({ mode, className }: { mode: CollectionMode; className: string }) {
+  return mode === 'manual' ? <Plus className={className} aria-hidden="true" />
+    : <GeomaticsIcon symbol={mode === 'total-station' ? 'total-station' : 'gnss-rover'} className={className} />
+}
 export type SurveyType = 'traverse' | 'leveling' | 'control' | 'topographic'
 
 export interface StreamedReading {
@@ -343,9 +348,6 @@ export function InstrumentStreamBar({
     }
   }, [autoCollect, mode, connected, autoCollectInterval, handleCollectGNSS])
 
-  const modeIcon = mode === 'total-station' ? Cable : mode === 'gnss' ? Satellite : Plus
-  const ModeIcon = modeIcon
-
   return (
     <div aria-label="Instrument capture" className={`${docked ? 'fixed bottom-0 left-0 right-0 z-40 max-h-[60dvh] overflow-y-auto' : 'rounded-xl border overflow-hidden'} bg-[var(--bg-secondary)] border-t border-[var(--border-color)]`}>
       {/* Error banner */}
@@ -353,8 +355,8 @@ export function InstrumentStreamBar({
         <div className="px-4 py-1.5 bg-red-500/10 border-b border-red-500/20 flex items-center gap-2 text-xs text-red-400">
           <AlertCircle className="w-3.5 h-3.5 shrink-0" />
           <span role="alert">{error}</span>
-          <button onClick={() => setError(null)} className="ml-auto text-red-400/50 hover:text-red-400">
-            <Circle className="w-3 h-3" />
+          <button onClick={() => setError(null)} aria-label="Dismiss instrument error" className="ml-auto text-red-400/50 hover:text-red-400">
+            <X className="w-3 h-3" aria-hidden="true" />
           </button>
         </div>
       )}
@@ -362,7 +364,6 @@ export function InstrumentStreamBar({
       {/* Mode selector */}
       <div className="flex items-center gap-1 px-3 pt-2">
         {(['total-station', 'gnss', 'manual'] as CollectionMode[]).map(m => {
-          const Icon = m === 'total-station' ? Cable : m === 'gnss' ? Satellite : Plus
           const label = m === 'total-station' ? 'Total Station' : m === 'gnss' ? 'GNSS Rover' : 'Manual'
           const active = mode === m
           return (
@@ -381,7 +382,7 @@ export function InstrumentStreamBar({
                   : 'bg-[var(--bg-tertiary)] text-[var(--text-muted)]'
               }`}
             >
-              <Icon className="w-3.5 h-3.5" />
+              <CollectionModeIcon mode={m} className="w-3.5 h-3.5" />
               {label}
             </button>
           )
@@ -428,7 +429,7 @@ export function InstrumentStreamBar({
               disabled={connecting || (mode === 'total-station' ? !capabilities.serial : !capabilities.bluetooth)}
               className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-[var(--bg-tertiary)] text-xs font-medium text-[var(--text-secondary)] hover:text-[var(--accent)] active:scale-95 transition"
             >
-              {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <ModeIcon className="w-4 h-4" />}
+              {connecting ? <Loader2 className="w-4 h-4 animate-spin" /> : <CollectionModeIcon mode={mode} className="w-4 h-4" />}
               {connecting ? 'Connecting...' : 'Connect'}
             </button>
           )}
