@@ -1,23 +1,12 @@
 'use client'
-
-/**
- * useSchemeLayers — /map scheme-layer lifecycle (plan Phase 5: MapClient is
- * thinned to a composition root; this cluster moved here).
- *
- * Owns the scheme (cadastral scheme) overlay state: loading the layers for the
- * current project, snapping the scheme sources to the active vertex editor,
- * seeding vertex-edit vertices from beacons, per-layer visibility toggles,
- * zoom-to-extent, removal and unmount cleanup.
- *
- * All OL work is delegated to the engine (`ol/drawing`, `ol/snapping`,
- * `lib/map/schemeLayer`); this hook only orchestrates state + effects.
- */
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { OLMap } from '@/lib/map/olTypes'
-import { createSchemeLayers, zoomToSchemeExtent } from '@/lib/map/schemeLayer'
-import { logger } from '@/lib/logger'
 import type VectorSource from 'ol/source/Vector'
-
+import type { OLMap } from '@/lib/map/olTypes'
+import {
+  createSchemeLayers,
+  zoomToSchemeExtent,
+  type SchemeLayerResult,
+} from '@/lib/map/schemeLayer'
 export interface UseSchemeLayersParams {
   schemeProjectId: string | null
   mapInstance: React.RefObject<import('ol/Map').default | null>
@@ -28,225 +17,211 @@ export interface UseSchemeLayersParams {
   >
 }
 
+/** Stored geometry is a background view; it never seeds a new, unordered polygon. */
 export function useSchemeLayers({
   schemeProjectId,
   mapInstance,
   mapReady,
   currentSurveyCrs,
-  setVertexEditingVertices,
 }: UseSchemeLayersParams) {
-  const [schemeLoading, setSchemeLoading] = useState(false)
-  const [schemeError, setSchemeError] = useState('')
-  const [schemeLoaded, setSchemeLoaded] = useState(false)
-  const [schemeParcelCount, setSchemeParcelCount] = useState(0)
-  const [schemeBlockCount, setSchemeBlockCount] = useState(0)
-  const [schemeBeaconCount, setSchemeBeaconCount] = useState(0)
-  const [schemeParcelSnapSource, setSchemeParcelSnapSource] = useState<VectorSource | null>(null)
-  const [schemeBeaconSnapSource, setSchemeBeaconSnapSource] = useState<VectorSource | null>(null)
-  const [showSchemeParcels, setShowSchemeParcels] = useState(true)
-  const [showSchemeBlocks, setShowSchemeBlocks] = useState(true)
-  const [showSchemeBeacons, setShowSchemeBeacons] = useState(true)
-  const currentProjectIdRef = useRef(schemeProjectId)
-  currentProjectIdRef.current = schemeProjectId
-  const loadedProjectIdRef = useRef<string | null>(null)
-  const suppressedProjectIdRef = useRef<string | null>(null)
-  const requestIdRef = useRef(0)
-  const schemeCleanupRef = useRef<(() => void) | null>(null)
-  const schemeLayersRef = useRef<{
-    parcelLayer: import('ol/layer/Vector').default | null
-    blockLayer: import('ol/layer/Vector').default | null
-    beaconLayer: import('ol/layer/Vector').default | null
-    extent: number[] | null
-  } | null>(null)
-
-  const loadSchemeData = useCallback(async () => {
-    if (!schemeProjectId || !mapInstance.current || schemeLoading || !currentSurveyCrs) return
-
-    const requestId = ++requestIdRef.current
-    const requestedProjectId = schemeProjectId
-    suppressedProjectIdRef.current = null
-    setSchemeLoading(true)
-    setSchemeError('')
-
-    try {
-      // Clean up any existing scheme layers first
-      if (schemeCleanupRef.current) {
-        schemeCleanupRef.current()
-        schemeCleanupRef.current = null
-        schemeLayersRef.current = null
-      }
-      setSchemeParcelSnapSource(null)
-      setSchemeBeaconSnapSource(null)
-
-      const result = await createSchemeLayers(
-        requestedProjectId,
-        mapInstance.current as unknown as OLMap,
-        {
-          autoZoom: true,
-          showParcelLabels: true,
-          epsg: currentSurveyCrs,
-        }
-      )
-
-      if (requestId !== requestIdRef.current || currentProjectIdRef.current !== requestedProjectId) {
-        result.cleanup()
-        return
-      }
-
-      schemeLayersRef.current = {
-        parcelLayer: result.parcelLayer,
-        blockLayer: result.blockLayer,
-        beaconLayer: result.beaconLayer,
-        extent: result.extent,
-      }
-      let resultCleaned = false
-      const cleanupSchemeResult = () => {
-        if (resultCleaned) return
-        resultCleaned = true
-        result.cleanup()
-      }
-      schemeCleanupRef.current = cleanupSchemeResult
-      setSchemeParcelSnapSource(result.parcelLayer.getSource())
-      setSchemeBeaconSnapSource(result.beaconLayer.getSource())
-
-      setSchemeParcelCount(result.parcelCount)
-      setSchemeBlockCount(result.blockCount)
-      setSchemeBeaconCount(result.beaconCount)
-      setSchemeLoaded(true)
-      loadedProjectIdRef.current = requestedProjectId
-
-      // ── Extract beacon vertices for vertex editing (Tier 2) ──
-      // Beacon coordinates are transformed for display but retain project-grid attributes.
-      const beaconSource = result.beaconLayer.getSource()
-      if (beaconSource) {
-        const beaconFeatures = beaconSource.getFeatures()
-        const beaconVertices = beaconFeatures
-          .map((f: import('ol/Feature').default) => {
-            const geom = f.getGeometry()
-            if (!geom || geom.getType() !== 'Point') return null
-            // Beacon coordinates are stored in EPSG:3857 (display projection)
-            // Use those original project-grid attributes for vertex editing.
-            return { easting: f.get('easting') as number, northing: f.get('northing') as number }
-          })
-          .filter(
-            (v: { easting: number; northing: number } | null): v is { easting: number; northing: number } =>
-              v !== null && v.easting !== undefined && v.northing !== undefined
-          )
-        if (beaconVertices.length >= 3) {
-          setVertexEditingVertices(beaconVertices)
-        }
-      }
-    } catch (err) {
-      if (requestId !== requestIdRef.current || currentProjectIdRef.current !== requestedProjectId) return
-      logger.error('[useSchemeLayers] Failed to load scheme data:', { error: err })
-      setSchemeError(err instanceof Error ? err.message : 'Failed to load scheme data')
-      setSchemeLoaded(false)
-    } finally {
-      if (requestId === requestIdRef.current) setSchemeLoading(false)
-    }
-  }, [schemeProjectId, schemeLoading, currentSurveyCrs, mapInstance, setVertexEditingVertices])
-
+  const [schemeLoading, setLoading] = useState(false),
+    [schemeError, setError] = useState(''),
+    [schemeLoaded, setLoaded] = useState(false),
+    [schemeViewMessage, setMessage] = useState('')
+  const [schemeParcelCount, setParcels] = useState(0),
+    [schemeBlockCount, setGroups] = useState(0)
+  const [showSchemeParcels, setShowParcels] = useState(true),
+    [showSchemeBlocks, setShowGroups] = useState(true)
+  const [schemeParcelSnapSource, setSnap] = useState<VectorSource | null>(null)
+  const key =
+      schemeProjectId && currentSurveyCrs
+        ? `${schemeProjectId}:${currentSurveyCrs}`
+        : null,
+    activeKey = useRef(key)
+  activeKey.current = key
+  const result = useRef<SchemeLayerResult | null>(null),
+    controller = useRef<AbortController | null>(null),
+    generation = useRef(0),
+    busy = useRef(false),
+    loaded = useRef<string | null>(null),
+    suppressed = useRef<string | null>(null),
+    alive = useRef(true)
+  const visibility = useRef({
+    parcels: showSchemeParcels,
+    groups: showSchemeBlocks,
+  })
+  visibility.current = { parcels: showSchemeParcels, groups: showSchemeBlocks }
   useEffect(() => {
-    if (loadedProjectIdRef.current === schemeProjectId) return
-    requestIdRef.current++
-    schemeCleanupRef.current?.()
-    schemeCleanupRef.current = null
-    schemeLayersRef.current = null
-    setSchemeParcelSnapSource(null)
-    setSchemeBeaconSnapSource(null)
-    loadedProjectIdRef.current = null
-    suppressedProjectIdRef.current = null
-    setSchemeLoading(false)
-    setSchemeError('')
-    setSchemeLoaded(false)
-    setSchemeParcelCount(0)
-    setSchemeBlockCount(0)
-    setSchemeBeaconCount(0)
-    setVertexEditingVertices([])
-  }, [schemeProjectId, setVertexEditingVertices])
-
-  // ── Scheme layer: auto-load when projectId is available ──
-  useEffect(() => {
-    if (schemeProjectId && suppressedProjectIdRef.current !== schemeProjectId && currentSurveyCrs && mapReady && !schemeLoaded && !schemeLoading && !schemeError) {
-      loadSchemeData()
-    }
-  }, [schemeProjectId, currentSurveyCrs, mapReady, schemeLoaded, schemeLoading, schemeError, loadSchemeData])
-
-  const toggleSchemeParcelVisibility = useCallback(() => {
-    if (!schemeLayersRef.current?.parcelLayer) return
-    const newVisible = !showSchemeParcels
-    schemeLayersRef.current.parcelLayer.setVisible(newVisible)
-    setShowSchemeParcels(newVisible)
-  }, [showSchemeParcels])
-
-  const toggleSchemeBlockVisibility = useCallback(() => {
-    if (!schemeLayersRef.current?.blockLayer) return
-    const newVisible = !showSchemeBlocks
-    schemeLayersRef.current.blockLayer.setVisible(newVisible)
-    setShowSchemeBlocks(newVisible)
-  }, [showSchemeBlocks])
-
-  const toggleSchemeBeaconVisibility = useCallback(() => {
-    if (!schemeLayersRef.current?.beaconLayer) return
-    const newVisible = !showSchemeBeacons
-    schemeLayersRef.current.beaconLayer.setVisible(newVisible)
-    setShowSchemeBeacons(newVisible)
-  }, [showSchemeBeacons])
-
-  const zoomToScheme = useCallback(() => {
-    if (!mapInstance.current || !schemeLayersRef.current?.extent) return
-    zoomToSchemeExtent(
-      mapInstance.current as unknown as OLMap,
-      schemeLayersRef.current.extent
-    )
-  }, [mapInstance])
-
-  const removeScheme = useCallback(() => {
-    requestIdRef.current++
-    suppressedProjectIdRef.current = currentProjectIdRef.current
-    loadedProjectIdRef.current = currentProjectIdRef.current
-    if (schemeCleanupRef.current) {
-      schemeCleanupRef.current()
-      schemeCleanupRef.current = null
-    }
-    schemeLayersRef.current = null
-    setSchemeLoaded(false)
-    setSchemeLoading(false)
-    setSchemeParcelCount(0)
-    setSchemeBlockCount(0)
-    setSchemeBeaconCount(0)
-    setSchemeError('')
-    setVertexEditingVertices([])
-  }, [setVertexEditingVertices])
-
-  // ── Scheme layer: cleanup on unmount ──
-  useEffect(() => {
-    const requestState = requestIdRef
-    const cleanupState = schemeCleanupRef
+    alive.current = true
     return () => {
-      requestState.current++
-      if (cleanupState.current) {
-        cleanupState.current()
-      }
+      alive.current = false
+      controller.current?.abort()
+      result.current?.cleanup()
     }
   }, [])
-
+  const loadSchemeData = useCallback(async () => {
+    if (
+      !key ||
+      !schemeProjectId ||
+      !currentSurveyCrs ||
+      !mapInstance.current ||
+      busy.current
+    )
+      return
+    const current = ++generation.current
+    busy.current = true
+    suppressed.current = null
+    controller.current?.abort()
+    result.current?.cleanup()
+    result.current = null
+    setSnap(null)
+    setLoading(true)
+    setError('')
+    setLoaded(false)
+    const request = new AbortController()
+    controller.current = request
+    const valid = () =>
+      alive.current &&
+      current === generation.current &&
+      activeKey.current === key
+    try {
+      const created = await createSchemeLayers(
+        schemeProjectId,
+        mapInstance.current as unknown as OLMap,
+        {
+          epsg: currentSurveyCrs,
+          autoZoom: true,
+          showParcelLabels: true,
+          signal: request.signal,
+          onViewportStatus: (status) => {
+            if (!valid()) return
+            if (status.loading || status.error || !status.view) setSnap(null)
+            setLoading(status.loading)
+            setError(status.error ?? '')
+            setMessage(status.message)
+            setParcels(
+              status.view?.features.filter(
+                (feature) => feature.properties.kind === 'parcel',
+              ).length ?? 0,
+            )
+            setGroups(
+              status.view?.features.filter(
+                (feature) => feature.properties.kind === 'density',
+              ).length ?? 0,
+            )
+          },
+          onSnapSource: (source) => {
+            if (valid()) setSnap(visibility.current.parcels ? source : null)
+          },
+        },
+      )
+      if (!valid()) {
+        created.cleanup()
+        return
+      }
+      result.current = created
+      loaded.current = key
+      created.parcelLayer.setVisible(visibility.current.parcels)
+      created.blockLayer.setVisible(visibility.current.groups)
+      setLoaded(true)
+    } catch (failure) {
+      if (valid()) {
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : 'Stored geometry is unavailable.',
+        )
+        setMessage(
+          'Stored geometry is unavailable. No shape is available for snapping.',
+        )
+        setLoading(false)
+        setLoaded(false)
+      }
+    } finally {
+      if (current === generation.current) busy.current = false
+    }
+  }, [key, schemeProjectId, currentSurveyCrs, mapInstance])
+  useEffect(() => {
+    generation.current++
+    busy.current = false
+    controller.current?.abort()
+    result.current?.cleanup()
+    result.current = null
+    loaded.current = null
+    suppressed.current = null
+    setSnap(null)
+    setLoading(false)
+    setError('')
+    setLoaded(false)
+    setMessage('')
+    setParcels(0)
+    setGroups(0)
+  }, [key])
+  useEffect(() => {
+    if (
+      key &&
+      mapReady &&
+      loaded.current !== key &&
+      suppressed.current !== key &&
+      !busy.current &&
+      !schemeError
+    )
+      void loadSchemeData()
+  }, [key, mapReady, schemeError, loadSchemeData])
+  const toggleSchemeParcelVisibility = useCallback(() => {
+    const visible = !visibility.current.parcels
+    visibility.current.parcels = visible
+    setShowParcels(visible)
+    result.current?.parcelLayer.setVisible(visible)
+    const source = result.current?.parcelSnapSource
+    setSnap(visible && source?.getFeatures().length ? source : null)
+  }, [])
+  const toggleSchemeBlockVisibility = useCallback(() => {
+    const visible = !visibility.current.groups
+    visibility.current.groups = visible
+    setShowGroups(visible)
+    result.current?.blockLayer.setVisible(visible)
+  }, [])
+  const zoomToScheme = useCallback(() => {
+    if (mapInstance.current && result.current)
+      void zoomToSchemeExtent(
+        mapInstance.current as unknown as OLMap,
+        result.current.extent,
+      )
+  }, [mapInstance])
+  const removeScheme = useCallback(() => {
+    generation.current++
+    busy.current = false
+    suppressed.current = activeKey.current
+    loaded.current = activeKey.current
+    controller.current?.abort()
+    result.current?.cleanup()
+    result.current = null
+    setSnap(null)
+    setLoading(false)
+    setLoaded(false)
+    setError('')
+    setMessage('Stored geometry layers removed.')
+    setParcels(0)
+    setGroups(0)
+  }, [])
   return {
     schemeLoading,
     schemeError,
     schemeLoaded,
+    schemeViewMessage,
     schemeParcelCount,
     schemeBlockCount,
-    schemeBeaconCount,
+    schemeBeaconCount: 0,
     schemeParcelSnapSource,
-    schemeBeaconSnapSource,
+    schemeBeaconSnapSource: null,
     showSchemeParcels,
     showSchemeBlocks,
-    showSchemeBeacons,
+    showSchemeBeacons: false,
     loadSchemeData,
     toggleSchemeParcelVisibility,
     toggleSchemeBlockVisibility,
-    toggleSchemeBeaconVisibility,
+    toggleSchemeBeaconVisibility: () => {},
     zoomToScheme,
     removeScheme,
   }

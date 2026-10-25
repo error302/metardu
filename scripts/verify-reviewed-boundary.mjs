@@ -6,6 +6,11 @@ import { createRequire } from 'node:module'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
+const viewMode = process.argv[2] === 'view'
+assert.ok(
+  process.argv.length === (viewMode ? 3 : 2),
+  'Use no argument or the exact view verification mode.',
+)
 const service = JSON.parse(
   execFileSync(
     'docker',
@@ -178,6 +183,25 @@ const files = [
   'src/lib/audit/auditHash.ts',
   'tests/boundary-review.test.ts',
   'tests/boundary-review-ui.test.tsx',
+  ...(viewMode
+    ? [
+        'scripts/verify-scheme-view-cases.mjs',
+        'src/lib/scheme/readSchemeView.ts',
+        'src/lib/scheme/schemeView.ts',
+        'src/lib/map/schemeLayer.ts',
+        'src/app/api/scheme/map/route.ts',
+        'src/app/map/hooks/useSchemeLayers.ts',
+        'src/app/map/MapReactContext.tsx',
+        'src/app/map/MapClient.tsx',
+        'src/app/project/[id]/scheme/map/page.tsx',
+        'src/app/project/[id]/scheme/map/SchemeMapCanvas.tsx',
+        'tests/scheme-view-contract.test.ts',
+        'tests/scheme-layer-lifecycle.test.ts',
+        'tests/scheme-hook-lifecycle.test.tsx',
+        'tests/scheme-map-page.test.tsx',
+        'tests/fixtures/schemeView.ts',
+      ]
+    : []),
 ]
 const hashes = () =>
   Object.fromEntries(
@@ -194,10 +218,13 @@ const report = {
   fixtureSchema: schema,
   checks: [],
 }
-mkdirSync('.cache/reviewed-boundary', { recursive: true })
+const reportRoot = viewMode
+  ? '.cache/scheme-geometry-view'
+  : '.cache/reviewed-boundary'
+mkdirSync(reportRoot, { recursive: true })
 const record = () =>
   writeFileSync(
-    '.cache/reviewed-boundary/native.json',
+    `${reportRoot}/native.json`,
     JSON.stringify(report, null, 2) + '\n',
   )
 const fingerprint = async () => {
@@ -209,6 +236,7 @@ const fingerprint = async () => {
     'traverse_coordinates',
     'traverse_observations',
     'users',
+    'blocks',
   ])
     output[table] = (
       await admin.query(
@@ -228,10 +256,10 @@ const state = async () => {
 async function reset() {
   fault = ''
   await pool.query(
-    'TRUNCATE fixture_audit,parcel_boundary_drafts,traverse_coordinates,traverse_observations,parcel_traverses,parcels,project_reference_systems,projects,users CASCADE',
+    'TRUNCATE fixture_audit,parcel_boundary_drafts,traverse_coordinates,traverse_observations,parcel_traverses,parcels,blocks,project_reference_systems,projects,users CASCADE',
   )
   await pool.query('INSERT INTO users VALUES($1),($2)', [actor, other])
-  await pool.query('INSERT INTO projects VALUES($1,$2),($3,$2)', [
+  await pool.query('INSERT INTO projects(id,user_id) VALUES($1,$2),($3,$2)', [
     project,
     actor,
     secondProject,
@@ -283,6 +311,7 @@ async function check(name, work) {
 let original,
   ledger,
   created = false
+let expectedViewCases = 0
 await admin.connect()
 try {
   assert.equal(
@@ -311,7 +340,8 @@ try {
     `CREATE SCHEMA ${schema};COMMENT ON SCHEMA ${schema} IS '${marker}'`,
   )
   created = true
-  await pool.query(`CREATE TABLE users(id uuid PRIMARY KEY);CREATE TABLE projects(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE);
+  await pool.query(`CREATE TABLE users(id uuid PRIMARY KEY);CREATE TABLE projects(id uuid PRIMARY KEY,user_id uuid NOT NULL REFERENCES users(id) ON DELETE CASCADE,name text NOT NULL DEFAULT 'SYNTHETIC geometry project');
+ CREATE TABLE blocks(id uuid PRIMARY KEY,project_id uuid REFERENCES projects(id) ON DELETE CASCADE,block_number text);
  CREATE TABLE project_reference_systems(id uuid PRIMARY KEY,project_id uuid UNIQUE REFERENCES projects(id) ON DELETE CASCADE,horizontal_crs text,notes text);
  CREATE TABLE parcels(id uuid PRIMARY KEY,project_id uuid REFERENCES projects(id) ON DELETE CASCADE,block_id uuid,parcel_number text,status text,revision_number integer DEFAULT 0,lr_number_confirmed text,area_ha numeric(12,6),geom public.geometry(Polygon),boundary_geojson jsonb,updated_at timestamptz);
  CREATE TABLE parcel_traverses(id uuid PRIMARY KEY,project_id uuid REFERENCES projects(id) ON DELETE CASCADE,parcel_id uuid REFERENCES parcels(id) ON DELETE CASCADE,traverse_name text,status text,version integer DEFAULT 1,updated_at timestamptz);
@@ -985,6 +1015,26 @@ try {
     assert.equal((await save({ padding: 'x'.repeat(66000) })).status, 413)
     assert.deepEqual(await state(), before)
   })
+  if (viewMode) {
+    const cases = await import('./verify-scheme-view-cases.mjs')
+    expectedViewCases = cases.EXPECTED_CASES
+    await cases.verifySchemeViews({
+      check,
+      pool,
+      actor,
+      other,
+      project,
+      secondProject,
+      parcel,
+      traverse,
+      points,
+      command,
+      save,
+      report,
+      require,
+      randomUUID,
+    })
+  }
 } finally {
   await pool.end()
   try {
@@ -1027,7 +1077,7 @@ try {
     assert.deepEqual(hashes(), report.source)
     report.sourcePreserved = true
     report.status =
-      report.checks.length === 50 &&
+      report.checks.length === 50 + expectedViewCases &&
       report.checks.every((row) => row.passed) &&
       report.ownedFixtureRemoved &&
       report.originalRecordsPreserved &&

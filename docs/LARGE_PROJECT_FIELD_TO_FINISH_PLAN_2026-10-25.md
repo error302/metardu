@@ -145,18 +145,17 @@ to address together rather than enabling the existing conversion button alone:
   Its caller could consequently announce creation without persisted geometry.
   The replacement requires an exact, revision-bound server acknowledgement.
 - The old helper assumed EPSG:21037; it now requires the reviewed saved grid.
-  The dedicated `SchemeMapCanvas` still assumes EPSG:21037 and ignores the map response's declared CRS. Reuse authoritative saved
-  project reference admission, with no invented fallback or unchecked transform.
+  The dedicated map now consumes the authoritative saved project reference;
+  the stored-geometry checkpoint below removes its independent EPSG:21037 assumption.
 - Legacy traverse GET orders coordinates by station label; map SQL similarly
   orders by station label and references `station_name`/`elevation`, while the
   legacy application writer/reader use `station`/`rl`; the canonical table uses
   `station_name`/`elevation`. Label sorting does not establish
   a reviewed boundary chain. Preserve exact computation/observation revisions,
   explicit ordered boundary membership and topology checks before geometry writes.
-- `/api/scheme/map` downloads every coordinate-bearing parcel and builds rings
-  and bounds in application memory. Replace it with bounded viewport/block
-  reads and actual retained geometry/evidence; do not manufacture parcel polygons
-  simply because three traverse station rows exist.
+- The former `/api/scheme/map` downloaded all coordinate-bearing parcels and
+  built rings in application memory. The stored-geometry checkpoint below
+  replaces it with bounded spatial reads and actual stored geometry.
 
 `REVIEWED_BOUNDARY_DRAFT_ACCEPTANCE_2026-10-25.md` now records the explicit parcel /
 retained-source / ordered-vertex review, authoritative-grid draft persistence,
@@ -168,6 +167,19 @@ offline/crew, applied-schema and field gates remain open.
 The unresolved entries are source findings, not accepted map behavior. The preserved training
 drawing and map storage remain untouched. They remain release blockers alongside
 ordinary-account, browser, receiving-application and professional field evidence.
+
+### Stored geometry and large views
+
+`STORED_GEOMETRY_MAP_ACCEPTANCE_2026-10-25.md` connects the reviewed parcel draft
+to an owner-bound spatial view. Whole-project counts, at most 50 individual
+polygons or 500 display-only density groups, explicit omitted records and saved
+grid/evidence admission replace full-project station-ring reconstruction.
+Unchanged reviewed drafts alone supply snapping geometry. Project/grid changes,
+pan/zoom, hidden layers and failures invalidate stale requests and snapping;
+background vertices never seed the user's drawing. Native synthetic coverage
+includes 10,000 stored polygons. This is not actual ward, concurrency or field
+proof. Atomic retained exports, public parcel privacy, legacy traverse intake,
+crew/offline work and the existing release gates remain open.
 
 ## Interface checkpoint
 

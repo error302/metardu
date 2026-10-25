@@ -4,8 +4,8 @@
  *
  * Provides:
  *  - Load Scheme button (fetches from API)
- *  - Toggle switches for parcel / block / beacon layers
- *  - Parcel / block / beacon counts
+ *  - Stored polygon / display-only density group controls
+ *  - Bounded viewport counts and explicit review/availability status
  *  - Loading spinner during fetch
  *  - Error state with retry
  *  - Zoom-to-scheme button
@@ -29,17 +29,15 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
     schemeProjectId,
     schemeLoading: loading,
     schemeError: error,
+    schemeViewMessage,
     schemeLoaded: loaded,
     schemeParcelCount: parcelCount,
     schemeBlockCount: blockCount,
-    schemeBeaconCount: beaconCount,
     showSchemeParcels: showParcels,
     showSchemeBlocks: showBlocks,
-    showSchemeBeacons: showBeacons,
     loadSchemeData,
     toggleSchemeParcelVisibility,
     toggleSchemeBlockVisibility,
-    toggleSchemeBeaconVisibility,
     zoomToScheme,
     removeScheme,
   } = useMapContext()
@@ -58,7 +56,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
           <div className="flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-[var(--accent)]" />
             <span className="text-[11px] font-semibold text-[var(--text-secondary)] uppercase tracking-wider">
-              Scheme Data
+              Stored geometry
             </span>
           </div>
         </div>
@@ -116,32 +114,25 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
           )}
 
           {/* Layer Toggles (only when loaded) */}
+          {schemeViewMessage&&<p role="status" className="break-words rounded-lg border border-[var(--border-color)] p-2 text-xs">{schemeViewMessage}</p>}
           {loaded && (
             <>
               <div className="space-y-1.5">
                 {/* Parcels toggle */}
                 <LayerToggle
-                  label="Parcels"
+                  label="Stored polygons in view"
                   count={parcelCount}
                   active={showParcels}
-                  color="#006600"
+                  color="#6F8D7A"
                   onToggle={toggleSchemeParcelVisibility}
                 />
                 {/* Blocks toggle */}
                 <LayerToggle
-                  label="Blocks"
+                  label="Visual density groups"
                   count={blockCount}
                   active={showBlocks}
-                  color="#D17B47"
+                  color="#616C74"
                   onToggle={toggleSchemeBlockVisibility}
-                />
-                {/* Beacons toggle */}
-                <LayerToggle
-                  label="Beacons"
-                  count={beaconCount}
-                  active={showBeacons}
-                  color="#FFD700"
-                  onToggle={toggleSchemeBeaconVisibility}
                 />
               </div>
 
@@ -151,6 +142,7 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
               </div>
 
               {/* Action buttons */}
+              <button type="button" onClick={loadSchemeData} disabled={loading} className="w-full rounded-lg border border-[var(--border-color)] px-3 py-2 text-xs disabled:opacity-40">Reload geometry and reference</button>
               <div className="flex items-center gap-1.5">
                 <button
                   onClick={zoomToScheme}

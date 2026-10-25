@@ -64,6 +64,7 @@ export interface MapContextValue {
   // ── Scheme layer state ──
   schemeLoading: boolean
   schemeError: string
+  schemeViewMessage?: string
   schemeLoaded: boolean
   schemeParcelCount: number
   schemeBlockCount: number

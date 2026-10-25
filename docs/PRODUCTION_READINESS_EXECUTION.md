@@ -18,6 +18,20 @@ their remaining families.
 
 ## Current execution order
 
+### Stored geometry map source checkpoint, 25 October
+
+`STORED_GEOMETRY_MAP_ACCEPTANCE_2026-10-25.md` records the replacement of
+station-sorted parcel reconstruction and independent map CRS defaults with
+owner-bound stored polygons, bounded viewport/density reads and explicit
+reviewed/changed/unassessed states. Only unchanged reviewed drafts can snap.
+Pan/zoom, scope changes, hidden layers and failed reads invalidate old geometry;
+owned cleanup preserves the drawing. Synthetic checks include 10,000 polygons
+and exact-ID selection refusal. No new migration or production change is part
+of this checkpoint; boundary history 119 remains fixture-only. Ordinary-account,
+administrator/browser, mobile and field evidence remain open. Legacy scheme
+exports, public parcel privacy/reference defaults and traverse intake are the
+next source integrity priorities, alongside the existing release gates.
+
 ### Owner's large-project and design direction, 25 October
 
 `LARGE_PROJECT_FIELD_TO_FINISH_PLAN_2026-10-25.md` applies the owner's Mwavumbo
