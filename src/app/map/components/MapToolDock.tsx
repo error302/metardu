@@ -2,6 +2,8 @@
 /** Shared desktop/mobile tool groups with one scrollable context panel at a time. */
 
 import React, { memo, useState, useCallback, useEffect, useMemo } from 'react'
+import Link from 'next/link'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
 import {
   Binoculars, Crosshair, Calculator, Target,
   Layers, Download,
@@ -391,34 +393,23 @@ export const CaptureContent = memo(function CaptureContent() {
 })
 
 export const ComputeContent = memo(function ComputeContent() {
-  const { hasTraverse, traverseParcelPreviewActive, createParcelFromTraverse, confirmTraverseParcel, cancelTraverseParcel } = useMapContext()
-
+  const { schemeProjectId } = useMapContext()
   return (
     <div className="space-y-0.5">
       <SectionLabel hint="C">COGO Computation</SectionLabel>
       <CogoToolsPanel />
-
       <SectionLabel hint="T">Traverse Readout</SectionLabel>
       <CogoInfoPanel />
-
       <InstantClosureFeedback />
-
-      <SectionLabel hint="P">Traverse → Parcel</SectionLabel>
-      {hasTraverse && !traverseParcelPreviewActive ? (
-        <ActionBtn label="Create Parcel from Traverse" icon={<Hexagon className="w-4 h-4" />} isActive={false} onClick={createParcelFromTraverse} shortcut="P" />
-      ) : traverseParcelPreviewActive ? (
-        <div className="space-y-1.5">
-          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400">
-            Preview active — confirm or cancel to continue
-          </div>
-          <div className="flex gap-1.5">
-            <button onClick={confirmTraverseParcel} className="flex-1 py-1.5 rounded-lg bg-green-500/20 border border-green-500/30 text-[10px] font-semibold text-green-400 hover:bg-green-500/30 transition-colors">Confirm</button>
-            <button onClick={cancelTraverseParcel} className="flex-1 py-1.5 rounded-lg bg-red-500/20 border border-red-500/30 text-[10px] font-semibold text-red-400 hover:bg-red-500/30 transition-colors">Cancel</button>
-          </div>
+      <SectionLabel hint="P">Parcel Boundary Review</SectionLabel>
+      {schemeProjectId ? (
+        <div className="space-y-2 px-1 text-xs">
+          <p>Choose a parcel in its block register, then review its retained coordinates and boundary order.</p>
+          <Link href={`/project/${schemeProjectId}/scheme/blocks`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-color)] px-3 py-2 underline underline-offset-4">
+            <GeomaticsIcon symbol="parcel" className="h-4 w-4" />Open parcel registers
+          </Link>
         </div>
-      ) : (
-        <p className="text-[10px] text-[var(--text-muted)] px-1">Load a scheme with traverse data to create a parcel.</p>
-      )}
+      ) : <p className="px-1 text-xs text-[var(--text-muted)]">Open a project to review a parcel boundary.</p>}
     </div>
   )
 })

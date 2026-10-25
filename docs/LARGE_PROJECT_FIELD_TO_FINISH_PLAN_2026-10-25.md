@@ -136,20 +136,21 @@ existing-administrator browser audit continues alongside this work.
 Read-only source review after block checkpoint `b4825c93` found concrete defects
 to address together rather than enabling the existing conversion button alone:
 
-- `useTraverseParcelPreview` expects `data.hasTraverses`/`data.parcels`, while the
+- The prior `useTraverseParcelPreview` expected `data.hasTraverses`/`data.parcels`, while the
   summary endpoint returns an array of project computation records. It also
-  chooses the first parcel again on confirmation instead of retaining an explicit
+  chose the first parcel again on confirmation instead of retaining an explicit
   parcel/computation selection. A project computation record is not a parcel ID.
-- `traverseToParcel.createParcelFromTraverse` calls two absent singular-parcel
-  boundary routes, then can return a calculated result after both saves fail.
-  Its caller can consequently announce creation without persisted geometry.
-  Require an exact, revision-bound server acknowledgement; remove success fallback.
-- The same helper and the dedicated `SchemeMapCanvas` assume EPSG:21037. The
-  canvas ignores the map response's declared CRS. Reuse authoritative saved
+- The prior `traverseToParcel.createParcelFromTraverse` called two absent singular-parcel
+  boundary routes, then could return a calculated result after both saves failed.
+  Its caller could consequently announce creation without persisted geometry.
+  The replacement requires an exact, revision-bound server acknowledgement.
+- The old helper assumed EPSG:21037; it now requires the reviewed saved grid.
+  The dedicated `SchemeMapCanvas` still assumes EPSG:21037 and ignores the map response's declared CRS. Reuse authoritative saved
   project reference admission, with no invented fallback or unchecked transform.
 - Legacy traverse GET orders coordinates by station label; map SQL similarly
   orders by station label and references `station_name`/`elevation`, while the
-  canonical writer/reader use `station`/`rl`. Label sorting does not establish
+  legacy application writer/reader use `station`/`rl`; the canonical table uses
+  `station_name`/`elevation`. Label sorting does not establish
   a reviewed boundary chain. Preserve exact computation/observation revisions,
   explicit ordered boundary membership and topology checks before geometry writes.
 - `/api/scheme/map` downloads every coordinate-bearing parcel and builds rings
@@ -157,7 +158,14 @@ to address together rather than enabling the existing conversion button alone:
   reads and actual retained geometry/evidence; do not manufacture parcel polygons
   simply because three traverse station rows exist.
 
-These are source findings, not new accepted map behavior. The preserved training
+`REVIEWED_BOUNDARY_DRAFT_ACCEPTANCE_2026-10-25.md` now records the explicit parcel /
+retained-source / ordered-vertex review, authoritative-grid draft persistence,
+retained original observations/prior geometry and exact recoverable receipts.
+The legacy first-record and failed-save success paths are replaced with that
+workflow. Migration 119 is fixture-only. The remaining map, computation, export,
+offline/crew, applied-schema and field gates remain open.
+
+The unresolved entries are source findings, not accepted map behavior. The preserved training
 drawing and map storage remain untouched. They remain release blockers alongside
 ordinary-account, browser, receiving-application and professional field evidence.
 

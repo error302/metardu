@@ -1,308 +1,202 @@
 'use client'
-/**
- * Traverse-to-Parcel Workflow
- *
- * Converts adjusted traverse station coordinates into a GeoJSON polygon
- * suitable for storing as a parcel boundary.
- *
- * Workflow:
- *  1. Fetch adjusted traverse coordinates from the database
- *  2. Connect stations in order as a closed polygon
- *  3. Preview on the map as a polygon feature
- *  4. On confirm, save as a new parcel boundary
- *
- * Uses EPSG:21037 for coordinate storage.
- * All OpenLayers imports are dynamic for SSR compatibility.
- */
-import { logger } from '@/lib/logger'
-import { SRID_21037 } from '@/lib/map/projection'
-
-// ─── Types ────────────────────────────────────────────────────────────────
-
+import { z } from 'zod'
+import {
+  assertProjectedCrs,
+  surveyArea,
+  surveyPerimeter,
+} from '@/lib/spatial/projectCrs'
+import { isSimplePolygonRing } from '@/lib/spatial/simplePolygon'
+import {
+  boundaryCommandSchema,
+  boundaryReceiptSchema,
+  prepareBoundary,
+  type BoundaryCommand,
+  type BoundarySource,
+} from '@/lib/scheme/boundaryReview'
 export interface TraversePoint {
   easting: number
   northing: number
   pointName: string
   rl?: number | null
 }
-
 export interface TraverseToParcelResult {
   polygon: GeoJSON.Polygon
-  area: number      // square meters
-  perimeter: number // meters
+  area: number
+  perimeter: number
   pointCount: number
 }
-
-// ─── GeoJSON Polygon Construction ─────────────────────────────────────────
-
-/**
- * Convert adjusted traverse station coordinates into a GeoJSON Polygon.
- * The stations are connected in order and the polygon is closed automatically.
- *
- * Coordinates are in EPSG:21037 (Arc 1960 / UTM Zone 37S).
- */
+export class BoundarySaveRefusal extends Error {
+  constructor(
+    message: string,
+    readonly status: number,
+  ) {
+    super(message)
+    this.name = 'BoundarySaveRefusal'
+  }
+}
 export function traversePointsToPolygon(
-  traversePoints: Array<{ easting: number; northing: number; pointName: string }>
+  points: TraversePoint[],
 ): GeoJSON.Polygon {
-  if (traversePoints.length < 3) {
-    throw new Error('At least 3 traverse points are required to form a polygon')
-  }
-
-  // Build the coordinate ring — close by repeating the first point
-  const ring: number[][] = traversePoints.map(p => [p.easting, p.northing])
-  // Close the ring
-  ring.push([traversePoints[0].easting, traversePoints[0].northing])
-
-  return {
-    type: 'Polygon',
-    coordinates: [ring],
-  }
+  if (!isSimplePolygonRing(points))
+    throw new Error(
+      'Review at least three finite, distinct vertices in a simple boundary order.',
+    )
+  const ring = points.map((point) => [point.easting, point.northing])
+  return { type: 'Polygon', coordinates: [[...ring, [...ring[0]]]] }
 }
-
-/**
- * Calculate the area of a polygon using the Shoelace formula.
- * Coordinates are in projected CRS (meters).
- */
-export function calculatePolygonArea(vertices: Array<{ easting: number; northing: number }>): number {
-  if (vertices.length < 3) return 0
-
-  let area = 0
-  const n = vertices.length
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n
-    area += vertices[i].easting * vertices[j].northing
-    area -= vertices[j].easting * vertices[i].northing
-  }
-
-  return Math.abs(area / 2)
+export function calculatePolygonArea(
+  points: Array<{ easting: number; northing: number }>,
+  crs: string,
+) {
+  return surveyArea(
+    points.map((point) => [point.easting, point.northing]),
+    crs,
+  )
 }
-
-/**
- * Calculate the perimeter of a polygon.
- * Coordinates are in projected CRS (meters).
- */
-export function calculatePolygonPerimeter(vertices: Array<{ easting: number; northing: number }>): number {
-  if (vertices.length < 2) return 0
-
-  let perimeter = 0
-  const n = vertices.length
-  for (let i = 0; i < n; i++) {
-    const j = (i + 1) % n
-    const dE = vertices[j].easting - vertices[i].easting
-    const dN = vertices[j].northing - vertices[i].northing
-    perimeter += Math.sqrt(dE * dE + dN * dN)
-  }
-
-  return perimeter
+export function calculatePolygonPerimeter(
+  points: Array<{ easting: number; northing: number }>,
+  crs: string,
+) {
+  return surveyPerimeter(
+    points.map((point) => [point.easting, point.northing]),
+    crs,
+  )
 }
-
-/**
- * Full conversion: traverse points → GeoJSON polygon + area + perimeter.
- */
 export function traverseToParcelResult(
-  traversePoints: Array<{ easting: number; northing: number; pointName: string }>
+  points: TraversePoint[],
+  crs: string,
 ): TraverseToParcelResult {
-  const polygon = traversePointsToPolygon(traversePoints)
-  const area = calculatePolygonArea(traversePoints)
-  const perimeter = calculatePolygonPerimeter(traversePoints)
-
   return {
-    polygon,
-    area,
-    perimeter,
-    pointCount: traversePoints.length,
+    polygon: traversePointsToPolygon(points),
+    area: calculatePolygonArea(points, crs),
+    perimeter: calculatePolygonPerimeter(points, crs),
+    pointCount: points.length,
   }
 }
 
-// ─── API: Create Parcel from Traverse ─────────────────────────────────────
-
-/**
- * Fetch adjusted traverse results and create a parcel boundary.
- * Calls the traverse API to get coordinates, then saves as a new parcel.
- *
- * @param projectId — The project ID
- * @param parcelId — The existing parcel ID that has the traverse
- * @returns The new or updated parcel ID
- */
+/** A saved draft is returned only after the exact reviewed command is acknowledged. */
 export async function createParcelFromTraverse(
   projectId: string,
-  parcelId: string
-): Promise<{ parcelId: string; areaHa: number | null; polygon: GeoJSON.Polygon }> {
-  // 1. Fetch the traverse coordinates from the API
-  const traverseRes = await fetch(`/api/scheme/traverse?parcel_id=${parcelId}`)
-  if (!traverseRes.ok) {
-    throw new Error(`Failed to fetch traverse data: ${traverseRes.statusText}`)
+  parcelId: string,
+  review?: { command: BoundaryCommand; source: BoundarySource },
+) {
+  if (!review)
+    throw new Error(
+      'Choose a parcel and review its source grid and ordered vertices in Boundary review before saving.',
+    )
+  const command = boundaryCommandSchema.parse(review.command),
+    source = review.source
+  if (
+    source.projectId !== projectId ||
+    source.parcelId !== parcelId ||
+    command.parcel_id !== parcelId ||
+    command.traverse_id !== source.traverseId ||
+    command.evidence_hash !== source.evidenceHash
+  )
+    throw new Error(
+      'The reviewed boundary does not match this project, parcel and traverse.',
+    )
+  const expected = prepareBoundary(
+    source,
+    command.ordered_coordinate_ids,
+    command.source_crs,
+  )
+  const response = await fetch(
+    `/api/project/${encodeURIComponent(projectId)}/scheme/parcel-boundary`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(command),
+    },
+  )
+  const body: unknown = await response.json()
+  if (!response.ok) {
+    const parsed = z.object({ error: z.string() }).safeParse(body)
+    const message = parsed.success
+      ? parsed.data.error
+      : 'The boundary draft save is unconfirmed. Retry this exact request.'
+    if (response.status >= 400 && response.status < 500)
+      throw new BoundarySaveRefusal(message, response.status)
+    throw new Error(message)
   }
-
-  const traverseData = (await traverseRes.json()) as { data?: { coordinates: Array<{ station: string; easting: number; northing: number; rl: number | null }> } }
-  const coordinates: Array<{ station: string; easting: number; northing: number; rl: number | null }> =
-    traverseData.data?.coordinates ?? []
-
-  if (!coordinates || coordinates.length < 3) {
-    throw new Error('Traverse has fewer than 3 coordinate stations — cannot form a polygon')
-  }
-
-  // 2. Build the polygon from traverse coordinates
-  const traversePoints: TraversePoint[] = coordinates.map(c => ({
-    easting: c.easting,
-    northing: c.northing,
-    pointName: c.station,
-    rl: c.rl,
-  }))
-
-  const result = traverseToParcelResult(traversePoints)
-  const areaHa = result.area / 10000
-
-  // 3. Save the polygon as the parcel boundary via the scheme API
-  const boundaryRes = await fetch('/api/scheme/parcel/boundary', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      parcel_id: parcelId,
-      project_id: projectId,
-      boundary_geojson: result.polygon,
-      area_ha: areaHa,
-      source: 'traverse',
-      point_count: result.pointCount,
-      perimeter_m: result.perimeter,
-      crs: SRID_21037,
-    }),
-  })
-
-  if (!boundaryRes.ok) {
-    // If the boundary API doesn't exist, update the parcel directly
-    try {
-      const updateRes = await fetch(`/api/scheme/parcel/${parcelId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          boundary_geojson: result.polygon,
-          area_ha: areaHa,
-          status: 'computed',
-        }),
-      })
-
-      if (!updateRes.ok) {
-        throw new Error(`Failed to update parcel boundary: ${updateRes.statusText}`)
-      }
-    } catch {
-      // Last resort: just return the computed result without persisting
-      logger.warn('[traverseToParcel] Could not save boundary to server, returning computed result only')
-    }
-  }
-
-  return {
-    parcelId,
-    areaHa,
-    polygon: result.polygon,
-  }
+  const parsed = z.object({ data: boundaryReceiptSchema }).safeParse(body)
+  if (!parsed.success)
+    throw new Error(
+      'The boundary draft save acknowledgement is invalid. Retry this exact request.',
+    )
+  const row = parsed.data.data
+  if (
+    row.projectId !== projectId ||
+    row.parcelId !== parcelId ||
+    row.traverseId !== source.traverseId ||
+    row.requestId !== command.request_id ||
+    row.evidenceHash !== source.evidenceHash ||
+    row.sourceCrs !== command.source_crs ||
+    row.parcelRevision !== source.parcelRevision + 1 ||
+    JSON.stringify(row.orderedCoordinateIds) !==
+      JSON.stringify(command.ordered_coordinate_ids) ||
+    JSON.stringify(row.polygon) !== JSON.stringify(expected.polygon) ||
+    row.gridAreaSqM !== expected.gridAreaSqM ||
+    row.gridPerimeterM !== expected.gridPerimeterM ||
+    row.areaHa !== expected.areaHa
+  )
+    throw new Error(
+      'The saved draft acknowledgement does not match the reviewed geometry. Retry this exact request.',
+    )
+  return row
 }
 
-// ─── Map Preview Helpers ──────────────────────────────────────────────────
-
-/**
- * Create an OL Vector layer with a polygon preview from traverse points.
- * Used for the "preview before confirm" workflow.
- *
- * All OL imports are dynamic for SSR compatibility.
- */
+/** Optional map preview; coordinates require an explicit registered project grid. */
 export async function createTraversePolygonPreview(
-  traversePoints: Array<{ easting: number; northing: number; pointName: string }>,
-  epsg: string = 'EPSG:21037',
-): Promise<{
-  source: import('ol/source/Vector').default
-  layer: import('ol/layer/Vector').default
-}> {
+  points: TraversePoint[],
+  crs: string,
+) {
+  const code = assertProjectedCrs(crs).code,
+    polygon = traversePointsToPolygon(points)
   const [
     { default: VectorSource },
     { default: VectorLayer },
     { default: Feature },
     { default: Polygon },
-    { default: Style },
-    { default: Fill },
-    { default: Stroke },
-    { default: CircleStyle },
-    { default: Point },
-    { default: Text },
     { transform },
+    styles,
   ] = await Promise.all([
     import('ol/source/Vector'),
     import('ol/layer/Vector'),
     import('ol/Feature'),
     import('ol/geom/Polygon'),
-    import('ol/style/Style'),
-    import('ol/style/Fill'),
-    import('ol/style/Stroke'),
-    import('ol/style/Circle'),
-    import('ol/geom/Point'),
-    import('ol/style/Text'),
-    import('ol/proj').then(m => ({ transform: m.transform })),
+    import('ol/proj'),
+    import('ol/style'),
   ])
-
-  const source = new VectorSource()
-
-  // Transform coordinates from UTM to EPSG:3857 for display
-  const ring3857 = traversePoints.map(p => {
-    const [x, y] = transform([p.easting, p.northing], epsg, 'EPSG:3857')
-    return [x, y]
-  })
-  // Close the ring
-  ring3857.push(ring3857[0])
-
-  // Create polygon feature
-  const polygonFeature = new Feature({
-    geometry: new Polygon([ring3857]),
-  })
-  polygonFeature.setStyle(
-    new Style({
-      fill: new Fill({ color: 'rgba(209, 123, 71,0.15)' }),
-      stroke: new Stroke({ color: '#D17B47', width: 2.5, lineDash: [8, 4] }),
-    })
+  // Register the same authority definition used by project map layers.
+  const { registerProjections } = await import('@/lib/map/projection')
+  await registerProjections()
+  const ring = polygon.coordinates[0].map((coordinate) =>
+    transform(coordinate, code, 'EPSG:3857'),
   )
-  source.addFeature(polygonFeature)
-
-  // Add point markers for each traverse station
-  for (const p of traversePoints) {
-    const coord = transform([p.easting, p.northing], epsg, 'EPSG:3857')
-    const pointFeature = new Feature({
-      geometry: new Point(coord),
-    })
-    pointFeature.setStyle(
-      new Style({
-        image: new CircleStyle({
-          radius: 5,
-          fill: new Fill({ color: '#D17B47' }),
-          stroke: new Stroke({ color: '#fff', width: 1.5 }),
-        }),
-        text: new Text({
-          text: p.pointName,
-          font: '11px monospace',
-          fill: new Fill({ color: '#fff' }),
-          stroke: new Stroke({ color: '#000', width: 3 }),
-          offsetY: -14,
-        }),
-      })
+  if (ring.some((coordinate) => !coordinate.every(Number.isFinite)))
+    throw new Error(
+      'The boundary cannot be transformed for display in this map.',
     )
-    source.addFeature(pointFeature)
-  }
-
+  const feature = new Feature({ geometry: new Polygon([ring]) }),
+    source = new VectorSource({ features: [feature] })
   const layer = new VectorLayer({
     source,
     zIndex: 50,
+    style: new styles.Style({
+      fill: new styles.Fill({ color: 'rgba(209,123,71,0.15)' }),
+      stroke: new styles.Stroke({
+        color: '#D17B47',
+        width: 2.5,
+        lineDash: [8, 4],
+      }),
+    }),
   })
-
   return { source, layer }
 }
-
-/**
- * Remove the traverse polygon preview from the map.
- */
 export function removeTraversePolygonPreview(
-  mapInstance: import('ol/Map').default | null,
-  layer: import('ol/layer/Vector').default | null
-): void {
-  if (!mapInstance || !layer) return
-  try {
-    mapInstance.removeLayer(layer)
-  } catch { /* already removed */ }
+  map: import('ol/Map').default | null,
+  layer: import('ol/layer/Vector').default | null,
+) {
+  if (map && layer) map.removeLayer(layer)
 }

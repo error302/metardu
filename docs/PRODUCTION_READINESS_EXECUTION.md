@@ -67,6 +67,15 @@ unreviewed station-label ring order, coordinate-column drift and unbounded map
 reads. Repair these with explicit retained scope/order/reference and exact server
 acknowledgements; changing the response cast alone cannot establish a valid parcel.
 
+`REVIEWED_BOUNDARY_DRAFT_ACCEPTANCE_2026-10-25.md` implements the replacement
+review path: explicit parcel/traverse/ordered coordinate IDs and source-grid
+declaration, bounded original-source snapshots, actual PostGIS geometry and
+transactional prior-geometry retention/receipts. Status remains unverified;
+lost acknowledgements reuse an exact request, and committed receipts can be read
+by request ID. Migration 119 remains fixture-only. The old first-parcel/fake-save
+flow is replaced by parcel-register navigation. Map rendering/exports, legacy
+traverse intake, offline intent and field/release acceptance remain open.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the

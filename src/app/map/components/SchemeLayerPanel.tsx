@@ -9,8 +9,7 @@
  *  - Loading spinner during fetch
  *  - Error state with retry
  *  - Zoom-to-scheme button
- *  - Create Parcel from Traverse button (when traverse is computed)
- *  - Traverse-to-parcel preview/confirm/cancel workflow
+ *  - Entry to explicit, retained parcel boundary review
  *
  * Positioned at the top-right of the map, styled to match the
  * existing dark glass-morphism UI (bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)], #D17B47 accents).
@@ -19,12 +18,15 @@
  * Previously received 18 props from MapClient — now reads from context directly.
  */
 
-import React, { memo, useState } from 'react'
+import React, { memo } from 'react'
+import Link from 'next/link'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
 import { useMapContext } from '@/app/map/MapReactContext'
 
 export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
   const {
     hasProjectId,
+    schemeProjectId,
     schemeLoading: loading,
     schemeError: error,
     schemeLoaded: loaded,
@@ -34,20 +36,13 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
     showSchemeParcels: showParcels,
     showSchemeBlocks: showBlocks,
     showSchemeBeacons: showBeacons,
-    hasTraverse,
-    traverseParcelPreviewActive,
     loadSchemeData,
     toggleSchemeParcelVisibility,
     toggleSchemeBlockVisibility,
     toggleSchemeBeaconVisibility,
     zoomToScheme,
     removeScheme,
-    createParcelFromTraverse,
-    confirmTraverseParcel,
-    cancelTraverseParcel,
   } = useMapContext()
-
-  const [, setShowTraverseWorkflow] = useState(false)
 
   if (!hasProjectId) return null
 
@@ -150,72 +145,10 @@ export const SchemeLayerPanel = memo(function SchemeLayerPanel() {
                 />
               </div>
 
-              {/* Traverse-to-Parcel Workflow */}
-              {hasTraverse && !traverseParcelPreviewActive && (
-                <div className="pt-1 border-t border-[var(--border-color)]/[0.06]">
-                  <button
-                    onClick={() => {
-                      setShowTraverseWorkflow(true)
-                      createParcelFromTraverse()
-                    }}
-                    className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-lg
-                               bg-[color-mix(in_srgb,var(--success)_10%,transparent)] border border-green-500/25 text-[var(--success)]
-                               text-xs font-semibold transition-all duration-200
-                               hover:bg-[color-mix(in_srgb,var(--success)_20%,transparent)] hover:border-green-500/40
-                               focus:outline-none focus:ring-1 focus:ring-green-500/40"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM4 13a1 1 0 011-1h6a1 1 0 011 1v6a1 1 0 01-1 1H5a1 1 0 01-1-1v-6zM16 13a1 1 0 011-1h2a1 1 0 011 1v6a1 1 0 01-1 1h-2a1 1 0 01-1-1v-6z" />
-                    </svg>
-                    Create Parcel from Traverse
-                  </button>
-                </div>
-              )}
-
-              {/* Traverse preview confirm/cancel */}
-              {traverseParcelPreviewActive && (
-                <div className="pt-1 border-t border-[var(--border-color)]/[0.06] space-y-2">
-                  <div className="flex items-center gap-1.5">
-                    <div className="w-2 h-2 rounded-full bg-[var(--success)] animate-pulse" />
-                    <span className="text-[10px] text-[var(--success)] uppercase tracking-wider font-semibold">
-                      Traverse Preview
-                    </span>
-                  </div>
-                  <p className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
-                    The traverse stations are shown as a polygon preview. Confirm to save as a parcel boundary.
-                  </p>
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={confirmTraverseParcel}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
-                                 bg-[color-mix(in_srgb,var(--success)_20%,transparent)] border border-green-500/30 text-[var(--success)]
-                                 text-[11px] font-semibold transition-all duration-200
-                                 hover:bg-[color-mix(in_srgb,var(--success)_30%,transparent)] hover:text-[var(--success)]
-                                 focus:outline-none focus:ring-1 focus:ring-green-500/30"
-                      title="Save traverse as parcel boundary"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                      </svg>
-                      Confirm
-                    </button>
-                    <button
-                      onClick={cancelTraverseParcel}
-                      className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg
-                                 bg-[color-mix(in_srgb,var(--error)_10%,transparent)] border border-red-500/20 text-[var(--error)]
-                                 text-[11px] font-medium transition-all duration-200
-                                 hover:bg-[color-mix(in_srgb,var(--error)_20%,transparent)] hover:text-[var(--error)]
-                                 focus:outline-none focus:ring-1 focus:ring-red-500/30"
-                      title="Cancel — remove preview"
-                    >
-                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                      </svg>
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
+              <div className="space-y-2 border-t border-[var(--border-color)] pt-2 text-xs">
+                <p>Review the chosen parcel source grid and ordered boundary vertices in its block register.</p>
+                <Link href={`/project/${schemeProjectId}/scheme/blocks`} className="inline-flex items-center gap-2 rounded-lg border border-[var(--border-color)] px-3 py-2 underline underline-offset-4"><GeomaticsIcon symbol="parcel" className="h-4 w-4"/>Open parcel registers</Link>
+              </div>
 
               {/* Action buttons */}
               <div className="flex items-center gap-1.5">
