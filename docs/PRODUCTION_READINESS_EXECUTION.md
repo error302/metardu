@@ -28,6 +28,14 @@ authoritative aggregate/paged reads and recoverable large-job processing. Keep
 the active navigation/admin audit and release/field gates. Visible product UI
 must use coherent geomatics/interface icons, with no emojis.
 
+`866736b0` records the initial geomatics-symbol cleanup, corrected quick-start
+workflow and large-project acceptance plan. The next source checkpoint is in
+`SCHEME_METADATA_IMPORT_ACCEPTANCE_2026-10-25.md`: reviewed metadata intake,
+bounded 10,000-parcel atomic writes, duplicate preservation, original-source
+receipts and exact request recovery. Migration 117 is fixture-only and requires
+legacy-duplicate preflight and the existing release/recovery review. This does
+not close whole-campaign, background, instrument or production acceptance.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the

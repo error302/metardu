@@ -99,10 +99,11 @@ and civil artifacts, and recovery work. Their presence is not end-to-end
 large-project acceptance.
 
 1. Repair scheme metadata import correctness and receipt semantics. Current
-   `src/app/api/scheme/import/route.ts` casts UUIDs with `parseInt`, does not bind
-   supplied project ID to the admitted block, splits quoted CSV by commas,
-   converts zero/invalid area to null, overwrites duplicates and silently stops
-   after 500 created rows. This cannot be a trusted large-job intake path.
+   source checkpoint `SCHEME_METADATA_IMPORT_ACCEPTANCE_2026-10-25.md` replaces
+   the UUID/project-binding/quoted-CSV/truncation and overwrite defects with a
+   reviewed, bounded 10,000-row atomic intake and retained source/request receipts.
+   Its 34 native cases and focused UI/source tests are not production acceptance;
+   migration 117, ordinary-account/browser and broader background recovery remain.
 2. Replace full-parcel downloads for scheme counts and remove invented scheme /
    default reference fallback. The current scheme overview loads all parcels to
    count status and keeps zero counts on failure. Use authoritative paged reads
