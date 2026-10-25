@@ -36,6 +36,13 @@ receipts and exact request recovery. Migration 117 is fixture-only and requires
 legacy-duplicate preflight and the existing release/recovery review. This does
 not close whole-campaign, background, instrument or production acceptance.
 
+`SCHEME_OVERVIEW_ACCEPTANCE_2026-10-25.md` adds owner-bound whole-project counts,
+24-row block/computation pages and metric-only database projection. Failed reads
+stay unavailable, earlier confirmed data is labelled on refresh failure and no
+fallback project/CRS is invented. Native and UI red cases also remove unsupported
+traverse passes and successful-empty failure responses. Remaining block-detail,
+map and legacy-consumer scale/selection work is explicit in that record.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the

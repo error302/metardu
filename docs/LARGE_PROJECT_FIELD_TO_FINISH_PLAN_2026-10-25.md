@@ -105,9 +105,10 @@ large-project acceptance.
    Its 34 native cases and focused UI/source tests are not production acceptance;
    migration 117, ordinary-account/browser and broader background recovery remain.
 2. Replace full-parcel downloads for scheme counts and remove invented scheme /
-   default reference fallback. The current scheme overview loads all parcels to
-   count status and keeps zero counts on failure. Use authoritative paged reads
-   and aggregate status with explicit unavailable states.
+   default reference fallback. `SCHEME_OVERVIEW_ACCEPTANCE_2026-10-25.md` now
+   records authoritative aggregate counts, 24-row pages, metric-only projection
+   and explicit unknown/read-failure states for the overview. Complete the same
+   bounded/validated approach in block detail, map and legacy consumer paths.
 3. Validate crew/member access, assignments, concurrent changes and cross-account
    isolation with ordinary identities. Do not confuse organisation administration
    with platform access or subscription privileges.
