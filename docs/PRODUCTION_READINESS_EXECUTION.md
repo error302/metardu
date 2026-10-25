@@ -60,6 +60,13 @@ for inconsistent cross-project children. Missing receipt storage preserves read
 access while disabling deletion. Manual replay, browser/RLS/restore, broader
 map/traverse/crew and release acceptance remain open.
 
+The subsequent read-only map audit is retained in the large-project plan's
+"Next map and boundary integrity work" section: summary/parcel identity mismatch,
+first-record reselection, failed-save success fallback, assumed EPSG:21037,
+unreviewed station-label ring order, coordinate-column drift and unbounded map
+reads. Repair these with explicit retained scope/order/reference and exact server
+acknowledgements; changing the response cast alone cannot establish a valid parcel.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the

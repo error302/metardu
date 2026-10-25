@@ -131,6 +131,36 @@ the broader cadastral/engineering adoption objective stays active. Do not releas
 new menus as substitutes for these completed work paths. The UI/navigation and
 existing-administrator browser audit continues alongside this work.
 
+### Next map and boundary integrity work
+
+Read-only source review after block checkpoint `b4825c93` found concrete defects
+to address together rather than enabling the existing conversion button alone:
+
+- `useTraverseParcelPreview` expects `data.hasTraverses`/`data.parcels`, while the
+  summary endpoint returns an array of project computation records. It also
+  chooses the first parcel again on confirmation instead of retaining an explicit
+  parcel/computation selection. A project computation record is not a parcel ID.
+- `traverseToParcel.createParcelFromTraverse` calls two absent singular-parcel
+  boundary routes, then can return a calculated result after both saves fail.
+  Its caller can consequently announce creation without persisted geometry.
+  Require an exact, revision-bound server acknowledgement; remove success fallback.
+- The same helper and the dedicated `SchemeMapCanvas` assume EPSG:21037. The
+  canvas ignores the map response's declared CRS. Reuse authoritative saved
+  project reference admission, with no invented fallback or unchecked transform.
+- Legacy traverse GET orders coordinates by station label; map SQL similarly
+  orders by station label and references `station_name`/`elevation`, while the
+  canonical writer/reader use `station`/`rl`. Label sorting does not establish
+  a reviewed boundary chain. Preserve exact computation/observation revisions,
+  explicit ordered boundary membership and topology checks before geometry writes.
+- `/api/scheme/map` downloads every coordinate-bearing parcel and builds rings
+  and bounds in application memory. Replace it with bounded viewport/block
+  reads and actual retained geometry/evidence; do not manufacture parcel polygons
+  simply because three traverse station rows exist.
+
+These are source findings, not new accepted map behavior. The preserved training
+drawing and map storage remain untouched. They remain release blockers alongside
+ordinary-account, browser, receiving-application and professional field evidence.
+
 ## Interface checkpoint
 
 The first source pass introduces reusable monochrome total-station, GNSS-rover,
