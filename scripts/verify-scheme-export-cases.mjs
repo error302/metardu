@@ -1100,6 +1100,10 @@ export async function verifySchemeExports(c) {
         assert.deepEqual(await state(), before)
       },
     )
+    if (c.shareMode) {
+      const { verifyParcelSharing } = await import('./verify-parcel-sharing-cases.mjs')
+      await verifyParcelSharing({ ...c, fresh, post, full })
+    }
   } finally {
     assert.equal(path.dirname(storageRoot), storageBase)
     assert.equal(realpathSync(storageRoot), storageRoot)

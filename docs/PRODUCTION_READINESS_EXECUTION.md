@@ -18,6 +18,27 @@ their remaining families.
 
 ## Current execution order
 
+### Explicit retained-draft sharing checkpoint, 26 October
+
+`PARCEL_DRAFT_SHARING_ACCEPTANCE_2026-10-26.md` replaces public project-ID lookup,
+invented monument/professional details and default-datum navigation with explicit
+expiring/revocable grants for exact retained geographic drafts. The owner reviews
+the public field allowlist; device requests and keys are retained before sending,
+and repeated requests recover the same grant without renewing expiry. Public
+reads close after expiry, revocation, ownership transfer or issuer suspension.
+The new recipient shell has no automatic location watcher or arrival claim;
+sharing history is paged and excludes keys. Telemetry filters and replay removal
+are source controls, not claims about provider state or past collection.
+
+The combined source regression passes 184 tests in 26 suites. Native fixture,
+final source binding and type/security evidence are recorded in the acceptance
+file. Migration 121 remains source/fixture-only; prior unpromoted scheme migrations
+remain gated. **Verify/restrict deployed public access and rollback behavior before
+counting the source repair as customer protection.** Ordinary-account sharing,
+valid-link/admin/phone browser checks, release/provider and field gates remain.
+Legacy traverse intake, crew/campaign capacity and the shared evidence chain
+remain integrity priorities after the deployed privacy check.
+
 ### Retained selected-boundary export checkpoint, 25 October
 
 `RETAINED_SCHEME_EXPORT_ACCEPTANCE_2026-10-25.md` connects exact reviewed parcel

@@ -3,6 +3,8 @@ import { NextRequest } from 'next/server'
 import { getServerSession } from 'next-auth'
 import { POST as exportPost } from '@/app/api/scheme/export/geojson/route'
 import { POST as boundaryPost } from '@/app/api/project/[id]/scheme/parcel-boundary/route'
+import { POST as sharePost } from '@/app/api/project/[id]/scheme/shares/route'
+import { createParcelShare } from '@/lib/scheme/parcelSharing'
 import { executeSchemeExport } from '@/lib/scheme/exportCommands'
 import { saveReviewedBoundary } from '@/lib/scheme/reviewedBoundaryCommands'
 const actor = '11111111-1111-4111-8111-111111111111',
@@ -62,6 +64,7 @@ jest.mock('@/lib/scheme/reviewedBoundaryCommands', () => ({
     ) => ({ requestId: input.request_id }),
   ),
 }))
+jest.mock('@/lib/scheme/parcelSharing', () => ({ createParcelShare: jest.fn(async () => ({ id: requestId })), revokeParcelShare: jest.fn(), listParcelShares: jest.fn(), previewParcelShare: jest.fn() }))
 const body = {
   projectId: project,
   expectedUserId: actor,
@@ -148,4 +151,18 @@ it('bounds the stream before JSON parsing and still requires authentication', as
     ).status,
   ).toBe(401)
   expect(executeSchemeExport).not.toHaveBeenCalled()
+})
+it('passes sharing intent through the real middleware without consuming its key-bearing stream', async () => {
+  const intent = { projectId: project, expectedUserId: actor, requestId, exportRequestId: actor, snapshotHash: 'c'.repeat(64), durationDays: 7, authorityToShare: true, key: 'A'.repeat(43) }
+  const req = new NextRequest(`http://127.0.0.1:3021/api/project/${project}/scheme/shares`, { method: 'POST', body: JSON.stringify(intent) }), json = jest.spyOn(req, 'json')
+  expect((await sharePost(req, context)).status).toBe(200)
+  expect(createParcelShare).toHaveBeenCalledWith(actor, project, intent)
+  expect(json).not.toHaveBeenCalled()
+})
+it('requires authenticated sharing and bounds its command before parsing', async () => {
+  const url = `http://127.0.0.1:3021/api/project/${project}/scheme/shares`
+  expect((await sharePost(new NextRequest(url, { method: 'POST', body: JSON.stringify({ padding: 'x'.repeat(9000) }) }), context)).status).toBe(413)
+  jest.mocked(getServerSession).mockResolvedValue(null)
+  expect((await sharePost(new NextRequest(url, { method: 'POST', body: '{}' }), context)).status).toBe(401)
+  expect(createParcelShare).not.toHaveBeenCalled()
 })

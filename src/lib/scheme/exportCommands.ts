@@ -154,7 +154,7 @@ async function lockSource(
     )
   return source
 }
-async function retained(
+export async function readRetainedSchemeExport(
   actor: string,
   project: string,
   requestId: string,
@@ -347,7 +347,7 @@ export async function executeSchemeExport(
           throw fail('The retained cancellation receipt is inconsistent.')
         return parsed.data
       }
-      const recovered = await retained(
+      const recovered = await readRetainedSchemeExport(
         actor,
         project,
         requestId,

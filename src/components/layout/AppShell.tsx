@@ -77,6 +77,10 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // hide the other overlays that compete with map and fieldbook controls.
   const hideGlobalOverlays = mapPage || fieldbookPage
 
+  // Capability views have their own responsive shell. No account overlays,
+  // location watchers, survey defaults or feedback capture on recipient pages.
+  if (pathname.startsWith('/p/')) return <><SkipToContent />{children}</>
+
   // Auth routes (login/register): bare page, no chrome.
   // ProjectionInit is deliberately omitted: no map renders pre-auth, so
   // downloading + registering proj4/ol projections here is pure waste —

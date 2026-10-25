@@ -6,11 +6,12 @@ import { createRequire } from 'node:module'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-const exportMode = process.argv[2] === 'export'
+const shareMode = process.argv[2] === 'share'
+const exportMode = process.argv[2] === 'export' || shareMode
 const viewMode = process.argv[2] === 'view' || exportMode
 assert.ok(
   process.argv.length === (viewMode ? 3 : 2),
-  'Use no argument, view or export verification mode.',
+  'Use no argument, view, export or share verification mode.',
 )
 const service = JSON.parse(
   execFileSync(
@@ -53,7 +54,7 @@ const admin = new pg.Client(options),
 let fault = ''
 let schemeExportAllowed = true
 const database = {
-  query: (sql, values) => pool.query(sql, values),
+  query: (sql, values) => pool.query(shareMode ? sql.replaceAll('public.read_parcel_draft_share(', `${schema}.read_parcel_draft_share(`) : sql, values),
   transaction: async (work) => {
     const client = await pool.connect()
     try {
@@ -177,6 +178,36 @@ const save = (body, user = actor, id = project) =>
     id,
   )
 const files = [
+  ...(shareMode ? [
+    'scripts/verify-parcel-sharing-cases.mjs',
+    'src/lib/db/migrations/121_parcel_draft_sharing.sql',
+    'src/lib/scheme/parcelShareContract.ts',
+    'src/lib/scheme/parcelShareSnapshot.ts',
+    'src/lib/scheme/parcelSharing.ts',
+    'src/app/api/public/parcel/[id]/route.ts',
+    'src/app/api/project/[id]/scheme/shares/route.ts',
+    'tests/parcel-share-snapshot.test.ts',
+    'tests/public-parcel-privacy.test.ts',
+    'src/lib/scheme/parcelShareDevice.ts',
+    'src/components/scheme/ParcelDraftSharing.tsx',
+    'src/components/scheme/ParcelDraftView.tsx',
+    'src/components/scheme/PublicParcelDraft.tsx',
+    'src/app/project/[id]/scheme/shares/page.tsx',
+    'src/app/p/[id]/page.tsx',
+    'src/app/project/[id]/submission/SubmissionClient.tsx',
+    'src/components/layout/AppShell.tsx',
+    'src/components/shared/SkipToContent.tsx',
+    'src/lib/monitoring/privateShareTelemetry.ts',
+    'src/lib/monitoring/sentry.ts',
+    'src/lib/monitoring/webVitals.ts',
+    'instrumentation-client.ts',
+    'next.config.js',
+    'tests/parcel-draft-sharing-ui.test.tsx',
+    'tests/parcel-share-device.test.ts',
+    'tests/public-parcel-portal.test.tsx',
+    'tests/private-share-telemetry.test.ts',
+    'tests/private-share-skip-link.test.tsx',
+  ] : []),
   'scripts/verify-reviewed-boundary.mjs',
   'src/lib/scheme/boundaryReview.ts',
   'src/lib/scheme/reviewedBoundaryCommands.ts',
@@ -269,7 +300,7 @@ const report = {
   fixtureSchema: schema,
   checks: [],
 }
-const reportRoot = exportMode
+const reportRoot = shareMode ? '.cache/parcel-draft-sharing' : exportMode
   ? '.cache/scheme-boundary-export'
   : viewMode
     ? '.cache/scheme-geometry-view'
@@ -290,6 +321,7 @@ const fingerprint = async () => {
     'traverse_observations',
     'users',
     'blocks',
+    ...(shareMode ? ['surveyor_profiles'] : []),
     ...(exportMode
       ? [
           'deliverables',
@@ -374,6 +406,7 @@ let original,
   created = false
 let expectedViewCases = 0
 let expectedExportCases = 0
+let expectedShareCases = 0
 await admin.connect()
 try {
   assert.equal(
@@ -1099,6 +1132,7 @@ try {
   }
   if (exportMode) {
     const cases = await import('./verify-scheme-export-cases.mjs')
+    if (shareMode) expectedShareCases = (await import('./verify-parcel-sharing-cases.mjs')).EXPECTED_CASES
     expectedExportCases = cases.EXPECTED_CASES
     await cases.verifySchemeExports({
       check,
@@ -1119,6 +1153,7 @@ try {
       schema,
       token,
       reportRoot,
+      shareMode,
       setFault: (value) => {
         fault = value
       },
@@ -1169,7 +1204,7 @@ try {
     assert.deepEqual(hashes(), report.source)
     report.sourcePreserved = true
     report.status =
-      report.checks.length === 50 + expectedViewCases + expectedExportCases &&
+      report.checks.length === 50 + expectedViewCases + expectedExportCases + expectedShareCases &&
       report.checks.every((row) => row.passed) &&
       report.ownedFixtureRemoved &&
       (!exportMode || report.ownedExportFilesRemoved === true) &&

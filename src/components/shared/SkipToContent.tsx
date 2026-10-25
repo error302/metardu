@@ -11,6 +11,15 @@ export default function SkipToContent() {
   return (
     <a
       href="#main-content"
+      onClick={(event) => {
+        const target = document.getElementById('main-content')
+        if (!target) return
+        // Keep capability fragments and other in-page URL state intact.
+        event.preventDefault()
+        if (!target.hasAttribute('tabindex')) target.tabIndex = -1
+        target.focus()
+        target.scrollIntoView({ block: 'start' })
+      }}
       className="
         sr-only focus:not-sr-only
         focus:fixed focus:top-4 focus:left-4 focus:z-[9999]

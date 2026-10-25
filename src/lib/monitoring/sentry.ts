@@ -11,6 +11,7 @@
  */
 
 import { logger, NO_FORWARD } from '@/lib/loggingCore'
+import { sanitizeShareTelemetry } from './privateShareTelemetry'
 
 // @sentry/nextjs (~180 KB minified across chunks) is loaded lazily: it only
 // downloads when a capture/setUser call actually fires, and only when a DSN
@@ -54,13 +55,16 @@ export function initSentry() {
       dsn: SENTRY_DSN,
       environment: SENTRY_ENVIRONMENT,
       tracesSampleRate: 0.1,
-      replaysSessionSampleRate: 0.1,
-      replaysOnErrorSampleRate: 1.0,
+      replaysSessionSampleRate: 0,
+      replaysOnErrorSampleRate: 0,
+      beforeSendTransaction: sanitizeShareTelemetry,
+      beforeBreadcrumb: (breadcrumb: Record<string, unknown>) => sanitizeShareTelemetry({ breadcrumbs: [breadcrumb] })?.breadcrumbs[0] ?? null,
       beforeSend(event: {
         digest?: string
         exception?: { values?: Array<{ value?: string; digest?: string }> }
         request?: { headers?: Record<string, string> }
       }) {
+        if (!sanitizeShareTelemetry(event)) return null
         // Silence known non-actionable build noise: DYNAMIC_SERVER_USAGE is
         // Next.js's normal control-flow signal for "this route reads
         // request.headers → render dynamically" — not an error. During
@@ -85,7 +89,7 @@ export function initSentry() {
             }
           }
         }
-          return event
+          return sanitizeShareTelemetry(event)
         },
       })
     })

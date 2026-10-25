@@ -97,6 +97,12 @@ export default function SchemeExportHistory({
         geometry or device recovery record has changed. Cancelled request IDs
         remain closed.
       </p>
+      <a
+        className="text-sm underline underline-offset-4"
+        href={`/project/${projectId}/scheme/shares`}
+      >
+        Manage sharing history
+      </a>
       {loading && (
         <p role="status" className="text-sm">
           Loading retained export history…
@@ -147,12 +153,22 @@ export default function SchemeExportHistory({
                     </td>
                     <td className="p-2">
                       {row.outcome === 'committed' ? (
-                        <a
-                          className="underline underline-offset-4"
-                          href={`/api/scheme/export/${row.format}?${new URLSearchParams({ project_id: projectId, request_id: row.requestId })}`}
-                        >
-                          Recover saved {row.format.toUpperCase()}
-                        </a>
+                        <div className="space-y-2">
+                          <a
+                            className="underline underline-offset-4"
+                            href={`/api/scheme/export/${row.format}?${new URLSearchParams({ project_id: projectId, request_id: row.requestId })}`}
+                          >
+                            Recover saved {row.format.toUpperCase()}
+                          </a>
+                          {row.format === 'geojson' && (
+                            <a
+                              className="block underline underline-offset-4"
+                              href={`/project/${projectId}/scheme/shares?export_request_id=${row.requestId}`}
+                            >
+                              Manage draft sharing
+                            </a>
+                          )}
+                        </div>
                       ) : (
                         'No file'
                       )}

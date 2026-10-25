@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { logger } from '@/lib/logger';
-import { CheckCircle2, Sparkles, Archive, Loader2, Compass, ExternalLink, Copy, Check } from 'lucide-react'
+import { CheckCircle2, Sparkles, Archive, Loader2, Compass, ExternalLink } from 'lucide-react'
 import { z } from 'zod';
 import { createClient } from '@/lib/api-client/client';
 import { apiGet, apiPost, apiInvalidate, ApiError } from '@/lib/api/client';
@@ -85,7 +85,6 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
   const handleGateResult = useCallback((result: { passed: boolean; summary: { block: number } } | null) => {
     setGateVerdict(result ? { projectId: project.id, passed: result.passed && result.summary.block === 0 } : null);
   }, [project.id]);
-  const [portalCopied, setPortalCopied] = useState(false);
   const [docStates, setDocStates] = useState<Record<string, DocState>>(() => {
     const initial: Record<string, DocState> = {};
     getDocumentsForSurveyType(project.survey_type).forEach((doc) => {
@@ -315,48 +314,24 @@ export default function SubmissionClient({ project, existingDocs, projectId }: P
           </button>
         </div>
 
-        {/* Landowner GPS Boundary Portal Card */}
+        {/* Explicit retained-draft sharing; project IDs are private identifiers. */}
         <div className="mt-3 p-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div>
             <div className="text-sm font-bold text-[var(--text-primary)] flex items-center gap-2">
               <Compass className="w-4 h-4 text-emerald-400" />
-              Landowner GPS Boundary Portal
+              Reviewed boundary draft sharing
             </div>
             <p className="text-xs text-[var(--text-secondary)] mt-0.5">
-              Share this live portal link with your client. They can open it on their smartphone with zero install to view their boundary and get real-time GPS walking directions straight to beacons.
+              Review an exact retained geographic boundary draft before creating an expiring access link. Manage and revoke your existing grants in the sharing register.
             </p>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={() => {
-                const portalUrl = `${window.location.origin}/p/${project.id}`;
-                navigator.clipboard.writeText(portalUrl);
-                setPortalCopied(true);
-                setTimeout(() => setPortalCopied(false), 2500);
-              }}
-              className="px-3.5 py-2 rounded-lg bg-zinc-800 hover:bg-zinc-700 text-xs font-semibold text-white flex items-center gap-1.5 transition-colors border border-zinc-700"
-              title="Copy public client portal link"
-            >
-              {portalCopied ? (
-                <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied!</span>
-                </>
-              ) : (
-                <>
-                  <Copy className="w-3.5 h-3.5" />
-                  <span>Copy Client Link</span>
-                </>
-              )}
-            </button>
             <a
-              href={`/p/${project.id}`}
-              target="_blank"
-              rel="noopener noreferrer"
+              href={`/project/${project.id}/scheme/shares`}
               className="px-3.5 py-2 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-black text-xs font-bold flex items-center gap-1.5 transition-colors shadow-sm"
             >
               <ExternalLink className="w-3.5 h-3.5" />
-              <span>Open Portal</span>
+              <span>Manage draft sharing</span>
             </a>
           </div>
         </div>

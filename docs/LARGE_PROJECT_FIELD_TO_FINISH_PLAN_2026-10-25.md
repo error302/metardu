@@ -170,6 +170,15 @@ ordinary-account, browser, receiving-application and professional field evidence
 
 ### Stored geometry and large views
 
+`PARCEL_DRAFT_SHARING_ACCEPTANCE_2026-10-26.md` adds an explicit reviewer/client
+handoff from a retained geographic draft: review disclosed fields, create a 1/7/30
+day capability link, recover the same grant after interruption, and revoke it.
+The recipient sees saved 2D geometry and provenance rather than invented beacon,
+professional or approval details. No device location is requested automatically.
+The new source workflow closes the project-ID lookup defect; applied-schema,
+deployed-access/rollback, ordinary-account, valid-link browser and professional
+acceptance remain separate. Migration 121 is fixture-only.
+
 `RETAINED_SCHEME_EXPORT_ACCEPTANCE_2026-10-25.md` adds the next output step:
 select exact parcels across register pages, review their saved grid/revisions,
 produce a registered 2D draft, and recover the same stored bytes or durably
@@ -187,7 +196,7 @@ Unchanged reviewed drafts alone supply snapping geometry. Project/grid changes,
 pan/zoom, hidden layers and failures invalidate stale requests and snapping;
 background vertices never seed the user's drawing. Native synthetic coverage
 includes 10,000 stored polygons. This is not actual ward, concurrency or field
-proof. Atomic retained exports, public parcel privacy, legacy traverse intake,
+proof. Deployed privacy controls, legacy traverse intake,
 crew/offline work and the existing release gates remain open.
 
 ## Interface checkpoint
@@ -198,17 +207,16 @@ use the actual instrument forms. Visible emoji were replaced in field capture,
 GNSS help, calibration, setting out, monitoring, fee quotation and parcel guidance.
 The documentation now links to the real quick-start steps rather than the
 unresolved `/project/[id]` placeholder. The route checker refuses unresolved
-parameter links: 237 page files and 824 static links currently have no unmatched
+parameter links: 240 page files and 823 static links currently have no unmatched
 references. This checks link syntax, not every rendered page or administrator access.
 
 App and test type checks and scoped lint pass. The 55-test fieldbook checkpoint
 and six adjacent fieldbook/CSV/dispersion tests pass; counts overlap and must not
 be added. These are source checks, not physical-instrument or large-job proof.
 
-Public parcel guidance now validates its response, uses plain SVG icons and
-describes approximate navigation without declaring the record verified. Its
-existing server endpoint still needs a dedicated privacy/issue-authority and CRS
-repair: it reads a project by ID without a scoped sharing token, invents missing
-surveyor/monument status, and assumes Arc 1960/UTM defaults with a conversion
-fallback. Do not use that endpoint as authoritative boundary navigation or
-certified evidence. This is an open release blocker, not resolved by icon changes.
+The initial public-guidance/icon pass did not repair the server's project-ID
+privacy, invented-status or default-CRS defects. The 26 October retained-draft
+sharing checkpoint above replaces those source paths and removes phone arrival
+claims. It remains a review copy, not authoritative boundary navigation or
+certification. Deployed access and the corresponding release/field gates stay
+open until independently verified.

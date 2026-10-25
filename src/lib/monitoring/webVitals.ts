@@ -11,6 +11,7 @@
 // the root-layout initial graph (see scripts/bundle-budget.mjs). Breadcrumbs
 // are buffered until the SDK chunk arrives.
 import type { Breadcrumb } from '@sentry/nextjs'
+import { isPrivateSharePath, telemetryPageUrl } from './privateShareTelemetry'
 
 let sentryReady: Promise<{ addBreadcrumb: (b: Breadcrumb) => void }> | null = null
 
@@ -46,6 +47,7 @@ const CORE_VITALS = new Set(['LCP', 'FID', 'CLS', 'TTFB', 'INP'])
  * - Custom metrics are also supported (see reportCustomMetric).
  */
 export function reportWebVital(metric: WebVitalMetric): void {
+  if (typeof window !== 'undefined' && isPrivateSharePath(window.location.pathname)) return
   const { name, value, rating } = metric
 
   const isCoreVital = CORE_VITALS.has(name)
@@ -69,7 +71,7 @@ export function reportWebVital(metric: WebVitalMetric): void {
         metricName: name,
         metricValue: Math.round(value * 100) / 100,
         metricRating: rating,
-        url: typeof window !== 'undefined' ? window.location.href : '',
+        url: typeof window !== 'undefined' ? telemetryPageUrl(window.location.href) : '',
       },
     })
   }
