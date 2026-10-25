@@ -320,6 +320,11 @@ export interface RecordEvidenceInput {
   userId?: string
 }
 
+/** Existing event hash protocol, shared by the writer and exact acknowledgements. */
+export function hashEvidenceEvent(input:RecordEvidenceInput,previousHash:string):string {
+ return computeSha256(JSON.stringify({project_id:input.projectId,entity_type:input.entityType,entity_id:input.entityId,event_type:input.eventType,details:input.details,previous_hash:previousHash,user_id:input.userId||null}))
+}
+
 /**
  * Append an immutable event to the cryptographic evidence hash chain.
  * Inspired by the Estonia e-Land ledger pattern.
@@ -344,17 +349,7 @@ export async function recordEvidenceEvent(
   const previousHash = latestResult.rows[0]?.event_hash || 'GENESIS'
 
   // 2. Compute canonical SHA-256 for the new event
-  const canonicalPayload = JSON.stringify({
-    project_id: input.projectId,
-    entity_type: input.entityType,
-    entity_id: input.entityId,
-    event_type: input.eventType,
-    details: input.details,
-    previous_hash: previousHash,
-    user_id: input.userId || null,
-  })
-
-  const eventHash = computeSha256(canonicalPayload)
+  const eventHash = hashEvidenceEvent(input,previousHash)
 
   // 3. Insert append-only evidence record
   const insertQuery = `

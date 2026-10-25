@@ -6,10 +6,11 @@ import { createRequire } from 'node:module'
 import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
-const viewMode = process.argv[2] === 'view'
+const exportMode = process.argv[2] === 'export'
+const viewMode = process.argv[2] === 'view' || exportMode
 assert.ok(
   process.argv.length === (viewMode ? 3 : 2),
-  'Use no argument or the exact view verification mode.',
+  'Use no argument, view or export verification mode.',
 )
 const service = JSON.parse(
   execFileSync(
@@ -50,6 +51,7 @@ const admin = new pg.Client(options),
     options: `-c search_path=${schema}`,
   })
 let fault = ''
+let schemeExportAllowed = true
 const database = {
   query: (sql, values) => pool.query(sql, values),
   transaction: async (work) => {
@@ -62,6 +64,10 @@ const database = {
       )
       const result = await work(client)
       await client.query('COMMIT')
+      if (exportMode && fault === 'lost_commit_ack') {
+        fault = ''
+        throw new Error('Synthetic lost COMMIT acknowledgement')
+      }
       return result
     } catch (error) {
       await client.query('ROLLBACK')
@@ -77,6 +83,13 @@ const require = createRequire(import.meta.url),
   originalLoad = Module._load
 Module._load = function (request, parent, ...rest) {
   if (request === '@/lib/db') return { db: database }
+  if (exportMode && request === '@/lib/subscription/subscriptionEngine')
+    return {
+      checkFeatureAccess: async (_actor, feature) => {
+        assert.equal(feature, 'dxf_export')
+        return { allowed: schemeExportAllowed }
+      },
+    }
   if (request === '@/lib/apiHandler')
     return {
       apiHandler: (_options, handler) => async (req, actor, id) => {
@@ -202,6 +215,44 @@ const files = [
         'tests/fixtures/schemeView.ts',
       ]
     : []),
+  ...(exportMode
+    ? [
+        'scripts/verify-scheme-export-cases.mjs',
+        'src/lib/scheme/exportContract.ts',
+        'src/lib/scheme/exportArtifact.ts',
+        'src/lib/scheme/exportCommands.ts',
+        'src/lib/scheme/exportJournal.ts',
+        'src/lib/scheme/exportRoute.ts',
+        'src/lib/scheme/exportPending.ts',
+        'src/lib/scheme/exportClient.ts',
+        'src/lib/scheme/exportHistory.ts',
+        'src/components/scheme/SchemeExportHistory.tsx',
+        'src/app/api/storage/route.ts',
+        'src/lib/apiHandler.ts',
+        'scripts/verify-scheme-export-artifacts.py',
+        'src/lib/db/migrations/120_scheme_export_requests.sql',
+        'src/lib/deliverables/deliverableRegister.ts',
+        'src/lib/observations/observationBatches.ts',
+        'src/lib/storage.ts',
+        'src/app/api/scheme/export/dxf/route.ts',
+        'src/app/api/scheme/export/geojson/route.ts',
+        'src/app/api/project/[id]/scheme/exports/route.ts',
+        'src/app/project/[id]/scheme/exports/page.tsx',
+        'src/components/scheme/SchemeExportReview.tsx',
+        'src/app/project/[id]/StagePage.tsx',
+        'tests/scheme-export-route.test.ts',
+        'tests/scheme-export-artifact.test.ts',
+        'tests/scheme-export-pending.test.ts',
+        'tests/scheme-export-client.test.ts',
+        'tests/scheme-export-ui.test.tsx',
+        'tests/scheme-export-history.test.tsx',
+        'tests/scheme-deliver-routing.test.tsx',
+        'tests/scheme-stream-middleware.test.ts',
+        'tests/storage-ownership-regression.test.ts',
+        'tests/block-parcel-register.test.tsx',
+        'src/lib/surveyMapEngine/__tests__/revisionsOfflineContracts.test.ts',
+      ]
+    : []),
 ]
 const hashes = () =>
   Object.fromEntries(
@@ -218,9 +269,11 @@ const report = {
   fixtureSchema: schema,
   checks: [],
 }
-const reportRoot = viewMode
-  ? '.cache/scheme-geometry-view'
-  : '.cache/reviewed-boundary'
+const reportRoot = exportMode
+  ? '.cache/scheme-boundary-export'
+  : viewMode
+    ? '.cache/scheme-geometry-view'
+    : '.cache/reviewed-boundary'
 mkdirSync(reportRoot, { recursive: true })
 const record = () =>
   writeFileSync(
@@ -237,6 +290,14 @@ const fingerprint = async () => {
     'traverse_observations',
     'users',
     'blocks',
+    ...(exportMode
+      ? [
+          'deliverables',
+          'deliverable_revisions',
+          'evidence_events',
+          'file_uploads',
+        ]
+      : []),
   ])
     output[table] = (
       await admin.query(
@@ -312,6 +373,7 @@ let original,
   ledger,
   created = false
 let expectedViewCases = 0
+let expectedExportCases = 0
 await admin.connect()
 try {
   assert.equal(
@@ -1035,6 +1097,36 @@ try {
       randomUUID,
     })
   }
+  if (exportMode) {
+    const cases = await import('./verify-scheme-export-cases.mjs')
+    expectedExportCases = cases.EXPECTED_CASES
+    await cases.verifySchemeExports({
+      check,
+      pool,
+      actor,
+      other,
+      project,
+      secondProject,
+      parcel,
+      traverse,
+      points,
+      command,
+      save,
+      report,
+      require,
+      randomUUID,
+      reset,
+      schema,
+      token,
+      reportRoot,
+      setFault: (value) => {
+        fault = value
+      },
+      setFeatureAllowed: (value) => {
+        schemeExportAllowed = value
+      },
+    })
+  }
 } finally {
   await pool.end()
   try {
@@ -1077,9 +1169,10 @@ try {
     assert.deepEqual(hashes(), report.source)
     report.sourcePreserved = true
     report.status =
-      report.checks.length === 50 + expectedViewCases &&
+      report.checks.length === 50 + expectedViewCases + expectedExportCases &&
       report.checks.every((row) => row.passed) &&
       report.ownedFixtureRemoved &&
+      (!exportMode || report.ownedExportFilesRemoved === true) &&
       report.originalRecordsPreserved &&
       report.migrationLedgerPreserved
         ? 'passed'

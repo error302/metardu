@@ -144,6 +144,13 @@ CRS/storage proof, not jurisdictional or concurrent-capacity acceptance.
 
 ## Remaining acceptance
 
+Follow-up source work in `RETAINED_SCHEME_EXPORT_ACCEPTANCE_2026-10-25.md`
+found that this route's streamed POST was missing `rawBody: true`. The native
+adapter had not exercised middleware JSON consumption. Four real-middleware
+regressions now cover export/boundary stream delivery, bounded parsing and auth;
+the source flag is fixed. This remains distinct from ordinary-account HTTP and
+rendered browser/field acceptance. Original migration/source receipts are retained.
+
 This is a source workflow with the scoped checks recorded above.
 It is not ordinary-account/browser, customer-schema, receiving-CAD/print, physical
 instrument, field or production proof. Actual narrow/mobile rendering and existing

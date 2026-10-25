@@ -170,6 +170,15 @@ ordinary-account, browser, receiving-application and professional field evidence
 
 ### Stored geometry and large views
 
+`RETAINED_SCHEME_EXPORT_ACCEPTANCE_2026-10-25.md` adds the next output step:
+select exact parcels across register pages, review their saved grid/revisions,
+produce a registered 2D draft, and recover the same stored bytes or durably
+cancel an uncertain request. Batches of 1–50 parcels and 24-row request history
+are explicit; larger asynchronous campaign delivery remains separate work.
+DXF retains the grid; geographic GeoJSON retains conversion provenance without
+claiming a field-verified local datum operation. Migration 120 is fixture-only,
+and actual browser/paid/receiving-CAD/field/release acceptance remains open.
+
 `STORED_GEOMETRY_MAP_ACCEPTANCE_2026-10-25.md` connects the reviewed parcel draft
 to an owner-bound spatial view. Whole-project counts, at most 50 individual
 polygons or 500 display-only density groups, explicit omitted records and saved

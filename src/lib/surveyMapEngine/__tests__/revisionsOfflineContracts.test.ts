@@ -65,6 +65,9 @@ describe('design revisions are real records (blueprint §28)', () => {
 describe('every export path registers its deliverable (blueprint §15)', () => {
   const deedPlan = read('src/app/api/documents/deed-plan/route.ts')
   const schemeDxf = read('src/app/api/scheme/export/dxf/route.ts')
+  const schemeExport = read('src/lib/scheme/exportCommands.ts')
+  const schemeRoute = read('src/lib/scheme/exportRoute.ts')
+  const surfaceExport = read('src/lib/topo/surfaceExport.ts')
   const topoDxf = read('src/app/api/topo/export/dxf/route.ts')
   const topoShp = read('src/app/api/topo/export/shapefile/route.ts')
 
@@ -77,14 +80,18 @@ describe('every export path registers its deliverable (blueprint §15)', () => {
   })
 
   test('scheme and topo exports register against their source revision', () => {
-    expect(schemeDxf).toMatch(/registerDeliverable\(\{/)
-    expect(schemeDxf).toMatch(/currentDesignRevision\(projectId, 'scheme_boundary'\)/)
-    expect(topoDxf).toMatch(/registerDeliverable\(\{/)
-    expect(topoDxf).toMatch(/currentDesignRevision\(String\(projectId\), 'surface'\)/)
+    expect(schemeDxf).toMatch(/schemeExportHandlers\('dxf'\)/)
+    expect(schemeExport).toMatch(/await registerDeliverable\(/)
+    expect(schemeExport).toMatch(/sourceRevision: artifact\.sourceRevision/)
+    expect(schemeExport).toMatch(/await appendSchemeExportJournal\(/)
+    expect(schemeExport).toMatch(/db\.transaction/)
+    expect(schemeRoute).not.toMatch(/X-Metardu-Register-Warning/)
+    expect(topoDxf).toMatch(/executeSurfaceExport/)
+    expect(surfaceExport).toMatch(/registerDeliverable\(\{/)
+    expect(surfaceExport).toMatch(/sourceRevision: body\.surfaceRevisionId/)
     expect(topoShp).toMatch(/registerDeliverable\(\{/)
-    // A failed registration never blocks the download, but is signalled.
-    expect(schemeDxf).toMatch(/X-Metardu-Register-Warning/)
-    expect(topoDxf).toMatch(/X-Metardu-Register-Warning/)
+    // The retained draft routes fail closed when their register cannot commit.
+    expect(topoDxf).not.toMatch(/X-Metardu-Register-Warning/)
   })
 })
 

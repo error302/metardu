@@ -18,6 +18,31 @@ their remaining families.
 
 ## Current execution order
 
+### Retained selected-boundary export checkpoint, 25 October
+
+`RETAINED_SCHEME_EXPORT_ACCEPTANCE_2026-10-25.md` connects exact reviewed parcel
+selection to stored DXF/geographic GeoJSON, atomic file/register/event outcomes,
+lost-ack recovery and durable cancellation. Scheme deliver navigation now opens
+the workflow with bounded per-account history. Generic storage namespace/hash/
+ownership guards and real streamed-middleware parsing are part of the repair.
+The checkpoint passes 148 combined tests, 127 native cases and independent
+DXF/GEOS/PROJ artifact checks. General Docker runtime/backup freshness passes;
+the read-only worker verifier still reports image `30e83e33403f…` source,
+module/dependency and task drift. Health does not close that release blocker.
+Migration 120 is source/fixture-only; 119 remains fixture-only. No production
+promotion, role/entitlement or provider change is part of this checkpoint. Keep
+ordinary-account/browser/admin, receiving-CAD, field, cross-workflow chain,
+crew/campaign capacity, worker/recovery/security and release gates explicit.
+
+### Backup freshness restored, 25 October
+
+`BACKUP_CATCHUP_2026-10-25.md` records a fresh runtime failure caused by no
+successful backup within 36 hours, followed by an owned catch-up run at
+16:59:14 UTC. All 88 earlier archive hashes were preserved; no installed
+script, persistent configuration or service lifecycle changed. The new
+database/uploads pair passed archive checks and `npm run docker:verify`
+passed again. Restore, off-host recovery and scheduler reliability remain open.
+
 ### Stored geometry map source checkpoint, 25 October
 
 `STORED_GEOMETRY_MAP_ACCEPTANCE_2026-10-25.md` records the replacement of

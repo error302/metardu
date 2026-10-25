@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import type { PoolClient, QueryResultRow } from 'pg'
 import { db } from '@/lib/db'
 import { AppError } from '@/lib/api/errors'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
@@ -110,6 +111,7 @@ export async function readSchemeViewport(
   project: string,
   query: Exclude<SchemeViewQuery, { mode: 'extent' }>,
   selection?: string[],
+  transactionClient?: PoolClient,
 ) {
   validateIdentity(actor, project)
   const parsedBox = schemeBboxSchema.safeParse(query.bbox)
@@ -126,7 +128,14 @@ export async function readSchemeViewport(
       'Choose a density cell between one hundredth of the view span and the full span.',
       400,
     )
-  const available = await db.query<{ available: boolean }>(
+  const sqlQuery = <T extends QueryResultRow>(
+    text: string,
+    params?: unknown[],
+  ) =>
+    transactionClient
+      ? transactionClient.query<T>(text, params)
+      : db.query<T>(text, params)
+  const available = await sqlQuery<{ available: boolean }>(
     "SELECT to_regclass('parcel_boundary_drafts') IS NOT NULL available",
   )
   if (
@@ -141,7 +150,7 @@ export async function readSchemeViewport(
  LEFT JOIN parcel_traverses t ON t.id=d.traverse_id AND t.parcel_id=p.id AND t.project_id=p.project_id`
     : `LEFT JOIN LATERAL(SELECT NULL::uuid id,NULL::jsonb receipt,NULL::jsonb snapshot,NULL::text draft_xmin) d ON TRUE`
   const state = history ? reviewState : "'unassessed_geometry'::text"
-  const result = await db.query<{ payload: unknown }>(
+  const result = await sqlQuery<{ payload: unknown }>(
     `${owned}, viewport AS MATERIALIZED(
  SELECT p.id,public.ST_XMin(p.geom) min_e,public.ST_YMin(p.geom) min_n,public.ST_XMax(p.geom) max_e,public.ST_YMax(p.geom) max_n
  FROM parcels p JOIN owned c ON c.id=p.project_id WHERE p.geom IS NOT NULL AND NOT public.ST_IsEmpty(p.geom) AND public.ST_SRID(p.geom)=c.srid
@@ -194,6 +203,7 @@ export async function readSchemeSelection(
   actor: string,
   project: string,
   input: unknown,
+  transactionClient?: PoolClient,
 ) {
   const ids = z
     .array(z.string().uuid())
@@ -211,6 +221,7 @@ export async function readSchemeSelection(
     project,
     { bbox: [0, 0, 1, 1], cellSize: 1 },
     ids.data,
+    transactionClient,
   )
   if (
     view.matchingRecords !== ids.data.length ||

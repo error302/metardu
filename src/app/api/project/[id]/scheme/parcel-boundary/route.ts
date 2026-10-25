@@ -48,6 +48,7 @@ export const GET = apiHandler(
 export const POST = apiHandler(
   {
     auth: true,
+    rawBody:true,
     rateLimit: { max: 30, windowMs: 60000 },
     audit: 'reviewed_boundary_draft',
   },

@@ -5,7 +5,7 @@
  * Otherwise, saves to local filesystem under STORAGE_ROOT (default: ./uploads).
  */
 
-import { promises as fs } from 'fs'
+import { promises as fs, createReadStream } from 'fs'
 import path from 'path'
 import crypto from 'crypto'
 import { logger } from '@/lib/logger'
@@ -45,7 +45,7 @@ export async function uploadFile(
     await fileRef.save(file, {
       contentType,
       // Uploaded survey files, reports, and project evidence are private data.
-      metadata: { CacheControl: 'private, no-store' },
+      metadata: { cacheControl: 'private, no-store' },
     })
     return storagePath
   }
@@ -73,6 +73,25 @@ export async function downloadFile(filePath: string): Promise<Buffer> {
 
   const fullPath = path.join(STORAGE_ROOT, filePath)
   return fs.readFile(fullPath)
+}
+
+/** Stop a retained-artifact read at its declared window, including provider streams. */
+export async function downloadFileBounded(filePath:string,maxBytes:number):Promise<Buffer>{
+  if(!Number.isSafeInteger(maxBytes)||maxBytes<1)throw new Error('A positive artifact read limit is required.')
+  let stream:import('node:stream').Readable
+  if(USE_GCS){
+    const {Storage}=await import('@google-cloud/storage')
+    const gcs=new Storage({projectId:process.env.GCS_PROJECT_ID,credentials:process.env.GCS_KEY_FILE?JSON.parse(process.env.GCS_KEY_FILE) as Record<string,string>:undefined})
+    stream=gcs.bucket(process.env.GCS_BUCKET_NAME||'metardu-storage').file(filePath).createReadStream()
+  }else stream=createReadStream(path.join(STORAGE_ROOT,filePath))
+  const parts:Buffer[]=[];let size=0
+  for await(const part of stream){
+    if(!Buffer.isBuffer(part))throw new Error('Unexpected artifact stream encoding.')
+    size+=part.length
+    if(size>maxBytes)throw new Error('The retained artifact exceeds its read limit.')
+    parts.push(part)
+  }
+  return Buffer.concat(parts,size)
 }
 
 export async function deleteFile(filePath: string): Promise<void> {

@@ -125,14 +125,14 @@ test('uses the actual file_uploads columns for uploads and ownership lookups', a
   expect((await DELETE(request(key), ctx)).status).toBe(200)
 })
 
-test.each(['surface-exports/alice/project/revision/file.dxf', 'SURFACE-EXPORTS/alice/project/revision/file.dxf'])('generic upload/delete cannot replace or erase retained surface artifacts: %s', async key => {
+test.each(['surface-exports/alice/project/revision/file.dxf', 'SURFACE-EXPORTS/alice/project/revision/file.dxf','scheme-exports/alice/project/request/file.dxf','SCHEME-EXPORTS/alice/project/request/file.geojson'])('generic upload/delete cannot replace or erase retained revision artifacts: %s', async key => {
   expect((await POST(upload(key), ctx)).status).toBe(409)
   expect((await DELETE(request(key), ctx)).status).toBe(409)
   expect(fs.writeFile).not.toHaveBeenCalled(); expect(fs.unlink).not.toHaveBeenCalled()
 })
 test('a retained artifact is delivered only when the stored bytes match its acknowledgement', async () => {
   const sha256 = createHash('sha256').update('private report').digest('hex')
-  ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ id: 'file', user_id: 'alice', sha256 }] })
+  ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ id: 'file', user_id: 'alice',project_id:'synthetic-project',project_owner:'alice', sha256 }] })
   const key = 'surface-exports/alice/project/revision/file.dxf'
   expect((await GET(request(key), ctx)).status).toBe(200)
   ;(fs.readFile as jest.Mock).mockResolvedValue(Buffer.from('changed'))

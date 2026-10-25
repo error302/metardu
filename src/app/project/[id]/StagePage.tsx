@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 import type { StageId } from '@/lib/workspaces/stageRegistry'
 import StageShell, { type StageBoundaryData, type StageSummary } from './StageShell'
+import SchemeExportReview from '@/components/scheme/SchemeExportReview'
 
 interface SummaryRow {
   point_count: number
@@ -37,7 +38,10 @@ export default async function StagePage({ params, stageId }: Props) {
 
   const { data: project, error } = await query.single()
   if (error || !project) redirect('/dashboard')
-  if (project.project_type === 'scheme') redirect(`/project/${id}/scheme`)
+  if (project.project_type === 'scheme') {
+    if(stageId==='deliver')return <SchemeExportReview key={id} projectId={id} parcelIds={[]}/>
+    redirect(`/project/${id}/scheme`)
+  }
 
   const { data: referenceRows } = await dbClient
     .from('project_reference_systems')
