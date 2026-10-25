@@ -50,16 +50,17 @@ const isoTimestampSchema = z
 export const parcelSchema = z.object({
   id: idSchema,
   project_id: idSchema,
-  block_id: idSchema,
+  block_id: idSchema.nullable(),
   parcel_number: z.string(),
   lr_number_proposed: z.string().nullable(),
   lr_number_confirmed: z.string().nullable(),
-  area_ha: z.coerce.number().nullable(),
+  area_ha: z.coerce.number().finite().nullable(),
   status: parcelStatusSchema,
   assigned_surveyor: idSchema.nullable(),
   notes: z.string().nullable(),
   created_at: isoTimestampSchema,
   updated_at: isoTimestampSchema,
+  revision_number: z.coerce.number().int().nonnegative().optional(),
 })
 
 /** A parcel row joined with its block name — the GET /scheme/parcels shape. */
@@ -94,6 +95,12 @@ export const schemeDetailsSchema = z.object({
 
 /** Response wrappers — the `{ data: ... }` envelope the routes emit. */
 export const parcelResponseSchema = z.object({ data: parcelSchema })
+export const parcelCommandRowSchema = parcelSchema.extend({
+  id:z.string().uuid(),project_id:z.string().uuid(),block_id:z.string().uuid().nullable(),
+  revision_number:z.number().int().nonnegative(),updated_at:z.string().datetime({offset:true}).regex(/\.\d{6}Z$/),
+})
+export const parcelCommandResponseSchema = z.object({data:parcelCommandRowSchema})
+export const parcelDeleteResponseSchema = z.object({data:z.object({deletedId:z.string().uuid(),projectId:z.string().uuid(),blockId:z.string().uuid().nullable(),revision:z.number().int().nonnegative()})})
 export const parcelListResponseSchema = z.object({ data: z.array(parcelSchema) })
 export const parcelWithBlockListResponseSchema = z.object({ data: z.array(parcelWithBlockSchema) })
 

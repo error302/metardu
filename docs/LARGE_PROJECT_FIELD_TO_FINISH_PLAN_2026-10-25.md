@@ -108,7 +108,10 @@ large-project acceptance.
    default reference fallback. `SCHEME_OVERVIEW_ACCEPTANCE_2026-10-25.md` now
    records authoritative aggregate counts, 24-row pages, metric-only projection
    and explicit unknown/read-failure states for the overview. Complete the same
-   bounded/validated approach in block detail, map and legacy consumer paths.
+   bounded/validated approach in map and legacy consumer paths. Block detail now
+   has 50-row reads, global totals and exact-version metadata commands recorded
+   in `BLOCK_PARCEL_REGISTER_ACCEPTANCE_2026-10-25.md`; block-management and the
+   broader map/traverse/crew workflows still need their own acceptance.
 3. Validate crew/member access, assignments, concurrent changes and cross-account
    isolation with ordinary identities. Do not confuse organisation administration
    with platform access or subscription privileges.

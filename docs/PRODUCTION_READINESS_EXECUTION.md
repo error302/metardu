@@ -43,6 +43,14 @@ fallback project/CRS is invented. Native and UI red cases also remove unsupporte
 traverse passes and successful-empty failure responses. Remaining block-detail,
 map and legacy-consumer scale/selection work is explicit in that record.
 
+`BLOCK_PARCEL_REGISTER_ACCEPTANCE_2026-10-25.md` follows with 50-row block reads,
+global supplied-area/status totals, exact timestamp/revision tokens and transactional
+metadata commands. Native red cases reproduce committed writes after invalid
+acknowledgements, scope/owner races and evidence-discarding deletes; the corrected
+fixture passes 42 native cases and the focused regression run passes 59 tests.
+The concurrency timeout, trigger/RLS compatibility limits and the remaining
+manual-command recovery, block-management, map and traverse work stay explicit.
+
 ### Single-chat coordination, 24 October
 
 The owner paused the other engineering chats and designated this chat as the

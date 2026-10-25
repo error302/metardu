@@ -58,24 +58,7 @@ export const UpdateBlockSchema = z.object({
 
 // ─── Parcel Schemas ──────────────────────────────────────────────────────────
 
-export const CreateParcelSchema = z.object({
-  block_id: z.string().uuid(),
-  parcel_number: z.string().min(1).max(20).trim(),
-  lr_number_proposed: z.string().max(50).trim().optional(),
-  area_ha: z.number().positive().max(10000).optional(),
-  notes: z.string().max(1000).trim().optional(),
-})
-
-export const UpdateParcelSchema = z.object({
-  parcel_number: z.string().min(1).max(20).trim().optional(),
-  lr_number_proposed: z.string().max(50).trim().optional(),
-  lr_number_confirmed: z.string().max(50).trim().optional(),
-  area_ha: z.number().positive().max(10000).optional(),
-  status: ParcelStatusEnum.optional(),
-  assigned_surveyor: z.string().uuid().optional().nullable(),
-  notes: z.string().max(1000).trim().optional(),
-  updated_at: z.string().datetime({ offset: true }).optional(),
-})
+export { CreateParcelSchema, UpdateParcelSchema } from './parcelInputs'
 
 // ─── Traverse Schemas ────────────────────────────────────────────────────────
 

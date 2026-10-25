@@ -83,7 +83,7 @@ const emptyObs = (): ObservationRow => ({
   ih: '1.500', th: '1.500', remarks: '',
 })
 
-export default function TraverseComputePanel({ parcelId }: { parcelId: number }) {
+export default function TraverseComputePanel({ parcelId }: { parcelId: string }) {
   const [config, setConfig] = useState<TraverseConfig>({
     opening_station: 'T1', closing_station: 'T1',
     opening_easting: '', opening_northing: '', opening_rl: '',
