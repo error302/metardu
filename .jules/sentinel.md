@@ -1,0 +1,4 @@
+## 2024-10-26 - [XSS] Missing HTML sanitization in Deed and Mutation Plan Generators
+**Vulnerability:** XSS (Cross-Site Scripting) vulnerability found in `DeedPlanGenerator.tsx` and `MutationPlanGenerator.tsx` where SVG output generated from user input is being rendered using `dangerouslySetInnerHTML={{ __html: svgOutput }}` without being sanitized by DOMPurify (`sanitizeHtml`).
+**Learning:** Even if server-side code like `escapeXml` is used in the generation logic (`src/lib/compute/deedPlanRenderer.ts`, `src/lib/reports/surveyPlan/formNo3Renderer.ts`), we should practice defense in depth and sanitize SVG content right before rendering it with `dangerouslySetInnerHTML`, since it could be tampered with or contain other vectors not handled by simple XML escaping.
+**Prevention:** Always wrap dynamically generated SVG or HTML content with the `sanitizeHtml` utility from `@/lib/security/sanitize` when using `dangerouslySetInnerHTML`.
