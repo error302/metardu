@@ -186,6 +186,10 @@ const files = [
   'src/app/api/scheme/traverse/history/route.ts',
   ...(traverseMode ? ['scripts/verify-traverse-retention-cases.mjs','src/app/api/scheme/traverse/route.ts','src/lib/db/migrations/122_retained_parcel_traverses.sql','src/lib/scheme/readSchemeView.ts','src/lib/scheme/schemeView.ts','src/lib/engine/traverse.ts','src/lib/engine/angles.ts'] : []),
   ...(shareMode ? [
+    'scripts/verify-retained-journey.mjs',
+    'scripts/verify-retained-journey-artifacts.py',
+    'src/lib/db/migrations/122_retained_parcel_traverses.sql',
+    'src/app/api/scheme/traverse/route.ts',
     'scripts/verify-parcel-sharing-cases.mjs',
     'src/lib/db/migrations/121_parcel_draft_sharing.sql',
     'src/lib/scheme/parcelShareContract.ts',

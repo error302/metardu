@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { randomBytes, createHash } from 'node:crypto'
-export const EXPECTED_CASES = 27
+export const EXPECTED_CASES = 28
 export async function verifyParcelSharing(c) {
   const {
     check,
@@ -603,6 +603,20 @@ export async function verifyParcelSharing(c) {
       writeFileSync(nodePath.join(process.env.STORAGE_ROOT, path), 'CORRUPT')
       assert.equal((await write(body)).status, 409)
       assert.equal(await count(), 0)
+    },
+  )
+  await check(
+    'one retained observation job survives boundary, export and sharing interruptions without replacing evidence',
+    async () => {
+      const { verifyRetainedJourney } = await import(
+        './verify-retained-journey.mjs'
+      )
+      await verifyRetainedJourney({
+        ...c,
+        readShare: read,
+        writeShare: write,
+        publicRead,
+      })
     },
   )
 }

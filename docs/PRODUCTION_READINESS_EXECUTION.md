@@ -18,6 +18,19 @@ their remaining families.
 
 ## Current execution order
 
+### Continuous retained-observation job checkpoint, 26 October
+
+`RETAINED_SURVEY_JOURNEY_ACCEPTANCE_2026-10-26.md` records one original paired-angle
+source through retained computation, explicit boundary selection, actual stored
+DXF/geographic artifacts, controlled sharing, later geometry/reference changes,
+revocation and ownership transfer. Deliberate lost-commit acknowledgements recover
+the original outcomes. All 155 native cases pass; independent ezdxf/GEOS/PROJ
+checks inspect the actual generated files. This is a small synthetic job with
+bounded authentication/paid-admission adapters. Ordinary-account/browser, real
+instrument/import, receiving-CAD/print, large campaign/crew, field and existing
+security/recovery/provider/release gates remain open. No application behavior or
+production service was changed by this acceptance-tooling checkpoint.
+
 ### Retained parcel traverse intake checkpoint, 26 October
 
 `RETAINED_TRAVERSE_INTAKE_2026-10-26.md` records append-only original input and
@@ -237,8 +250,8 @@ requiring `data.activities` while the live API returns `activities`. Current
 source already handles the actual response. Promote that existing repair with a
 reviewed coherent release; do not add another envelope or hot-patch production.
 
-Next: make the legacy scheme traverse intake use owner-bound UUIDs, explicit
-reference/observation conventions, retained input/result revisions and atomic
-replay-safe receipts, then connect it to reviewed boundary/export evidence.
-Its destructive write pattern and inferred parcel-area update remain open.
+Follow-up `e26b8757` implements the retained parcel intake and recoverable UI;
+the continuous-job checkpoint above connects its actual retained outputs through
+the boundary/export/sharing chain. Continue ordinary-account and real-pilot
+acceptance, large-source/campaign/crew capacity and coherent release preparation.
 Preserve the active parcel-API containment and all existing release/field gates.
