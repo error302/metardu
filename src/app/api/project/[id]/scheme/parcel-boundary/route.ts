@@ -13,8 +13,16 @@ export const GET = apiHandler(
   async (request, ctx) => {
     const query = new URL(request.url).searchParams
     if (
-      ['parcel_id', 'traverse_id', 'page', 'request_id'].some(
-        (key) => query.getAll(key).length > 1,
+      [...query.keys()].some(
+        (key) =>
+          ![
+            'parcel_id',
+            'traverse_id',
+            'page',
+            'request_id',
+            'coordinate_page',
+            'coordinate_q',
+          ].includes(key) || query.getAll(key).length > 1,
       )
     )
       throw new AppError('Choose one parcel, traverse, request and page.', 400)
@@ -24,7 +32,33 @@ export const GET = apiHandler(
     if (!/^[1-9]\d{0,5}$/.test(page))
       throw new AppError('Choose a valid source page.', 400)
     const requestId = query.get('request_id')
-    if (requestId && traverse)
+    if (
+      (query.has('request_id') && !requestId) ||
+      (query.has('traverse_id') && !traverse)
+    )
+      throw new AppError(
+        'Choose a nonempty source traverse or receipt identifier.',
+        400,
+      )
+    const coordinatePage = query.get('coordinate_page'),
+      filter = query.get('coordinate_q') ?? ''
+    if (
+      (coordinatePage !== null && !/^[1-9]\d{0,5}$/.test(coordinatePage)) ||
+      filter.length > 80 ||
+      (query.has('page') && !!traverse) ||
+      ((query.has('coordinate_page') || query.has('coordinate_q')) && !traverse)
+    )
+      throw new AppError(
+        'Choose coordinate pages separately from the source directory.',
+        400,
+      )
+    if (
+      requestId &&
+      (traverse ||
+        query.has('page') ||
+        query.has('coordinate_page') ||
+        query.has('coordinate_q'))
+    )
       throw new AppError(
         'Recover a receipt or choose a source traverse separately.',
         400,
@@ -32,7 +66,17 @@ export const GET = apiHandler(
     const data = requestId
       ? await readBoundaryReceipt(ctx.userId, ctx.params.id, parcel, requestId)
       : traverse
-        ? await readBoundarySource(ctx.userId, ctx.params.id, parcel, traverse)
+        ? await readBoundarySource(
+            ctx.userId,
+            ctx.params.id,
+            parcel,
+            traverse,
+            {
+              page:
+                coordinatePage === null ? undefined : Number(coordinatePage),
+              filter,
+            },
+          )
         : await readBoundaryDirectory(
             ctx.userId,
             ctx.params.id,
@@ -48,7 +92,7 @@ export const GET = apiHandler(
 export const POST = apiHandler(
   {
     auth: true,
-    rawBody:true,
+    rawBody: true,
     rateLimit: { max: 30, windowMs: 60000 },
     audit: 'reviewed_boundary_draft',
   },

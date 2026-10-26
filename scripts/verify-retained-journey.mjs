@@ -91,14 +91,20 @@ export async function verifyRetainedJourney(c) {
       actor,
       project,
     )
-  const readBoundary = (id) =>
+  const readBoundary = (id, coordinatePage) =>
     boundary.GET(
       new NextRequest(
         url +
           '/api/project/' +
           project +
           '/scheme/parcel-boundary?' +
-          new URLSearchParams({ parcel_id: parcel, traverse_id: id }),
+          new URLSearchParams({
+            parcel_id: parcel,
+            traverse_id: id,
+            ...(coordinatePage
+              ? { coordinate_page: String(coordinatePage) }
+              : {}),
+          }),
       ),
       actor,
       project,
@@ -453,6 +459,37 @@ export async function verifyRetainedJourney(c) {
   )
 
   const nextFrame = (await data(await readTraverse())).context
+  const denseObservations = Array.from({ length: 2000 }, (_, i) =>
+    shot(
+      'DENSE_' + i,
+      i === 0 ? 90 : i % 500 === 0 ? 270 : 180,
+      i === 0 ? 270 : i % 500 === 0 ? 90 : 0,
+      (
+        Number(
+          input.observations[i < 500 || (i >= 1000 && i < 1500) ? 0 : 1]
+            .slopeDist,
+        ) / 500
+      ).toPrecision(17),
+    ),
+  )
+  const denseOriginal = Buffer.from(
+    'target,face_left_deg,face_right_deg,slope_m,zenith_deg,ih_m,th_m\r\n' +
+      denseObservations
+        .map((o) =>
+          [
+            o.station,
+            o.hclDeg,
+            o.hcrDeg,
+            o.slopeDist,
+            o.vaDeg,
+            o.ih,
+            o.th,
+          ].join(','),
+        )
+        .join('\r\n') +
+      '\r\n',
+    'utf8',
+  )
   const nextInput = {
     ...input,
     requestId: randomUUID(),
@@ -460,18 +497,31 @@ export async function verifyRetainedJourney(c) {
     baseRevisionId: nextFrame.latestRevisionId,
     derivedFromRevisionId: recovered.revisionId,
     control: { ...input.control, openingEasting: '0250010.123456789' },
+    observations: denseObservations,
+    source: {
+      kind: 'attachment',
+      filename: 'SYNTHETIC-dense-original.csv',
+      bytesBase64: denseOriginal.toString('base64'),
+      mappingReviewed: true,
+    },
   }
   const next = await data(await saveTraverse(JSON.stringify(nextInput)))
   assert.equal(next.receipt.ordinal, 2)
   assert.equal((await counts()).parcel_traverse_revisions, 2)
-  const nextSource = await data(await readBoundary(next.receipt.traverseId))
+  assert.equal(next.receipt.coordinateIds.length, 2001)
+  assert.equal(next.receipt.sourceHash, hash(denseOriginal))
+  const nextSource = await data(await readBoundary(next.receipt.traverseId, 1))
+  assert.equal(nextSource.points.length, 50)
+  assert.equal(nextSource.pointWindow.total, 2001)
   const nextBoundary = await data(
     await saveBoundary({
       ...boundaryCommand,
       request_id: randomUUID(),
       traverse_id: next.receipt.traverseId,
       evidence_hash: nextSource.evidenceHash,
-      ordered_coordinate_ids: next.receipt.coordinateIds,
+      ordered_coordinate_ids: [0, 500, 1000, 1500].map(
+        (i) => next.receipt.coordinateIds[i],
+      ),
     }),
   )
   assert.equal(nextBoundary.parcelRevision, reviewed.parcelRevision + 1)
@@ -480,6 +530,59 @@ export async function verifyRetainedJourney(c) {
     selection.sourceHash,
   )
   assert.equal((await exportPost(exportBody(), 'geojson')).status, 409)
+  const denseSelection = await data(await selected()),
+    denseArtifacts = {}
+  for (const format of ['dxf', 'geojson']) {
+    const request = { ...exportBody(), sourceHash: denseSelection.sourceHash }
+    const bytes = await full(await exportPost(request, format))
+    assert.deepEqual(await full(await recover(request, format)), bytes)
+    const row = (
+      await pool.query(
+        "SELECT content_hash,manifest FROM deliverable_revisions WHERE manifest#>>'{request,id}'=$1",
+        [request.requestId],
+      )
+    ).rows[0]
+    assert.equal(row.content_hash, hash(bytes))
+    assert.deepEqual(row.manifest.source, denseSelection.source)
+    copy('journey-dense.' + (format === 'dxf' ? 'dxf' : 'geojson'), bytes)
+    copy(
+      'journey-dense-' + format + '-source.json',
+      JSON.stringify(row.manifest, null, 2) + '\n',
+    )
+    denseArtifacts[format] = {
+      requestId: request.requestId,
+      sha256: hash(bytes),
+    }
+  }
+  assert.equal((await counts()).scheme_export_requests, 4)
+  assert.equal((await counts()).deliverable_revisions, 4)
+  assert.equal((await counts()).file_uploads, 4)
+  const denseSnapshot = (
+    await pool.query(
+      'SELECT snapshot FROM parcel_boundary_drafts WHERE id=$1',
+      [nextBoundary.receiptId],
+    )
+  ).rows[0].snapshot
+  assert.equal(denseSnapshot.source.rawPoints.length, 2001)
+  assert.equal(denseSnapshot.source.originalObservations.length, 2000)
+  copy('journey-dense-original.csv', denseOriginal)
+  copy('journey-dense-command.canonical.json', canonicalJSON(nextInput))
+  copy('journey-dense-result.canonical.json', canonicalJSON(next.result))
+  copy(
+    'journey-dense-receipt.json',
+    JSON.stringify(next.receipt, null, 2) + '\n',
+  )
+  copy(
+    'journey-dense-boundary.json',
+    JSON.stringify(nextBoundary, null, 2) + '\n',
+  )
+  proof.largeSource = {
+    observations: 2000,
+    sourceCoordinates: 2001,
+    chosenVertices: 4,
+    sourceSnapshotBytes: Buffer.byteLength(JSON.stringify(denseSnapshot)),
+    artifacts: denseArtifacts,
+  }
   assert.deepEqual(await full(await recover(dxfBody, 'dxf')), dxf)
   assert.deepEqual(await full(await recover(geoBody, 'geojson')), geo)
   assert.deepEqual(await data(await publicRead(grant)), publicPacket)

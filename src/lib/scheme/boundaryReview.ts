@@ -7,6 +7,8 @@ import {
 import { isSimplePolygonRing } from '@/lib/spatial/simplePolygon'
 
 export const BOUNDARY_VERTEX_LIMIT = 500
+export const BOUNDARY_SOURCE_LIMIT = 2001
+export const BOUNDARY_POINT_PAGE_SIZE = 50
 export const boundaryCommandSchema = z
   .object({
     parcel_id: z.string().uuid(),
@@ -36,20 +38,57 @@ export const boundaryPointSchema = z.object({
   northing: z.number().finite(),
   elevation: z.number().finite().nullable(),
 })
-export const boundarySourceSchema = z.object({
-  storageReady: z.boolean(),
-  observationCount: z.number().int().nonnegative().max(2000),
-  projectId: z.string().uuid(),
-  parcelId: z.string().uuid(),
-  parcelNumber: z.string(),
-  blockId: z.string().uuid().nullable(),
-  parcelStatus: z.string().nullable(),
-  parcelRevision: z.number().int().nonnegative(),
-  traverseId: z.string().uuid(),
-  sourceCrs: z.string(),
-  evidenceHash: z.string().regex(/^[a-f0-9]{64}$/),
-  points: z.array(boundaryPointSchema).max(BOUNDARY_VERTEX_LIMIT),
-})
+export const boundarySourceSchema = z
+  .object({
+    storageReady: z.boolean(),
+    observationCount: z.number().int().nonnegative().max(2000),
+    projectId: z.string().uuid(),
+    parcelId: z.string().uuid(),
+    parcelNumber: z.string(),
+    blockId: z.string().uuid().nullable(),
+    parcelStatus: z.string().nullable(),
+    parcelRevision: z.number().int().nonnegative(),
+    traverseId: z.string().uuid(),
+    sourceCrs: z.string(),
+    evidenceHash: z.string().regex(/^[a-f0-9]{64}$/),
+    points: z.array(boundaryPointSchema).max(BOUNDARY_SOURCE_LIMIT),
+    pointWindow: z
+      .object({
+        page: z.number().int().positive(),
+        pageSize: z.literal(BOUNDARY_POINT_PAGE_SIZE),
+        total: z.number().int().nonnegative().max(BOUNDARY_SOURCE_LIMIT),
+        matchingCount: z
+          .number()
+          .int()
+          .nonnegative()
+          .max(BOUNDARY_SOURCE_LIMIT),
+        filter: z.string().max(80),
+      })
+      .strict()
+      .optional(),
+  })
+  .superRefine((value, ctx) => {
+    const w = value.pointWindow
+    if (new Set(value.points.map((p) => p.id)).size !== value.points.length)
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'Source coordinates must have distinct identifiers.',
+      })
+    if (
+      w &&
+      (w.matchingCount > w.total ||
+        w.page > Math.max(1, Math.ceil(w.matchingCount / w.pageSize)) ||
+        value.points.length !==
+          Math.min(
+            w.pageSize,
+            Math.max(0, w.matchingCount - (w.page - 1) * w.pageSize),
+          ))
+    )
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        message: 'The coordinate window is incomplete or inconsistent.',
+      })
+  })
 export type BoundarySource = z.infer<typeof boundarySourceSchema>
 const count = z.number().int().nonnegative()
 export const boundaryDirectorySchema = z
@@ -150,11 +189,10 @@ export function prepareBoundary(
   if (
     !Number.isFinite(gridAreaSqM) ||
     !Number.isFinite(gridPerimeterM) ||
-    !Number.isFinite(areaHa) || areaHa <= 0
+    !Number.isFinite(areaHa) ||
+    areaHa <= 0
   )
-    throw new Error(
-      'The draft area is zero or nonfinite.',
-    )
+    throw new Error('The draft area is zero or nonfinite.')
   return {
     polygon: {
       type: 'Polygon' as const,

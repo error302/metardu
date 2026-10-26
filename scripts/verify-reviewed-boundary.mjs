@@ -908,7 +908,7 @@ try {
     'oversized source is refused rather than truncated into a boundary',
     async () => {
       await pool.query(
-        'INSERT INTO traverse_coordinates(id,traverse_id,station_name,easting,northing) SELECT gen_random_uuid(),$1,i::text,i,i FROM generate_series(1,497) i',
+        'INSERT INTO traverse_coordinates(id,traverse_id,station_name,easting,northing) SELECT gen_random_uuid(),$1,i::text,i,i FROM generate_series(1,1998) i',
         [traverse],
       )
       assert.equal((await get({ traverse_id: traverse })).status, 413)
@@ -1134,7 +1134,7 @@ try {
     await pool.query(traverseMigration)
     const cases = await import('./verify-traverse-retention-cases.mjs')
     expectedTraverseCases = cases.EXPECTED_CASES
-    await cases.verifyTraverseRetention({check,pool,actor,other,project,parcel,traverse,require,randomUUID,schema,setFault:value=>{fault=value}})
+    await cases.verifyTraverseRetention({check,pool,actor,other,project,parcel,traverse,require,randomUUID,schema,report,setFault:value=>{fault=value}})
   }
   if (viewMode) {
     const cases = await import('./verify-scheme-view-cases.mjs')

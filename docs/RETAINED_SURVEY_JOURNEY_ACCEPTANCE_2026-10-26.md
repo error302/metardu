@@ -3,8 +3,12 @@
 26 October 2026, Africa/Nairobi. This checkpoint connects the existing intake,
 review, export and sharing implementations in one continuously retained job.
 It adds acceptance tooling and independently inspected sample artifacts. The
-application source remains checkpoint `e26b8757`; no application behavior or
-production deployment was changed in this batch.
+application source at this initial checkpoint was `e26b8757`; no application
+behavior or production deployment was changed in that acceptance-tooling batch.
+The later `PAGED_BOUNDARY_SOURCE_ACCEPTANCE_2026-10-26.md` extends the application's
+source review and this verifier's second epoch to 2,000 observations, 2,001
+coordinates and a second actual DXF/GeoJSON pair. The current verifier commands
+below execute that extension as well.
 
 ## Job and evidence chain
 
@@ -29,8 +33,11 @@ results; they do not describe physical survey accuracy.
 | Change reference and revoke | Changing the reference closes new current-geometry selection. Recovery returns the original file without relabeling it. Revocation closes recipient reads; replay does not recreate or renew the revoked grant. |
 | Transfer ownership | The former actor loses project/source/export recovery access. The current owner can read the original source history, with its original issuer and inputs intact. |
 
-Final synthetic counts: two observation revisions and journals, two explicit
+The initial run had two observation revisions and journals, two explicit
 boundary drafts, two export requests/revisions/file records and one revoked grant.
+The later dense epoch keeps those source/draft/grant counts and produces four
+export requests/revisions/file records; its separate proof and examples are
+documented in the paged-source checkpoint.
 The earlier source records survive these transitions. The job's keys are not
 written into the retained proof/sample files.
 

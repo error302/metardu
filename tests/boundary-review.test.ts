@@ -1,6 +1,7 @@
 import {
   prepareBoundary,
   boundaryCommandSchema,
+  boundarySourceSchema,
   type BoundarySource,
 } from '@/lib/scheme/boundaryReview'
 import {
@@ -34,6 +35,58 @@ const source: BoundarySource = {
     elevation: i === 0 ? 0 : null,
   })),
 }
+it('admits a complete filtered coordinate window without treating it as the full source', () => {
+  const value = boundarySourceSchema.parse({
+    ...source,
+    pointWindow: {
+      page: 1,
+      pageSize: 50,
+      total: 2001,
+      matchingCount: 4,
+      filter: 'P',
+    },
+  })
+  expect(value.points).toHaveLength(4)
+  expect(value.pointWindow?.total).toBe(2001)
+})
+it.each([
+  { page: 0 },
+  { page: 2 },
+  { matchingCount: 5 },
+  { total: 3 },
+  { total: 2002 },
+  { pageSize: 500 },
+  { filter: 'x'.repeat(81) },
+])('refuses inconsistent coordinate-window metadata %j', (change) => {
+  expect(
+    boundarySourceSchema.safeParse({
+      ...source,
+      pointWindow: {
+        page: 1,
+        pageSize: 50,
+        total: 4,
+        matchingCount: 4,
+        filter: '',
+        ...change,
+      },
+    }).success,
+  ).toBe(false)
+})
+it('refuses duplicated coordinates in a transport window', () => {
+  expect(
+    boundarySourceSchema.safeParse({
+      ...source,
+      points: [source.points[0], source.points[0]],
+      pointWindow: {
+        page: 1,
+        pageSize: 50,
+        total: 2,
+        matchingCount: 2,
+        filter: '',
+      },
+    }).success,
+  ).toBe(false)
+})
 it('uses reviewed IDs to form an analytical 200 square metre rectangle', () => {
   const result = prepareBoundary(
     source,
@@ -45,13 +98,33 @@ it('uses reviewed IDs to form an analytical 200 square metre rectangle', () => {
   expect(result.areaHa).toBe(0.02)
   expect(result.polygon.coordinates[0][4]).toEqual([500000, 9500000])
 })
-it('preserves fractional area at a large grid origin without hectare rounding',()=>{
-  const e=250000,n=9800000,width=100+2**-23,height=50+2**-20
-  const precise={...source,points:[[e,n],[e+width,n],[e+width,n+height],[e,n+height]].map(([easting,northing],i)=>({...source.points[i],easting,northing}))}
-  const result=prepareBoundary(precise,precise.points.map(p=>p.id),source.sourceCrs)
-  const expected=(precise.points[1].easting-e)*(precise.points[2].northing-n)
-  expect(result.gridAreaSqM).toBeCloseTo(expected,9)
-  expect(result.areaHa).toBe(expected/10000)
+it('preserves fractional area at a large grid origin without hectare rounding', () => {
+  const e = 250000,
+    n = 9800000,
+    width = 100 + 2 ** -23,
+    height = 50 + 2 ** -20
+  const precise = {
+    ...source,
+    points: [
+      [e, n],
+      [e + width, n],
+      [e + width, n + height],
+      [e, n + height],
+    ].map(([easting, northing], i) => ({
+      ...source.points[i],
+      easting,
+      northing,
+    })),
+  }
+  const result = prepareBoundary(
+    precise,
+    precise.points.map((p) => p.id),
+    source.sourceCrs,
+  )
+  const expected =
+    (precise.points[1].easting - e) * (precise.points[2].northing - n)
+  expect(result.gridAreaSqM).toBeCloseTo(expected, 9)
+  expect(result.areaHa).toBe(expected / 10000)
 })
 it.each([
   ['crossed', [id(10), id(12), id(11), id(13)]],

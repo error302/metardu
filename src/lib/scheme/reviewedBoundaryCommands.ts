@@ -13,6 +13,8 @@ import {
   boundarySourceSchema,
   prepareBoundary,
   BOUNDARY_VERTEX_LIMIT,
+  BOUNDARY_SOURCE_LIMIT,
+  BOUNDARY_POINT_PAGE_SIZE,
   type BoundarySource,
 } from './boundaryReview'
 
@@ -40,7 +42,7 @@ function identity(
 const checkedSourceSql = `WITH owned AS (SELECT id FROM projects WHERE id=$1 AND user_id=$2),
  p AS(SELECT p.*,p.xmin FROM parcels p JOIN owned o ON o.id=p.project_id WHERE p.id=$3),
  t AS(SELECT t.*,t.xmin FROM parcel_traverses t JOIN p ON p.id=t.parcel_id AND p.project_id=t.project_id WHERE t.id=$4),
- point_rows AS(SELECT c.id,to_jsonb(c)||jsonb_build_object('recordJson',to_jsonb(c)::text,'easting',c.easting::text,'northing',c.northing::text,'elevation',to_jsonb(c)->>'elevation','rl',to_jsonb(c)->>'rl','coordinateVersion',c.xmin::text) raw FROM traverse_coordinates c JOIN t ON t.id=c.traverse_id ORDER BY c.id LIMIT ${BOUNDARY_VERTEX_LIMIT + 1}),
+ point_rows AS(SELECT c.id,to_jsonb(c)||jsonb_build_object('recordJson',to_jsonb(c)::text,'easting',c.easting::text,'northing',c.northing::text,'elevation',to_jsonb(c)->>'elevation','rl',to_jsonb(c)->>'rl','coordinateVersion',c.xmin::text) raw FROM traverse_coordinates c JOIN t ON t.id=c.traverse_id ORDER BY c.id LIMIT ${BOUNDARY_SOURCE_LIMIT + 1}),
  observation_rows AS(SELECT o.id,jsonb_build_object('record',to_jsonb(o),'rowVersion',o.xmin::text)::text raw FROM traverse_observations o JOIN t ON t.id=o.traverse_id ORDER BY o.id LIMIT 2001),
  payload_budget AS(SELECT 4096+COALESCE((SELECT SUM(octet_length(to_jsonb(raw)::text)) FROM observation_rows),0)+COALESCE((SELECT SUM(octet_length(raw::text)) FROM point_rows),0)+COALESCE((SELECT octet_length(to_jsonb(r)::text) FROM project_reference_systems r JOIN owned p ON p.id=r.project_id),0)+COALESCE((SELECT octet_length(to_jsonb(to_jsonb(t)::text)::text) FROM t),0) bytes)
  SELECT jsonb_build_object(
@@ -76,7 +78,7 @@ const rawSchema = z.object({
   reference: z.record(z.unknown()).nullable(),
   pointCount: z.number().int().nonnegative(),
   rawPoints: z.array(z.record(z.unknown())),
-  retainedEvidence:z.record(z.unknown()).optional(),
+  retainedEvidence: z.record(z.unknown()).optional(),
 })
 function number(value: unknown): number {
   if (
@@ -130,19 +132,33 @@ async function source(
     )
   if (raw.originalObservations.length !== raw.observationCount)
     throw error('The retained observation set changed during the read.')
-  if (raw.pointCount > BOUNDARY_VERTEX_LIMIT)
+  if (raw.pointCount > BOUNDARY_SOURCE_LIMIT)
     throw error(
-      'This traverse exceeds the 500-coordinate review window. Retain a bounded boundary source before continuing.',
+      'This traverse exceeds the 2,001-coordinate source window. Retain a bounded source without discarding original records.',
       413,
     )
   if (raw.rawPoints.length !== raw.pointCount)
     throw error('The retained coordinate set changed during the read.')
-  if(raw.traverseRecordJson) {
-    const retained=z.object({retained_revision_id:z.string().uuid().nullable().optional()}).parse(JSON.parse(raw.traverseRecordJson)).retained_revision_id
-    if(retained) {
-      if(!raw.reference)throw error('The retained traverse reference is missing.')
-      raw.retainedEvidence=await assertRetainedTraverseSource(actor,project,parcel,retained,raw.reference,client)
-      if(Buffer.byteLength(canonicalJSON(raw),'utf8')>4194304)throw error('The complete retained source exceeds the 4 MiB review window.',413)
+  if (raw.traverseRecordJson) {
+    const retained = z
+      .object({ retained_revision_id: z.string().uuid().nullable().optional() })
+      .parse(JSON.parse(raw.traverseRecordJson)).retained_revision_id
+    if (retained) {
+      if (!raw.reference)
+        throw error('The retained traverse reference is missing.')
+      raw.retainedEvidence = await assertRetainedTraverseSource(
+        actor,
+        project,
+        parcel,
+        retained,
+        raw.reference,
+        client,
+      )
+      if (Buffer.byteLength(canonicalJSON(raw), 'utf8') > 4194304)
+        throw error(
+          'The complete retained source exceeds the 4 MiB review window.',
+          413,
+        )
     }
   }
   let crs: string
@@ -180,8 +196,50 @@ export async function readBoundarySource(
   project: string,
   parcel: string,
   traverse: string,
+  options: { page?: number; filter?: string } = {},
 ): Promise<BoundarySource> {
-  return (await source(actor, project, parcel, traverse)).data
+  const all = (await source(actor, project, parcel, traverse)).data
+  if (
+    options.page === undefined &&
+    !options.filter &&
+    all.points.length <= BOUNDARY_VERTEX_LIMIT
+  )
+    return all
+  if (options.page === undefined)
+    throw error(
+      'Choose an explicit coordinate page to review or search this source. Original coordinates were not truncated.',
+      400,
+    )
+  const page = options.page ?? 1,
+    filter = (options.filter ?? '').trim()
+  if (!Number.isSafeInteger(page) || page < 1 || filter.length > 80)
+    throw error('Choose a valid coordinate page and label or ID filter.', 400)
+  const normalized = filter.toLowerCase(),
+    points = all.points.filter(
+      (p) =>
+        !normalized ||
+        (p.station ?? '').toLowerCase().includes(normalized) ||
+        p.id.toLowerCase().includes(normalized),
+    )
+  if (page > Math.max(1, Math.ceil(points.length / BOUNDARY_POINT_PAGE_SIZE)))
+    throw error(
+      'The requested coordinate page is outside the retained source.',
+      400,
+    )
+  return boundarySourceSchema.parse({
+    ...all,
+    points: points.slice(
+      (page - 1) * BOUNDARY_POINT_PAGE_SIZE,
+      page * BOUNDARY_POINT_PAGE_SIZE,
+    ),
+    pointWindow: {
+      page,
+      pageSize: BOUNDARY_POINT_PAGE_SIZE,
+      total: all.points.length,
+      matchingCount: points.length,
+      filter,
+    },
+  })
 }
 export async function readBoundaryReceipt(
   actor: string,
@@ -342,7 +400,7 @@ export async function saveReviewedBoundary(
         throw error('Traverse not found for this parcel.', 404)
       // FOR UPDATE on the referenced traverse also prevents new FK children until commit.
       await client.query(
-        `SELECT id FROM traverse_coordinates WHERE traverse_id=$1 ORDER BY id LIMIT ${BOUNDARY_VERTEX_LIMIT + 1} FOR SHARE`,
+        `SELECT id FROM traverse_coordinates WHERE traverse_id=$1 ORDER BY id LIMIT ${BOUNDARY_SOURCE_LIMIT + 1} FOR SHARE`,
         [command.traverse_id],
       )
       await client.query(

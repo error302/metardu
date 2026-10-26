@@ -129,9 +129,11 @@ the permanent replacement and rollback behavior are verified live.
 ## Remaining acceptance
 
 This checkpoint does not prove ward-scale cadastral production, independent
-surveyor acceptance or legal submission. The boundary selector still has a
-500-coordinate review window; larger retained paths need a reviewed bounded
-boundary-source workflow. Campaign partitioning, multiple crews, permissioned
+surveyor acceptance or legal submission. The later
+`PAGED_BOUNDARY_SOURCE_ACCEPTANCE_2026-10-26.md` replaces this checkpoint's
+500-coordinate source ceiling with 50-row review/search across up to 2,001 source
+coordinates. Its 500 chosen-vertex and byte/intake limits remain explicit.
+Campaign partitioning, multiple crews, permissioned
 collaboration, offline conflict handling and ward-scale load/recovery remain open.
 
 Actual instrument-file parsing, direct device connections, field controls,

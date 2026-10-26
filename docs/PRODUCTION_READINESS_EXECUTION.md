@@ -18,6 +18,21 @@ their remaining families.
 
 ## Current execution order
 
+### Paged large-source boundary review checkpoint, 26 October
+
+`PAGED_BOUNDARY_SOURCE_ACCEPTANCE_2026-10-26.md` separates the complete retained
+source from the chosen parcel vertices: up to 2,001 source coordinates, 50-row
+pages and label/ID search, with selections preserved only under an unchanged
+full-source fingerprint. Saving retains all original rows and explicit ordered
+membership. Tests cover page-read failures, changed/contradictory source values,
+exact selection and unselected-source staleness. All 164 unit/UI regressions,
+40 native retention checks and 155 adjacent/continuous-job checks pass. The
+later 2,000-observation epoch also produces actual independently inspected DXF /
+GeoJSON without replacing the earlier files/share. This remains source/synthetic
+evidence: million-observation campaigns, crews/offline, authenticated browser,
+physical/receiving-application, security/recovery/provider and release gates
+remain open. No migration or production promotion is part of this checkpoint.
+
 ### Continuous retained-observation job checkpoint, 26 October
 
 `RETAINED_SURVEY_JOURNEY_ACCEPTANCE_2026-10-26.md` records one original paired-angle

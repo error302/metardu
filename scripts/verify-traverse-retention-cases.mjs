@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-export const EXPECTED_CASES = 39
+export const EXPECTED_CASES = 40
 export async function verifyTraverseRetention(c) {
   const {
     check,
@@ -703,6 +703,162 @@ export async function verifyTraverseRetention(c) {
     assert.equal(saved.receipt.coordinateIds.length, 2001)
     assert.equal(saved.result.rawObservations[1999].slopeDist, '1.000000001')
     assert.equal(saved.result.linearError, null)
+  })
+  test('all 2001 source coordinates remain reviewable through bounded pages and an exact selected boundary', async () => {
+    const body = await build()
+    body.control.closing = null
+    body.criterion = null
+    body.observations = Array.from({ length: 2000 }, (_, i) => ({
+      ...shot(
+        'BoundaryStep_' + i,
+        i === 0 ? 90 : i % 500 === 0 ? 270 : 180,
+        i === 0 ? 270 : i % 500 === 0 ? 90 : 0,
+      ),
+      slopeDist: '0.2000000001',
+    }))
+    const saved = await data(await post(body)),
+      base =
+        'http://127.0.0.1:3021/api/project/' +
+        project +
+        '/scheme/parcel-boundary'
+    const page = (query = {}, user = actor) =>
+      boundary.GET(
+        new NextRequest(
+          base +
+            '?' +
+            new URLSearchParams({
+              parcel_id: parcel,
+              traverse_id: saved.receipt.traverseId,
+              ...query,
+            }),
+        ),
+        user,
+        project,
+      )
+    assert.equal((await page()).status, 400)
+    const first = await data(await page({ coordinate_page: '1' })),
+      ids = [],
+      bytes = [],
+      started = performance.now()
+    assert.equal(first.pointWindow.total, 2001)
+    assert.equal(first.points.length, 50)
+    for (let p = 1; p <= 41; p++) {
+      const response = await page({ coordinate_page: String(p) })
+      assert.equal(response.status, 200, await response.clone().text())
+      const text = await response.text(),
+        value = JSON.parse(text).data
+      assert.equal(value.evidenceHash, first.evidenceHash)
+      assert.equal(value.pointWindow.page, p)
+      assert.equal(value.points.length, p === 41 ? 1 : 50)
+      ids.push(...value.points.map((point) => point.id))
+      bytes.push(Buffer.byteLength(text))
+    }
+    assert.equal(new Set(ids).size, 2001)
+    assert.deepEqual([...ids].sort(), [...saved.receipt.coordinateIds].sort())
+    assert.ok(Math.max(...bytes) < 20000)
+    const found = await data(
+      await page({ coordinate_page: '1', coordinate_q: 'BoundaryStep_1999' }),
+    )
+    assert.equal(found.pointWindow.matchingCount, 1)
+    assert.equal(found.points[0].id, saved.receipt.coordinateIds[2000])
+    assert.equal(found.evidenceHash, first.evidenceHash)
+    const empty = await data(
+      await page({ coordinate_page: '1', coordinate_q: 'Absent coordinate' }),
+    )
+    assert.equal(empty.points.length, 0)
+    assert.equal(empty.pointWindow.total, 2001)
+    assert.equal((await page({ coordinate_page: '42' })).status, 400)
+    assert.equal((await page({ coordinate_page: '1' }, other)).status, 404)
+    assert.equal((await page({ coordinate_page: '1', page: '1' })).status, 400)
+    const command = {
+      request_id: randomUUID(),
+      parcel_id: parcel,
+      traverse_id: saved.receipt.traverseId,
+      evidence_hash: first.evidenceHash,
+      source_crs: body.sourceCrs,
+      ordered_coordinate_ids: [0, 500, 1000, 1500].map(
+        (i) => saved.receipt.coordinateIds[i],
+      ),
+      reviewed: true,
+      note: 'SYNTHETIC four vertices from the complete retained source',
+    }
+    const send = (b) =>
+      boundary.POST(
+        new NextRequest(base, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(b),
+        }),
+        actor,
+        project,
+      )
+    const before = await state()
+    assert.equal(
+      (
+        await send({
+          ...command,
+          ordered_coordinate_ids: [
+            ...command.ordered_coordinate_ids.slice(0, 3),
+            randomUUID(),
+          ],
+        })
+      ).status,
+      400,
+    )
+    assert.deepEqual(await state(), before)
+    const receipt = await data(await send(command))
+    const snapshot = (
+      await pool.query(
+        'SELECT snapshot FROM parcel_boundary_drafts WHERE id=$1',
+        [receipt.receiptId],
+      )
+    ).rows[0].snapshot
+    assert.equal(snapshot.source.rawPoints.length, 2001)
+    assert.equal(snapshot.source.originalObservations.length, 2000)
+    assert.equal(
+      snapshot.source.retainedEvidence.revisionId,
+      saved.receipt.revisionId,
+    )
+    assert.ok(Buffer.byteLength(JSON.stringify(snapshot)) < 4194304)
+    assert.equal(
+      (await readSchemeSelection(actor, project, [parcel])).features[0]
+        .properties.evidenceState,
+      'reviewed_draft',
+    )
+    const client = await pool.connect()
+    try {
+      await client.query('BEGIN')
+      await client.query(
+        'ALTER TABLE ' +
+          schema +
+          '.traverse_coordinates DISABLE TRIGGER retained_traverse_coordinates_immutable',
+      )
+      await client.query(
+        'UPDATE traverse_coordinates SET easting=easting+0.1 WHERE id=$1',
+        [saved.receipt.coordinateIds[1999]],
+      )
+      assert.equal(
+        (await readSchemeSelection(actor, project, [parcel], client))
+          .features[0].properties.evidenceState,
+        'changed_since_review',
+      )
+    } finally {
+      await client.query('ROLLBACK')
+      client.release()
+    }
+    c.report.boundarySourceProfile = {
+      synthetic: true,
+      sourceCoordinates: 2001,
+      observations: 2000,
+      chosenVertices: 4,
+      pages: 41,
+      pageSize: 50,
+      maxResponseBytes: Math.max(...bytes),
+      totalResponseBytes: bytes.reduce((a, b) => a + b, 0),
+      snapshotBytes: Buffer.byteLength(JSON.stringify(snapshot)),
+      elapsedMs: performance.now() - started,
+      fieldVerified: false,
+    }
   })
   test('streamed oversized input refuses before any source rows are written', async () => {
     const before = await state()

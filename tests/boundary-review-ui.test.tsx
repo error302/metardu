@@ -108,13 +108,29 @@ async function choose() {
   fireEvent.change(select, { target: { value: traverse } })
   await screen.findByRole('heading', { name: 'Retained coordinates' })
 }
-it('opens the exact explicitly linked traverse without choosing boundary vertices',async()=>{
-  render(<BoundaryReview projectId={project} parcelId={parcel} initialTraverseId={traverse}/>)
-  await screen.findByRole('heading',{name:'Retained coordinates'})
+it('opens the exact explicitly linked traverse without choosing boundary vertices', async () => {
+  render(
+    <BoundaryReview
+      projectId={project}
+      parcelId={parcel}
+      initialTraverseId={traverse}
+    />,
+  )
+  await screen.findByRole('heading', { name: 'Retained coordinates' })
   expect(screen.getByRole('combobox')).toHaveValue(traverse)
-  expect(fetchMock.mock.calls.some(([url])=>String(url).includes('traverse_id='+traverse))).toBe(true)
-  expect(screen.getByRole('button',{name:'Save reviewed boundary draft'})).toBeDisabled()
-  expect(screen.queryByRole('img',{name:'Reviewed boundary shape in the project grid'})).not.toBeInTheDocument()
+  expect(
+    fetchMock.mock.calls.some(([url]) =>
+      String(url).includes('traverse_id=' + traverse),
+    ),
+  ).toBe(true)
+  expect(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  ).toBeDisabled()
+  expect(
+    screen.queryByRole('img', {
+      name: 'Reviewed boundary shape in the project grid',
+    }),
+  ).not.toBeInTheDocument()
 })
 function vertices() {
   for (const name of ['A', 'B', 'C', 'D'])
@@ -123,6 +139,182 @@ function vertices() {
 function review() {
   fireEvent.click(screen.getByRole('checkbox'))
 }
+function pagedSource(page: number, hash = source.evidenceHash, filter = '') {
+  const first = [
+    ...source.points.slice(0, 2),
+    ...Array.from({ length: 48 }, (_, i) => ({
+      id: id(100 + i),
+      station: 'Detail_' + i,
+      easting: 500050 + i,
+      northing: 9500050,
+      elevation: null,
+    })),
+  ]
+  return {
+    ...source,
+    evidenceHash: hash,
+    points: filter
+      ? source.points.filter((p) => p.station === filter)
+      : page === 1
+        ? first
+        : source.points.slice(2),
+    pointWindow: {
+      page,
+      pageSize: 50,
+      total: 52,
+      matchingCount: filter ? 1 : 52,
+      filter,
+    },
+  }
+}
+it('keeps explicitly selected vertices across server pages and saves only their ordered IDs', async () => {
+  fetchMock.mockImplementation(async (url, init) =>
+    init?.method === 'POST'
+      ? reply({ data: receipt() })
+      : reply({
+          data: url.includes('traverse_id=')
+            ? pagedSource(url.includes('coordinate_page=2') ? 2 : 1)
+            : directory,
+        }),
+  )
+  await choose()
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex A' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex B' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Next coordinates' }))
+  await screen.findByRole('button', { name: 'Add vertex C' })
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex C' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex D' }))
+  expect(
+    screen.getAllByRole('button', { name: /Move vertex \d+ up/ }),
+  ).toHaveLength(4)
+  review()
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  )
+  await waitFor(() =>
+    expect(
+      fetchMock.mock.calls.some(([, init]) => init?.method === 'POST'),
+    ).toBe(true),
+  )
+  const sent = fetchMock.mock.calls.find(
+    ([, init]) => init?.method === 'POST',
+  )?.[1]?.body
+  expect(
+    JSON.parse(String(sent)) as { ordered_coordinate_ids: string[] },
+  ).toMatchObject({ ordered_coordinate_ids: ids })
+})
+it('clears prior vertex selections when another page has a different source fingerprint', async () => {
+  fetchMock.mockImplementation(async (url) =>
+    reply({
+      data: url.includes('traverse_id=')
+        ? pagedSource(
+            url.includes('coordinate_page=2') ? 2 : 1,
+            url.includes('coordinate_page=2')
+              ? 'b'.repeat(64)
+              : source.evidenceHash,
+          )
+        : directory,
+    }),
+  )
+  await choose()
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex A' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Next coordinates' }))
+  await screen.findByRole('button', { name: 'Add vertex C' })
+  expect(
+    screen.queryByRole('button', { name: 'Move vertex 1 up' }),
+  ).not.toBeInTheDocument()
+  expect(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  ).toBeDisabled()
+  expect(screen.getByText(/source changed/i)).toBeInTheDocument()
+})
+it('searches server coordinates while keeping already selected vertices in the same source', async () => {
+  fetchMock.mockImplementation(async (url) =>
+    reply({
+      data: url.includes('traverse_id=')
+        ? pagedSource(
+            1,
+            source.evidenceHash,
+            url.includes('coordinate_q=D') ? 'D' : '',
+          )
+        : directory,
+    }),
+  )
+  await choose()
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex A' }))
+  fireEvent.change(screen.getByLabelText('Coordinate label or ID'), {
+    target: { value: 'D' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Find coordinates' }))
+  await screen.findByRole('button', { name: 'Add vertex D' })
+  expect(
+    screen.getByRole('button', { name: 'Move vertex 1 up' }),
+  ).toBeInTheDocument()
+  expect(
+    fetchMock.mock.calls.some(([url]) => url.includes('coordinate_q=D')),
+  ).toBe(true)
+})
+it('refuses a changed selected coordinate under an unchanged fingerprint', async () => {
+  fetchMock.mockImplementation(async (url) => {
+    if (!url.includes('traverse_id=')) return reply({ data: directory })
+    if (url.includes('coordinate_q=A'))
+      return reply({
+        data: {
+          ...pagedSource(1, source.evidenceHash, 'A'),
+          points: [
+            { ...source.points[0], easting: source.points[0].easting + 1 },
+          ],
+        },
+      })
+    return reply({
+      data: pagedSource(url.includes('coordinate_page=2') ? 2 : 1),
+    })
+  })
+  await choose()
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex A' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex B' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Next coordinates' }))
+  await screen.findByRole('button', { name: 'Add vertex C' })
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex C' }))
+  fireEvent.change(screen.getByLabelText('Coordinate label or ID'), {
+    target: { value: 'A' },
+  })
+  fireEvent.click(screen.getByRole('button', { name: 'Find coordinates' }))
+  await screen.findByText(/changed without a matching source fingerprint/)
+  expect(
+    screen.getAllByRole('button', { name: /Move vertex \d+ up/ }),
+  ).toHaveLength(3)
+  expect(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  ).toBeDisabled()
+})
+it('keeps vertex choices through a failed page read and retries the requested page', async () => {
+  let failed = false
+  fetchMock.mockImplementation(async (url) => {
+    if (!url.includes('traverse_id=')) return reply({ data: directory })
+    if (url.includes('coordinate_page=2') && !failed) {
+      failed = true
+      return reply({ error: 'SYNTHETIC coordinate page unavailable' }, 503)
+    }
+    return reply({
+      data: pagedSource(url.includes('coordinate_page=2') ? 2 : 1),
+    })
+  })
+  await choose()
+  fireEvent.click(screen.getByRole('button', { name: 'Add vertex A' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Next coordinates' }))
+  await screen.findByText('SYNTHETIC coordinate page unavailable')
+  expect(
+    screen.getByRole('button', { name: 'Move vertex 1 up' }),
+  ).toBeInTheDocument()
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Retry retained source read' }),
+  )
+  await screen.findByRole('button', { name: 'Add vertex C' })
+  expect(
+    screen.getByRole('button', { name: 'Move vertex 1 up' }),
+  ).toBeInTheDocument()
+})
 it('requires explicit source selection and preserves zero/unknown heights', async () => {
   await choose()
   expect(screen.getByText(/E 500000 · N 9500000 · H 0/)).toBeInTheDocument()

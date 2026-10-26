@@ -121,6 +121,68 @@ assert snapshot['sourceHash'] == manifest['sourceHash']
 assert set(snapshot['parcels'][0]) == {'label','gridAreaSqM','coordinates'}
 assert snapshot['professionalApproval'] is snapshot['fieldVerified'] is False
 
+# Later epoch: all 2,000 observations remain the source of an explicitly
+# selected four-corner boundary and two actual registered delivery files.
+dense_command = load('journey-dense-command.canonical.json')
+dense_result = load('journey-dense-result.canonical.json')
+dense_receipt = load('journey-dense-receipt.json')
+dense_boundary = load('journey-dense-boundary.json')
+dense_original = (root/'journey-dense-original.csv').read_bytes()
+assert proof['largeSource']['observations'] == 2000 and proof['largeSource']['sourceCoordinates'] == 2001
+assert proof['largeSource']['chosenVertices'] == 4 and proof['largeSource']['sourceSnapshotBytes'] < 4194304
+assert len(dense_result['coordinates']) == 2001 and len(dense_result['rawObservations']) == 2000
+assert dense_result['rawObservations'] == dense_command['observations']
+assert dense_result['isClosed'] is False and dense_result['linearError'] is None
+assert all('rl' not in p for p in dense_result['coordinates'])
+assert dense_command['derivedFromRevisionId'] == receipt['revisionId']
+assert sha(dense_original) == dense_receipt['sourceHash']
+assert base64.b64decode(dense_command['source']['bytesBase64'],validate=True) == dense_original
+assert sha((root/'journey-dense-command.canonical.json').read_bytes()) == dense_receipt['inputHash']
+assert sha((root/'journey-dense-result.canonical.json').read_bytes()) == dense_receipt['resultHash']
+dense_rows = list(csv.DictReader(io.StringIO(dense_original.decode('utf-8'),newline='')))
+assert len(dense_rows) == 2000
+for i,(row,obs) in enumerate(zip(dense_rows,dense_command['observations'])):
+    expected_angle = 90 if i == 0 else 270 if i % 500 == 0 else 180
+    assert int(row['face_left_deg']) == expected_angle and int(row['face_right_deg']) == (expected_angle+180)%360
+    assert row['target'] == obs['station'] and row['slope_m'] == obs['slopeDist']
+    assert row['zenith_deg'] == obs['vaDeg'] == '90'
+    assert row['ih_m'] == row['th_m'] == obs['ih'] == obs['th'] == ''
+    assert all(obs[key] == '0' for key in ['hclMin','hclSec','hcrMin','hcrSec','vaMin','vaSec'])
+    nominal_side = float(rows[0 if i<500 or 1000<=i<1500 else 1]['slope_m'])
+    assert abs(float(row['slope_m'])*500-nominal_side) < 1e-12
+indices = [0,500,1000,1500]
+assert dense_boundary['orderedCoordinateIds'] == [dense_receipt['coordinateIds'][i] for i in indices]
+dense_ring = dense_boundary['polygon']['coordinates'][0]
+assert dense_ring[:-1] == [[dense_result['coordinates'][i]['easting'],dense_result['coordinates'][i]['northing']] for i in indices]
+de,dn = float(dense_command['control']['openingEasting']),float(dense_command['control']['openingNorthing'])
+assert de-e0 == 10 and dn == n0 and dense_command['sourceCrs'] == command['sourceCrs']
+assert dense_command['reduction']['combinedScaleFactor'] == command['reduction']['combinedScaleFactor']
+dense_expected = [[de,dn],[de+width,dn],[de+width,dn-height],[de,dn-height],[de,dn]]
+assert all(abs(a-b) < 2e-6 for actual,target in zip(dense_ring,dense_expected) for a,b in zip(actual,target))
+assert Polygon(dense_ring).is_valid and abs(Polygon(dense_ring).area-width*height) < 0.001
+dense_manifest = load('journey-dense-dxf-source.json')
+assert dense_manifest['source']['features'][0]['geometry'] == dense_boundary['polygon']
+assert dense_manifest['source']['features'][0]['properties']['receiptId'] == dense_boundary['receiptId']
+dense_doc = ezdxf.readfile(root/'journey-dense.dxf')
+dense_audit = dense_doc.audit()
+assert not dense_audit.errors and not dense_audit.fixes and dense_doc.header['$INSUNITS'] == 6
+dense_entities = list(dense_doc.modelspace())
+assert len(dense_entities) == 1 and dense_entities[0].dxftype() == 'LWPOLYLINE' and dense_entities[0].closed
+assert [list(p) for p in dense_entities[0].get_points('xy')] == dense_ring[:-1]
+assert dense_entities[0].dxf.elevation == 0 and b'NO OBSERVED HEIGHTS' in (root/'journey-dense.dxf').read_bytes()
+dense_geo,dense_geo_manifest = load('journey-dense.geojson'),load('journey-dense-geojson-source.json')
+assert dense_geo_manifest['source'] == dense_manifest['source']
+assert dense_geo['metardu']['sourceHash'] == dense_manifest['sourceHash']
+assert dense_geo['metardu']['professionalApproval'] is dense_geo['metardu']['fieldVerified'] is False
+dense_geo_ring = dense_geo['features'][0]['geometry']['coordinates'][0]
+assert Polygon(dense_geo_ring).is_valid and Polygon(dense_geo_ring).exterior.is_ccw
+dense_expected_geo = [transform.transform(x,y) for x,y in dense_ring]
+if not Polygon(dense_expected_geo).exterior.is_ccw:
+    dense_expected_geo.reverse()
+assert all(abs(a-b) < 1e-8 for actual,target in zip(dense_geo_ring,dense_expected_geo) for a,b in zip(actual,target))
+assert proof['counts']['scheme_export_requests'] == proof['counts']['deliverable_revisions'] == proof['counts']['file_uploads'] == 4
+
 report = {'status':'passed','synthetic':True,'nativeReceiptSha256':sha((root/'native.json').read_bytes()),'journeyProofSha256':sha((root/'journey-proof.json').read_bytes()),'sourceInputHash':receipt['inputHash'],'sourceResultHash':receipt['resultHash'],'originalFileHash':receipt['sourceHash'],'dxfHash':sha((root/'journey.dxf').read_bytes()),'geojsonHash':sha((root/'journey.geojson').read_bytes()),'analyticalAreaToleranceSqM':1e-6,'coordinateToleranceM':1e-8,'geographicProjComparisonToleranceDegrees':1e-8,'ezdxf':ezdxf.__version__,'pyproj':pyproj.__version__,'auditErrors':0,'auditRepairs':0,'receivingCadApplicationVerified':False,'ordinaryAccountHttpVerified':False,'fieldVerified':False}
+report['largeSource']={'observations':2000,'sourceCoordinates':2001,'chosenVertices':4,'sourceInputHash':dense_receipt['inputHash'],'sourceResultHash':dense_receipt['resultHash'],'dxfHash':sha((root/'journey-dense.dxf').read_bytes()),'geojsonHash':sha((root/'journey-dense.geojson').read_bytes()),'auditErrors':0,'auditRepairs':0,'analyticalCoordinateToleranceM':2e-6,'analyticalAreaToleranceSqM':0.001}
 (root/'journey-independent.json').write_text(json.dumps(report,indent=2)+'\n',encoding='utf-8')
 print(json.dumps(report,indent=2))
