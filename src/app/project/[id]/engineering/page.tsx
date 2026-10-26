@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react'
+import Link from 'next/link'
+import RoadWorkbench from '@/components/engineering/RoadWorkbench'
+import {Check,Lock} from 'lucide-react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/api-client/client'
 import { z } from 'zod'
@@ -82,14 +85,15 @@ export default function EngineeringWorkspacePage() {
   const [loadingEngineering, setLoadingEngineering] = useState(false)
   const [activeStep, setActiveStep] = useState<EngineeringStepId>('setup')
   const [saving, setSaving] = useState(false)
+  const [landingTab,setLandingTab]=useState<'workflow'|'design'>('workflow')
   const [engineeringLoadError, setEngineeringLoadError] = useState('')
   const engineeringLoadGeneration = useRef(0)
   const projectLoadGeneration = useRef(0)
   const appliedStepRef = useRef<string | null>(null)
 
   // Sub-tab for quick compute panels
-  const activeTab = searchParams.get('tab') || 'workflow'
   const requestedStep = searchParams.get('step')
+  const activeTab = searchParams.get('tab') || (requestedStep?'workflow':landingTab)
 
   // --- Load engineering data from the relational DB backend ---
   const loadEngineeringData = useCallback(async (projectId: string, roadName?: string) => {
@@ -165,6 +169,7 @@ export default function EngineeringWorkspacePage() {
       : resolveStageReference(null, legacyReference)
     if (declaredReference && !projectReferenceSystem.code) throw new Error('Invalid saved reference system')
     const engData = (data?.engineering_data ?? null) as EngineeringData | null
+    setLandingTab(engData?.mode==='road'&&engData.road?'design':'workflow')
     setProject({ ...data, engineering_data: engData, projectReferenceSystem } as EngineeringProject)
 
     const profileResult = (await dbClient
@@ -218,9 +223,12 @@ export default function EngineeringWorkspacePage() {
 
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null)
 
+  const toastTimer=useRef<ReturnType<typeof setTimeout>|null>(null)
+  useEffect(()=>()=>{if(toastTimer.current)clearTimeout(toastTimer.current)},[])
   const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    if(toastTimer.current)clearTimeout(toastTimer.current)
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    if(type==='success')toastTimer.current=setTimeout(() => setToast(null), 3000)
   }
 
   const handleModeChange = async (newMode: EngineeringMode) => {
@@ -240,8 +248,8 @@ export default function EngineeringWorkspacePage() {
       setProject({ ...project, engineering_data: updated })
       setActiveStep('setup')
       showToast('Mode switched successfully')
-    } catch {
-      showToast('Failed to save. Check your connection and try again.', 'error')
+    } catch (failure) {
+      showToast(failure instanceof Error?failure.message:'The save is unconfirmed. Keep the current inputs and recover the saved project before retrying.', 'error')
     } finally {
       setSaving(false)
     }
@@ -311,8 +319,8 @@ export default function EngineeringWorkspacePage() {
         showToast('Saved successfully')
       }
       return true
-    } catch {
-      showToast('Failed to save. Check your connection and try again.', 'error')
+    } catch (failure) {
+      showToast(failure instanceof Error?failure.message:'The save is unconfirmed. Keep the current inputs and recover the saved project before retrying.', 'error')
       return false
     } finally {
       setSaving(false)
@@ -337,8 +345,8 @@ export default function EngineeringWorkspacePage() {
       } else {
         showToast('All data saved')
       }
-    } catch {
-      showToast('Failed to save. Check your connection and try again.', 'error')
+    } catch (failure) {
+      showToast(failure instanceof Error?failure.message:'The save is unconfirmed. Keep the current inputs and recover the saved project before retrying.', 'error')
     } finally {
       setSaving(false)
     }
@@ -369,8 +377,21 @@ export default function EngineeringWorkspacePage() {
   const currentStep = steps.find((s) => s.id === activeStep) || steps[0]
   const mode = project.engineering_data?.mode || 'road'
 
+  if(activeTab==='design' && mode==='road'){
+    const reference=project.projectReferenceSystem??resolveStageReference(null,project)
+    return <div className="mx-auto min-w-0 max-w-[1600px] space-y-4 px-4 py-5 sm:px-6">
+      <nav aria-label="Engineering navigation" className="flex flex-wrap items-center justify-between gap-3 text-sm">
+        <Link className="min-h-11 py-3 underline underline-offset-4" href="/dashboard">Projects</Link>
+        <span className="min-w-0 break-words text-[var(--text-secondary)]">{project.name}</span>
+        <Link className="min-h-11 py-3 underline underline-offset-4" href={`/project/${project.id}/engineering?tab=workflow`}>Input workflow</Link>
+      </nav>
+      {engineeringLoadError&&<p role="alert" className="border-l-2 border-amber-500 pl-3 text-sm">{engineeringLoadError}</p>}
+      {loadingEngineering&&<p role="status" className="text-xs text-[var(--text-secondary)]">Reading saved alignment records…</p>}
+      <RoadWorkbench key={project.id} projectId={project.id} road={project.engineering_data?.road??null} reference={reference}/>
+    </div>
+  }
   // Quick Compute Panel Mode
-  if (activeTab !== 'workflow') {
+  if (activeTab !== 'workflow' && activeTab!=='design') {
     return (
       <QuickComputeTab
         projectId={params.id}
@@ -384,12 +405,13 @@ export default function EngineeringWorkspacePage() {
   return (
     <div className="min-h-screen bg-black text-white">
       <div className="border-b border-zinc-800 bg-zinc-950">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-3">
           <button onClick={() => router.push('/dashboard')} className="text-zinc-500 hover:text-zinc-300 text-sm">← Projects</button>
           <div className="flex-1">
             <h1 className="text-sm font-semibold text-white">{project.name}</h1>
             <div className="text-xs text-zinc-500">Engineering Mode • {mode === 'road' ? 'Road Design' : 'Drainage Survey'}</div>
           </div>
+          {mode==='road'&&project.engineering_data?.road&&<Link href={`/project/${project.id}/engineering?tab=design`} className="inline-flex min-h-11 items-center rounded border border-zinc-700 px-3 text-xs text-zinc-200">Visual workspace</Link>}
           <span className="text-xs px-2 py-1 bg-amber-500/20 text-amber-400 rounded">{mode === 'road' ? 'Road Design' : 'Drainage Survey'}</span>
           <button
             onClick={handleSaveAll}
@@ -415,10 +437,10 @@ export default function EngineeringWorkspacePage() {
 
       {/* Toast notification */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded-lg shadow-lg text-sm font-medium transition-all ${
+        <div role={toast.type==='error'?'alert':'status'} className={`mx-auto max-w-7xl px-4 py-3 text-sm font-medium ${
           toast.type === 'success' ? 'bg-green-900/90 text-green-300 border border-green-700' : 'bg-red-900/90 text-red-300 border border-red-700'
         }`}>
-          {toast.type === 'success' ? ' ' : '[x] '}{toast.message}
+          {toast.message}
         </div>
       )}
 
@@ -428,7 +450,7 @@ export default function EngineeringWorkspacePage() {
         <button type="button" disabled={loadingEngineering || !projectId} onClick={() => { if (projectId) void loadEngineeringData(projectId, savedRoadName) }} className="mt-2 min-h-11 rounded border border-amber-700 px-3">Retry alignment load</button>
       </div>}
       {(saving || loadingEngineering) && (
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 bg-zinc-800 border border-zinc-600 text-zinc-300 px-4 py-2 rounded-lg text-sm flex items-center gap-2 shadow-lg">
+        <div role="status" className="mx-auto max-w-7xl bg-zinc-800 border-b border-zinc-600 text-zinc-300 px-4 py-2 text-sm flex items-center gap-2">
           <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
           {loadingEngineering ? 'Loading engineering data...' : 'Saving...'}
         </div>
@@ -459,7 +481,7 @@ export default function EngineeringWorkspacePage() {
                         step.status === 'locked' ? 'bg-zinc-800 text-zinc-600' :
                         'bg-zinc-700 text-zinc-300'
                       }`}>
-                        {step.status === 'complete' ? '' : isLocked ? '[Lock]' : idx + 1}
+                        {step.status === 'complete' ? <Check className="h-4 w-4" aria-label="Complete"/> : isLocked ? <Lock className="h-3 w-3" aria-label="Locked"/> : idx + 1}
                       </span>
                       <div className="min-w-0">
                         <div className={`text-sm font-medium ${isLocked ? 'text-zinc-600' : isActive ? 'text-white' : 'text-zinc-300'}`}>

@@ -26,6 +26,17 @@ export function validateRoadTemplate(template: CrossSectionTemplate): void {
   parseProjectSlope(template.cutSlope); parseProjectSlope(template.fillSlope)
 }
 
+/** Design-only template; measured daylight and quantities require a ground profile. */
+export function roadFormationProfile(template: CrossSectionTemplate, designLevel: number) {
+  validateRoadTemplate(template)
+  if (!Number.isFinite(designLevel)) throw new RangeError('Supply a finite design surface level.')
+  const centre = designLevel - template.subgradeDepth
+  const half = template.carriagewayWidth / 2, outer = half + template.shoulderWidth
+  const edge = centre - template.camber / 100 * half
+  const shoulder = edge - (template.shoulderCrossfall ?? 0) / 100 * template.shoulderWidth
+  return [{offset:-outer,level:shoulder},{offset:-half,level:edge},{offset:0,level:centre},{offset:half,level:edge},{offset:outer,level:shoulder}]
+    .filter((p,i,list)=>i===0||p.offset!==list[i-1].offset)
+}
 export function calculateRoadSection(station: StationData, template: CrossSectionTemplate) {
   validateRoadTemplate(template)
   if (!Number.isFinite(station.designLevel) || !Number.isFinite(station.chainage) || !Number.isFinite(station.groundLevel)) throw new RangeError('Supply finite chainage, ground RL and design surface RL; zero is a valid level.')
@@ -33,10 +44,10 @@ export function calculateRoadSection(station: StationData, template: CrossSectio
   const ground = validateProfile(station.groundProfile)
   const atCentre = interpolateProfile(ground, 0)
   if (atCentre === null || Math.abs(atCentre - station.groundLevel) > 1e-6) throw new RangeError('The measured profile must span the centreline and agree with its supplied ground RL.')
-  const centre = (station.designLevel as number) - template.subgradeDepth
-  const half = template.carriagewayWidth / 2, outer = half + template.shoulderWidth
-  const edge = centre - template.camber / 100 * half
-  const shoulder = edge - (template.shoulderCrossfall ?? 0) / 100 * template.shoulderWidth
+  const templateProfile=roadFormationProfile(template,station.designLevel as number)
+  const centre=(station.designLevel as number)-template.subgradeDepth
+  const outer=template.carriagewayWidth/2+template.shoulderWidth
+  const shoulder=templateProfile[0].level
   const catchAt = (offset: number) => {
     const observed = interpolateProfile(ground, offset)
     if (observed === null) throw new RangeError('Extend measured ground beyond both shoulders to the slope daylight points.')
@@ -47,8 +58,7 @@ export function calculateRoadSection(station: StationData, template: CrossSectio
     return { ...point, type: cut ? 'cut' as const : 'fill' as const }
   }
   const leftCatch = catchAt(-outer), rightCatch = catchAt(outer)
-  const formation = [leftCatch, { offset: -outer, level: shoulder }, { offset: -half, level: edge },
-    { offset: 0, level: centre }, { offset: half, level: edge }, { offset: outer, level: shoulder }, rightCatch]
+  const formation = [leftCatch, ...templateProfile, rightCatch]
     .filter((p, i, list) => i === 0 || p.offset !== list[i - 1].offset)
   return { ...integrateProfileAreas(ground, formation), ground, formation, leftCatch, rightCatch, formationLevel: centre }
 }

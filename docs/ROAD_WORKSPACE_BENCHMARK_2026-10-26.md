@@ -75,3 +75,9 @@ button. Finish the current boundary-recovery checkpoint without mixing road
 implementation into that commit, then use this target to order the next road
 implementation and acceptance work. Existing security, provider, customer
 recovery, worker/candidate and production/field gates remain open.
+
+The first connected review phase is implemented in
+`ROAD_VISUAL_WORKSPACE_2026-10-26.md`. Its saved-project and synthetic-example
+views do not close the live-editing, retained-terrain, durable road-revision or
+validated interchange requirements above. Continue those requirements as the
+next road work; retain this complete delivery target.

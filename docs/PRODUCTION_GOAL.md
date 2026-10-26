@@ -24,6 +24,16 @@ design revision. Validate actual IFC/LandXML/DXF and field outputs against that
 revision. The reference image is a usability benchmark; neither its export action
 nor METARDU's existing exporter proves receiving-application acceptance.
 
+26 October road review implementation: the existing project engineering page
+now has linked plan, 3D formation, profile and section views of its saved road
+draft, plus a synthetic worked example in the Road Design tools page. Exact save
+acknowledgements, source/reference gates and responsive plotting are included.
+See `ROAD_VISUAL_WORKSPACE_2026-10-26.md` for verification. This first review
+phase leaves the full benchmark target intact: live editing with durable recovery,
+retained-terrain selection, immutable road revisions and validated interchange /
+field delivery still require implementation and acceptance. No production
+promotion or customer migration was performed.
+
 ## Acceptance standard
 
 A paying surveyor must be able to start with declared project control and
