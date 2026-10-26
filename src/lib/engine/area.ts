@@ -192,11 +192,12 @@ export function shoelaceArea(
 ): number {
   if (vertices.length < 3) return 0
   let sum = 0
+  const origin=vertices[0]
   const n = vertices.length
   for (let i = 0; i < n; i++) {
     const j = (i + 1) % n
-    sum += vertices[i].easting * vertices[j].northing
-    sum -= vertices[j].easting * vertices[i].northing
+    sum += (vertices[i].easting-origin.easting) * (vertices[j].northing-origin.northing)
+    sum -= (vertices[j].easting-origin.easting) * (vertices[i].northing-origin.northing)
   }
   return Math.abs(sum) / 2
 }

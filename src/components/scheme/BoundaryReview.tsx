@@ -36,13 +36,15 @@ async function read(url: string, signal: AbortSignal) {
 export default function BoundaryReview({
   projectId,
   parcelId,
+  initialTraverseId = '',
 }: {
   projectId: string
   parcelId: string
+  initialTraverseId?: string
 }) {
   const [directory, setDirectory] = useState<Directory | null>(null),
     [page, setPage] = useState(1),
-    [traverse, setTraverse] = useState(''),
+    [traverse, setTraverse] = useState(initialTraverseId),
     [source, setSource] = useState<BoundarySource | null>(null)
   const [loading, setLoading] = useState(false),
     [error, setError] = useState(''),
@@ -340,6 +342,7 @@ export default function BoundaryReview({
               className="block w-full rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2"
             >
               <option value="">Choose the source explicitly</option>
+              {traverse && !directory.traverses.some(row=>row.id===traverse) && <option value={traverse}>Requested retained source · {traverse}</option>}
               {directory.traverses.map((row) => (
                 <option key={row.id} value={row.id}>
                   {row.name ?? 'Unnamed traverse'} · {row.id} · {row.pointCount}{' '}

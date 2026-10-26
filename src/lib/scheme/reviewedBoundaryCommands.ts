@@ -5,6 +5,7 @@ import { db } from '@/lib/db'
 import { AppError } from '@/lib/api/errors'
 import { canonicalJSON } from '@/lib/audit/auditHash'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { assertRetainedTraverseSource } from './traverseCommands'
 import {
   boundaryCommandSchema,
   boundaryDirectorySchema,
@@ -75,6 +76,7 @@ const rawSchema = z.object({
   reference: z.record(z.unknown()).nullable(),
   pointCount: z.number().int().nonnegative(),
   rawPoints: z.array(z.record(z.unknown())),
+  retainedEvidence:z.record(z.unknown()).optional(),
 })
 function number(value: unknown): number {
   if (
@@ -135,6 +137,14 @@ async function source(
     )
   if (raw.rawPoints.length !== raw.pointCount)
     throw error('The retained coordinate set changed during the read.')
+  if(raw.traverseRecordJson) {
+    const retained=z.object({retained_revision_id:z.string().uuid().nullable().optional()}).parse(JSON.parse(raw.traverseRecordJson)).retained_revision_id
+    if(retained) {
+      if(!raw.reference)throw error('The retained traverse reference is missing.')
+      raw.retainedEvidence=await assertRetainedTraverseSource(actor,project,parcel,retained,raw.reference,client)
+      if(Buffer.byteLength(canonicalJSON(raw),'utf8')>4194304)throw error('The complete retained source exceeds the 4 MiB review window.',413)
+    }
+  }
   let crs: string
   try {
     crs = assertProjectedCrs(
@@ -408,9 +418,10 @@ export async function saveReviewedBoundary(
         srid: number
         area: string
         valid: boolean
+        geometry_matches: boolean
       }>(
         `UPDATE parcels SET geom=public.ST_SetSRID(public.ST_GeomFromGeoJSON($1::text),$2),boundary_geojson=$1::jsonb,area_ha=$3,revision_number=COALESCE(revision_number,0)+1,updated_at=clock_timestamp()
-      WHERE id=$4 AND project_id=$5 AND xmin::text=$6 RETURNING id,project_id,revision_number revision,to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') updated_at,public.ST_AsGeoJSON(geom,15,0)::jsonb polygon,public.ST_SRID(geom) srid,area_ha::text area,public.ST_IsValid(geom) valid`,
+      WHERE id=$4 AND project_id=$5 AND xmin::text=$6 RETURNING id,project_id,revision_number revision,to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"') updated_at,boundary_geojson polygon,public.ST_SRID(geom) srid,area_ha::text area,public.ST_IsValid(geom) valid,public.ST_AsEWKB(geom)=public.ST_AsEWKB(public.ST_SetSRID(public.ST_GeomFromGeoJSON($1::text),$2)) geometry_matches`,
         [
           JSON.stringify(geometry.polygon),
           srid,
@@ -430,6 +441,7 @@ export async function saveReviewedBoundary(
         row.updated_at === loaded.raw.parcelUpdatedAt ||
         row.srid !== srid ||
         row.valid !== true ||
+        row.geometry_matches !== true ||
         Number(row.area) !== geometry.areaHa ||
         canonicalJSON(row.polygon) !== canonicalJSON(geometry.polygon)
       )

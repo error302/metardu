@@ -84,7 +84,7 @@ export async function readSchemeExtent(actor: string, project: string) {
 }
 
 /** Compare immutable receipt/source edit tokens, without returning the raw source arrays. */
-const reviewState = `CASE WHEN d.id IS NULL THEN 'unassessed_geometry'
+const reviewState = (retained:boolean)=>`CASE WHEN d.id IS NULL THEN 'unassessed_geometry'
  WHEN d.receipt->>'protocol' IS DISTINCT FROM 'reviewed-parcel-boundary-v1'
  OR d.receipt->>'evidenceHash' IS DISTINCT FROM d.evidence_hash OR d.receipt->>'inputHash' IS DISTINCT FROM d.input_hash OR d.receipt->>'requestId' IS DISTINCT FROM d.request_id::text
  OR d.receipt->>'receiptId' IS DISTINCT FROM d.id::text OR d.receipt->>'projectId' IS DISTINCT FROM p.project_id::text
@@ -92,9 +92,14 @@ const reviewState = `CASE WHEN d.id IS NULL THEN 'unassessed_geometry'
  OR d.receipt->>'parcelRevision' IS DISTINCT FROM COALESCE(p.revision_number,0)::text
  OR d.receipt->>'parcelUpdatedAt' IS DISTINCT FROM to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"')
  OR p.xmin::text IS DISTINCT FROM d.draft_xmin OR d.snapshot->'source'->'reference' IS DISTINCT FROM c.reference
- OR d.receipt->'polygon' IS DISTINCT FROM public.ST_AsGeoJSON(p.geom,15,0)::jsonb
+ OR public.ST_AsEWKB(p.geom) IS DISTINCT FROM public.ST_AsEWKB(public.ST_SetSRID(public.ST_GeomFromGeoJSON((d.receipt->'polygon')::text),public.ST_SRID(p.geom)))
  OR d.receipt->'polygon' IS DISTINCT FROM p.boundary_geojson
  OR t.id IS NULL OR t.xmin::text IS DISTINCT FROM ((d.snapshot->'source'->>'traverseRecordJson')::jsonb->>'xmin')
+ ${retained?`OR (to_jsonb(t)->>'retained_revision_id' IS NOT NULL AND NOT EXISTS(
+   SELECT 1 FROM parcel_traverse_revisions r JOIN parcel_traverse_requests q ON q.actor_id=r.actor_id AND q.request_id=r.request_id
+   WHERE r.id::text=to_jsonb(t)->>'retained_revision_id' AND r.project_id=p.project_id AND r.parcel_id=p.id AND r.traverse_id=t.id
+   AND r.xmin::text=d.snapshot#>>'{source,retainedEvidence,revisionVersion}' AND q.xmin::text=d.snapshot#>>'{source,retainedEvidence,requestVersion}'
+   AND q.state='committed' AND q.revision_id=r.id))`:`OR to_jsonb(t)->>'retained_revision_id' IS NOT NULL`}
  THEN 'changed_since_review'
  WHEN jsonb_typeof(d.snapshot->'source'->'rawPoints') IS DISTINCT FROM 'array'
  OR jsonb_typeof(d.snapshot->'source'->'originalObservations') IS DISTINCT FROM 'array' THEN 'changed_since_review'
@@ -135,8 +140,8 @@ export async function readSchemeViewport(
     transactionClient
       ? transactionClient.query<T>(text, params)
       : db.query<T>(text, params)
-  const available = await sqlQuery<{ available: boolean }>(
-    "SELECT to_regclass('parcel_boundary_drafts') IS NOT NULL available",
+  const available = await sqlQuery<{ available: boolean;retained_available:boolean }>(
+    "SELECT to_regclass('parcel_boundary_drafts') IS NOT NULL available,to_regclass('parcel_traverse_revisions') IS NOT NULL AND to_regclass('parcel_traverse_requests') IS NOT NULL retained_available",
   )
   if (
     available.rows.length !== 1 ||
@@ -149,7 +154,7 @@ export async function readSchemeViewport(
  ORDER BY CASE WHEN d.receipt->>'parcelRevision' ~ '^[0-9]{1,10}$' THEN (d.receipt->>'parcelRevision')::bigint ELSE NULL END DESC NULLS LAST,d.created_at DESC,d.id DESC LIMIT 1) d ON TRUE
  LEFT JOIN parcel_traverses t ON t.id=d.traverse_id AND t.parcel_id=p.id AND t.project_id=p.project_id`
     : `LEFT JOIN LATERAL(SELECT NULL::uuid id,NULL::jsonb receipt,NULL::jsonb snapshot,NULL::text draft_xmin) d ON TRUE`
-  const state = history ? reviewState : "'unassessed_geometry'::text"
+  const state = history ? reviewState(available.rows[0].retained_available===true) : "'unassessed_geometry'::text"
   const result = await sqlQuery<{ payload: unknown }>(
     `${owned}, viewport AS MATERIALIZED(
  SELECT p.id,public.ST_XMin(p.geom) min_e,public.ST_YMin(p.geom) min_n,public.ST_XMax(p.geom) max_e,public.ST_YMax(p.geom) max_n
@@ -159,7 +164,7 @@ export async function readSchemeViewport(
  page_ids AS(SELECT id FROM viewport WHERE (SELECT matching FROM totals)<=${SCHEME_SHAPE_LIMIT} ORDER BY id LIMIT ${SCHEME_SHAPE_LIMIT}),
  assessed AS(
  SELECT p.id,p.project_id,p.parcel_number,p.status,p.area_ha,COALESCE(p.revision_number,0) revision,p.updated_at,p.geom,
- b.id block_id,b.block_number,d.id receipt_id,
+ b.id block_id,b.block_number,d.id receipt_id,d.receipt->'polygon' retained_polygon,
  CASE WHEN public.GeometryType(p.geom)='POLYGON' AND public.ST_IsValid(p.geom) AND public.ST_NPoints(p.geom)<=5000 AND public.ST_NPoints(p.geom)>3 THEN TRUE ELSE FALSE END valid,
  public.ST_NPoints(p.geom) vertices,public.ST_MemSize(p.geom) bytes,${state} evidence_state
  FROM page_ids ids JOIN parcels p ON p.id=ids.id JOIN owned c ON c.id=p.project_id
@@ -168,7 +173,7 @@ export async function readSchemeViewport(
  SELECT a.*,SUM(CASE WHEN valid THEN vertices ELSE 0 END) OVER(ORDER BY id) cumulative_vertices,
  SUM(CASE WHEN valid THEN bytes*5 ELSE 0 END) OVER(ORDER BY id) cumulative_bytes FROM assessed a
  ), polygon_features AS(
- SELECT id,jsonb_build_object('type','Feature','id',id,'geometry',public.ST_AsGeoJSON(geom,15,0)::jsonb,'properties',jsonb_build_object('kind','parcel','parcelId',id,'parcelNumber',parcel_number,'blockId',block_id,'blockNumber',block_number,'recordedStatus',status,'suppliedAreaHa',area_ha::text,'gridAreaSqM',public.ST_Area(geom),
+ SELECT id,jsonb_build_object('type','Feature','id',id,'geometry',CASE WHEN evidence_state='reviewed_draft' THEN retained_polygon ELSE public.ST_AsGeoJSON(geom,17,0)::jsonb END,'properties',jsonb_build_object('kind','parcel','parcelId',id,'parcelNumber',parcel_number,'blockId',block_id,'blockNumber',block_number,'recordedStatus',status,'suppliedAreaHa',area_ha::text,'gridAreaSqM',public.ST_Area(geom),
  'evidenceState',evidence_state,'receiptId',receipt_id,'evidenceHash',${history ? "(SELECT receipt->>'evidenceHash' FROM parcel_boundary_drafts WHERE id=budget.receipt_id)" : 'NULL::text'},'geometryHash',encode(public.digest(public.ST_AsEWKB(geom),'sha256'),'hex'),'revision',revision,'updatedAt',to_char(updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),'canSnap',evidence_state='reviewed_draft','assessment','unverified')) feature
  FROM budget WHERE valid AND cumulative_vertices<=${SCHEME_VERTEX_LIMIT} AND cumulative_bytes<=${SCHEME_GEOMETRY_BYTES}
  ), cell_members AS(

@@ -108,6 +108,14 @@ async function choose() {
   fireEvent.change(select, { target: { value: traverse } })
   await screen.findByRole('heading', { name: 'Retained coordinates' })
 }
+it('opens the exact explicitly linked traverse without choosing boundary vertices',async()=>{
+  render(<BoundaryReview projectId={project} parcelId={parcel} initialTraverseId={traverse}/>)
+  await screen.findByRole('heading',{name:'Retained coordinates'})
+  expect(screen.getByRole('combobox')).toHaveValue(traverse)
+  expect(fetchMock.mock.calls.some(([url])=>String(url).includes('traverse_id='+traverse))).toBe(true)
+  expect(screen.getByRole('button',{name:'Save reviewed boundary draft'})).toBeDisabled()
+  expect(screen.queryByRole('img',{name:'Reviewed boundary shape in the project grid'})).not.toBeInTheDocument()
+})
 function vertices() {
   for (const name of ['A', 'B', 'C', 'D'])
     fireEvent.click(screen.getByRole('button', { name: `Add vertex ${name}` }))

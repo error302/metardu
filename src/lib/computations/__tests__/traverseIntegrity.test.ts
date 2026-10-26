@@ -16,6 +16,19 @@ const input = (observations = [shot()]) => ({
 })
 
 describe('traverse observation and evidence integrity', () => {
+  it('reduces ground horizontal lengths with an explicit factor without scaling height differences', () => {
+    const request = { ...input([shot({ vaDeg: '60' })]), openingRL: 0, horizontalScaleFactor: 0.9996 }
+    const result = computeTraverse(request)
+    expect(result.legs[0].hd).toBeCloseTo(100 * Math.sin(Math.PI / 3) * 0.9996, 10)
+    expect(result.coordinates[1].rl).toBeCloseTo(50, 10)
+    expect(result).toMatchObject({ horizontalScaleFactor: 0.9996 })
+  })
+
+  it.each([0, -1, NaN, Infinity])('refuses an invalid horizontal scale factor %s', horizontalScaleFactor => {
+    const request = { ...input(), horizontalScaleFactor }
+    expect(() => computeTraverse(request)).toThrow(/factor/i)
+  })
+
   it('does not invent reduced levels without an opening level', () => {
     const result = computeTraverse(input([shot({ vaDeg: '60' })]))
     expect(result.coordinates.every(c => c.rl === undefined)).toBe(true)

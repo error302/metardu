@@ -1,422 +1,733 @@
-'use client';
-
-import { useEffect, useState } from 'react'
-import {
-  Plus, Trash2, Save, Loader2, CheckCircle2, AlertCircle,
-  X, ChevronDown, ChevronUp
-, AlertTriangle } from 'lucide-react'
+'use client'
+import { useEffect, useRef, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import Link from 'next/link'
 import { z } from 'zod'
-import { apiGet, apiPost, ApiError } from '@/lib/api/client'
+import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
+import {
+  computeRetainedTraverse,
+  TRAVERSE_PROTOCOL,
+  traverseCommandSchema,
+  traverseReadSchema,
+  traverseOutcomeSchema,
+  type RetainedTraverse,
+} from '@/lib/scheme/traverseContract'
+import {
+  prepareTraversePending,
+  readTraversePending,
+  validateTraverseAcknowledgement,
+  clearTraversePending,
+  traversePendingKey,
+  type PendingTraverse,
+} from '@/lib/scheme/traversePending'
+import TraverseObservationForm, {
+  emptyTraverseEntry,
+  traverseAction as action,
+} from './TraverseObservationForm'
 
-// ─── API response schemas (Zod) ────────────────────────────────────────────
-const traverseGetResponseSchema = z.object({
-  data: z.object({
-    traverse: z.object({}).passthrough().nullable().optional(),
-    observations: z.array(z.object({}).passthrough()).optional(),
-    coordinates: z.array(z.object({}).passthrough()).optional(),
-  }).nullable().optional(),
-}).passthrough()
-
-const traversePostResponseSchema = z.object({
-  data: z.object({}).passthrough(),
-}).passthrough()
-
-interface ObservationRow {
-  station: string
-  bs: string
-  fs: string
-  hcl_deg: number
-  hcl_min: number
-  hcl_sec: number
-  hcr_deg: number
-  hcr_min: number
-  hcr_sec: number
-  slope_dist: string
-  va_deg: number
-  va_min: number
-  va_sec: number
-  ih: string
-  th: string
-  remarks: string
+type ReadData = z.infer<typeof traverseReadSchema>['data']
+async function request(url: string, init?: RequestInit) {
+  const response = await fetch(url, { ...init, cache: 'no-store' }),
+    body: unknown = await response.json()
+  if (!response.ok) {
+    const error = z.object({ error: z.string() }).safeParse(body)
+    throw Error(
+      error.success
+        ? error.data.error
+        : 'The retained traverse request could not be acknowledged.',
+    )
+  }
+  return z.object({ data: z.unknown() }).parse(body).data
 }
-
-interface TraverseResult {
-  legs: Array<{
-    from: string
-    to: string
-    meanAngleDMS: string
-    wcbDMS: string
-    hd: number
-    adjDep: number
-    adjLat: number
-  }>
-  coordinates: Array<{ station: string; easting: number; northing: number; rl?: number }>
-  area_ha: number | null
-  accuracy: {
-    order: string
-    precision_ratio: number
-    linear_error: number
-    formula: string
-    is_closed: boolean
-  }
+export default function TraverseComputePanel({
+  projectId,
+  parcelId,
+}: {
+  projectId: string
+  parcelId: string
+}) {
+  const { data: session, status } = useSession(),
+    actor = session?.user?.id
+  if (status === 'loading')
+    return <p role="status">Checking the current account…</p>
+  if (status !== 'authenticated' || !actor)
+    return <p role="alert">Sign in to read this parcel traverse.</p>
+  return (
+    <RetainedPanel
+      key={`${actor}:${projectId}:${parcelId}`}
+      actor={actor}
+      projectId={projectId}
+      parcelId={parcelId}
+    />
+  )
 }
-
-interface TraverseConfig {
-  opening_station: string
-  closing_station: string
-  opening_easting: string
-  opening_northing: string
-  opening_rl: string
-  closing_easting: string
-  closing_northing: string
-  bs_bearing_deg: string
-  bs_bearing_min: string
-  bs_bearing_sec: string
-  is_closed: boolean
-}
-
-const emptyObs = (): ObservationRow => ({
-  station: '', bs: '', fs: '',
-  hcl_deg: 0, hcl_min: 0, hcl_sec: 0,
-  hcr_deg: 0, hcr_min: 0, hcr_sec: 0,
-  slope_dist: '', va_deg: 0, va_min: 0, va_sec: 0,
-  ih: '1.500', th: '1.500', remarks: '',
-})
-
-export default function TraverseComputePanel({ parcelId }: { parcelId: string }) {
-  const [config, setConfig] = useState<TraverseConfig>({
-    opening_station: 'T1', closing_station: 'T1',
-    opening_easting: '', opening_northing: '', opening_rl: '',
-    closing_easting: '', closing_northing: '',
-    bs_bearing_deg: '', bs_bearing_min: '', bs_bearing_sec: '',
-    is_closed: false,
-  })
-  const [observations, setObservations] = useState<ObservationRow[]>([emptyObs(), emptyObs()])
-  const [result, setResult] = useState<TraverseResult | null>(null)
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState('')
-  const [showPanel, setShowPanel] = useState(true)
-
-  // Load saved traverse data
-  useEffect(() => {
-    const loadSaved = async () => {
-      try {
-        const json = await apiGet(
-          `/api/scheme/traverse?parcel_id=${parcelId}`,
-          traverseGetResponseSchema,
-          { ttlMs: 0 },
-        )
-        if (json.data) {
-          const { traverse, observations: savedObs } = json.data as {
-            traverse: Record<string, unknown> | null
-            observations?: Array<Record<string, unknown>>
-          }
-
-          setConfig({
-            opening_station: (traverse?.opening_station as string) || 'T1',
-            closing_station: (traverse?.closing_station as string) || '',
-            opening_easting: String(traverse?.opening_easting || ''),
-            opening_northing: String(traverse?.opening_northing || ''),
-            opening_rl: traverse?.opening_rl ? String(traverse.opening_rl) : '',
-            closing_easting: traverse?.closing_easting ? String(traverse.closing_easting) : '',
-            closing_northing: traverse?.closing_northing ? String(traverse.closing_northing) : '',
-            bs_bearing_deg: '', bs_bearing_min: '', bs_bearing_sec: '',
-            is_closed: (traverse?.is_closed as boolean) || false,
-          })
-
-          if (savedObs && savedObs.length > 0) {
-            setObservations(savedObs.map((o) => ({
-              station: o.station as string, bs: (o.bs as string) || '', fs: (o.fs as string) || '',
-              hcl_deg: (o.hcl_deg as number) || 0, hcl_min: (o.hcl_min as number) || 0, hcl_sec: (o.hcl_sec as number) || 0,
-              hcr_deg: (o.hcr_deg as number) || 0, hcr_min: (o.hcr_min as number) || 0, hcr_sec: (o.hcr_sec as number) || 0,
-              slope_dist: o.slope_dist ? String(o.slope_dist) : '',
-              va_deg: (o.va_deg as number) || 0, va_min: (o.va_min as number) || 0, va_sec: (o.va_sec as number) || 0,
-              ih: o.ih ? String(o.ih) : '1.500', th: o.th ? String(o.th) : '1.500',
-              remarks: (o.remarks as string) || '',
-            })))
-          }
-        }
-      } catch { /* silent — no saved data yet */ }
-    }
-    void loadSaved()
-  }, [parcelId])
-
-  const updateObs = (index: number, field: keyof ObservationRow, value: ObservationRow[keyof ObservationRow]) => {
-    setObservations(prev => prev.map((obs, i) =>
-      i === index ? { ...obs, [field]: value } : obs
-    ))
-  }
-
-  const addRow = () => {
-    const last = observations[observations.length - 1]
-    setObservations(prev => [...prev, { ...emptyObs(), bs: last?.fs || '' }])
-  }
-
-  const removeRow = (index: number) => {
-    if (observations.length <= 2) return
-    setObservations(prev => prev.filter((_, i) => i !== index))
-  }
-
-  const handleCompute = async () => {
-    if (!config.opening_easting || !config.opening_northing) {
-      setError('Opening coordinates are required'); return
-    }
-    // Closing control is MANDATORY for all traverses per Survey Regulations Reg 60 & 67
-    if (!config.closing_easting || !config.closing_northing) {
-      setError('Closing coordinates are required per Survey Regulations Reg. 60(2)(c) and Reg. 67. A traverse must close between two previously fixed stations. Swinging/hanging traverses are prohibited.'); return
-    }
-    const validObs = observations.filter(o => o.station && o.slope_dist)
-    if (validObs.length < 1) {
-      setError('At least one observation with station and distance is required'); return
-    }
-
-    setLoading(true); setError(''); setResult(null)
-
-    try {
-      const payload: Record<string, unknown> = {
+function RetainedPanel({
+  actor,
+  projectId,
+  parcelId,
+}: {
+  actor: string
+  projectId: string
+  parcelId: string
+}) {
+  const [data, setData] = useState<ReadData | null>(null),
+    [selected, setSelected] = useState<RetainedTraverse | null>(null)
+  const [loading, setLoading] = useState(true),
+    [busy, setBusy] = useState(false),
+    [error, setError] = useState(''),
+    [notice, setNotice] = useState('')
+  const [pending, setPending] = useState<PendingTraverse | null>(null),
+    [deviceError, setDeviceError] = useState(''),
+    [rawDevice, setRawDevice] = useState<string | null>(null)
+  const [entry, setEntry] = useState(emptyTraverseEntry),
+    [reviewed, setReviewed] = useState(false),
+    [pointPage, setPointPage] = useState(0),
+    [formVersion, setFormVersion] = useState(0)
+  const [deviceReady, setDeviceReady] = useState(false),
+    [frameReady, setFrameReady] = useState(false)
+  const alive = useRef(true),
+    inFlight = useRef(false),
+    readVersion = useRef(0)
+  function query(extra: Record<string, string> = {}) {
+    return (
+      '/api/scheme/traverse?' +
+      new URLSearchParams({
+        project_id: projectId,
         parcel_id: parcelId,
-        opening_station: config.opening_station,
-        closing_station: config.is_closed ? config.closing_station : undefined,
-        opening_easting: parseFloat(config.opening_easting),
-        opening_northing: parseFloat(config.opening_northing),
-        opening_rl: config.opening_rl ? parseFloat(config.opening_rl) : undefined,
-        closing_easting: config.is_closed ? parseFloat(config.closing_easting) : undefined,
-        closing_northing: config.is_closed ? parseFloat(config.closing_northing) : undefined,
-        backsight_bearing_deg: config.bs_bearing_deg ? parseFloat(config.bs_bearing_deg) : 0,
-        backsight_bearing_min: config.bs_bearing_min ? parseFloat(config.bs_bearing_min) : 0,
-        backsight_bearing_sec: config.bs_bearing_sec ? parseFloat(config.bs_bearing_sec) : 0,
-        observations: validObs.map(obs => ({
-          ...obs,
-          slope_dist: parseFloat(obs.slope_dist) || 0,
-          ih: parseFloat(obs.ih) || 0,
-          th: parseFloat(obs.th) || 0,
-        })),
+        expected_user_id: actor,
+        ...extra,
+      })
+    )
+  }
+  async function load(
+    extra: Record<string, string> = {},
+    keepSelection = false,
+    signal?: AbortSignal,
+  ) {
+    const generation = ++readVersion.current
+    setLoading(true)
+    setFrameReady(false)
+    setReviewed(false)
+    setError('')
+    try {
+      const value = traverseReadSchema.parse({
+        data: await request(query(extra), { signal }),
+      }).data
+      if (
+        value.context.actorId !== actor ||
+        value.context.projectId !== projectId ||
+        value.context.parcelId !== parcelId
+      )
+        throw Error(
+          'The retained source does not match the current account and parcel.',
+        )
+      if (
+        value.selected &&
+        (value.selected.receipt.projectId !== projectId ||
+          value.selected.receipt.parcelId !== parcelId)
+      )
+        throw Error(
+          'The retained revision belongs to a different project or parcel.',
+        )
+      if (alive.current && generation === readVersion.current) {
+        setData(value)
+        setFrameReady(true)
+        if (!keepSelection) {
+          setSelected(value.selected)
+          setPointPage(0)
+        }
       }
-
-      const json = await apiPost('/api/scheme/traverse', traversePostResponseSchema, payload)
-      setResult(json.data as unknown as TraverseResult)
-    } catch (err: unknown) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else {
-        setError((err as Error).message)
+    } catch (failure) {
+      if (
+        alive.current &&
+        generation === readVersion.current &&
+        !signal?.aborted
+      )
+        setError(
+          failure instanceof z.ZodError
+            ? 'The retained read could not be validated. Keep the original evidence and retry.'
+            : failure instanceof Error
+              ? failure.message
+              : 'Source read failed.',
+        )
+    } finally {
+      if (alive.current && generation === readVersion.current) setLoading(false)
+    }
+  }
+  async function readDevice() {
+    try {
+      const record = await readTraversePending(actor, projectId, parcelId)
+      if (alive.current) {
+        setPending(record)
+        setDeviceError('')
+        setRawDevice(
+          localStorage.getItem(traversePendingKey(actor, projectId, parcelId)),
+        )
+      }
+    } catch (failure) {
+      if (alive.current) {
+        setDeviceError(
+          failure instanceof Error
+            ? failure.message
+            : 'Device storage is unavailable. No computation was sent.',
+        )
+        try {
+          setRawDevice(
+            localStorage.getItem(
+              traversePendingKey(actor, projectId, parcelId),
+            ),
+          )
+        } catch {
+          /* Preserve unreadable storage. */
+        }
       }
     } finally {
-      setLoading(false)
+      if (alive.current) setDeviceReady(true)
     }
   }
-
-  const inputClass = 'w-full px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:border-[var(--accent)] focus:outline-none transition-colors'
-  const numClass = 'w-full px-2 py-1.5 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] text-center focus:border-[var(--accent)] focus:outline-none transition-colors'
-  const labelClass = 'block text-[10px] font-medium text-[var(--text-muted)] mb-0.5'
-
+  useEffect(() => {
+    alive.current = true
+    const controller = new AbortController()
+    void load({}, false, controller.signal)
+    void readDevice()
+    return () => {
+      alive.current = false
+      controller.abort()
+    }
+    // The keyed component fixes the account, project and parcel for its lifetime.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+  function begin() {
+    if (inFlight.current || !alive.current) return false
+    inFlight.current = true
+    setBusy(true)
+    setError('')
+    setNotice('')
+    return true
+  }
+  function finish() {
+    inFlight.current = false
+    if (alive.current) setBusy(false)
+  }
+  async function acknowledge(record: PendingTraverse, value: unknown) {
+    const retained = await validateTraverseAcknowledgement(record, value)
+    if (!alive.current) return
+    await clearTraversePending(record, retained.receipt)
+    if (!alive.current) return
+    setPending(null)
+    setRawDevice(null)
+    setSelected(retained)
+    setPointPage(0)
+    setReviewed(false)
+    setNotice(
+      `Retained revision ${retained.receipt.ordinal}. Original observations and the numerical draft are available.`,
+    )
+    await load({}, true)
+  }
+  async function acceptOutcome(record: PendingTraverse, value: unknown) {
+    const outcome = traverseOutcomeSchema.parse(value)
+    if (outcome.state === 'cancelled') {
+      if (!alive.current) return
+      await clearTraversePending(record, outcome)
+      if (alive.current) {
+        setPending(null)
+        setRawDevice(null)
+        setNotice(
+          'Cancellation acknowledged. The original form remains available.',
+        )
+        setReviewed(false)
+      }
+    } else {
+      const result = traverseReadSchema.parse({
+        data: await request(query({ revision_id: outcome.revisionId })),
+      }).data
+      if (!result.selected)
+        throw Error(
+          'The committed revision could not be recovered. The device record was preserved.',
+        )
+      await acknowledge(record, result.selected)
+    }
+  }
+  async function save(original?: PendingTraverse) {
+    if (!begin()) return
+    let record = original
+    try {
+      if (!record) {
+        const context = data?.context
+        if (
+          !context ||
+          !frameReady ||
+          !deviceReady ||
+          context.prerequisites.length ||
+          !context.sourceCrs ||
+          !context.adoptedFactor ||
+          !reviewed ||
+          deviceError
+        )
+          throw Error(
+            'Review the project frame, observations and device record before retaining.',
+          )
+        const body = traverseCommandSchema.parse({
+          ...entry,
+          protocol: TRAVERSE_PROTOCOL,
+          requestId: crypto.randomUUID(),
+          expectedUserId: actor,
+          projectId,
+          parcelId,
+          evidenceHash: context.evidenceHash,
+          sourceCrs: context.sourceCrs,
+          baseRevisionId: context.latestRevisionId,
+          convention: 'clockwise_bs_to_fs_face_pair_zenith_metres',
+          reduction: {
+            combinedScaleFactor: context.adoptedFactor,
+            reference: entry.reduction.reference,
+          },
+          reviewed,
+        })
+        if (body.control.openingRL.trim() && !context.verticalDatum)
+          throw Error(
+            'Declare the vertical datum before retaining absolute levels.',
+          )
+        computeRetainedTraverse(body)
+        record = await prepareTraversePending(body)
+        if (!alive.current) return
+        setPending(record)
+        setRawDevice(JSON.stringify(record))
+      }
+      if (!alive.current) return
+      await acknowledge(
+        record,
+        await request('/api/scheme/traverse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(record.body),
+        }),
+      )
+    } catch (failure) {
+      if (alive.current) {
+        setError(
+          failure instanceof z.ZodError
+            ? record
+              ? 'The server acknowledgement could not be validated. Keep the device record and recover or retry the original request.'
+              : 'Complete the required source fields and review the observation convention.'
+            : failure instanceof Error
+              ? failure.message
+              : 'The save is unconfirmed. Keep the device record.',
+        )
+        await readDevice()
+      }
+    } finally {
+      finish()
+    }
+  }
+  async function resolve(cancel: boolean) {
+    if (!pending || !begin()) return
+    const record = pending,
+      b = record.body
+    try {
+      const value = cancel
+        ? await request('/api/scheme/traverse?action=cancel', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              expectedUserId: actor,
+              projectId,
+              parcelId,
+              requestId: b.requestId,
+              inputHash: record.inputHash,
+            }),
+          })
+        : z
+            .object({ outcome: traverseOutcomeSchema })
+            .parse(await request(query({ request_id: b.requestId }))).outcome
+      await acceptOutcome(record, value)
+    } catch (failure) {
+      if (alive.current)
+        setError(
+          failure instanceof z.ZodError
+            ? 'The server outcome could not be validated. Keep the original device request.'
+            : failure instanceof Error
+              ? failure.message
+              : 'The outcome remains unconfirmed. Keep the original request.',
+        )
+    } finally {
+      finish()
+    }
+  }
+  function downloadDevice() {
+    if (rawDevice === null) return
+    const href = URL.createObjectURL(
+        new Blob([rawDevice], { type: 'application/json' }),
+      ),
+      a = document.createElement('a')
+    a.href = href
+    a.download = `metardu-traverse-device-${parcelId}.json`
+    a.click()
+    URL.revokeObjectURL(href)
+  }
+  const locked = busy || !!pending || !!deviceError || !deviceReady
   return (
-    <div className="border border-[var(--border-color)] rounded-xl overflow-hidden bg-[var(--bg-card)]">
-      <button
-        onClick={() => setShowPanel(!showPanel)}
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-[var(--bg-secondary)] transition-colors"
-      >
-        <span className="text-sm font-semibold text-[var(--text-primary)]">Traverse Computation</span>
-        {showPanel ? <ChevronUp className="w-4 h-4 text-[var(--text-muted)]" /> : <ChevronDown className="w-4 h-4 text-[var(--text-muted)]" />}
-      </button>
-
-      {showPanel && (
-        <div className="px-4 pb-4 space-y-4">
-          {error && (
-            <div className="p-2.5 bg-red-900/20 border border-red-500/30 rounded-lg text-xs text-red-400 flex items-center gap-2">
-              <AlertCircle className="w-3.5 h-3.5 shrink-0" />
-              {error}
-              <button onClick={() => setError('')} className="ml-auto"><X className="w-3 h-3" /></button>
-            </div>
-          )}
-
-          {/* Opening config */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-            <div>
-              <label className={labelClass} htmlFor="opening-station">Opening Station</label>
-              <input id="opening-station" aria-label="Opening station" type="text" value={config.opening_station} onChange={e => setConfig(p => ({ ...p, opening_station: e.target.value }))} className={inputClass} />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="opening-e-m">Opening E (m)</label>
-              <input id="opening-e-m" type="number" step="0.0001" value={config.opening_easting} onChange={e => setConfig(p => ({ ...p, opening_easting: e.target.value }))} className={inputClass} aria-label="Opening easting (m)" placeholder="e.g., 250000" />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="opening-n-m">Opening N (m)</label>
-              <input id="opening-n-m" type="number" step="0.0001" value={config.opening_northing} onChange={e => setConfig(p => ({ ...p, opening_northing: e.target.value }))} className={inputClass} aria-label="Opening northing (m)" placeholder="e.g., 9800000" />
-            </div>
-            <div>
-              <label className={labelClass} htmlFor="opening-rl-m">Opening RL (m)</label>
-              <input id="opening-rl-m" type="number" step="0.001" value={config.opening_rl} onChange={e => setConfig(p => ({ ...p, opening_rl: e.target.value }))} className={inputClass} aria-label="Opening RL (m)" placeholder="Optional" />
-            </div>
+    <div className="min-w-0 space-y-6" aria-label="Retained parcel traverse">
+      <header className="space-y-2">
+        <h3 className="flex items-center gap-2 text-lg font-semibold">
+          <GeomaticsIcon symbol="total-station" />
+          Original observations
+        </h3>
+        <p className="max-w-prose text-sm text-[var(--text-secondary)]">
+          Retain a paired-face traverse as a numerical draft. Boundary vertices,
+          parcel area and cadastral acceptance require a separate review.
+        </p>
+      </header>
+      {loading && (
+        <p role="status" className="text-sm">
+          Reading the retained project frame…
+        </p>
+      )}
+      {(error || deviceError) && (
+        <div
+          role="alert"
+          className="space-y-2 break-words rounded-lg border border-red-500/40 p-3 text-sm"
+        >
+          {deviceError && <p>{deviceError}</p>}
+          {error && <p>{error}</p>}
+          <button
+            type="button"
+            disabled={busy || loading}
+            onClick={() => void load({}, !!selected)}
+            className={action}
+          >
+            Retry loading traverse
+          </button>
+        </div>
+      )}
+      {notice && (
+        <p
+          role="status"
+          className="rounded-lg border border-[var(--border-color)] p-3 text-sm"
+        >
+          {notice}
+        </p>
+      )}
+      {rawDevice !== null && (
+        <button type="button" className={action} onClick={downloadDevice}>
+          Download device record
+        </button>
+      )}
+      {pending && (
+        <aside
+          className="space-y-3 rounded-lg border border-[var(--border-color)] p-4"
+          aria-label="Unconfirmed request"
+        >
+          <h4 className="font-medium">
+            Unconfirmed request retained on this device
+          </h4>
+          <p className="break-all font-mono text-xs">
+            {pending.body.requestId}
+          </p>
+          <p className="text-sm">
+            Recover the final receipt or retry the original request.
+            Cancellation also requires server acknowledgement.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              className={action}
+              onClick={() => void resolve(false)}
+            >
+              Recover receipt
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className={action}
+              onClick={() => void save(pending)}
+            >
+              Retry original save
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              className={action}
+              onClick={() => void resolve(true)}
+            >
+              Cancel request
+            </button>
           </div>
-
-          <label className="flex items-center gap-2 text-xs text-[var(--text-secondary)] cursor-pointer">
-            <input aria-label="Is closed"
-              type="checkbox"
-              checked={config.is_closed}
-              onChange={e => setConfig(p => ({ ...p, is_closed: e.target.checked }))}
-              className="rounded border-[var(--border-color)]"
-            />
-            Closed Traverse
-            <span className="text-red-400 text-[10px] font-semibold ml-1">(Closing control required by law)</span>
-          </label>
-
-          {!config.is_closed && (
-            <div className="p-2 bg-red-900/30 border border-red-600 rounded text-red-400 text-xs">
-              <AlertTriangle className="w-3.5 h-3.5 inline shrink-0" /> Without closing control, this is a swinging traverse — prohibited by Survey Regulations Reg. 67. Enable "Closed Traverse" and provide closing coordinates.
+        </aside>
+      )}
+      {data && (
+        <section
+          className="space-y-2 border-y border-[var(--border-color)] py-3 text-sm"
+          aria-label="Declared project frame"
+        >
+          <dl className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div>
+              <dt className="text-xs text-[var(--text-secondary)]">
+                Project grid
+              </dt>
+              <dd className="font-mono">
+                {data.context.sourceCrs ?? 'Not declared'}
+              </dd>
             </div>
-          )}
-
-          {config.is_closed && (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 p-3 bg-[var(--bg-tertiary)] rounded-lg">
-              <div>
-                <label className={labelClass} htmlFor="closing-station">Closing Station</label>
-                <input id="closing-station" aria-label="Closing station" type="text" value={config.closing_station} onChange={e => setConfig(p => ({ ...p, closing_station: e.target.value }))} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="closing-e">Closing E</label>
-                <input id="closing-e" aria-label="Closing easting" type="number" step="0.0001" value={config.closing_easting} onChange={e => setConfig(p => ({ ...p, closing_easting: e.target.value }))} className={inputClass} />
-              </div>
-              <div>
-                <label className={labelClass} htmlFor="closing-n">Closing N</label>
-                <input id="closing-n" aria-label="Closing northing" type="number" step="0.0001" value={config.closing_northing} onChange={e => setConfig(p => ({ ...p, closing_northing: e.target.value }))} className={inputClass} />
-              </div>
-              <div>
-                <div className={labelClass}>BS Bearing (D M S)</div>
-                <div className="grid grid-cols-3 gap-1">
-                  <input type="number" value={config.bs_bearing_deg} onChange={e => setConfig(p => ({ ...p, bs_bearing_deg: e.target.value }))} className={numClass} aria-label="BS bearing degrees" placeholder="D" />
-                  <input type="number" value={config.bs_bearing_min} onChange={e => setConfig(p => ({ ...p, bs_bearing_min: e.target.value }))} className={numClass} aria-label="BS bearing minutes" placeholder="M" />
-                  <input type="number" value={config.bs_bearing_sec} onChange={e => setConfig(p => ({ ...p, bs_bearing_sec: e.target.value }))} className={numClass} aria-label="BS bearing seconds" placeholder="S" />
-                </div>
-              </div>
+            <div>
+              <dt className="text-xs text-[var(--text-secondary)]">
+                Adopted ground-to-grid factor
+              </dt>
+              <dd className="font-mono">
+                {data.context.adoptedFactor ?? 'Not declared'}
+              </dd>
             </div>
+            <div>
+              <dt className="text-xs text-[var(--text-secondary)]">
+                Vertical datum
+              </dt>
+              <dd>
+                {data.context.verticalDatum ??
+                  'Not declared; absolute levels unavailable'}
+              </dd>
+            </div>
+          </dl>
+          {data.context.prerequisites.map((reason) => (
+            <p key={reason} className="text-amber-700 dark:text-amber-300">
+              {reason}
+            </p>
+          ))}
+        </section>
+      )}
+      <TraverseObservationForm
+        key={formVersion}
+        entry={entry}
+        change={setEntry}
+        context={data?.context ?? null}
+        disabled={locked || loading || !frameReady}
+        reviewed={reviewed}
+        setReviewed={setReviewed}
+        onSave={() => void save()}
+        onFileError={setError}
+      />
+      {data && (
+        <section
+          className="space-y-3 border-t border-[var(--border-color)] pt-4"
+          aria-label="Retained history"
+        >
+          <h4 className="font-medium">Retained revisions</h4>
+          {data.revisions.length === 0 ? (
+            <p className="text-sm text-[var(--text-secondary)]">
+              No retained revisions were found in this confirmed read.
+            </p>
+          ) : (
+            <ul className="divide-y divide-[var(--border-color)]">
+              {data.revisions.map((row) => (
+                <li
+                  key={row.revisionId}
+                  className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm"
+                >
+                  <span className="min-w-0 break-words">
+                    Revision {row.ordinal} · {row.name}
+                    <span className="block text-xs text-[var(--text-secondary)]">
+                      {row.createdAt} · Draft, unverified
+                    </span>
+                  </span>
+                  <button
+                    type="button"
+                    disabled={busy || loading}
+                    className={action}
+                    onClick={() =>
+                      void load({ revision_id: row.revisionId }, false)
+                    }
+                  >
+                    Read revision {row.ordinal}
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
-
-          {/* Observations Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="flex flex-wrap gap-2">
+            {data.beforeOrdinal !== null && (
+              <button
+                type="button"
+                disabled={busy || loading}
+                className={action}
+                onClick={() => void load({}, true)}
+              >
+                Newest history
+              </button>
+            )}
+            {data.hasMore && data.nextBeforeOrdinal !== null && (
+              <button
+                type="button"
+                disabled={busy || loading}
+                className={action}
+                onClick={() =>
+                  void load(
+                    { before_ordinal: String(data.nextBeforeOrdinal) },
+                    true,
+                  )
+                }
+              >
+                Older history
+              </button>
+            )}
+          </div>
+        </section>
+      )}
+      {selected && (
+        <section
+          className="min-w-0 space-y-3 border-t border-[var(--border-color)] pt-4"
+          aria-label="Retained numerical draft"
+        >
+          <h4 className="font-medium">
+            Revision {selected.receipt.ordinal} · {selected.input.name}
+          </h4>
+          <p className="text-sm">
+            Draft, unverified · {selected.result.assessment.reason}
+          </p>
+          {!selected.currentReferenceMatches && (
+            <p className="rounded border border-amber-500/40 p-3 text-sm">
+              The project reference changed after this revision. Its coordinates
+              remain in the retained source grid. Reuse requires a reviewed
+              transformation; copying into the current grid is unavailable.
+            </p>
+          )}
+          <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
+            <div>
+              <dt className="text-xs text-[var(--text-secondary)]">
+                Source grid
+              </dt>
+              <dd>{selected.input.sourceCrs}</dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--text-secondary)]">
+                Linear misclosure (m)
+              </dt>
+              <dd className="font-mono">
+                {selected.result.linearError ?? 'Not assessed'}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs text-[var(--text-secondary)]">
+                Precision ratio
+              </dt>
+              <dd className="font-mono">
+                {selected.result.precisionRatio === null
+                  ? 'Not assessed'
+                  : selected.result.precisionRatio === 0
+                    ? 'Zero computed misclosure'
+                    : `1:${selected.result.precisionRatio}`}
+              </dd>
+            </div>
+          </dl>
+          {selected.result.coordinateWarnings.map((warning) => (
+            <p key={warning} className="text-sm">
+              {warning}
+            </p>
+          ))}
+          <div className="min-w-0 overflow-x-auto">
+            <table className="w-full text-left text-xs tabular-nums">
+              <caption className="mb-2 text-left">
+                Retained coordinate path; display values keep the stored
+                numerical precision.
+              </caption>
               <thead>
-                <tr className="text-left text-[10px] text-[var(--text-muted)] border-b border-[var(--border-color)]">
-                  <th className="px-1 py-1.5 w-6">#</th>
-                  <th className="px-1 py-1.5">Station</th>
-                  <th className="px-1 py-1.5">BS</th>
-                  <th className="px-1 py-1.5">FS</th>
-                  <th className="px-1 py-1.5">HCL (D M S)</th>
-                  <th className="px-1 py-1.5">HCR (D M S)</th>
-                  <th className="px-1 py-1.5">Slope Dist</th>
-                  <th className="px-1 py-1.5">VA (D M S)</th>
-                  <th className="px-1 py-1.5">IH</th>
-                  <th className="px-1 py-1.5">TH</th>
-                  <th className="px-1 py-1.5 w-6"></th>
+                <tr>
+                  {['Station', 'Easting (m)', 'Northing (m)', 'Level (m)'].map(
+                    (label) => (
+                      <th key={label} className="p-2">
+                        {label}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
-                {observations.map((obs, i) => (
-                  <tr key={obs.station} className="border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
-                    <td className="px-1 py-1 text-[var(--text-muted)]">{i + 1}</td>
-                    <td className="px-1 py-1"><input type="text" value={obs.station} onChange={e => updateObs(i, 'station', e.target.value)} className={inputClass} aria-label="Station" placeholder="T2" /></td>
-                    <td className="px-1 py-1"><input aria-label="BS" type="text" value={obs.bs} onChange={e => updateObs(i, 'bs', e.target.value)} className={inputClass} /></td>
-                    <td className="px-1 py-1"><input aria-label="FS" type="text" value={obs.fs} onChange={e => updateObs(i, 'fs', e.target.value)} className={inputClass} /></td>
-                    <td className="px-1 py-1">
-                      <div className="grid grid-cols-3 gap-0.5">
-                        <input aria-label="HCL degrees" type="number" value={obs.hcl_deg} onChange={e => updateObs(i, 'hcl_deg', parseInt(e.target.value)||0)} className={numClass} />
-                        <input aria-label="HCL minutes" type="number" value={obs.hcl_min} onChange={e => updateObs(i, 'hcl_min', parseInt(e.target.value)||0)} className={numClass} />
-                        <input aria-label="HCL seconds" type="number" step="0.1" value={obs.hcl_sec} onChange={e => updateObs(i, 'hcl_sec', parseFloat(e.target.value)||0)} className={numClass} />
-                      </div>
-                    </td>
-                    <td className="px-1 py-1">
-                      <div className="grid grid-cols-3 gap-0.5">
-                        <input aria-label="HCR degrees" type="number" value={obs.hcr_deg} onChange={e => updateObs(i, 'hcr_deg', parseInt(e.target.value)||0)} className={numClass} />
-                        <input aria-label="HCR minutes" type="number" value={obs.hcr_min} onChange={e => updateObs(i, 'hcr_min', parseInt(e.target.value)||0)} className={numClass} />
-                        <input aria-label="HCR seconds" type="number" step="0.1" value={obs.hcr_sec} onChange={e => updateObs(i, 'hcr_sec', parseFloat(e.target.value)||0)} className={numClass} />
-                      </div>
-                    </td>
-                    <td className="px-1 py-1"><input type="number" step="0.001" value={obs.slope_dist} onChange={e => updateObs(i, 'slope_dist', e.target.value)} className={inputClass} aria-label="Slope distance (m)" placeholder="m" /></td>
-                    <td className="px-1 py-1">
-                      <div className="grid grid-cols-3 gap-0.5">
-                        <input aria-label="VA degrees" type="number" value={obs.va_deg} onChange={e => updateObs(i, 'va_deg', parseInt(e.target.value)||0)} className={numClass} />
-                        <input aria-label="VA minutes" type="number" value={obs.va_min} onChange={e => updateObs(i, 'va_min', parseInt(e.target.value)||0)} className={numClass} />
-                        <input aria-label="VA seconds" type="number" step="0.1" value={obs.va_sec} onChange={e => updateObs(i, 'va_sec', parseFloat(e.target.value)||0)} className={numClass} />
-                      </div>
-                    </td>
-                    <td className="px-1 py-1"><input aria-label="Instrument height (m)" type="number" step="0.001" value={obs.ih} onChange={e => updateObs(i, 'ih', e.target.value)} className={numClass} /></td>
-                    <td className="px-1 py-1"><input aria-label="Target height (m)" type="number" step="0.001" value={obs.th} onChange={e => updateObs(i, 'th', e.target.value)} className={numClass} /></td>
-                    <td className="px-1 py-1">
-                      <button onClick={() => removeRow(i)} disabled={observations.length <= 2}
-                        className="p-1 hover:bg-red-900/20 rounded text-[var(--text-muted)] hover:text-red-400 disabled:opacity-30 transition-colors">
-                        <Trash2 className="w-3 h-3" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {selected.result.coordinates
+                  .slice(pointPage * 50, pointPage * 50 + 50)
+                  .map((point, index) => (
+                    <tr
+                      key={index}
+                      className="border-t border-[var(--border-color)]"
+                    >
+                      <td className="p-2">{point.station}</td>
+                      <td className="p-2 font-mono">{point.easting}</td>
+                      <td className="p-2 font-mono">{point.northing}</td>
+                      <td className="p-2 font-mono">{point.rl ?? 'Unknown'}</td>
+                    </tr>
+                  ))}
               </tbody>
             </table>
           </div>
-
-          <div className="flex items-center justify-between">
-            <button onClick={addRow} className="text-xs text-[var(--accent)] hover:underline flex items-center gap-1">
-              <Plus className="w-3 h-3" /> Add Observation
-            </button>
-            <button onClick={handleCompute} disabled={loading}
-              className="px-5 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-sm font-semibold rounded-lg transition-all disabled:opacity-40 flex items-center gap-2">
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-              Compute & Save
-            </button>
-          </div>
-
-          {result && (
-            <div className="space-y-4 pt-2">
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
-                  <div className="text-[10px] text-[var(--text-muted)]">Accuracy</div>
-                  <div className="text-sm font-bold text-[var(--text-primary)]">{result.accuracy.order}</div>
-                </div>
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
-                  <div className="text-[10px] text-[var(--text-muted)]">Precision</div>
-                  <div className="text-sm font-bold text-[var(--text-primary)]">1:{result.accuracy.precision_ratio.toFixed(0)}</div>
-                </div>
-                <div className="p-3 bg-[var(--bg-tertiary)] rounded-lg">
-                  {/* Linear Misclosure — British/East African standard term */}
-                  <div className="text-[10px] text-[var(--text-muted)]">Linear Misclosure</div>
-                  <div className="text-sm font-bold text-[var(--text-primary)]">{result.accuracy.linear_error.toFixed(4)} m</div>
-                </div>
-                <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg">
-                  <div className="text-[10px] text-emerald-400">Computed Area</div>
-                  <div className="text-sm font-bold text-emerald-400">{result.area_ha ? result.area_ha.toFixed(6) : 'N/A'} ha</div>
-                </div>
-              </div>
-
-              <div className="overflow-x-auto">
-                <h4 className="text-xs font-semibold text-[var(--text-secondary)] mb-2">Computed Coordinates (Arc 1960 / UTM Zone 37S)</h4>
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr className="text-left text-[10px] text-[var(--text-muted)] border-b border-[var(--border-color)]">
-                      <th className="px-3 py-1.5">Station</th>
-                      <th className="px-3 py-1.5">Easting (m)</th>
-                      <th className="px-3 py-1.5">Northing (m)</th>
-                      <th className="px-3 py-1.5">RL (m)</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.coordinates.map((c) => (
-                      <tr key={c.station} className="border-b border-[color-mix(in_srgb,var(--border-color)_30%,transparent)]">
-                        <td className="px-3 py-1.5 font-mono text-[var(--accent)]">{c.station}</td>
-                        <td className="px-3 py-1.5 font-mono">{c.easting.toFixed(4)}</td>
-                        <td className="px-3 py-1.5 font-mono">{c.northing.toFixed(4)}</td>
-                        <td className="px-3 py-1.5 font-mono">{c.rl ? c.rl.toFixed(3) : '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              <div className="flex items-center gap-2 text-xs text-emerald-400">
-                <CheckCircle2 className="w-4 h-4" />
-                Traverse computed and saved. Parcel area updated.
-              </div>
+          {selected.result.coordinates.length > 50 && (
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                className={action}
+                disabled={pointPage === 0}
+                onClick={() => setPointPage(pointPage - 1)}
+              >
+                Previous coordinates
+              </button>
+              <span className="text-xs">
+                {pointPage + 1} of{' '}
+                {Math.ceil(selected.result.coordinates.length / 50)}
+              </span>
+              <button
+                type="button"
+                className={action}
+                disabled={
+                  (pointPage + 1) * 50 >= selected.result.coordinates.length
+                }
+                onClick={() => setPointPage(pointPage + 1)}
+              >
+                Next coordinates
+              </button>
             </div>
           )}
-        </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={locked || loading || !selected.currentReferenceMatches}
+              className={action}
+              onClick={() => {
+                setEntry({
+                  ...selected.input,
+                  derivedFromRevisionId: selected.receipt.revisionId,
+                })
+                setFormVersion((v) => v + 1)
+                setReviewed(false)
+                setNotice(
+                  'Original inputs copied. Review against the current project grid and adopted factor before retaining a new revision.',
+                )
+              }}
+            >
+              Edit as new revision
+            </button>
+            <Link
+              className={action}
+              href={`/project/${projectId}/scheme/boundary-review?parcel=${parcelId}&traverse=${selected.receipt.traverseId}`}
+            >
+              Review boundary vertices
+            </Link>
+          </div>
+          <details className="text-xs">
+            <summary className="cursor-pointer">Retained evidence</summary>
+            <dl className="mt-2 space-y-2 break-all font-mono">
+              {[
+                ['Revision', selected.receipt.revisionId],
+                ['Original issuer', selected.receipt.actorId],
+                ['Engine', selected.receipt.engineVersion],
+                ['Input SHA-256', selected.receipt.inputHash],
+                ['Source SHA-256', selected.receipt.sourceHash],
+                ['Result SHA-256', selected.receipt.resultHash],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt>{label}</dt>
+                  <dd>{value}</dd>
+                </div>
+              ))}
+            </dl>
+          </details>
+        </section>
       )}
     </div>
   )

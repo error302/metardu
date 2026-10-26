@@ -129,6 +129,11 @@ was added to conceal artifact drift.
 
 ## Required continuation
 
+Source follow-up: `RETAINED_TRAVERSE_INTAKE_2026-10-26.md` now records the
+append-only parcel intake, recoverable UI and linked reviewed-boundary work in
+items 1–2 below. Its separate acceptance evidence and remaining gates apply;
+the original numerical checkpoint alone did not establish durable retention.
+
 1. Replace the legacy `/api/scheme/traverse` intake with owner-bound UUID
    admission, an explicit projected metric reference/observation convention,
    retained source/input/result revisions and transactional idempotent receipts.

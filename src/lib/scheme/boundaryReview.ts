@@ -146,15 +146,14 @@ export function prepareBoundary(
   )
   const gridAreaSqM = surveyArea(ring, resolved),
     gridPerimeterM = surveyPerimeter(ring, resolved)
-  const areaHa = Number((gridAreaSqM / 10000).toFixed(6))
+  const areaHa = gridAreaSqM / 10000
   if (
     !Number.isFinite(gridAreaSqM) ||
     !Number.isFinite(gridPerimeterM) ||
-    areaHa <= 0 ||
-    areaHa > 999999.999999
+    !Number.isFinite(areaHa) || areaHa <= 0
   )
     throw new Error(
-      'The draft area cannot be represented in the parcel register.',
+      'The draft area is zero or nonfinite.',
     )
   return {
     polygon: {

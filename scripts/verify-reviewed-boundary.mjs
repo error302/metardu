@@ -7,11 +7,12 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
 import path from 'node:path'
 import pg from 'pg'
 const shareMode = process.argv[2] === 'share'
+const traverseMode = process.argv[2] === 'traverse'
 const exportMode = process.argv[2] === 'export' || shareMode
 const viewMode = process.argv[2] === 'view' || exportMode
 assert.ok(
-  process.argv.length === (viewMode ? 3 : 2),
-  'Use no argument, view, export or share verification mode.',
+  process.argv.length === (viewMode || traverseMode ? 3 : 2),
+  'Use no argument, view, export, share or traverse verification mode.',
 )
 const service = JSON.parse(
   execFileSync(
@@ -178,6 +179,12 @@ const save = (body, user = actor, id = project) =>
     id,
   )
 const files = [
+  'src/lib/scheme/traversePending.ts',
+  'src/components/scheme/TraverseComputePanel.tsx',
+  'src/components/scheme/TraverseObservationForm.tsx',
+  'tests/retained-traverse-ui.test.tsx',
+  'src/app/api/scheme/traverse/history/route.ts',
+  ...(traverseMode ? ['scripts/verify-traverse-retention-cases.mjs','src/app/api/scheme/traverse/route.ts','src/lib/db/migrations/122_retained_parcel_traverses.sql','src/lib/scheme/readSchemeView.ts','src/lib/scheme/schemeView.ts','src/lib/engine/traverse.ts','src/lib/engine/angles.ts'] : []),
   ...(shareMode ? [
     'scripts/verify-parcel-sharing-cases.mjs',
     'src/lib/db/migrations/121_parcel_draft_sharing.sql',
@@ -209,6 +216,9 @@ const files = [
     'tests/private-share-skip-link.test.tsx',
   ] : []),
   'scripts/verify-reviewed-boundary.mjs',
+  'src/lib/scheme/traverseCommands.ts',
+  'src/lib/scheme/traverseContract.ts',
+  'src/lib/computations/traverseEngine.ts',
   'src/lib/scheme/boundaryReview.ts',
   'src/lib/scheme/reviewedBoundaryCommands.ts',
   'src/lib/map/traverseToParcel.ts',
@@ -300,7 +310,7 @@ const report = {
   fixtureSchema: schema,
   checks: [],
 }
-const reportRoot = shareMode ? '.cache/parcel-draft-sharing' : exportMode
+const reportRoot = traverseMode ? '.cache/traverse-retention' : shareMode ? '.cache/parcel-draft-sharing' : exportMode
   ? '.cache/scheme-boundary-export'
   : viewMode
     ? '.cache/scheme-geometry-view'
@@ -390,7 +400,7 @@ async function reset() {
   }
 }
 async function check(name, work) {
-  await reset()
+  if (!traverseMode) await reset()
   try {
     await work()
     report.checks.push({ name, passed: true })
@@ -407,6 +417,7 @@ let original,
 let expectedViewCases = 0
 let expectedExportCases = 0
 let expectedShareCases = 0
+let expectedTraverseCases = 0
 await admin.connect()
 try {
   assert.equal(
@@ -440,7 +451,7 @@ try {
  CREATE TABLE project_reference_systems(id uuid PRIMARY KEY,project_id uuid UNIQUE REFERENCES projects(id) ON DELETE CASCADE,horizontal_crs text,notes text);
  CREATE TABLE parcels(id uuid PRIMARY KEY,project_id uuid REFERENCES projects(id) ON DELETE CASCADE,block_id uuid,parcel_number text,status text,revision_number integer DEFAULT 0,lr_number_confirmed text,area_ha numeric(12,6),geom public.geometry(Polygon),boundary_geojson jsonb,updated_at timestamptz);
  CREATE TABLE parcel_traverses(id uuid PRIMARY KEY,project_id uuid REFERENCES projects(id) ON DELETE CASCADE,parcel_id uuid REFERENCES parcels(id) ON DELETE CASCADE,traverse_name text,status text,version integer DEFAULT 1,updated_at timestamptz);
- CREATE TABLE traverse_coordinates(id uuid PRIMARY KEY,traverse_id uuid REFERENCES parcel_traverses(id) ON DELETE CASCADE,station_name text,station text,easting numeric,northing numeric,elevation numeric,rl numeric);
+ CREATE TABLE traverse_coordinates(id uuid PRIMARY KEY,traverse_id uuid REFERENCES parcel_traverses(id) ON DELETE CASCADE,station_name text,station text,easting numeric,northing numeric,elevation double precision,rl numeric);
  CREATE TABLE traverse_observations(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),traverse_id uuid REFERENCES parcel_traverses(id) ON DELETE CASCADE,station_from text,station_to text,distance numeric,bearing numeric,remarks text);
  CREATE TABLE fixture_audit(id uuid PRIMARY KEY DEFAULT gen_random_uuid(),parcel_id uuid,snapshot jsonb);
  CREATE FUNCTION fixture_audit_and_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
@@ -471,6 +482,7 @@ try {
  IF current_setting('metardu_fixture.boundary_fault',true)='receipt_suppress' THEN RETURN NULL;END IF;
  IF current_setting('metardu_fixture.boundary_fault',true)='receipt_change' THEN NEW.receipt=jsonb_set(NEW.receipt,'{areaHa}','999'::jsonb);END IF;RETURN NEW;END $$;
  CREATE TRIGGER fixture_receipt_fault BEFORE INSERT ON parcel_boundary_drafts FOR EACH ROW EXECUTE FUNCTION fixture_receipt_fault();`)
+  if (!traverseMode) {
   await check('ordinary unauthenticated calls are refused', async () =>
     assert.equal((await get({}, null)).status, 401),
   )
@@ -1110,6 +1122,16 @@ try {
     assert.equal((await save({ padding: 'x'.repeat(66000) })).status, 413)
     assert.deepEqual(await state(), before)
   })
+  }
+  if (traverseMode) {
+    await reset()
+    await pool.query('ALTER TABLE parcel_traverses ADD COLUMN traverse_type text; ALTER TABLE traverse_observations ADD COLUMN face varchar(10); ALTER TABLE project_reference_systems ADD COLUMN units text,ADD COLUMN distance_mode text,ADD COLUMN combined_scale_factor double precision,ADD COLUMN csf_provenance text,ADD COLUMN vertical_datum text,ADD COLUMN vertical_reference text')
+    const traverseMigration=readFileSync('src/lib/db/migrations/122_retained_parcel_traverses.sql','utf8').split('-- DOWN:')[0].replaceAll('public.',schema+'.').replaceAll('search_path=pg_catalog,public',`search_path=pg_catalog,${schema}`)
+    await pool.query(traverseMigration)
+    const cases = await import('./verify-traverse-retention-cases.mjs')
+    expectedTraverseCases = cases.EXPECTED_CASES
+    await cases.verifyTraverseRetention({check,pool,actor,other,project,parcel,traverse,require,randomUUID,schema,setFault:value=>{fault=value}})
+  }
   if (viewMode) {
     const cases = await import('./verify-scheme-view-cases.mjs')
     expectedViewCases = cases.EXPECTED_CASES
@@ -1204,7 +1226,7 @@ try {
     assert.deepEqual(hashes(), report.source)
     report.sourcePreserved = true
     report.status =
-      report.checks.length === 50 + expectedViewCases + expectedExportCases + expectedShareCases &&
+      report.checks.length === (traverseMode ? 0 : 50) + expectedViewCases + expectedExportCases + expectedShareCases + expectedTraverseCases &&
       report.checks.every((row) => row.passed) &&
       report.ownedFixtureRemoved &&
       (!exportMode || report.ownedExportFilesRemoved === true) &&

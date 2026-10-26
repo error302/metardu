@@ -49,6 +49,7 @@ export interface ReducedObservation {
   verticalAngle: number
   verticalAngleRad: number
   horizontalDist: number
+  horizontalGroundDist: number
   deltaH: number | null
   ih: number | null
   th: number | null
@@ -78,6 +79,7 @@ export interface TraverseComputationResult {
   legs: TraverseComputationLeg[]
   coordinates: Array<{ station: string; easting: number; northing: number; rl?: number }>
   totalPerimeter: number
+  horizontalScaleFactor: number
   sumDepartures: number
   sumLatitudes: number
   linearError: number | null
@@ -163,7 +165,11 @@ export function computeTraverse(input: {
   backsightBearingMin: number
   backsightBearingSec: number
   criterion?: TraverseCriterion
+  /** Adopted horizontal ground-to-grid factor. Never applied to vertical deltas. */
+  horizontalScaleFactor?: number
 }): TraverseComputationResult {
+  const horizontalScaleFactor = finite(input.horizontalScaleFactor === undefined ? 1 : input.horizontalScaleFactor, 'Horizontal scale factor')
+  if (horizontalScaleFactor <= 0) throw new Error('Horizontal scale factor must be positive')
   finite(input.openingEasting, 'Opening easting')
   finite(input.openingNorthing, 'Opening northing')
   if (input.openingRL !== undefined) finite(input.openingRL, 'Opening level')
@@ -190,7 +196,8 @@ export function computeTraverse(input: {
     if (va <= 0 || va >= 180) throw new Error('A traverse leg requires a zenith strictly between 0 and 180 degrees')
     const vaRad = va * Math.PI / 180
     // Canonical: VA is zenith (90°=horizontal) — see verticalAngle.ts
-    const hd = sd * Math.sin(vaRad)
+    const horizontalGroundDist = finite(sd * Math.sin(vaRad), 'Horizontal ground distance')
+    const hd = finite(horizontalGroundDist * horizontalScaleFactor, 'Horizontal grid distance')
     const ih = optionalHeight(o.ih, 'Instrument height')
     const th = optionalHeight(o.th, 'Target height')
     // ΔH = SD·cos(zenith) + IH − TH (zenith → vertical)
@@ -203,6 +210,7 @@ export function computeTraverse(input: {
       verticalAngle: va,
       verticalAngleRad: vaRad,
       horizontalDist: hd,
+      horizontalGroundDist,
       deltaH,
       ih,
       th,
@@ -342,6 +350,7 @@ export function computeTraverse(input: {
     legs,
     coordinates: coords,
     totalPerimeter,
+    horizontalScaleFactor,
     sumDepartures: sumDep,
     sumLatitudes: sumLat,
     linearError,

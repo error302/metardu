@@ -18,6 +18,19 @@ their remaining families.
 
 ## Current execution order
 
+### Retained parcel traverse intake checkpoint, 26 October
+
+`RETAINED_TRAVERSE_INTAKE_2026-10-26.md` records append-only original input and
+source-file retention, owner-bound revision receipts, interrupted-save recovery,
+durable cancellation and the exact reviewed-boundary link. Migration 122 is
+source/isolated-fixture only. Numerical unknowns and declared scale/height
+references remain explicit; computing a path does not update a parcel's area or
+geometry. Full coordinate/area precision is retained through boundary review.
+The checkpoint's evidence and limitations govern its acceptance: authenticated
+browser/phone/admin, real instrument/import and surveyor/field checks remain open,
+alongside campaign/crew capacity, worker, clone/restore, signing-key/provider and
+release gates. The deployed public-parcel containment stays in place.
+
 ### Explicit retained-draft sharing checkpoint, 26 October
 
 `PARCEL_DRAFT_SHARING_ACCEPTANCE_2026-10-26.md` replaces public project-ID lookup,

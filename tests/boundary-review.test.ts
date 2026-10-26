@@ -45,6 +45,14 @@ it('uses reviewed IDs to form an analytical 200 square metre rectangle', () => {
   expect(result.areaHa).toBe(0.02)
   expect(result.polygon.coordinates[0][4]).toEqual([500000, 9500000])
 })
+it('preserves fractional area at a large grid origin without hectare rounding',()=>{
+  const e=250000,n=9800000,width=100+2**-23,height=50+2**-20
+  const precise={...source,points:[[e,n],[e+width,n],[e+width,n+height],[e,n+height]].map(([easting,northing],i)=>({...source.points[i],easting,northing}))}
+  const result=prepareBoundary(precise,precise.points.map(p=>p.id),source.sourceCrs)
+  const expected=(precise.points[1].easting-e)*(precise.points[2].northing-n)
+  expect(result.gridAreaSqM).toBeCloseTo(expected,9)
+  expect(result.areaHa).toBe(expected/10000)
+})
 it.each([
   ['crossed', [id(10), id(12), id(11), id(13)]],
   ['repeated', [id(10), id(11), id(10)]],
