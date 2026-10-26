@@ -118,3 +118,8 @@ saved-project/admin and actual-phone acceptance, multi-crew/ward-scale capacity,
 customer clone/restore admission, worker artifact alignment, provider/payment,
 owner-deferred signing-key work, independent surveyor/field/print proof and the
 coherent production release retain their gates. Preserve Cloudflare containment.
+
+The subsequent conditional-save/device-recovery phase is recorded in
+`ROAD_DRAFT_RECOVERY_2026-10-27.md`. It supersedes the owner visual workspace's
+page-only draft handling. Legacy write paths, collaboration, terrain, selected
+road-revision delivery and broader production/field acceptance remain open.

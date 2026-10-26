@@ -438,3 +438,13 @@ a stale mirror. See `ROAD_LIVE_EDITING_2026-10-27.md`. Durable account-bound dra
 and server-conflict recovery, retained terrain/ground reassociation, direct
 graphical editing, immutable road revisions, validated interchange and all
 existing production/provider/recovery/field gates remain open.
+
+27 October road recovery checkpoint: the owner visual workspace retains an
+account/project-bound text draft and original request before sending. Conditional
+server saves compare project/reference snapshots and atomically retain the final
+outcome and independently hashable source evidence. Retry and cancellation keep
+the original request identity. Browser reopening and Dashboard/Back recovery were
+observed, with native project/archive checks. See
+`ROAD_DRAFT_RECOVERY_2026-10-27.md`. Legacy writer adoption, collaborative conflict
+handling, retained terrain and selected-revision delivery, customer recovery,
+provider, security-deferral, production and independent field gates remain open.

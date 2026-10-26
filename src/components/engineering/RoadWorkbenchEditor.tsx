@@ -9,6 +9,7 @@ import {
   evaluateRoadWorkbenchDraft,
   type RoadPiDraft,
   type RoadVipDraft,
+  type RoadWorkbenchDraft,
 } from "@/lib/engineering/roadWorkbenchDraft";
 import RoadWorkbench from "./RoadWorkbench";
 
@@ -22,6 +23,10 @@ type Props = {
   reference: QuantityReference;
   disabled?: boolean;
   onSave?: (road: RoadDesignData) => Promise<boolean>;
+  initialDraft?: RoadWorkbenchDraft;
+  onDraftChange?: (draft: RoadWorkbenchDraft, dirty: boolean) => void;
+  onDiscard?: () => void;
+  retainedDraftIdentity?: string;
 };
 type EditorTab = "horizontal" | "vertical" | "template";
 const keyOf = (road: RoadDesignData | null, reference: QuantityReference) =>
@@ -84,9 +89,13 @@ function Editor({
   road,
   reference,
   onSave,
+  initialDraft,
+  onDraftChange,
+  onDiscard,
+  retainedDraftIdentity,
   disabled = false,
 }: Props & { road: RoadDesignData }) {
-  const [state, setState] = useState(() => session(road, reference));
+  const [state, setState] = useState(() => ({...session(road, reference),...(initialDraft?{draft:initialDraft}:{})}));
   const [tab, setTab] = useState<EditorTab>("horizontal");
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
@@ -97,8 +106,11 @@ function Editor({
   const incoming = keyOf(road, reference);
   const latest = useRef(incoming);
   latest.current = incoming;
-  const dirty = canonicalJSON(state.draft) !== state.cleanKey;
+  const draftIdentity = canonicalJSON(state.draft);
+  const dirty = draftIdentity !== state.cleanKey;
+  const protectNavigation = dirty && retainedDraftIdentity !== draftIdentity;
   const conflict = incoming !== state.observedKey;
+  useEffect(()=>{onDraftChange?.(state.draft,dirty)},[state.draft,dirty,onDraftChange]);
   // A clean view follows newly loaded saved inputs; a dirty view retains its source until explicit discard.
   if (conflict && !dirty && !saving) setState(session(road, reference));
   const evaluated = useMemo(
@@ -106,7 +118,7 @@ function Editor({
     [state.base, state.draft, state.reference],
   );
   useEffect(() => {
-    if (!dirty) return;
+    if (!protectNavigation) return;
     const warn = (e: BeforeUnloadEvent) => {
       e.preventDefault();
       e.returnValue = "";
@@ -148,7 +160,7 @@ function Editor({
       window.removeEventListener("beforeunload", warn);
       document.removeEventListener("click", holdNavigation, true);
     };
-  }, [dirty]);
+  }, [protectNavigation]);
   const edit = (update: (draft: typeof state.draft) => typeof state.draft) => {
     if (inFlight.current || disabled) return;
     setFeedback(null);
@@ -180,6 +192,7 @@ function Editor({
     }));
   const discard = () => {
     if (inFlight.current) return;
+    if(onDiscard){onDiscard();return;}
     setState(session(road, reference));
     setFeedback(null);
   };
@@ -246,7 +259,7 @@ function Editor({
       ? feedback.text
       : dirty
         ? projectId
-          ? "Unsaved road changes. Save before leaving this page."
+        ? (protectNavigation ? "Unsaved road changes. Save before leaving this page." : "Unsaved road changes retained on this device. Save to retain a server draft.")
           : "Unsaved example changes. Reset or reload to restore the synthetic example."
         : projectId
           ? "Saved project inputs. Changes update the views before saving."

@@ -104,7 +104,7 @@ jest.mock('../steps/renderStepContent', () => ({
     </>
   ),
 }))
-jest.mock('@/components/engineering/RoadWorkbenchEditor', () => ({
+jest.mock('@/components/engineering/RecoverableRoadWorkbench', () => ({
   __esModule: true,
   default: () => <p>Road visual workspace ready</p>,
 }))

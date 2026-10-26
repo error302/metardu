@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import RoadWorkbenchEditor from '@/components/engineering/RoadWorkbenchEditor'
+import RecoverableRoadWorkbench from '@/components/engineering/RecoverableRoadWorkbench'
 import { roadGroundAssociationIssue } from '@/lib/engineering/roadGroundAssociation'
 import {Check,Lock} from 'lucide-react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
@@ -380,7 +380,6 @@ export default function EngineeringWorkspacePage() {
   const mode = project.engineering_data?.mode || 'road'
 
   if(activeTab==='design' && mode==='road'){
-    const reference=project.projectReferenceSystem??resolveStageReference(null,project)
     return <div className="mx-auto min-w-0 max-w-[1600px] space-y-4 px-4 py-5 sm:px-6">
       <nav aria-label="Engineering navigation" className="flex flex-wrap items-center justify-between gap-3 text-sm">
         <Link className="min-h-11 py-3 underline underline-offset-4" href="/dashboard">Projects</Link>
@@ -390,7 +389,7 @@ export default function EngineeringWorkspacePage() {
       {engineeringLoadError&&<p role="alert" className="border-l-2 border-amber-500 pl-3 text-sm">{engineeringLoadError}</p>}
       {loadingEngineering&&<p role="status" className="text-xs text-[var(--text-secondary)]">Reading saved alignment records…</p>}
       {toast&&<p role={toast.type==='error'?'alert':'status'} className="border-l-2 border-amber-500 pl-3 text-sm">{toast.message}</p>}
-      <RoadWorkbenchEditor key={project.id} projectId={project.id} road={project.engineering_data?.road??null} reference={reference} disabled={loadingEngineering||saving} onSave={road=>handleSave({road})}/>
+      <RecoverableRoadWorkbench key={project.id} projectId={project.id}/>
     </div>
   }
   // Quick Compute Panel Mode

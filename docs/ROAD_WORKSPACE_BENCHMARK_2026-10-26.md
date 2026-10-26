@@ -87,3 +87,8 @@ numeric alignment/profile/template edits now drive the views, and original groun
 is withheld when its alignment association changes. Durable draft/conflict
 recovery, direct graphical editing, retained terrain, independent ground
 reassociation and validated revision-bound delivery remain open.
+
+`ROAD_DRAFT_RECOVERY_2026-10-27.md` adds account-bound device retention, conditional
+owner saves and retained final request outcomes to that visual workflow. It does
+not replace the remaining terrain, direct manipulation, collaborative writer,
+selected-revision delivery and representative real-job requirements above.
