@@ -159,6 +159,7 @@ const read = async () => {
   return (await result.json()).data
 }
 const command = async () => ({
+  expected_user_id:actor,
   parcel_id: parcel,
   traverse_id: traverse,
   request_id: randomUUID(),
@@ -179,6 +180,11 @@ const save = (body, user = actor, id = project) =>
     id,
   )
 const files = [
+  'scripts/verify-boundary-request-cases.mjs',
+  'src/lib/scheme/boundaryRequests.ts',
+  'src/lib/scheme/boundaryPending.ts',
+  'tests/scheme-stream-middleware.test.ts',
+  'src/lib/db/migrations/123_boundary_request_recovery.sql',
   'src/lib/scheme/traversePending.ts',
   'src/components/scheme/TraverseComputePanel.tsx',
   'src/components/scheme/TraverseObservationForm.tsx',
@@ -350,13 +356,15 @@ const fingerprint = async () => {
         `SELECT count(*)::int count,md5(COALESCE(string_agg(row_to_json(r)::text,E'\n' ORDER BY row_to_json(r)::text),'')) hash FROM public.${table} r`,
       )
     ).rows[0]
+  const present=(await admin.query("SELECT to_regclass('public.parcel_boundary_requests') name")).rows[0].name
+  output.parcel_boundary_requests=present===null?{present:false}:(await admin.query("SELECT count(*)::int count,md5(COALESCE(string_agg(row_to_json(r)::text,E'\\n' ORDER BY row_to_json(r)::text),'')) hash FROM public.parcel_boundary_requests r")).rows[0]
   return output
 }
 const state = async () => {
   const output = {}
-  for (const table of ['parcels', 'parcel_boundary_drafts', 'fixture_audit'])
+  for (const table of ['parcels', 'parcel_boundary_drafts', 'parcel_boundary_requests', 'fixture_audit'])
     output[table] = (
-      await pool.query(`SELECT row_to_json(r) data FROM ${table} r ORDER BY id`)
+      await pool.query(`SELECT row_to_json(r) data FROM ${table} r ORDER BY ${table==='parcel_boundary_requests'?'actor_id,request_id':'id'}`)
     ).rows.map((row) => row.data)
   return output
 }
@@ -422,6 +430,7 @@ let expectedViewCases = 0
 let expectedExportCases = 0
 let expectedShareCases = 0
 let expectedTraverseCases = 0
+let expectedBoundaryCases = 0
 await admin.connect()
 try {
   assert.equal(
@@ -482,6 +491,7 @@ try {
     .replaceAll('public.parcels', `${schema}.parcels`)
     .replaceAll('public.parcel_traverses', `${schema}.parcel_traverses`)
   await pool.query(migration)
+  await pool.query(readFileSync('src/lib/db/migrations/123_boundary_request_recovery.sql','utf8').split('-- DOWN:')[0].replaceAll('public.',schema+'.').replaceAll('search_path=pg_catalog,public',`search_path=pg_catalog,${schema}`))
   await pool.query(`CREATE FUNCTION fixture_receipt_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN
  IF current_setting('metardu_fixture.boundary_fault',true)='receipt_suppress' THEN RETURN NULL;END IF;
  IF current_setting('metardu_fixture.boundary_fault',true)='receipt_change' THEN NEW.receipt=jsonb_set(NEW.receipt,'{areaHa}','999'::jsonb);END IF;RETURN NEW;END $$;
@@ -752,7 +762,7 @@ try {
       const body = await command()
       assert.equal((await save(body)).status, 200)
       const before = await state()
-      assert.equal((await save(body, actor, secondProject)).status, 409)
+      assert.equal((await save(body, actor, secondProject)).status, 404)
       assert.deepEqual(await state(), before)
     },
   )
@@ -1127,6 +1137,10 @@ try {
     assert.deepEqual(await state(), before)
   })
   }
+  if(!traverseMode){
+    const cases=await import('./verify-boundary-request-cases.mjs');expectedBoundaryCases=cases.EXPECTED_CASES
+    await cases.verifyBoundaryRequests({check,pool,actor,other,project,secondProject,parcel,traverse,command,save,get,state,schema,require,randomUUID,setFault:value=>{fault=value}})
+  }
   if (traverseMode) {
     await reset()
     await pool.query('ALTER TABLE parcel_traverses ADD COLUMN traverse_type text; ALTER TABLE traverse_observations ADD COLUMN face varchar(10); ALTER TABLE project_reference_systems ADD COLUMN units text,ADD COLUMN distance_mode text,ADD COLUMN combined_scale_factor double precision,ADD COLUMN csf_provenance text,ADD COLUMN vertical_datum text,ADD COLUMN vertical_reference text')
@@ -1230,7 +1244,7 @@ try {
     assert.deepEqual(hashes(), report.source)
     report.sourcePreserved = true
     report.status =
-      report.checks.length === (traverseMode ? 0 : 50) + expectedViewCases + expectedExportCases + expectedShareCases + expectedTraverseCases &&
+      report.checks.length === (traverseMode ? 0 : 50) + expectedViewCases + expectedExportCases + expectedShareCases + expectedTraverseCases + expectedBoundaryCases &&
       report.checks.every((row) => row.passed) &&
       report.ownedFixtureRemoved &&
       (!exportMode || report.ownedExportFilesRemoved === true) &&

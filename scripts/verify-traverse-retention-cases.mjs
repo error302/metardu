@@ -530,6 +530,7 @@ export async function verifyTraverseRetention(c) {
             request_id: randomUUID(),
             evidence_hash: source.evidenceHash,
             source_crs: source.sourceCrs,
+            expected_user_id:actor,
             ordered_coordinate_ids: first.receipt.coordinateIds.slice(0, 4),
             reviewed: true,
             note: 'SYNTHETIC explicitly selected boundary order',
@@ -776,6 +777,7 @@ export async function verifyTraverseRetention(c) {
       traverse_id: saved.receipt.traverseId,
       evidence_hash: first.evidenceHash,
       source_crs: body.sourceCrs,
+      expected_user_id:actor,
       ordered_coordinate_ids: [0, 500, 1000, 1500].map(
         (i) => saved.receipt.coordinateIds[i],
       ),

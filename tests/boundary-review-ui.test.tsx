@@ -1,5 +1,12 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { createHash, webcrypto } from 'node:crypto'
+import { z } from 'zod'
+import { canonicalJSON } from '@/lib/audit/auditHash'
 import BoundaryReview from '@/components/scheme/BoundaryReview'
+import {
+  prepareBoundaryPending,
+  acknowledgeBoundaryOutcome,
+} from '@/lib/scheme/boundaryPending'
 const id = (n: number) =>
   `22222222-2222-4222-8222-${String(n).padStart(12, '0')}`
 const project = id(1),
@@ -7,6 +14,14 @@ const project = id(1),
   traverse = id(3),
   requestId = id(4),
   ids = [10, 11, 12, 13].map(id)
+const actor = id(99)
+let mockActor = actor
+jest.mock('next-auth/react', () => ({
+  useSession: () => ({
+    status: 'authenticated',
+    data: { user: { id: mockActor } },
+  }),
+}))
 const source = {
   storageReady: true,
   observationCount: 0,
@@ -53,7 +68,8 @@ const reply = (data: unknown, status = 200) => ({
   status,
   json: async () => data,
 })
-const receipt = () => ({
+const receipt = (command?: unknown) => ({
+  actorId: actor,
   protocol: 'reviewed-parcel-boundary-v1',
   receiptId: id(5),
   requestId,
@@ -61,7 +77,17 @@ const receipt = () => ({
   parcelId: parcel,
   traverseId: traverse,
   evidenceHash: source.evidenceHash,
-  inputHash: 'b'.repeat(64),
+  inputHash: command
+    ? createHash('sha256')
+        .update(
+          canonicalJSON({
+            protocol: 'reviewed-parcel-boundary-v1',
+            project,
+            command,
+          }),
+        )
+        .digest('hex')
+    : 'b'.repeat(64),
   sourceCrs: source.sourceCrs,
   orderedCoordinateIds: ids,
   polygon: {
@@ -86,12 +112,25 @@ const receipt = () => ({
 type Reply = { ok: boolean; status: number; json: () => Promise<unknown> }
 const fetchMock = jest.fn<Promise<Reply>, [string, RequestInit?]>(),
   previousFetch = global.fetch
+const previousCrypto = global.crypto
+const deviceKey = () =>
+  `metardu:boundary-request:v1:${actor}:${project}:${parcel}`
 beforeEach(() => {
+  localStorage.clear()
+  mockActor = actor
+  Object.defineProperty(globalThis, 'crypto', {
+    value: webcrypto,
+    configurable: true,
+  })
+  Object.defineProperty(navigator, 'locks', {
+    value: { request: async (_name: string, work: () => unknown) => work() },
+    configurable: true,
+  })
   fetchMock
     .mockReset()
     .mockImplementation(async (url: string, init?: RequestInit) =>
       init?.method === 'POST'
-        ? reply({ data: receipt() })
+        ? reply({ data: receipt(JSON.parse(String(init.body)) as unknown) })
         : reply({ data: url.includes('traverse_id=') ? source : directory }),
     )
   global.fetch = fetchMock as unknown as typeof fetch
@@ -100,6 +139,10 @@ beforeEach(() => {
 afterEach(() => {
   global.fetch = previousFetch
   jest.restoreAllMocks()
+  Object.defineProperty(globalThis, 'crypto', {
+    value: previousCrypto,
+    configurable: true,
+  })
 })
 async function choose() {
   render(<BoundaryReview projectId={project} parcelId={parcel} />)
@@ -139,6 +182,291 @@ function vertices() {
 function review() {
   fireEvent.click(screen.getByRole('checkbox'))
 }
+const retainDeviceRequest = () =>
+  prepareBoundaryPending(
+    project,
+    {
+      expected_user_id: actor,
+      parcel_id: parcel,
+      traverse_id: traverse,
+      request_id: requestId,
+      evidence_hash: source.evidenceHash,
+      source_crs: source.sourceCrs,
+      ordered_coordinate_ids: ids,
+      reviewed: true,
+      note: 'SYNTHETIC retained request',
+    },
+    source,
+  )
+it('retries the original retained boundary when current source reads are unavailable', async () => {
+  const record = await retainDeviceRequest()
+  fetchMock.mockImplementation(async (_url, init) =>
+    init?.method === 'POST'
+      ? reply({ data: receipt(record.command) })
+      : reply({ error: 'SYNTHETIC current source unavailable' }, 503),
+  )
+  render(
+    <BoundaryReview
+      projectId={project}
+      parcelId={parcel}
+      initialTraverseId={traverse}
+    />,
+  )
+  await screen.findByText('SYNTHETIC current source unavailable')
+  const retry = await screen.findByRole('button', {
+    name: 'Retry exact draft save',
+  })
+  expect(retry).toBeEnabled()
+  fireEvent.click(retry)
+  await screen.findByText('Boundary draft saved and acknowledged.')
+  expect(localStorage.getItem(deviceKey())).toBeNull()
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST')[0][1]
+      ?.body,
+  ).toBe(JSON.stringify(record.command))
+})
+it('isolates retained boundary requests when the signed-in account changes', async () => {
+  await retainDeviceRequest()
+  const original = localStorage.getItem(deviceKey()),
+    view = render(<BoundaryReview projectId={project} parcelId={parcel} />)
+  await screen.findByRole('button', { name: 'Recover saved request' })
+  mockActor = id(98)
+  view.rerender(<BoundaryReview projectId={project} parcelId={parcel} />)
+  await screen.findByRole('combobox')
+  expect(
+    screen.queryByRole('button', { name: 'Recover saved request' }),
+  ).not.toBeInTheDocument()
+  expect(localStorage.getItem(deviceKey())).toBe(original)
+  mockActor = actor
+  view.rerender(<BoundaryReview projectId={project} parcelId={parcel} />)
+  await screen.findByRole('button', { name: 'Recover saved request' })
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+  ).toHaveLength(0)
+})
+it('preserves an inconsistent device source and refuses to send it', async () => {
+  const record = await retainDeviceRequest(),
+    bad = JSON.stringify({
+      ...record,
+      source: {
+        ...record.source,
+        points: record.source.points.map((p, i) =>
+          i === 0 ? { ...p, easting: p.easting + 1 } : p,
+        ),
+      },
+    })
+  localStorage.setItem(deviceKey(), bad)
+  render(
+    <BoundaryReview
+      projectId={project}
+      parcelId={parcel}
+      initialTraverseId={traverse}
+    />,
+  )
+  await screen.findByText(/boundary device record is invalid/)
+  expect(
+    screen.getByRole('button', { name: 'Download device record' }),
+  ).toBeInTheDocument()
+  expect(localStorage.getItem(deviceKey())).toBe(bad)
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+  ).toHaveLength(0)
+})
+it.each([false, true])(
+  'keeps the original device record after unconfirmed or mismatched cancellation (%s)',
+  async (mismatched) => {
+    const record = await retainDeviceRequest(),
+      original = localStorage.getItem(deviceKey())
+    fetchMock.mockImplementation(async (url, init) =>
+      init?.method === 'POST'
+        ? mismatched
+          ? reply({
+              data: {
+                state: 'cancelled',
+                actorId: actor,
+                projectId: project,
+                parcelId: parcel,
+                requestId,
+                inputHash: 'c'.repeat(64),
+              },
+            })
+          : reply({ error: 'SYNTHETIC cancellation unavailable' }, 503)
+        : reply({ data: url.includes('traverse_id=') ? source : directory }),
+    )
+    render(<BoundaryReview projectId={project} parcelId={parcel} />)
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Cancel saved request' }),
+    )
+    await screen.findByRole('alert')
+    expect(localStorage.getItem(deviceKey())).toBe(original)
+    expect(
+      screen.queryByText('Cancellation acknowledged'),
+    ).not.toBeInTheDocument()
+    expect(record.command.request_id).toBe(requestId)
+  },
+)
+it('requires device locking before sending a new boundary save', async () => {
+  Object.defineProperty(navigator, 'locks', {
+    value: undefined,
+    configurable: true,
+  })
+  await choose()
+  vertices()
+  review()
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  )
+  await screen.findByText(/cannot lock a recoverable boundary request/)
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+  ).toHaveLength(0)
+})
+it('does not clear a replacement device request when acknowledging an earlier request', async () => {
+  const first = await retainDeviceRequest()
+  localStorage.removeItem(deviceKey())
+  const second = await prepareBoundaryPending(
+    project,
+    { ...first.command, request_id: id(96), note: 'SYNTHETIC replacement' },
+    source,
+  )
+  const original = localStorage.getItem(deviceKey())
+  await expect(
+    acknowledgeBoundaryOutcome(first, {
+      state: 'cancelled',
+      actorId: actor,
+      projectId: project,
+      parcelId: parcel,
+      requestId: first.command.request_id,
+      inputHash: first.inputHash,
+    }),
+  ).rejects.toThrow(/replacement was preserved/)
+  expect(localStorage.getItem(deviceKey())).toBe(original)
+  expect(second.command.request_id).toBe(id(96))
+})
+it('retains a boundary request before POST and recovers it after the form is reopened', async () => {
+  let beforePost = false,
+    original: unknown
+  fetchMock.mockImplementation(async (url, init) => {
+    if (init?.method === 'POST') {
+      beforePost = localStorage.getItem(deviceKey()) !== null
+      original = JSON.parse(String(init.body)) as unknown
+      throw Error('SYNTHETIC boundary response lost')
+    }
+    if (url.includes('mode=request')) {
+      const value = receipt(original)
+      return reply({
+        data: {
+          state: 'committed',
+          actorId: actor,
+          projectId: project,
+          parcelId: parcel,
+          requestId: value.requestId,
+          inputHash: value.inputHash,
+          receipt: value,
+        },
+      })
+    }
+    return reply({ data: url.includes('traverse_id=') ? source : directory })
+  })
+  const view = render(<BoundaryReview projectId={project} parcelId={parcel} />)
+  fireEvent.change(await screen.findByRole('combobox'), {
+    target: { value: traverse },
+  })
+  await screen.findByRole('heading', { name: 'Retained coordinates' })
+  vertices()
+  review()
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  )
+  await screen.findByText('SYNTHETIC boundary response lost')
+  expect(beforePost).toBe(true)
+  expect(localStorage.getItem(deviceKey())).not.toBeNull()
+  view.unmount()
+  render(<BoundaryReview projectId={project} parcelId={parcel} />)
+  const recover = await screen.findByRole('button', {
+    name: 'Recover saved request',
+  })
+  await waitFor(() => expect(recover).toBeEnabled())
+  fireEvent.click(recover)
+  await screen.findByText('Boundary draft saved and acknowledged.')
+  expect(localStorage.getItem(deviceKey())).toBeNull()
+  expect(
+    fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
+  ).toHaveLength(1)
+})
+it('requires a cancellation acknowledgement before clearing an unconfirmed device request', async () => {
+  let acknowledge: ((value: Reply) => void) | undefined
+  fetchMock.mockImplementation(async (url, init) => {
+    if (init?.method === 'POST') {
+      if (url.includes('action=cancel'))
+        return new Promise<Reply>((resolve) => {
+          acknowledge = resolve
+        })
+      throw Error('SYNTHETIC unconfirmed boundary')
+    }
+    return reply({ data: url.includes('traverse_id=') ? source : directory })
+  })
+  await choose()
+  vertices()
+  review()
+  fireEvent.click(
+    screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+  )
+  await screen.findByText('SYNTHETIC unconfirmed boundary')
+  const pending = z
+    .object({
+      inputHash: z.string(),
+      command: z.object({ request_id: z.string() }),
+    })
+    .parse(JSON.parse(localStorage.getItem(deviceKey()) ?? 'null'))
+  const cancel = await screen.findByRole('button', {
+    name: 'Cancel saved request',
+  })
+  await waitFor(() => expect(cancel).toBeEnabled())
+  fireEvent.click(cancel)
+  await waitFor(() => expect(acknowledge).toBeDefined())
+  expect(localStorage.getItem(deviceKey())).not.toBeNull()
+  await act(async () => {
+    acknowledge?.(
+      reply({
+        data: {
+          state: 'cancelled',
+          actorId: actor,
+          projectId: project,
+          parcelId: parcel,
+          requestId: pending.command.request_id,
+          inputHash: pending.inputHash,
+        },
+      }),
+    )
+  })
+  await screen.findByText(/Cancellation acknowledged/)
+  expect(localStorage.getItem(deviceKey())).toBeNull()
+})
+it('keeps source choices and sends nothing if device retention fails', async () => {
+  const quota = jest
+    .spyOn(Storage.prototype, 'setItem')
+    .mockImplementation(() => {
+      throw Error('SYNTHETIC boundary device quota')
+    })
+  try {
+    await choose()
+    vertices()
+    review()
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
+    )
+    await screen.findByText('SYNTHETIC boundary device quota')
+    expect(
+      fetchMock.mock.calls.some(([, init]) => init?.method === 'POST'),
+    ).toBe(false)
+    expect(
+      screen.getAllByRole('button', { name: /Move vertex \d+ up/ }),
+    ).toHaveLength(4)
+  } finally {
+    quota.mockRestore()
+  }
+})
 function pagedSource(page: number, hash = source.evidenceHash, filter = '') {
   const first = [
     ...source.points.slice(0, 2),
@@ -170,7 +498,7 @@ function pagedSource(page: number, hash = source.evidenceHash, filter = '') {
 it('keeps explicitly selected vertices across server pages and saves only their ordered IDs', async () => {
   fetchMock.mockImplementation(async (url, init) =>
     init?.method === 'POST'
-      ? reply({ data: receipt() })
+      ? reply({ data: receipt(JSON.parse(String(init.body)) as unknown) })
       : reply({
           data: url.includes('traverse_id=')
             ? pagedSource(url.includes('coordinate_page=2') ? 2 : 1)
@@ -395,7 +723,7 @@ it('retains the exact command after a network interruption and retries the same 
     if (init?.method === 'POST') {
       posts++
       if (posts === 1) throw new Error('SYNTHETIC connection interrupted')
-      return reply({ data: receipt() })
+      return reply({ data: receipt(JSON.parse(String(init.body)) as unknown) })
     }
     return reply({ data: url.includes('traverse_id=') ? source : directory })
   })
@@ -432,19 +760,39 @@ it('rejects mismatched geometry acknowledgements without showing success', async
     screen.getByRole('button', { name: 'Retry exact draft save' }),
   ).toBeInTheDocument()
 })
-it('keeps stale drafts visible and allows a fresh review after definitive refusal', async () => {
+it('retains refused boundary intent until durable cancellation allows a fresh review', async () => {
   await choose()
   vertices()
   review()
-  fetchMock.mockImplementation(async (url: string, init?: RequestInit) =>
-    init?.method === 'POST'
+  fetchMock.mockImplementation(async (url: string, init?: RequestInit) => {
+    if (url.includes('action=cancel')) {
+      const b = z
+        .object({ request_id: z.string(), input_hash: z.string() })
+        .parse(JSON.parse(String(init?.body)))
+      return reply({
+        data: {
+          state: 'cancelled',
+          actorId: actor,
+          projectId: project,
+          parcelId: parcel,
+          requestId: b.request_id,
+          inputHash: b.input_hash,
+        },
+      })
+    }
+    return init?.method === 'POST'
       ? reply({ error: 'SYNTHETIC source changed' }, 409)
-      : reply({ data: url.includes('traverse_id=') ? source : directory }),
-  )
+      : reply({ data: url.includes('traverse_id=') ? source : directory })
+  })
   fireEvent.click(
     screen.getByRole('button', { name: 'Save reviewed boundary draft' }),
   )
   await screen.findByRole('alert')
+  expect(screen.getByRole('button', { name: 'Remove vertex 1' })).toBeDisabled()
+  expect(localStorage.getItem(deviceKey())).not.toBeNull()
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel saved request' }))
+  await screen.findByText('Cancellation acknowledged')
+  expect(localStorage.getItem(deviceKey())).toBeNull()
   expect(screen.getByRole('button', { name: 'Remove vertex 1' })).toBeEnabled()
   expect(screen.getByRole('checkbox')).not.toBeChecked()
   fireEvent.click(

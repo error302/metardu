@@ -11,6 +11,7 @@ export const BOUNDARY_SOURCE_LIMIT = 2001
 export const BOUNDARY_POINT_PAGE_SIZE = 50
 export const boundaryCommandSchema = z
   .object({
+    expected_user_id: z.string().uuid(),
     parcel_id: z.string().uuid(),
     traverse_id: z.string().uuid(),
     request_id: z.string().uuid(),
@@ -120,6 +121,7 @@ export const boundaryDirectorySchema = z
   )
 export const boundaryReceiptSchema = z.object({
   protocol: z.literal('reviewed-parcel-boundary-v1'),
+  actorId: z.string().uuid().optional(),
   receiptId: z.string().uuid(),
   requestId: z.string().uuid(),
   projectId: z.string().uuid(),
@@ -149,6 +151,28 @@ export const boundaryReceiptSchema = z.object({
   status: z.literal('draft_unverified'),
 })
 export type BoundaryReceipt = z.infer<typeof boundaryReceiptSchema>
+const outcomeIdentity = z.object({
+  actorId: z.string().uuid(),
+  projectId: z.string().uuid(),
+  parcelId: z.string().uuid(),
+  requestId: z.string().uuid(),
+  inputHash: z.string().regex(/^[a-f0-9]{64}$/),
+})
+export const boundaryOutcomeSchema = z.discriminatedUnion('state', [
+  outcomeIdentity.extend({ state: z.literal('cancelled') }).strict(),
+  outcomeIdentity
+    .extend({ state: z.literal('committed'), receipt: boundaryReceiptSchema })
+    .strict(),
+])
+export type BoundaryOutcome = z.infer<typeof boundaryOutcomeSchema>
+export const boundaryCancelSchema = z
+  .object({
+    expected_user_id: z.string().uuid(),
+    parcel_id: z.string().uuid(),
+    request_id: z.string().uuid(),
+    input_hash: z.string().regex(/^[a-f0-9]{64}$/),
+  })
+  .strict()
 
 /** The selected IDs, not station labels or query order, define this draft ring. */
 export function prepareBoundary(

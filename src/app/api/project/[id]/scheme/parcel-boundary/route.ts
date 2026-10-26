@@ -1,3 +1,8 @@
+import { z } from 'zod'
+import {
+  cancelBoundaryRequest,
+  readBoundaryRequestOutcome,
+} from '@/lib/scheme/boundaryRequests'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { AppError } from '@/lib/api/errors'
@@ -16,6 +21,8 @@ export const GET = apiHandler(
       [...query.keys()].some(
         (key) =>
           ![
+            'expected_user_id',
+            'mode',
             'parcel_id',
             'traverse_id',
             'page',
@@ -26,6 +33,20 @@ export const GET = apiHandler(
       )
     )
       throw new AppError('Choose one parcel, traverse, request and page.', 400)
+    const expected = query.get('expected_user_id'),
+      mode = query.get('mode')
+    if (expected !== null && !z.string().uuid().safeParse(expected).success)
+      throw new AppError('A valid intended account is required.', 400)
+    if (expected !== null && expected !== ctx.userId)
+      throw new AppError('The signed-in account changed.', 403)
+    if (
+      mode !== null &&
+      (mode !== 'request' || !expected || !query.get('request_id'))
+    )
+      throw new AppError(
+        'Recover one final boundary request with its intended account.',
+        400,
+      )
     const parcel = query.get('parcel_id') ?? '',
       traverse = query.get('traverse_id')
     const page = query.get('page') ?? '1'
@@ -64,7 +85,19 @@ export const GET = apiHandler(
         400,
       )
     const data = requestId
-      ? await readBoundaryReceipt(ctx.userId, ctx.params.id, parcel, requestId)
+      ? mode === 'request'
+        ? await readBoundaryRequestOutcome(
+            ctx.userId,
+            ctx.params.id,
+            parcel,
+            requestId,
+          )
+        : await readBoundaryReceipt(
+            ctx.userId,
+            ctx.params.id,
+            parcel,
+            requestId,
+          )
       : traverse
         ? await readBoundarySource(
             ctx.userId,
@@ -97,6 +130,16 @@ export const POST = apiHandler(
     audit: 'reviewed_boundary_draft',
   },
   async (request, ctx) => {
+    const query = new URL(request.url).searchParams
+    if (
+      [...query.keys()].some(
+        (k) => k !== 'action' || query.getAll(k).length !== 1,
+      ) ||
+      (query.has('action') && query.get('action') !== 'cancel')
+    )
+      throw new AppError('Choose one boundary save or cancellation.', 400)
+    const cancelling = query.get('action') === 'cancel',
+      limit = cancelling ? 16384 : 65536
     // Stream limit precedes JSON parsing; the bounded ID command contains no raw geometry.
     const reader = request.body?.getReader()
     if (!reader)
@@ -108,9 +151,12 @@ export const POST = apiHandler(
         const part = await reader.read()
         if (part.done) break
         bytes += part.value.byteLength
-        if (bytes > 65536) {
+        if (bytes > limit) {
           await reader.cancel()
-          throw new AppError('The boundary command exceeds 64 KiB.', 413)
+          throw new AppError(
+            'The boundary command exceeds its byte limit.',
+            413,
+          )
         }
         chunks.push(part.value)
       }
@@ -123,7 +169,9 @@ export const POST = apiHandler(
     } catch {
       throw new AppError('The boundary command must be valid JSON.', 400)
     }
-    const data = await saveReviewedBoundary(ctx.userId, ctx.params.id, input)
+    const data = cancelling
+      ? await cancelBoundaryRequest(ctx.userId, ctx.params.id, input)
+      : await saveReviewedBoundary(ctx.userId, ctx.params.id, input)
     return NextResponse.json(
       { data },
       { headers: { 'Cache-Control': 'private, no-store' } },

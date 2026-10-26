@@ -7,6 +7,11 @@ import { canonicalJSON } from '@/lib/audit/auditHash'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 import { assertRetainedTraverseSource } from './traverseCommands'
 import {
+  appendCommittedBoundaryRequest,
+  findBoundaryRequest,
+  readBoundaryRequestOutcome,
+} from './boundaryRequests'
+import {
   boundaryCommandSchema,
   boundaryDirectorySchema,
   boundaryReceiptSchema,
@@ -46,7 +51,7 @@ const checkedSourceSql = `WITH owned AS (SELECT id FROM projects WHERE id=$1 AND
  observation_rows AS(SELECT o.id,jsonb_build_object('record',to_jsonb(o),'rowVersion',o.xmin::text)::text raw FROM traverse_observations o JOIN t ON t.id=o.traverse_id ORDER BY o.id LIMIT 2001),
  payload_budget AS(SELECT 4096+COALESCE((SELECT SUM(octet_length(to_jsonb(raw)::text)) FROM observation_rows),0)+COALESCE((SELECT SUM(octet_length(raw::text)) FROM point_rows),0)+COALESCE((SELECT octet_length(to_jsonb(r)::text) FROM project_reference_systems r JOIN owned p ON p.id=r.project_id),0)+COALESCE((SELECT octet_length(to_jsonb(to_jsonb(t)::text)::text) FROM t),0) bytes)
  SELECT jsonb_build_object(
- 'storageReady',to_regclass('parcel_boundary_drafts') IS NOT NULL,'projectId',p.project_id,'parcelId',p.id,'parcelNumber',p.parcel_number,'blockId',p.block_id,'parcelStatus',p.status,
+ 'storageReady',to_regclass('parcel_boundary_drafts') IS NOT NULL AND to_regclass('parcel_boundary_requests') IS NOT NULL,'projectId',p.project_id,'parcelId',p.id,'parcelNumber',p.parcel_number,'blockId',p.block_id,'parcelStatus',p.status,
  'parcelRevision',COALESCE(p.revision_number,0),'parcelVersion',p.xmin::text,'parcelUpdatedAt',to_char(p.updated_at AT TIME ZONE 'UTC','YYYY-MM-DD"T"HH24:MI:SS.US"Z"'),
  'confirmedLr',p.lr_number_confirmed,'geometryHash',encode(public.digest(public.ST_AsEWKB(p.geom),'sha256'),'hex'),'boundaryHash',encode(public.digest(p.boundary_geojson::text,'sha256'),'hex'),
  'traverseId',t.id,'traverseVersion',t.xmin::text,'traverseRecordJson',CASE WHEN (SELECT bytes<=4194304 FROM payload_budget) THEN to_jsonb(t)::text ELSE NULL END,
@@ -247,41 +252,15 @@ export async function readBoundaryReceipt(
   parcel: string,
   request: string,
 ) {
-  identity(actor, project, parcel)
-  if (!z.string().uuid().safeParse(request).success)
-    throw error('A valid boundary request ID is required.', 400)
-  const result = await db.query<{
-    id: string
-    request_id: string
-    parcel_id: string
-    traverse_id: string
-    input_hash: string
-    evidence_hash: string
-    receipt: unknown
-  }>(
-    `SELECT d.id,d.request_id,d.parcel_id,d.traverse_id,d.input_hash,d.evidence_hash,d.receipt FROM parcel_boundary_drafts d JOIN projects p ON p.id=d.project_id
-    WHERE d.project_id=$1 AND p.user_id=$2 AND d.actor_id=$2 AND d.parcel_id=$3 AND d.request_id=$4`,
-    [project, actor, parcel, request],
+  const outcome = await readBoundaryRequestOutcome(
+    actor,
+    project,
+    parcel,
+    request,
   )
-  if (result.rows.length !== 1)
-    throw error(
-      'No retained draft receipt was found for this account, project, parcel and request.',
-      404,
-    )
-  const row = result.rows[0],
-    parsed = boundaryReceiptSchema.safeParse(row.receipt)
-  if (
-    !parsed.success ||
-    parsed.data.receiptId !== row.id ||
-    parsed.data.projectId !== project ||
-    parsed.data.parcelId !== parcel ||
-    parsed.data.requestId !== request ||
-    parsed.data.traverseId !== row.traverse_id ||
-    parsed.data.inputHash !== row.input_hash ||
-    parsed.data.evidenceHash !== row.evidence_hash
-  )
-    throw error('The retained draft receipt is inconsistent.', 500)
-  return parsed.data
+  if (outcome.state !== 'committed')
+    throw error('This boundary request was cancelled; no draft was saved.')
+  return outcome.receipt
 }
 export async function readBoundaryDirectory(
   actor: string,
@@ -318,6 +297,7 @@ function receipt(
     )
   const row = parsed.data
   if (
+    row.actorId !== command.expected_user_id ||
     row.projectId !== project ||
     row.parcelId !== command.parcel_id ||
     row.traverseId !== command.traverse_id ||
@@ -346,6 +326,11 @@ export async function saveReviewedBoundary(
       400,
     )
   const command = parsed.data
+  if (command.expected_user_id !== actor)
+    throw error(
+      'The signed-in account changed. Recover the original request with its intended account.',
+      403,
+    )
   identity(actor, project, command.parcel_id, command.traverse_id)
   const inputHash = hash({
     protocol: 'reviewed-parcel-boundary-v1',
@@ -363,19 +348,34 @@ export async function saveReviewedBoundary(
         ).rows.length !== 1
       )
         throw error('Project not found for this account.', 404)
-      const previous = (
-        await client.query<{ receipt: unknown; input_hash: string }>(
-          'SELECT receipt,input_hash FROM parcel_boundary_drafts WHERE actor_id=$1 AND request_id=$2',
-          [actor, command.request_id],
-        )
-      ).rows[0]
+      const previous = await findBoundaryRequest(
+        client,
+        actor,
+        project,
+        command.parcel_id,
+        command.request_id,
+      )
       if (previous) {
-        if (previous.input_hash !== inputHash)
+        if (previous.inputHash !== inputHash)
+          throw error('This request ID belongs to a different boundary intent.')
+        if (previous.state === 'cancelled')
           throw error(
-            'This request ID already belongs to a different boundary draft.',
+            'This boundary request was cancelled. A late save was refused.',
           )
         return receipt(previous.receipt, command, project, inputHash)
       }
+      if (
+        (
+          await client.query(
+            'SELECT id FROM parcel_boundary_drafts WHERE actor_id=$1 AND request_id=$2',
+            [actor, command.request_id],
+          )
+        ).rows.length
+      )
+        throw error(
+          'The retained boundary has no consistent final journal.',
+          500,
+        )
       if (
         (
           await client.query(
@@ -511,6 +511,7 @@ export async function saveReviewedBoundary(
         {
           ...geometry,
           protocol: 'reviewed-parcel-boundary-v1',
+          actorId: actor,
           receiptId: randomUUID(),
           requestId: command.request_id,
           projectId: project,
@@ -561,6 +562,7 @@ export async function saveReviewedBoundary(
           'The retained draft receipt was not acknowledged. The complete draft was rolled back.',
           500,
         )
+      await appendCommittedBoundaryRequest(client, actor, result)
       return result
     })
   } catch (failure) {

@@ -168,6 +168,7 @@ it.each([404, 500])(
   async (status) => {
     const previous = global.fetch,
       request = {
+        expected_user_id: id(98),
         parcel_id: source.parcelId,
         traverse_id: source.traverseId,
         request_id: id(99),

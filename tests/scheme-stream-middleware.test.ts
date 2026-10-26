@@ -7,6 +7,7 @@ import { POST as sharePost } from '@/app/api/project/[id]/scheme/shares/route'
 import { createParcelShare } from '@/lib/scheme/parcelSharing'
 import { executeSchemeExport } from '@/lib/scheme/exportCommands'
 import { saveReviewedBoundary } from '@/lib/scheme/reviewedBoundaryCommands'
+import { cancelBoundaryRequest } from '@/lib/scheme/boundaryRequests'
 const actor = '11111111-1111-4111-8111-111111111111',
   project = '33333333-3333-4333-8333-333333333333',
   requestId = '22222222-2222-4222-8222-222222222222',
@@ -64,7 +65,19 @@ jest.mock('@/lib/scheme/reviewedBoundaryCommands', () => ({
     ) => ({ requestId: input.request_id }),
   ),
 }))
-jest.mock('@/lib/scheme/parcelSharing', () => ({ createParcelShare: jest.fn(async () => ({ id: requestId })), revokeParcelShare: jest.fn(), listParcelShares: jest.fn(), previewParcelShare: jest.fn() }))
+jest.mock('@/lib/scheme/boundaryRequests', () => ({
+  cancelBoundaryRequest: jest.fn(async () => ({
+    state: 'cancelled',
+    requestId,
+  })),
+  readBoundaryRequestOutcome: jest.fn(),
+}))
+jest.mock('@/lib/scheme/parcelSharing', () => ({
+  createParcelShare: jest.fn(async () => ({ id: requestId })),
+  revokeParcelShare: jest.fn(),
+  listParcelShares: jest.fn(),
+  previewParcelShare: jest.fn(),
+}))
 const body = {
   projectId: project,
   expectedUserId: actor,
@@ -101,6 +114,7 @@ it('passes export bytes through the real middleware without pre-consuming JSON',
 })
 it('passes reviewed-boundary intent through the real middleware stream', async () => {
   const command = {
+    expected_user_id: actor,
     parcel_id: body.parcelIds[0],
     traverse_id: requestId,
     request_id: requestId,
@@ -130,6 +144,63 @@ it('returns a client validation error for an invalid export command', async () =
   expect(response.status).toBe(400)
   expect(executeSchemeExport).not.toHaveBeenCalled()
 })
+it('passes boundary cancellation through authentication and the bounded raw stream', async () => {
+  const intent = {
+      expected_user_id: actor,
+      parcel_id: body.parcelIds[0],
+      request_id: requestId,
+      input_hash: 'a'.repeat(64),
+    },
+    url = `http://127.0.0.1:3021/api/project/${project}/scheme/parcel-boundary?action=cancel`
+  const req = new NextRequest(url, {
+      method: 'POST',
+      body: JSON.stringify(intent),
+    }),
+    json = jest.spyOn(req, 'json')
+  expect((await boundaryPost(req, context)).status).toBe(200)
+  expect(cancelBoundaryRequest).toHaveBeenCalledWith(actor, project, intent)
+  expect(json).not.toHaveBeenCalled()
+  jest.mocked(cancelBoundaryRequest).mockClear()
+  expect(
+    (
+      await boundaryPost(
+        new NextRequest(url, {
+          method: 'POST',
+          body: JSON.stringify({ padding: 'x'.repeat(17000) }),
+        }),
+        context,
+      )
+    ).status,
+  ).toBe(413)
+  jest.mocked(getServerSession).mockResolvedValue(null)
+  expect(
+    (
+      await boundaryPost(
+        new NextRequest(url, { method: 'POST', body: JSON.stringify(intent) }),
+        context,
+      )
+    ).status,
+  ).toBe(401)
+  expect(cancelBoundaryRequest).not.toHaveBeenCalled()
+})
+it.each(['?action=cancel&action=cancel', '?action=save', '?extra=1'])(
+  'refuses ambiguous boundary action queries (%s)',
+  async (query) => {
+    expect(
+      (
+        await boundaryPost(
+          new NextRequest(
+            `http://127.0.0.1:3021/api/project/${project}/scheme/parcel-boundary${query}`,
+            { method: 'POST', body: '{}' },
+          ),
+          context,
+        )
+      ).status,
+    ).toBe(400)
+    expect(saveReviewedBoundary).not.toHaveBeenCalled()
+    expect(cancelBoundaryRequest).not.toHaveBeenCalled()
+  },
+)
 it('bounds the stream before JSON parsing and still requires authentication', async () => {
   const req = new NextRequest(
       'http://127.0.0.1:3021/api/scheme/export/geojson',
@@ -153,16 +224,46 @@ it('bounds the stream before JSON parsing and still requires authentication', as
   expect(executeSchemeExport).not.toHaveBeenCalled()
 })
 it('passes sharing intent through the real middleware without consuming its key-bearing stream', async () => {
-  const intent = { projectId: project, expectedUserId: actor, requestId, exportRequestId: actor, snapshotHash: 'c'.repeat(64), durationDays: 7, authorityToShare: true, key: 'A'.repeat(43) }
-  const req = new NextRequest(`http://127.0.0.1:3021/api/project/${project}/scheme/shares`, { method: 'POST', body: JSON.stringify(intent) }), json = jest.spyOn(req, 'json')
+  const intent = {
+    projectId: project,
+    expectedUserId: actor,
+    requestId,
+    exportRequestId: actor,
+    snapshotHash: 'c'.repeat(64),
+    durationDays: 7,
+    authorityToShare: true,
+    key: 'A'.repeat(43),
+  }
+  const req = new NextRequest(
+      `http://127.0.0.1:3021/api/project/${project}/scheme/shares`,
+      { method: 'POST', body: JSON.stringify(intent) },
+    ),
+    json = jest.spyOn(req, 'json')
   expect((await sharePost(req, context)).status).toBe(200)
   expect(createParcelShare).toHaveBeenCalledWith(actor, project, intent)
   expect(json).not.toHaveBeenCalled()
 })
 it('requires authenticated sharing and bounds its command before parsing', async () => {
   const url = `http://127.0.0.1:3021/api/project/${project}/scheme/shares`
-  expect((await sharePost(new NextRequest(url, { method: 'POST', body: JSON.stringify({ padding: 'x'.repeat(9000) }) }), context)).status).toBe(413)
+  expect(
+    (
+      await sharePost(
+        new NextRequest(url, {
+          method: 'POST',
+          body: JSON.stringify({ padding: 'x'.repeat(9000) }),
+        }),
+        context,
+      )
+    ).status,
+  ).toBe(413)
   jest.mocked(getServerSession).mockResolvedValue(null)
-  expect((await sharePost(new NextRequest(url, { method: 'POST', body: '{}' }), context)).status).toBe(401)
+  expect(
+    (
+      await sharePost(
+        new NextRequest(url, { method: 'POST', body: '{}' }),
+        context,
+      )
+    ).status,
+  ).toBe(401)
   expect(createParcelShare).not.toHaveBeenCalled()
 })

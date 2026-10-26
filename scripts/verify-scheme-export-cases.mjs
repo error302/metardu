@@ -735,6 +735,7 @@ export async function verifySchemeExports(c) {
             request_id: randomUUID(),
             evidence_hash: source.evidenceHash,
             source_crs: 'EPSG:32737',
+            expected_user_id:actor,
             ordered_coordinate_ids: ps,
             reviewed: true,
             note: 'SYNTHETIC selected export',

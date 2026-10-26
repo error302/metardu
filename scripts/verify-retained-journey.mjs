@@ -306,6 +306,7 @@ export async function verifyRetainedJourney(c) {
     traverse_id: recovered.traverseId,
     evidence_hash: boundarySource.evidenceHash,
     source_crs: frame.sourceCrs,
+    expected_user_id:actor,
     ordered_coordinate_ids: recovered.coordinateIds,
     reviewed: true,
     note: 'SYNTHETIC explicitly selected boundary; not legal or field acceptance',

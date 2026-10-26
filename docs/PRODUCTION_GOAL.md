@@ -5,6 +5,16 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+26 October boundary recovery checkpoint: the retained field-to-draft workflow
+now keeps account-bound original boundary requests on the device, recovers exact
+committed outcomes after reload, and requires durable server cancellation before
+clearing an unconfirmed intent. New migration 123 mirrors final boundary outcomes
+and prevents late saves after cancellation. See
+`BOUNDARY_REQUEST_RECOVERY_2026-10-26.md` for source-bound verification and the
+coordinated application/schema rollout requirement. This remains source and
+synthetic evidence; production, recovery, browser/device, provider and independent
+professional/field gates are unchanged.
+
 ## Acceptance standard
 
 A paying surveyor must be able to start with declared project control and

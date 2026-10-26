@@ -126,6 +126,7 @@ export async function createParcelFromTraverse(
     )
   const row = parsed.data.data
   if (
+    row.actorId !== command.expected_user_id ||
     row.projectId !== projectId ||
     row.parcelId !== parcelId ||
     row.traverseId !== source.traverseId ||

@@ -5,6 +5,13 @@ EAT. This is the master index for consolidating work; it is not a release
 certificate. The other chats were still active when inspected. Their files and
 HEAD can change after this snapshot.
 
+26 October continuation: the later source checkpoint
+`BOUNDARY_REQUEST_RECOVERY_2026-10-26.md` extends the retained-traverse and paged
+boundary journey with durable device recovery and final server cancellation.
+Read its verification and migration-123 rollout constraints before further
+boundary, release or fixture work. It does not supersede the preservation rules
+or satisfy the broader production/field gates in this historical handoff.
+
 ## Copy this into the one continuing chat
 
 > Continue METARDU in `C:\Users\user\Desktop\METARDU` as the single coordinating

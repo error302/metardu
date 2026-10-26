@@ -1,6 +1,14 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { useSession } from 'next-auth/react'
+import {
+  boundaryPendingKey,
+  readBoundaryPending,
+  prepareBoundaryPending,
+  acknowledgeBoundaryOutcome,
+  type PendingBoundary,
+} from '@/lib/scheme/boundaryPending'
 import { z } from 'zod'
 import { ArrowDown, ArrowUp, Plus, RefreshCw, Save, Trash2 } from 'lucide-react'
 import GeomaticsIcon from '@/components/icons/GeomaticsIcon'
@@ -10,14 +18,10 @@ import {
   boundarySourceSchema,
   prepareBoundary,
   BOUNDARY_VERTEX_LIMIT,
-  type BoundaryCommand,
   type BoundaryReceipt,
   type BoundarySource,
 } from '@/lib/scheme/boundaryReview'
-import {
-  BoundarySaveRefusal,
-  createParcelFromTraverse,
-} from '@/lib/map/traverseToParcel'
+import { createParcelFromTraverse } from '@/lib/map/traverseToParcel'
 const action =
   'inline-flex items-center justify-center gap-2 rounded-lg border border-[var(--border-color)] px-3 py-2 text-sm disabled:opacity-40'
 type Directory = z.infer<typeof boundaryDirectorySchema>
@@ -34,15 +38,28 @@ async function read(url: string, signal: AbortSignal) {
   }
   return z.object({ data: z.unknown() }).parse(body).data
 }
-export default function BoundaryReview({
+type Props = { projectId: string; parcelId: string; initialTraverseId?: string }
+export default function BoundaryReview(props: Props) {
+  const session = useSession(),
+    actor = session.data?.user?.id
+  if (session.status === 'loading')
+    return <p role="status">Reading signed-in account�</p>
+  if (!actor)
+    return <p role="status">Sign in to review and recover boundary work.</p>
+  return (
+    <BoundaryReviewEditor
+      key={`${actor}:${props.projectId}:${props.parcelId}:${props.initialTraverseId ?? ''}`}
+      {...props}
+      actor={actor}
+    />
+  )
+}
+function BoundaryReviewEditor({
   projectId,
   parcelId,
   initialTraverseId = '',
-}: {
-  projectId: string
-  parcelId: string
-  initialTraverseId?: string
-}) {
+  actor,
+}: Props & { actor: string }) {
   const [directory, setDirectory] = useState<Directory | null>(null),
     [page, setPage] = useState(1),
     [traverse, setTraverse] = useState(initialTraverseId),
@@ -65,8 +82,12 @@ export default function BoundaryReview({
   const [reviewed, setReviewed] = useState(false),
     [note, setNote] = useState(''),
     [saving, setSaving] = useState(false),
-    [pending, setPending] = useState<BoundaryCommand | null>(null),
+    [pendingRecord, setPendingRecord] = useState<PendingBoundary | null>(null),
     [receipt, setReceipt] = useState<BoundaryReceipt | null>(null)
+  const pending = pendingRecord?.command ?? null
+  const [deviceReady, setDeviceReady] = useState(false),
+    [deviceError, setDeviceError] = useState(''),
+    [cancellation, setCancellation] = useState('')
   const mounted = useRef(true),
     inFlight = useRef(false)
   const [recoveryId, setRecoveryId] = useState(''),
@@ -80,6 +101,50 @@ export default function BoundaryReview({
   }, [])
   useEffect(() => {
     if (!parcelId) return
+    let active = true
+    void readBoundaryPending(actor, projectId, parcelId)
+      .then((record) => {
+        if (active) {
+          setPendingRecord(record)
+          setDeviceReady(true)
+        }
+      })
+      .catch((failure) => {
+        if (active)
+          setDeviceError(
+            failure instanceof Error
+              ? failure.message
+              : 'The boundary device record could not be read.',
+          )
+      })
+    return () => {
+      active = false
+    }
+  }, [actor, projectId, parcelId])
+  function downloadDeviceRecord() {
+    try {
+      const raw = window.localStorage.getItem(
+        boundaryPendingKey(actor, projectId, parcelId),
+      )
+      if (raw === null) throw Error('No boundary device record is retained.')
+      const url = URL.createObjectURL(
+          new Blob([raw], { type: 'application/json' }),
+        ),
+        link = document.createElement('a')
+      link.href = url
+      link.download = 'metardu-boundary-device-record.json'
+      link.click()
+      URL.revokeObjectURL(url)
+    } catch (failure) {
+      setDeviceError(
+        failure instanceof Error
+          ? failure.message
+          : 'The device record could not be downloaded.',
+      )
+    }
+  }
+  useEffect(() => {
+    if (!parcelId) return
     const controller = new AbortController()
     let active = true
     setLoading(true)
@@ -87,6 +152,7 @@ export default function BoundaryReview({
     void (async () => {
       try {
         const query = new URLSearchParams({
+          expected_user_id: actor,
           parcel_id: parcelId,
           page: String(page),
         })
@@ -122,7 +188,7 @@ export default function BoundaryReview({
       active = false
       controller.abort()
     }
-  }, [projectId, parcelId, page, refresh, readRetry])
+  }, [actor, projectId, parcelId, page, refresh, readRetry])
   useEffect(() => {
     const context = `${projectId}:${parcelId}:${traverse}:${refresh}`
     if (sourceContext.current !== context) {
@@ -149,6 +215,7 @@ export default function BoundaryReview({
     void (async () => {
       try {
         const query = new URLSearchParams({
+          expected_user_id: actor,
           parcel_id: parcelId,
           traverse_id: traverse,
           coordinate_page: String(pointPage),
@@ -218,7 +285,16 @@ export default function BoundaryReview({
       active = false
       controller.abort()
     }
-  }, [projectId, parcelId, traverse, refresh, pointPage, filter, readRetry])
+  }, [
+    actor,
+    projectId,
+    parcelId,
+    traverse,
+    refresh,
+    pointPage,
+    filter,
+    readRetry,
+  ])
   const selected = source
     ? order.flatMap((id) => (picked[id] ? [picked[id]] : []))
     : []
@@ -237,7 +313,12 @@ export default function BoundaryReview({
           : 'Review the boundary order.'
     }
   }
-  const locked = saving || pending !== null || receipt !== null
+  const locked =
+    !deviceReady ||
+    !!deviceError ||
+    saving ||
+    pending !== null ||
+    receipt !== null
   const sourceLocked = locked || !sourceReady
   function move(index: number, delta: number) {
     setReviewed(false)
@@ -249,49 +330,129 @@ export default function BoundaryReview({
   }
   async function save() {
     if (
-      !source ||
-      !reviewSource ||
-      !sourceReady ||
-      !geometry ||
-      (!reviewed && !pending) ||
-      inFlight.current
+      inFlight.current ||
+      !deviceReady ||
+      deviceError ||
+      (!pendingRecord &&
+        (!source || !reviewSource || !sourceReady || !geometry || !reviewed))
     )
       return
-    const command = pending ?? {
-      parcel_id: parcelId,
-      traverse_id: source.traverseId,
-      request_id: crypto.randomUUID(),
-      evidence_hash: source.evidenceHash,
-      source_crs: source.sourceCrs,
-      ordered_coordinate_ids: [...order],
-      reviewed: true as const,
-      note,
+    inFlight.current = true
+    setSaving(true)
+    setError('')
+    setCancellation('')
+    try {
+      let record = pendingRecord
+      if (!record) {
+        if (!source || !reviewSource)
+          throw Error('Review the retained source before saving.')
+        record = await prepareBoundaryPending(
+          projectId,
+          {
+            expected_user_id: actor,
+            parcel_id: parcelId,
+            traverse_id: source.traverseId,
+            request_id: crypto.randomUUID(),
+            evidence_hash: source.evidenceHash,
+            source_crs: source.sourceCrs,
+            ordered_coordinate_ids: [...order],
+            reviewed: true,
+            note,
+          },
+          reviewSource,
+        )
+      }
+      if (!mounted.current) return
+      setPendingRecord(record)
+      const result = await createParcelFromTraverse(projectId, parcelId, {
+        command: record.command,
+        source: record.source,
+      })
+      const outcome = await acknowledgeBoundaryOutcome(record, {
+        state: 'committed',
+        actorId: actor,
+        projectId,
+        parcelId,
+        requestId: record.command.request_id,
+        inputHash: record.inputHash,
+        receipt: result,
+      })
+      if (mounted.current && outcome.state === 'committed') {
+        setReceipt(outcome.receipt)
+        setPendingRecord(null)
+      }
+    } catch (failure) {
+      if (mounted.current)
+        setError(
+          failure instanceof Error
+            ? failure.message
+            : 'The boundary save is unconfirmed. Its original device record was preserved.',
+        )
+    } finally {
+      inFlight.current = false
+      if (mounted.current) setSaving(false)
     }
-    setPending(command)
+  }
+  async function resolvePending(cancel: boolean) {
+    if (!pendingRecord || inFlight.current) return
+    const record = pendingRecord,
+      b = record.command
     inFlight.current = true
     setSaving(true)
     setError('')
     try {
-      const result = await createParcelFromTraverse(projectId, parcelId, {
-        command,
-        source: reviewSource,
+      const query = new URLSearchParams({
+        expected_user_id: actor,
+        parcel_id: parcelId,
+        request_id: b.request_id,
+        mode: 'request',
       })
+      let data: unknown
+      if (cancel) {
+        const response = await fetch(
+          `/api/project/${projectId}/scheme/parcel-boundary?action=cancel`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              expected_user_id: actor,
+              parcel_id: parcelId,
+              request_id: b.request_id,
+              input_hash: record.inputHash,
+            }),
+          },
+        )
+        const raw: unknown = await response.json()
+        if (!response.ok) {
+          const failure = z.object({ error: z.string() }).safeParse(raw)
+          throw Error(
+            failure.success
+              ? failure.data.error
+              : 'Boundary cancellation is unconfirmed. Keep the device record.',
+          )
+        }
+        data = z.object({ data: z.unknown() }).parse(raw).data
+      } else
+        data = await read(
+          `/api/project/${projectId}/scheme/parcel-boundary?${query}`,
+          new AbortController().signal,
+        )
+      const outcome = await acknowledgeBoundaryOutcome(record, data)
       if (mounted.current) {
-        setReceipt(result)
-        setPending(null)
-      }
-    } catch (failure) {
-      if (mounted.current) {
-        if (failure instanceof BoundarySaveRefusal) {
-          setPending(null)
+        setPendingRecord(null)
+        if (outcome.state === 'committed') setReceipt(outcome.receipt)
+        else {
+          setCancellation('Cancellation acknowledged')
           setReviewed(false)
         }
+      }
+    } catch (failure) {
+      if (mounted.current)
         setError(
           failure instanceof Error
             ? failure.message
-            : 'The draft save is unconfirmed. Retry the exact request.',
+            : 'Boundary recovery is unconfirmed. Its device record was preserved.',
         )
-      }
     } finally {
       inFlight.current = false
       if (mounted.current) setSaving(false)
@@ -307,6 +468,7 @@ export default function BoundaryReview({
     setRecovered(null)
     try {
       const query = new URLSearchParams({
+          expected_user_id: actor,
           parcel_id: parcelId,
           request_id: recoveryId.trim(),
         }),
@@ -401,6 +563,88 @@ export default function BoundaryReview({
           )}
         </div>
       )}
+      {parcelId && (!deviceReady || deviceError) && (
+        <div
+          role={deviceError ? 'alert' : 'status'}
+          className="space-y-2 break-words rounded-lg border border-[var(--border-color)] p-4 text-sm"
+        >
+          <p>
+            {deviceError || 'Checking retained boundary work on this device�'}
+          </p>
+          {deviceError && (
+            <button
+              type="button"
+              className={action}
+              onClick={downloadDeviceRecord}
+            >
+              Download device record
+            </button>
+          )}
+        </div>
+      )}
+      {pendingRecord && (
+        <section
+          aria-label="Saved boundary request"
+          className="space-y-3 break-words rounded-lg border border-[var(--border-color)] p-4 text-sm"
+        >
+          <h2 className="font-medium">Unconfirmed boundary request</h2>
+          <p>
+            Request {pendingRecord.command.request_id} is retained with its
+            original reviewed vertices. Recover its final outcome, retry the
+            original save or request cancellation.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className={action}
+              disabled={saving}
+              onClick={() => void resolvePending(false)}
+            >
+              Recover saved request
+            </button>
+            <button
+              type="button"
+              className={action}
+              disabled={saving}
+              onClick={() => void save()}
+            >
+              Retry exact draft save
+            </button>
+            <button
+              type="button"
+              className={action}
+              disabled={saving}
+              onClick={() => void resolvePending(true)}
+            >
+              Cancel saved request
+            </button>
+            <button
+              type="button"
+              className={action}
+              onClick={downloadDeviceRecord}
+            >
+              Download device record
+            </button>
+          </div>
+        </section>
+      )}
+      {cancellation && <p role="status">{cancellation}</p>}
+      {receipt && (
+        <div
+          role="status"
+          className="space-y-2 break-words rounded-lg border border-[var(--border-color)] p-4 text-sm"
+        >
+          <p className="font-medium">Boundary draft saved and acknowledged.</p>
+          <p>
+            Receipt {receipt.receiptId} � request {receipt.requestId} � parcel
+            revision {receipt.parcelRevision} � {receipt.areaHa.toFixed(6)} ha
+          </p>
+          <p>
+            The original source and reviewed boundary remain retained. Reload
+            the source before another revision.
+          </p>
+        </div>
+      )}
       {directory && (
         <div className="space-y-3 rounded-lg border border-[var(--border-color)] p-4">
           <label className="block space-y-1 text-sm">
@@ -409,7 +653,6 @@ export default function BoundaryReview({
               value={traverse}
               disabled={locked || loading}
               onChange={(event) => {
-                setPending(null)
                 setTraverse(event.target.value)
               }}
               className="block w-full rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2"
@@ -796,47 +1039,29 @@ export default function BoundaryReview({
                 and reviewed the chosen boundary vertices and order.
               </span>
             </label>
-            <button
-              type="button"
-              className={action}
-              disabled={
-                !source.storageReady ||
-                !sourceReady ||
-                saving ||
-                receipt !== null ||
-                !geometry ||
-                (!reviewed && !pending)
-              }
-              onClick={() => void save()}
-            >
-              <Save className="h-4 w-4" aria-hidden="true" />
-              {saving
-                ? 'Saving boundary draft…'
-                : pending
-                  ? 'Retry exact draft save'
+            {!pending && (
+              <button
+                type="button"
+                className={action}
+                disabled={
+                  !deviceReady ||
+                  !!deviceError ||
+                  !source.storageReady ||
+                  !sourceReady ||
+                  saving ||
+                  receipt !== null ||
+                  !geometry ||
+                  (!reviewed && !pending)
+                }
+                onClick={() => void save()}
+              >
+                <Save className="h-4 w-4" aria-hidden="true" />
+                {saving
+                  ? 'Saving boundary draft…'
                   : 'Save reviewed boundary draft'}
-            </button>
+              </button>
+            )}
           </div>
-          {receipt && (
-            <div
-              role="status"
-              className="space-y-2 break-words rounded-lg border border-[var(--border-color)] p-4 text-sm"
-            >
-              <p className="font-medium">
-                Boundary draft saved and acknowledged.
-              </p>
-              <p>
-                Receipt {receipt.receiptId} · request {receipt.requestId} ·
-                parcel revision {receipt.parcelRevision} ·{' '}
-                {receipt.areaHa.toFixed(6)} ha
-              </p>
-              <p>
-                The source, chosen order, prior geometry and exact request
-                receipt were retained. Reload the source before another
-                revision.
-              </p>
-            </div>
-          )}
         </>
       )}
     </section>
