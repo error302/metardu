@@ -15,6 +15,15 @@ coordinated application/schema rollout requirement. This remains source and
 synthetic evidence; production, recovery, browser/device, provider and independent
 professional/field gates are unchanged.
 
+26 October road-workspace priority: the owner supplied Marcin Pszczolka's
+browser road-design example. See `ROAD_WORKSPACE_BENCHMARK_2026-10-26.md` for the
+observed reference and current-source comparison. The next road delivery target
+connects the existing saved-project alignment, terrain, profile, section,
+quantities and setting-out work into synchronized visual views of one retained
+design revision. Validate actual IFC/LandXML/DXF and field outputs against that
+revision. The reference image is a usability benchmark; neither its export action
+nor METARDU's existing exporter proves receiving-application acceptance.
+
 ## Acceptance standard
 
 A paying surveyor must be able to start with declared project control and
