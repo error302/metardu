@@ -76,12 +76,19 @@ export function runIDWSync(
     throw new Error('IDW requires at least one survey point.')
   }
 
-  const xs = samples.map(p => p.x)
-  const ys = samples.map(p => p.y)
-  const rawMinX = Math.min(...xs)
-  const rawMaxX = Math.max(...xs)
-  const rawMinY = Math.min(...ys)
-  const rawMaxY = Math.max(...ys)
+  // Optimization: use a single pass loop instead of mapping arrays and using the spread operator
+  // with Math.min/Math.max, which avoids V8 "Maximum call stack size exceeded" errors and OOM for large datasets.
+  let rawMinX = Infinity
+  let rawMaxX = -Infinity
+  let rawMinY = Infinity
+  let rawMaxY = -Infinity
+
+  for (const pt of samples) {
+    if (pt.x < rawMinX) rawMinX = pt.x
+    if (pt.x > rawMaxX) rawMaxX = pt.x
+    if (pt.y < rawMinY) rawMinY = pt.y
+    if (pt.y > rawMaxY) rawMaxY = pt.y
+  }
 
   const padX = (rawMaxX - rawMinX) * 0.05 || 1
   const padY = (rawMaxY - rawMinY) * 0.05 || 1
