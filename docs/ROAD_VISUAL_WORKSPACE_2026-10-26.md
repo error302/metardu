@@ -121,3 +121,7 @@ load/recovery, provider/payment checks, customer-clone/restore admission, worker
 artifact alignment, owner-deferred signing-key rotation and coherent production
 promotion retain their existing gates. Preserve the Cloudflare parcel containment
 and the localhost CAD drawing. No part of this phase marks those gates achieved.
+
+The subsequent live-input phase is documented in
+`ROAD_LIVE_EDITING_2026-10-27.md`. It supersedes this checkpoint's review-only edit
+path, while retaining the broader road, recovery, release and field requirements.

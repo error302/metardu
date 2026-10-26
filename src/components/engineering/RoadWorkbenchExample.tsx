@@ -1,6 +1,6 @@
 'use client'
 import { useMemo } from 'react'
-import RoadWorkbench from './RoadWorkbench'
+import RoadWorkbenchEditor from './RoadWorkbenchEditor'
 import { roadWorkbenchExample } from '@/lib/engineering/roadWorkbenchExample'
 export default function RoadWorkbenchExample() {
   const example = useMemo(() => roadWorkbenchExample(), [])
@@ -11,7 +11,7 @@ export default function RoadWorkbenchExample() {
         alignment, profile and section inputs. These values do not represent a
         real site, field survey or approved design.
       </p>
-      <RoadWorkbench road={example.road} reference={example.reference} />
+      <RoadWorkbenchEditor road={example.road} reference={example.reference} />
     </div>
   )
 }

@@ -81,3 +81,9 @@ The first connected review phase is implemented in
 views do not close the live-editing, retained-terrain, durable road-revision or
 validated interchange requirements above. Continue those requirements as the
 next road work; retain this complete delivery target.
+
+The next implementation phase is recorded in `ROAD_LIVE_EDITING_2026-10-27.md`:
+numeric alignment/profile/template edits now drive the views, and original ground
+is withheld when its alignment association changes. Durable draft/conflict
+recovery, direct graphical editing, retained terrain, independent ground
+reassociation and validated revision-bound delivery remain open.

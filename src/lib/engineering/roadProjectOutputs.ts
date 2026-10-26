@@ -8,6 +8,7 @@ import { computeSlopeIntercept } from './crossSectionGeometry'
 import { integrateProfileAreas, interpolateProfile, validateProfile } from './profileGeometry'
 import { buildRoadVerticalSchedules, resolveRoadDesignStations } from './roadVerticalAlignment'
 import { buildRoadCentrelineSetout } from './roadCoordinateSetout'
+import { roadGroundAssociationIssue } from './roadGroundAssociation'
 
 const message = (error: unknown) => error instanceof Error ? error.message : 'Review the supplied road survey data.'
 /** Preserve the H:V convention used by the existing project template inputs. */
@@ -158,7 +159,7 @@ export function buildRoadSchedules(data: RoadDesignData | null, crsCode: string,
       headers: ['Chainage_m', 'Easting_m', 'Northing_m', 'Design_surface_RL_m', 'Formation_RL_m', 'Grid_tangent_bearing_deg', 'Level_source', 'Horizontal_segment', 'Declared_CRS', 'Declared_height_reference', 'Issue_status'] },
     earthworks: { name: 'Earthworks CSV', filename: 'metardu-earthworks.csv', rows: quantities.rows.map(row => [row.chainage, row.formationLevel, row.designLevel, row.cutArea, row.fillArea, row.cutVolume, row.fillVolume, row.cumulativeCut, row.cumulativeFill, row.leftDaylightOffset, row.rightDaylightOffset, row.method]),
       headers: ['Chainage_m', 'Formation_RL_m', 'Design_surface_RL_m', 'Cut_area_m2', 'Fill_area_m2', 'Cut_volume_m3', 'Fill_volume_m3', 'Cumulative_cut_m3', 'Cumulative_fill_m3', 'Left_daylight_offset_m', 'Right_daylight_offset_m', 'Method'] },
-    profiles: { name: 'Measured ground profiles CSV', filename: 'metardu-road-ground-profiles.csv', rows: (data?.stations ?? []).flatMap(station => (station.groundProfile ?? []).map(p => [station.chainage, p.offset, p.level, station.designLevel, station.designLevelSource ?? 'manual'])),
+    profiles: { name: 'Measured ground profiles CSV', filename: 'metardu-road-ground-profiles.csv', rows: (data && !roadGroundAssociationIssue(data) ? data.stations : []).flatMap(station => (station.groundProfile ?? []).map(p => [station.chainage, p.offset, p.level, station.designLevel, station.designLevelSource ?? 'manual'])),
       headers: ['chainage', 'offset', 'ground_level', 'design_level', 'design_level_source'] },
     stationLevels: { name: 'Station level schedule CSV', filename: 'metardu-station-levels.csv', rows: resolved.stations.map(station => [station.chainage, station.groundLevel, station.designLevel, station.designLevelSource ?? 'manual']),
       headers: ['Chainage_m', 'Ground_RL_m', 'Design_surface_RL_m', 'Design_level_source'] },

@@ -5,6 +5,8 @@ import {requireProjectReadAccess} from '@/lib/auth/ownership'
 import {SaveEarthworksSchema} from '@/lib/validation/apiSchemas'
 import {recordDesignRevision,hashDesignPayload} from '@/lib/engineering/designRevisions'
 import {POST,GET} from '../earthworks/route'
+import {roadWorkbenchExample} from '@/lib/engineering/roadWorkbenchExample'
+import {roadGroundAlignmentKey} from '@/lib/engineering/roadGroundAssociation'
 
 jest.mock('@/lib/apiHandler',()=>({apiHandler:(options:{schema?:import('zod').ZodSchema},handler:(req:NextRequest,ctx:unknown)=>Promise<Response>)=>async(req:NextRequest,ctx:{body:unknown;userId:string})=>{
   const parsed=options.schema?.safeParse(ctx.body)
@@ -20,9 +22,10 @@ const alignment='11111111-1111-4111-8111-111111111111',project='22222222-2222-42
 const template={carriagewayWidth:6,shoulderWidth:0,camber:0,subgradeDepth:0,cutSlope:'1:1',fillSlope:'1:1'}
 const fixtureCrs='EPSG:32737'
 let owner='owner',records:Array<Record<string,unknown>>=[],ground=0
+let projectEngineering:Record<string,unknown>|null=null
 const query=jest.fn(async(sql:string,params:unknown[]=[]):Promise<{rows:Array<Record<string,unknown>>}>=>{
   if(/lock_project_for_read/.test(sql))return{rows:[{user_id:owner}]}
-  if(/FROM projects/.test(sql))return{rows:[{id:project,user_id:owner,datum:'WGS84',utm_zone:37,hemisphere:'S'}]}
+  if(/FROM projects/.test(sql))return{rows:[{id:project,user_id:owner,datum:'WGS84',utm_zone:37,hemisphere:'S',engineering_data:projectEngineering}]}
   if(/FROM road_alignments/.test(sql))return{rows:[{id:alignment,project_id:project,project_owner:owner,user_id:owner,road_name:'Synthetic Road',start_chainage:0,coordinate_system:fixtureCrs,cross_section_template:template}]}
   if(/FROM project_reference_systems/.test(sql))return{rows:[{project_id:project,horizontal_crs:fixtureCrs,horizontal_name:'WGS84 UTM 37S',datum_name:'WGS84',units:'metres',zone:37,hemisphere:'S',vertical_datum:'Synthetic BM',vertical_reference:'local',distance_mode:'grid',coordinate_precision:3}]}
   if(/FROM alignment_ips|FROM alignment_vertical_ips/.test(sql))return{rows:[]}
@@ -39,7 +42,7 @@ type Handler=(req:NextRequest,ctx:{userId:string;body?:unknown;params:Record<str
 const invoke=(handler:unknown,body?:unknown,suffix='')=>(handler as Handler)(new NextRequest(`http://127.0.0.1:3021/api/engineering/earthworks?alignment_id=${alignment}${suffix}`,{method:body?'POST':'GET'}),{userId:'owner',body,params:{}})
 async function preview(){const response=await invoke(GET,undefined,'&preview=1');if(response.status!==200)throw new Error(`Preview failed: ${response.status} ${await response.text()}`);return(await response.json() as {data:{input_hash:string}}).data}
 beforeEach(()=>{
-  jest.clearAllMocks();owner='owner';records=[];ground=0
+  jest.clearAllMocks();owner='owner';records=[];ground=0;projectEngineering=null
   jest.mocked(db.transaction).mockImplementation(async work=>{const saved=[...records];try{return await work(client as unknown as import('pg').PoolClient)}catch(error){records=saved;throw error}})
   jest.mocked(db.getClient).mockResolvedValue(client as unknown as import('pg').PoolClient)
   jest.mocked(db.query).mockImplementation(query as unknown as typeof db.query)
@@ -54,6 +57,47 @@ it('rejects caller-authored reductions and methods instead of stripping or stori
   const body={alignment_id:alignment,client_run_id:delivery,expected_input_hash:'a'.repeat(64)}
   expect(SaveEarthworksSchema.safeParse(body).success).toBe(true)
   expect(SaveEarthworksSchema.safeParse({...body,method:'end-area',results:[{chainage:0,cut_area:999,fill_area:0,cut_volume:999,fill_volume:0,cumulative_cut:999,cumulative_fill:0,net_volume:999,mass_ordinate:999}]}).success).toBe(false)
+})
+it('uses the complete saved project road rather than an older relational mirror for preview and recording',async()=>{
+  const road=roadWorkbenchExample().road
+  road.roadName='Synthetic Road';road.vips[0].reducedLevel=99
+  road.groundSectionAlignmentKey=roadGroundAlignmentKey(road)
+  projectEngineering={mode:'road',standard:'KRDM2017',road}
+  const response=await invoke(GET,undefined,'&preview=1')
+  expect(response.status).toBe(200)
+  const result=await response.json() as {data:{inputs:{road:{vips:Array<{reducedLevel:number}>}},input_hash:string}}
+  expect(result.data.inputs.road.vips[0].reducedLevel).toBe(99)
+  expect(query.mock.calls.some(([sql])=>/FROM cross_section_stations/.test(sql))).toBe(false)
+  const saved=await invoke(POST,{alignment_id:alignment,client_run_id:delivery,expected_input_hash:result.data.input_hash})
+  expect(saved.status).toBe(201)
+})
+it('refuses a moved saved alignment with its original ground association before consulting legacy sections',async()=>{
+  const road=roadWorkbenchExample().road
+  road.roadName='Synthetic Road';road.groundSectionAlignmentKey=roadGroundAlignmentKey(road)
+  road.ips[0].easting-=1
+  projectEngineering={mode:'road',standard:'KRDM2017',road}
+  const response=await invoke(GET,undefined,'&preview=1')
+  expect(response.status).toBe(422)
+  expect(await response.text()).toMatch(/ground sections.*alignment/i)
+  expect(query.mock.calls.some(([sql])=>/FROM cross_section_stations/.test(sql))).toBe(false)
+  expect(recordDesignRevision).not.toHaveBeenCalled()
+})
+it('refuses malformed current project data instead of falling back to apparently usable old sections',async()=>{
+  projectEngineering={road:{roadName:'Synthetic Road',ips:[]}}
+  const response=await invoke(GET,undefined,'&preview=1')
+  expect(response.status).toBe(422)
+  expect(await response.text()).toMatch(/legacy rows are not substituted/i)
+  expect(query.mock.calls.some(([sql])=>/FROM cross_section_stations/.test(sql))).toBe(false)
+})
+it('keeps a separately named historical alignment on its own source rather than substituting another road',async()=>{
+  const road=roadWorkbenchExample().road
+  road.roadName='A separate synthetic road'
+  projectEngineering={road}
+  const response=await invoke(GET,undefined,'&preview=1')
+  expect(response.status).toBe(200)
+  const result=await response.json() as {data:{inputs:{road:{roadName:string}},result:{totalCut:number}}}
+  expect(result.data.inputs.road.roadName).toBe('Synthetic Road')
+  expect(result.data.result.totalCut).toBe(140)
 })
 it('records the engine result and source snapshot atomically without touching legacy quantities',async()=>{
   const source=await preview()

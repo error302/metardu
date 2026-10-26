@@ -1,4 +1,6 @@
 import type {PoolClient} from 'pg'
+import {z} from 'zod'
+import type {RoadDesignData} from '@/types/engineering'
 import {requireProjectReadAccess} from '@/lib/auth/ownership'
 import {AuthorizationError,NotFoundError,ValidationError,ConflictError} from '@/lib/api/errors'
 import {resolveStageReference} from '@/lib/workspaces/stageReference'
@@ -6,6 +8,23 @@ import {roadFromAlignmentMirror} from './roadAlignmentMirror'
 import {lockOwnedAlignment,type OwnedAlignment} from './alignmentAccess'
 import {hashDesignPayload,type DesignRevisionRecord} from './designRevisions'
 import {ROAD_QUANTITY_ALGORITHM,ROAD_QUANTITY_VERSION,type RoadQuantityRecord} from './roadQuantity'
+
+const finite=z.number().finite()
+// Validate complete source shapes before using JSONB as the quantity authority.
+// Passthrough retains original fields; only the shared engine chooses consumed inputs.
+const savedQuantityRoadSchema=z.object({
+  roadName:z.string(),startChainage:finite,datum:z.string(),coordinateSystem:z.string(),designSpeed:finite,
+  roadClass:z.enum(['A','B','C','D','E','F','G','H','J','K','L','M','N','P']),
+  ips:z.array(z.object({id:z.string().min(1),name:z.string().min(1),easting:finite,northing:finite,radius:finite,
+    hasTransition:z.boolean().optional(),transitionLengthIn:finite.optional(),transitionLengthOut:finite.optional()}).passthrough()).max(1000),
+  vips:z.array(z.object({id:z.string().min(1),chainage:finite,reducedLevel:finite,kValue:finite.optional(),curveLength:finite.optional(),gradientIn:finite.optional(),gradientOut:finite.optional()}).passthrough()).max(1000),
+  verticalStationIntervalM:finite.optional(),groundSectionAlignmentKey:z.string().optional(),
+  crossSectionTemplate:z.object({carriagewayWidth:finite,shoulderWidth:finite,camber:finite,subgradeDepth:finite,
+    cutSlope:z.string(),fillSlope:z.string(),shoulderCrossfall:finite.optional()}).passthrough(),
+  stations:z.array(z.object({chainage:finite,groundLevel:finite,designLevel:finite.optional(),
+    designLevelSource:z.enum(['manual','vertical-alignment']).optional(),
+    groundProfile:z.array(z.object({offset:finite,level:finite}).passthrough()).max(250000).optional()}).passthrough()).max(5000),
+}).passthrough()
 
 export const QUANTITY_ENTITY='alignment-earthworks'
 export interface QuantityRevision extends DesignRevisionRecord {
@@ -30,6 +49,24 @@ export async function loadRoadQuantitySource(client:PoolClient,alignment:OwnedAl
   const {rows:refs}=await client.query<Record<string,unknown>>('SELECT * FROM project_reference_systems WHERE project_id = $1 FOR SHARE',[alignment.project_id])
   const reference=resolveStageReference(refs[0],{})
   if(reference.source!=='declared')throw new ValidationError('Declare a valid projected-metre project reference before recording quantities.')
+  const {rows:projects}=await client.query<{engineering_data:unknown}>('SELECT engineering_data FROM projects WHERE id = $1 FOR SHARE',[alignment.project_id])
+  if(!projects[0])throw new NotFoundError('Project not found')
+  const engineering=projects[0].engineering_data
+  if(engineering!=null){
+    const envelope=z.object({road:z.unknown().optional()}).passthrough().safeParse(engineering)
+    if(!envelope.success)throw new ValidationError('The saved project engineering data is malformed. Retain the original draft and repair it before recording quantities.')
+    if(envelope.data.road!=null){
+      const named=z.object({roadName:z.string()}).passthrough().safeParse(envelope.data.road)
+      if(!named.success)throw new ValidationError('The saved project road is malformed. Retain it for recovery; legacy rows are not substituted.')
+      if(named.data.roadName===alignment.road_name){
+        const parsed=savedQuantityRoadSchema.safeParse(envelope.data.road)
+        if(!parsed.success)throw new ValidationError('The saved project road has incomplete or invalid source values. Retain it for recovery; legacy rows are not substituted.')
+        const road:RoadDesignData=parsed.data
+        return{road,reference}
+      }
+    }
+  }
+  // A separately named historical alignment (or a pre-JSON draft) still uses its own retained rows.
   const {rows:ips}=await client.query('SELECT * FROM alignment_ips WHERE alignment_id = $1 ORDER BY sort_order,created_at,id LIMIT 201',[alignment.id])
   const {rows:vips}=await client.query('SELECT * FROM alignment_vertical_ips WHERE alignment_id = $1 ORDER BY chainage,id LIMIT 201',[alignment.id])
   const {rows:stations}=await client.query('SELECT * FROM cross_section_stations WHERE alignment_id = $1 ORDER BY chainage,id LIMIT 5001',[alignment.id])

@@ -427,3 +427,14 @@ application/test TypeScript, scoped lint and the security gate pass. See
 observations timed out while the existing preview process remained live; it was
 preserved. Authenticated browser, saved revision/criteria binding, server-side
 concurrency, production promotion and field acceptance remain open.
+
+27 October road live-input checkpoint: numeric alignment/profile/template edits
+now drive the connected plan/profile/section/3D views. Invalid text and failed
+saves retain inputs; newly observed saved-source changes block dirty saves.
+Original ground is tied to its horizontal geometry and is withheld from affected
+views, quantities and schedules after an alignment change. The quantity endpoint
+uses the complete saved project road for the requested named design rather than
+a stale mirror. See `ROAD_LIVE_EDITING_2026-10-27.md`. Durable account-bound draft
+and server-conflict recovery, retained terrain/ground reassociation, direct
+graphical editing, immutable road revisions, validated interchange and all
+existing production/provider/recovery/field gates remain open.

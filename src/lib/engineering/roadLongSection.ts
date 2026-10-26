@@ -1,10 +1,11 @@
 import type { RoadDesignData } from '@/types/engineering'
 import { buildRoadVerticalSchedules, resolveRoadDesignStations } from './roadVerticalAlignment'
+import { roadGroundAssociationIssue } from './roadGroundAssociation'
 
 export function buildRoadLongSection(data: RoadDesignData | null) {
   const vertical = buildRoadVerticalSchedules(data), resolved = resolveRoadDesignStations(data)
   try {
-    const ground = [...(data?.stations ?? [])].sort((a, b) => a.chainage - b.chainage)
+    const ground = [...(data && !roadGroundAssociationIssue(data) ? data.stations : [])].sort((a, b) => a.chainage - b.chainage)
     if (ground.length > 20000 || ground.some((s, i) => ![s.chainage, s.groundLevel].every(Number.isFinite) || i > 0 && s.chainage === ground[i - 1].chainage)) throw new RangeError('Long-section ground needs finite observations at unique chainages, up to 20,000 stations.')
     const rows = resolved.stations.map(station => {
       const target = Number.isFinite(station.designLevel) ? station.designLevel as number : null

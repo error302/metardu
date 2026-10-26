@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import Link from 'next/link'
-import RoadWorkbench from '@/components/engineering/RoadWorkbench'
+import RoadWorkbenchEditor from '@/components/engineering/RoadWorkbenchEditor'
+import { roadGroundAssociationIssue } from '@/lib/engineering/roadGroundAssociation'
 import {Check,Lock} from 'lucide-react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/api-client/client'
@@ -260,6 +261,7 @@ export default function EngineeringWorkspacePage() {
     if (!project) return false
     const road = engData.road
     if (!road) return false
+    if (roadGroundAssociationIssue(road)) return false
 
     try {
       const payload = roadAlignmentMirrorPayload(road, project.id)
@@ -387,7 +389,8 @@ export default function EngineeringWorkspacePage() {
       </nav>
       {engineeringLoadError&&<p role="alert" className="border-l-2 border-amber-500 pl-3 text-sm">{engineeringLoadError}</p>}
       {loadingEngineering&&<p role="status" className="text-xs text-[var(--text-secondary)]">Reading saved alignment records…</p>}
-      <RoadWorkbench key={project.id} projectId={project.id} road={project.engineering_data?.road??null} reference={reference}/>
+      {toast&&<p role={toast.type==='error'?'alert':'status'} className="border-l-2 border-amber-500 pl-3 text-sm">{toast.message}</p>}
+      <RoadWorkbenchEditor key={project.id} projectId={project.id} road={project.engineering_data?.road??null} reference={reference} disabled={loadingEngineering||saving} onSave={road=>handleSave({road})}/>
     </div>
   }
   // Quick Compute Panel Mode

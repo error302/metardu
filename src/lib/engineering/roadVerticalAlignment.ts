@@ -1,5 +1,6 @@
 import { computeVerticalCurve, verticalCurveElevation, verticalCurveGrade } from '@/lib/engine/engineering'
 import type { VerticalIP, StationData, RoadDesignData } from '@/types/engineering'
+import { roadGroundAssociationIssue } from './roadGroundAssociation'
 
 export interface ProjectVerticalCurve {
   vipId: string; vipIndex: number; type: 'crest' | 'sag'; length: number; k: number
@@ -74,8 +75,14 @@ export function roadVerticalStation(alignment: ProjectVerticalAlignment, chainag
   return { chainage, elevation, grade, segment: 'tangent' as const, vipId: null }
 }
 
-export function resolveRoadDesignStations(road: Pick<RoadDesignData, 'vips' | 'stations'> | null) {
+export function resolveRoadDesignStations(road: (Pick<RoadDesignData, 'vips' | 'stations'> & Partial<Pick<RoadDesignData, 'coordinateSystem' | 'startChainage' | 'ips' | 'groundSectionAlignmentKey'>>) | null) {
   const stations = road?.stations ?? []
+  if (road?.groundSectionAlignmentKey !== undefined) {
+    const issue = road.ips && road.coordinateSystem != null && road.startChainage != null
+      ? roadGroundAssociationIssue({ coordinateSystem: road.coordinateSystem, startChainage: road.startChainage, ips: road.ips, groundSectionAlignmentKey: road.groundSectionAlignmentKey })
+      : 'Retained ground sections need their original horizontal alignment before using station targets or quantities.'
+    if (issue) return { stations: [] as StationData[], issues: [issue] }
+  }
   if (stations.some(s => s.designLevelSource != null && !['manual','vertical-alignment'].includes(s.designLevelSource))) return { stations: [] as StationData[], issues: ['Station target source must be manual or vertical-alignment.'] }
   if (!stations.some(s => s.designLevelSource === 'vertical-alignment')) return { stations, issues: [] as string[] }
   const computed = calculateRoadVertical(road?.vips ?? [])

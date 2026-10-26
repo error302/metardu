@@ -61,6 +61,8 @@ export interface RoadDesignData {
   verticalStationIntervalM?: number
   crossSectionTemplate: CrossSectionTemplate
   stations: StationData[]
+  /** Canonical original horizontal geometry for station-based ground observations; not a signature or approval. */
+  groundSectionAlignmentKey?: string
 
   horizontalAlignment?: HorizontalAlignmentResult[]
   verticalAlignment?: VerticalAlignmentResult[]

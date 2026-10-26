@@ -3,6 +3,7 @@ import type {RoadDesignData} from '@/types/engineering'
 import {assertSurveyCrs} from '@/lib/spatial/projectCrs'
 import {calculateRoadEarthworks} from './roadProjectOutputs'
 import {resolveRoadDesignStations} from './roadVerticalAlignment'
+import {roadGroundAssociationIssue} from './roadGroundAssociation'
 
 export const ROAD_QUANTITY_ALGORITHM='road-average-end-area'
 export const ROAD_QUANTITY_VERSION='1.0.0'
@@ -10,6 +11,8 @@ export interface QuantityReference {code:string|null;verticalDatum:string|null;d
 
 /** Shared input identity; no caches, inferred dimensions or calculated targets. */
 export function roadQuantityInputs(road:RoadDesignData,reference:QuantityReference) {
+  const associationIssue=roadGroundAssociationIssue(road)
+  if(associationIssue)throw new RangeError(associationIssue)
   if(!reference.code)throw new RangeError('Declare a projected-metre project CRS.')
   const crs=assertSurveyCrs(reference.code)
   if(crs.units!=='metres')throw new RangeError('Quantity inputs require metre units.')

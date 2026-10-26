@@ -35,10 +35,12 @@ export default function RoadWorkbench({
   projectId,
   road,
   reference,
+  sourceLabel,
 }: {
   projectId?: string
   road: RoadDesignData | null
   reference: QuantityReference
+  sourceLabel?: string
 }) {
   const model = useMemo(
     () => buildRoadWorkbenchModel(road, reference),
@@ -82,9 +84,9 @@ export default function RoadWorkbench({
         <div className="min-w-0">
           <p className="flex items-center gap-2 text-xs text-[var(--text-secondary)]">
             <GeomaticsIcon symbol="traverse" className="h-4 w-4" />
-            {projectId
+            {sourceLabel ?? (projectId
               ? 'Saved project design · visual review'
-              : 'Synthetic worked example · visual review'}
+              : 'Synthetic worked example · visual review')}
           </p>
           <h1 className="mt-1 break-words text-xl font-semibold">
             {road?.roadName || 'Road workspace'}

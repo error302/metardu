@@ -20,6 +20,7 @@ import {
   type RoadQuantityCalculation,
 } from './roadQuantity'
 import { validateProfile } from './profileGeometry'
+import { roadGroundAssociationIssue } from './roadGroundAssociation'
 type PlanPoint = NonNullable<ReturnType<typeof roadHorizontalStation>>
 type ProfilePoint = NonNullable<ReturnType<typeof roadVerticalStation>>
 export interface RoadWorkbenchModel {
@@ -155,7 +156,8 @@ export function buildRoadWorkbenchModel(
         })
     } else model.issues.push(...vertical.issues)
     const resolved = resolveRoadDesignStations(road)
-    model.stations = resolved.issues.length ? road.stations : resolved.stations
+    const groundIssue = roadGroundAssociationIssue(road)
+    model.stations = groundIssue ? [] : resolved.issues.length ? road.stations : resolved.stations
     model.stationByChainage = new Map(
       model.stations.map((s) => [s.chainage, s]),
     )
