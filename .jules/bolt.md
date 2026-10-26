@@ -1,0 +1,3 @@
+## 2024-05-24 - Avoid spread operator with Math.min/Math.max on large arrays
+**Learning:** Using the spread operator (`...`) with `Math.min()` or `Math.max()` on large arrays (like dataset point coordinates) in this codebase causes V8 "Maximum call stack size exceeded" errors and excessive memory allocation.
+**Action:** Always use a single-pass `for` loop or `reduce` instead when calculating bounds or mins/maxs on large datasets.
