@@ -52,6 +52,11 @@ provider/billing state or browser drawing storage was changed for this repair.
 
 ## Remaining release gates
 
+GitHub run 40539757745 confirms zero full/runtime dependency findings. Its
+security job then exposes an independent dependency-free module-import defect;
+the bounded fix and remaining work are recorded in
+`CHECKPOINT_AND_REMAINING_WORK_2026-10-27.md`.
+
 Await this revision's Linux CI, web/mobile builds, coverage and browser results.
 The preceding CI still reports browser navigation failures, an accessibility
 sweep failure and repository-wide lint failures. Passing scoped lint does not

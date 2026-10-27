@@ -30,7 +30,6 @@ import { createHash } from 'node:crypto'
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import pg from 'pg'
 
 const MIGRATIONS_DIR = resolveMigrationsDir()
 
@@ -207,6 +206,9 @@ async function main() {
     fail(`no migration files found in ${MIGRATIONS_DIR} — refusing to "verify" against nothing.`)
   }
 
+  // Static drift/release gates import this module before npm dependencies exist.
+  // Load the client only for the explicit database-verification entry point.
+  const { default: pg } = await import('pg')
   const pool = new pg.Pool({
     ...(databaseUrl ? { connectionString: databaseUrl } : discreteDatabaseConfig),
     connectionTimeoutMillis: 10000,

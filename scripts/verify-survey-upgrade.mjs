@@ -7,7 +7,6 @@ import {mkdirSync,readFileSync,writeFileSync} from 'node:fs'
 import {resolve,join} from 'node:path'
 import {pathToFileURL} from 'node:url'
 import {randomUUID} from 'node:crypto'
-import pg from 'pg'
 import {rehearsalDatabaseConfig} from './rehearsal-database.mjs'
 import {computeDrift,migrationChecksums} from './verify-migrations.mjs'
 import {pinnedReleaseArguments} from './release-plan.mjs'
@@ -65,6 +64,7 @@ async function main() {
     if(result.status!==0){report.failedAt=(result.stdout??'').match(/Applying: ([^\r\n]+)/g)?.at(-1)??name;save()}
     assert.equal(result.status,0,`Synthetic ${name} failed; inspect its source-only log.`)
   }
+  const {default:pg}=await import('pg')
   const admin=new pg.Client({connectionString:config.adminUrl,connectionTimeoutMillis:5000})
   let target,created=false
   await admin.connect()
