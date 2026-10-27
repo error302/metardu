@@ -245,7 +245,7 @@ export default function RoadWorkbench3D({
       {(loading || error) && (
         <p
           role={error ? 'status' : undefined}
-          className="absolute inset-0 flex items-center justify-center bg-[var(--bg-secondary)]/95 p-6 text-center text-sm text-[var(--text-secondary)]"
+          className="absolute inset-0 flex items-center justify-center bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] p-6 text-center text-sm text-[var(--text-secondary)]"
         >
           {error || 'Loading 3D design…'}
         </p>
