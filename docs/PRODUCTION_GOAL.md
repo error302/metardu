@@ -515,3 +515,12 @@ source/component model evidence, not interval certification or field acceptance.
 Whole-road integration/error bounds, independent corridor assumptions, durable
 issued delivery and all existing customer/provider/recovery/production/field
 gates remain open.
+
+27 October native CI contract repair: current capture schema and reviewed surface
+requests are exercised against the existing isolated PostgreSQL service. Native
+checks retain unknown criteria, immutable history and exact request/source binding.
+The mobile helper now preserves interrupted stashes and concurrent source edits;
+remote OAuth metadata is excluded from mobile static packaging. See
+`CI_NATIVE_CONTRACT_REPAIR_2026-10-27.md`. Full CI/mobile acceptance, the Zod major
+migration and all existing release/recovery/security/provider/field gates remain
+open; this checkpoint is not a production promotion.

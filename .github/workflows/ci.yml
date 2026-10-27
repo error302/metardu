@@ -95,7 +95,7 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
-      - run: node scripts/verify-design-revisions.mjs
+      - run: node scripts/verify-design-revisions.mjs --ci
       - name: Verify atomic deliverable registration and concurrent exports
         run: node scripts/verify-deliverable-register.mjs green --ci
       - name: Verify atomic corridor versions and competing first writes
@@ -266,6 +266,8 @@ jobs:
         run: node --test tests/pre-push-range.test.mjs
       - name: Verify upload source tracking and private data exclusions
         run: node --test tests/upload-route-tracking.test.mjs
+      - name: Verify mobile build source preservation
+        run: node --test tests/mobile-build-preservation.test.mjs
 
   build:
     name: Production Build
@@ -341,7 +343,9 @@ jobs:
   test:
     name: Jest Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    # The full coverage run was still executing tests at the 15-minute limit.
+    # Bound compiler workers and allow installation plus all suites to finish.
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -363,7 +367,7 @@ jobs:
       # that should fail the build, not silently pass.
       - name: Native self-contained 3D parser integrity
         run: node --test tests/parser-3d-integrity.test.mjs
-      - run: npx jest --silent --coverage --coverageReporters=text-summary
+      - run: npx jest --maxWorkers=2 --silent --coverage --coverageReporters=text-summary
 
   e2e:
     name: "E2E Tests (shard ${{ matrix.shard }}/${{ strategy.job-total }})"

@@ -4,12 +4,25 @@ import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import assert from 'node:assert/strict'
 import pg from 'pg'
+import { execFileSync } from 'node:child_process'
 
 // Fixed, disposable verification database. Never read production credentials.
+assert.ok(process.argv.length === 2 || (process.argv.length === 3 && process.argv[2] === '--ci'), 'Only the fixed --ci fixture is optional.')
+const ci = process.argv[2] === '--ci'
+if (ci) assert.equal(process.env.CI, 'true', 'The CI fixture is available only in CI.')
+else {
+  const format = '{"Id":{{json .Id}},"Labels":{{json .Config.Labels}},"Running":{{json .State.Running}},"Ports":{{json .NetworkSettings.Ports}}}'
+  const service = JSON.parse(execFileSync('docker', ['inspect', '--format', format, 'metardu-schema-rehearsal-20261008'], { encoding: 'utf8', windowsHide: true, timeout: 10000 }))
+  assert.equal(service.Id, 'ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0')
+  assert.equal(service.Labels['metardu.purpose'], 'schema-rehearsal')
+  assert.equal(service.Running, true)
+  assert.deepEqual(service.Ports['5432/tcp'], [{ HostIp: '127.0.0.1', HostPort: '55433' }])
+}
+const databaseName = ci ? 'metardu_revision_verify' : 'metardu_runtime_verify'
 const schema = `revision_verify_${Date.now()}`
 const pool = new pg.Pool({
-  host: '127.0.0.1', port: 55432, database: 'metardu_revision_verify',
-  user: 'revision_verify', password: 'local_revision_verify_only',
+  host: '127.0.0.1', port: ci ? 55432 : 55433, database: databaseName,
+  user: ci ? 'revision_verify' : 'release_verify', password: ci ? 'local_revision_verify_only' : 'local_release_verify_only',
   connectionTimeoutMillis: 5000, statement_timeout: 15000,
   options: `-c search_path=${schema},public`,
 })
@@ -97,7 +110,7 @@ async function verifyLegacyMigration(oldMigration, forwardMigration, duplicates)
 
 try {
   const { rows: [identity] } = await pool.query('SELECT current_database() AS name')
-  assert.equal(identity.name, 'metardu_revision_verify')
+  assert.equal(identity.name, databaseName)
   await pool.query(`CREATE SCHEMA ${schema}`)
   await pool.query('CREATE EXTENSION IF NOT EXISTS "uuid-ossp" WITH SCHEMA public')
   await pool.query('CREATE TABLE projects (id uuid PRIMARY KEY); CREATE TABLE users (id uuid PRIMARY KEY)')
@@ -192,6 +205,7 @@ try {
         -0.003, 0.004, 0.005, 0.01, 0.005, $4, 0, '=1+1, note')`, [projectId, definition.id, point.id, status])
   }
   await pool.query(readFileSync('src/lib/db/migrations/096_setout_capture_snapshots.sql', 'utf8').split(/-- DOWN\b/)[0])
+  await pool.query(readFileSync('src/lib/db/migrations/106_setout_capture_v2.sql', 'utf8').split(/-- DOWN\b/)[0])
   await pool.query(setoutSchema.slice(setoutSchema.indexOf('CREATE OR REPLACE FUNCTION reject_setout_observation_update()'), setoutSchema.indexOf('CREATE OR REPLACE FUNCTION reject_verticality_update()')))
   const selectedExport = await exportProjectSetoutCsv(projectId, definition.id, 2)
   const parsed = Papa.parse(selectedExport.csv, { header: true })
@@ -206,6 +220,11 @@ try {
     (definition_id, revision, label, easting, northing, design_rl)
     VALUES ($1, 3, 'MH-EXACT', 500000, 9860000, 100) RETURNING id`, [definition.id])
   let firstCaptureId
+  let unassessedCaptureId
+  const adoptedProfile = { id: '30000000-0000-4000-8000-000000000001', name: 'Synthetic issued criteria',
+    jurisdiction: 'Synthetic fixture only', version: 'R1', horizontalM: 0.01, verticalM: 0.005,
+    effectiveDate: '2026-10-08', source: 'Synthetic drawing D1', approvedBy: 'Synthetic reviewer' }
+  await pool.query('INSERT INTO tolerance_profiles (id) VALUES ($1)', [adoptedProfile.id])
   for (let index = 0; index < 100; index++) {
     const capture = createSetoutCaptureSnapshot({
       projectId, definitionId: definition.id, pointId: capturePoint.id, pointLabel: 'MH-EXACT', designRevision: 3,
@@ -213,24 +232,35 @@ try {
       capturedAt: new Date(Date.UTC(2026, 9, 8, 6, 30, index)).toISOString(),
       design: { easting: 500000, northing: 9860000, rl: 100 }, capturedDesign: { easting: 500000, northing: 9860000, rl: 100 },
       observed: { easting: 500000.00321, northing: 9860000.00432, rl: index === 0 ? 100.0054 : 100.00321 },
-      reportedAccuracyM: 0.0012345, profile: null,
+      reportedAccuracyM: 0.0012345, profile: index === 99 ? null : adoptedProfile,
+      reportedVerticalAccuracyM: index === 99 ? null : 0.001,
+      deviceVerticalDatum: index === 99 ? null : 'Synthetic BM-01',
+      capturedToleranceProfileId: index === 99 ? null : adoptedProfile.id,
     })
     const { rows: [inserted] } = await pool.query(`INSERT INTO setout_observations
       (project_id, definition_id, setout_point_id, label, design_easting, design_northing, design_rl,
        observed_easting, observed_northing, observed_rl, d_e, d_n, d_z, horizontal_error, vertical_error,
-       threshold_h, threshold_v, result, reported_accuracy_m, tolerance_version, capture_snapshot)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21::jsonb) RETURNING id`,
+       threshold_h, threshold_v, result, reported_accuracy_m, tolerance_version, tolerance_profile_id, capture_snapshot)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22::jsonb) RETURNING id`,
       [projectId, definition.id, capturePoint.id, capture.pointLabel, capture.design.easting, capture.design.northing, capture.design.rl,
         capture.observed.easting, capture.observed.northing, capture.observed.rl, capture.assessment.dE, capture.assessment.dN,
         capture.assessment.dZ, capture.assessment.horizontalErrorM, capture.assessment.verticalErrorM,
         capture.tolerance.horizontalM, capture.tolerance.verticalM, capture.assessment.result, capture.reportedAccuracyM,
-        capture.tolerance.version, JSON.stringify(capture)])
+        capture.tolerance.version, capture.tolerance.profile?.id ?? null, JSON.stringify(capture)])
     if (index === 0) firstCaptureId = inserted.id
+    if (index === 99) unassessedCaptureId = inserted.id
   }
   const { rows: [precision] } = await pool.query(`SELECT observed_rl, capture_snapshot->'observed'->>'rl' AS original_rl, result FROM setout_observations WHERE id = $1`, [firstCaptureId])
   assert.equal(precision.observed_rl, '100.005')
   assert.equal(precision.original_rl, '100.0054')
   assert.equal(precision.result, 'WARN')
+  const { rows: [unassessed] } = await pool.query('SELECT result, threshold_h, threshold_v, capture_snapshot FROM setout_observations WHERE id = $1', [unassessedCaptureId])
+  assert.equal(unassessed.result, 'INFO')
+  assert.equal(unassessed.threshold_h, null)
+  assert.equal(unassessed.threshold_v, null)
+  assert.equal(unassessed.capture_snapshot.schemaVersion, 2)
+  assert.equal(unassessed.capture_snapshot.acceptance.eligible, false)
+  assert.ok(unassessed.capture_snapshot.acceptance.issues.length > 0)
   await assert.rejects(pool.query(`INSERT INTO setout_observations
     (project_id, definition_id, label, design_easting, design_northing, observed_easting, observed_northing)
     VALUES ($1,$2,'NO-SNAPSHOT',500000,9860000,500000,9860000)`, [projectId, definition.id]), /require an immutable capture snapshot/)
@@ -246,12 +276,13 @@ try {
     logoDataUrl: 'data:image/png;base64,' + readFileSync('public/metardu-icon.png').toString('base64') })
   assert.ok(html.includes('+0.0054'))
   assert.ok(html.includes('Legacy observations — NOT ASSESSED'))
-  assert.ok(html.includes('MH-EXACT (shot 103)'))
+  assert.ok(html.includes('Captured observations — NOT ASSESSED'))
+  for (const shot of savedShots) assert.ok(html.includes(shot.id), 'Every saved observation identity must survive the report.')
   assert.ok(forwardMigration, 'A forward migration is required for deployment')
   const designSchema = oldMigration.slice(0, oldMigration.indexOf('-- Offline field packages:'))
   await verifyLegacyMigration(designSchema, forwardMigration, false)
   await verifyLegacyMigration(designSchema, forwardMigration, true)
-  const result = { database: identity.name, schema, sequentialRevisions: 3, concurrentAppends: 12, resumedRevision: 'R16', independentDisciplines: 2, immutablePayload: true, rollbackPreservedCurrent: true, legacyPartialAppendPreserved: true, duplicateHistoryFailsClosed: true, atomicProjectRevisionComputationQaRollback: true, noPreCommitTimelineEvents: true, savedSetoutCsvRevisionAndProjectScope: true, fullPrecisionCaptureSnapshots: true, captureRecords: 100, legacyRecords: 3, snapshotRequiredAndImmutable: true }
+  const result = { database: identity.name, schema, sequentialRevisions: 3, concurrentAppends: 12, resumedRevision: 'R16', independentDisciplines: 2, immutablePayload: true, rollbackPreservedCurrent: true, legacyPartialAppendPreserved: true, duplicateHistoryFailsClosed: true, atomicProjectRevisionComputationQaRollback: true, noPreCommitTimelineEvents: true, savedSetoutCsvRevisionAndProjectScope: true, fullPrecisionCaptureSnapshots: true, captureRecords: 100, legacyRecords: 3, captureSchemaVersion: 2, adoptedCriteriaRecords: 99, unassessedCaptureWithoutInventedCriteria: true, allObservationIdentitiesInReport: true, snapshotRequiredAndImmutable: true }
   await mkdir('test-results/design-revisions', { recursive: true })
   await writeFile('test-results/design-revisions/synthetic-setout-history.csv', (await exportProjectSetoutCsv(projectId, definition.id, null)).csv)
   await writeFile('test-results/design-revisions/synthetic-project-cut-sheet.html', html)

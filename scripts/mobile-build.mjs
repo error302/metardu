@@ -43,6 +43,8 @@ const STASH_DIR = path.join(ROOT, 'src', '.stash-mobile-build')
 // - import/share-target            -> POST route handler outside api/
 const STASH_SUBTREES = [
   'api',
+  // OAuth authorization/resource metadata belongs to the remote web server.
+  '.well-known',
   '(dashboard)/survey/[id]',
   'guide/[type]',
   'project/[id]',
@@ -80,39 +82,86 @@ function run(cmd) {
 // Collect the actual paths to move (they must exist). The stash keeps the
 // full relative structure so distinct dirs with the same basename (e.g.
 // `project/[id]` and `(dashboard)/survey/[id]`) never collide.
-const toMove = STASH_SUBTREES
-  .map((rel) => ({ rel, abs: path.join(APP_DIR, rel) }))
-  .filter(({ abs }) => fs.existsSync(abs))
+function entryExists(target) {
+  try { fs.lstatSync(target); return true }
+  catch (error) { if (error.code === 'ENOENT') return false; throw error }
+}
+function assertWithin(base, target) {
+  const relative = path.relative(base, target)
+  if (!relative || relative === '..' || relative.startsWith('..' + path.sep) || path.isAbsolute(relative)) {
+    throw new Error(`Refusing a path outside the owned directory: ${target}`)
+  }
+}
+function rejectSymlinkAncestry(base, target) {
+  let segmentPath = base
+  for (const segment of ['', ...path.relative(base, target).split(path.sep)]) {
+    segmentPath = path.join(segmentPath, segment)
+    if (entryExists(segmentPath) && fs.lstatSync(segmentPath).isSymbolicLink()) throw new Error(`Refusing a source symlink: ${segmentPath}`)
+  }
+}
+assertWithin(fs.realpathSync(ROOT), fs.realpathSync(APP_DIR))
+assertWithin(fs.realpathSync(ROOT), fs.realpathSync(path.dirname(STASH_DIR)))
+if (entryExists(STASH_DIR)) throw new Error(`A previous mobile source stash exists at ${STASH_DIR}. Recover it before another build; it was not deleted.`)
+const toMove = STASH_SUBTREES.map(rel => {
+  const abs = path.resolve(APP_DIR, rel), dest = path.resolve(STASH_DIR, rel)
+  assertWithin(APP_DIR, abs)
+  assertWithin(STASH_DIR, dest)
+  rejectSymlinkAncestry(APP_DIR, abs)
+  if (entryExists(abs)) assertWithin(fs.realpathSync(APP_DIR), fs.realpathSync(abs))
+  return { rel, abs, dest }
+}).filter(({ abs }) => entryExists(abs))
 
 if (toMove.length === 0) {
   console.log('Nothing to stash — running a plain static export build.')
 }
 
 const moved = []
+const createdDirectories = new Set()
+const restorationErrors = []
+let buildFailure
 
 try {
-  // Remove any stale stash from a previous interrupted run
-  if (fs.existsSync(STASH_DIR)) fs.rmSync(STASH_DIR, { recursive: true, force: true })
-
-  for (const { rel, abs } of toMove) {
-    const dest = path.join(STASH_DIR, rel)
-    fs.mkdirSync(path.dirname(dest), { recursive: true })
-    console.log(`→ Stashing ${path.relative(ROOT, abs)}`)
+  if (toMove.length) { fs.mkdirSync(STASH_DIR); createdDirectories.add(STASH_DIR) }
+  for (const { abs, dest } of toMove) {
+    const parents = []
+    for (let dir = path.dirname(dest); dir !== STASH_DIR; dir = path.dirname(dir)) parents.push(dir)
+    for (const dir of parents.reverse()) {
+      assertWithin(STASH_DIR, dir)
+      if (createdDirectories.has(dir)) continue
+      fs.mkdirSync(dir)
+      createdDirectories.add(dir)
+    }
+    console.log(`Stashing ${path.relative(ROOT, abs)}`)
     fs.renameSync(abs, dest)
     moved.push({ abs, dest })
   }
 
   run('npx next build')
-  console.log('✓ Mobile static export build succeeded')
+} catch (error) {
+  buildFailure = error
 } finally {
   for (const { abs, dest } of moved.reverse()) {
-    console.log(`→ Restoring ${path.relative(ROOT, abs)}`)
-    if (fs.existsSync(abs)) fs.rmSync(abs, { recursive: true, force: true })
-    fs.mkdirSync(path.dirname(abs), { recursive: true })
-    fs.renameSync(dest, abs)
+    try {
+      assertWithin(APP_DIR, abs)
+      assertWithin(STASH_DIR, dest)
+      if (entryExists(abs)) throw new Error(`Source changed during the build at ${abs}; original retained at ${dest}. Neither was overwritten.`)
+      rejectSymlinkAncestry(APP_DIR, abs)
+      rejectSymlinkAncestry(STASH_DIR, dest)
+      assertWithin(fs.realpathSync(STASH_DIR), fs.realpathSync(dest))
+      console.log(`Restoring ${path.relative(ROOT, abs)}`)
+      fs.mkdirSync(path.dirname(abs), { recursive: true })
+      assertWithin(fs.realpathSync(ROOT), fs.realpathSync(APP_DIR))
+      if (path.dirname(abs) !== APP_DIR) assertWithin(fs.realpathSync(APP_DIR), fs.realpathSync(path.dirname(abs)))
+      fs.renameSync(dest, abs)
+    } catch (error) { restorationErrors.push(error) }
   }
-  // Clean up the empty stash container
-  if (fs.existsSync(STASH_DIR)) {
-    fs.rmSync(STASH_DIR, { recursive: true, force: true })
+  // Only remove directories created by this invocation, and only if empty.
+  // A conflict or interrupted build must retain every original file.
+  for (const dir of [...createdDirectories].sort((a, b) => b.length - a.length)) {
+    try { fs.rmdirSync(dir) }
+    catch (error) { if (!['ENOENT', 'ENOTEMPTY', 'EEXIST'].includes(error.code)) restorationErrors.push(error) }
   }
 }
+if (restorationErrors.length) throw new AggregateError([...(buildFailure ? [buildFailure] : []), ...restorationErrors], 'Mobile source restoration needs review; conflicting sources and their original stash were preserved.')
+if (buildFailure) throw buildFailure
+console.log('Mobile static export build succeeded; source subtrees restored.')

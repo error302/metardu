@@ -29,6 +29,9 @@ const { POST: contourPOST } = require('../src/app/api/topo/generate-contours/rou
 const { buildTopoEntities, entitiesToDxfString } = require('../src/lib/drawing/topoEntities.ts')
 const { parseDxfGeometry } = require('../src/lib/importers/dxfGeometry.ts')
 const { NextRequest } = require('next/server')
+const { pointImportReferenceHash } = require('../src/lib/import/pointImportServer.ts')
+const { surfaceReviewValue } = require('../src/lib/topo/surfaceRequest.ts')
+const { hashSurfaceValue } = require('../src/lib/topo/surfaceRevision.ts')
 const admin = new pg.Client({ connectionString: rehearsal.adminUrl, connectionTimeoutMillis: 5000 })
 const ids = { owner: randomUUID(), other: randomUUID(), project: randomUUID(), second: randomUUID(), undeclared: randomUUID() }
 const checks = []
@@ -49,6 +52,18 @@ async function invoke(userId, method, projectId, body, search = '') {
 }
 const corners = [{ x: 500000, y: 9800000, z: 0 }, { x: 500010, y: 9800000, z: 0 }, { x: 500010, y: 9800010, z: 0 }, { x: 500000, y: 9800010, z: 0 }]
 const ridge = { type: 'ridge', name: 'Synthetic measured ridge', points: [{ x: 500005, y: 9800000, z: 2 }, { x: 500005, y: 9800010, z: 2 }] }
+async function reviewedBody(projectId, extra = {}) {
+  const reference = (await admin.query('SELECT * FROM public.project_reference_systems WHERE project_id=$1', [projectId])).rows[0]
+  const referenceHash = reference ? pointImportReferenceHash(reference) : '0'.repeat(64)
+  const points = (await admin.query(`SELECT id, point_name AS "pointName", easting::double precision AS x,
+    northing::double precision AS y, elevation::double precision AS z, code,
+    horizontal_crs AS "horizontalCrs", vertical_datum AS "verticalDatum"
+    FROM public.survey_points WHERE project_id=$1 AND deleted_at IS NULL ORDER BY id`, [projectId])).rows
+  return { requestId: randomUUID(), expectedUserId: ids.owner, pointIds: points.map(point => point.id),
+    expectedReferenceHash: referenceHash, expectedSourceHash: hashSurfaceValue(surfaceReviewValue(referenceHash, points)),
+    breaklineReference: { horizontalCrs: 'EPSG:21037', verticalDatum: 'Synthetic BM only', units: 'metres' },
+    useStoredBreaklines: false, breaklines: [ridge], interval: 1, resolution: 3, ...extra }
+}
 let fixturesVerified = false
 await admin.connect()
 try {
@@ -58,18 +73,27 @@ try {
   fixturesVerified = true
   for (const projectId of [ids.project, ids.second, ids.undeclared]) {
     await admin.query("INSERT INTO public.projects(id,user_id,name,datum,utm_zone,hemisphere) VALUES($1,$2,'SYNTHETIC surface verification only','ARC1960',37,'S')", [projectId, ids.owner])
-    for (let i = 0; i < corners.length; i++) await admin.query('INSERT INTO public.survey_points(project_id,point_name,easting,northing,elevation) VALUES($1,$2,$3,$4,$5)', [projectId, `SYN-${i}`, corners[i].x, corners[i].y, corners[i].z])
+    for (let i = 0; i < corners.length; i++) await admin.query(`INSERT INTO public.survey_points(project_id,point_name,easting,northing,elevation,horizontal_crs,vertical_datum)
+      VALUES($1,$2,$3,$4,$5,'EPSG:21037','Synthetic BM only')`, [projectId, `SYN-${i}`, corners[i].x, corners[i].y, corners[i].z])
     if (projectId !== ids.undeclared) await admin.query(`INSERT INTO public.project_reference_systems(project_id,horizontal_crs,horizontal_name,datum_name,units,zone,hemisphere,vertical_datum,vertical_reference,distance_mode,coordinate_precision,declared_by)
       VALUES($1,'EPSG:21037','Arc 1960 / UTM zone 37S','ARC1960','metres',37,'S','Synthetic BM only','local','grid',3,$2)`, [projectId, ids.owner])
   }
   const noSession = await invoke(null, 'POST', ids.project, {})
   check('saved surfaces require an authenticated session', noSession.response.status === 401)
-  const undeclared = await invoke(ids.owner, 'POST', ids.undeclared, {})
+  const unreviewed = await invoke(ids.owner, 'POST', ids.project, {})
+  check('a request without explicit reviewed source evidence cannot create a surface', unreviewed.response.status === 400
+    && (await admin.query('SELECT count(*)::int AS n FROM public.surfaces WHERE project_id=$1', [ids.project])).rows[0].n === 0)
+  const undeclared = await invoke(ids.owner, 'POST', ids.undeclared, await reviewedBody(ids.undeclared))
   check('legacy defaults cannot replace an explicit project reference', undeclared.response.status === 400 && undeclared.value.code === 'CRS_UNDECLARED')
-  const saved = await invoke(ids.owner, 'POST', ids.project, { breaklines: [ridge], interval: 1, resolution: 3 })
+  const firstRequest = await reviewedBody(ids.project)
+  const saved = await invoke(ids.owner, 'POST', ids.project, firstRequest)
   if (saved.response.status !== 201) console.log(JSON.stringify(saved.value))
   check('actual consumed JSON reaches the saved-surface route and returns the declared EPSG', saved.response.status === 201 && saved.value.data.crs === 'EPSG:21037' && saved.value.data.revision === 1)
   const data = saved.value.data
+  const replay = await invoke(ids.owner, 'POST', ids.project, firstRequest)
+  check('retrying the same reviewed request returns its original committed revision', replay.response.status === 200
+    && replay.value.data.replayed === true && replay.value.data.revisionId === data.revisionId
+    && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === 1)
   const one = data.contours.find(c => c.elevation === 1)
   check('saved contour geometry includes both sides of the measured ridge', one.coordinates.length === 2 && one.coordinates.flat().some(([x]) => x === 500002.5) && one.coordinates.flat().some(([x]) => x === 500007.5))
   const stored = (await admin.query('SELECT result,input_hash FROM public.surface_revisions WHERE id=$1', [data.revisionId])).rows[0]
@@ -78,17 +102,24 @@ try {
   check('reload returns the original privately cached contour revision', reload.response.status === 200 && reload.response.headers.get('cache-control') === 'private, no-store' && isDeepStrictEqual(reload.value.data.contours, data.contours))
   const wrongProject = await invoke(ids.owner, 'GET', ids.second, undefined, `?contourRevision=${data.revisionId}`)
   check('revision retrieval is bound to its project even for the same owner', wrongProject.response.status === 404)
-  const other = await invoke(ids.other, 'POST', ids.project, {})
+  const other = await invoke(ids.other, 'POST', ids.project, await reviewedBody(ids.project))
   check('another surveyor cannot recompute the project surface', [403, 404].includes(other.response.status))
   const before = (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n
-  const invalid = await invoke(ids.owner, 'POST', ids.project, { breaklines: [{ ...ridge, points: ridge.points.map(({ z, ...xy }) => xy) }] })
+  const changedReference = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { surfaceId: data.surfaceId, expectedReferenceHash: '0'.repeat(64) }))
+  check('a stale reviewed reference cannot add a revision', changedReference.response.status === 409 && changedReference.value.code === 'SURFACE_REFERENCE_CHANGED'
+    && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === before)
+  const invalid = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { breaklines: [{ ...ridge, points: ridge.points.map(({ z, ...xy }) => xy) }] }))
   check('missing breakline height is rejected without adding a revision', invalid.response.status === 400 && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === before)
+  const staleSourceRequest = await reviewedBody(ids.project, { surfaceId: data.surfaceId })
   await admin.query('UPDATE public.survey_points SET elevation=0.125 WHERE project_id=$1 AND point_name=$2', [ids.project, 'SYN-0'])
-  const regenerated = await invoke(ids.owner, 'POST', ids.project, { surfaceId: data.surfaceId, interval: 1, resolution: 3 })
+  const changedSource = await invoke(ids.owner, 'POST', ids.project, staleSourceRequest)
+  check('changed measurements reject a previously reviewed source without adding a revision', changedSource.response.status === 409 && changedSource.value.code === 'SURFACE_SOURCE_CHANGED'
+    && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === before)
+  const regenerated = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { surfaceId: data.surfaceId }))
   check('equal observation counts with changed measured height produce a new input hash and revision', regenerated.response.status === 201 && regenerated.value.data.revision === 2 && regenerated.value.data.inputHash !== data.inputHash)
-  const concurrent = await Promise.all([0, 1].map(() => invoke(ids.owner, 'POST', ids.project, { surfaceId: data.surfaceId, interval: 1, resolution: 3 })))
+  const concurrent = await Promise.all([0, 1].map(async () => invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { surfaceId: data.surfaceId }))))
   check('concurrent recomputes serialize into distinct successive immutable revisions', concurrent.every(item => item.response.status === 201) && concurrent.map(item => item.value.data.revision).sort().join(',') === '3,4')
-  const tooDense = await invoke(ids.owner, 'POST', ids.project, { surfaceId: data.surfaceId, resolution: 1e-10 })
+  const tooDense = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { surfaceId: data.surfaceId, resolution: 1e-10 }))
   check('excessive contour density fails without persisting partial geometry', tooDense.response.status === 400 && tooDense.value.code === 'SURFACE_INPUT_INVALID' && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === 4)
   const stillOriginal = (await admin.query('SELECT result FROM public.surface_revisions WHERE id=$1', [data.revisionId])).rows[0].result
   check('regeneration leaves the original observation and mesh snapshot unchanged', JSON.stringify(stillOriginal) === JSON.stringify(stored.result))
@@ -118,7 +149,7 @@ try {
   await writeFile('test-results/terrain-source/synthetic-contours.dxf', dxf)
 } finally {
   await mkdir('test-results/runtime-database', { recursive: true })
-  await writeFile('test-results/runtime-database/surface-runtime.json', JSON.stringify({ synthetic: true, providerSessionMocked: true, database: rehearsal.database, runtimeRole: rehearsal.runtimeRole, passed: checks.length === 16 && checks.every(item => item.passed), checks }, null, 2) + '\n')
+  await writeFile('test-results/runtime-database/surface-runtime.json', JSON.stringify({ synthetic: true, providerSessionMocked: true, database: rehearsal.database, runtimeRole: rehearsal.runtimeRole, passed: checks.length === 20 && checks.every(item => item.passed), checks }, null, 2) + '\n')
   await getPool().end()
   // Immutable synthetic history remains visible as evidence; suspend only our new accounts.
   if (fixturesVerified) await admin.query('UPDATE public.surveyor_profiles SET is_suspended=true WHERE user_id=ANY($1::uuid[])', [[ids.owner, ids.other]])
