@@ -81,15 +81,20 @@ export async function POST(req: NextRequest) {
         [ABANDON_AFTER_HRS, pay.id],
       )
       if (ageRows[0]?.old) {
-        await db.query(`UPDATE payment_history SET status = 'failed', metadata = COALESCE(metadata,'{}'::jsonb) || '{"reconciled":"abandoned_timeout"}'::jsonb WHERE id = $1`, [pay.id])
+        await db.query<never>(`UPDATE payment_history SET status = 'failed', metadata = COALESCE(metadata,'{}'::jsonb) || '{"reconciled":"abandoned_timeout"}'::jsonb WHERE id = $1`, [pay.id])
         failed++
         continue
       }
 
-      const result = await mpesa.checkTransactionStatus(pay.transaction_id!)
+      const transactionId = pay.transaction_id
+      if (!transactionId) {
+        keptPending++
+        continue
+      }
+      const result = await mpesa.checkTransactionStatus(transactionId)
 
       if (result.status === 'completed') {
-        await db.query(
+        await db.query<never>(
           `UPDATE payment_history SET status = 'completed',
               metadata = COALESCE(metadata,'{}'::jsonb) || '{"reconciled":true}'::jsonb
             WHERE id = $1 AND status = 'pending'`,
@@ -99,7 +104,7 @@ export async function POST(req: NextRequest) {
         completed++
       } else if (typeof result.resultCode === 'number' && result.resultCode !== 0) {
         // Definitive failure from Daraja (cancelled, timeout, insufficient funds…)
-        await db.query(
+        await db.query<never>(
           `UPDATE payment_history SET status = 'failed',
               metadata = COALESCE(metadata,'{}'::jsonb) || $2::jsonb
             WHERE id = $1 AND status = 'pending'`,
@@ -138,7 +143,7 @@ async function activateSubscriptionForReconciliation(pay: StalePaymentRow): Prom
   const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
   if (existingSub.rows.length > 0) {
-    await db.query(
+    await db.query<never>(
       `UPDATE user_subscriptions
          SET plan_id = $1, status = 'active', payment_method = 'mpesa',
              currency = 'KES', current_period_start = $2, current_period_end = $3
@@ -146,7 +151,7 @@ async function activateSubscriptionForReconciliation(pay: StalePaymentRow): Prom
       [(pay.plan_id as PlanId) || 'pro', periodStart, periodEnd, existingSub.rows[0].id],
     )
   } else {
-    await db.query(
+    await db.query<never>(
       `INSERT INTO user_subscriptions
          (user_id, plan_id, status, payment_method, currency,
           current_period_start, current_period_end)

@@ -49,7 +49,7 @@ export const PATCH = apiHandler(
       )
       const previous = previousRes.rows[0]
 
-      await client.query(
+      await client.query<never>(
         `INSERT INTO user_subscriptions (user_id, plan_id, status, current_period_start, current_period_end)
          VALUES ($1, $2, 'active', NOW(), $3)
          ON CONFLICT (user_id)

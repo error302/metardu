@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     }
     const clientId = randomBytes(32).toString('base64url')
     const hash = hashCredential(clientId)
-    await db.query('INSERT INTO chatgpt_clients (client_id_hash,client_name,redirect_uris) VALUES ($1,$2,$3::jsonb)', [hash, name, JSON.stringify(redirects)])
+    await db.query<never>('INSERT INTO chatgpt_clients (client_id_hash,client_name,redirect_uris) VALUES ($1,$2,$3::jsonb)', [hash, name, JSON.stringify(redirects)])
     return Response.json({ client_id: clientId, client_id_issued_at: Math.floor(Date.now() / 1000), client_name: name, redirect_uris: redirects, grant_types: grants ?? ['authorization_code', 'refresh_token'], response_types: responses ?? ['code'], token_endpoint_auth_method: 'none', scope: registeredScopes.join(' ') }, { status: 201, headers })
   } catch { return Response.json({ error: 'temporarily_unavailable' }, { status: 503, headers }) }
 }

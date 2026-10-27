@@ -277,15 +277,15 @@ export async function POST(request: NextRequest) {
         ) {
           const client = await db.getClient()
           try {
-            await client.query('BEGIN')
+            await client.query<never>('BEGIN')
             await setRlsContext(client)
-            const completeRes = await client.query(
+            const completeRes = await client.query<never>(
               `UPDATE payment_intents SET status = 'completed', updated_at = NOW()
                 WHERE id = $1 AND status <> 'completed'`,
               [intent.id]
             )
             if ((completeRes.rowCount ?? 0) > 0) {
-              await client.query(
+              await client.query<never>(
                 `INSERT INTO payment_history
                    (user_id, amount, currency, payment_method, provider, provider_id,
                     status, transaction_id, metadata)
@@ -309,7 +309,7 @@ export async function POST(request: NextRequest) {
               const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
               if (existing.length > 0) {
-                await client.query(
+                await client.query<never>(
                   `UPDATE user_subscriptions
                       SET plan_id = $1, status = 'active', payment_method = 'paypal', currency = $2,
                           current_period_start = $3, current_period_end = $4
@@ -317,7 +317,7 @@ export async function POST(request: NextRequest) {
                   [intent.plan_id, intent.currency, now, periodEnd, existing[0].id]
                 )
               } else {
-                await client.query(
+                await client.query<never>(
                   `INSERT INTO user_subscriptions
                      (user_id, plan_id, status, payment_method, currency, current_period_start, current_period_end)
                    VALUES ($1, $2, 'active', 'paypal', $3, $4, $5)`,
@@ -325,9 +325,9 @@ export async function POST(request: NextRequest) {
                 )
               }
             }
-            await client.query('COMMIT')
+            await client.query<never>('COMMIT')
           } catch (txErr) {
-            await client.query('ROLLBACK').catch(() => {})
+            await client.query<never>('ROLLBACK').catch(() => {})
             logger.error('[PayPal Webhook] Credit transaction failed:', { error: txErr })
           } finally {
             client.release()

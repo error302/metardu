@@ -101,7 +101,7 @@ export const POST = apiHandler(
 
       // Serialize imports for the same project so two batches cannot both pass
       // the duplicate check. Other write paths still need a DB uniqueness gate.
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [projectId])
+      await client.query<{ pg_advisory_xact_lock: string }>('SELECT pg_advisory_xact_lock(hashtextextended($1, 0))', [projectId])
       const names = batch.parcels.map((parcel) => parcel.parcel_number.toLocaleLowerCase('en'))
       const existing = await client.query<ParcelNumberRow>(
         'SELECT parcel_number FROM parcels WHERE project_id = $1 AND lower(parcel_number) = ANY($2::text[])',
@@ -142,7 +142,7 @@ export const POST = apiHandler(
          RETURNING parcel_number`,
         [projectId, records, srid],
       )
-      await client.query(
+      await client.query<never>(
          `INSERT INTO parcel_import_sources
            (parcel_id, source_crs, project_crs, source_vertices,
             source_owner_name, source_owner_id, transformed, imported_by)
@@ -154,7 +154,7 @@ export const POST = apiHandler(
            JOIN parcels p ON p.project_id = $2 AND p.parcel_number = row_data.parcel_number`,
         [records, projectId, body.sourceCrs?.trim().toUpperCase(), reference.code, batch.transformed, ctx.userId],
       )
-      await client.query(
+      await client.query<never>(
         `INSERT INTO survey_points
            (project_id, point_name, easting, northing, code, datum, utm_zone, hemisphere, source, created_at)
          SELECT $1, row_data.parcel_number || '/B' || vertex.ordinality,
@@ -168,7 +168,7 @@ export const POST = apiHandler(
         [projectId, records, crs.datum, crs.zone ?? null, crs.hemisphere ?? null],
       )
 
-      await client.query(
+      await client.query<never>(
         `INSERT INTO user_activity (user_id, project_id, activity_type, description, metadata, created_at)
          VALUES ($1, $2, 'batch_import', $3, $4::jsonb, NOW())`,
         [

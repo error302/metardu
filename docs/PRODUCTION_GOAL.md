@@ -15,6 +15,15 @@ browser/accessibility and repository-wide lint remain red. Await the new
 bounded runner's own Linux CI. This does not authorize production promotion
 past migration, worker, rollback, recovery or the other retained gates.
 
+27 October API contract follow-up:
+`API_ROW_TYPES_AND_RECONCILIATION_2026-10-27.md` records 30 additional typed
+queries across twelve routes, unchanged executable output in eleven of them,
+and a tested missing-transaction-identity guard in reconciliation. Strict typing,
+13-file lint and 20 related tests pass. Two untyped queries remain in community
+jobs, where UUID persistence, authentication and false success/listing behavior
+need substantive repair. Full lint, browser/accessibility and release/field
+gates remain open; no baseline is raised or production data changed.
+
 27 October release-source repair: `DEPENDENCY_AND_PDF_RELEASE_REPAIR_2026-10-27.md`
 records the dependency, Node-22 packaging and actual PDF orientation repairs.
 `ZOD_4_COMPATIBILITY_REPAIR_2026-10-27.md` supersedes its remaining Zod finding:

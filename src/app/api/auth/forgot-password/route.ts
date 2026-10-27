@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     })
 
     if (!result.success) {
-      await db.query('DELETE FROM password_reset_tokens WHERE user_id = $1 AND token = $2', [user.id, tokenDigest])
+      await db.query<never>('DELETE FROM password_reset_tokens WHERE user_id = $1 AND token = $2', [user.id, tokenDigest])
       logger.warn('[forgot-password] Email provider did not accept password recovery mail.')
       return unavailableResponse()
     }

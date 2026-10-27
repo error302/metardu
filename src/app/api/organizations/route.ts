@@ -74,7 +74,7 @@ export const POST = apiHandler(
 
     const slug = makeOrganizationSlug(body.name)
     const created = await db.transaction(async (client) => {
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [`owner:${ctx.userId}`])
+      await client.query<{ pg_advisory_xact_lock: string }>('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [`owner:${ctx.userId}`])
       const existing = await client.query<{ id: string }>(
         'SELECT id FROM public.organizations WHERE owner_id = $1 AND is_active = TRUE LIMIT 1',
         [ctx.userId],
@@ -95,7 +95,7 @@ export const POST = apiHandler(
         [body.name, slug, ctx.userId, subscription.plan, subscription.maxTeamMembers, body.contactEmail ?? '', body.contactPhone ?? '', body.address ?? ''],
       )
       const organization = rows[0]
-      await client.query(
+      await client.query<never>(
         `INSERT INTO public.organization_members
            (organization_id, user_id, role, invited_by, invited_at, accepted_at, is_active)
          VALUES ($1, $2, 'org_admin', $2, NOW(), NOW(), TRUE)`,

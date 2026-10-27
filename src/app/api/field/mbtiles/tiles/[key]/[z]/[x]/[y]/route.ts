@@ -30,7 +30,7 @@ export const GET = apiHandler(
       return new NextResponse('Invalid tile coordinates', { status: 400, headers: PRIVATE_HEADERS })
     }
 
-    const { rows } = await db.query(
+    const { rows } = await db.query<{ id: string }>(
       `SELECT id
          FROM field_basemaps
         WHERE storage_key = $1::uuid AND user_id = $2::uuid AND storage = 'server'

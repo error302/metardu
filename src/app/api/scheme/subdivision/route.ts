@@ -106,7 +106,7 @@ export const POST = apiHandler(
     )
     const project = projectRows[0]
     if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
-    if (project.user_id !== user.id && !(await db.query('SELECT 1')).rows.length) {
+    if (project.user_id !== user.id && !(await db.query<{ '?column?': number }>('SELECT 1')).rows.length) {
       // ownership is enforced by RLS/ownership elsewhere; keep the guard cheap
     }
     if (!project.utm_zone || (project.hemisphere !== 'N' && project.hemisphere !== 'S') || !project.datum) {
@@ -125,7 +125,7 @@ export const POST = apiHandler(
     const rejected: Array<{ parcel_number: string; reason: string }> = []
 
     try {
-      await client.query('BEGIN')
+      await client.query<never>('BEGIN')
       await setRlsContext(client)
 
       for (const plot of body.plots) {
@@ -175,9 +175,9 @@ export const POST = apiHandler(
         created.push({ parcel_number: plot.parcel_number, area_ha: areaHa, id: inserted.rows[0].id })
       }
 
-      await client.query('COMMIT')
+      await client.query<never>('COMMIT')
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => {})
+      await client.query<never>('ROLLBACK').catch(() => {})
       logger.error('[scheme/subdivision] save failed', { error })
       return NextResponse.json(
         { error: 'Could not save the subdivision design. No plots were written.' },

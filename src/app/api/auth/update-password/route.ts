@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
         [passwordHash, userId, userRows[0].password_hash],
       )
       if (result.rows.length === 0) return false
-      await client.query(
+      await client.query<never>(
         'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
         [userId],
       )

@@ -51,7 +51,7 @@ export async function POST(req: NextRequest) {
       )
       const tokenRow = tokenRes.rows[0]
       if (!tokenRow) return null
-      await client.query(
+      await client.query<{ set_config: string }>(
         `SELECT set_config('request.user_id', $1, true), set_config('app.current_user_id', $1, true)`,
         [tokenRow.user_id],
       )
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
         [passwordHash, tokenRow.user_id],
       )
       if (!updated.rows[0]) throw new Error('Reset account no longer exists')
-      await client.query(
+      await client.query<never>(
         'UPDATE password_reset_tokens SET used_at = NOW() WHERE user_id = $1 AND used_at IS NULL',
         [tokenRow.user_id],
       )
