@@ -3183,3 +3183,17 @@ regexes = [
   '\\bDUMMY[A-Z0-9_]*\\b',
   '\\b(sk|pk|rk)_(test|dummy|example)_[A-Za-z0-9]{4,}\\b',
 ]
+
+[[allowlists]]
+id = "metardu-clarke1880-modified"
+description = "Suppress false positive for clarke1880_modified ellipsoid key"
+regexes = [
+  'clarke1880_modified',
+]
+
+[[allowlists]]
+id = "metardu-dummy-tokens"
+description = "Suppress false positive for dummy tokens"
+regexes = [
+  'abc123def456',
+]
