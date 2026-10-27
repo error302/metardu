@@ -17,8 +17,8 @@ import {
 const headers = { 'Cache-Control': 'private, no-store' }
 const querySchema = z
   .object({
-    project_id: z.string().uuid(),
-    expected_user_id: z.string().uuid(),
+    project_id: z.string().guid(),
+    expected_user_id: z.string().guid(),
   })
   .strict()
 export const GET = apiHandler(

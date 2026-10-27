@@ -29,9 +29,9 @@ export const ObservationSchema = z.object({
   deltaE: z.number().finite(),
   deltaN: z.number().finite(),
   deltaH: z.number().finite(),
-  stdDevE: z.number().positive().max(1).default(0.005),
-  stdDevN: z.number().positive().max(1).default(0.005),
-  stdDevH: z.number().positive().max(1).default(0.010),
+  stdDevE: z.number().positive().max(1).prefault(0.005),
+  stdDevN: z.number().positive().max(1).prefault(0.005),
+  stdDevH: z.number().positive().max(1).prefault(0.010),
 })
 
 export type Observation = z.infer<typeof ObservationSchema>

@@ -11,7 +11,7 @@ const reply=(value:unknown,status=200)=>NextResponse.json(value,{status,headers:
 /** Read-only exact-revision download. No triangulation, current-point fallback or database mutation. */
 export const GET=apiHandler({auth:true},async(req,ctx)=>{
   const projectId=ctx.params.id,revisionId=req.nextUrl.searchParams.get('revisionId')
-  if(!z.string().uuid().safeParse(projectId).success||revisionId&&!z.string().uuid().safeParse(revisionId).success)return reply({error:'Valid project and saved surface revision IDs are required.'},400)
+  if(!z.string().guid().safeParse(projectId).success||revisionId&&!z.string().guid().safeParse(revisionId).success)return reply({error:'Valid project and saved surface revision IDs are required.'},400)
   const access=await requireProjectReadAccess(projectId,ctx.userId)
   if(!access.ok)return access.error??reply({error:'Project access was not confirmed.'},403)
   if(!access.projectUserId)return reply({error:'Project ownership is not established.'},403)

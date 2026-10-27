@@ -7,7 +7,7 @@ export const searchHitSchema = z.object({
   subtitle: z.string().optional(),
   snippet: z.string().optional(),
   score: z.number().finite(),
-  meta: z.record(z.unknown()).optional(),
+  meta: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const searchResponseSchema = z.object({

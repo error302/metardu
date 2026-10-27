@@ -7,7 +7,7 @@ import { assembleSubmissionPackage } from '@/lib/submission/assembleSubmission'
 import { db } from '@/lib/db'
 
 const AssembleRequestSchema = z.object({
-  projectId: z.string().uuid('Valid project ID is required'),
+  projectId: z.string().guid('Valid project ID is required'),
 })
 
 export const POST = apiHandler(

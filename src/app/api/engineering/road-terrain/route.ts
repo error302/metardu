@@ -7,7 +7,7 @@ import {db} from '@/lib/db'
 import {loadRoadWorkbenchSource} from '@/lib/engineering/roadWorkbenchRecoveryServer'
 import {loadRoadRetainedTerrain} from '@/lib/engineering/roadTerrainServer'
 import {roadTerrainScopeSchema,roadTerrainListSchema} from '@/lib/engineering/roadTerrain'
-const schema=roadTerrainScopeSchema.extend({revisionId:z.string().uuid().optional()}).strict()
+const schema=roadTerrainScopeSchema.extend({revisionId:z.string().guid().optional()}).strict()
 export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(req,ctx)=>{
   const parsed=schema.safeParse(Object.fromEntries(new URL(req.url).searchParams))
   if(!parsed.success)throw new AppError('Supply the original account, project and source hashes for terrain review.',422,'ROAD_TERRAIN_SCOPE')

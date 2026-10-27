@@ -18,7 +18,7 @@ import { z } from 'zod'
 
 const assignSeatSchema = z.object({
   userId: z.string().min(1, 'User ID is required'),
-  role: z.enum(['admin', 'surveyor', 'viewer']).default('surveyor'),
+  role: z.enum(['admin', 'surveyor', 'viewer']).prefault('surveyor'),
 })
 
 export const GET = apiHandler(

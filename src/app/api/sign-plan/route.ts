@@ -24,7 +24,7 @@ import { z } from 'zod'
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
 const SignPlanBodySchema = z.object({
-  projectId: z.string().uuid({ message: 'projectId must be a valid UUID' }),
+  projectId: z.string().guid({ message: 'projectId must be a valid UUID' }),
   verificationUrlBase: z.string().url().optional(),
 })
 

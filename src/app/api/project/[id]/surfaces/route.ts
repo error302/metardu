@@ -41,7 +41,7 @@ const privateResponse = (value: unknown, status = 200) => NextResponse.json(valu
 
 export const GET = apiHandler({ auth: true }, async (req, ctx) => {
   const projectId = ctx.params.id
-  if (!z.string().uuid().safeParse(projectId).success) return privateResponse({ error: 'Valid project ID required' }, 400)
+  if (!z.string().guid().safeParse(projectId).success) return privateResponse({ error: 'Valid project ID required' }, 400)
   const access = await requireProjectReadAccess(projectId, ctx.userId)
   if (!access.ok) {
     if (!access.error) throw new Error('Project access check failed without an error response.')
@@ -56,7 +56,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
     return saved ? privateResponse({ data: saved }) : privateResponse({ error: 'No committed surface was found for this request.', code: 'SURFACE_REQUEST_NOT_FOUND' }, 404)
   }
   if (revisionId) {
-    if (!z.string().uuid().safeParse(revisionId).success) return privateResponse({ error: 'Valid contour revision ID required' }, 400)
+    if (!z.string().guid().safeParse(revisionId).success) return privateResponse({ error: 'Valid contour revision ID required' }, 400)
     return privateResponse({ data: await loadSurfaceRevision(projectId, revisionId) })
   }
   const { rows } = await db.query<Record<string, unknown>>(
@@ -74,7 +74,7 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
 
 export const POST = apiHandler({ auth: true, schema, rateLimit: { max: 5, windowMs: 60000 } }, async (_req, ctx) => {
   const projectId = ctx.params.id
-  if (!z.string().uuid().safeParse(projectId).success) return privateResponse({ error: 'Valid project ID required' }, 400)
+  if (!z.string().guid().safeParse(projectId).success) return privateResponse({ error: 'Valid project ID required' }, 400)
   const access = await requireProjectOwnership(projectId, ctx.userId)
   if (!access.ok) {
     if (!access.error) throw new Error('Project ownership check failed without an error response.')
@@ -205,7 +205,7 @@ export const POST = apiHandler({ auth: true, schema, rateLimit: { max: 5, window
           `INSERT INTO surfaces(project_id,name,description,crs,vertical_datum,status,created_by)
            VALUES($1,$2,$3,$4,$5,'COMPUTED',$6) RETURNING id`,
           [projectId, body.name, body.description ?? null, crs, reference.verticalDatum, ctx.userId])
-        if (inserted.rowCount !== 1 || inserted.rows.length !== 1 || !z.string().uuid().safeParse(inserted.rows[0]?.id).success) throw new SurfaceFailure('The database did not acknowledge the surface header. The complete computation was rolled back.', 'SURFACE_ACKNOWLEDGEMENT', 500)
+        if (inserted.rowCount !== 1 || inserted.rows.length !== 1 || !z.string().guid().safeParse(inserted.rows[0]?.id).success) throw new SurfaceFailure('The database did not acknowledge the surface header. The complete computation was rolled back.', 'SURFACE_ACKNOWLEDGEMENT', 500)
         surfaceId = inserted.rows[0].id
       }
       const elevations = tin.points.map(point => point.z)
@@ -226,13 +226,13 @@ export const POST = apiHandler({ auth: true, schema, rateLimit: { max: 5, window
          point_count,breakline_count,triangle_count,crs,input_hash,result,computed_by)
          VALUES($1,$2,'constrained-tin-isolines','2.1',$3,$4,$5,$6,$7,$8,$9,$10) RETURNING id`,
         [surfaceId, revision, JSON.stringify(parameters), points.length, lines.length, tin.triangles.length, crs, inputHash, JSON.stringify(retainedResult), ctx.userId])
-      if (savedRevision.rowCount !== 1 || savedRevision.rows.length !== 1 || !z.string().uuid().safeParse(savedRevision.rows[0]?.id).success) throw new SurfaceFailure('The database did not acknowledge the immutable surface revision. The complete computation was rolled back.', 'SURFACE_ACKNOWLEDGEMENT', 500)
+      if (savedRevision.rowCount !== 1 || savedRevision.rows.length !== 1 || !z.string().guid().safeParse(savedRevision.rows[0]?.id).success) throw new SurfaceFailure('The database did not acknowledge the immutable surface revision. The complete computation was rolled back.', 'SURFACE_ACKNOWLEDGEMENT', 500)
       const revisionId = savedRevision.rows[0].id
       const savedContours = await client.query<{ id: string; surface_id: string; surface_revision_id: string }>(
         `INSERT INTO contour_sets(surface_id,surface_revision_id,interval,minor_interval,index_interval,crs,lines,triangle_count)
          VALUES($1,$2,$3,$3,$4,$5,$6,$7) RETURNING id,surface_id,surface_revision_id`,
         [surfaceId, revisionId, body.interval, body.interval * 5, crs, JSON.stringify(contours), tin.triangles.length])
-      if (savedContours.rowCount !== 1 || savedContours.rows.length !== 1 || !z.string().uuid().safeParse(savedContours.rows[0]?.id).success || savedContours.rows[0].surface_id !== surfaceId || savedContours.rows[0].surface_revision_id !== revisionId) throw new SurfaceFailure('The database did not acknowledge the contour set for this revision. The complete computation was rolled back.', 'SURFACE_ACKNOWLEDGEMENT', 500)
+      if (savedContours.rowCount !== 1 || savedContours.rows.length !== 1 || !z.string().guid().safeParse(savedContours.rows[0]?.id).success || savedContours.rows[0].surface_id !== surfaceId || savedContours.rows[0].surface_revision_id !== revisionId) throw new SurfaceFailure('The database did not acknowledge the contour set for this revision. The complete computation was rolled back.', 'SURFACE_ACKNOWLEDGEMENT', 500)
       const pointer = await client.query<{ id: string; current_revision_id: string }>(
         `UPDATE surfaces SET current_revision_id=$2,status='COMPUTED',crs=$3,vertical_datum=$4,updated_at=NOW()
          WHERE id=$1 AND project_id=$5 AND current_revision_id IS NOT DISTINCT FROM $6::uuid RETURNING id,current_revision_id`,

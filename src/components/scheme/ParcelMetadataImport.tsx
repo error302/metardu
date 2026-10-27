@@ -44,7 +44,7 @@ export default function ParcelMetadataImport({ projectId, blockId, blockName, on
   }
 
   async function confirmImport() {
-    if (!preview || preview.scope !== scope || !reviewed || busy.current || !z.string().uuid().safeParse(requestId).success) return
+    if (!preview || preview.scope !== scope || !reviewed || busy.current || !z.string().guid().safeParse(requestId).success) return
     busy.current = true; setLoading(true); setError(''); setAttempted(true)
     const selected = preview, selectedRequest = requestId, token = ++operation.current
     const current = () => mounted.current && operation.current === token && scopeRef.current === selected.scope
@@ -95,7 +95,7 @@ export default function ParcelMetadataImport({ projectId, blockId, blockName, on
         <label className="block space-y-1 text-xs"><span>Request reference</span><input value={requestId} disabled={loading || attempted} onChange={event => { setRequestId(event.target.value.trim()); setReviewed(false) }} className="w-full min-w-0 rounded border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2 font-mono" /></label>
         <p className="text-xs text-[var(--text-muted)]">Keep this reference and original file. A retry recovers the historical receipt. After reopening this page, select the same file and enter the saved reference before confirmation.</p>
         <label className="flex items-start gap-2"><input type="checkbox" checked={reviewed} disabled={loading || attempted} onChange={event => setReviewed(event.target.checked)} className="mt-1" /><span>I reviewed this metadata, hectare units and destination block against the complete source file.</span></label>
-        <button type="button" disabled={loading || !reviewed || !z.string().uuid().safeParse(requestId).success} onClick={() => void confirmImport()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-black font-medium disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}{loading ? 'Confirming import…' : attempted ? 'Retry same import' : 'Confirm parcel import'}</button>
+        <button type="button" disabled={loading || !reviewed || !z.string().guid().safeParse(requestId).success} onClick={() => void confirmImport()} className="inline-flex items-center gap-2 rounded-lg bg-[var(--accent)] px-4 py-2 text-black font-medium disabled:opacity-50">{loading && <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />}{loading ? 'Confirming import…' : attempted ? 'Retry same import' : 'Confirm parcel import'}</button>
       </div>}
       {receipt && <div className="rounded-lg border border-emerald-500/30 p-3 space-y-2" role="status">
         <p className="flex items-center gap-2 font-medium"><CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden="true" />{receipt.replayed ? 'Import receipt recovered' : 'Import receipt confirmed'}</p>

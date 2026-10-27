@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { distanceBearing } from './distance'
 
-const coordinate = z.number().finite().nullable().default(null)
-const criterion = z.number().finite().min(0).max(1000).nullable().default(null)
+const coordinate = z.number().finite().nullable().prefault(null)
+const criterion = z.number().finite().min(0).max(1000).nullable().prefault(null)
 export const fieldControlSchema = z.object({
-  projectId:z.string().uuid(), pointId:z.string().uuid(), requestId:z.string().uuid(),
+  projectId:z.string().guid(), pointId:z.string().guid(), requestId:z.string().guid(),
   basisHash:z.string().regex(/^[a-f0-9]{64}$/),
   pointType:z.enum(['survey_point','beacon','boundary_monument']),
   observedAt:z.string().datetime({offset:true}).refine(value => {
@@ -13,13 +13,13 @@ export const fieldControlSchema = z.object({
   }, 'Use a real calendar date'),
   condition:z.enum(['good','fair','poor','disturbed','destroyed','missing']),
   method:z.enum(['gnss_static','gnss_rtk','total_station','level','visual']),
-  instrument:z.string().trim().min(1).max(200).nullable().default(null),
+  instrument:z.string().trim().min(1).max(200).nullable().prefault(null),
   evidenceReference:z.string().trim().min(5).max(2000),
   measuredEasting:coordinate, measuredNorthing:coordinate,
-  measuredElevation:z.number().finite().min(-10000).max(100000).nullable().default(null),
+  measuredElevation:z.number().finite().min(-10000).max(100000).nullable().prefault(null),
   horizontalTolerance:criterion, verticalTolerance:criterion,
-  toleranceReference:z.string().trim().min(5).max(2000).nullable().default(null),
-  notes:z.string().trim().max(4000).default(''),
+  toleranceReference:z.string().trim().min(5).max(2000).nullable().prefault(null),
+  notes:z.string().trim().max(4000).prefault(''),
 }).strict().superRefine((value,ctx)=>{
   const issue=(message:string)=>ctx.addIssue({code:'custom',message})
   const horizontal=value.measuredEasting!==null&&value.measuredNorthing!==null

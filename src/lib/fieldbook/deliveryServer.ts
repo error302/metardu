@@ -45,7 +45,7 @@ function owned(book: FieldbookSnapshot, actor: string, project: string) {
 }
 
 export async function saveFieldbookRevision(actor: string, value: unknown): Promise<FieldbookSaveResult> {
-  z.string().uuid().parse(actor)
+  z.string().guid().parse(actor)
   const input = fieldbookSaveRequestSchema.parse(value)
   if (Buffer.byteLength(JSON.stringify(input), 'utf8') > 10 * 1024 * 1024) throw new AppError('This book exceeds the 10 MB delivery limit. Keep its JSON backup.', 413, 'FIELDBOOK_DELIVERY_SIZE')
   const inputHash = hash(input), intendedHash = hash(fieldbookEditablePayload(actor, input))
@@ -95,7 +95,7 @@ export async function saveFieldbookRevision(actor: string, value: unknown): Prom
   }))
 }
 export async function readFieldbookRevision(actor: string, project: string, bookId: string): Promise<FieldbookSnapshot> {
-  z.string().uuid().parse(actor); z.string().uuid().parse(project); z.string().uuid().parse(bookId)
+  z.string().guid().parse(actor); z.string().guid().parse(project); z.string().guid().parse(bookId)
   return ready(() => db.transaction(async client => {
     await requireProject(client, project, false)
     const row = (await client.query<Row>(`SELECT ${columns} FROM public.fieldbooks WHERE id=$1 FOR SHARE`, [bookId])).rows[0]

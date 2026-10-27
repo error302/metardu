@@ -7,11 +7,11 @@ import { mapDrawingSchema, reconnaissanceDrawingSchema } from './mapDrawing'
 export const createProjectSchema = z.object({
   name: z.string().trim().min(1, 'Project name is required'),
   survey_type: z.string().min(1, 'Survey type is required'),
-  location: z.string().optional().default(''),
+  location: z.string().prefault(''),
   utm_zone: z.number().int().min(1).max(60).nullish(),
   hemisphere: z.enum(['N', 'S']).nullish(),
   datum: z.string().trim().nullish().transform(value => value || null),
-  project_type: z.enum(['small', 'scheme']).optional().default('small'),
+  project_type: z.enum(['small', 'scheme']).prefault('small'),
   client_name: z.string().optional(), surveyor_name: z.string().optional(), country: z.string().optional(),
   scheme_number: z.string().optional(), county: z.string().optional(), sub_county: z.string().optional(), ward: z.string().optional(),
   planned_parcels: z.number().int().nonnegative().optional(), adjudication_section: z.string().optional(),

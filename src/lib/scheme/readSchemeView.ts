@@ -51,7 +51,7 @@ function validateFrame(value: unknown) {
 function validateIdentity(actor: string, project: string) {
   if (
     ![actor, project].every(
-      (value) => z.string().uuid().safeParse(value).success,
+      (value) => z.string().guid().safeParse(value).success,
     )
   )
     throw unavailable('Valid account and project UUIDs are required.', 400)
@@ -211,7 +211,7 @@ export async function readSchemeSelection(
   transactionClient?: PoolClient,
 ) {
   const ids = z
-    .array(z.string().uuid())
+    .array(z.string().guid())
     .min(1)
     .max(SCHEME_SHAPE_LIMIT)
     .refine((value) => new Set(value).size === value.length)

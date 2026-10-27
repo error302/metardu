@@ -76,14 +76,14 @@ interface SurveyPointRow {
 }
 
 const SurveyPointInput = z.object({
-  project_id: z.string().uuid(),
+  project_id: z.string().guid(),
   point_name: z.string().min(1).max(100),
   easting: z.number(),
   northing: z.number(),
   elevation: z.number().nullable().optional(),
   code: z.string().max(20).nullable().optional(),
   description: z.string().nullable().optional(),
-  is_control: z.boolean().optional().default(false),
+  is_control: z.boolean().prefault(false),
   // CRS / provenance (migration 027 columns)
   datum: z.string().max(50).nullable().optional(),
   projection: z.string().max(20).nullable().optional(),

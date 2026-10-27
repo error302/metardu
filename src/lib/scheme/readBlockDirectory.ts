@@ -13,7 +13,7 @@ export async function readBlockDirectory(
   input: unknown,
 ) {
   const identity = z
-      .object({ actor: z.string().uuid(), projectId: z.string().uuid() })
+      .object({ actor: z.string().guid(), projectId: z.string().guid() })
       .safeParse({ actor, projectId }),
     query = blockDirectoryQuerySchema.safeParse(input)
   if (!identity.success || !query.success)

@@ -7,7 +7,7 @@ import {
 } from './exportContract'
 import { schemePendingHash, type PendingSchemeExport } from './exportPending'
 const hash = z.string().regex(/^[a-f0-9]{64}$/),
-  uuid = z.string().uuid()
+  uuid = z.string().guid()
 export async function readSchemeExportJson(
   response: Response,
 ): Promise<unknown> {

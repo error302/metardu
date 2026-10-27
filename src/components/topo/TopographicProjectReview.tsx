@@ -10,7 +10,7 @@ import { ProjectPicker } from '@/components/field/ProjectPicker'
 import { resolveDeclaredStageReference, type StageReference } from '@/lib/workspaces/stageReference'
 
 interface ReviewStep { id: string; title: string; description: string; href: string; icon: LucideIcon; optional?: boolean }
-const contextSchema = z.object({ data: z.object({ referenceSystem: z.unknown(), referenceHash: z.string().regex(/^[a-f0-9]{64}$/) }) })
+const contextSchema = z.object({ data: z.object({ referenceSystem: z.unknown().optional(), referenceHash: z.string().regex(/^[a-f0-9]{64}$/) }) })
 const notesSchema = z.object({ version: z.literal(1), reviewed: z.array(z.string()).max(20) }).strict()
 const buttonClass = 'inline-flex min-h-11 items-center justify-center rounded-md border border-[var(--border-color)] px-3 py-2 text-sm hover:bg-[var(--bg-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)]'
 

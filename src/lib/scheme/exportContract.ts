@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { schemeViewportSchema, SCHEME_SHAPE_LIMIT } from './schemeView'
 const uuid = z
   .string()
-  .uuid()
+  .guid()
   .transform((value) => value.toLowerCase())
 export const schemeExportHash = z.string().regex(/^[a-f0-9]{64}$/)
 export const schemeExportIds = z

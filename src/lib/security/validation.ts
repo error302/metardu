@@ -11,7 +11,7 @@ import { z } from 'zod'
 
 export const schemas = {
   /** UUID v4 validation */
-  uuid: z.string().uuid(),
+  uuid: z.string().guid(),
 
   /** RFC 5321 compliant email (max 254 chars) */
   email: z.string().email().max(254),
@@ -39,10 +39,10 @@ export const schemas = {
 
   /** Pagination controls with sensible defaults */
   pagination: z.object({
-    page: z.coerce.number().int().positive().default(1),
-    perPage: z.coerce.number().int().positive().max(500).default(50),
+    page: z.coerce.number().int().positive().prefault(1),
+    perPage: z.coerce.number().int().positive().max(500).prefault(50),
     sortBy: z.string().optional(),
-    sortOrder: z.enum(['asc', 'desc']).default('asc'),
+    sortOrder: z.enum(['asc', 'desc']).prefault('asc'),
   }),
 
   /** ISO 8601 date range filter */

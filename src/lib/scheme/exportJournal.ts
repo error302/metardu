@@ -11,16 +11,16 @@ import {
   type SchemeExportFormat,
 } from './exportContract'
 const rowSchema = z.object({
-  id: z.string().uuid(),
-  actor_id: z.string().uuid(),
-  project_id: z.string().uuid(),
-  request_id: z.string().uuid(),
+  id: z.string().guid(),
+  actor_id: z.string().guid(),
+  project_id: z.string().guid(),
+  request_id: z.string().guid(),
   format: z.enum(['dxf', 'geojson']),
   request_hash: z.string().regex(/^[a-f0-9]{64}$/),
   body: schemeExportRequestSchema,
   outcome: z.enum(['committed', 'cancelled']),
-  deliverable_revision_id: z.string().uuid().nullable(),
-  receipt: z.record(z.unknown()),
+  deliverable_revision_id: z.string().guid().nullable(),
+  receipt: z.record(z.string(), z.unknown()),
 })
 export type SchemeExportJournal = z.infer<typeof rowSchema>
 const failure = () =>

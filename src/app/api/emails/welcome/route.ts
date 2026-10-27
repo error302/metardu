@@ -10,7 +10,7 @@ import { z } from 'zod'
 
 const welcomeSchema = z.object({
   email: z.string().email().max(200),
-  name: z.string().max(200).optional().default(''),
+  name: z.string().max(200).prefault(''),
   trialEndsAt: z.string().datetime().optional(),
 })
 

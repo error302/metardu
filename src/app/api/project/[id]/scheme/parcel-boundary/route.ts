@@ -35,7 +35,7 @@ export const GET = apiHandler(
       throw new AppError('Choose one parcel, traverse, request and page.', 400)
     const expected = query.get('expected_user_id'),
       mode = query.get('mode')
-    if (expected !== null && !z.string().uuid().safeParse(expected).success)
+    if (expected !== null && !z.string().guid().safeParse(expected).success)
       throw new AppError('A valid intended account is required.', 400)
     if (expected !== null && expected !== ctx.userId)
       throw new AppError('The signed-in account changed.', 403)

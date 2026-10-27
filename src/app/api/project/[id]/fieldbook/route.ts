@@ -70,7 +70,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
 const saveSchema = z.object({
   revision: z.string().regex(/^[a-f0-9]{64}$/),
-  rows: z.array(z.record(z.union([z.string(),z.number().finite(),z.null()]))).max(5000),
+  rows: z.array(z.record(z.string(), z.union([z.string(),z.number().finite(),z.null()]))).max(5000),
   startPoint: fieldBookControlSchema.nullable().optional(),
 })
 

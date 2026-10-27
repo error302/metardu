@@ -8,7 +8,7 @@ const planIds = PLAN_CATALOG.map(plan => plan.id) as [PlanId, ...PlanId[]]
 export const adminPlanOverrideSchema = z.object({
   email: z.string().trim().email().max(254).transform(value => value.toLowerCase()),
   plan: z.enum(planIds),
-  days: z.coerce.number().int().min(1).max(3650).default(30),
+  days: z.coerce.number().int().min(1).max(3650).prefault(30),
 }).strict()
 
 export type AdminPlanOverride = z.infer<typeof adminPlanOverrideSchema>

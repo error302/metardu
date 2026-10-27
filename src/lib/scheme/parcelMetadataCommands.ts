@@ -18,7 +18,7 @@ const columns = `p.id,p.project_id,p.block_id,p.parcel_number,p.lr_number_propos
 const fields = ['parcel_number','lr_number_proposed','lr_number_confirmed','area_ha','status','assigned_surveyor','notes'] as const
 const missing = () => new AppError('Parcel or destination block not found for this account and project.', 404, 'PARCEL_SCOPE')
 const acknowledgement = () => new AppError('The database did not acknowledge the exact parcel change. The complete change was rolled back.', 500, 'PARCEL_ACKNOWLEDGEMENT')
-function uuid(value: string) { if (!z.string().uuid().safeParse(value).success) throw new AppError('A valid parcel/account UUID is required.', 400, 'PARCEL_IDENTITY') }
+function uuid(value: string) { if (!z.string().guid().safeParse(value).success) throw new AppError('A valid parcel/account UUID is required.', 400, 'PARCEL_IDENTITY') }
 function nullableText(value: string | null | undefined) { return value === undefined ? undefined : value || null }
 async function transaction<T>(work: (client: PoolClient) => Promise<T>) {
   try { return await db.transaction(work) } catch (error) {
@@ -98,7 +98,7 @@ export async function updateParcelMetadata(actorId: string, parcelId: string, in
   })
 }
 export const deleteParcelMetadataSchema = z.object({
-  project_id:z.string().uuid().optional(),block_id:z.string().uuid().optional(),
+  project_id:z.string().guid().optional(),block_id:z.string().guid().optional(),
   updated_at:z.string().datetime({offset:true}),base_revision:z.union([z.number(),z.string().regex(/^\d+$/).transform(Number)]).pipe(z.number().int().nonnegative().max(2147483646)).optional(),
 })
 export async function deleteParcelMetadata(actorId: string, parcelId: string, input: unknown) {

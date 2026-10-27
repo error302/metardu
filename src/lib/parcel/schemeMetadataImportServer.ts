@@ -5,7 +5,7 @@ import { AppError } from '@/lib/api/errors'
 import { canonicalJson } from '@/lib/provenance/canonicalJson'
 import { MAX_SCHEME_IMPORT_BYTES, prepareSchemeMetadataCsv, schemeImportReceiptSchema, SCHEME_IMPORT_PROTOCOL, SchemeCsvError, type SchemeMetadataRow } from './schemeMetadataImport'
 
-const identitySchema = z.object({ actorId: z.string().uuid(), requestId: z.string().uuid(), projectId: z.string().uuid(), blockId: z.string().uuid(), fileName: z.string().min(1).max(255) })
+const identitySchema = z.object({ actorId: z.string().guid(), requestId: z.string().guid(), projectId: z.string().guid(), blockId: z.string().guid(), fileName: z.string().min(1).max(255) })
 const hash = (value: string | Uint8Array) => createHash('sha256').update(value).digest('hex')
 interface ExistingParcel extends Omit<SchemeMetadataRow, 'area_ha'> { id: string; project_id: string; area_ha: number | string | null }
 interface StoredReceipt { input_hash: string; source_hash: string; receipt: unknown; source_bytes: Buffer }

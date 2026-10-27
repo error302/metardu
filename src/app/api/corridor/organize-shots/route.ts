@@ -12,8 +12,8 @@ const schema = z.object({
     e: z.number(), n: z.number(), rl: z.number(),
     name: z.string().optional(), code: z.string().optional(),
   })),
-  interval: z.number().default(20),
-  startChainage: z.number().default(0),
+  interval: z.number().prefault(20),
+  startChainage: z.number().prefault(0),
 })
 
 export const POST = apiHandler(

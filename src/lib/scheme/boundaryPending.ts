@@ -15,7 +15,7 @@ import {
 const recordSchema = z
   .object({
     version: z.literal(1),
-    projectId: z.string().uuid(),
+    projectId: z.string().guid(),
     command: boundaryCommandSchema,
     source: boundarySourceSchema,
     inputHash: z.string().regex(/^[a-f0-9]{64}$/),
@@ -23,7 +23,7 @@ const recordSchema = z
   })
   .strict()
 export type PendingBoundary = z.infer<typeof recordSchema>
-const uuid = z.string().uuid()
+const uuid = z.string().guid()
 export const boundaryPendingKey = (
   actor: string,
   project: string,

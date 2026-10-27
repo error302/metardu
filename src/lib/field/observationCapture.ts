@@ -6,7 +6,7 @@ export { offlineObservationSource } from './observationReceipt'
 
 const reading=z.number().finite().nullish()
 export const offlineObservationSchema=z.object({
-  id:z.string().min(1).max(200),projectId:z.string().uuid(),ownerId:z.string().uuid().optional(),
+  id:z.string().min(1).max(200),projectId:z.string().guid(),ownerId:z.string().guid().optional(),
   surveyType:z.enum(['traverse','leveling','topo','gnss','hydro','mining','unspecified']),
   observationType:z.enum(['gps','total_station','level','manual']).optional(),
   station:z.string().min(1).max(100),pointId:z.string().max(100).optional(),

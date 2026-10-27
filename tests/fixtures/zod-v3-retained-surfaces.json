@@ -1,0 +1,2569 @@
+{
+  "syntheticOnly": true,
+  "readOnlyCapture": true,
+  "sourceVersion": "3.25.76",
+  "rows": [
+    {
+      "surface_id": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision_id": "ed0abb8e-a67f-4c2f-8fc4-b05f37a39054",
+      "revision": 1,
+      "crs": "EPSG:21037",
+      "input_hash": "f5d9dfd793941ee4f00267e178714ccab64f1f431a1a5c59498f2a5926a3de3c",
+      "point_count": 4,
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "result": {
+        "mesh": {
+          "points": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0
+            },
+            {
+              "x": 500005,
+              "y": 9800000,
+              "z": 2
+            },
+            {
+              "x": 500005,
+              "y": 9800010,
+              "z": 2
+            }
+          ],
+          "triangles": [
+            {
+              "a": 0,
+              "b": 5,
+              "c": 4
+            },
+            {
+              "a": 0,
+              "b": 1,
+              "c": 5
+            },
+            {
+              "a": 2,
+              "b": 3,
+              "c": 4
+            },
+            {
+              "a": 2,
+              "b": 4,
+              "c": 5
+            }
+          ],
+          "constraintEdges": [
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        "snapshot": {
+          "request": {
+            "id": "d939ba56-6f3b-4ea1-a3cb-faec0d5f4831",
+            "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "payloadHash": "bd363d001e985d306d44c5cf93ab33bd4d7c37af348ae666c03e5218dc830961"
+          },
+          "reference": {
+            "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+            "zone": 37,
+            "notes": null,
+            "units": "metres",
+            "datum_name": "ARC1960",
+            "hemisphere": "S",
+            "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+            "updated_at": "2026-10-27T14:49:27.521Z",
+            "declared_at": "2026-10-27T14:49:27.521Z",
+            "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "geoid_model": null,
+            "distance_mode": "grid",
+            "csf_provenance": null,
+            "horizontal_crs": "EPSG:21037",
+            "vertical_datum": "Synthetic BM only",
+            "benchmark_basis": null,
+            "horizontal_name": "Arc 1960 / UTM zone 37S",
+            "calibration_notes": null,
+            "vertical_reference": "local",
+            "calibration_version": null,
+            "coordinate_precision": 3,
+            "csf_reference_height": null,
+            "combined_scale_factor": null,
+            "csf_reference_easting": null,
+            "csf_reference_northing": null
+          },
+          "breaklines": [
+            {
+              "name": "Synthetic measured ridge",
+              "type": "ridge",
+              "points": [
+                {
+                  "x": 500005,
+                  "y": 9800000,
+                  "z": 2
+                },
+                {
+                  "x": 500005,
+                  "y": 9800010,
+                  "z": 2
+                }
+              ]
+            }
+          ],
+          "parameters": {
+            "interval": 1,
+            "indexInterval": 5,
+            "maxVertexSpacing": 3
+          },
+          "observations": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0,
+              "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-1",
+              "updatedAt": "2026-10-27T14:49:27.504Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0,
+              "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-2",
+              "updatedAt": "2026-10-27T14:49:27.510Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0,
+              "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-3",
+              "updatedAt": "2026-10-27T14:49:27.516Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0,
+              "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-0",
+              "updatedAt": "2026-10-27T14:49:27.466Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            }
+          ],
+          "fieldVerified": false,
+          "hashAlgorithm": "sha256-canonical-json-v1",
+          "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+          "schemaVersion": 2,
+          "terrainDomain": null,
+          "sourceSelection": {
+            "mode": "explicit_point_ids",
+            "pointIds": [
+              "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+            ]
+          },
+          "breaklineSources": [
+            {
+              "kind": "explicit_declared_coordinates",
+              "sourceLabel": "Synthetic measured ridge",
+              "fieldVerified": false
+            }
+          ],
+          "breaklineReference": {
+            "units": "metres",
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only"
+          },
+          "reviewedSourceHash": "ec4011c6d5aabbb950e488d700cbeed762a41276fb248a599438412076bf10aa",
+          "sourceAdmissionVersion": "surface-source-v2"
+        },
+        "algorithm": "constrained-tin-isolines",
+        "contour_lines": 3,
+        "max_elevation": 2,
+        "min_elevation": 0,
+        "outputIntegrity": {
+          "meshHash": "8d8bcf92a7af492be0a61673048b7f86c8288c04aa96f48da1f887ab2c2ad9ec",
+          "algorithm": "sha256-canonical-json-v1",
+          "contoursHash": "5a9c94d4525edd7ca667a9f60a019b60b43cd1490792c1c198700c08dd385c70"
+        }
+      },
+      "contour_crs": "EPSG:21037",
+      "lines": [
+        {
+          "isIndex": true,
+          "elevation": 0,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ],
+            [
+              [
+                500000,
+                9800010
+              ],
+              [
+                500000,
+                9800007.5
+              ],
+              [
+                500000,
+                9800005
+              ],
+              [
+                500000,
+                9800002.5
+              ],
+              [
+                500000,
+                9800000
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 1,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.5,
+                9800000
+              ],
+              [
+                500002.5,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 2,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "surface_id": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision_id": "e0b9c7cb-2763-479e-baf3-8305a0e8e4b5",
+      "revision": 2,
+      "crs": "EPSG:21037",
+      "input_hash": "147170f26de853a28b01e86d56f4c5eddaec63d8f20d3f21906fe28c8617c3d7",
+      "point_count": 4,
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "result": {
+        "mesh": {
+          "points": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0.125
+            },
+            {
+              "x": 500005,
+              "y": 9800000,
+              "z": 2
+            },
+            {
+              "x": 500005,
+              "y": 9800010,
+              "z": 2
+            }
+          ],
+          "triangles": [
+            {
+              "a": 0,
+              "b": 5,
+              "c": 4
+            },
+            {
+              "a": 0,
+              "b": 1,
+              "c": 5
+            },
+            {
+              "a": 2,
+              "b": 3,
+              "c": 4
+            },
+            {
+              "a": 2,
+              "b": 4,
+              "c": 5
+            }
+          ],
+          "constraintEdges": [
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        "snapshot": {
+          "request": {
+            "id": "15429817-5a67-449a-a564-891264a257f4",
+            "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "payloadHash": "541cb1beab0ce7a6a975406e240550db70f6c5cdb808610dc05cc549928e40f0"
+          },
+          "reference": {
+            "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+            "zone": 37,
+            "notes": null,
+            "units": "metres",
+            "datum_name": "ARC1960",
+            "hemisphere": "S",
+            "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+            "updated_at": "2026-10-27T14:49:27.521Z",
+            "declared_at": "2026-10-27T14:49:27.521Z",
+            "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "geoid_model": null,
+            "distance_mode": "grid",
+            "csf_provenance": null,
+            "horizontal_crs": "EPSG:21037",
+            "vertical_datum": "Synthetic BM only",
+            "benchmark_basis": null,
+            "horizontal_name": "Arc 1960 / UTM zone 37S",
+            "calibration_notes": null,
+            "vertical_reference": "local",
+            "calibration_version": null,
+            "coordinate_precision": 3,
+            "csf_reference_height": null,
+            "combined_scale_factor": null,
+            "csf_reference_easting": null,
+            "csf_reference_northing": null
+          },
+          "breaklines": [
+            {
+              "name": "Synthetic measured ridge",
+              "type": "ridge",
+              "points": [
+                {
+                  "x": 500005,
+                  "y": 9800000,
+                  "z": 2
+                },
+                {
+                  "x": 500005,
+                  "y": 9800010,
+                  "z": 2
+                }
+              ]
+            }
+          ],
+          "parameters": {
+            "interval": 1,
+            "indexInterval": 5,
+            "maxVertexSpacing": 3
+          },
+          "observations": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0,
+              "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-1",
+              "updatedAt": "2026-10-27T14:49:27.504Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0,
+              "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-2",
+              "updatedAt": "2026-10-27T14:49:27.510Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0,
+              "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-3",
+              "updatedAt": "2026-10-27T14:49:27.516Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0.125,
+              "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-0",
+              "updatedAt": "2026-10-27T14:49:28.064Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            }
+          ],
+          "fieldVerified": false,
+          "hashAlgorithm": "sha256-canonical-json-v1",
+          "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+          "schemaVersion": 2,
+          "terrainDomain": null,
+          "sourceSelection": {
+            "mode": "explicit_point_ids",
+            "pointIds": [
+              "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+            ]
+          },
+          "breaklineSources": [
+            {
+              "kind": "explicit_declared_coordinates",
+              "sourceLabel": "Synthetic measured ridge",
+              "fieldVerified": false
+            }
+          ],
+          "breaklineReference": {
+            "units": "metres",
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only"
+          },
+          "reviewedSourceHash": "fc7f9819728954a58dc25ff57c7de4bd7142e064b67fe6a837ad0f714beb4634",
+          "sourceAdmissionVersion": "surface-source-v2"
+        },
+        "algorithm": "constrained-tin-isolines",
+        "contour_lines": 3,
+        "max_elevation": 2,
+        "min_elevation": 0,
+        "outputIntegrity": {
+          "meshHash": "8414e9746325d9126a60d2cb341c02285fa3942ad768b9cffb377c79cc09c3af",
+          "algorithm": "sha256-canonical-json-v1",
+          "contoursHash": "5b3c846d423b418cad67219273de2e8125e83069f90f321a9810e0081b430b25"
+        }
+      },
+      "contour_crs": "EPSG:21037",
+      "lines": [
+        {
+          "isIndex": true,
+          "elevation": 0,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 1,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.3333333333,
+                9800000
+              ],
+              [
+                500002.4166666666,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 2,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "surface_id": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision_id": "c7e3464f-80cc-4489-80e8-93b2256f8643",
+      "revision": 3,
+      "crs": "EPSG:21037",
+      "input_hash": "8ae3629f73f98ff2d76b120cce50d7fd226bb41479739c062840711275edb026",
+      "point_count": 4,
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "result": {
+        "mesh": {
+          "points": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0.125
+            },
+            {
+              "x": 500005,
+              "y": 9800000,
+              "z": 2
+            },
+            {
+              "x": 500005,
+              "y": 9800010,
+              "z": 2
+            }
+          ],
+          "triangles": [
+            {
+              "a": 0,
+              "b": 5,
+              "c": 4
+            },
+            {
+              "a": 0,
+              "b": 1,
+              "c": 5
+            },
+            {
+              "a": 2,
+              "b": 3,
+              "c": 4
+            },
+            {
+              "a": 2,
+              "b": 4,
+              "c": 5
+            }
+          ],
+          "constraintEdges": [
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        "snapshot": {
+          "request": {
+            "id": "1142773b-441f-4f35-91a2-51e5d54ed451",
+            "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "payloadHash": "541cb1beab0ce7a6a975406e240550db70f6c5cdb808610dc05cc549928e40f0"
+          },
+          "reference": {
+            "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+            "zone": 37,
+            "notes": null,
+            "units": "metres",
+            "datum_name": "ARC1960",
+            "hemisphere": "S",
+            "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+            "updated_at": "2026-10-27T14:49:27.521Z",
+            "declared_at": "2026-10-27T14:49:27.521Z",
+            "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "geoid_model": null,
+            "distance_mode": "grid",
+            "csf_provenance": null,
+            "horizontal_crs": "EPSG:21037",
+            "vertical_datum": "Synthetic BM only",
+            "benchmark_basis": null,
+            "horizontal_name": "Arc 1960 / UTM zone 37S",
+            "calibration_notes": null,
+            "vertical_reference": "local",
+            "calibration_version": null,
+            "coordinate_precision": 3,
+            "csf_reference_height": null,
+            "combined_scale_factor": null,
+            "csf_reference_easting": null,
+            "csf_reference_northing": null
+          },
+          "breaklines": [
+            {
+              "name": "Synthetic measured ridge",
+              "type": "ridge",
+              "points": [
+                {
+                  "x": 500005,
+                  "y": 9800000,
+                  "z": 2
+                },
+                {
+                  "x": 500005,
+                  "y": 9800010,
+                  "z": 2
+                }
+              ]
+            }
+          ],
+          "parameters": {
+            "interval": 1,
+            "indexInterval": 5,
+            "maxVertexSpacing": 3
+          },
+          "observations": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0,
+              "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-1",
+              "updatedAt": "2026-10-27T14:49:27.504Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0,
+              "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-2",
+              "updatedAt": "2026-10-27T14:49:27.510Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0,
+              "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-3",
+              "updatedAt": "2026-10-27T14:49:27.516Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0.125,
+              "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-0",
+              "updatedAt": "2026-10-27T14:49:28.064Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            }
+          ],
+          "fieldVerified": false,
+          "hashAlgorithm": "sha256-canonical-json-v1",
+          "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+          "schemaVersion": 2,
+          "terrainDomain": null,
+          "sourceSelection": {
+            "mode": "explicit_point_ids",
+            "pointIds": [
+              "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+            ]
+          },
+          "breaklineSources": [
+            {
+              "kind": "explicit_declared_coordinates",
+              "sourceLabel": "Synthetic measured ridge",
+              "fieldVerified": false
+            }
+          ],
+          "breaklineReference": {
+            "units": "metres",
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only"
+          },
+          "reviewedSourceHash": "fc7f9819728954a58dc25ff57c7de4bd7142e064b67fe6a837ad0f714beb4634",
+          "sourceAdmissionVersion": "surface-source-v2"
+        },
+        "algorithm": "constrained-tin-isolines",
+        "contour_lines": 3,
+        "max_elevation": 2,
+        "min_elevation": 0,
+        "outputIntegrity": {
+          "meshHash": "8414e9746325d9126a60d2cb341c02285fa3942ad768b9cffb377c79cc09c3af",
+          "algorithm": "sha256-canonical-json-v1",
+          "contoursHash": "5b3c846d423b418cad67219273de2e8125e83069f90f321a9810e0081b430b25"
+        }
+      },
+      "contour_crs": "EPSG:21037",
+      "lines": [
+        {
+          "isIndex": true,
+          "elevation": 0,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 1,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.3333333333,
+                9800000
+              ],
+              [
+                500002.4166666666,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 2,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ]
+    },
+    {
+      "surface_id": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision_id": "fb0fb9f2-a9f1-41e9-8a33-4a6ebc685a52",
+      "revision": 4,
+      "crs": "EPSG:21037",
+      "input_hash": "6169dc92a5ff0c75cf68314d8314eeabc76212c9e5b80dd25fbc405f711265f5",
+      "point_count": 4,
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "result": {
+        "mesh": {
+          "points": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0.125
+            },
+            {
+              "x": 500005,
+              "y": 9800000,
+              "z": 2
+            },
+            {
+              "x": 500005,
+              "y": 9800010,
+              "z": 2
+            }
+          ],
+          "triangles": [
+            {
+              "a": 0,
+              "b": 5,
+              "c": 4
+            },
+            {
+              "a": 0,
+              "b": 1,
+              "c": 5
+            },
+            {
+              "a": 2,
+              "b": 3,
+              "c": 4
+            },
+            {
+              "a": 2,
+              "b": 4,
+              "c": 5
+            }
+          ],
+          "constraintEdges": [
+            [
+              4,
+              5
+            ]
+          ]
+        },
+        "snapshot": {
+          "request": {
+            "id": "47bc653b-41d1-4fe0-ac36-715fc78ae32f",
+            "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "payloadHash": "541cb1beab0ce7a6a975406e240550db70f6c5cdb808610dc05cc549928e40f0"
+          },
+          "reference": {
+            "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+            "zone": 37,
+            "notes": null,
+            "units": "metres",
+            "datum_name": "ARC1960",
+            "hemisphere": "S",
+            "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+            "updated_at": "2026-10-27T14:49:27.521Z",
+            "declared_at": "2026-10-27T14:49:27.521Z",
+            "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+            "geoid_model": null,
+            "distance_mode": "grid",
+            "csf_provenance": null,
+            "horizontal_crs": "EPSG:21037",
+            "vertical_datum": "Synthetic BM only",
+            "benchmark_basis": null,
+            "horizontal_name": "Arc 1960 / UTM zone 37S",
+            "calibration_notes": null,
+            "vertical_reference": "local",
+            "calibration_version": null,
+            "coordinate_precision": 3,
+            "csf_reference_height": null,
+            "combined_scale_factor": null,
+            "csf_reference_easting": null,
+            "csf_reference_northing": null
+          },
+          "breaklines": [
+            {
+              "name": "Synthetic measured ridge",
+              "type": "ridge",
+              "points": [
+                {
+                  "x": 500005,
+                  "y": 9800000,
+                  "z": 2
+                },
+                {
+                  "x": 500005,
+                  "y": 9800010,
+                  "z": 2
+                }
+              ]
+            }
+          ],
+          "parameters": {
+            "interval": 1,
+            "indexInterval": 5,
+            "maxVertexSpacing": 3
+          },
+          "observations": [
+            {
+              "x": 500010,
+              "y": 9800000,
+              "z": 0,
+              "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-1",
+              "updatedAt": "2026-10-27T14:49:27.504Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500010,
+              "y": 9800010,
+              "z": 0,
+              "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-2",
+              "updatedAt": "2026-10-27T14:49:27.510Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800010,
+              "z": 0,
+              "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-3",
+              "updatedAt": "2026-10-27T14:49:27.516Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            },
+            {
+              "x": 500000,
+              "y": 9800000,
+              "z": 0.125,
+              "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+              "code": null,
+              "source": "manual",
+              "pointName": "SYN-0",
+              "updatedAt": "2026-10-27T14:49:28.064Z",
+              "observerId": null,
+              "instrumentId": null,
+              "horizontalCrs": "EPSG:21037",
+              "verticalDatum": "Synthetic BM only",
+              "importSessionId": null,
+              "observationDate": null
+            }
+          ],
+          "fieldVerified": false,
+          "hashAlgorithm": "sha256-canonical-json-v1",
+          "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+          "schemaVersion": 2,
+          "terrainDomain": null,
+          "sourceSelection": {
+            "mode": "explicit_point_ids",
+            "pointIds": [
+              "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+              "0606341a-aeaa-41b5-91ce-030c0068e876",
+              "28cc481d-c686-4090-808f-70aa57ce3ad2",
+              "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+            ]
+          },
+          "breaklineSources": [
+            {
+              "kind": "explicit_declared_coordinates",
+              "sourceLabel": "Synthetic measured ridge",
+              "fieldVerified": false
+            }
+          ],
+          "breaklineReference": {
+            "units": "metres",
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only"
+          },
+          "reviewedSourceHash": "fc7f9819728954a58dc25ff57c7de4bd7142e064b67fe6a837ad0f714beb4634",
+          "sourceAdmissionVersion": "surface-source-v2"
+        },
+        "algorithm": "constrained-tin-isolines",
+        "contour_lines": 3,
+        "max_elevation": 2,
+        "min_elevation": 0,
+        "outputIntegrity": {
+          "meshHash": "8414e9746325d9126a60d2cb341c02285fa3942ad768b9cffb377c79cc09c3af",
+          "algorithm": "sha256-canonical-json-v1",
+          "contoursHash": "5b3c846d423b418cad67219273de2e8125e83069f90f321a9810e0081b430b25"
+        }
+      },
+      "contour_crs": "EPSG:21037",
+      "lines": [
+        {
+          "isIndex": true,
+          "elevation": 0,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 1,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.3333333333,
+                9800000
+              ],
+              [
+                500002.4166666666,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "isIndex": false,
+          "elevation": 2,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "expected": [
+    {
+      "surfaceId": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "revisionId": "ed0abb8e-a67f-4c2f-8fc4-b05f37a39054",
+      "projectId": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision": 1,
+      "crs": "EPSG:21037",
+      "verticalDatum": "Synthetic BM only",
+      "inputHash": "f5d9dfd793941ee4f00267e178714ccab64f1f431a1a5c59498f2a5926a3de3c",
+      "outputIntegrity": {
+        "algorithm": "sha256-canonical-json-v1",
+        "contoursHash": "5a9c94d4525edd7ca667a9f60a019b60b43cd1490792c1c198700c08dd385c70",
+        "meshHash": "8d8bcf92a7af492be0a61673048b7f86c8288c04aa96f48da1f887ab2c2ad9ec"
+      },
+      "snapshot": {
+        "request": {
+          "id": "d939ba56-6f3b-4ea1-a3cb-faec0d5f4831",
+          "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "payloadHash": "bd363d001e985d306d44c5cf93ab33bd4d7c37af348ae666c03e5218dc830961"
+        },
+        "reference": {
+          "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+          "zone": 37,
+          "notes": null,
+          "units": "metres",
+          "datum_name": "ARC1960",
+          "hemisphere": "S",
+          "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+          "updated_at": "2026-10-27T14:49:27.521Z",
+          "declared_at": "2026-10-27T14:49:27.521Z",
+          "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "geoid_model": null,
+          "distance_mode": "grid",
+          "csf_provenance": null,
+          "horizontal_crs": "EPSG:21037",
+          "vertical_datum": "Synthetic BM only",
+          "benchmark_basis": null,
+          "horizontal_name": "Arc 1960 / UTM zone 37S",
+          "calibration_notes": null,
+          "vertical_reference": "local",
+          "calibration_version": null,
+          "coordinate_precision": 3,
+          "csf_reference_height": null,
+          "combined_scale_factor": null,
+          "csf_reference_easting": null,
+          "csf_reference_northing": null
+        },
+        "breaklines": [
+          {
+            "name": "Synthetic measured ridge",
+            "type": "ridge",
+            "points": [
+              {
+                "x": 500005,
+                "y": 9800000,
+                "z": 2
+              },
+              {
+                "x": 500005,
+                "y": 9800010,
+                "z": 2
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "interval": 1,
+          "indexInterval": 5,
+          "maxVertexSpacing": 3
+        },
+        "observations": [
+          {
+            "x": 500010,
+            "y": 9800000,
+            "z": 0,
+            "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-1",
+            "updatedAt": "2026-10-27T14:49:27.504Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500010,
+            "y": 9800010,
+            "z": 0,
+            "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-2",
+            "updatedAt": "2026-10-27T14:49:27.510Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800010,
+            "z": 0,
+            "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-3",
+            "updatedAt": "2026-10-27T14:49:27.516Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800000,
+            "z": 0,
+            "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-0",
+            "updatedAt": "2026-10-27T14:49:27.466Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          }
+        ],
+        "fieldVerified": false,
+        "hashAlgorithm": "sha256-canonical-json-v1",
+        "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+        "schemaVersion": 2,
+        "terrainDomain": null,
+        "sourceSelection": {
+          "mode": "explicit_point_ids",
+          "pointIds": [
+            "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+          ]
+        },
+        "breaklineSources": [
+          {
+            "kind": "explicit_declared_coordinates",
+            "sourceLabel": "Synthetic measured ridge",
+            "fieldVerified": false
+          }
+        ],
+        "breaklineReference": {
+          "units": "metres",
+          "horizontalCrs": "EPSG:21037",
+          "verticalDatum": "Synthetic BM only"
+        },
+        "reviewedSourceHash": "ec4011c6d5aabbb950e488d700cbeed762a41276fb248a599438412076bf10aa",
+        "sourceAdmissionVersion": "surface-source-v2"
+      },
+      "contours": [
+        {
+          "elevation": 0,
+          "isIndex": true,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ],
+            [
+              [
+                500000,
+                9800010
+              ],
+              [
+                500000,
+                9800007.5
+              ],
+              [
+                500000,
+                9800005
+              ],
+              [
+                500000,
+                9800002.5
+              ],
+              [
+                500000,
+                9800000
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 1,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.5,
+                9800000
+              ],
+              [
+                500002.5,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 2,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ],
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "domain": null,
+      "fieldVerified": false
+    },
+    {
+      "surfaceId": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "revisionId": "e0b9c7cb-2763-479e-baf3-8305a0e8e4b5",
+      "projectId": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision": 2,
+      "crs": "EPSG:21037",
+      "verticalDatum": "Synthetic BM only",
+      "inputHash": "147170f26de853a28b01e86d56f4c5eddaec63d8f20d3f21906fe28c8617c3d7",
+      "outputIntegrity": {
+        "algorithm": "sha256-canonical-json-v1",
+        "contoursHash": "5b3c846d423b418cad67219273de2e8125e83069f90f321a9810e0081b430b25",
+        "meshHash": "8414e9746325d9126a60d2cb341c02285fa3942ad768b9cffb377c79cc09c3af"
+      },
+      "snapshot": {
+        "request": {
+          "id": "15429817-5a67-449a-a564-891264a257f4",
+          "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "payloadHash": "541cb1beab0ce7a6a975406e240550db70f6c5cdb808610dc05cc549928e40f0"
+        },
+        "reference": {
+          "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+          "zone": 37,
+          "notes": null,
+          "units": "metres",
+          "datum_name": "ARC1960",
+          "hemisphere": "S",
+          "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+          "updated_at": "2026-10-27T14:49:27.521Z",
+          "declared_at": "2026-10-27T14:49:27.521Z",
+          "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "geoid_model": null,
+          "distance_mode": "grid",
+          "csf_provenance": null,
+          "horizontal_crs": "EPSG:21037",
+          "vertical_datum": "Synthetic BM only",
+          "benchmark_basis": null,
+          "horizontal_name": "Arc 1960 / UTM zone 37S",
+          "calibration_notes": null,
+          "vertical_reference": "local",
+          "calibration_version": null,
+          "coordinate_precision": 3,
+          "csf_reference_height": null,
+          "combined_scale_factor": null,
+          "csf_reference_easting": null,
+          "csf_reference_northing": null
+        },
+        "breaklines": [
+          {
+            "name": "Synthetic measured ridge",
+            "type": "ridge",
+            "points": [
+              {
+                "x": 500005,
+                "y": 9800000,
+                "z": 2
+              },
+              {
+                "x": 500005,
+                "y": 9800010,
+                "z": 2
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "interval": 1,
+          "indexInterval": 5,
+          "maxVertexSpacing": 3
+        },
+        "observations": [
+          {
+            "x": 500010,
+            "y": 9800000,
+            "z": 0,
+            "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-1",
+            "updatedAt": "2026-10-27T14:49:27.504Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500010,
+            "y": 9800010,
+            "z": 0,
+            "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-2",
+            "updatedAt": "2026-10-27T14:49:27.510Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800010,
+            "z": 0,
+            "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-3",
+            "updatedAt": "2026-10-27T14:49:27.516Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800000,
+            "z": 0.125,
+            "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-0",
+            "updatedAt": "2026-10-27T14:49:28.064Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          }
+        ],
+        "fieldVerified": false,
+        "hashAlgorithm": "sha256-canonical-json-v1",
+        "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+        "schemaVersion": 2,
+        "terrainDomain": null,
+        "sourceSelection": {
+          "mode": "explicit_point_ids",
+          "pointIds": [
+            "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+          ]
+        },
+        "breaklineSources": [
+          {
+            "kind": "explicit_declared_coordinates",
+            "sourceLabel": "Synthetic measured ridge",
+            "fieldVerified": false
+          }
+        ],
+        "breaklineReference": {
+          "units": "metres",
+          "horizontalCrs": "EPSG:21037",
+          "verticalDatum": "Synthetic BM only"
+        },
+        "reviewedSourceHash": "fc7f9819728954a58dc25ff57c7de4bd7142e064b67fe6a837ad0f714beb4634",
+        "sourceAdmissionVersion": "surface-source-v2"
+      },
+      "contours": [
+        {
+          "elevation": 0,
+          "isIndex": true,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 1,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.3333333333,
+                9800000
+              ],
+              [
+                500002.4166666666,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 2,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ],
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "domain": null,
+      "fieldVerified": false
+    },
+    {
+      "surfaceId": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "revisionId": "c7e3464f-80cc-4489-80e8-93b2256f8643",
+      "projectId": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision": 3,
+      "crs": "EPSG:21037",
+      "verticalDatum": "Synthetic BM only",
+      "inputHash": "8ae3629f73f98ff2d76b120cce50d7fd226bb41479739c062840711275edb026",
+      "outputIntegrity": {
+        "algorithm": "sha256-canonical-json-v1",
+        "contoursHash": "5b3c846d423b418cad67219273de2e8125e83069f90f321a9810e0081b430b25",
+        "meshHash": "8414e9746325d9126a60d2cb341c02285fa3942ad768b9cffb377c79cc09c3af"
+      },
+      "snapshot": {
+        "request": {
+          "id": "1142773b-441f-4f35-91a2-51e5d54ed451",
+          "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "payloadHash": "541cb1beab0ce7a6a975406e240550db70f6c5cdb808610dc05cc549928e40f0"
+        },
+        "reference": {
+          "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+          "zone": 37,
+          "notes": null,
+          "units": "metres",
+          "datum_name": "ARC1960",
+          "hemisphere": "S",
+          "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+          "updated_at": "2026-10-27T14:49:27.521Z",
+          "declared_at": "2026-10-27T14:49:27.521Z",
+          "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "geoid_model": null,
+          "distance_mode": "grid",
+          "csf_provenance": null,
+          "horizontal_crs": "EPSG:21037",
+          "vertical_datum": "Synthetic BM only",
+          "benchmark_basis": null,
+          "horizontal_name": "Arc 1960 / UTM zone 37S",
+          "calibration_notes": null,
+          "vertical_reference": "local",
+          "calibration_version": null,
+          "coordinate_precision": 3,
+          "csf_reference_height": null,
+          "combined_scale_factor": null,
+          "csf_reference_easting": null,
+          "csf_reference_northing": null
+        },
+        "breaklines": [
+          {
+            "name": "Synthetic measured ridge",
+            "type": "ridge",
+            "points": [
+              {
+                "x": 500005,
+                "y": 9800000,
+                "z": 2
+              },
+              {
+                "x": 500005,
+                "y": 9800010,
+                "z": 2
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "interval": 1,
+          "indexInterval": 5,
+          "maxVertexSpacing": 3
+        },
+        "observations": [
+          {
+            "x": 500010,
+            "y": 9800000,
+            "z": 0,
+            "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-1",
+            "updatedAt": "2026-10-27T14:49:27.504Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500010,
+            "y": 9800010,
+            "z": 0,
+            "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-2",
+            "updatedAt": "2026-10-27T14:49:27.510Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800010,
+            "z": 0,
+            "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-3",
+            "updatedAt": "2026-10-27T14:49:27.516Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800000,
+            "z": 0.125,
+            "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-0",
+            "updatedAt": "2026-10-27T14:49:28.064Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          }
+        ],
+        "fieldVerified": false,
+        "hashAlgorithm": "sha256-canonical-json-v1",
+        "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+        "schemaVersion": 2,
+        "terrainDomain": null,
+        "sourceSelection": {
+          "mode": "explicit_point_ids",
+          "pointIds": [
+            "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+          ]
+        },
+        "breaklineSources": [
+          {
+            "kind": "explicit_declared_coordinates",
+            "sourceLabel": "Synthetic measured ridge",
+            "fieldVerified": false
+          }
+        ],
+        "breaklineReference": {
+          "units": "metres",
+          "horizontalCrs": "EPSG:21037",
+          "verticalDatum": "Synthetic BM only"
+        },
+        "reviewedSourceHash": "fc7f9819728954a58dc25ff57c7de4bd7142e064b67fe6a837ad0f714beb4634",
+        "sourceAdmissionVersion": "surface-source-v2"
+      },
+      "contours": [
+        {
+          "elevation": 0,
+          "isIndex": true,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 1,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.3333333333,
+                9800000
+              ],
+              [
+                500002.4166666666,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 2,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ],
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "domain": null,
+      "fieldVerified": false
+    },
+    {
+      "surfaceId": "f88dcdd8-7b42-492e-bb47-d410070905c2",
+      "revisionId": "fb0fb9f2-a9f1-41e9-8a33-4a6ebc685a52",
+      "projectId": "f91ad199-ca48-4933-ac82-d266663d7a55",
+      "name": "Existing ground",
+      "revision": 4,
+      "crs": "EPSG:21037",
+      "verticalDatum": "Synthetic BM only",
+      "inputHash": "6169dc92a5ff0c75cf68314d8314eeabc76212c9e5b80dd25fbc405f711265f5",
+      "outputIntegrity": {
+        "algorithm": "sha256-canonical-json-v1",
+        "contoursHash": "5b3c846d423b418cad67219273de2e8125e83069f90f321a9810e0081b430b25",
+        "meshHash": "8414e9746325d9126a60d2cb341c02285fa3942ad768b9cffb377c79cc09c3af"
+      },
+      "snapshot": {
+        "request": {
+          "id": "47bc653b-41d1-4fe0-ac36-715fc78ae32f",
+          "userId": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "payloadHash": "541cb1beab0ce7a6a975406e240550db70f6c5cdb808610dc05cc549928e40f0"
+        },
+        "reference": {
+          "id": "a1bc450b-97dc-4c43-a8db-fda46c56a264",
+          "zone": 37,
+          "notes": null,
+          "units": "metres",
+          "datum_name": "ARC1960",
+          "hemisphere": "S",
+          "project_id": "f91ad199-ca48-4933-ac82-d266663d7a55",
+          "updated_at": "2026-10-27T14:49:27.521Z",
+          "declared_at": "2026-10-27T14:49:27.521Z",
+          "declared_by": "ca62d376-a70c-40ae-b616-9c2a76749e0e",
+          "geoid_model": null,
+          "distance_mode": "grid",
+          "csf_provenance": null,
+          "horizontal_crs": "EPSG:21037",
+          "vertical_datum": "Synthetic BM only",
+          "benchmark_basis": null,
+          "horizontal_name": "Arc 1960 / UTM zone 37S",
+          "calibration_notes": null,
+          "vertical_reference": "local",
+          "calibration_version": null,
+          "coordinate_precision": 3,
+          "csf_reference_height": null,
+          "combined_scale_factor": null,
+          "csf_reference_easting": null,
+          "csf_reference_northing": null
+        },
+        "breaklines": [
+          {
+            "name": "Synthetic measured ridge",
+            "type": "ridge",
+            "points": [
+              {
+                "x": 500005,
+                "y": 9800000,
+                "z": 2
+              },
+              {
+                "x": 500005,
+                "y": 9800010,
+                "z": 2
+              }
+            ]
+          }
+        ],
+        "parameters": {
+          "interval": 1,
+          "indexInterval": 5,
+          "maxVertexSpacing": 3
+        },
+        "observations": [
+          {
+            "x": 500010,
+            "y": 9800000,
+            "z": 0,
+            "id": "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-1",
+            "updatedAt": "2026-10-27T14:49:27.504Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500010,
+            "y": 9800010,
+            "z": 0,
+            "id": "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-2",
+            "updatedAt": "2026-10-27T14:49:27.510Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800010,
+            "z": 0,
+            "id": "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-3",
+            "updatedAt": "2026-10-27T14:49:27.516Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          },
+          {
+            "x": 500000,
+            "y": 9800000,
+            "z": 0.125,
+            "id": "7d5b302f-4a9e-480a-a21e-48d2828a51af",
+            "code": null,
+            "source": "manual",
+            "pointName": "SYN-0",
+            "updatedAt": "2026-10-27T14:49:28.064Z",
+            "observerId": null,
+            "instrumentId": null,
+            "horizontalCrs": "EPSG:21037",
+            "verticalDatum": "Synthetic BM only",
+            "importSessionId": null,
+            "observationDate": null
+          }
+        ],
+        "fieldVerified": false,
+        "hashAlgorithm": "sha256-canonical-json-v1",
+        "referenceHash": "c44843c19966d0fa9e40274ea6e009b088edf10a21fbbd9c14731e1474a3a7b5",
+        "schemaVersion": 2,
+        "terrainDomain": null,
+        "sourceSelection": {
+          "mode": "explicit_point_ids",
+          "pointIds": [
+            "0472f6a0-daa1-4548-8e9d-2c41545e8363",
+            "0606341a-aeaa-41b5-91ce-030c0068e876",
+            "28cc481d-c686-4090-808f-70aa57ce3ad2",
+            "7d5b302f-4a9e-480a-a21e-48d2828a51af"
+          ]
+        },
+        "breaklineSources": [
+          {
+            "kind": "explicit_declared_coordinates",
+            "sourceLabel": "Synthetic measured ridge",
+            "fieldVerified": false
+          }
+        ],
+        "breaklineReference": {
+          "units": "metres",
+          "horizontalCrs": "EPSG:21037",
+          "verticalDatum": "Synthetic BM only"
+        },
+        "reviewedSourceHash": "fc7f9819728954a58dc25ff57c7de4bd7142e064b67fe6a837ad0f714beb4634",
+        "sourceAdmissionVersion": "surface-source-v2"
+      },
+      "contours": [
+        {
+          "elevation": 0,
+          "isIndex": true,
+          "coordinates": [
+            [
+              [
+                500010,
+                9800000
+              ],
+              [
+                500010,
+                9800002.5
+              ],
+              [
+                500010,
+                9800005
+              ],
+              [
+                500010,
+                9800007.5
+              ],
+              [
+                500010,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 1,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500007.5,
+                9800000
+              ],
+              [
+                500007.5,
+                9800002.5
+              ],
+              [
+                500007.5,
+                9800005
+              ],
+              [
+                500007.5,
+                9800007.5
+              ],
+              [
+                500007.5,
+                9800010
+              ]
+            ],
+            [
+              [
+                500002.3333333333,
+                9800000
+              ],
+              [
+                500002.4166666666,
+                9800002.5
+              ],
+              [
+                500002.5,
+                9800005
+              ],
+              [
+                500002.5,
+                9800007.5
+              ],
+              [
+                500002.5,
+                9800010
+              ]
+            ]
+          ]
+        },
+        {
+          "elevation": 2,
+          "isIndex": false,
+          "coordinates": [
+            [
+              [
+                500005,
+                9800010
+              ],
+              [
+                500005,
+                9800007.5
+              ],
+              [
+                500005,
+                9800005
+              ],
+              [
+                500005,
+                9800002.5
+              ],
+              [
+                500005,
+                9800000
+              ]
+            ]
+          ]
+        }
+      ],
+      "parameters": {
+        "interval": 1,
+        "indexInterval": 5,
+        "maxVertexSpacing": 3
+      },
+      "domain": null,
+      "fieldVerified": false
+    }
+  ]
+}

@@ -5,7 +5,7 @@ import { fieldbookSaveRequestSchema } from '@/lib/fieldbook/delivery'
 import { readFieldbookRevision, saveFieldbookRevision } from '@/lib/fieldbook/deliveryServer'
 export const dynamic = 'force-dynamic'
 const headers = { 'Cache-Control': 'private, no-store' }
-const scope = z.object({ projectId: z.string().uuid(), bookId: z.string().uuid() }).strict()
+const scope = z.object({ projectId: z.string().guid(), bookId: z.string().guid() }).strict()
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, context) => {
   if (request.headers.get('X-Metardu-Expected-User') !== context.userId) return NextResponse.json({ error: 'Sign in as this book’s retained owner.' }, { status: 403, headers })
   const input = scope.parse(Object.fromEntries(request.nextUrl.searchParams))

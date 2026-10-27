@@ -9,9 +9,9 @@ import { assertControlImportReference, type PublicControlRow } from '@/lib/surve
 import { resolveEpsg, transformPoint } from '@/lib/spatial/projectCrs'
 import { logAuditEvent } from '@/lib/enterprise/auditTrail'
 export const dynamic='force-dynamic'
-const schema=z.object({projectId:z.string().uuid(),requestId:z.string().uuid(),pointName:z.string().trim().min(1).max(100)}).strict()
+const schema=z.object({projectId:z.string().guid(),requestId:z.string().guid(),pointName:z.string().trim().min(1).max(100)}).strict()
 export const POST=apiHandler({auth:true,schema,rateLimit:{max:30,windowMs:60000}},async(_req,ctx)=>{
- if(!z.string().uuid().safeParse(ctx.params.id).success)return NextResponse.json({error:'Invalid reference record'},{status:400})
+ if(!z.string().guid().safeParse(ctx.params.id).success)return NextResponse.json({error:'Invalid reference record'},{status:400})
  const body=ctx.body as z.infer<typeof schema>,hash=createHash('sha256').update(JSON.stringify({beaconId:ctx.params.id,...body})).digest('hex')
  const result=await db.transaction(async client=>{
   const project=(await client.query<{user_id:string|null}>('SELECT user_id FROM projects WHERE id=$1 FOR UPDATE',[body.projectId])).rows[0]
@@ -21,15 +21,15 @@ export const POST=apiHandler({auth:true,schema,rateLimit:{max:30,windowMs:60000}
   // Catalogue readers cannot take an UPDATE-policy row lock. Coordinate rows
   // are immutable after review; share the review route's transaction lock and
   // recheck the exact current snapshot in the capture's database insert policy.
-  await client.query("SELECT pg_advisory_xact_lock(hashtextextended('public_control:' || $1,0))",[ctx.params.id])
+  await client.query<{ pg_advisory_xact_lock: string }>("SELECT pg_advisory_xact_lock(hashtextextended('public_control:' || $1,0))",[ctx.params.id])
   const source=(await client.query<PublicControlRow>('SELECT b.*,to_jsonb(b) AS snapshot FROM public_beacons b WHERE id=$1',[ctx.params.id])).rows[0]
   if(!source||source.status!=='verified')throw new AppError('A reviewed catalogue reference is required',409,'CONTROL_IMPORT')
-  if(!(await client.query("SELECT 1 FROM public_beacon_reviews r JOIN public_beacons b ON b.id=r.beacon_id WHERE b.id=$1 AND r.decision='verified' AND r.reviewer_id=b.verified_by AND r.created_at=b.verified_at",[source.id])).rowCount)throw new AppError('The catalogue review evidence is missing',409,'CONTROL_IMPORT')
+  if(!(await client.query<{ '?column?': number }>("SELECT 1 FROM public_beacon_reviews r JOIN public_beacons b ON b.id=r.beacon_id WHERE b.id=$1 AND r.decision='verified' AND r.reviewer_id=b.verified_by AND r.created_at=b.verified_at",[source.id])).rowCount)throw new AppError('The catalogue review evidence is missing',409,'CONTROL_IMPORT')
   const referenceRow=(await client.query<Record<string,unknown>&{snapshot:Record<string,unknown>}>('SELECT r.*,to_jsonb(r) AS snapshot FROM project_reference_systems r WHERE project_id=$1 FOR SHARE',[body.projectId])).rows[0]
   const reference=resolveStageReference(referenceRow,{})
   try{assertControlImportReference(source,reference)}catch(error){throw new AppError(error instanceof Error?error.message:'References do not match',409,'CONTROL_IMPORT')}
-  if((await client.query('SELECT 1 FROM control_import_captures WHERE project_id=$1 AND beacon_id=$2',[body.projectId,source.id])).rowCount)throw new AppError('This source mark already has an import capture in the project',409,'CONTROL_IMPORT')
-  if((await client.query('SELECT 1 FROM survey_points WHERE project_id=$1 AND point_name=$2 AND deleted_at IS NULL',[body.projectId,body.pointName])).rowCount)throw new AppError('A point with this name already exists',409,'CONTROL_IMPORT')
+  if((await client.query<{ '?column?': number }>('SELECT 1 FROM control_import_captures WHERE project_id=$1 AND beacon_id=$2',[body.projectId,source.id])).rowCount)throw new AppError('This source mark already has an import capture in the project',409,'CONTROL_IMPORT')
+  if((await client.query<{ '?column?': number }>('SELECT 1 FROM survey_points WHERE project_id=$1 AND point_name=$2 AND deleted_at IS NULL',[body.projectId,body.pointName])).rowCount)throw new AppError('A point with this name already exists',409,'CONTROL_IMPORT')
   const info=resolveEpsg(reference.code as string),[lon,lat]=transformPoint(source.easting,source.northing,info.code,'EPSG:4326')
   const point=(await client.query<{id:string}>(`INSERT INTO survey_points(project_id,point_name,easting,northing,elevation,is_control,datum,projection,utm_zone,hemisphere,horizontal_crs,vertical_datum,source,description,geom)
    VALUES($1,$2,$3,$4,$5,true,$6,$7,$8,$9,$10,$11,'imported',$12,ST_SetSRID(ST_MakePoint($13,$14),4326)) RETURNING id`,

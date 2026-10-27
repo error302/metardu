@@ -11,18 +11,18 @@ export interface CaptureDraftReview { actorId: string; reviewedAt: string; reque
 const boundedText = z.string().max(10000)
 export const sourceImportSchema = z.object({
   version: z.literal(1), authority: z.literal('raw_capture_draft'), fieldVerified: z.literal(false),
-  reviewedBy: z.string().uuid(), reviewedAt: z.string().datetime({ offset: true }), requestHash: z.string().regex(/^[a-f0-9]{64}$/),
+  reviewedBy: z.string().guid(), reviewedAt: z.string().datetime({ offset: true }), requestHash: z.string().regex(/^[a-f0-9]{64}$/),
   bearingEncoding: z.enum(['uninterpreted', 'decimal_degrees', 'packed_dms', 'separated_dms']),
-  sources: z.array(z.object({ rowId: boundedText, batchId: z.string().uuid(), observationId: z.string().uuid(),
-    projectId: z.string().uuid(), clientId: boundedText, inputHash: z.string().regex(/^[a-f0-9]{64}$/), capturedBy: z.string().uuid().nullable(),
-    raw: z.record(z.unknown()), projectReference: z.record(z.unknown()).nullable(), initialRow: z.record(boundedText),
+  sources: z.array(z.object({ rowId: boundedText, batchId: z.string().guid(), observationId: z.string().guid(),
+    projectId: z.string().guid(), clientId: boundedText, inputHash: z.string().regex(/^[a-f0-9]{64}$/), capturedBy: z.string().guid().nullable(),
+    raw: z.record(z.string(), z.unknown()), projectReference: z.record(z.string(), z.unknown()).nullable(), initialRow: z.record(z.string(), boundedText),
   })).min(1).max(500),
 })
 export type SourceImport = z.infer<typeof sourceImportSchema>
-export const captureBookRequestSchema = z.object({ projectId: z.string().uuid(), bookId: z.string().uuid(), name: z.string().trim().min(1).max(255),
+export const captureBookRequestSchema = z.object({ projectId: z.string().guid(), bookId: z.string().guid(), name: z.string().trim().min(1).max(255),
   type: z.enum(['leveling', 'traverse', 'control']), bearingEncoding: z.enum(['uninterpreted', 'decimal_degrees', 'packed_dms', 'separated_dms']),
   acknowledgement: z.literal('create-draft-from-raw-v1'),
-  sources: z.array(z.object({ batchId: z.string().uuid(), inputHash: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1).max(500),
+  sources: z.array(z.object({ batchId: z.string().guid(), inputHash: z.string().regex(/^[a-f0-9]{64}$/) }).strict()).min(1).max(500),
 }).strict().superRefine((input, ctx) => {
   if (new Set(input.sources.map(source => source.batchId)).size !== input.sources.length) ctx.addIssue({ code: 'custom', message: 'Select each source only once.' })
 })

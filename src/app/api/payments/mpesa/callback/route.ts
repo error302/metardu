@@ -134,7 +134,7 @@ export async function POST(request: NextRequest) {
   paymentRow = byCheckout.rows[0] ?? null
   if (paymentRow) paymentSource = 'payment_intent'
 
-  if (!paymentRow && paymentIdParam && z.string().uuid().safeParse(paymentIdParam).success) {
+  if (!paymentRow && paymentIdParam && z.string().guid().safeParse(paymentIdParam).success) {
     const result = await db.query<PaymentIntentRow>(
       `SELECT id, user_id, plan_id, amount, currency, status, metadata
        FROM payment_intents
@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
     if (paymentRow) paymentSource = 'payment_history'
   }
 
-  if (!paymentRow && paymentIdParam && z.string().uuid().safeParse(paymentIdParam).success) {
+  if (!paymentRow && paymentIdParam && z.string().guid().safeParse(paymentIdParam).success) {
     const result = await db.query<PaymentIntentRow>(
       `SELECT id, user_id, plan_id, amount, currency, status, metadata
        FROM payment_history
@@ -267,13 +267,13 @@ export async function POST(request: NextRequest) {
   const client = await db.getClient()
   let activated = false
   try {
-    await client.query('BEGIN')
+    await client.query<never>('BEGIN')
     await setRlsContext(client)
 
     // Conditional completion: rowCount 0 means another callback instance
     // already completed (or concurrently completes) this intent.
     const completeRes = paymentSource === 'payment_history'
-      ? await client.query(
+      ? await client.query<never>(
         `UPDATE payment_history
          SET status = 'completed', provider = 'safaricom', provider_id = $1,
              transaction_id = $2,
@@ -281,21 +281,21 @@ export async function POST(request: NextRequest) {
          WHERE id = $4 AND status IN ('pending', 'processing')`,
         [checkoutRequestId, receiptNumber, JSON.stringify({ callbackResultCode: resultCode, totalSeats, extraSeats }), paymentRow.id]
       )
-      : await client.query(
+      : await client.query<never>(
         `UPDATE payment_intents
          SET status = 'completed', provider_id = $1, updated_at = NOW()
          WHERE id = $2 AND status <> 'completed'`,
         [checkoutRequestId, paymentRow.id]
       )
     if ((completeRes.rowCount ?? 0) === 0) {
-      await client.query('ROLLBACK')
+      await client.query<never>('ROLLBACK')
       return NextResponse.json({ ok: true })
     }
 
     // Audit trail row (unique partial index from migration 055 backs the
     // ON CONFLICT target; DO NOTHING keeps Safaricom retries idempotent).
     if (paymentSource === 'payment_intent') {
-      await client.query(
+      await client.query<never>(
         `INSERT INTO payment_history
            (user_id, amount, currency, payment_method, provider, provider_id,
             status, transaction_id, metadata)
@@ -321,7 +321,7 @@ export async function POST(request: NextRequest) {
     const periodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
 
     if (existingSub.rows.length > 0) {
-      await client.query(
+      await client.query<never>(
         `UPDATE user_subscriptions
          SET plan_id = $1, status = 'active', payment_method = 'mpesa',
              currency = 'KES', current_period_start = $2, current_period_end = $3,
@@ -330,7 +330,7 @@ export async function POST(request: NextRequest) {
         [planId, periodStart, periodEnd, existingSub.rows[0].id, extraSeats]
       )
     } else {
-      await client.query(
+      await client.query<never>(
         `INSERT INTO user_subscriptions
            (user_id, plan_id, status, payment_method, currency,
             current_period_start, current_period_end, seat_count)
@@ -339,10 +339,10 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await client.query('COMMIT')
+    await client.query<never>('COMMIT')
     activated = true
   } catch (txErr) {
-    await client.query('ROLLBACK').catch(() => {})
+    await client.query<never>('ROLLBACK').catch(() => {})
     logger.error('[mpesa-callback] Transaction failed:', { error: txErr })
     return NextResponse.json({ error: 'Callback processing failed' }, { status: 500 })
   } finally {

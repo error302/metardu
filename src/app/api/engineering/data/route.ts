@@ -30,7 +30,7 @@ interface EngineeringSurveyDataRow {
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   if (!ctx.userId || ctx.userId === 'anonymous') throw new AuthenticationError()
   const { searchParams } = new URL(req.url)
-  const parsed = z.string().uuid().safeParse(searchParams.get('projectId'))
+  const parsed = z.string().guid().safeParse(searchParams.get('projectId'))
   if (!parsed.success) return NextResponse.json({ error: 'A valid projectId is required' }, { status: 400 })
   const projectId = parsed.data.toLowerCase()
   const access = await requireProjectReadAccess(projectId, ctx.userId)

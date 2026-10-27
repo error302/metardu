@@ -8,7 +8,7 @@ import { commitSchemeMetadataImport } from '@/lib/parcel/schemeMetadataImportSer
 
 export const dynamic = 'force-dynamic'
 const MAX_REQUEST_BYTES = MAX_SCHEME_IMPORT_BYTES + 64 * 1024
-const fieldsSchema = z.object({ project_id: z.string().uuid(), block_id: z.string().uuid(), request_id: z.string().uuid() })
+const fieldsSchema = z.object({ project_id: z.string().guid(), block_id: z.string().guid(), request_id: z.string().guid() })
 
 export const POST = apiHandler({
   auth: true, rawBody: true, audit: 'csv_import', rateLimit: { max: 20, windowMs: 60000 },

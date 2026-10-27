@@ -39,7 +39,7 @@ export default function RecoverableRoadWorkbench({
   projectId: string
 }) {
   const { data, status } = useSession()
-  const actor = z.string().uuid().safeParse(data?.user?.id)
+  const actor = z.string().guid().safeParse(data?.user?.id)
   if (status === 'loading')
     return <p role="status">Reading your signed-in account…</p>
   if (status !== 'authenticated' || !actor.success)

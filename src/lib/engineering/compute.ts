@@ -118,8 +118,8 @@ export type SuperelevationInput = z.infer<typeof SuperelevationSchema>;
 // Reference: RDM 1.1 Volume 3, Chapter 2 - Earthworks
 export const CrossSectionVolumeSchema = z.object({
   areas: z.array(z.number().finite()).min(2, 'Need at least 2 cross-sections').max(10000),
-  stationInterval: z.number().finite().positive().max(100, 'Max interval 100m').default(20),
-  method: z.enum(['prismoidal', 'end-area']).default('prismoidal'),
+  stationInterval: z.number().finite().positive().max(100, 'Max interval 100m').prefault(20),
+  method: z.enum(['prismoidal', 'end-area']).prefault('prismoidal'),
 });
 
 export type CrossSectionVolumeInput = z.infer<typeof CrossSectionVolumeSchema>;
@@ -128,7 +128,7 @@ export type CrossSectionVolumeInput = z.infer<typeof CrossSectionVolumeSchema>;
 export const MassHaulSchema = z.object({
   // Historical field name: these are incremental net volumes, accumulated once.
   cumulativeVolumes: z.array(z.number().finite()).min(2).max(10000),
-  stationInterval: z.number().finite().positive().default(20),
+  stationInterval: z.number().finite().positive().prefault(20),
   stations: z.array(z.number().finite()).min(2).max(10000).optional(),
 }).superRefine((input, ctx) => {
   if (input.stations && (input.stations.length !== input.cumulativeVolumes.length ||

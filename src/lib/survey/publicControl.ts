@@ -13,12 +13,12 @@ export const publicControlSchema = z.object({
   name: z.string().trim().min(1).max(100),
   beaconType: z.enum(['trig', 'control', 'boundary', 'benchmark', 'gnss', 'tidal', 'other']),
   easting: z.number().finite(), northing: z.number().finite(),
-  elevation: z.number().finite().min(-10000).max(100000).nullable().default(null),
+  elevation: z.number().finite().min(-10000).max(100000).nullable().prefault(null),
   horizontalCrs: z.string().trim().min(1).max(64),
-  verticalDatum: z.string().trim().min(1).max(120).nullable().default(null),
+  verticalDatum: z.string().trim().min(1).max(120).nullable().prefault(null),
   sourceReference: z.string().trim().min(5).max(2000),
   authority: z.string().trim().min(1).max(200), country: z.string().trim().min(1).max(100),
-  description: z.string().trim().max(4000).default(''),
+  description: z.string().trim().max(4000).prefault(''),
 }).strict().superRefine((value, ctx) => {
   try {
     const info = assertProjectedCrs(value.horizontalCrs)

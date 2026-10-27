@@ -32,7 +32,7 @@ export const mapFeatureCollectionSchema = z.object({
     type: z.literal('FeatureCollection'),
     features: z.array(z.object({
       type: z.literal('Feature'), geometry: z.custom<Geometry|null>(value => value === null || validGeometry(value), 'Drawing geometry must contain finite, valid longitude/latitude coordinates'),
-      properties: z.record(z.unknown()).nullable(), id: z.union([z.string(), z.number().finite()]).optional(),
+      properties: z.record(z.string(), z.unknown()).nullable(), id: z.union([z.string(), z.number().finite()]).optional(),
     }).passthrough().superRefine((feature,context)=>{
       if(feature.geometry===null&&!displayCircleSchema.safeParse(feature.metarduDisplayGeometry).success) context.addIssue({code:z.ZodIssueCode.custom,message:'A geometry-less feature needs an explicit retained display-circle definition.'})
     })).max(5000),

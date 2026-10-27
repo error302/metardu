@@ -7,19 +7,19 @@ import {generateLandXML,escapeXml} from './landXmlDocument'
 import {validateCoordinateRange} from '@/lib/spatial/projectCrs'
 
 const hash=(value:unknown)=>createHash('sha256').update(canonicalJson(value)).digest('hex')
-const digest=z.string().regex(/^[a-f0-9]{64}$/),uuid=z.string().uuid(),coordinate=z.number().finite()
+const digest=z.string().regex(/^[a-f0-9]{64}$/),uuid=z.string().guid(),coordinate=z.number().finite()
 const meshSchema=z.object({points:z.array(z.object({x:coordinate,y:coordinate,z:coordinate})).min(3).max(60000),
   triangles:z.array(z.object({a:z.number().int().nonnegative(),b:z.number().int().nonnegative(),c:z.number().int().nonnegative()})).min(1).max(20000),
   constraintEdges:z.array(z.tuple([z.number().int().nonnegative(),z.number().int().nonnegative()])).optional(),
 }).passthrough()
 const snapshotSchema=z.object({schemaVersion:z.literal(2),sourceAdmissionVersion:z.literal('surface-source-v2'),hashAlgorithm:z.literal('sha256-canonical-json-v1'),
-  reference:z.record(z.unknown()),referenceHash:digest,parameters:z.record(z.unknown()),fieldVerified:z.literal(false),
+  reference:z.record(z.string(), z.unknown()),referenceHash:digest,parameters:z.record(z.string(), z.unknown()),fieldVerified:z.literal(false),
   observations:z.array(z.object({id:uuid,x:coordinate,y:coordinate,z:coordinate,horizontalCrs:z.string(),verticalDatum:z.string()}).passthrough()).min(3).max(10000),
   sourceSelection:z.object({pointIds:z.array(uuid).min(3).max(10000)}).passthrough(),
   terrainDomain:z.unknown().optional(),
 }).passthrough()
 const rowSchema=z.object({surface_id:uuid,revision_id:uuid,project_id:uuid,project_name:z.string().min(1),name:z.string().min(1),revision:z.number().int().positive(),
-  crs:z.string().min(1),point_count:z.number().int().positive(),triangle_count:z.number().int().positive(),input_hash:digest,parameters:z.unknown(),
+  crs:z.string().min(1),point_count:z.number().int().positive(),triangle_count:z.number().int().positive(),input_hash:digest,parameters:z.unknown().optional(),
   result:z.object({snapshot:snapshotSchema,mesh:meshSchema,outputIntegrity:z.object({algorithm:z.literal('sha256-canonical-json-v1'),meshHash:digest,domainHash:digest.optional(),sourceMeshHash:digest.optional()}).passthrough(),
     domain:z.object({area:coordinate.positive(),definitionHash:digest}).passthrough().optional(),sourceMesh:z.unknown().optional(),
   }).passthrough(),

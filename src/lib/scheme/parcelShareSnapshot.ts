@@ -30,7 +30,7 @@ export function publicSnapshotFromExport(
               type: z.literal('Feature'),
               geometry: z.object({
                 type: z.literal('Polygon'),
-                coordinates: z.unknown(),
+                coordinates: z.unknown().optional(),
               }),
               properties: z.object({
                 parcelNumber: z.string(),

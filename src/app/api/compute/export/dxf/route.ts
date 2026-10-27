@@ -23,8 +23,8 @@ const requestSchema = z.object({
       z.object({
         from: z.string().min(1),
         to: z.string().min(1),
-        distance: z.number().optional().default(0),
-        bearing: z.number().optional().default(0),
+        distance: z.number().prefault(0),
+        bearing: z.number().prefault(0),
       })
     )
     .optional(),

@@ -9,7 +9,7 @@ const schema = z.object({
   designPoints: z.array(z.object({ x: z.number(), y: z.number(), z: z.number() })).optional(),
   groundPoints: z.array(z.object({ x: z.number(), y: z.number(), z: z.number() })).optional(),
   surfacePoints: z.array(z.object({ x: z.number(), y: z.number(), z: z.number() })).optional(),
-  gridSpacing: z.number().default(5.0),
+  gridSpacing: z.number().prefault(5.0),
   datumRL: z.number().optional(),
 })
 

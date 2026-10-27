@@ -2,8 +2,8 @@
 import {useEffect,useId,useRef,useState} from 'react'
 import Link from 'next/link'
 import {z} from 'zod'
-const inventory=z.object({data:z.object({projectId:z.string().uuid(),viewerId:z.string().min(1),limited:z.boolean(),revisions:z.array(z.object({
-  revision_id:z.string().uuid(),name:z.string(),revision:z.number().int().positive(),crs:z.string().nullable(),point_count:z.number().int().nonnegative().nullable(),triangle_count:z.number().int().nonnegative().nullable(),
+const inventory=z.object({data:z.object({projectId:z.string().guid(),viewerId:z.string().min(1),limited:z.boolean(),revisions:z.array(z.object({
+  revision_id:z.string().guid(),name:z.string(),revision:z.number().int().positive(),crs:z.string().nullable(),point_count:z.number().int().nonnegative().nullable(),triangle_count:z.number().int().nonnegative().nullable(),
 }))})})
 type Revision=z.infer<typeof inventory>['data']['revisions'][number]
 async function failure(response:Response){
@@ -34,7 +34,7 @@ export function CivilSurfaceDownload({projectId}:{projectId:string}){
   const download=async()=>{
     if(busy)return
     const revisionId=selected||manual.trim()
-    if(!z.string().uuid().safeParse(revisionId).success){setError('Choose a saved revision or enter its complete revision ID.');return}
+    if(!z.string().guid().safeParse(revisionId).success){setError('Choose a saved revision or enter its complete revision ID.');return}
     const controller=new AbortController();downloadRequest.current=controller
     const isCurrent=()=>mounted.current&&downloadRequest.current===controller
     const timer=setTimeout(()=>controller.abort(),30000);setBusy(true);setError('');setMessage('')

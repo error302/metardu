@@ -30,13 +30,13 @@ interface CadastraValidationRow {
 
 /** Schema for AI-assisted cadastral validation — validates data + type fields */
 const _AiValidateSchema = z.object({
-  data: z.record(z.unknown()),
+  data: z.record(z.string(), z.unknown()),
   type: z.enum(['parcel', 'traverse', 'leveling']),
 })
 
 const ValidateBodySchema = z.object({
   boundary: z.object({
-    points: z.array(z.record(z.unknown())).min(3),
+    points: z.array(z.record(z.string(), z.unknown())).min(3),
   }),
 }).passthrough()
 

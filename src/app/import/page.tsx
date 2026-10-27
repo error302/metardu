@@ -22,7 +22,7 @@ const validNumber=(value:number|undefined)=>typeof value==='number'&&Number.isFi
 const complete=(point:{id:string;easting?:number;northing?:number;elevation?:number})=>validNumber(point.easting)&&validNumber(point.northing)&&(point.elevation===undefined||validNumber(point.elevation))&&!!point.id.trim()
 const displayNumber=(value:number|undefined)=>value===undefined?'Unknown':Number.isFinite(value)?value.toLocaleString('en',{maximumFractionDigits:8}):'Invalid'
 const units=[['metres','Metres'],['internationalFoot','International feet'],['USSurveyFoot','US survey feet']] as const
-const contextSchema=z.object({data:z.object({referenceSystem:z.unknown(),referenceHash:z.string().regex(/^[a-f0-9]{64}$/),history:z.array(z.object({id:z.string().uuid(),source_file_name:z.string(),source_file_hash:z.string(),point_count:z.number().int().nonnegative(),created_at:z.string()}))})})
+const contextSchema=z.object({data:z.object({referenceSystem:z.unknown().optional(),referenceHash:z.string().regex(/^[a-f0-9]{64}$/),history:z.array(z.object({id:z.string().guid(),source_file_name:z.string(),source_file_hash:z.string(),point_count:z.number().int().nonnegative(),created_at:z.string()}))})})
 const responseError=(value:unknown,fallback:string)=>{const parsed=z.object({error:z.string()}).safeParse(value);return parsed.success?parsed.data.error:fallback}
 
 export default function ImportPage() {
@@ -119,7 +119,7 @@ export default function ImportPage() {
         if([400,401,403,404,409,413,429].includes(response.status)){pendingRef.current=null;setPending(null)}
         throw new Error(responseError(body,'The server could not confirm the import.'))
       }
-      const parsedBody=z.object({data:z.unknown()}).safeParse(body)
+      const parsedBody=z.object({data:z.unknown().optional()}).safeParse(body)
       const saved=validatePointImportReceipt(parsedBody.success?parsedBody.data.data:undefined,capture.body)
       setReceipt({...saved,projectId:capture.projectId,projectName:capture.projectName});pendingRef.current=null;setPending(null)
       void readContext(capture.projectId).then(setContext).catch(()=>setContextError('Saved successfully; recent capture history could not refresh. Reload before downloading.'))

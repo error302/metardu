@@ -14,7 +14,7 @@ export const schemeBboxSchema = z
   ])
   .refine(([a, b, c, d]) => a < c && b < d)
 const frame = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
   projectName: z.string(),
   crs: z.string(),
   referenceHash: hash,
@@ -51,16 +51,16 @@ const ring = z
 export const schemeParcelFeatureSchema = z
   .object({
     type: z.literal('Feature'),
-    id: z.string().uuid(),
+    id: z.string().guid(),
     geometry: z.object({
       type: z.literal('Polygon'),
       coordinates: z.array(ring).min(1).max(50),
     }),
     properties: z.object({
       kind: z.literal('parcel'),
-      parcelId: z.string().uuid(),
+      parcelId: z.string().guid(),
       parcelNumber: z.string(),
-      blockId: z.string().uuid().nullable(),
+      blockId: z.string().guid().nullable(),
       blockNumber: z.string().nullable(),
       recordedStatus: z.string().nullable(),
       suppliedAreaHa: z.string().nullable(),
@@ -70,7 +70,7 @@ export const schemeParcelFeatureSchema = z
         'changed_since_review',
         'unassessed_geometry',
       ]),
-      receiptId: z.string().uuid().nullable(),
+      receiptId: z.string().guid().nullable(),
       evidenceHash: hash.nullable(),
       geometryHash: hash,
       revision: count,
@@ -104,7 +104,7 @@ export const schemeViewportSchema = frame
     type: z.literal('FeatureCollection'),
     bbox: schemeBboxSchema.nullable(),
     selection: z
-      .array(z.string().uuid())
+      .array(z.string().guid())
       .min(1)
       .max(SCHEME_SHAPE_LIMIT)
       .nullable(),

@@ -3,15 +3,15 @@ import { z } from 'zod'
 export const SCHEME_OVERVIEW_PAGE_SIZE = 24
 const count = z.number().int().nonnegative().max(Number.MAX_SAFE_INTEGER)
 export const schemeOverviewQuerySchema = z.object({
-  block_page: z.string().regex(/^[1-9]\d{0,5}$/).default('1').transform(Number),
-  traverse_page: z.string().regex(/^[1-9]\d{0,5}$/).default('1').transform(Number),
+  block_page: z.string().regex(/^[1-9]\d{0,5}$/).prefault('1').transform(Number),
+  traverse_page: z.string().regex(/^[1-9]\d{0,5}$/).prefault('1').transform(Number),
 })
 const blockSchema = z.object({
-  id: z.string().uuid(), blockNumber: z.string(), name: z.string().nullable(),
+  id: z.string().guid(), blockNumber: z.string(), name: z.string().nullable(),
   parcelCount: count, submittedOrApproved: count,
 }).refine(row => row.submittedOrApproved <= row.parcelCount)
 const traverseSchema = z.object({
-  id: z.string().uuid(), name: z.string().nullable(), method: z.string().nullable(), status: z.string().nullable(),
+  id: z.string().guid(), name: z.string().nullable(), method: z.string().nullable(), status: z.string().nullable(),
   updatedAt: z.string().datetime({ offset: true }).nullable(),
   precisionRatio: z.number().finite().positive().nullable(), areaHa: z.number().finite().nonnegative().nullable(),
   recordedOrder: z.string().nullable(), assessment: z.literal('unassessed'),
@@ -22,7 +22,7 @@ function validPage(value: { total: number; page: number; rows: unknown[] }) {
     value.rows.length === Math.min(SCHEME_OVERVIEW_PAGE_SIZE, Math.max(0, value.total - (value.page - 1) * SCHEME_OVERVIEW_PAGE_SIZE))
 }
 export const schemeOverviewSchema = z.object({
-  project: z.object({ id: z.string().uuid(), name: z.string(), location: z.string().nullable(), projectType: z.literal('scheme') }),
+  project: z.object({ id: z.string().guid(), name: z.string(), location: z.string().nullable(), projectType: z.literal('scheme') }),
   parcels: z.object({
     total: count,
     statusCounts: z.object({ pending: count, field_complete: count, computed: count, plan_generated: count, submitted: count, approved: count }),

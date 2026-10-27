@@ -12,7 +12,7 @@ import {
 } from './boundaryReview'
 const fail = (message: string, status = 409) =>
   new AppError(message, status, 'BOUNDARY_REQUEST')
-const identity = z.string().uuid()
+const identity = z.string().guid()
 export function boundaryStorageFailure(failure: unknown): never {
   const code = z.object({ code: z.string() }).safeParse(failure)
   if (code.success && ['42P01', '42703'].includes(code.data.code))

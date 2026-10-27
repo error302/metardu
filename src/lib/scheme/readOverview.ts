@@ -5,7 +5,7 @@ import { schemeOverviewQuerySchema, schemeOverviewSchema, SCHEME_OVERVIEW_PAGE_S
 
 /** One MVCC statement binds owner, totals and bounded rows to the same snapshot. */
 export async function readSchemeOverview(projectId: string, actorId: string, input: unknown) {
-  const identity = z.object({ projectId: z.string().uuid(), actorId: z.string().uuid() }).safeParse({ projectId, actorId })
+  const identity = z.object({ projectId: z.string().guid(), actorId: z.string().guid() }).safeParse({ projectId, actorId })
   const query = schemeOverviewQuerySchema.safeParse(input)
   if (!identity.success || !query.success) throw new AppError('A valid project UUID and positive page numbers are required.', 400, 'SCHEME_OVERVIEW_INPUT')
   const size = SCHEME_OVERVIEW_PAGE_SIZE
@@ -65,7 +65,7 @@ export async function readSchemeOverview(projectId: string, actorId: string, inp
       'traverses',jsonb_build_object('total',tw.total,'computed',tw.computed,'page',tw.page,'pageSize',${size},'rows',COALESCE((SELECT jsonb_agg(jsonb_build_object('id',t.id,'name',t.traverse_name,'method',t.method,'status',t.status,'updatedAt',t.updated_at,'results',t.results) ORDER BY t.updated_at DESC NULLS LAST,t.id DESC) FROM traverse_metrics t),'[]'::jsonb))
     ) data FROM owned_project p CROSS JOIN parcel_totals pt CROSS JOIN block_window bw CROSS JOIN traverse_window tw`, [projectId, actorId, query.data.block_page, query.data.traverse_page])
   if (!result.rows.length) throw new AppError('Scheme project not found for this account.', 404, 'SCHEME_OVERVIEW_PROJECT')
-  const raw = z.object({ project: z.object({ projectType: z.string().nullable() }).passthrough(), traverses: z.object({ rows: z.array(z.record(z.unknown())) }).passthrough() }).passthrough().safeParse(result.rows[0].data)
+  const raw = z.object({ project: z.object({ projectType: z.string().nullable() }).passthrough(), traverses: z.object({ rows: z.array(z.record(z.string(), z.unknown())) }).passthrough() }).passthrough().safeParse(result.rows[0].data)
   if (!raw.success) throw new AppError('The scheme overview response is incomplete.', 500, 'SCHEME_OVERVIEW_RESPONSE')
   if (raw.data.project.projectType !== 'scheme') throw new AppError('This project does not have a scheme workspace.', 409, 'SCHEME_OVERVIEW_TYPE')
   const finiteMetric = (value: unknown, allowZero: boolean) => {
@@ -75,7 +75,7 @@ export async function readSchemeOverview(projectId: string, actorId: string, inp
     return Number.isFinite(number) && (allowZero ? number >= 0 : number > 0) ? number : null
   }
   const rows = raw.data.traverses.rows.map(row => {
-    const metrics = z.record(z.unknown()).safeParse(row.results)
+    const metrics = z.record(z.string(), z.unknown()).safeParse(row.results)
     const values = metrics.success ? metrics.data : {}
     return { ...row, precisionRatio: finiteMetric(values.precision_ratio, false), areaHa: finiteMetric(values.computed_area_ha, true), recordedOrder: typeof values.accuracy_order === 'string' ? values.accuracy_order : null, assessment: 'unassessed' }
   })

@@ -37,7 +37,7 @@ import {
 } from './exportJournal'
 const fail = (message: string, status = 409) =>
   new AppError(message, status, 'SCHEME_EXPORT')
-const id = z.string().uuid()
+const id = z.string().guid()
 const mime = (format: SchemeExportFormat) =>
   format === 'dxf' ? 'application/dxf' : 'application/geo+json'
 const generator = (format: SchemeExportFormat) => `scheme-boundary-${format}`

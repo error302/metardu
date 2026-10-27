@@ -56,7 +56,7 @@ const ADMIN_EMAILS = (process.env.ADMIN_EMAILS || '').split(',').map(e => e.trim
 const AiChatSchema = z.object({
   message: z.string().max(4000),
   context: z.string().max(10000).optional(),
-  projectId: z.string().uuid().optional(),
+  projectId: z.string().guid().optional(),
 })
 
 /** Per-action data validation schemas — match service function signatures */
@@ -65,8 +65,8 @@ const SurveyQADataSchema = z.object({
   coordinates: z.array(z.object({ point: z.string(), easting: z.number(), northing: z.number(), elevation: z.number().optional() })).optional(),
   distances: z.array(z.object({ from: z.string(), to: z.string(), distance: z.number(), bearing: z.string().optional() })).optional(),
   area: z.number().optional(),
-  boundary: z.array(z.record(z.unknown())).max(5000).optional(),
-  observations: z.array(z.record(z.unknown())).max(10000).optional(),
+  boundary: z.array(z.record(z.string(), z.unknown())).max(5000).optional(),
+  observations: z.array(z.record(z.string(), z.unknown())).max(10000).optional(),
 })
 
 const ExtractCoordsDataSchema = z.object({
@@ -76,15 +76,15 @@ const ExtractCoordsDataSchema = z.object({
 const GenerateSectionDataSchema = z.object({
   sectionType: z.string().max(100),
   surveyType: z.string().max(100),
-  projectData: z.record(z.unknown()),
+  projectData: z.record(z.string(), z.unknown()),
   customInstructions: z.string().max(5000).optional(),
 })
 
 const ValidateResultsDataSchema = z.object({
   surveyType: z.string().max(100),
-  measured: z.record(z.unknown()),
-  expected: z.record(z.unknown()).optional(),
-  tolerances: z.record(z.number()).optional(),
+  measured: z.record(z.string(), z.unknown()),
+  expected: z.record(z.string(), z.unknown()).optional(),
+  tolerances: z.record(z.string(), z.number()).optional(),
 })
 
 const InterpretPhotoDataSchema = z.object({
@@ -109,8 +109,8 @@ const requestSchema = z.object({
     role: z.enum(['system', 'user', 'assistant']),
     content: z.string().max(4000),
   })).optional(),
-  data: z.record(z.unknown()).optional(),
-  options: z.record(z.unknown()).optional(),
+  data: z.record(z.string(), z.unknown()).optional(),
+  options: z.record(z.string(), z.unknown()).optional(),
   /** If true, response is streamed via SSE (only for generate-section) */
   stream: z.boolean().optional(),
   /** Top-level chat fields (alternative to messages array) */
@@ -216,7 +216,7 @@ export async function POST(request: NextRequest) {
     const parsed = requestSchema.safeParse(body)
 
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid request', details: parsed.error.errors }, { status: 400 })
+      return NextResponse.json({ error: 'Invalid request', details: parsed.error.issues }, { status: 400 })
     }
 
     const { action, messages, data, options, stream: useStream } = parsed.data

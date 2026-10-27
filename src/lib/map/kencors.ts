@@ -4,7 +4,7 @@ export interface KenCORSStation {
   id: string; name: string; easting: number; northing: number; county: string;
   status: 'catalogue_reviewed'; horizontalCrs: string; sourceReference: string;
 }
-const sourceSchema = z.object({ id: z.string().uuid(), name: z.string(), easting: z.number().finite(), northing: z.number().finite(),
+const sourceSchema = z.object({ id: z.string().guid(), name: z.string(), easting: z.number().finite(), northing: z.number().finite(),
   horizontal_crs: z.string(), source_reference: z.string().min(1), country: z.string().nullable(), status: z.literal('verified'), distance_m: z.number().finite().min(0) })
 /** Compatibility name: returns reviewed GNSS source marks, not live station availability. */
 export async function nearestKenCORSStations(easting: number, northing: number, count: number, crs: string, signal?: AbortSignal): Promise<Array<KenCORSStation & { distanceKm: number }>> {

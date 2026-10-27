@@ -25,7 +25,7 @@ import {
 const ENTITY = 'road-workbench-request'
 const fail = (message: string, status = 409) =>
   new AppError(message, status, 'ROAD_WORKBENCH_RECOVERY')
-const scopeSchema = z.string().uuid()
+const scopeSchema = z.string().guid()
 async function lockProject(
   client: PoolClient,
   actor: string,
@@ -100,7 +100,7 @@ async function sourceFor(
       reference,
     }),
     evidence: {
-      engineering: normalizedRoadJson(z.record(z.unknown()).parse(engineering)),
+      engineering: normalizedRoadJson(z.record(z.string(), z.unknown()).parse(engineering)),
       referenceRecord: referenceRow,
     },
   }
@@ -119,8 +119,8 @@ interface JournalRow extends DesignRevisionRecord {
 }
 const evidenceSchema = z
   .object({
-    engineering: z.record(z.unknown()),
-    referenceRecord: z.record(z.unknown()).nullable(),
+    engineering: z.record(z.string(), z.unknown()),
+    referenceRecord: z.record(z.string(), z.unknown()).nullable(),
   })
   .strict()
 async function findOutcome(
@@ -270,7 +270,7 @@ export async function executeRoadWorkbenchCommand(
         'The edited inputs do not preserve the original observations, source metadata or ground association.',
         422,
       )
-    const original = z.record(z.unknown()).parse(row.engineering_data),
+    const original = z.record(z.string(), z.unknown()).parse(row.engineering_data),
       engineering = { ...original, road: command.road }
     const { rows } = await client.query<{
       id: string

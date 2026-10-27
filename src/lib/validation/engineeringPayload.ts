@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 // JSON.stringify silently converts Infinity to null. JSON.parse can produce it
 // from syntactically valid numeric literals such as 1e400; reject before saving.
-export const EngineeringPayloadSchema = z.record(z.unknown()).superRefine((data, ctx) => {
+export const EngineeringPayloadSchema = z.record(z.string(), z.unknown()).superRefine((data, ctx) => {
   const pending: { value: unknown; depth: number }[] = [{ value: data, depth: 0 }]
   const seen = new WeakSet<object>()
   let count = 0

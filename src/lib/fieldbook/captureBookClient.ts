@@ -7,8 +7,8 @@ export interface CapturedBook { id: string; user_id: string; project_id: string;
 export class CaptureRequestError extends Error {
   constructor(message: string, readonly status: number, readonly code?: string) { super(message); this.name = 'CaptureRequestError' }
 }
-const inventory = z.object({ items: z.array(z.object({ batchId: z.string().uuid(), clientId: z.string(), station: z.string().nullable(), mode: z.string().nullable(),
-  capturedBy: z.string().uuid().nullable(), recordedAt: z.string().datetime({ offset: true }).nullable() })).max(50), next: z.string().nullable() })
+const inventory = z.object({ items: z.array(z.object({ batchId: z.string().guid(), clientId: z.string(), station: z.string().nullable(), mode: z.string().nullable(),
+  capturedBy: z.string().guid().nullable(), recordedAt: z.string().datetime({ offset: true }).nullable() })).max(50), next: z.string().nullable() })
 const sourceSchema = sourceImportSchema.shape.sources.element.omit({ rowId: true, initialRow: true })
 async function requestCaptureApi(actor: string, path: string, body?: CaptureBookRequest): Promise<unknown> {
   let response: Response
@@ -37,7 +37,7 @@ export async function inspectCaptureSource(actor: string, project: string, batch
 export async function createCaptureBook(actor: string, value: CaptureBookRequest): Promise<CapturedBook> {
   const input = captureBookRequestSchema.parse(value)
   const requestHash = await observationDeliveryHash(input)
-  const data = z.object({ book: z.object({ id: z.string().uuid(), user_id: z.string().uuid(), project_id: z.string().uuid(), type: z.enum(['leveling', 'traverse', 'control']), name: z.string(), data: z.record(z.unknown()) }), replayed: z.boolean() }).parse(await requestCaptureApi(actor, '/api/fieldbook/captures', input))
+  const data = z.object({ book: z.object({ id: z.string().guid(), user_id: z.string().guid(), project_id: z.string().guid(), type: z.enum(['leveling', 'traverse', 'control']), name: z.string(), data: z.record(z.string(), z.unknown()) }), replayed: z.boolean() }).parse(await requestCaptureApi(actor, '/api/fieldbook/captures', input))
   const book = data.book, proof = sourceImportSchema.parse(book.data.sourceImport)
   if (book.id !== input.bookId || book.user_id !== actor || book.project_id !== input.projectId || book.type !== input.type || proof.reviewedBy !== actor || proof.requestHash !== requestHash
     || JSON.stringify(proof.sources.map(source => ({ batchId: source.batchId, inputHash: source.inputHash }))) !== JSON.stringify(input.sources)) {

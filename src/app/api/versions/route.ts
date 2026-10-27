@@ -29,9 +29,9 @@ interface EntityVersionRow {
 
 const ListVersionsSchema = z.object({
   entity_type: z.enum(VERSIONED_ENTITY_TYPES),
-  entity_id: z.string().uuid(),
-  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
-  offset: z.coerce.number().int().min(0).optional().default(0),
+  entity_id: z.string().guid(),
+  limit: z.coerce.number().int().min(1).max(100).prefault(20),
+  offset: z.coerce.number().int().min(0).prefault(0),
 })
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, _ctx) => {
@@ -89,7 +89,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
 const CreateSnapshotSchema = z.object({
   entity_type: z.enum(VERSIONED_ENTITY_TYPES),
-  entity_id: z.string().uuid(),
+  entity_id: z.string().guid(),
   change_summary: z.string().max(500).optional(),
 })
 

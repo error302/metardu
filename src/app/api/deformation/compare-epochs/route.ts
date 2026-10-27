@@ -11,7 +11,7 @@ const schema = z.object({
     horizontal: z.number().optional(),
     vertical: z.number().optional(),
   }).optional(),
-  confidenceLevel: z.number().default(0.95),
+  confidenceLevel: z.number().prefault(0.95),
 })
 
 export const POST = apiHandler(

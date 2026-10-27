@@ -25,7 +25,7 @@ const hash = (value: unknown) => digest(canonicalJSON(value))
 const fail = (message: string, status = 409) =>
   new AppError(message, status, 'RETAINED_TRAVERSE')
 function ids(...values: string[]) {
-  if (values.some((v) => !z.string().uuid().safeParse(v).success))
+  if (values.some((v) => !z.string().guid().safeParse(v).success))
     throw fail(
       'Valid account, project, parcel and request identifiers are required.',
       400,
@@ -102,7 +102,7 @@ async function frame(
     )
   const referenceRecord = ref?.record ?? null
   const reference = referenceRecord
-    ? z.record(z.unknown()).parse(JSON.parse(referenceRecord))
+    ? z.record(z.string(), z.unknown()).parse(JSON.parse(referenceRecord))
     : null
   const latest =
     (

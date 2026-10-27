@@ -35,7 +35,7 @@ function identity(
 ) {
   if (
     ![actor, project, parcel, ...(traverse ? [traverse] : [])].every(
-      (value) => z.string().uuid().safeParse(value).success,
+      (value) => z.string().guid().safeParse(value).success,
     )
   )
     throw error(
@@ -66,10 +66,10 @@ const rawSchema = z.object({
   observationCount: z.number().int().nonnegative(),
   originalObservations: z.array(z.string()),
   sourceBytes: z.number().int().nonnegative(),
-  projectId: z.string().uuid(),
-  parcelId: z.string().uuid(),
+  projectId: z.string().guid(),
+  parcelId: z.string().guid(),
   parcelNumber: z.string(),
-  blockId: z.string().uuid().nullable(),
+  blockId: z.string().guid().nullable(),
   parcelStatus: z.string().nullable(),
   parcelRevision: z.number().int().nonnegative(),
   parcelVersion: z.string(),
@@ -77,13 +77,13 @@ const rawSchema = z.object({
   confirmedLr: z.string().nullable(),
   geometryHash: z.string().nullable(),
   boundaryHash: z.string().nullable(),
-  traverseId: z.string().uuid(),
+  traverseId: z.string().guid(),
   traverseVersion: z.string(),
   traverseRecordJson: z.string().nullable(),
-  reference: z.record(z.unknown()).nullable(),
+  reference: z.record(z.string(), z.unknown()).nullable(),
   pointCount: z.number().int().nonnegative(),
-  rawPoints: z.array(z.record(z.unknown())),
-  retainedEvidence: z.record(z.unknown()).optional(),
+  rawPoints: z.array(z.record(z.string(), z.unknown())),
+  retainedEvidence: z.record(z.string(), z.unknown()).optional(),
 })
 function number(value: unknown): number {
   if (
@@ -146,7 +146,7 @@ async function source(
     throw error('The retained coordinate set changed during the read.')
   if (raw.traverseRecordJson) {
     const retained = z
-      .object({ retained_revision_id: z.string().uuid().nullable().optional() })
+      .object({ retained_revision_id: z.string().guid().nullable().optional() })
       .parse(JSON.parse(raw.traverseRecordJson)).retained_revision_id
     if (retained) {
       if (!raw.reference)

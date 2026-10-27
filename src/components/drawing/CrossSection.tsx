@@ -12,7 +12,7 @@ const CrossSectionSchema = z.object({
     groundLevel: z.number(),
     formationLevel: z.number(),
   })),
-  sideSlope: z.number().min(1).default(1.5),
+  sideSlope: z.number().min(1).prefault(1.5),
 });
 
 export interface CrossSectionProps {

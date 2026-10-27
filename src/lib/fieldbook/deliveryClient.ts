@@ -21,7 +21,7 @@ export async function bookDeliveryHash(value: Json): Promise<string> {
 }
 /** Validation must finish before any local operation can be acknowledged. */
 export async function acknowledgeBookDelivery(actor: string, value: FieldbookSaveRequest, response: unknown): Promise<FieldbookSaveResult> {
-  z.string().uuid().parse(actor)
+  z.string().guid().parse(actor)
   const input = JSON.parse(JSON.stringify(fieldbookSaveRequestSchema.parse(value))) as FieldbookSaveRequest
   const parsed = resultSchema.safeParse(response)
   if (!parsed.success) throw invalid()
@@ -36,7 +36,7 @@ export async function acknowledgeBookDelivery(actor: string, value: FieldbookSav
   return result
 }
 async function requestApi(actor: string, path: string, body?: FieldbookSaveRequest): Promise<unknown> {
-  z.string().uuid().parse(actor)
+  z.string().guid().parse(actor)
   let response: Response
   try {
     response = await fetch(path, { method: body ? 'POST' : 'GET', cache: 'no-store', headers: {
@@ -58,7 +58,7 @@ export async function deliverBookRequest(actor: string, value: FieldbookSaveRequ
   return acknowledgeBookDelivery(actor, request, await requestApi(actor, '/api/fieldbook/delivery', request))
 }
 export async function readReviewedBook(actor: string, project: string, id: string): Promise<FieldbookSnapshot> {
-  z.string().uuid().parse(project); z.string().uuid().parse(id)
+  z.string().guid().parse(project); z.string().guid().parse(id)
   const result = z.object({ book: fieldbookSnapshotSchema }).strict().parse(await requestApi(actor,
     `/api/fieldbook/delivery?projectId=${encodeURIComponent(project)}&bookId=${encodeURIComponent(id)}`)).book
   if (result.user_id !== actor || result.project_id !== project || result.id !== id) throw invalid()

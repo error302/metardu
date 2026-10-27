@@ -27,7 +27,7 @@ const evidenceResult = z.object({
   thresholdValue: z.number().finite().nullable().optional(),
   unit: z.string().trim().min(1).max(20).nullable().optional(),
   message: z.string().max(4000).nullable().optional(),
-  details: z.record(z.unknown()).default({}),
+  details: z.record(z.string(), z.unknown()).prefault({}),
 }).strict();
 const manualRun = z.object({
   trigger: z.literal('manual').optional(),

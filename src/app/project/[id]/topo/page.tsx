@@ -16,10 +16,10 @@ import { emptyTerrainDefinition, readTerrainDefinition } from '@/lib/topo/terrai
 import { TerrainDefinitionEditor } from '@/components/topo/TerrainDefinitionEditor'
 
 const Canvas = dynamic(() => import('@/components/drawing/TopoEntityCanvas').then(module => module.TopoEntityCanvas), { ssr: false })
-const historySchema = z.object({ data: z.object({ revisions: z.array(z.object({ revision_id: z.string().uuid(), name: z.string(), revision: z.number().int().positive() })), historyLimited: z.boolean() }) })
-const savedSchema = z.object({ data: z.object({ projectId: z.string().uuid(), revisionId: z.string().uuid(), revision: z.number().int().positive(), name: z.string(), crs: z.string(), verticalDatum: z.string(), inputHash: z.string(), fieldVerified: z.literal(false),
+const historySchema = z.object({ data: z.object({ revisions: z.array(z.object({ revision_id: z.string().guid(), name: z.string(), revision: z.number().int().positive() })), historyLimited: z.boolean() }) })
+const savedSchema = z.object({ data: z.object({ projectId: z.string().guid(), revisionId: z.string().guid(), revision: z.number().int().positive(), name: z.string(), crs: z.string(), verticalDatum: z.string(), inputHash: z.string(), fieldVerified: z.literal(false),
   contours: z.array(z.object({ elevation: z.number().finite(), isIndex: z.boolean(), coordinates: z.array(z.array(z.tuple([z.number().finite(), z.number().finite()]))) })),
-  snapshot: z.object({ observations: z.array(z.object({ id: z.string().uuid(), pointName: z.string().nullable(), x: z.number().finite(), y: z.number().finite(), z: z.number().finite(), code: z.string().nullable() })),
+  snapshot: z.object({ observations: z.array(z.object({ id: z.string().guid(), pointName: z.string().nullable(), x: z.number().finite(), y: z.number().finite(), z: z.number().finite(), code: z.string().nullable() })),
     terrainDomain: terrainDomainSchema.nullable().optional(), breaklines: z.array(surfaceBreakline).optional() }),
   domain: z.object({ area:z.number().finite().positive(),derivedVertexCount:z.number().int().nonnegative(),supportCounts:z.object({inside:z.number().int().nonnegative(),outside:z.number().int().nonnegative(),exclusion:z.number().int().nonnegative()}) }).nullable().optional(),
 }) })
@@ -129,7 +129,7 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       throw new Error(value && typeof value === 'object' && 'error' in value && typeof value.error === 'string' ? value.error : 'The request was not acknowledged. Recover the retained device request before starting another.')
     }
     if (command.kind === 'surface') {
-      const ack = z.object({ data: z.object({ revisionId: z.string().uuid(), requestId: z.string(), requestHash: z.string() }) }).parse(await response.json()).data
+      const ack = z.object({ data: z.object({ revisionId: z.string().guid(), requestId: z.string(), requestHash: z.string() }) }).parse(await response.json()).data
       if (ack.requestId !== command.body.requestId || ack.requestHash !== expectedHash) throw new Error('The saved acknowledgement does not match this device request.')
       await loadRevision(ack.revisionId, ticket)
     } else {

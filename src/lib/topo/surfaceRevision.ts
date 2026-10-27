@@ -11,26 +11,26 @@ import { normalizeTerrainDomain } from './terrainDomainValidation'
 
 const hash = z.string().regex(/^[a-f0-9]{64}$/)
 const xyz = z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() })
-const observation = xyz.extend({ id: z.string().uuid(), pointName: z.string().nullable(),
+const observation = xyz.extend({ id: z.string().guid(), pointName: z.string().nullable(),
   horizontalCrs: z.string().min(1), verticalDatum: z.string().min(1), code: z.string().nullable() }).passthrough()
 const contoursSchema = z.array(z.object({ elevation: z.number().finite(), isIndex: z.boolean(),
   coordinates: z.array(z.array(z.tuple([z.number().finite(), z.number().finite()])).min(2)) }))
 const snapshotSchema = z.object({ schemaVersion: z.literal(2), sourceAdmissionVersion: z.literal('surface-source-v2'),
-  hashAlgorithm: z.literal('sha256-canonical-json-v1'), reference: z.record(z.unknown()), referenceHash: hash,
-  sourceSelection: z.object({ mode: z.enum(['explicit_point_ids', 'all_active_project_points']), pointIds: z.array(z.string().uuid()).min(3).max(10000) }),
-  observations: z.array(observation).min(3).max(10000), parameters: z.record(z.unknown()), fieldVerified: z.literal(false),
+  hashAlgorithm: z.literal('sha256-canonical-json-v1'), reference: z.record(z.string(), z.unknown()), referenceHash: hash,
+  sourceSelection: z.object({ mode: z.enum(['explicit_point_ids', 'all_active_project_points']), pointIds: z.array(z.string().guid()).min(3).max(10000) }),
+  observations: z.array(observation).min(3).max(10000), parameters: z.record(z.string(), z.unknown()), fieldVerified: z.literal(false),
   request: retainedRequestSchema.optional(),
   terrainDomain: terrainDomainSchema.nullable().optional(), breaklines: z.array(surfaceBreakline).optional(),
   breaklineSources: z.array(z.discriminatedUnion('kind', [
-    z.object({ kind: z.literal('measured_point_chain'), pointIds: z.array(z.string().uuid()).min(2), sourceLabel: z.string().min(1), reviewed: z.literal(true), fieldVerified: z.literal(false) }),
+    z.object({ kind: z.literal('measured_point_chain'), pointIds: z.array(z.string().guid()).min(2), sourceLabel: z.string().min(1), reviewed: z.literal(true), fieldVerified: z.literal(false) }),
     z.object({ kind: z.literal('explicit_declared_coordinates'), sourceLabel: z.string().min(1), fieldVerified: z.literal(false) }),
   ])).optional(),
 }).passthrough()
 const domainReportSchema = z.object({ normalizedDomain: z.object({ regions: terrainDomainSchema.shape.regions }), area: z.number().finite().positive(),
   derivedVertexCount: z.number().int().nonnegative(), definitionHash: hash, supportCounts: z.object({ inside: z.number().int().nonnegative(), outside: z.number().int().nonnegative(), exclusion: z.number().int().nonnegative() }),
   supportSemantics: z.literal('all_selected_observations_support_parent_tin') })
-const resultSchema = z.object({ snapshot: snapshotSchema, mesh: z.record(z.unknown()),
-  sourceMesh: z.record(z.unknown()).optional(), domain: domainReportSchema.optional(),
+const resultSchema = z.object({ snapshot: snapshotSchema, mesh: z.record(z.string(), z.unknown()),
+  sourceMesh: z.record(z.string(), z.unknown()).optional(), domain: domainReportSchema.optional(),
   outputIntegrity: z.object({ algorithm: z.literal('sha256-canonical-json-v1'), contoursHash: hash, meshHash: hash, domainHash: hash.optional(), sourceMeshHash: hash.optional() }),
 }).passthrough()
 

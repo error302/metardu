@@ -12,12 +12,12 @@ export const dynamic = 'force-dynamic'
 
 const textField = (max: number) => z.string().trim().min(1).max(max)
 const draftRequestSchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
   submissionType: z.literal('new_registration'),
   parcelNumber: textField(100),
   registry: textField(120),
   county: textField(80),
-  subCounty: z.string().trim().max(80).optional().default(''),
+  subCounty: z.string().trim().max(80).prefault(''),
   surveyor: z.object({
     name: textField(200),
     licenseNumber: textField(100),

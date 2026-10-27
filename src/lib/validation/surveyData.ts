@@ -19,7 +19,7 @@ export const CoordinateSchema = z.object({
     .min(KENYA_NORTHING_RANGE.min, `Northing must be >= ${KENYA_NORTHING_RANGE.min} (Kenya bounds)`)
     .max(KENYA_NORTHING_RANGE.max, `Northing must be <= ${KENYA_NORTHING_RANGE.max} (Kenya bounds)`),
   elevation: z.number().min(-100).max(6000).optional(),
-  srid: z.literal(21037).default(21037),
+  srid: z.literal(21037).prefault(21037),
 })
 
 export const CreateProjectSchema = z.object({

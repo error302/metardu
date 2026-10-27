@@ -16,7 +16,7 @@ import { getMpesaTillNumber } from '@/lib/payments/mpesaConfig'
 const TILL_NUMBER = getMpesaTillNumber()
 
 const VerifyTillSchema = z.object({
-  planId: z.enum(['pro', 'team', 'firm', 'enterprise']).default('pro'),
+  planId: z.enum(['pro', 'team', 'firm', 'enterprise']).prefault('pro'),
   seatCount: z.number().int().optional(),
   mpesaCode: z
     .string()

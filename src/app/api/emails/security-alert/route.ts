@@ -18,10 +18,10 @@ import { z } from 'zod'
 
 const schema = z.object({
   email: z.string().email().max(200),
-  name: z.string().max(200).optional().default(''),
+  name: z.string().max(200).prefault(''),
   eventName: z.string().min(1).max(200),
-  deviceInfo: z.string().max(300).optional().default('Unknown device'),
-  location: z.string().max(200).optional().default('Unknown location'),
+  deviceInfo: z.string().max(300).prefault('Unknown device'),
+  location: z.string().max(200).prefault('Unknown location'),
   timestamp: z.string().datetime(),
 })
 

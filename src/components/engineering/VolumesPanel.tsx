@@ -243,7 +243,7 @@ export function VolumesPanel({ projectId, projectData: _projectData, surveyorPro
       void logEngineeringCompute('cross_section_volume', input, res, { projectId });
     } catch (e) {
       if (e instanceof z.ZodError) {
-        setError(e.errors[0]?.message ?? 'Check the section areas and station interval.');
+        setError(e.issues[0]?.message ?? 'Check the section areas and station interval.');
       } else {
         setError(e instanceof Error ? e.message : 'Volume calculation failed.');
       }

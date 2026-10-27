@@ -20,7 +20,7 @@ const volumeCrossSchema = z.object({
 
 const volumeSurfaceSchema = z.object({
   kind: z.literal('surface'),
-  method: z.literal('grid_idw').default('grid_idw'),
+  method: z.literal('grid_idw').prefault('grid_idw'),
   gridSpacing: z.number().positive(),
   power: z.number().positive().optional(),
   maxDistance: z.number().positive().optional(),
@@ -110,8 +110,8 @@ export const POST = apiHandler({
         traverseLegs: z.array(z.object({
           from: z.string().min(1),
           to: z.string().min(1),
-          distance: z.number().optional().default(0),
-          bearing: z.number().optional().default(0),
+          distance: z.number().prefault(0),
+          bearing: z.number().prefault(0),
         })).optional(),
       })
       const parsed = schema.safeParse(payload)

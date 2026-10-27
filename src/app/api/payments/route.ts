@@ -313,7 +313,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
         case 'confirm-session': {
           const s = z.object({
             sessionId: z.string().min(1),
-            paymentId: z.string().uuid(),
+            paymentId: z.string().guid(),
             planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']),
           }).safeParse(params)
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
@@ -359,7 +359,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
         case 'capture-order': {
           const s = z.object({
             orderId: z.string().min(1),
-            paymentId: z.string().uuid(),
+            paymentId: z.string().guid(),
             planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']),
           }).safeParse(params)
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
@@ -423,7 +423,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
         }
         case 'subscription-status': {
           const s = z.object({
-            paymentId: z.string().uuid(),
+            paymentId: z.string().guid(),
             planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']),
           }).safeParse(params)
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
@@ -473,7 +473,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
       switch (action) {
         case 'check-status': {
           const s = z.object({
-            paymentId: z.string().uuid(),
+            paymentId: z.string().guid(),
             checkoutRequestId: z.string().min(1),
           }).safeParse(params)
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })

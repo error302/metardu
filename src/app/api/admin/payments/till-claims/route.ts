@@ -34,7 +34,7 @@ interface UserRow {
 }
 
 const ActionSchema = z.object({
-  paymentId: z.string().uuid(),
+  paymentId: z.string().guid(),
   action: z.enum(['approve', 'reject']),
   // Optional rejection reason — shown to the admin in the claims history
   // and useful when the customer asks why their claim failed.

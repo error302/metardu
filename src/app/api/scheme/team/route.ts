@@ -8,13 +8,13 @@ export const dynamic = 'force-dynamic'
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
 const AssignTeamSchema = z.object({
-  userId: z.string().uuid(),
+  userId: z.string().guid(),
   role: z.enum(['surveyor', 'reviewer', 'approver']),
   action: z.enum(['assign', 'remove']),
 })
 
 const TeamQuerySchema = z.object({
-  project_id: z.string().uuid({ message: 'project_id must be a valid UUID' }),
+  project_id: z.string().guid({ message: 'project_id must be a valid UUID' }),
 })
 
 // ─── DB Row Interfaces ───────────────────────────────────────────────────────

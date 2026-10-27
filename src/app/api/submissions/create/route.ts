@@ -39,7 +39,7 @@ interface SubmissionRow {
 }
 
 const CreateSubmissionSchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
 })
 
 export const POST = apiHandler(

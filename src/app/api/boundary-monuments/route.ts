@@ -78,7 +78,7 @@ const searchSchema = z.object({
   radiusKm: z.coerce.number().optional(),
   verification_status: z.string().optional(),
   condition: z.string().optional(),
-  limit: z.coerce.number().min(1).max(500).default(100),
+  limit: z.coerce.number().min(1).max(500).prefault(100),
 })
 
 export const GET = apiHandler(
@@ -131,7 +131,7 @@ export const GET = apiHandler(
  */
 const createSchema = z.object({
   monument_number: z.string().min(1).max(100),
-  monument_type: z.string().default('pillar'),
+  monument_type: z.string().prefault('pillar'),
   boundary_name: z.string().min(1).max(200),
   treaty_reference: z.string().min(1).max(500),
   treaty_date: z.string().optional(),
@@ -141,13 +141,13 @@ const createSchema = z.object({
   easting: z.number().finite().optional(),
   northing: z.number().finite().optional(),
   coordinate_epoch: z.number().optional(),
-  reference_frame: z.string().default('ITRF2014'),
+  reference_frame: z.string().prefault('ITRF2014'),
   observation_date: z.string().optional(),
   sigma_e: z.number().optional(),
   sigma_n: z.number().optional(),
   sigma_h: z.number().optional(),
-  sigma_en: z.number().default(0),
-  confidence_level: z.number().default(0.95),
+  sigma_en: z.number().prefault(0),
+  confidence_level: z.number().prefault(0.95),
   physical_description: z.string().optional(),
   material: z.string().optional(),
   dimensions: z.string().optional(),
@@ -157,14 +157,14 @@ const createSchema = z.object({
   sub_county: z.string().optional(),
   locality: z.string().optional(),
   sheet_number: z.string().optional(),
-  condition: z.string().default('good'),
+  condition: z.string().prefault('good'),
   condition_notes: z.string().optional(),
   last_inspected_date: z.string().optional(),
-  verification_status: z.string().default('pending'),
+  verification_status: z.string().prefault('pending'),
   verified_by: z.string().optional(),
   verified_date: z.string().optional(),
   verification_notes: z.string().optional(),
-  metadata: z.record(z.unknown()).default({}),
+  metadata: z.record(z.string(), z.unknown()).prefault({}),
 }).and(declaredUtmReferenceSchema).transform((body, ctx) => {
   // Validate ranges only after the reference intersection succeeds.
   if ((body.easting === undefined) !== (body.northing === undefined)) {

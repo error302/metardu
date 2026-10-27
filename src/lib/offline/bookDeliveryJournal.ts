@@ -4,13 +4,13 @@ import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema, 
 import { acknowledgeBookDelivery, BookDeliveryDeferredError, BookDeliveryError, bookDeliveryHash, deliverBookRequest } from '@/lib/fieldbook/deliveryClient'
 import { fieldDeliveryFailure, mayRetryFieldDelivery } from '@/lib/field/deliveryRetry'
 
-const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().uuid(),
-  request: fieldbookSaveRequestSchema, requestHash: z.string().regex(/^[a-f0-9]{64}$/), result: z.unknown() }).strict()
+const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().guid(),
+  request: fieldbookSaveRequestSchema, requestHash: z.string().regex(/^[a-f0-9]{64}$/), result: z.unknown().optional() }).strict()
 export { envelopeSchema as bookRequestEnvelopeSchema }
 export interface RetainedBookRequest { request: FieldbookSaveRequest; result: FieldbookSaveResult | null }
 interface Envelope extends RetainedBookRequest { version: 1; key: string; actorId: string; requestHash: string }
-const retrySchema = z.object({ key: z.string(), actorId: z.string().uuid(), projectId: z.string().uuid().nullable(), requestId: z.string().uuid().nullable(),
-  stamp: z.string().uuid(), hardUntil: z.number().finite().nonnegative(),
+const retrySchema = z.object({ key: z.string(), actorId: z.string().guid(), projectId: z.string().guid().nullable(), requestId: z.string().guid().nullable(),
+  stamp: z.string().guid(), hardUntil: z.number().finite().nonnegative(),
   policy: z.object({ attempts: z.number().int().min(1).max(10), nextAttemptAt: z.number().finite().nonnegative(), blocked: z.boolean(), httpStatus: z.number().int().min(100).max(599).optional() }).strict(),
 }).strict()
 type RetryRecord = z.infer<typeof retrySchema>
@@ -22,7 +22,7 @@ const openJournal = () => openDB<JournalDB>('metardu-book-delivery-journal', 2, 
     if (previous < 2) database.createObjectStore('retries', { keyPath: 'key' })
   },
 })
-const keyFor = (actor: string, requestId: string) => `${z.string().uuid().parse(actor)}:${z.string().uuid().parse(requestId)}`
+const keyFor = (actor: string, requestId: string) => `${z.string().guid().parse(actor)}:${z.string().guid().parse(requestId)}`
 const invalid = () => new Error('The retained book request could not be verified. It was kept for inspection; no acknowledgement was attached.')
 const retryKeys = (actor: string, requestId: string) => ({ request: `request:${keyFor(actor, requestId)}`, actor: `actor:${actor}` })
 function checkedRetry(value: unknown, actor: string, project: string | null, requestId: string | null): RetryRecord | null {
@@ -85,13 +85,13 @@ async function checked(value: unknown, actor: string, project: string, requestId
   return { ...parsed, result }
 }
 async function read(actor: string, project: string, requestId: string): Promise<Envelope> {
-  const key = keyFor(actor, requestId); z.string().uuid().parse(project)
+  const key = keyFor(actor, requestId); z.string().guid().parse(project)
   const database = await openJournal()
   try { return await checked(await database.get('requests', key), actor, project, requestId) }
   finally { database.close() }
 }
 export async function findBookRequest(actor: string, project: string, requestId: string): Promise<RetainedBookRequest | null> {
-  const key = keyFor(actor, requestId); z.string().uuid().parse(project)
+  const key = keyFor(actor, requestId); z.string().guid().parse(project)
   const database = await openJournal()
   try {
     const value = await database.get('requests', key)
@@ -121,7 +121,7 @@ export async function retainBookRequest(actor: string, value: FieldbookSaveReque
   return checked(retained, actor, request.projectId, request.requestId)
 }
 export async function listBookRequests(actor: string, project: string): Promise<RetainedBookRequest[]> {
-  z.string().uuid().parse(actor); z.string().uuid().parse(project)
+  z.string().guid().parse(actor); z.string().guid().parse(project)
   const database = await openJournal()
   try {
     const all = await database.getAll('requests')
@@ -129,7 +129,7 @@ export async function listBookRequests(actor: string, project: string): Promise<
   } finally { database.close() }
 }
 export async function exportBookRequestRecords(actor: string, project: string): Promise<unknown[]> {
-  z.string().uuid().parse(actor); z.string().uuid().parse(project)
+  z.string().guid().parse(actor); z.string().guid().parse(project)
   const database = await openJournal()
   try { return (await database.getAll('requests')).filter(value => value?.actorId === actor && value.request?.projectId === project) }
   finally { database.close() }

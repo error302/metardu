@@ -28,7 +28,7 @@ const CurveComputeSchema = z.discriminatedUnion('curveType', [
     vpiRL: z.number().finite(),
     curveLength: z.number().finite().positive().optional(),
     kValue: z.number().finite().positive().optional(), // metres per percent
-    interval: z.number().finite().positive().default(20), // output sampling only
+    interval: z.number().finite().positive().prefault(20), // output sampling only
   }).strict(),
   z.object({
     curveType: z.literal('transition'),
@@ -36,7 +36,7 @@ const CurveComputeSchema = z.discriminatedUnion('curveType', [
     intersectionAngleDeg: z.number().finite().gt(-180).lt(180), // positive right, negative left
     spiralLength: z.number().finite().nonnegative(), // explicit zero is the circular limit
     piChainage: z.number().finite(),
-    interval: z.number().finite().positive().default(20),
+    interval: z.number().finite().positive().prefault(20),
   }).strict(),
 ])
 
@@ -62,7 +62,7 @@ export async function POST(req: NextRequest) {
     // horizontal geometry when that kind or its required inputs are invalid.
     const typed = typeof body === 'object' && body !== null && 'curveType' in body
     const parsed = typed ? CurveComputeSchema.safeParse(body) : LegacyCurveComputeSchema.safeParse(body)
-    if (!parsed.success) return NextResponse.json({ error: 'Validation failed', details: parsed.error.errors }, { status: 400 })
+    if (!parsed.success) return NextResponse.json({ error: 'Validation failed', details: parsed.error.issues }, { status: 400 })
     const input: z.infer<typeof CurveComputeSchema> | z.infer<typeof LegacyCurveComputeSchema> = parsed.data
 
     // For horizontal curve (new or legacy), use the existing horizontalCurve function
@@ -109,7 +109,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Unknown curve type' }, { status: 400 })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation failed', details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 })
     }
     logger.error('Curve compute error:', { error })
     return NextResponse.json({ error: 'Computation failed' }, { status: 500 })

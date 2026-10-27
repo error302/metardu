@@ -10,7 +10,7 @@ export const PipelineCaptureInputSchema = z.object({
   metadata: z.object({ route: text, designReference: text, verticalReference: text, observer: text, instrument: text }).strict(),
   criterion: z.object({ minimumCoverM: z.number().finite().positive(), source: text.trim().min(1), revision: text.trim().min(1) }).strict().nullable(),
 }).strict()
-export const SavePipelineCaptureSchema = PipelineCaptureInputSchema.extend({ clientBatchId: z.string().uuid() }).strict()
+export const SavePipelineCaptureSchema = PipelineCaptureInputSchema.extend({ clientBatchId: z.string().guid() }).strict()
 export type PipelineCaptureInput = z.infer<typeof PipelineCaptureInputSchema>
 export function createPipelineCapture(raw: unknown) {
   const input = PipelineCaptureInputSchema.parse(raw)

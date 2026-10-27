@@ -19,7 +19,7 @@ interface AuditLogRow {
 const insertSchema = z.object({
   event_type: z.string().min(1).max(120),
   description: z.string().min(1).max(500),
-  metadata: z.record(z.unknown()).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 })
 
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {

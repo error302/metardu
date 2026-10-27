@@ -15,7 +15,7 @@ const pointSchema = z.object({
   name: z.string().min(1),
   easting: z.number(),
   northing: z.number(),
-  is_control: z.boolean().optional().default(false),
+  is_control: z.boolean().prefault(false),
 })
 
 const legSchema = z.object({
@@ -27,9 +27,9 @@ const legSchema = z.object({
 
 const c22DxfRequestSchema = z.object({
   projectName: z.string().min(1),
-  lrNumber: z.string().optional().default(''),
+  lrNumber: z.string().prefault(''),
   points: z.array(pointSchema),
-  traverseLegs: z.array(legSchema).optional().default([]),
+  traverseLegs: z.array(legSchema).prefault([]),
 })
 
 // ---------------------------------------------------------------------------

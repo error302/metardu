@@ -11,10 +11,10 @@ import { z } from 'zod'
 // ─── Zod Schemas ──────────────────────────────────────────────────────────────
 
 const AutomatorRunSchema = z.object({
-  workflowId: z.string().uuid(),
-  inputs: z.record(z.unknown()),
-  nodes: z.array(z.record(z.unknown())).min(1).optional(),
-  edges: z.array(z.record(z.unknown())).min(1).optional(),
+  workflowId: z.string().guid(),
+  inputs: z.record(z.string(), z.unknown()),
+  nodes: z.array(z.record(z.string(), z.unknown())).min(1).optional(),
+  edges: z.array(z.record(z.string(), z.unknown())).min(1).optional(),
 })
 
 export async function POST(request: NextRequest) {

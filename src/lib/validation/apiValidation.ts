@@ -27,7 +27,7 @@ import { FIELD_RECORD_CRS_CODES } from '@/lib/field/fieldRecordCrs'
 // ---------------------------------------------------------------------------
 
 /** UUID string validation */
-export const uuidSchema = z.string().uuid()
+export const uuidSchema = z.string().guid()
 
 /** Email validation */
 export const emailSchema = z.string().email().max(255).toLowerCase()
@@ -136,10 +136,10 @@ export const notificationSchema = z.object({
 export const activitySchema = z.object({
   activityType: z.string().min(1).max(100),
   description: z.string().min(1).max(500),
-  projectId: z.string().uuid().optional(),
+  projectId: z.string().guid().optional(),
   entityType: z.string().max(50).optional(),
   entityId: z.string().max(100).optional(),
-  metadata: z.record(z.any()).optional(),
+  metadata: z.record(z.string(), z.any()).optional(),
 })
 
 /** Spatial query params */
@@ -153,7 +153,7 @@ export const spatialQuerySchema = z.object({
 })
 
 /** Generic safe object (max depth 3, no prototypes) */
-export const safeObjectSchema = z.record(z.any()).refine(
+export const safeObjectSchema = z.record(z.string(), z.any()).refine(
   (val) => {
     const json = JSON.stringify(val)
     return json.length < 1_000_000 // 1MB max
@@ -172,7 +172,7 @@ export const safeObjectSchema = z.record(z.any()).refine(
 export function validateBody<T>(body: unknown, schema: z.ZodSchema<T>): T {
   const result = schema.safeParse(body)
   if (!result.success) {
-    const errors = result.error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
+    const errors = result.error.issues.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
     throw new Error(`Validation error: ${errors}`)
   }
   return result.data

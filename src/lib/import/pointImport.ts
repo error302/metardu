@@ -12,7 +12,7 @@ export const pointImportOptionsSchema=z.object({
   gsiFootUnit:z.enum(['international','USSurveyFoot']).optional(),
 }).strict()
 export const pointImportSchema=z.object({
-  requestId:z.string().uuid(),fileName:z.string().min(1).max(255),
+  requestId:z.string().guid(),fileName:z.string().min(1).max(255),
   sourceText:z.string().min(1).max(MAX_POINT_IMPORT_BYTES),fileSize:z.number().int().min(1).max(MAX_POINT_IMPORT_BYTES),
   sourceFileHash:z.string().regex(/^[a-f0-9]{64}$/),expectedReferenceHash:z.string().regex(/^[a-f0-9]{64}$/),
   selectedIndices:z.array(z.number().int().min(0).max(MAX_POINT_IMPORT_ROWS-1)).min(1).max(MAX_POINT_IMPORT_ROWS),

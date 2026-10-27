@@ -13,8 +13,8 @@ const schema = z.object({
   projectName: z.string(),
   surveyorName: z.string(),
   surveyorLicense: z.string().optional(),
-  datum: z.string().default('Arc 1960'),
-  utmZone: z.number().default(37),
+  datum: z.string().prefault('Arc 1960'),
+  utmZone: z.number().prefault(37),
   benchmark: z.string().optional(),
   benchmarkRL: z.number().optional(),
 })

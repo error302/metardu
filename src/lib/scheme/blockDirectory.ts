@@ -5,13 +5,13 @@ export const blockDirectoryQuerySchema = z.object({
   page: z
     .string()
     .regex(/^[1-9]\d{0,5}$/)
-    .default('1')
+    .prefault('1')
     .transform(Number),
-  q: z.string().trim().max(80).default(''),
+  q: z.string().trim().max(80).prefault(''),
 })
 export const blockCommandRowSchema = z.object({
-  id: z.string().uuid(),
-  project_id: z.string().uuid(),
+  id: z.string().guid(),
+  project_id: z.string().guid(),
   block_number: z.string(),
   block_name: z.string().nullable(),
   description: z.string().nullable(),
@@ -32,8 +32,8 @@ export const blockCommandResponseSchema = z.object({
 })
 export const blockDeleteResponseSchema = z.object({
   data: z.object({
-    deletedId: z.string().uuid(),
-    projectId: z.string().uuid(),
+    deletedId: z.string().guid(),
+    projectId: z.string().guid(),
     rowVersion: z.string().regex(/^\d+$/),
   }),
 })
@@ -48,7 +48,7 @@ export const blockDirectoryRowSchema = blockCommandRowSchema.extend({
 export const blockDirectoryResponseSchema = z
   .object({
     project: z.object({
-      id: z.string().uuid(),
+      id: z.string().guid(),
       name: z.string(),
       projectType: z.string().nullable(),
       canCreate: z.boolean(),

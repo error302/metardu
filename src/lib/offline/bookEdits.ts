@@ -4,16 +4,16 @@ import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema, 
 import { BookDeliveryDeferredError, BookDeliveryError, bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
 import { findBookRequest, retainBookRequest, sendRetainedBookRequest } from './bookDeliveryJournal'
 export const bookSaveOriginSchema = z.discriminatedUnion('kind', [z.object({ kind: z.literal('new') }).strict(), z.object({ kind: z.literal('unknown') }).strict(), z.object({ kind: z.literal('retained_request') }).strict(),
-  z.object({ kind: z.literal('revision'), revision: bookRevisionSchema }).strict(), z.object({ kind: z.literal('operation'), requestId: z.string().uuid() }).strict()])
+  z.object({ kind: z.literal('revision'), revision: bookRevisionSchema }).strict(), z.object({ kind: z.literal('operation'), requestId: z.string().guid() }).strict()])
 export type BookSaveOrigin = z.infer<typeof bookSaveOriginSchema>
 const editSchema = fieldbookSaveRequestSchema.omit({ protocol: true, baseRevision: true }).extend({ basis: bookSaveOriginSchema }).strict()
 export type BookEdit = z.infer<typeof editSchema>
-const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().uuid(), projectId: z.string().uuid(), edit: editSchema, hash: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
+const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().guid(), projectId: z.string().guid(), edit: editSchema, hash: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 export { envelopeSchema as bookEditEnvelopeSchema }
 type Envelope = z.infer<typeof envelopeSchema>
 interface EditDB extends DBSchema { edits: { key: string; value: Envelope } }
 const openEdits = () => openDB<EditDB>('metardu-book-edits', 1, { upgrade(database) { database.createObjectStore('edits', { keyPath: 'key' }) } })
-const keyFor = (actor: string, id: string) => `${z.string().uuid().parse(actor)}:${z.string().uuid().parse(id)}`
+const keyFor = (actor: string, id: string) => `${z.string().guid().parse(actor)}:${z.string().guid().parse(id)}`
 async function checked(value: unknown, actor: string, project: string): Promise<Envelope> {
   const parsed = envelopeSchema.safeParse(value)
   if (!parsed.success || parsed.data.actorId !== actor || parsed.data.projectId !== project || parsed.data.edit.projectId !== project
@@ -44,7 +44,7 @@ export async function readBookEdit(actor: string, project: string, id: string): 
   finally { database.close() }
 }
 export async function findBookEdit(actor: string, project: string, id: string): Promise<BookEdit | null> {
-  const key = keyFor(actor, id); z.string().uuid().parse(project)
+  const key = keyFor(actor, id); z.string().guid().parse(project)
   const database = await openEdits()
   try { const value = await database.get('edits', key); return value === undefined ? null : (await checked(value, actor, project)).edit }
   finally { database.close() }
@@ -55,7 +55,7 @@ export function bookEditRequestMatches(edit: BookEdit, request: FieldbookSaveReq
   return canonicalDeliveryJson(editable) === canonicalDeliveryJson(requested)
 }
 export async function listBookEdits(actor: string, project: string): Promise<{ edit: BookEdit; result: FieldbookSaveResult | null }[]> {
-  z.string().uuid().parse(actor); z.string().uuid().parse(project)
+  z.string().guid().parse(actor); z.string().guid().parse(project)
   const database = await openEdits()
   try {
     const values = (await database.getAll('edits')).filter(value => value?.actorId === actor && value.projectId === project)
@@ -68,14 +68,14 @@ export async function listBookEdits(actor: string, project: string): Promise<{ e
   } finally { database.close() }
 }
 export async function exportBookEditRecords(actor: string, project: string): Promise<unknown[]> {
-  z.string().uuid().parse(actor); z.string().uuid().parse(project)
+  z.string().guid().parse(actor); z.string().guid().parse(project)
   const database = await openEdits()
   try { return (await database.getAll('edits')).filter(value => value?.actorId === actor && value.projectId === project) }
   finally { database.close() }
 }
 const deliveryTails = new Map<string, Promise<void>>()
 async function serialized<T>(actor: string, project: string, work: () => Promise<T>): Promise<T> {
-  const key = `${z.string().uuid().parse(actor)}:${z.string().uuid().parse(project)}`
+  const key = `${z.string().guid().parse(actor)}:${z.string().guid().parse(project)}`
   const previous = deliveryTails.get(key) ?? Promise.resolve()
   let release: () => void = () => {}
   const current = new Promise<void>(resolve => { release = resolve })

@@ -4,7 +4,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 
-const querySchema = z.object({ cursor: z.string().uuid().optional(), id: z.string().uuid().optional(), q: z.string().max(100).default(''), limit: z.coerce.number().int().min(1).max(50).default(25) })
+const querySchema = z.object({ cursor: z.string().guid().optional(), id: z.string().guid().optional(), q: z.string().max(100).prefault(''), limit: z.coerce.number().int().min(1).max(50).prefault(25) })
 export const dynamic = 'force-dynamic'
 export const GET = apiHandler({ auth: true }, async (req, ctx) => {
   const parsed = querySchema.safeParse(Object.fromEntries(req.nextUrl.searchParams))

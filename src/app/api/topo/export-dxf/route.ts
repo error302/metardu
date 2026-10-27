@@ -11,9 +11,9 @@ const schema = z.object({
     code: z.string().optional(),
     pointNumber: z.string().optional(),
   })),
-  projectName: z.string().default('Topographic Survey'),
-  drawElevations: z.boolean().default(true),
-  drawPointNumbers: z.boolean().default(true),
+  projectName: z.string().prefault('Topographic Survey'),
+  drawElevations: z.boolean().prefault(true),
+  drawPointNumbers: z.boolean().prefault(true),
 })
 
 export const POST = apiHandler(

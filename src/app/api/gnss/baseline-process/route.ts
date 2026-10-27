@@ -50,11 +50,11 @@ const BaselineProcessSchema = z.object({
     ellipsoidalHeight: z.number().min(-12000).max(100000),
   }),
   options: z.object({
-    mode: z.enum(['static', 'kinematic']).default('static'),
-    frequency: z.enum(['l1', 'l1+l2', 'l1+l2+l5']).default('l1+l2'),
-    elevationMask: z.number().min(0).max(90).default(15),
-    ambiguityResolution: z.enum(['off', 'continuous', 'instantaneous', 'fix-and-hold']).default('continuous'),
-  }).default({}),
+    mode: z.enum(['static', 'kinematic']).prefault('static'),
+    frequency: z.enum(['l1', 'l1+l2', 'l1+l2+l5']).prefault('l1+l2'),
+    elevationMask: z.number().min(0).max(90).prefault(15),
+    ambiguityResolution: z.enum(['off', 'continuous', 'instantaneous', 'fix-and-hold']).prefault('continuous'),
+  }).prefault({}),
 })
 
 export const POST = apiHandler(

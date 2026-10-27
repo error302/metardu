@@ -62,7 +62,7 @@ export async function saveProjectEngineeringData(
     )
   }
   const acknowledged = z
-    .object({ id: z.string(), engineering_data: z.unknown() })
+    .object({ id: z.string(), engineering_data: z.unknown().optional() })
     .safeParse(data[0])
   if (
     !acknowledged.success ||

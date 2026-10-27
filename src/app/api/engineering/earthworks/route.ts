@@ -39,7 +39,7 @@ export const POST=apiHandler({auth:true,schema:SaveEarthworksSchema,rateLimit:{m
   return NextResponse.json(result,{status:result.replayed?200:201,headers:privateHeaders})
 })
 
-const readQuery=z.object({alignment_id:z.string().uuid(),run_id:z.string().uuid().optional(),preview:z.literal('1').optional(),before_revision:z.coerce.number().int().positive().max(2147483647).optional()}).strict()
+const readQuery=z.object({alignment_id:z.string().guid(),run_id:z.string().guid().optional(),preview:z.literal('1').optional(),before_revision:z.coerce.number().int().positive().max(2147483647).optional()}).strict()
 export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(req,ctx)=>{
   const parsed=readQuery.safeParse(Object.fromEntries(new URL(req.url).searchParams))
   if(!parsed.success)throw new ValidationError('Supply a valid alignment ID and quantity query.')

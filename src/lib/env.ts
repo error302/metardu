@@ -25,7 +25,7 @@ const envSchema = z.object({
 
   NEXT_PUBLIC_LOG_ENDPOINT: z.string().url().optional().or(z.literal('')),
   NEXT_PUBLIC_SENTRY_DSN: z.string().url().optional().or(z.literal('')),
-  NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.enum(['development', 'staging', 'production']).default('production'),
+  NEXT_PUBLIC_SENTRY_ENVIRONMENT: z.enum(['development', 'staging', 'production']).prefault('production'),
   SENTRY_ORG: z.string().optional(),
   SENTRY_PROJECT: z.string().optional(),
 

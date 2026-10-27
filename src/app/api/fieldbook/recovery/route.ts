@@ -14,7 +14,7 @@ const recoveryInput = z.object({ capture: offlineObservationSchema,
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   const expected = request.headers.get('X-Metardu-Expected-User')
   if (expected && expected !== ctx.userId) return NextResponse.json({ error: 'The signed-in account changed.' }, { status: 403, headers })
-  const project = z.string().uuid().safeParse(request.nextUrl.searchParams.get('projectId'))
+  const project = z.string().guid().safeParse(request.nextUrl.searchParams.get('projectId'))
   if (!project.success) return NextResponse.json({ error: 'Select a valid project before reviewing device work.' }, { status: 400, headers })
   const result = await db.query<{ allowed: boolean }>('SELECT public.field_observation_project_access($1,true) AS allowed', [project.data])
   if (result.rows[0]?.allowed !== true) return NextResponse.json({ error: 'This account requires current field-recording access to review this project’s device work.' }, { status: 403, headers })

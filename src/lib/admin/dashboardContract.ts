@@ -4,14 +4,14 @@ const count = z.number().int().nonnegative()
 const person = z.object({ id: z.string(), email: z.string(), name: z.string() })
 export const dashboardResponseSchema = z.object({
   users: z.object({ total: count, newThisMonth: count }),
-  projects: z.object({ total: count, byStatus: z.record(count) }),
+  projects: z.object({ total: count, byStatus: z.record(z.string(), count) }),
   parcels: count,
   beacons: count,
   revenue: z.object({ total: z.number().finite(), byMonth: z.array(z.object({ month: z.string(), total: z.number().finite() })), byCurrency: z.array(z.object({ currency: z.string(), total: z.number().finite() })) }),
   recentSignups: z.array(person.extend({ role: z.string(), plan: z.string(), createdAt: z.string() })),
   iskPendingCount: count,
   iskQueue: z.array(person.extend({ iskNumber: z.string(), submittedAt: z.string(), updatedAt: z.string() })),
-  activeSubscriptions: z.record(count), trialSubscriptions: count, submissionsThisMonth: count,
+  activeSubscriptions: z.record(z.string(), count), trialSubscriptions: count, submissionsThisMonth: count,
   operations: z.object({
     accounts: count, syntheticAccounts: count, unverifiedEmails: count,
     pendingClaims: count, failedPayments30d: count, expiringSubscriptions7d: count,
@@ -32,7 +32,7 @@ export const syntheticAccountSql = `(COALESCE(u.full_name, '') = 'SYNTHETIC PROD
   AND u.email LIKE 'synthetic-production-check-%@example.invalid')`
 
 export const feedbackUpdateSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   status: z.enum(['open', 'in_progress', 'resolved']),
   expectedStatus: z.enum(['open', 'in_progress', 'resolved']),
   note: z.string().trim().min(3).max(2000),

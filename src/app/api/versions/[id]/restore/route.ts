@@ -30,7 +30,7 @@ interface EntityVersionRow {
 }
 
 const RestoreSchema = z.object({
-  version_id: z.string().uuid('version_id must be a valid UUID'),
+  version_id: z.string().guid('version_id must be a valid UUID'),
 })
 
 /**

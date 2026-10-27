@@ -69,7 +69,7 @@ const responseSchema = z.object({
       z.object({
         assessment: z.enum(['PASS', 'FAIL', 'UNASSESSED']).optional(),
         criteriaReference: z.string().optional(),
-        roadEvidence: z.record(z.union([z.number().finite(), z.null()])).optional(),
+        roadEvidence: z.record(z.string(), z.union([z.number().finite(), z.null()])).optional(),
         standardCompliance: z.literal('NOT_ASSESSED').optional(),
         rule: z.string(),
         source: z.string(),

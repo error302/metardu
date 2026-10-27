@@ -5,7 +5,7 @@ import { captureBookRequestSchema } from '@/lib/fieldbook/captureDraft'
 import { createBookFromCaptures, inspectBookCapture, listBookCaptures } from '@/lib/fieldbook/captureBookServer'
 export const dynamic = 'force-dynamic'
 const headers = { 'Cache-Control': 'private, no-store' }
-const scope = z.object({ projectId: z.string().uuid(), batchId: z.string().uuid().optional(), cursor: z.string().max(500).optional() })
+const scope = z.object({ projectId: z.string().guid(), batchId: z.string().guid().optional(), cursor: z.string().max(500).optional() })
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (request, ctx) => {
   if (request.headers.get('X-Metardu-Expected-User') !== ctx.userId) return NextResponse.json({ error: 'Sign in as the account reviewing these captures.' }, { status: 403, headers })
   const input = scope.parse(Object.fromEntries(request.nextUrl.searchParams))

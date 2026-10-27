@@ -10,10 +10,10 @@ import { resolveEpsg, transformPoint, validateCoordinateRange } from '@/lib/spat
 
 export const dynamic = 'force-dynamic'
 const bodySchema = z.object({
-  requestId: z.string().uuid(), projectId: z.string().uuid(), easting: z.number().finite(), northing: z.number().finite(),
-  elevation: z.number().finite().min(-10000).max(100000).nullable().default(null),
+  requestId: z.string().guid(), projectId: z.string().guid(), easting: z.number().finite(), northing: z.number().finite(),
+  elevation: z.number().finite().min(-10000).max(100000).nullable().prefault(null),
   horizontalCrs: z.string().trim().min(1).max(80), originalHorizontalCrs: z.string().trim().min(1).max(80),
-  verticalDatum: z.string().trim().min(1).max(200).nullable().default(null),
+  verticalDatum: z.string().trim().min(1).max(200).nullable().prefault(null),
   ties: z.string().trim().min(1).max(8000), instrument: z.string().trim().min(1).max(200),
   note: z.string().trim().min(1).max(8000),
   observationDate: z.string().datetime({ offset: true }).transform(value => new Date(value).toISOString()),
@@ -33,7 +33,7 @@ function fail(message: string, status: number): never { throw new AppError(messa
 const privateHeaders = { 'Cache-Control': 'private, no-store' }
 
 export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 60000 } }, async (_req, ctx) => {
-  const beaconId = z.string().uuid().safeParse((await ctx.params)?.id), parsed = bodySchema.safeParse(ctx.body)
+  const beaconId = z.string().guid().safeParse((await ctx.params)?.id), parsed = bodySchema.safeParse(ctx.body)
   if (!beaconId.success || !parsed.success) return NextResponse.json({ error: 'A beacon ID and complete observed replacement evidence are required' }, { status: 400 })
   const body = parsed.data
   if (Date.parse(body.observationDate) > Date.now() + 300000) fail('Observation date cannot be in the future', 400)
@@ -52,7 +52,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       if (replay.input_hash !== inputHash) fail('This request ID already records different observed evidence', 409)
       return { capture: replay, replayed: true }
     }
-    if (previous.superseded_by_id || previous.status === 'SUPERSEDED' || (await client.query('SELECT 1 FROM beacon_registry WHERE re_established_from_id=$1 LIMIT 1', [previous.id])).rowCount) fail('This mark already has a replacement; re-observe its newest record instead', 409)
+    if (previous.superseded_by_id || previous.status === 'SUPERSEDED' || (await client.query<{ '?column?': number }>('SELECT 1 FROM beacon_registry WHERE re_established_from_id=$1 LIMIT 1', [previous.id])).rowCount) fail('This mark already has a replacement; re-observe its newest record instead', 409)
     const referenceRow = (await client.query<Record<string, unknown>>('SELECT * FROM project_reference_systems WHERE project_id=$1 FOR SHARE', [body.projectId])).rows[0]
     const reference = resolveStageReference(referenceRow, {})
     if (!reference.code || reference.source !== 'declared') fail('Declare a projected metre reference in project settings first', 400)
@@ -69,7 +69,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     const replacementId = randomUUID(), number = `${previous.beacon_number.slice(0, 60)}-R-${replacementId}`
     const [longitude, latitude] = transformPoint(body.easting, body.northing, reference.code, 'EPSG:4326')
     const observation = { ...body, horizontalCrs: reference.code, originalHorizontalCrs: original, replacementId, beaconNumber: number, numberAssignment: 'local_reference', certified: false }
-    await client.query(`INSERT INTO beacon_registry(id,beacon_number,beacon_type,easting,northing,elevation,utm_zone,datum,projection,
+    await client.query<never>(`INSERT INTO beacon_registry(id,beacon_number,beacon_type,easting,northing,elevation,utm_zone,datum,projection,
       horizontal_crs,project_id,created_by,re_established_at,re_established_by,re_established_from_id,status,
       reestablishment_note,established_by,established_date,source,condition,sheet_number,county,sub_county,locality,
       sigma_e,sigma_n,sigma_rl,source_confidence,is_adopted,latitude,longitude,metadata)
@@ -83,7 +83,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
       [body.projectId, previous.id, replacementId, ctx.userId, body.requestId, inputHash,
         JSON.stringify({ declaredProjectReference: referenceRow, originalReferenceSource: previous.horizontal_crs ? 'registry_declaration' : 'surveyor_declaration', originalHorizontalCrs: original }), JSON.stringify(previous), JSON.stringify(observation)])).rows[0]
     if (!capture) throw new Error('Beacon observation was not recorded')
-    const superseded = await client.query("UPDATE beacon_registry SET status='SUPERSEDED',superseded_by_id=$2 WHERE id=$1 AND superseded_by_id IS NULL", [previous.id, replacementId])
+    const superseded = await client.query<never>("UPDATE beacon_registry SET status='SUPERSEDED',superseded_by_id=$2 WHERE id=$1 AND superseded_by_id IS NULL", [previous.id, replacementId])
     if (superseded.rowCount !== 1) fail('Beacon replacement could not be committed; reload and retry', 409)
     return { capture, replayed: false }
   }).catch((error: unknown) => {
@@ -93,7 +93,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   return NextResponse.json({ data: { ...result, certified: false } }, { status: result.replayed ? 200 : 201, headers: privateHeaders })
 })
 export const GET = apiHandler({ auth: true }, async (_req, ctx) => {
-  const id = z.string().uuid().safeParse((await ctx.params)?.id)
+  const id = z.string().guid().safeParse((await ctx.params)?.id)
   if (!id.success) return NextResponse.json({ error: 'Beacon ID required' }, { status: 400 })
   const captures = await db.query<CaptureRow>('SELECT * FROM beacon_reestablishment_captures WHERE (predecessor_id=$1 OR replacement_id=$1) AND actor_id=$2 ORDER BY created_at', [id.data, ctx.userId])
   return NextResponse.json({ data: { captures: captures.rows } }, { headers: privateHeaders })

@@ -23,7 +23,7 @@ const pendingSchema = z
   })
   .strict()
 export type PendingSchemeExport = z.infer<typeof pendingSchema>
-const uuid = z.string().uuid()
+const uuid = z.string().guid()
 const key = (actor: string, project: string) =>
   `metardu:scheme-export:v1:${uuid.parse(actor)}:${uuid.parse(project)}`
 const browserLock: SchemePendingLock = async (name, work) => {

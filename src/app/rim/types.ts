@@ -16,16 +16,16 @@ export const rimListSchema = z.object({
 }).passthrough()
 
 export const rimTemplatesListSchema = z.object({
-  data: z.any(),
+  data: z.any().optional(),
 }).passthrough()
 
 // Most /api/rim mutations return { data: <created-or-updated-row> }
 export const rimMutationSchema = z.object({
-  data: z.any(),
+  data: z.any().optional(),
 }).passthrough()
 
 export const rimTemplateApplySchema = z.object({
-  data: z.any(),
+  data: z.any().optional(),
 }).passthrough()
 
 // ────────────────────────────────────────────────────────────────

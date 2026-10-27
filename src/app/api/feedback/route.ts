@@ -37,11 +37,11 @@ interface FeedbackRow {
 const ADMIN_ROLES = ['super_admin', 'admin', 'org_admin']
 
 const FeedbackSchema = z.object({
-  type: z.enum(['bug', 'feature', 'general', 'performance']).default('general'),
+  type: z.enum(['bug', 'feature', 'general', 'performance']).prefault('general'),
   message: z.string().min(10, 'Message must be at least 10 characters').max(2000),
   email: z.string().email().optional(),
   screenshot: z.string().optional(), // base64 data URL
-  includeErrors: z.boolean().default(true),
+  includeErrors: z.boolean().prefault(true),
   errors: z.array(z.object({
     message: z.string(),
     stack: z.string().optional(),

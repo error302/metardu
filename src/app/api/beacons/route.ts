@@ -14,8 +14,8 @@ const finiteQuery = z.string().trim().min(1).transform(Number).refine(Number.isF
 const querySchema = z.object({
   q: z.string().max(100).optional(), county: z.string().max(100).optional(), beacon_type: z.string().max(50).optional(),
   easting: finiteQuery.optional(), northing: finiteQuery.optional(), crs: z.string().trim().min(1).max(80).optional(),
-  radius: finiteQuery.pipe(z.number().min(0).max(100000)).default('500'),
-  limit: finiteQuery.pipe(z.number().int().min(1).max(200)).default('50'),
+  radius: finiteQuery.pipe(z.number().min(0).max(100000)).prefault('500'),
+  limit: finiteQuery.pipe(z.number().int().min(1).max(200)).prefault('50'),
 })
 interface RegistryRow {
   id: string; beacon_number: string; easting: number; northing: number; elevation: number | null;
@@ -67,9 +67,9 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 120, windowMs: 600
 })
 
 const createSchema = beaconInputSchema.omit({ isAdopted: true }).extend({
-  projectId: z.string().uuid(), beaconNumber: z.string().trim().min(1).max(100),
-  elevation: z.number().finite().min(-10000).max(100000).nullable().default(null),
-  verticalDatum: z.string().trim().min(1).max(200).nullable().default(null),
+  projectId: z.string().guid(), beaconNumber: z.string().trim().min(1).max(100),
+  elevation: z.number().finite().min(-10000).max(100000).nullable().prefault(null),
+  verticalDatum: z.string().trim().min(1).max(200).nullable().prefault(null),
   isAdopted: z.literal(false).optional(),
   establishedDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => Number.isFinite(Date.parse(value + 'T00:00:00Z')) && new Date(value + 'T00:00:00Z').toISOString().slice(0,10) === value).optional(),
 }).strict()
@@ -80,7 +80,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   const beacon = await db.transaction(async client => {
     const project = (await client.query<{ user_id: string | null }>('SELECT user_id FROM projects WHERE id=$1 FOR UPDATE', [body.projectId])).rows[0]
     if (project?.user_id !== ctx.userId) fail('An owned project is required to register this mark', 403)
-    if ((await client.query("SELECT 1 FROM beacon_registry WHERE project_id=$1 AND beacon_number=$2 AND status <> 'SUPERSEDED' AND superseded_by_id IS NULL LIMIT 1", [body.projectId, body.beaconNumber])).rowCount) fail('This project already has a current mark with that number', 409)
+    if ((await client.query<{ '?column?': number }>("SELECT 1 FROM beacon_registry WHERE project_id=$1 AND beacon_number=$2 AND status <> 'SUPERSEDED' AND superseded_by_id IS NULL LIMIT 1", [body.projectId, body.beaconNumber])).rowCount) fail('This project already has a current mark with that number', 409)
     const referenceRow = (await client.query<Record<string, unknown>>('SELECT * FROM project_reference_systems WHERE project_id=$1 FOR SHARE', [body.projectId])).rows[0]
     const reference = resolveStageReference(referenceRow, {})
     if (!reference.code || reference.source !== 'declared') fail('Declare the project coordinate reference before registering a mark', 400)

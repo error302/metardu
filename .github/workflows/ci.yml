@@ -45,6 +45,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-tsbuildinfo-${{ hashFiles('package-lock.json', 'tsconfig.json', 'tsconfig.tests.json') }}-
       - run: npm run typecheck
+      - name: Verify validation resource bounds and retained v3 wire/archive compatibility
+        run: node --test tests/zod-migration-contract.test.mjs
       - name: Verify computation PDF wrapping and retained evidence
         run: node --test tests/export-pdf-layout.test.mjs
       - name: Verify PDF parser through the Next Webpack compiler

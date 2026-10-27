@@ -2,7 +2,7 @@ import { z } from 'zod'
 import { sourceImportSchema } from './captureDraft'
 
 const text = z.string().max(10000)
-const row = z.object({ id: text.optional(), remarks: text.default('') })
+const row = z.object({ id: text.optional(), remarks: text.prefault('') })
 const leveling = z.object({
   sourceImport: sourceImportSchema.optional(),
   method: z.enum(['rise_and_fall', 'height_of_collimation']), openingRL: text,

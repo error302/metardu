@@ -6,15 +6,19 @@ for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
 27 October release-source repair: `DEPENDENCY_AND_PDF_RELEASE_REPAIR_2026-10-27.md`
-records compatible dependency patches (fresh audits: zero critical, one remaining
-high Zod finding), required Puppeteer/Node-22 packaging, corrected actual report
-PDF page orientation, constant empty print-shell export and synchronized-push
-ref selection. Native PDFs, focused regressions, strict typing and an isolated
-Windows source/standalone build are checked; the original loopback preview is
-resumed. The audit gate remains red for Zod. Final Linux/PWA/mobile/customer
-acceptance, the other CI failures, worker/migration/recovery/rollback promotion,
-owner-deferred key rotation and independent professional/field/provider gates
-remain open. This source checkpoint is not a deployment or completion claim.
+records the dependency, Node-22 packaging and actual PDF orientation repairs.
+`ZOD_4_COMPATIBILITY_REPAIR_2026-10-27.md` supersedes its remaining Zod finding:
+the source pins Zod 4.6.7, fresh full/runtime audits have zero findings, 2,169
+captured compatibility cases and four retained synthetic revisions pass, and
+the complete local runtime suite passes 7,138 tests (ten explicitly skipped).
+Strict app/test typing, scoped lint and native PostgreSQL/PDF checks pass.
+The preceding GitHub revision 459a04d1 also passes Jest with coverage, web and
+mobile builds; its browser navigation, accessibility and whole-repository lint
+jobs still fail. Await the new revision's own CI. The original source preview
+is resumed. Final PWA/customer acceptance, other CI repairs,
+worker/migration/recovery/rollback promotion, owner-deferred key rotation and
+independent professional/field/provider gates remain open. This source
+checkpoint is not a deployment or completion claim.
 
 26 October boundary recovery checkpoint: the retained field-to-draft workflow
 now keeps account-bound original boundary requests on the device, recovers exact

@@ -6,8 +6,8 @@ import { z } from 'zod'
 
 const traverseSchema = z.object({
   task: z.enum(['forward', 'adjust']),
-  method: z.enum(['bowditch', 'transit']).default('bowditch'),
-  surveyType: z.string().default('cadastral'),
+  method: z.enum(['bowditch', 'transit']).prefault('bowditch'),
+  surveyType: z.string().prefault('cadastral'),
   startPoint: z.object({
     name: z.string(),
     easting: z.number(),

@@ -1,10 +1,10 @@
 import { z } from 'zod'
 import { canonicalJson } from '@/lib/provenance/canonicalJson'
 
-const legacyRecoveryReview=z.object({version:z.literal('unknown-author-v1'),reviewedBy:z.string().uuid(),reviewedAt:z.string().datetime({offset:true}),sourceHash:z.string().regex(/^[a-f0-9]{64}$/),capturedBy:z.null()})
-const receipt=z.object({ok:z.literal(true),id:z.string(),observationId:z.string().uuid(),batchId:z.string().uuid(),inputHash:z.string().regex(/^[a-f0-9]{64}$/),fieldVerified:z.literal(false),replayed:z.boolean(),legacyRecoveryReview:legacyRecoveryReview.optional()})
+const legacyRecoveryReview=z.object({version:z.literal('unknown-author-v1'),reviewedBy:z.string().guid(),reviewedAt:z.string().datetime({offset:true}),sourceHash:z.string().regex(/^[a-f0-9]{64}$/),capturedBy:z.null()})
+const receipt=z.object({ok:z.literal(true),id:z.string(),observationId:z.string().guid(),batchId:z.string().guid(),inputHash:z.string().regex(/^[a-f0-9]{64}$/),fieldVerified:z.literal(false),replayed:z.boolean(),legacyRecoveryReview:legacyRecoveryReview.optional()})
 export type FieldObservationDeliveryReceipt=z.infer<typeof receipt>
-const storedRecord=z.object({id:z.string().uuid()}).passthrough()
+const storedRecord=z.object({id:z.string().guid()}).passthrough()
 export function hasStoredFieldAcknowledgement(value:unknown,expected:Record<string,string>):boolean{
   const parsed=storedRecord.safeParse(value)
   return parsed.success&&Object.entries(expected).every(([key,item])=>parsed.data[key]===item)

@@ -17,7 +17,7 @@ import { z } from 'zod'
 
 const schema = z.object({
   email: z.string().email().max(200),
-  name: z.string().max(200).optional().default(''),
+  name: z.string().max(200).prefault(''),
   resetToken: z.string().min(16).max(128),
   expiresAt: z.string().datetime(),
 })

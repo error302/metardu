@@ -7,7 +7,7 @@ import { readReviewedBenchmarks,readReviewedBenchmarkCountries } from '@/lib/sur
 import { getBenchmarkTypes } from '@/lib/online/benchmarks'
 const headers={'Cache-Control':'private, no-store'}
 export const POST=apiHandler({auth:true,schema:SearchBenchmarksSchema,rateLimit:{max:60,windowMs:60000}},async(_req,ctx)=>NextResponse.json(await readReviewedBenchmarks(ctx.body as z.infer<typeof SearchBenchmarksSchema>),{headers}))
-const getSchema=z.object({id:z.string().uuid().optional(),countries:z.literal('true').optional(),types:z.literal('true').optional()}).strict()
+const getSchema=z.object({id:z.string().guid().optional(),countries:z.literal('true').optional(),types:z.literal('true').optional()}).strict()
 export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(req)=>{
  const parsed=getSchema.safeParse(Object.fromEntries(req.nextUrl.searchParams))
  if(!parsed.success)return NextResponse.json({error:'Valid catalogue metadata or reference ID is required'},{status:400,headers})

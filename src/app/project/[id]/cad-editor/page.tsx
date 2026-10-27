@@ -81,7 +81,7 @@ export default function CADEditorPage() {
         const res = await fetch(`/api/project/${projectId}`, { signal: controller.signal, cache: 'no-store' })
         if (!res.ok) throw new Error(`Project load failed (${res.status}).`)
         const json = z.object({data:z.unknown().optional(),project:z.unknown().optional()}).passthrough().parse(await res.json() as unknown)
-        const proj = z.object({id:z.string().uuid(),name:z.string()}).passthrough().parse(json.data??json.project??json) as unknown as ProjectRow
+        const proj = z.object({id:z.string().guid(),name:z.string()}).passthrough().parse(json.data??json.project??json) as unknown as ProjectRow
         if (controller.signal.aborted) return
         if (proj.id !== projectId) throw new Error('The response belongs to a different project. No drawing was loaded.')
 

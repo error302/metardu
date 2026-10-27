@@ -13,7 +13,7 @@ const TINPointSchema = z.object({
 })
 
 const TINRequestSchema = z.object({
-  project_id: z.string().uuid().optional(),
+  project_id: z.string().guid().optional(),
   points: z.array(TINPointSchema).min(3).max(50000),
   query_points: z.array(z.object({ x: z.number(), y: z.number() })).optional(),
 })

@@ -151,9 +151,9 @@ export const GET = apiHandler(
 const pointSchema = z.object({
   pointName: z.string().trim().min(1).max(100),
   easting: z.number().finite(), northing: z.number().finite(),
-  elevation: z.number().finite().min(-10000).max(100000).nullable().default(null),
+  elevation: z.number().finite().min(-10000).max(100000).nullable().prefault(null),
   code: z.string().trim().max(20).optional(), description: z.string().trim().max(4000).optional(),
-  isControl: z.boolean().default(false),
+  isControl: z.boolean().prefault(false),
 }).strict()
 export const POST = apiHandler(
   { auth: true, schema: pointSchema, rateLimit: { max: 60, windowMs: 60000 } },
@@ -175,7 +175,7 @@ export const POST = apiHandler(
       if (body.elevation !== null && !reference.verticalDatum) throw new AppError('Declare a vertical datum before registering a height', 400, 'POINT_REFERENCE')
       const info = resolveEpsg(reference.code), range = validateCoordinateRange(body.easting, body.northing, reference.code)
       if (!range.valid) throw new AppError(range.errors.join('; '), 400, 'POINT_REFERENCE')
-      if ((await client.query('SELECT 1 FROM survey_points WHERE project_id=$1 AND point_name=$2 AND deleted_at IS NULL', [id, body.pointName])).rowCount) throw new AppError('This project already has a point with that name', 409, 'POINT_REFERENCE')
+      if ((await client.query<{ '?column?': number }>('SELECT 1 FROM survey_points WHERE project_id=$1 AND point_name=$2 AND deleted_at IS NULL', [id, body.pointName])).rowCount) throw new AppError('This project already has a point with that name', 409, 'POINT_REFERENCE')
       const [lon, lat] = transformPoint(body.easting, body.northing, info.code, 'EPSG:4326')
       const saved = (await client.query<SurveyPointFullRow>(`INSERT INTO survey_points(project_id,point_name,easting,northing,elevation,code,description,is_control,source,horizontal_crs,vertical_datum,datum,projection,utm_zone,hemisphere,geom)
         VALUES($1,$2,$3,$4,$5,$6,$7,$8,'manual',$9,$10,$11,$12,$13,$14,ST_SetSRID(ST_MakePoint($15,$16),4326))

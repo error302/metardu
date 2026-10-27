@@ -34,15 +34,15 @@ async function getMemberAdminContext(organizationId: string, userId: string) {
 export const PATCH = apiHandler(
   { auth: true, schema: UpdateMemberSchema, rateLimit: { max: 30, windowMs: 60_000 } },
   async (_req, ctx) => {
-    const parsedOrgId = z.string().uuid().safeParse(ctx.params.organizationId)
-    const parsedMemberId = z.string().uuid().safeParse(ctx.params.memberId)
+    const parsedOrgId = z.string().guid().safeParse(ctx.params.organizationId)
+    const parsedMemberId = z.string().guid().safeParse(ctx.params.memberId)
     if (!parsedOrgId.success || !parsedMemberId.success) return NextResponse.json({ error: 'Invalid organization or member id' }, { status: 400 })
     const organization = await getMemberAdminContext(parsedOrgId.data, ctx.userId)
     if (!organization) return NextResponse.json({ error: 'Firm administrator access is required.' }, { status: 403 })
 
     const { role: nextRole } = ctx.body as z.infer<typeof UpdateMemberSchema>
     const result = await db.transaction(async (client) => {
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [parsedOrgId.data])
+      await client.query<{ pg_advisory_xact_lock: string }>('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [parsedOrgId.data])
       const { rows } = await client.query<MemberRow>(
         `SELECT id, user_id, role, is_active
            FROM public.organization_members
@@ -64,7 +64,7 @@ export const PATCH = apiHandler(
         )
         if (Number(admins.rows[0]?.count ?? 0) <= 1) return { error: 'last_admin' as const }
       }
-      await client.query(
+      await client.query<never>(
         `UPDATE public.organization_members SET role = $1
           WHERE id = $2 AND organization_id = $3 AND is_active = TRUE`,
         [nextRole, parsedMemberId.data, parsedOrgId.data],
@@ -86,14 +86,14 @@ export const PATCH = apiHandler(
 export const DELETE = apiHandler(
   { auth: true, rateLimit: { max: 20, windowMs: 60_000 } },
   async (_req, ctx) => {
-    const parsedOrgId = z.string().uuid().safeParse(ctx.params.organizationId)
-    const parsedMemberId = z.string().uuid().safeParse(ctx.params.memberId)
+    const parsedOrgId = z.string().guid().safeParse(ctx.params.organizationId)
+    const parsedMemberId = z.string().guid().safeParse(ctx.params.memberId)
     if (!parsedOrgId.success || !parsedMemberId.success) return NextResponse.json({ error: 'Invalid organization or member id' }, { status: 400 })
     const organization = await getMemberAdminContext(parsedOrgId.data, ctx.userId)
     if (!organization) return NextResponse.json({ error: 'Firm administrator access is required.' }, { status: 403 })
 
     const result = await db.transaction(async (client) => {
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [parsedOrgId.data])
+      await client.query<{ pg_advisory_xact_lock: string }>('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [parsedOrgId.data])
       const { rows } = await client.query<MemberRow>(
         `SELECT id, user_id, role, is_active
            FROM public.organization_members
@@ -113,7 +113,7 @@ export const DELETE = apiHandler(
         )
         if (Number(admins.rows[0]?.count ?? 0) <= 1) return { error: 'last_admin' as const }
       }
-      await client.query(
+      await client.query<never>(
         `UPDATE public.organization_members SET is_active = FALSE
           WHERE id = $1 AND organization_id = $2 AND is_active = TRUE`,
         [parsedMemberId.data, parsedOrgId.data],

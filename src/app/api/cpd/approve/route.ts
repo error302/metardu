@@ -24,7 +24,7 @@ import { approveCPDEntry, rejectCPDEntry } from '@/lib/cpd'
 const ADMIN_ROLES = ['super_admin', 'admin', 'org_admin']
 
 const ApproveSchema = z.object({
-  recordId: z.string().uuid(),
+  recordId: z.string().guid(),
   action: z.enum(['approve', 'reject']),
   reason: z.string().max(500).optional(),
 })

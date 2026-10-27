@@ -8,7 +8,7 @@ import { createPipelineCapture, assertPipelineCapture, SavePipelineCaptureSchema
 
 const privateJson = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
 async function owned(projectId: string, userId: string) {
-  if (!z.string().uuid().safeParse(projectId).success) return privateJson({ error: 'Invalid project ID.' }, 400)
+  if (!z.string().guid().safeParse(projectId).success) return privateJson({ error: 'Invalid project ID.' }, 400)
   const access = await requireProjectOwnership(projectId, userId)
   if (!access.ok) {
     const response = access.error ?? privateJson({ error: 'Project ownership required.' }, 403)
@@ -67,7 +67,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   if (denied) return denied
   const params = new URL(request.url).searchParams
   const batchId = params.get('batchId'), beforeId = params.get('beforeId')
-  if ((batchId && beforeId) || [batchId, beforeId].some(id => id !== null && !z.string().uuid().safeParse(id).success)) return privateJson({ error: 'Invalid batch ID or history cursor.' }, 400)
+  if ((batchId && beforeId) || [batchId, beforeId].some(id => id !== null && !z.string().guid().safeParse(id).success)) return privateJson({ error: 'Invalid batch ID or history cursor.' }, 400)
   try {
     if (batchId) {
       const { rows } = await db.query<SavedPipelineBatch>('SELECT * FROM pipeline_asbuilt_batches WHERE project_id = $1 AND id = $2 LIMIT 1', [projectId, batchId])

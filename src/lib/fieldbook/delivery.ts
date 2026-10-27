@@ -15,17 +15,17 @@ const revisionPattern = /^(0|[1-9][0-9]{0,18})$/
 export const bookRevisionSchema = z.string().regex(revisionPattern).refine(value => revisionPattern.test(value) && BigInt(value) <= BigInt('9223372036854775807'))
 export const fieldbookSaveRequestSchema = z.object({
   protocol: z.literal('fieldbook-save-v1'),
-  requestId: z.string().uuid(), projectId: z.string().uuid(), bookId: z.string().uuid(),
+  requestId: z.string().guid(), projectId: z.string().guid(), bookId: z.string().guid(),
   baseRevision: bookRevisionSchema.nullable(), type: z.enum(['leveling', 'traverse', 'control']),
   name: z.string().max(255), data,
 }).strict()
 export type FieldbookSaveRequest = z.infer<typeof fieldbookSaveRequestSchema>
-export const fieldbookSnapshotSchema = z.object({ id: z.string().uuid(), project_id: z.string().uuid(), user_id: z.string().uuid(),
+export const fieldbookSnapshotSchema = z.object({ id: z.string().guid(), project_id: z.string().guid(), user_id: z.string().guid(),
   type: z.string(), name: z.string().nullable(), data, status: z.string().nullable(), revision: bookRevisionSchema,
   created_at: z.string().nullable(), updated_at: z.string().nullable(),
 }).strict()
 export type FieldbookSnapshot = z.infer<typeof fieldbookSnapshotSchema>
-export const fieldbookSaveReceiptSchema = z.object({ protocol: z.literal('fieldbook-save-v1'), fieldVerified: z.literal(false), requestId: z.string().uuid(), actorId: z.string().uuid(), projectId: z.string().uuid(), bookId: z.string().uuid(),
+export const fieldbookSaveReceiptSchema = z.object({ protocol: z.literal('fieldbook-save-v1'), fieldVerified: z.literal(false), requestId: z.string().guid(), actorId: z.string().guid(), projectId: z.string().guid(), bookId: z.string().guid(),
   inputHash: z.string().regex(/^[a-f0-9]{64}$/), payloadHash: z.string().regex(/^[a-f0-9]{64}$/), baseRevision: bookRevisionSchema.nullable(), savedRevision: bookRevisionSchema })
 export type FieldbookSaveReceipt = z.infer<typeof fieldbookSaveReceiptSchema>
 export interface FieldbookSaveResult { receipt: FieldbookSaveReceipt; book: FieldbookSnapshot; currentRevision: string | null; replayed: boolean }

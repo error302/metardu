@@ -17,7 +17,7 @@ import { z } from 'zod'
 
 const schema = z.object({
   email: z.string().email().max(200),
-  recipientName: z.string().max(200).optional().default(''),
+  recipientName: z.string().max(200).prefault(''),
   sharerName: z.string().min(1).max(200),
   projectName: z.string().min(1).max(300),
   role: z.enum(['viewer', 'editor', 'surveyor', 'admin']),

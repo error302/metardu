@@ -4,7 +4,7 @@ import { captureBookRequestSchema, type CaptureBookRequest } from '@/lib/fieldbo
 import { observationDeliveryHash } from '@/lib/field/observationReceipt'
 import { canonicalJson } from '@/lib/provenance/canonicalJson'
 
-const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().uuid(), projectId: z.string().uuid(),
+const envelopeSchema = z.object({ version: z.literal(1), key: z.string(), actorId: z.string().guid(), projectId: z.string().guid(),
   request: captureBookRequestSchema, requestHash: z.string().regex(/^[a-f0-9]{64}$/) }).strict()
 type Envelope = z.infer<typeof envelopeSchema>
 interface IntentDB extends DBSchema { requests: { key: string; value: Envelope } }
@@ -14,7 +14,7 @@ const openIntents = () => openDB<IntentDB>('metardu-capture-book-intents', 1, {
   upgrade(database) { if (!database.objectStoreNames.contains('requests')) database.createObjectStore('requests', { keyPath: 'key' }) },
 })
 function scope(actor: string, project: string) {
-  return `${z.string().uuid().parse(actor)}:${z.string().uuid().parse(project)}`
+  return `${z.string().guid().parse(actor)}:${z.string().guid().parse(project)}`
 }
 function retained(value: unknown, actor: string, project: string): Envelope | null {
   if (value === undefined) return null

@@ -37,7 +37,7 @@ export const GET = apiHandler({
     const url = new URL(ctx.req.url)
     const projectId = url.searchParams.get('project_id') || null
     const rawLimit = url.searchParams.get('limit') || '100'
-    if ((projectId && !z.string().uuid().safeParse(projectId).success)
+    if ((projectId && !z.string().guid().safeParse(projectId).success)
       || !/^[0-9]+$/.test(rawLimit) || !Number.isSafeInteger(Number(rawLimit)) || Number(rawLimit) < 1) {
       return NextResponse.json({ error: 'Provide a valid project UUID and positive integer limit.' }, { status: 400 })
     }
@@ -84,7 +84,7 @@ export const GET = apiHandler({
  * Does not verify digital signatures, payload hashes, or survey acceptance.
  */
 const verifySchema = z.object({
-  row_id: z.string().uuid(),
+  row_id: z.string().guid(),
   table_name: z.enum(['project_fieldbook_entries', 'survey_points']),
 })
 

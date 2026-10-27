@@ -26,7 +26,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   const { searchParams } = new URL(req.url)
   const projectId = searchParams.get('project_id')
 
-  if (!z.string().uuid().safeParse(projectId).success) {
+  if (!z.string().guid().safeParse(projectId).success) {
     return NextResponse.json({ error: 'A valid project_id is required' }, { status: 400 })
   }
 

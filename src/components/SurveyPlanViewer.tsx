@@ -50,7 +50,7 @@ export default function SurveyPlanViewer({ data, options, className = '', submis
       const validation = SurveyPlanDataSchema.safeParse(data)
       if (!validation.success) {
         logger.error('Survey plan data validation failed:', { error: validation.error })
-        if (!cancelled) setError(validation.error.errors[0].message)
+        if (!cancelled) setError(validation.error.issues[0].message)
         return
       }
 

@@ -80,7 +80,7 @@ export const POST = apiHandler(
     }
     if (query.has('action')) {
       const parsed = z
-        .object({ shareId: z.string().uuid() })
+        .object({ shareId: z.string().guid() })
         .strict()
         .safeParse(input)
       if (!parsed.success)

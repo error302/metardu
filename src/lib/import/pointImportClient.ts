@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
 const receiptSchema = z.object({
-  requestId:z.string().uuid(),batchId:z.string().uuid(),
+  requestId:z.string().guid(),batchId:z.string().guid(),
   sourceFileHash:z.string().regex(/^[a-f0-9]{64}$/),inputHash:z.string().regex(/^[a-f0-9]{64}$/),
-  imported:z.number().int().positive(),pointIds:z.array(z.string().uuid()),
+  imported:z.number().int().positive(),pointIds:z.array(z.string().guid()),
   replayed:z.boolean(),fieldVerified:z.literal(false),
 })
 export type PointImportReceipt=z.infer<typeof receiptSchema>

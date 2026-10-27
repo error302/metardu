@@ -19,7 +19,7 @@ import {
   publicParcelShareSchema,
   type ParcelShareCommand,
 } from './parcelShareContract'
-const uuid = z.string().uuid()
+const uuid = z.string().guid()
 const fail = (message: string, status = 409) =>
   new AppError(message, status, 'PARCEL_SHARING')
 export const parcelShareKeyHash = (key: string) =>

@@ -43,15 +43,15 @@ const alignmentRowSchema = z.object({
   road_class: z.string().nullable().optional(),
   standard: z.string().nullable().optional(),
   cross_section_template: z.unknown().optional(),
-  ips: z.array(z.record(z.unknown())).optional(),
-  vips: z.array(z.record(z.unknown())).optional(),
-  stations: z.array(z.record(z.unknown())).optional(),
+  ips: z.array(z.record(z.string(), z.unknown())).optional(),
+  vips: z.array(z.record(z.string(), z.unknown())).optional(),
+  stations: z.array(z.record(z.string(), z.unknown())).optional(),
 }).passthrough()
 
 const alignmentResponseSchema = z.object({
   data: z.union([alignmentRowSchema, z.null()]),
 }).passthrough()
-const projectReferenceResponseSchema = z.object({ referenceSystem: z.record(z.unknown()).nullable() })
+const projectReferenceResponseSchema = z.object({ referenceSystem: z.record(z.string(), z.unknown()).nullable() })
 
 // POST /api/engineering/alignment returns { data: { id, ... } }
 const alignmentMutationSchema = z.object({
@@ -59,7 +59,7 @@ const alignmentMutationSchema = z.object({
 }).passthrough()
 
 // The three sub-resource POSTs return various shapes — accept any object payload.
-const subResourceMutationSchema = z.record(z.unknown())
+const subResourceMutationSchema = z.record(z.string(), z.unknown())
 
 interface ProjectDbRow {
   id: string

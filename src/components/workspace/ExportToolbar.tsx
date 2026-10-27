@@ -52,7 +52,7 @@ const dxfExportSchema = z.object({
 const geojsonExportSchema = z.object({
   kind: z.string(),
   filename: z.string(),
-  geojson: z.any(),
+  geojson: z.any().optional(),
 }).passthrough()
 
 // ---------------------------------------------------------------------------

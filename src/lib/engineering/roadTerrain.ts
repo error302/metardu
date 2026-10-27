@@ -4,13 +4,13 @@ import type {QuantityReference} from './roadQuantity'
 import {buildRoadHorizontalGeometry,roadHorizontalStation} from './roadCoordinateSetout'
 import {roadGroundAlignmentKey} from './roadGroundAssociation'
 const hash=z.string().regex(/^[a-f0-9]{64}$/),finite=z.number().finite()
-export const roadTerrainIdentitySchema=z.object({projectId:z.string().uuid(),surfaceId:z.string().uuid(),revisionId:z.string().uuid(),revision:z.number().int().positive(),name:z.string().min(1),inputHash:hash,meshHash:hash,referenceHash:hash,crs:z.string().min(1),verticalDatum:z.string().min(1),fieldVerified:z.literal(false)}).strict()
+export const roadTerrainIdentitySchema=z.object({projectId:z.string().guid(),surfaceId:z.string().guid(),revisionId:z.string().guid(),revision:z.number().int().positive(),name:z.string().min(1),inputHash:hash,meshHash:hash,referenceHash:hash,crs:z.string().min(1),verticalDatum:z.string().min(1),fieldVerified:z.literal(false)}).strict()
 export const roadTerrainBindingSchema=roadTerrainIdentitySchema.extend({intervalM:finite.min(0.1).max(10000),halfWidthM:finite.positive().max(500)}).strict()
 export const terrainMeshSchema=z.object({points:z.array(z.object({x:finite,y:finite,z:finite})).min(3).max(60000),triangles:z.array(z.object({a:z.number().int().nonnegative(),b:z.number().int().nonnegative(),c:z.number().int().nonnegative()})).min(1).max(20000)}).strict()
 export const roadTerrainDataSchema=z.object({identity:roadTerrainIdentitySchema,mesh:terrainMeshSchema}).strict()
-export const roadTerrainScopeSchema=z.object({actorId:z.string().uuid(),projectId:z.string().uuid(),engineeringHash:hash,referenceHash:hash}).strict()
+export const roadTerrainScopeSchema=z.object({actorId:z.string().guid(),projectId:z.string().guid(),engineeringHash:hash,referenceHash:hash}).strict()
 export type RoadTerrainScope=z.infer<typeof roadTerrainScopeSchema>
-export const roadTerrainRevisionSchema=z.object({revisionId:z.string().uuid(),surfaceId:z.string().uuid(),name:z.string(),revision:z.number().int().positive(),crs:z.string(),pointCount:z.number().int().positive(),triangleCount:z.number().int().positive()}).strict()
+export const roadTerrainRevisionSchema=z.object({revisionId:z.string().guid(),surfaceId:z.string().guid(),name:z.string(),revision:z.number().int().positive(),crs:z.string(),pointCount:z.number().int().positive(),triangleCount:z.number().int().positive()}).strict()
 export const roadTerrainListSchema=z.object({scope:roadTerrainScopeSchema,revisions:z.array(roadTerrainRevisionSchema).max(200),limited:z.boolean()}).strict()
 export const roadTerrainReplySchema=z.object({scope:roadTerrainScopeSchema,terrain:roadTerrainDataSchema}).strict()
 export type TerrainMesh=z.infer<typeof terrainMeshSchema>

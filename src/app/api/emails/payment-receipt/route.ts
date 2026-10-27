@@ -15,10 +15,10 @@ import { z } from 'zod'
 
 const schema = z.object({
   email: z.string().email().max(200),
-  name: z.string().max(200).optional().default(''),
+  name: z.string().max(200).prefault(''),
   planName: z.string().min(1).max(100),
   amount: z.number().nonnegative(),
-  currency: z.string().length(3).default('KES'),
+  currency: z.string().length(3).prefault('KES'),
   paidAt: z.string().datetime(),
   transactionId: z.string().min(1).max(200),
   paymentMethod: z.string().min(1).max(200),

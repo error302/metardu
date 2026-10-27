@@ -54,12 +54,12 @@ async function getAdminOrganization(organizationId: string, userId: string) {
 export const GET = apiHandler(
   { auth: true, rateLimit: { max: 30, windowMs: 60_000 } },
   async (_req, ctx) => {
-    const organizationId = z.string().uuid().safeParse(ctx.params.organizationId)
+    const organizationId = z.string().guid().safeParse(ctx.params.organizationId)
     if (!organizationId.success) return NextResponse.json({ error: 'Invalid organization id' }, { status: 400 })
     const organization = await getAdminOrganization(organizationId.data, ctx.userId)
     if (!organization) return NextResponse.json({ error: 'Only firm administrators can view invitations.' }, { status: 403 })
 
-    const { rows } = await db.query(
+    const { rows } = await db.query<{ id: string; email: string; role: string; expires_at: Date; created_at: Date }>(
       `SELECT id, email, role, expires_at, created_at
          FROM public.organization_invitations
         WHERE organization_id = $1 AND accepted_at IS NULL
@@ -74,7 +74,7 @@ export const GET = apiHandler(
 export const POST = apiHandler(
   { auth: true, schema: CreateInvitationSchema, rateLimit: { max: 12, windowMs: 60 * 60_000 } },
   async (_req, ctx) => {
-    const organizationId = z.string().uuid().safeParse(ctx.params.organizationId)
+    const organizationId = z.string().guid().safeParse(ctx.params.organizationId)
     if (!organizationId.success) return NextResponse.json({ error: 'Invalid organization id' }, { status: 400 })
     const organization = await getAdminOrganization(organizationId.data, ctx.userId)
     if (!organization || !organization.is_active) {
@@ -85,7 +85,7 @@ export const POST = apiHandler(
     const { token, tokenHash } = createOrganizationInvitationToken()
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
     const created = await db.transaction(async (client) => {
-      await client.query('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [organizationId.data])
+      await client.query<{ pg_advisory_xact_lock: string }>('SELECT pg_advisory_xact_lock(hashtextextended($1::text, 0))', [organizationId.data])
       const currentOrg = await client.query<OrganizationRow>(
         `SELECT id, name, plan, max_seats, is_active
            FROM public.organizations WHERE id = $1 LIMIT 1`,
@@ -124,7 +124,7 @@ export const POST = apiHandler(
         return { error: 'seat_limit' as const }
       }
 
-      await client.query(
+      await client.query<never>(
         `UPDATE public.organization_invitations
             SET revoked_at = NOW()
           WHERE organization_id = $1 AND email = $2

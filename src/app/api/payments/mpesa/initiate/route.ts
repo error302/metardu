@@ -27,11 +27,11 @@ const InitiateSchema = z.object({
   // Kept optional for older callers, but never trusted as the charge source.
   amount: z.number().positive().optional(),
   phoneNumber: z.string().min(10),
-  planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']).default('free'),
+  planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']).prefault('free'),
   seatCount: z.number().int().optional(),
   purpose: z.string().max(200).optional(),
   referenceId: z.string().max(200).optional(),
-  currency: z.string().length(3).default('KES'),
+  currency: z.string().length(3).prefault('KES'),
 })
 
 export const POST = apiHandler(

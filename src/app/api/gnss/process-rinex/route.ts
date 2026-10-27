@@ -23,8 +23,8 @@ import { z } from 'zod'
 const schema = z.object({
   rinex_obs: z.string(), // base64-encoded RINEX observation file
   rinex_nav: z.string().optional(),
-  use_precise_ephemeris: z.boolean().default(false),
-  station_name: z.string().default('unknown'),
+  use_precise_ephemeris: z.boolean().prefault(false),
+  station_name: z.string().prefault('unknown'),
 })
 
 export const POST = apiHandler(

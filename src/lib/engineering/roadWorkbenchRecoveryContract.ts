@@ -4,7 +4,7 @@ import { canonicalJson } from '@/lib/provenance/canonicalJson'
 import { sha256Hex } from '@/lib/crypto/sha256'
 export const ROAD_RECOVERY_LIMIT = 3 * 1024 * 1024
 export const roadHashSchema = z.string().regex(/^[a-f0-9]{64}$/)
-const uuid = z.string().uuid()
+const uuid = z.string().guid()
 export const roadRecoveryReferenceSchema = z
   .object({
     code: z.string().nullable(),

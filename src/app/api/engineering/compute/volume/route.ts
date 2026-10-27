@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(result, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: 'Validation failed', details: error.errors }, { status: 400 })
+      return NextResponse.json({ error: 'Validation failed', details: error.issues }, { status: 400 })
     }
     logger.error('Volume compute error:', { error })
     return NextResponse.json({ error: 'Computation failed' }, { status: 500 })

@@ -1,7 +1,7 @@
 import { z } from 'zod'
 const uuid = z
   .string()
-  .uuid()
+  .guid()
   .transform((value) => value.toLowerCase())
 export const parcelShareHash = z.string().regex(/^[a-f0-9]{64}$/)
 export const parcelShareKey = z.string().regex(/^[A-Za-z0-9_-]{43}$/)

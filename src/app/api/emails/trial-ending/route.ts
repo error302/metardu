@@ -12,9 +12,9 @@ const defaultPlanPriceNote = `KES ${getPlanPrice('pro', 'KES')}/month`
 
 const trialEndingSchema = z.object({
   email: z.string().email().max(200),
-  name: z.string().max(200).optional().default(''),
+  name: z.string().max(200).prefault(''),
   trialEndDate: z.string().datetime(),
-  planPriceNote: z.string().max(100).optional().default(defaultPlanPriceNote),
+  planPriceNote: z.string().max(100).prefault(defaultPlanPriceNote),
 })
 
 export async function POST(req: NextRequest) {

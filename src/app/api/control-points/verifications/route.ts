@@ -10,13 +10,13 @@ import { validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { logAuditEvent } from '@/lib/enterprise/auditTrail'
 const headers={'Cache-Control':'private, no-store'}
 const fail=(message:string,status=400):never=>{throw new AppError(message,status,'FIELD_CONTROL_CHECK')}
-const querySchema=z.object({projectId:z.string().uuid().optional(),pointType:z.enum(['survey_point','beacon','boundary_monument']).default('survey_point'),options:z.enum(['true','false']).default('false'),legacy:z.enum(['true','false']).default('false'),limit:z.coerce.number().int().min(1).max(200).default(100)}).strict()
+const querySchema=z.object({projectId:z.string().guid().optional(),pointType:z.enum(['survey_point','beacon','boundary_monument']).prefault('survey_point'),options:z.enum(['true','false']).prefault('false'),legacy:z.enum(['true','false']).prefault('false'),limit:z.coerce.number().int().min(1).max(200).prefault(100)}).strict()
 export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(req,ctx)=>{
  const parsed=querySchema.safeParse(Object.fromEntries(new URL(req.url).searchParams))
  if(!parsed.success)return fail('Valid project and filter values are required')
  const query=parsed.data
  if(query.legacy==='true'){
-  const rows=(await db.query('SELECT * FROM control_point_verifications WHERE verified_by=$1 ORDER BY verification_date DESC,id LIMIT $2',[ctx.userId,query.limit])).rows
+  const rows=(await db.query<Record<string, unknown>>('SELECT * FROM control_point_verifications WHERE verified_by=$1 ORDER BY verification_date DESC,id LIMIT $2',[ctx.userId,query.limit])).rows
   return NextResponse.json({data:rows,legacy:true,certified:false,message:'Historical records lack retained basis and criterion evidence; their prior status is not an evidenced project verification.'},{headers})
  }
  if(!query.projectId)return fail('Select an owned project')
@@ -29,7 +29,7 @@ export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(
    const sources=await controlSources(client,query.pointType,projectId,ctx.userId)
    return {marks:sources.map(source=>({...source,snapshot:undefined,basisHash:evidenceHash({source:source.snapshot,reference}),issue:controlBasisIssue(source,reference)})),reference}
   }
-  const rows=(await client.query('SELECT * FROM control_field_checks WHERE project_id=$1 ORDER BY observed_at DESC,id LIMIT $2',[query.projectId,query.limit])).rows
+  const rows=(await client.query<Record<string, unknown>>('SELECT * FROM control_field_checks WHERE project_id=$1 ORDER BY observed_at DESC,id LIMIT $2',[query.projectId,query.limit])).rows
   return {checks:rows}
  })
  return NextResponse.json({data,certified:false},{headers})

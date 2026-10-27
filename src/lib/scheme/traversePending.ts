@@ -18,7 +18,7 @@ const schema = z
   })
   .strict()
 export type PendingTraverse = z.infer<typeof schema>
-const uuid = z.string().uuid()
+const uuid = z.string().guid()
 export const traversePendingKey = (
   actor: string,
   project: string,

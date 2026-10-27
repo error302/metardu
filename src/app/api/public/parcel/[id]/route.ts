@@ -30,7 +30,7 @@ export async function GET(
   )
   // Project IDs, cookies and query-string keys never authorize disclosure.
   if (
-    !z.string().uuid().safeParse(id).success ||
+    !z.string().guid().safeParse(id).success ||
     new URL(request.url).search.length ||
     !auth ||
     !parcelShareKey.safeParse(auth[1]).success

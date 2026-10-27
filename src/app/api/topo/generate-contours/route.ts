@@ -10,12 +10,12 @@ const schema = z.object({
   points: z.array(z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() })).min(3).max(10000),
   breaklines: z.array(z.object({
     points: z.array(z.object({ x: z.number().finite(), y: z.number().finite(), z: z.number().finite() })).min(2).max(2001),
-    type: z.enum(['hard', 'soft', 'ridge', 'valley']).default('hard'),
-  })).max(2000).optional().default([]),
-  interval: z.number().finite().positive().default(1),
-  maxSlope: z.number().finite().positive().max(90).default(45),
+    type: z.enum(['hard', 'soft', 'ridge', 'valley']).prefault('hard'),
+  })).max(2000).prefault([]),
+  interval: z.number().finite().positive().prefault(1),
+  maxSlope: z.number().finite().positive().max(90).prefault(45),
   // Retained request key; controls contour vertex spacing, not a raster grid.
-  gridResolution: z.number().finite().positive().default(5),
+  gridResolution: z.number().finite().positive().prefault(5),
 })
 
 export const POST = apiHandler(

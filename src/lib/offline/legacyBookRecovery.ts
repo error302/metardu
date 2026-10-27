@@ -4,9 +4,9 @@ import { readBookEdit } from './bookEdits'
 import { findBookRequest } from './bookDeliveryJournal'
 import { bookDeliveryHash } from '@/lib/fieldbook/deliveryClient'
 import { bookRevisionSchema, canonicalDeliveryJson, fieldbookSaveRequestSchema } from '@/lib/fieldbook/delivery'
-const linkSchema = z.object({ version: z.literal('legacy-book-delivery-v1'), queueId: z.number().int().positive(), projectId: z.string().uuid(),
-  sourceHash: z.string().regex(/^[a-f0-9]{64}$/), requestId: z.string().uuid(), savedBookId: z.string().uuid(), savedRevision: bookRevisionSchema,
-  reviewedBy: z.string().uuid(), reviewedAt: z.string().datetime({ offset: true }), inputHash: z.string().regex(/^[a-f0-9]{64}$/),
+const linkSchema = z.object({ version: z.literal('legacy-book-delivery-v1'), queueId: z.number().int().positive(), projectId: z.string().guid(),
+  sourceHash: z.string().regex(/^[a-f0-9]{64}$/), requestId: z.string().guid(), savedBookId: z.string().guid(), savedRevision: bookRevisionSchema,
+  reviewedBy: z.string().guid(), reviewedAt: z.string().datetime({ offset: true }), inputHash: z.string().regex(/^[a-f0-9]{64}$/),
   payloadHash: z.string().regex(/^[a-f0-9]{64}$/), fieldVerified: z.literal(false) }).strict()
 export type LegacyBookDelivery = z.infer<typeof linkSchema>
 function source(operation: SyncOperation) {
@@ -15,10 +15,10 @@ function source(operation: SyncOperation) {
 }
 export async function legacyBookSourceHash(operation: SyncOperation): Promise<string> { return bookDeliveryHash(source(operation)) }
 function owned(operation: SyncOperation, actor: string, project: string) {
-  z.string().uuid().parse(actor); z.string().uuid().parse(project)
+  z.string().guid().parse(actor); z.string().guid().parse(project)
   if (operation.table !== 'fieldbooks' || !['UPSERT', 'INSERT', 'UPDATE'].includes(operation.type) || operation.projectId !== project
     || operation.data.user_id !== actor || operation.data.project_id !== project || !operation.id) throw new Error('This retained source cannot be reconciled under this account and project.')
-  z.string().uuid().parse(operation.data.id)
+  z.string().guid().parse(operation.data.id)
 }
 /** Only the exact legacy editable payload may be linked, including raw precision. */
 export function legacyBookContent(operation: SyncOperation): string {

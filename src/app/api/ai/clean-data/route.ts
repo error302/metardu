@@ -29,12 +29,12 @@ interface CleanedDatasetRow {
 
 /** Schema for AI data cleaning — validates observation arrays + optional rules */
 const _AiCleanDataSchema = z.object({
-  observations: z.array(z.record(z.unknown())).min(1).max(10000),
+  observations: z.array(z.record(z.string(), z.unknown())).min(1).max(10000),
   rules: z.array(z.string()).optional(),
 })
 
 const CleanDataBodySchema = z.object({
-  points: z.array(z.record(z.unknown())).min(1),
+  points: z.array(z.record(z.string(), z.unknown())).min(1),
   data_type: z.enum(['gnss', 'totalstation', 'lidar']),
 }).passthrough()
 

@@ -36,7 +36,7 @@ async function read(url: string, signal: AbortSignal) {
         : 'The retained boundary source could not be read.',
     )
   }
-  return z.object({ data: z.unknown() }).parse(body).data
+  return z.object({ data: z.unknown().optional() }).parse(body).data
 }
 type Props = { projectId: string; parcelId: string; initialTraverseId?: string }
 export default function BoundaryReview(props: Props) {
@@ -431,7 +431,7 @@ function BoundaryReviewEditor({
               : 'Boundary cancellation is unconfirmed. Keep the device record.',
           )
         }
-        data = z.object({ data: z.unknown() }).parse(raw).data
+        data = z.object({ data: z.unknown().optional() }).parse(raw).data
       } else
         data = await read(
           `/api/project/${projectId}/scheme/parcel-boundary?${query}`,
@@ -459,7 +459,7 @@ function BoundaryReviewEditor({
     }
   }
   async function recover() {
-    if (!z.string().uuid().safeParse(recoveryId.trim()).success) {
+    if (!z.string().guid().safeParse(recoveryId.trim()).success) {
       setError('Enter the saved boundary request UUID.')
       return
     }

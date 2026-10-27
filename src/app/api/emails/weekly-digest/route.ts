@@ -21,20 +21,20 @@ import { z } from 'zod'
 const highlightedProjectSchema = z.object({
   name: z.string().min(1).max(300),
   status: z.enum(['active', 'completed', 'archived']),
-  newObservations: z.number().int().nonnegative().default(0),
+  newObservations: z.number().int().nonnegative().prefault(0),
   projectUrl: z.string().url(),
 })
 
 const schema = z.object({
   email: z.string().email().max(200),
-  name: z.string().max(200).optional().default(''),
+  name: z.string().max(200).prefault(''),
   weekStart: z.string().datetime(),
   weekEnd: z.string().datetime(),
-  projectsActive: z.number().int().nonnegative().default(0),
-  projectsCompleted: z.number().int().nonnegative().default(0),
-  pointsCollected: z.number().int().nonnegative().default(0),
-  documentsGenerated: z.number().int().nonnegative().default(0),
-  pendingSubmissions: z.number().int().nonnegative().default(0),
+  projectsActive: z.number().int().nonnegative().prefault(0),
+  projectsCompleted: z.number().int().nonnegative().prefault(0),
+  pointsCollected: z.number().int().nonnegative().prefault(0),
+  documentsGenerated: z.number().int().nonnegative().prefault(0),
+  pendingSubmissions: z.number().int().nonnegative().prefault(0),
   highlightedProjects: z.array(highlightedProjectSchema).max(3).optional(),
 })
 

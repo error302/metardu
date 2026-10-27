@@ -12,12 +12,12 @@ import { readTextBounded } from '@/lib/security/requestBody'
 export const dynamic='force-dynamic'
 const headers={'Cache-Control':'private, no-store'}
 export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(req,ctx)=>{
-  if(!z.string().uuid().safeParse(ctx.params.id).success)return NextResponse.json({error:'Invalid project.'},{status:400,headers})
+  if(!z.string().guid().safeParse(ctx.params.id).success)return NextResponse.json({error:'Invalid project.'},{status:400,headers})
   const owner=(await db.query<{user_id:string|null}>('SELECT user_id FROM projects WHERE id=$1',[ctx.params.id])).rows[0]
   if(owner?.user_id!==ctx.userId)return NextResponse.json({error:'Project not found or not writable by this account.'},{status:404,headers})
   const sourceId=new URL(req.url).searchParams.get('source')
   if(sourceId) {
-    if(!z.string().uuid().safeParse(sourceId).success)return NextResponse.json({error:'Invalid capture.'},{status:400,headers})
+    if(!z.string().guid().safeParse(sourceId).success)return NextResponse.json({error:'Invalid capture.'},{status:400,headers})
     const capture=(await db.query<{source_file_name:string;source_file_hash:string;quality_metadata:{sourceText?:unknown}}>(`SELECT source_file_name,source_file_hash,quality_metadata FROM observation_batches WHERE id=$1 AND project_id=$2 AND created_by=$3 AND quality_metadata->>'kind'='coordinate_import'`,[sourceId,ctx.params.id,ctx.userId])).rows[0]
     const text=capture?.quality_metadata.sourceText
     if(typeof text!=='string')return NextResponse.json({error:'Source capture not found.'},{status:404,headers})
@@ -29,7 +29,7 @@ export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(
   return NextResponse.json({data:{referenceSystem:fromReferenceSystemRow(reference),referenceHash:pointImportReferenceHash(reference),history}},{headers})
 })
 export const POST=apiHandler({auth:true,rawBody:true,rateLimit:{max:30,windowMs:60000}},async(req,ctx)=>{
-  if(!z.string().uuid().safeParse(ctx.params.id).success)return NextResponse.json({error:'Invalid project.'},{status:400,headers})
+  if(!z.string().guid().safeParse(ctx.params.id).success)return NextResponse.json({error:'Invalid project.'},{status:400,headers})
   try {
     const raw=await readTextBounded(req.body,8*1024*1024)
     if(raw===null)return NextResponse.json({error:'Import request exceeds the size limit.'},{status:413,headers})

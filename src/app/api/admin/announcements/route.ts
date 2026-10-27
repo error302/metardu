@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic'
 const announcementSchema = z.object({
   title: z.string().trim().min(1).max(200),
   body: z.string().trim().min(1).max(5000),
-  target: z.enum(['all', 'free', 'pro', 'team', 'firm', 'enterprise']).default('all'),
+  target: z.enum(['all', 'free', 'pro', 'team', 'firm', 'enterprise']).prefault('all'),
 }).strict()
 
 /**

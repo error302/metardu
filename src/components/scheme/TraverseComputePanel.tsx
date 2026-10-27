@@ -37,7 +37,7 @@ async function request(url: string, init?: RequestInit) {
         : 'The retained traverse request could not be acknowledged.',
     )
   }
-  return z.object({ data: z.unknown() }).parse(body).data
+  return z.object({ data: z.unknown().optional() }).parse(body).data
 }
 export default function TraverseComputePanel({
   projectId,

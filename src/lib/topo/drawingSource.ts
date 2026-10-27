@@ -11,7 +11,7 @@ const rowSchema = z.object({ id: z.string().min(1), point_name: z.string().min(1
   elevation: finite.nullable(), code: z.string().nullable(), description: z.string().nullable(),
   horizontal_crs: z.string().min(1), vertical_datum: z.string().nullable() })
 const pointsSchema = z.object({ data: z.array(rowSchema).max(MAX_DRAWING_POINTS), meta: z.object({ project_id: z.string() }) })
-const contextSchema = z.object({ data: z.object({ referenceSystem: z.unknown(), referenceHash: z.string().regex(/^[a-f0-9]{64}$/) }) })
+const contextSchema = z.object({ data: z.object({ referenceSystem: z.unknown().optional(), referenceHash: z.string().regex(/^[a-f0-9]{64}$/) }) })
 
 export function drawingReferenceIssue(points: DrawingSourcePoint[], crs: string, verticalDatum: string): string | null {
   try {

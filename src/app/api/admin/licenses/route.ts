@@ -17,12 +17,12 @@ const createLicenseSchema = z.object({
   departmentName: z.string().min(1, 'Department name is required'),
   country: z.string().min(1, 'Country is required'),
   licenseKey: z.string().min(6, 'License key must be at least 6 characters'),
-  maxSeats: z.number().int().positive().default(10),
+  maxSeats: z.number().int().positive().prefault(10),
   expiresAt: z.string().transform((v) => new Date(v)),
-  features: z.array(z.string()).default([]),
-  contactEmail: z.string().email().optional().default(''),
-  contactName: z.string().optional().default(''),
-  tier: z.enum(['basic', 'professional', 'enterprise']).default('professional'),
+  features: z.array(z.string()).prefault([]),
+  contactEmail: z.string().email().prefault(''),
+  contactName: z.string().prefault(''),
+  tier: z.enum(['basic', 'professional', 'enterprise']).prefault('professional'),
 })
 
 export const GET = apiHandler(

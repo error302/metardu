@@ -30,7 +30,7 @@ interface OrganizationRow {
 export const GET = apiHandler(
   { auth: true, rateLimit: { max: 60, windowMs: 60_000 } },
   async (_req, ctx) => {
-    const organizationId = z.string().uuid().safeParse(ctx.params.organizationId)
+    const organizationId = z.string().guid().safeParse(ctx.params.organizationId)
     if (!organizationId.success) return NextResponse.json({ error: 'Invalid organization id' }, { status: 400 })
 
     const membership = await db.query<{ role: string }>(
@@ -72,12 +72,12 @@ export const GET = apiHandler(
     let invitations: Array<Record<string, unknown>> = []
     if (canManageOrganizationMembers(role)) {
       const [membersResult, invitationsResult] = await Promise.all([
-        db.query(
+        db.query<{ id: string; user_id: string; role: string; accepted_at: Date | null; email: string; full_name: string | null }>(
           `SELECT member_id AS id, user_id, role, accepted_at, email, full_name
              FROM public.list_organization_members($1)`,
           [organizationId.data],
         ),
-        db.query(
+        db.query<{ id: string; email: string; role: string; expires_at: Date; created_at: Date }>(
           `SELECT id, email, role, expires_at, created_at
              FROM public.organization_invitations
             WHERE organization_id = $1 AND accepted_at IS NULL
@@ -108,7 +108,7 @@ export const GET = apiHandler(
 export const PATCH = apiHandler(
   { auth: true, schema: UpdateOrganizationSchema, rateLimit: { max: 20, windowMs: 60_000 } },
   async (_req, ctx) => {
-    const organizationId = z.string().uuid().safeParse(ctx.params.organizationId)
+    const organizationId = z.string().guid().safeParse(ctx.params.organizationId)
     if (!organizationId.success) return NextResponse.json({ error: 'Invalid organization id' }, { status: 400 })
     const body = ctx.body as z.infer<typeof UpdateOrganizationSchema>
 

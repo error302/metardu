@@ -7,7 +7,7 @@ import { signRoomTicket } from '@/lib/realtime/collaborationServer'
 export const dynamic = 'force-dynamic'
 
 const TicketSchema = z.object({
-  projectId: z.string().uuid(),
+  projectId: z.string().guid(),
 })
 /**
  * POST /api/realtime/ticket

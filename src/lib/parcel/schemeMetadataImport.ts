@@ -55,7 +55,7 @@ export function prepareSchemeMetadataCsv(text: string): SchemeMetadataRow[] {
 }
 
 export const schemeImportReceiptSchema = z.object({
-  protocol: z.literal(SCHEME_IMPORT_PROTOCOL), requestId: z.string().uuid(), projectId: z.string().uuid(), blockId: z.string().uuid(),
+  protocol: z.literal(SCHEME_IMPORT_PROTOCOL), requestId: z.string().guid(), projectId: z.string().guid(), blockId: z.string().guid(),
   sourceFileHash: z.string().regex(/^[a-f0-9]{64}$/), sourceFileName: z.string().min(1).max(255),
   total_rows: z.number().int().positive().max(MAX_SCHEME_IMPORT_ROWS), created: z.number().int().nonnegative(),
   unchanged: z.number().int().nonnegative(), skipped: z.number().int().nonnegative(), errors: z.array(z.string()).max(0),

@@ -7,7 +7,7 @@ import { z } from 'zod'
 
 const analyticsEventSchema = z.object({
   event: z.string().min(1).max(80).regex(/^[a-z0-9._:-]+$/i),
-  properties: z.record(z.unknown()).optional(),
+  properties: z.record(z.string(), z.unknown()).optional(),
   url: z.string().max(2048).optional(),
 })
 

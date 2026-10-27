@@ -26,7 +26,7 @@ const ack = () =>
     'BLOCK_ACKNOWLEDGEMENT',
   )
 function uuid(value: string) {
-  if (!z.string().uuid().safeParse(value).success)
+  if (!z.string().guid().safeParse(value).success)
     throw new AppError(
       'A valid account/block UUID is required.',
       400,

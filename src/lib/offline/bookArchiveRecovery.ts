@@ -8,7 +8,7 @@ import { bookRequestEnvelopeSchema, findBookRequest, retainBookRequest } from '.
 export const BOOK_ARCHIVE_MAX_BYTES = 50 * 1024 * 1024
 export interface ArchivePreview { hash: string; edits: number; requests: number; legacy: number; unreadable: number }
 export interface ArchiveSummary extends ArchivePreview { complete: boolean; inspectionOnly?: true }
-const uuid = z.string().uuid(), hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
+const uuid = z.string().guid(), hashSchema = z.string().regex(/^[a-f0-9]{64}$/)
 const sourceSchema = z.object({ version: z.literal(1), actorId: uuid, projectId: uuid,
   edits: z.array(z.unknown()).max(10000), requests: z.array(z.unknown()).max(10000), legacy: z.array(z.unknown()).max(10000) }).strict()
 const recordSchema = z.object({ version: z.literal(1), key: z.string(), actorId: uuid, projectId: uuid, hash: hashSchema,

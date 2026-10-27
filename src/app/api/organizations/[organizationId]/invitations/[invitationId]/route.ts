@@ -9,8 +9,8 @@ export const dynamic = 'force-dynamic'
 export const DELETE = apiHandler(
   { auth: true, rateLimit: { max: 20, windowMs: 60_000 } },
   async (_req, ctx) => {
-    const organizationId = z.string().uuid().safeParse(ctx.params.organizationId)
-    const invitationId = z.string().uuid().safeParse(ctx.params.invitationId)
+    const organizationId = z.string().guid().safeParse(ctx.params.organizationId)
+    const invitationId = z.string().guid().safeParse(ctx.params.invitationId)
     if (!organizationId.success || !invitationId.success) return NextResponse.json({ error: 'Invalid organization or invitation id' }, { status: 400 })
 
     const { rows: membership } = await db.query<{ role: string }>(
@@ -21,7 +21,7 @@ export const DELETE = apiHandler(
     if (!canManageOrganizationMembers(membership[0]?.role)) return NextResponse.json({ error: 'Firm administrator access is required.' }, { status: 403 })
     setCurrentOrgId(organizationId.data)
 
-    const result = await db.query(
+    const result = await db.query<{ id: string }>(
       `UPDATE public.organization_invitations
           SET revoked_at = NOW()
         WHERE id = $1 AND organization_id = $2

@@ -19,7 +19,7 @@ async function verifiedSources(client: Connection, projectId: string, selected: 
   const batches = (await client.query<{ id: string; created_by: string | null; quality_metadata: Record<string, unknown> }>(
     "SELECT id,created_by,quality_metadata FROM observation_batches WHERE project_id=$1 AND id=ANY($2::uuid[]) AND quality_metadata->>'kind'='offline_field_observation' FOR SHARE", [projectId, selected.map(source => source.batchId)])).rows
   if (batches.length !== selected.length) throw conflict('One or more selected raw captures are unavailable. No draft was created.')
-  const observationIds = batches.map(batch => z.string().uuid().parse(batch.quality_metadata.observationId))
+  const observationIds = batches.map(batch => z.string().guid().parse(batch.quality_metadata.observationId))
   const observations = (await client.query<Record<string, unknown>>('SELECT * FROM survey_observations WHERE project_id=$1 AND id=ANY($2::uuid[]) FOR SHARE', [projectId, observationIds])).rows
   return selected.map(selection => {
     const batch = batches.find(item => item.id === selection.batchId)
@@ -72,7 +72,7 @@ export async function inspectBookCapture(_actorId: string, projectId: string, ba
   return db.transaction(async client => { await requireRecordingProject(client, projectId); return (await verifiedSources(client, projectId, [{ batchId }]))[0] })
 }
 
-const cursorSchema = z.object({ id: z.string().uuid(), at: z.string().datetime({ offset: true }).nullable() })
+const cursorSchema = z.object({ id: z.string().guid(), at: z.string().datetime({ offset: true }).nullable() })
 export async function listBookCaptures(_actorId: string, projectId: string, cursor?: string) {
   let after: z.infer<typeof cursorSchema> | null = null
   if (cursor) {

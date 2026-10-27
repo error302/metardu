@@ -18,8 +18,8 @@ import { z } from 'zod'
 
 export const LevelStationSchema = z.object({
   id: z.string().min(1, 'Station ID is required'),
-  elevation: z.number().finite().default(0), // Approx if free, fixed if isFixed
-  isFixed: z.boolean().default(false),
+  elevation: z.number().finite().prefault(0), // Approx if free, fixed if isFixed
+  isFixed: z.boolean().prefault(false),
 })
 
 export type LevelStation = z.infer<typeof LevelStationSchema>
@@ -28,7 +28,7 @@ export const LevelObservationSchema = z.object({
   from: z.string().min(1, 'From station is required'),
   to: z.string().min(1, 'To station is required'),
   deltaH: z.number().finite(),
-  distanceKm: z.number().positive().default(1),
+  distanceKm: z.number().positive().prefault(1),
 })
 
 export type LevelObservation = z.infer<typeof LevelObservationSchema>

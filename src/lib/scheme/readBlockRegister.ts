@@ -4,7 +4,7 @@ import { AppError } from '@/lib/api/errors'
 import { blockRegisterQuerySchema,blockRegisterSchema,BLOCK_REGISTER_PAGE_SIZE } from './blockRegister'
 
 export async function readBlockRegister(actorId:string,projectId:string,blockId:string,input:unknown){
-  const identity=z.object({actorId:z.string().uuid(),projectId:z.string().uuid(),blockId:z.string().uuid()}).safeParse({actorId,projectId,blockId})
+  const identity=z.object({actorId:z.string().guid(),projectId:z.string().guid(),blockId:z.string().guid()}).safeParse({actorId,projectId,blockId})
   const query=blockRegisterQuerySchema.safeParse(input)
   if(!identity.success||!query.success)throw new AppError('Valid project/block UUIDs and register filters are required.',400,'BLOCK_REGISTER_INPUT')
   const {page,status,q}=query.data,size=BLOCK_REGISTER_PAGE_SIZE

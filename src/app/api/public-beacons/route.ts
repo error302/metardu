@@ -9,8 +9,8 @@ export const dynamic='force-dynamic'
 const headers={'Cache-Control':'private, no-store'}
 const finite=z.string().trim().min(1).transform(Number).refine(Number.isFinite)
 const searchSchema=z.object({q:z.string().max(100).optional(),type:z.enum(['trig','control','boundary','benchmark','gnss','tidal','other']).optional(),
- crs:z.string().trim().min(1).max(64).optional(),easting:finite.optional(),northing:finite.optional(),radius:finite.pipe(z.number().min(0).max(100000)).default('10000'),
- limit:finite.pipe(z.number().int().min(1).max(200)).default('100'),mine:z.enum(['true']).optional()})
+ crs:z.string().trim().min(1).max(64).optional(),easting:finite.optional(),northing:finite.optional(),radius:finite.pipe(z.number().min(0).max(100000)).prefault('10000'),
+ limit:finite.pipe(z.number().int().min(1).max(200)).prefault('100'),mine:z.enum(['true']).optional()})
 export const GET=apiHandler({auth:true,rateLimit:{max:120,windowMs:60000}},async(req,ctx)=>{
  const parsed=searchSchema.safeParse(Object.fromEntries(req.nextUrl.searchParams))
  if(!parsed.success)return NextResponse.json({error:'Invalid reference catalogue search'},{status:400})

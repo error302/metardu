@@ -15,7 +15,7 @@ import type {
   SchemePendingStorage,
   SchemePendingLock,
 } from '@/lib/scheme/exportPending'
-const uuid = z.string().uuid(),
+const uuid = z.string().guid(),
   text = z.string().max(200)
 export const roadWorkbenchDraftSchema = z
   .object({

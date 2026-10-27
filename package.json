@@ -163,7 +163,7 @@
     "y-indexeddb": "^9.0.12",
     "y-webrtc": "^10.3.0",
     "yjs": "^13.6.31",
-    "zod": "^3.22.4",
+    "zod": "4.6.7",
     "zustand": "^5.0.0"
   },
   "devDependencies": {

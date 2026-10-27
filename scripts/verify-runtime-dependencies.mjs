@@ -5,7 +5,7 @@ import path from 'node:path'
 const require=createRequire(import.meta.url), root=process.cwd()
 const manifest=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'))
 const lock=JSON.parse(await readFile(path.join(root,'package-lock.json'),'utf8'))
-const expected={next:'15.5.28',sharp:'0.35.5',dompurify:'3.4.17',nodemailer:'10.2.1','@sentry/nextjs':'10.75.2',puppeteer:'25.16.0','source-map-js':'1.2.2','fast-uri':'3.1.9',handlebars:'4.7.10'}
+const expected={next:'15.5.28',sharp:'0.35.5',dompurify:'3.4.17',nodemailer:'10.2.1','@sentry/nextjs':'10.75.2',puppeteer:'25.16.0',zod:'4.6.7','source-map-js':'1.2.2','fast-uri':'3.1.9',handlebars:'4.7.10'}
 for(const [name,version]of Object.entries(expected)){
  const installed=JSON.parse(await readFile(path.join(root,'node_modules',name,'package.json'),'utf8'))
  assert.equal(installed.version,version,`${name}: run a clean locked install before verification`)
@@ -18,6 +18,12 @@ assert.equal(manifest.optionalDependencies?.puppeteer,undefined,'The statically 
 const puppeteer=await import('puppeteer')
 assert.equal(typeof puppeteer.default.launch,'function','The required PDF renderer must actually import without downloading or launching a browser')
 console.log('PASS installed runtime patches match the lockfile and manifest; PWA build dependency retained')
+const {z}=require('zod')
+let collectionVisits=0
+const bounded=z.array(z.preprocess(value=>{collectionVisits++;return value},z.string())).max(2).safeParse(Array(10000).fill(42))
+assert.equal(bounded.success,false)
+assert.equal(collectionVisits,0,'Oversized constrained collections must be rejected before visiting their elements')
+console.log('PASS patched constrained-collection validation rejects oversized input before element traversal')
 
 const sharp=require('sharp')
 assert.equal(sharp.versions.sharp,expected.sharp)

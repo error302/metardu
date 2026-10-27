@@ -11,14 +11,14 @@ export const BOUNDARY_SOURCE_LIMIT = 2001
 export const BOUNDARY_POINT_PAGE_SIZE = 50
 export const boundaryCommandSchema = z
   .object({
-    expected_user_id: z.string().uuid(),
-    parcel_id: z.string().uuid(),
-    traverse_id: z.string().uuid(),
-    request_id: z.string().uuid(),
+    expected_user_id: z.string().guid(),
+    parcel_id: z.string().guid(),
+    traverse_id: z.string().guid(),
+    request_id: z.string().guid(),
     evidence_hash: z.string().regex(/^[a-f0-9]{64}$/),
     source_crs: z.string().min(1).max(32),
     ordered_coordinate_ids: z
-      .array(z.string().uuid())
+      .array(z.string().guid())
       .min(3)
       .max(BOUNDARY_VERTEX_LIMIT),
     reviewed: z.literal(true),
@@ -33,7 +33,7 @@ export const boundaryCommandSchema = z
   )
 export type BoundaryCommand = z.infer<typeof boundaryCommandSchema>
 export const boundaryPointSchema = z.object({
-  id: z.string().uuid(),
+  id: z.string().guid(),
   station: z.string().nullable(),
   easting: z.number().finite(),
   northing: z.number().finite(),
@@ -43,13 +43,13 @@ export const boundarySourceSchema = z
   .object({
     storageReady: z.boolean(),
     observationCount: z.number().int().nonnegative().max(2000),
-    projectId: z.string().uuid(),
-    parcelId: z.string().uuid(),
+    projectId: z.string().guid(),
+    parcelId: z.string().guid(),
     parcelNumber: z.string(),
-    blockId: z.string().uuid().nullable(),
+    blockId: z.string().guid().nullable(),
     parcelStatus: z.string().nullable(),
     parcelRevision: z.number().int().nonnegative(),
-    traverseId: z.string().uuid(),
+    traverseId: z.string().guid(),
     sourceCrs: z.string(),
     evidenceHash: z.string().regex(/^[a-f0-9]{64}$/),
     points: z.array(boundaryPointSchema).max(BOUNDARY_SOURCE_LIMIT),
@@ -94,8 +94,8 @@ export type BoundarySource = z.infer<typeof boundarySourceSchema>
 const count = z.number().int().nonnegative()
 export const boundaryDirectorySchema = z
   .object({
-    projectId: z.string().uuid(),
-    parcelId: z.string().uuid(),
+    projectId: z.string().guid(),
+    parcelId: z.string().guid(),
     parcelNumber: z.string(),
     page: z.number().int().positive(),
     pageSize: z.literal(24),
@@ -103,7 +103,7 @@ export const boundaryDirectorySchema = z
     traverses: z
       .array(
         z.object({
-          id: z.string().uuid(),
+          id: z.string().guid(),
           name: z.string().nullable(),
           status: z.string().nullable(),
           pointCount: count,
@@ -121,17 +121,17 @@ export const boundaryDirectorySchema = z
   )
 export const boundaryReceiptSchema = z.object({
   protocol: z.literal('reviewed-parcel-boundary-v1'),
-  actorId: z.string().uuid().optional(),
-  receiptId: z.string().uuid(),
-  requestId: z.string().uuid(),
-  projectId: z.string().uuid(),
-  parcelId: z.string().uuid(),
-  traverseId: z.string().uuid(),
+  actorId: z.string().guid().optional(),
+  receiptId: z.string().guid(),
+  requestId: z.string().guid(),
+  projectId: z.string().guid(),
+  parcelId: z.string().guid(),
+  traverseId: z.string().guid(),
   evidenceHash: z.string().regex(/^[a-f0-9]{64}$/),
   inputHash: z.string().regex(/^[a-f0-9]{64}$/),
   sourceCrs: z.string(),
   orderedCoordinateIds: z
-    .array(z.string().uuid())
+    .array(z.string().guid())
     .min(3)
     .max(BOUNDARY_VERTEX_LIMIT),
   polygon: z.object({
@@ -152,10 +152,10 @@ export const boundaryReceiptSchema = z.object({
 })
 export type BoundaryReceipt = z.infer<typeof boundaryReceiptSchema>
 const outcomeIdentity = z.object({
-  actorId: z.string().uuid(),
-  projectId: z.string().uuid(),
-  parcelId: z.string().uuid(),
-  requestId: z.string().uuid(),
+  actorId: z.string().guid(),
+  projectId: z.string().guid(),
+  parcelId: z.string().guid(),
+  requestId: z.string().guid(),
   inputHash: z.string().regex(/^[a-f0-9]{64}$/),
 })
 export const boundaryOutcomeSchema = z.discriminatedUnion('state', [
@@ -167,9 +167,9 @@ export const boundaryOutcomeSchema = z.discriminatedUnion('state', [
 export type BoundaryOutcome = z.infer<typeof boundaryOutcomeSchema>
 export const boundaryCancelSchema = z
   .object({
-    expected_user_id: z.string().uuid(),
-    parcel_id: z.string().uuid(),
-    request_id: z.string().uuid(),
+    expected_user_id: z.string().guid(),
+    parcel_id: z.string().guid(),
+    request_id: z.string().guid(),
     input_hash: z.string().regex(/^[a-f0-9]{64}$/),
   })
   .strict()

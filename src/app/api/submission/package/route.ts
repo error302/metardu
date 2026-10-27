@@ -9,7 +9,7 @@ import { uploadFile, getSignedUrl } from '@/lib/storage'
 import { db } from '@/lib/db'
 
 const PackageRequestSchema = z.object({
-  projectId: z.string().uuid('Valid project ID is required'),
+  projectId: z.string().guid('Valid project ID is required'),
 })
 
 export const POST = apiHandler(
