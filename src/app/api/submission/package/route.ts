@@ -36,7 +36,7 @@ export const POST = apiHandler(
     const zipBuffer = await generateFullPackage(projectId, ctx.userId, generateDocument)
     const filename = `submission-dossier-${projectId.slice(0, 8)}.zip`
     const storagePath = await uploadFile(zipBuffer, filename, 'application/zip', `submissions/${projectId}`)
-    await db.query(
+    await db.query<never>(
       `INSERT INTO file_uploads (user_id, storage_path, filename, mime_type, size_bytes, project_id, upload_purpose)
        VALUES ($1, $2, $3, 'application/zip', $4, $5, 'submission')`,
       [ctx.userId, storagePath, filename, zipBuffer.length, projectId]

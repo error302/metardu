@@ -16,14 +16,14 @@ export const GET=apiHandler({auth:true},async(req,ctx)=>{
   if(!access.ok)return access.error??reply({error:'Project access was not confirmed.'},403)
   if(!access.projectUserId)return reply({error:'Project ownership is not established.'},403)
   if(!revisionId){
-    const {rows}=await db.query(`SELECT r.id AS revision_id,s.id AS surface_id,s.name,r.revision,r.crs,r.point_count,r.triangle_count,r.input_hash,r.computed_at
+    const {rows}=await db.query<Record<string, unknown>>(`SELECT r.id AS revision_id,s.id AS surface_id,s.name,r.revision,r.crs,r.point_count,r.triangle_count,r.input_hash,r.computed_at
       FROM surface_revisions r JOIN surfaces s ON s.id=r.surface_id JOIN projects p ON p.id=s.project_id
       WHERE s.project_id=$1 AND p.user_id=$2 ORDER BY r.computed_at DESC,r.id LIMIT 201`,[projectId,access.projectUserId])
     return reply({data:{projectId,viewerId:ctx.userId,revisions:rows.slice(0,200),limited:rows.length>200}})
   }
   const feature=await checkFeatureAccess(ctx.userId,'landxml',ctx.session?.user?.email??undefined)
   if(!feature.allowed)return reply({error:'LandXML export requires an active eligible plan.'},403)
-  const {rows}=await db.query(`SELECT r.id AS revision_id,s.id AS surface_id,s.project_id,p.user_id,p.name AS project_name,s.name,r.revision,r.crs,
+  const {rows}=await db.query<Record<string, unknown>>(`SELECT r.id AS revision_id,s.id AS surface_id,s.project_id,p.user_id,p.name AS project_name,s.name,r.revision,r.crs,
       r.point_count,r.triangle_count,r.input_hash,r.parameters,r.result
     FROM surface_revisions r JOIN surfaces s ON s.id=r.surface_id JOIN projects p ON p.id=s.project_id
     WHERE s.project_id=$1 AND r.id=$2 AND p.user_id=$3`,[projectId,revisionId,access.projectUserId])

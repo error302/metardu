@@ -205,21 +205,21 @@ export const PUT = apiHandler(
     let saved: ReturnType<typeof fromReferenceSystemRow>
     let discardClient = false
     try {
-      await client.query('BEGIN')
+      await client.query<never>('BEGIN')
       await setRlsContext(client)
       // Share the project lock with drainage set-out generation so a CRS
       // declaration cannot change between its source check and field-job save.
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [ctx.params.id])
+      await client.query<{ pg_advisory_xact_lock: unknown }>('SELECT pg_advisory_xact_lock(hashtext($1))', [ctx.params.id])
       // Match generation's reference-then-project lock order. The owner must
       // still be the caller at the write boundary, not only at admission.
-      await client.query('SELECT project_id FROM project_reference_systems WHERE project_id = $1 FOR UPDATE', [ctx.params.id])
+      await client.query<{ project_id: string }>('SELECT project_id FROM project_reference_systems WHERE project_id = $1 FOR UPDATE', [ctx.params.id])
       const locked = await client.query<{ user_id: string | null }>('SELECT user_id FROM projects WHERE id = $1 FOR UPDATE', [ctx.params.id])
       if (!locked.rows[0]) {
-        await client.query('ROLLBACK')
+        await client.query<never>('ROLLBACK')
         return NextResponse.json({ error: 'Project no longer exists.' }, { status: 404 })
       }
       if (!locked.rows[0].user_id || locked.rows[0].user_id !== ctx.userId) {
-        await client.query('ROLLBACK')
+        await client.query<never>('ROLLBACK')
         return NextResponse.json({ error: 'Project ownership changed; refresh before declaring the reference system.' }, { status: 403 })
       }
       const result = await client.query<Record<string, unknown>>(
@@ -243,16 +243,16 @@ export const PUT = apiHandler(
 
       // Keep the denormalized display columns on projects in step with the
       // declaration (reports, title blocks, and map layers read those).
-      const legacy = await client.query(
+      const legacy = await client.query<never>(
         `UPDATE projects
             SET utm_zone = $1, hemisphere = $2, datum = $3, updated_at = NOW()
           WHERE id = $4 AND user_id = $5`,
         [form.utmZone, form.hemisphere, normalizeDatumSelection(form.datum), ctx.params.id, ctx.userId]
       )
       if (legacy.rowCount !== 1) throw new Error('Project reference display fields were not stored.')
-      await client.query('COMMIT')
+      await client.query<never>('COMMIT')
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => { discardClient = true })
+      await client.query<never>('ROLLBACK').catch(() => { discardClient = true })
       throw error
     } finally {
       client.release(discardClient)

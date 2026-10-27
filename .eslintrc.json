@@ -78,6 +78,10 @@
   },
   "overrides": [
     {
+      "files": ["scripts/engine-verify.ts", "scripts/verify-export-repair.ts"],
+      "parserOptions": { "project": ["./tsconfig.lint-tools.json"] }
+    },
+    {
       "files": [
         "src/types/surveyPoint.ts"
       ],

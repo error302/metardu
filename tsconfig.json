@@ -39,6 +39,7 @@
   "include": [
     ".next/types/**/*.ts",
     "middleware.ts",
+    "instrumentation-client.ts",
     "tailwind.config.ts",
     "next-env.d.ts",
     "src/**/*.ts",

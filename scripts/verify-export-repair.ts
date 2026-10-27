@@ -2,9 +2,11 @@ import { config } from 'dotenv';
 import { randomUUID } from 'crypto';
 import { readFile, mkdir, writeFile } from 'fs/promises';
 import path from 'path';
-config({ path: '.env', quiet: true } as any);
+const dotenvOptions = { path: '.env', quiet: true };
+config(dotenvOptions);
 process.env.DATABASE_URL = `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || 'metardu')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@127.0.0.1:5432/${process.env.POSTGRES_DB || 'metardu'}`;
-process.env.STORAGE_ROOT = path.resolve('live-test-results/export-storage');
+const storageRoot = path.resolve('live-test-results/export-storage');
+process.env.STORAGE_ROOT = storageRoot;
 
 async function main() {
   const { db } = await import('../src/lib/db');
@@ -25,8 +27,9 @@ async function main() {
     const results = [];
     for (const documentId of ['statutory-workbook','deed-plan','traverse-computation-sheet','area-computation','field-book','form-c22']) {
       const result = await generateDocument({projectId,documentId,surveyType:'cadastral',userId});
-      const key = new URL(result.fileUrl,'http://localhost').searchParams.get('path')!;
-      const buffer = await readFile(path.join(process.env.STORAGE_ROOT!,key));
+      const key = new URL(result.fileUrl,'http://localhost').searchParams.get('path');
+      if (!key) throw new Error(`${documentId} has no storage path`);
+      const buffer = await readFile(path.join(storageRoot,key));
       if (!buffer.length) throw new Error(`${documentId} empty`);
       results.push({documentId,bytes:buffer.length});
       console.log(`Verified ${documentId}: ${buffer.length} bytes`);
@@ -42,4 +45,4 @@ async function main() {
     await db.query('DELETE FROM projects WHERE id=$1 AND name=$2',[projectId,'Automated export verification']);
   }
 }
-main().then(()=>process.exit(0)).catch(error=>{ console.error(error.message);process.exit(1); });
+main().then(()=>process.exit(0)).catch((error: unknown)=>{ console.error(error instanceof Error ? error.message : String(error));process.exit(1); });

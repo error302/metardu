@@ -17,7 +17,7 @@ export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async(
     const source=await loadRoadWorkbenchSource(client,ctx.userId,scope.projectId)
     if(source.engineeringHash!==scope.engineeringHash||source.referenceHash!==scope.referenceHash)throw new AppError('The saved road or project reference changed. Keep the draft and review its original source before selecting terrain.',409,'ROAD_TERRAIN_SOURCE_CHANGED')
     if(revisionId)return{scope,terrain:await loadRoadRetainedTerrain(client,ctx.userId,scope.projectId,revisionId)}
-    const {rows}=await client.query(`SELECT r.id AS "revisionId",s.id AS "surfaceId",s.name,r.revision,r.crs,r.point_count AS "pointCount",r.triangle_count AS "triangleCount"
+    const {rows}=await client.query<z.infer<typeof roadTerrainListSchema>['revisions'][number]>(`SELECT r.id AS "revisionId",s.id AS "surfaceId",s.name,r.revision,r.crs,r.point_count AS "pointCount",r.triangle_count AS "triangleCount"
       FROM surface_revisions r JOIN surfaces s ON s.id=r.surface_id JOIN projects p ON p.id=s.project_id
       WHERE s.project_id=$1 AND p.user_id=$2 ORDER BY r.computed_at DESC,r.id LIMIT 201`,[scope.projectId,ctx.userId])
     return roadTerrainListSchema.parse({scope,revisions:rows.slice(0,200),limited:rows.length>200})

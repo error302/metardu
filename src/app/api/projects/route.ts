@@ -42,10 +42,10 @@ export const POST = apiHandler({
     const client = await db.getClient()
     let discardClient = false
     try {
-      await client.query('BEGIN')
+      await client.query<never>('BEGIN')
       await setRlsContext(client)
       // Every admitted create for this account counts after the previous create commits.
-      await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`project-create:${ctx.userId}`])
+      await client.query<{ pg_advisory_xact_lock: unknown }>('SELECT pg_advisory_xact_lock(hashtext($1))', [`project-create:${ctx.userId}`])
       const limitCheck = await checkProjectLimit(ctx.userId, ctx.userEmail, client)
       if (!limitCheck.allowed) throw new AppError(limitCheck.reason || 'Plan limit reached', 402, 'PLAN_LIMIT_REACHED')
 
@@ -79,10 +79,10 @@ export const POST = apiHandler({
           throw new AppError('Scheme creation was not confirmed', 500, 'SCHEME_CREATE_FAILED')
         }
       }
-      await client.query('COMMIT')
+      await client.query<never>('COMMIT')
       return NextResponse.json({ data: project }, { status: 201 })
     } catch (error) {
-      try { await client.query('ROLLBACK') }
+      try { await client.query<never>('ROLLBACK') }
       catch {
         discardClient = true
         logger.error('[POST /api/projects] Rollback failed; discarding the database connection')

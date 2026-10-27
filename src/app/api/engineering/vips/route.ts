@@ -18,7 +18,7 @@ export const POST = apiHandler({ auth: true, schema: SaveVIPsSchema, rateLimit: 
     const { rows: before } = await client.query<Record<string, unknown>>('SELECT * FROM alignment_vertical_ips WHERE alignment_id = $1 ORDER BY chainage FOR UPDATE', [alignment_id])
     await recordAlignmentInputs(client, alignment, 'vertical', before, ctx.userId, 'before')
     for (const vip of vips) {
-      await client.query(`INSERT INTO alignment_vertical_ips (alignment_id, chainage, reduced_level, k_value, curve_length, gradient_in, gradient_out, source_id)
+      await client.query<never>(`INSERT INTO alignment_vertical_ips (alignment_id, chainage, reduced_level, k_value, curve_length, gradient_in, gradient_out, source_id)
         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
         ON CONFLICT (alignment_id, chainage) DO UPDATE SET
         reduced_level=EXCLUDED.reduced_level, k_value=EXCLUDED.k_value,
@@ -29,7 +29,7 @@ export const POST = apiHandler({ auth: true, schema: SaveVIPsSchema, rateLimit: 
       [alignment_id, vip.chainage, vip.reduced_level, vip.k_value ?? null, vip.curve_length ?? null, vip.gradient_in ?? null, vip.gradient_out ?? null, vip.source_id ?? null,
         replace || 'curve_length' in vip, replace || 'gradient_in' in vip, replace || 'gradient_out' in vip])
     }
-    if (replace) await client.query('DELETE FROM alignment_vertical_ips WHERE alignment_id = $1 AND NOT (chainage = ANY($2::float8[]))', [alignment_id, vips.map(v => v.chainage)])
+    if (replace) await client.query<never>('DELETE FROM alignment_vertical_ips WHERE alignment_id = $1 AND NOT (chainage = ANY($2::float8[]))', [alignment_id, vips.map(v => v.chainage)])
     const { rows } = await client.query<Record<string, unknown>>('SELECT * FROM alignment_vertical_ips WHERE alignment_id = $1 ORDER BY chainage', [alignment_id])
     await syncAlignmentProjectInputs(client, alignment, 'vips', rows, mirrorOnly)
     const { revision } = await recordAlignmentInputs(client, alignment, 'vertical', rows, ctx.userId, 'saved')

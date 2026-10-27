@@ -59,13 +59,13 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
     if (!z.string().uuid().safeParse(revisionId).success) return privateResponse({ error: 'Valid contour revision ID required' }, 400)
     return privateResponse({ data: await loadSurfaceRevision(projectId, revisionId) })
   }
-  const { rows } = await db.query(
+  const { rows } = await db.query<Record<string, unknown>>(
     `SELECT s.id, s.name, s.description, s.crs, s.vertical_datum, s.status,
        s.current_revision_id AS revision_id, r.revision AS current_revision,
        r.algorithm, r.algorithm_version, r.parameters, r.point_count, r.computed_at
      FROM surfaces s LEFT JOIN surface_revisions r ON r.id = s.current_revision_id AND r.surface_id = s.id
      WHERE s.project_id = $1 ORDER BY s.updated_at DESC`, [projectId])
-  const history = await db.query(
+  const history = await db.query<Record<string, unknown>>(
     `SELECT r.id AS revision_id, r.surface_id, s.name, r.revision, r.point_count, r.crs, r.computed_at
      FROM surface_revisions r JOIN surfaces s ON s.id = r.surface_id
      WHERE s.project_id = $1 ORDER BY r.computed_at DESC, r.id LIMIT 201`, [projectId])

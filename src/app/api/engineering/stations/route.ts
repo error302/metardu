@@ -32,14 +32,14 @@ export const POST = apiHandler({ auth: true, schema: SaveStationsSchema, rateLim
         ...('design_level' in station || replace ? { designLevel: station.design_level ?? null } : {}),
         ...('design_level_source' in station || replace ? { designLevelSource: station.design_level_source ?? 'manual' } : {}),
       }
-      await client.query(`INSERT INTO cross_section_stations (alignment_id, chainage, ground_level, existing_ground, proposed_road)
+      await client.query<never>(`INSERT INTO cross_section_stations (alignment_id, chainage, ground_level, existing_ground, proposed_road)
         VALUES ($1,$2,$3,$4::jsonb,$5::jsonb) ON CONFLICT (alignment_id, chainage) DO UPDATE SET
         ground_level=EXCLUDED.ground_level,
         existing_ground=COALESCE(cross_section_stations.existing_ground,'{}'::jsonb) || EXCLUDED.existing_ground,
         proposed_road=COALESCE(cross_section_stations.proposed_road,'{}'::jsonb) || EXCLUDED.proposed_road, updated_at=NOW()`,
       [alignment_id, station.chainage, station.ground_level, JSON.stringify(ground), JSON.stringify(design)])
     }
-    if (replace) await client.query('DELETE FROM cross_section_stations WHERE alignment_id = $1 AND NOT (chainage = ANY($2::float8[]))', [alignment_id, stations.map(s => s.chainage)])
+    if (replace) await client.query<never>('DELETE FROM cross_section_stations WHERE alignment_id = $1 AND NOT (chainage = ANY($2::float8[]))', [alignment_id, stations.map(s => s.chainage)])
     const { rows } = await client.query<Record<string, unknown>>('SELECT * FROM cross_section_stations WHERE alignment_id = $1 ORDER BY chainage', [alignment_id])
     await syncAlignmentProjectInputs(client, alignment, 'stations', rows, mirrorOnly)
     const { revision } = await recordAlignmentInputs(client, alignment, 'stations', rows, ctx.userId, 'saved')

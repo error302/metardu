@@ -36,17 +36,17 @@ export const PUT = apiHandler({ auth:true,rateLimit:{ max:60,windowMs:60000 } },
   const client = await db.getClient()
   let discard = false
   try {
-    await client.query('BEGIN'); await setRlsContext(client)
-    await client.query('SELECT pg_advisory_xact_lock(hashtext($1))',[ctx.params.id])
-    await client.query('SELECT project_id FROM project_reference_systems WHERE project_id=$1 FOR SHARE',[ctx.params.id])
+    await client.query<never>('BEGIN'); await setRlsContext(client)
+    await client.query<{ pg_advisory_xact_lock: unknown }>('SELECT pg_advisory_xact_lock(hashtext($1))',[ctx.params.id])
+    await client.query<{ project_id: string }>('SELECT project_id FROM project_reference_systems WHERE project_id=$1 FOR SHARE',[ctx.params.id])
     const locked = await client.query<DrawingProjectRow>(`${selection} WHERE p.id=$1 FOR UPDATE OF p`,[ctx.params.id])
     const row = locked.rows[0]
     if (!row || !row.user_id || row.user_id !== ctx.userId) {
-      await client.query('ROLLBACK')
+      await client.query<never>('ROLLBACK')
       return NextResponse.json({ error:'Project ownership or access changed. The local draft is retained.' },{ status:403 })
     }
     if (projectDrawingVersion(row) !== parsed.data.baseVersion) {
-      await client.query('ROLLBACK')
+      await client.query<never>('ROLLBACK')
       return NextResponse.json({ error:'The saved drawing or project reference changed. Retain the local draft and reload the saved drawing before merging edits.',code:'DRAWING_CONFLICT' },{ status:409 })
     }
     // Validate the current stored source as well as the replacement before writing.
@@ -57,11 +57,11 @@ export const PUT = apiHandler({ auth:true,rateLimit:{ max:60,windowMs:60000 } },
     if (updated.rowCount !== 1 || updated.rows.length !== 1 || updated.rows[0].id !== ctx.params.id
       || canonicalJson(drawingBoundary(updated.rows[0].boundary_data)) !== canonicalJson(boundary)) throw new Error('The database did not confirm the complete drawing save.')
     const saved = projectDrawingSnapshot({ ...updated.rows[0],reference:row.reference },ctx.userId)
-    await client.query('COMMIT')
+    await client.query<never>('COMMIT')
     projectCache.invalidate(CacheKeys.project(ctx.params.id))
     return NextResponse.json(saved,{ headers:privateHeaders })
   } catch (error) {
-    try { await client.query('ROLLBACK') } catch { discard = true }
+    try { await client.query<never>('ROLLBACK') } catch { discard = true }
     throw error
   } finally { client.release(discard ? true : undefined) }
 })

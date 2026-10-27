@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "next-env.d.ts",
+    "scripts/engine-verify.ts",
+    "scripts/verify-export-repair.ts"
+  ],
+  "exclude": ["node_modules"]
+}

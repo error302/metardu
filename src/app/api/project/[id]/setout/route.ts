@@ -179,7 +179,7 @@ function generationReferenceHash(reference: Record<string, unknown> | undefined,
 }
 
 async function lockGenerationSource(client: PoolClient, projectId: string, userId: string) {
-  await client.query('SELECT pg_advisory_xact_lock(hashtext($1))', [projectId])
+  await client.query<{ pg_advisory_xact_lock: unknown }>('SELECT pg_advisory_xact_lock(hashtext($1))', [projectId])
   // Use the same order as reference-system updates. Row locks also protect
   // against writers which do not take this advisory lock (including transfers).
   const { rows: references } = await client.query<Record<string, unknown>>(
@@ -558,11 +558,11 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     const client = await db.getClient()
     let discardClient = false
     try {
-      await client.query('BEGIN')
+      await client.query<never>('BEGIN')
       await setRlsContext(client)
       const source = await lockGenerationSource(client, projectId, userId)
       if (source.error) {
-        await client.query('ROLLBACK')
+        await client.query<never>('ROLLBACK')
         return source.error
       }
       const lockedEngineeringData = source.project.engineering_data
@@ -574,7 +574,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         : null
       if (lockedSourceHash !== sourceHash
         || generationReferenceHash(source.reference, source.project) !== generationReferenceHash(referenceRows[0], project)) {
-        await client.query('ROLLBACK')
+        await client.query<never>('ROLLBACK')
         return NextResponse.json(
           {
             error: 'The drainage design or project reference system changed while field targets were being prepared. Refresh the design and generate the set-out again.',
@@ -692,7 +692,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
           )
           return `($1,$2,${fields.join(',')})`
         }).join(',')
-        const insertedPoints = await client.query(
+        const insertedPoints = await client.query<never>(
           `INSERT INTO setout_points
              (definition_id, revision, label, row_index, column_index, easting, northing, design_rl, point_type, metadata)
            VALUES ${rowsSql}
@@ -701,13 +701,13 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         )
         if (insertedPoints.rowCount !== batch.length) throw new Error('The complete drainage target batch was not stored')
       }
-      await client.query('COMMIT')
+      await client.query<never>('COMMIT')
       return NextResponse.json(
         { data: { definitionId, revision, pointCount: result.stations.length, crs, coordinateWarnings: [...coordinateWarnings] } },
         { status: 201 }
       )
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => { discardClient = true })
+      await client.query<never>('ROLLBACK').catch(() => { discardClient = true })
       logger.error('[setout] save drainage definition failed', { error })
       return NextResponse.json({ error: 'Could not store the drainage set-out definition' }, { status: 500 })
     } finally {
@@ -832,29 +832,29 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
     const client = await db.getClient();
     let discardClient = false;
     try {
-      await client.query('BEGIN');
+      await client.query<never>('BEGIN');
       await setRlsContext(client);
       const source = await lockGenerationSource(client, projectId, userId);
       if (source.error) {
-        await client.query('ROLLBACK');
+        await client.query<never>('ROLLBACK');
         return source.error;
       }
       if (generationReferenceHash(source.reference, source.project) !== generationReferenceHash(referenceRows[0], project)) {
-        await client.query('ROLLBACK');
+        await client.query<never>('ROLLBACK');
         return NextResponse.json({ error: 'The project reference system changed while field targets were being prepared. Refresh and generate the set-out again.', code: 'SETOUT_REFERENCE_CHANGED' }, { status: 409 });
       }
 
       let definitionId = body.definitionId ?? null;
       if (definitionId) {
-        const owned = await client.query(
+        const owned = await client.query<{ id: string }>(
           'SELECT id FROM setout_definitions WHERE id = $1 AND project_id = $2 FOR UPDATE',
           [definitionId, projectId]
         );
         if (!owned.rows[0]) {
-          await client.query('ROLLBACK');
+          await client.query<never>('ROLLBACK');
           return NextResponse.json({ error: 'Definition not found' }, { status: 404 });
         }
-        const updatedDefinition = await client.query(
+        const updatedDefinition = await client.query<never>(
           `UPDATE setout_definitions
               SET name = $2, structure_type = $3, origin_easting = $4, origin_northing = $5,
                   origin_rl = $6, rows = $7, columns = $8, row_spacing = $9, column_spacing = $10,
@@ -934,7 +934,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         setoutToleranceProfileSnapshot: toleranceProfileDraft.profile && toleranceRules && toleranceProfileId
           ? { id: toleranceProfileId, ...toleranceProfileDraft.profile, rules: toleranceRules } : null,
       }
-      const updatedMetadata = await client.query(
+      const updatedMetadata = await client.query<never>(
         `UPDATE setout_definitions SET tolerance_profile_id = $2, metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb WHERE id = $1`,
         [definitionId, toleranceProfileId, JSON.stringify(metadata)])
       if (updatedMetadata.rowCount !== 1) throw new Error('The grid definition metadata was not stored')
@@ -966,7 +966,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
           );
           return `($1,$2,${Array.from({ length: 8 }, (_, valueIndex) => `$${base + valueIndex}${valueIndex === 7 ? '::jsonb' : ''}`).join(',')})`;
         }).join(',');
-        const insertedPoints = await client.query(
+        const insertedPoints = await client.query<never>(
           `INSERT INTO setout_points
              (definition_id, revision, label, row_index, column_index, easting, northing, design_rl, point_type, metadata)
            VALUES ${rowsSql}
@@ -976,14 +976,14 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
         if (insertedPoints.rowCount !== batch.length) throw new Error('The complete grid target batch was not stored');
       }
 
-      await client.query('COMMIT');
+      await client.query<never>('COMMIT');
 
       return NextResponse.json(
         { data: { definitionId, revision, pointCount: result.piles.length, crs, coordinateWarnings: [...coordinateWarnings] } },
         { status: 201 }
       );
     } catch (error) {
-      await client.query('ROLLBACK').catch(() => { discardClient = true });
+      await client.query<never>('ROLLBACK').catch(() => { discardClient = true });
       logger.error('[setout] save definition failed', { error });
       return NextResponse.json({ error: 'Could not store the set-out definition' }, { status: 500 });
     } finally {

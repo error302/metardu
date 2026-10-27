@@ -110,11 +110,13 @@ test('a saved grid uses the registered CRS and preserves an unknown design RL as
     .mockResolvedValueOnce({ rows: [] })
 
   const clientQuery = jest.fn(async (sql: string, _values?: unknown[]) => {
-    if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-1' }] }
-    if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }] }
-    return { rows: [] }
+    if (sql.includes('FROM projects')) return { rows: [{ ...projectCrs, user_id: 'alice' }], rowCount: 1 }
+    if (sql.includes('INSERT INTO setout_definitions')) return { rows: [{ id: 'definition-1' }], rowCount: 1 }
+    if (sql.includes('COALESCE(MAX(revision)')) return { rows: [{ revision: 1 }], rowCount: 1 }
+    return { rows: [], rowCount: 1 }
   })
-  getClient.mockResolvedValue({ query: clientQuery })
+  const release = jest.fn()
+  getClient.mockResolvedValue({ query: clientQuery, release })
 
   const response = await POST(
     request('https://metardu.space/api/project/project-1/setout', {
@@ -141,6 +143,7 @@ test('a saved grid uses the registered CRS and preserves an unknown design RL as
   const pointInsert = clientCalls.find(([sql]) => sql.includes('INSERT INTO setout_points'))
 
   expect(response.status).toBe(201)
+  expect(release).toHaveBeenCalledWith(false)
   expect(body.data.crs).toBe(SRID_21037)
   expect(definitionInsert?.[1]?.[16]).toBe(SRID_21037)
   expect(pointInsert?.[1]?.[7]).toBeNull()
