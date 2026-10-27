@@ -38,6 +38,9 @@ export function verifyEmailVerificationToken(token: string): EmailVerificationPa
 
   try {
     const suppliedSignature = Buffer.from(encodedSignature, 'base64url')
+    // Node's decoder accepts padding, whitespace and nonzero unused pad bits.
+    // Only the spelling emitted by our signer is a valid verification token.
+    if (suppliedSignature.toString('base64url') !== encodedSignature) return null
     const expectedSignature = sign(encodedPayload)
     if (suppliedSignature.length !== expectedSignature.length || !timingSafeEqual(suppliedSignature, expectedSignature)) {
       return null

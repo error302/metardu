@@ -7,7 +7,10 @@ describe('email verification tokens', () => {
 
   beforeEach(() => {
     process.env.AUTH_SECRET = 'email-verification-test-secret-at-least-32-characters'
+    jest.spyOn(Date, 'now').mockReturnValue(1_800_000_000_000)
   })
+
+  afterEach(() => jest.restoreAllMocks())
 
   afterAll(() => {
     if (previousSecret === undefined) delete process.env.AUTH_SECRET
@@ -28,9 +31,26 @@ describe('email verification tokens', () => {
     const valid = createEmailVerificationToken(USER_ID, 'surveyor@example.com')
     const expired = createEmailVerificationToken(USER_ID, 'surveyor@example.com', -1)
 
-    expect(verifyEmailVerificationToken(`${valid.slice(0, -1)}x`)).toBeNull()
+    const [payload, signature] = valid.split('.')
+    // Change a significant signature byte; the final base64 character has pad bits.
+    const changedSignature = `${signature[0] === 'A' ? 'B' : 'A'}${signature.slice(1)}`
+    expect(verifyEmailVerificationToken(`${payload}.${changedSignature}`)).toBeNull()
     expect(verifyEmailVerificationToken(expired)).toBeNull()
     expect(verifyEmailVerificationToken('not-a-verification-token')).toBeNull()
     expect(verifyEmailVerificationToken('x'.repeat(4097))).toBeNull()
+  })
+
+  it('rejects alternate base64 spellings of the same signature bytes', () => {
+    const valid = createEmailVerificationToken(USER_ID, 'surveyor@example.com')
+    const [payload, signature] = valid.split('.')
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_'
+    const last = alphabet.indexOf(signature[signature.length - 1])
+    // A SHA-256 signature has two unused low bits in its last base64 character.
+    const alias = `${signature.slice(0, -1)}${alphabet[last + 1]}`
+    expect(Buffer.from(alias, 'base64url')).toEqual(Buffer.from(signature, 'base64url'))
+    expect(verifyEmailVerificationToken(valid)).not.toBeNull()
+    for (const alternate of [alias, `${signature}=`, `${signature}\n`]) {
+      expect(verifyEmailVerificationToken(`${payload}.${alternate}`)).toBeNull()
+    }
   })
 })

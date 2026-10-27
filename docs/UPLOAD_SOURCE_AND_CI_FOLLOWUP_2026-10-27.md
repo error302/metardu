@@ -57,3 +57,37 @@ Production promotion, recovery, matching worker artifacts, pending migrations,
 the owner-deferred signing-key rotation, ordinary/admin/paid-account acceptance,
 physical field/instrument/CAD/print checks and ward-scale crew acceptance remain
 open as recorded in the production goal. This checkpoint does not close them.
+
+## Subsequent source corrections
+
+The email failure came from base64 decoder permissiveness: altering unused low
+bits in the final signature character can retain identical HMAC bytes. Token
+verification now rejects a signature unless decoding and canonical re-encoding
+preserve its exact text. Correctly signed canonical tokens still pass. A fixed
+clock and a change to a significant signature byte make the tampering test
+deterministic; a new test reproduces rejection of byte-equivalent pad-bit,
+padding and whitespace aliases. This is not an HMAC-forgery finding and does not
+resolve the separately deferred signing-key rotation.
+
+Cassini's Git blob has SHA-256
+`734face267b96ec4279fb216bdd961cc9ee36f4fbf5619e09e9f242f20ce1a77`.
+The Windows CRLF representation has SHA-256
+`ae5bf4ddf022b220068f1ca2b249a6ce1f28391e6ee72591eba91f88334b48bf`.
+Direct byte comparison confirmed that the Git blob equals exactly the Windows
+file with CRLF converted to LF; parsed JSON was identical. Git attributes now
+require LF for this specific reference file. The data-boundary test pins the
+existing Git blob's LF hash, admitting that same newline conversion for older
+Windows checkouts. The reference file and every coordinate remain unmodified.
+Both corrected Jest suites pass locally (four checks).
+
+The mobile build's next reported failure was `/robots.txt`. Robots and sitemap
+contain only a public URL, fixed public route lists and a build timestamp; neither
+reads a request, cookies or project data. Both explicitly declare static output.
+The full mobile export still requires CI verification; the destructive historical
+mobile stashing helper was not run in this shared source checkout.
+
+At `2026-10-27T14:33:05Z`, anonymous public HTTP returned 200 for the landing page
+and healthy database/Redis health, and 307 login redirects preserving dashboard
+and admin destinations. Public `releaseId` remains `unknown`. Read-only Docker
+verification also passed. These observations check the existing deployed release,
+not this newer branch source; authenticated UI and release acceptance remain open.

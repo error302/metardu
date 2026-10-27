@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next'
 import { getPublicAppUrl } from '@/lib/site'
 
+// Public build-time metadata has no request- or account-specific state.
+export const dynamic = 'force-static'
+
 export default function robots(): MetadataRoute.Robots {
   const baseUrl = getPublicAppUrl()
 

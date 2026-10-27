@@ -1,6 +1,9 @@
 import type { MetadataRoute } from 'next'
 import { getPublicAppUrl } from '@/lib/site'
 
+// The public route list and its timestamp belong to this build.
+export const dynamic = 'force-static'
+
 export default function sitemap(): MetadataRoute.Sitemap {
   const baseUrl = getPublicAppUrl()
 

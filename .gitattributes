@@ -10,3 +10,6 @@ src/lib/db/migrations/064_project_settings_fields.sql -text whitespace=cr-at-eol
 # Hash-pinned public RINEX reference bytes must survive Windows/Linux checkout.
 python_worker/native_tests/data/*.05o -text
 python_worker/native_tests/data/*.05n -text
+
+# Canonical Cassini reference text uses the same LF bytes on every checkout.
+/data/cassini/merged_subsheets.json text eol=lf
