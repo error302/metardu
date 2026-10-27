@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
 import type * as Three from 'three'
+import type {RoadTerrainData} from '@/lib/engineering/roadTerrain'
 import {
   roadWorkbenchSection,
   type RoadWorkbenchModel,
@@ -14,9 +15,11 @@ type XYZ = { easting: number; northing: number; elevation: number }
 export default function RoadWorkbench3D({
   model,
   chainage,
+  terrain,
 }: {
   model: RoadWorkbenchModel
   chainage: number
+  terrain?: RoadTerrainData
 }) {
   const host = useRef<HTMLDivElement>(null),
     selected = useRef(chainage),
@@ -64,7 +67,7 @@ export default function RoadWorkbench3D({
         renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
         renderer.domElement.setAttribute(
           'aria-label',
-          'Interactive road design and measured sections',
+          terrain?'Interactive road design and retained terrain':'Interactive road design and measured sections',
         )
         const controls = new OrbitControls(camera, renderer.domElement)
         controls.enableDamping = true
@@ -141,6 +144,18 @@ export default function RoadWorkbench3D({
           centre = bounds.getCenter(new THREE.Vector3()),
           size = bounds.getSize(new THREE.Vector3())
         const extent = Math.max(size.x, size.y, size.z, 1)
+        if(terrain){
+          const vertices=terrain.mesh.triangles.flatMap(face=>[face.a,face.b,face.c].flatMap(index=>{
+            const point=terrain.mesh.points[index]
+            if(!point)throw Error('Retained terrain face has an invalid vertex index.')
+            return[point.x-first.easting,point.z-first.elevation,first.northing-point.y]
+          }))
+          const geometry=new THREE.BufferGeometry()
+          geometry.setAttribute('position',new THREE.Float32BufferAttribute(vertices,3))
+          const material=new THREE.MeshBasicMaterial({color:0x648e7b,transparent:true,opacity:0.28,side:THREE.DoubleSide})
+          ownedGeometry.push(geometry);ownedMaterials.push(material)
+          scene.add(new THREE.Mesh(geometry,material))
+        }
         if (!Number.isFinite(extent) || bounds.isEmpty())
           throw Error('No complete 3D section geometry is available.')
         const radius = Math.max(
@@ -223,7 +238,7 @@ export default function RoadWorkbench3D({
       cancelled = true
       cleanup()
     }
-  }, [model])
+  }, [model,terrain])
   return (
     <div aria-label="Road 3D view" className="relative min-w-0">
       <div ref={host} className="h-80 w-full overflow-hidden" />
@@ -246,8 +261,7 @@ export default function RoadWorkbench3D({
         </button>
         <p className="min-w-0 flex-1 text-xs text-[var(--text-secondary)]">
           Drag to orbit · wheel to zoom · right-drag to pan. White: selected
-          section. Design links are display geometry; quantities use measured
-          section calculations.
+          section. Design links are display geometry; {terrain?'terrain section areas are computed previews; whole-road terrain volumes are unassessed.':'quantities use measured section calculations.'}
         </p>
       </div>
     </div>

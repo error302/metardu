@@ -12,6 +12,7 @@ import {
   validateVerticalDraft,
 } from "./roadVerticalAlignment";
 import { roadGroundAlignmentKey } from "./roadGroundAssociation";
+import {roadTerrainBindingSchema,type RoadTerrainIdentity} from './roadTerrain';
 
 export interface RoadPiDraft {
   id: string;
@@ -31,6 +32,9 @@ export interface RoadVipDraft {
   kValue: string;
 }
 export interface RoadWorkbenchDraft {
+  terrainRevisionId?: string;
+  terrainIntervalM?: string;
+  terrainHalfWidthM?: string;
   startChainage: string;
   ips: RoadPiDraft[];
   vips: RoadVipDraft[];
@@ -42,6 +46,9 @@ export function createRoadWorkbenchDraft(
   road: RoadDesignData,
 ): RoadWorkbenchDraft {
   return {
+    terrainRevisionId:road.retainedTerrain?.revisionId??'',
+    terrainIntervalM:text(road.retainedTerrain?.intervalM??20),
+    terrainHalfWidthM:text(road.retainedTerrain?.halfWidthM??20),
     startChainage: text(road.startChainage),
     ips: road.ips.map((p) => ({
       id: p.id,
@@ -90,6 +97,7 @@ export function evaluateRoadWorkbenchDraft(
   base: RoadDesignData,
   draft: RoadWorkbenchDraft,
   reference: QuantityReference,
+  selectedTerrain?: RoadTerrainIdentity,
 ) {
   try {
     if (draft.ips.length > 1000 || draft.vips.length > 1000)
@@ -165,6 +173,13 @@ export function evaluateRoadWorkbenchDraft(
         return station;
       }),
     };
+    const revision=draft.terrainRevisionId??base.retainedTerrain?.revisionId??'';
+    if(revision){
+      const identity=selectedTerrain??(base.retainedTerrain?.revisionId===revision?base.retainedTerrain:undefined);
+      if(!identity||identity.revisionId!==revision)throw Error('Load the exact selected retained terrain revision before saving its binding.');
+      if(identity.crs!==reference.code||identity.verticalDatum!==reference.verticalDatum)throw Error('The retained terrain uses a different coordinate or height reference.');
+      road.retainedTerrain=roadTerrainBindingSchema.parse({...identity,intervalM:decimal(draft.terrainIntervalM??String(base.retainedTerrain?.intervalM??20),'Terrain section interval'),halfWidthM:decimal(draft.terrainHalfWidthM??String(base.retainedTerrain?.halfWidthM??20),'Terrain section half-width')});
+    }else delete road.retainedTerrain;
     delete road.horizontalAlignment;
     delete road.verticalAlignment;
     delete road.earthworksTable;

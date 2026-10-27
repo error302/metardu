@@ -92,3 +92,9 @@ reassociation and validated revision-bound delivery remain open.
 owner saves and retained final request outcomes to that visual workflow. It does
 not replace the remaining terrain, direct manipulation, collaborative writer,
 selected-revision delivery and representative real-job requirements above.
+
+`ROAD_RETAINED_TERRAIN_2026-10-27.md` adds an exact retained surface binding,
+owner/source/reference checks, recovered selection, actual mesh display and
+separate computed terrain sections. Original measurements remain intact.
+Continuous terrain volumes, non-UTM admission, issued revision/interchange and
+the representative field-to-finish road job retain their acceptance gates.

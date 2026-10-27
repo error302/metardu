@@ -46,6 +46,8 @@ export interface RoadFieldPlan {
 }
 
 export interface RoadDesignData {
+  /** Exact retained terrain for computed review; original ground observations remain in stations. */
+  retainedTerrain?: import('@/lib/engineering/roadTerrain').RoadTerrainBinding
   roadName: string
   startChainage: number
   datum: string

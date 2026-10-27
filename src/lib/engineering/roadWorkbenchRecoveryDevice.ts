@@ -19,6 +19,9 @@ const uuid = z.string().uuid(),
   text = z.string().max(200)
 export const roadWorkbenchDraftSchema = z
   .object({
+    terrainRevisionId:text.optional(),
+    terrainIntervalM:text.optional(),
+    terrainHalfWidthM:text.optional(),
     startChainage: text,
     verticalStationIntervalM: text,
     ips: z

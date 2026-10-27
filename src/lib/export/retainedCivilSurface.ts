@@ -4,6 +4,7 @@ import {z} from 'zod'
 import {canonicalJson} from '@/lib/provenance/canonicalJson'
 import {fromReferenceSystemRow} from '@/lib/spatial/projectReferenceSystem'
 import {generateLandXML,escapeXml} from './landXmlDocument'
+import {validateCoordinateRange} from '@/lib/spatial/projectCrs'
 
 const hash=(value:unknown)=>createHash('sha256').update(canonicalJson(value)).digest('hex')
 const digest=z.string().regex(/^[a-f0-9]{64}$/),uuid=z.string().uuid(),coordinate=z.number().finite()
@@ -24,7 +25,7 @@ const rowSchema=z.object({surface_id:uuid,revision_id:uuid,project_id:uuid,proje
   }).passthrough(),
 }).passthrough()
 const invalid=()=>new Error('This retained surface revision lacks consistent geometry or reference evidence. Review the saved revision; no new mesh was inferred.')
-export function generateRetainedCivilSurface(value:unknown,projectId:string,revisionId:string):string {
+export function inspectRetainedCivilSurface(value:unknown,projectId:string,revisionId:string) {
   const row=rowSchema.parse(value),raw=(value as {result:Record<string,unknown>}).result
   const {snapshot,mesh,outputIntegrity:integrity}=row.result
   const reference=fromReferenceSystemRow(snapshot.reference)
@@ -34,6 +35,7 @@ export function generateRetainedCivilSurface(value:unknown,projectId:string,revi
     ||hash(row.parameters)!==hash(snapshot.parameters)||row.point_count!==snapshot.observations.length||row.triangle_count!==mesh.triangles.length
     ||new Set(snapshot.observations.map(p=>p.id)).size!==snapshot.observations.length||new Set(snapshot.sourceSelection.pointIds).size!==snapshot.observations.length
     ||snapshot.observations.some(p=>!snapshot.sourceSelection.pointIds.includes(p.id)||p.horizontalCrs!==row.crs||p.verticalDatum!==reference.prs.verticalDatum))throw invalid()
+  if(mesh.points.some(p=>!validateCoordinateRange(p.x,p.y,row.crs).valid))throw invalid()
   if(snapshot.terrainDomain){
     if(!row.result.domain||!raw.sourceMesh||hash(raw.domain)!==integrity.domainHash||hash(raw.sourceMesh)!==integrity.sourceMeshHash||row.result.domain.definitionHash!==hash(snapshot.terrainDomain))throw invalid()
   }else if(row.result.domain||raw.sourceMesh||integrity.domainHash||integrity.sourceMeshHash)throw invalid()
@@ -57,6 +59,11 @@ export function generateRetainedCivilSurface(value:unknown,projectId:string,revi
     return `<F${mask?` b="${mask}"`:''}>${ids.map(i=>i+1).join(' ')}</F>`
   }).join('\n')
   if([...constraints].some(edge=>!edges.has(edge))||!Number.isFinite(area)||row.result.domain&&Math.abs(row.result.domain.area-area)>Math.max(1e-8,area*1e-8))throw invalid()
+  return{row,reference,area,faceXml}
+}
+export function generateRetainedCivilSurface(value:unknown,projectId:string,revisionId:string):string {
+  const {row,reference,area,faceXml}=inspectRetainedCivilSurface(value,projectId,revisionId)
+  const {snapshot,mesh,outputIntegrity:integrity}=row.result,raw=(value as {result:Record<string,unknown>}).result
   const sourceMetadata={surfaceId:row.surface_id,surfaceRevisionId:revisionId,surfaceRevision:String(row.revision),inputHash:row.input_hash,meshHash:integrity.meshHash,
     referenceHash:snapshot.referenceHash,evidenceStatus:'computed_surface_draft',fieldVerified:'false',professionalApproval:'false',
     terrainDomain:canonicalJson(snapshot.terrainDomain??null),sourceSnapshot:canonicalJson(raw.snapshot)}

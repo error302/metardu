@@ -30,6 +30,7 @@ let source = original,
   lost = false,
   requests: RoadWorkbenchCommand[] = []
 const fetcher = jest.fn(async (_url: unknown, init?: RequestInit) => {
+  if(String(_url).includes('/api/engineering/road-terrain'))return {ok:true,json:async()=>({scope:{actorId:actor,projectId:project,engineeringHash:source.engineeringHash,referenceHash:source.referenceHash},revisions:[],limited:false})}
   if (!init?.body) return { ok: true, json: async () => ({ source }) }
   const body = JSON.parse(String(init.body)) as {
     operation: string
@@ -256,6 +257,7 @@ it('blocks a server save when device storage cannot retain the current inputs', 
 })
 it('ignores the interrupted first initialization when development strict mode starts a new load', async () => {
   global.fetch = jest.fn(async (_url: unknown, init?: RequestInit) => {
+    if(String(_url).includes('/api/engineering/road-terrain'))return {ok:true,json:async()=>({scope:{actorId:actor,projectId:project,engineeringHash:original.engineeringHash,referenceHash:original.referenceHash},revisions:[],limited:false})}
     if (init?.signal?.aborted)
       throw new DOMException('Synthetic stale initialization', 'AbortError')
     await new Promise<void>((resolve, reject) => {

@@ -25,6 +25,13 @@ import { checkProjectAccess } from '@/lib/security/projectAccess'
 import { isSafeSurveyorProfileWrite } from '@/lib/security/surveyorProfileWrite'
 import { env } from '@/lib/env'
 import { EngineeringPayloadSchema } from '@/lib/validation/engineeringPayload'
+import {canonicalJson} from '@/lib/provenance/canonicalJson'
+
+function retainedRoadTerrain(value:unknown):unknown {
+  if(!value||typeof value!=='object'||Array.isArray(value))return undefined
+  const road=(value as Record<string,unknown>).road
+  return road&&typeof road==='object'&&!Array.isArray(road)?(road as Record<string,unknown>).retainedTerrain:undefined
+}
 
 // ponytail: Phase 6 Batch 7 — typed request body for /api/db proxy.
 // Browser client posts this shape; server-side narrowing guards each field.
@@ -232,6 +239,9 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
         return NextResponse.json({ data: null, error: { message: 'Engineering changes require the exact project and its originally loaded snapshot. Keep the draft and reopen the saved project for review.', code: 'ENGINEERING_VERSION_REQUIRED' } }, { status: 409 })
       }
       conditionalEngineeringWrite = true
+      if(canonicalJson({binding:retainedRoadTerrain(prior.value)})!==canonicalJson({binding:retainedRoadTerrain(payload.engineering_data)})) {
+        return NextResponse.json({data:null,error:{message:'Use the recoverable road workspace to select or remove retained terrain. Its exact revision and reference evidence must be checked before saving.',code:'ROAD_TERRAIN_COMMAND_REQUIRED'}},{status:409})
+      }
     }
     if (rows.some(row => row && Object.prototype.hasOwnProperty.call(row, 'boundary_data'))) {
       return NextResponse.json(

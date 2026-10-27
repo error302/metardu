@@ -12,6 +12,8 @@ import {
   type RoadWorkbenchDraft,
 } from "@/lib/engineering/roadWorkbenchDraft";
 import RoadWorkbench from "./RoadWorkbench";
+import RoadTerrainPicker from './RoadTerrainPicker';
+import type {RoadTerrainData,RoadTerrainScope} from '@/lib/engineering/roadTerrain';
 
 const button =
   "inline-flex min-h-11 items-center justify-center gap-2 rounded border border-[var(--border-color)] px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-40";
@@ -27,6 +29,7 @@ type Props = {
   onDraftChange?: (draft: RoadWorkbenchDraft, dirty: boolean) => void;
   onDiscard?: () => void;
   retainedDraftIdentity?: string;
+  terrainScope?: RoadTerrainScope;
 };
 type EditorTab = "horizontal" | "vertical" | "template";
 const keyOf = (road: RoadDesignData | null, reference: QuantityReference) =>
@@ -93,10 +96,12 @@ function Editor({
   onDraftChange,
   onDiscard,
   retainedDraftIdentity,
+  terrainScope,
   disabled = false,
 }: Props & { road: RoadDesignData }) {
   const [state, setState] = useState(() => ({...session(road, reference),...(initialDraft?{draft:initialDraft}:{})}));
   const [tab, setTab] = useState<EditorTab>("horizontal");
+  const [terrainData,setTerrainData]=useState<RoadTerrainData>();
   const [saving, setSaving] = useState(false);
   const [feedback, setFeedback] = useState<{
     error: boolean;
@@ -114,8 +119,8 @@ function Editor({
   // A clean view follows newly loaded saved inputs; a dirty view retains its source until explicit discard.
   if (conflict && !dirty && !saving) setState(session(road, reference));
   const evaluated = useMemo(
-    () => evaluateRoadWorkbenchDraft(state.base, state.draft, state.reference),
-    [state.base, state.draft, state.reference],
+    () => evaluateRoadWorkbenchDraft(state.base, state.draft, state.reference,terrainData?.identity),
+    [state.base, state.draft, state.reference,terrainData],
   );
   useEffect(() => {
     if (!protectNavigation) return;
@@ -317,6 +322,12 @@ function Editor({
             station chainages and profiles. An alignment change can require new
             field sections.
           </p>
+          {terrainScope&&<RoadTerrainPicker scope={terrainScope} value={state.draft.terrainRevisionId??state.base.retainedTerrain?.revisionId??''} disabled={saving||disabled||conflict} onChange={value=>edit(d=>({...d,terrainRevisionId:value}))} onLoaded={setTerrainData}/>}
+          {state.draft.terrainRevisionId&&<fieldset disabled={saving||disabled||conflict} className="mt-3 min-w-0">
+            <legend className="sr-only">Computed terrain review sampling</legend>
+            <Field label="Terrain section interval (m)" value={state.draft.terrainIntervalM??'20'} onChange={value=>edit(d=>({...d,terrainIntervalM:value}))}/>
+            <Field label="Terrain section half-width (m)" value={state.draft.terrainHalfWidthM??'20'} onChange={value=>edit(d=>({...d,terrainHalfWidthM:value}))}/>
+          </fieldset>}
           <nav
             aria-label="Design input groups"
             className="my-3 flex flex-wrap gap-1"
@@ -549,6 +560,7 @@ function Editor({
               road={evaluated.road}
               reference={state.reference}
               sourceLabel={dirty ? "Unsaved design · live preview" : undefined}
+              terrain={evaluated.road?.retainedTerrain?.revisionId===terrainData?.identity.revisionId?terrainData:undefined}
             />
           )}
         </div>

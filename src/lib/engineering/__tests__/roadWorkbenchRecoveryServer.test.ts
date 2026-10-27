@@ -12,6 +12,8 @@ import {
   readRoadWorkbenchOutcome,
 } from '../roadWorkbenchRecoveryServer'
 import type { RoadWorkbenchCommand } from '../roadWorkbenchRecoveryContract'
+import {loadRoadRetainedTerrain} from '../roadTerrainServer'
+jest.mock('../roadTerrainServer',()=>({loadRoadRetainedTerrain:jest.fn()}))
 jest.mock('../designRevisions', () => ({
   ...jest.requireActual<typeof import('../designRevisions')>(
     '../designRevisions',
@@ -118,6 +120,25 @@ async function command(): Promise<RoadWorkbenchCommand> {
     }),
   ) as RoadWorkbenchCommand
 }
+it('verifies a selected terrain revision again at commit and refuses caller-authored metadata',async()=>{
+  const c=await command()
+  const identity={projectId:project,surfaceId:request,revisionId:request,revision:1,name:'Synthetic terrain',inputHash:'a'.repeat(64),meshHash:'b'.repeat(64),referenceHash:'c'.repeat(64),crs:fixtureCrs,verticalDatum:'Synthetic BM',fieldVerified:false as const}
+  jest.mocked(loadRoadRetainedTerrain).mockResolvedValue({identity,mesh:{points:[],triangles:[]}})
+  c.road.retainedTerrain={...identity,intervalM:20,halfWidthM:20}
+  const outcome=await executeRoadWorkbenchCommand(client,actor,c,'commit')
+  expect(outcome.state).toBe('committed')
+  expect(loadRoadRetainedTerrain).toHaveBeenCalledWith(client,actor,project,request)
+  expect((engineering.road as typeof c.road).retainedTerrain).toEqual(c.road.retainedTerrain)
+})
+it('refuses an altered terrain hash before writing the project or final outcome',async()=>{
+  const c=await command()
+  const identity={projectId:project,surfaceId:request,revisionId:request,revision:1,name:'Synthetic terrain',inputHash:'a'.repeat(64),meshHash:'b'.repeat(64),referenceHash:'c'.repeat(64),crs:fixtureCrs,verticalDatum:'Synthetic BM',fieldVerified:false as const}
+  jest.mocked(loadRoadRetainedTerrain).mockResolvedValue({identity,mesh:{points:[],triangles:[]}})
+  c.road.retainedTerrain={...identity,meshHash:'f'.repeat(64),intervalM:20,halfWidthM:20}
+  await expect(executeRoadWorkbenchCommand(client,actor,c,'commit')).rejects.toThrow()
+  expect(query.mock.calls.some(([sql])=>/UPDATE projects/.test(sql))).toBe(false)
+  expect(ledger).toHaveLength(0)
+})
 it('compares both source identities, retains unrelated data and records the exact request in the same transaction', async () => {
   const c = await command(),
     result = await executeRoadWorkbenchCommand(client, actor, c, 'commit')

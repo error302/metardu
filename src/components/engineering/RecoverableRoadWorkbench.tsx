@@ -1,5 +1,5 @@
 'use client'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, useMemo } from 'react'
 import { useSession } from 'next-auth/react'
 import { z } from 'zod'
 import { Download, RefreshCw, Undo2, X } from 'lucide-react'
@@ -423,6 +423,8 @@ function Controller({ actor, project }: { actor: string; project: string }) {
   }
   const pending = retained?.record.command
   const editing = retained?.record.source ?? source
+  const terrainEngineeringHash=editing?.engineeringHash,terrainReferenceHash=editing?.referenceHash
+  const terrainScope=useMemo(()=>terrainEngineeringHash&&terrainReferenceHash?{actorId:actor,projectId:project,engineeringHash:terrainEngineeringHash,referenceHash:terrainReferenceHash}:undefined,[actor,project,terrainEngineeringHash,terrainReferenceHash])
   return (
     <section
       className="min-w-0 space-y-4"
@@ -525,6 +527,7 @@ function Controller({ actor, project }: { actor: string; project: string }) {
           road={editing.road}
           reference={editing.reference}
           initialDraft={seed}
+          terrainScope={terrainScope}
           onDraftChange={draftChanged}
           retainedDraftIdentity={
             retained ? canonicalJson(retained.record.draft) : undefined

@@ -26,6 +26,8 @@ import {
 } from '@/lib/engineering/roadWorkbench'
 import RoadWorkbench3D from './RoadWorkbench3D'
 import { roadWorkbenchPlot } from '@/lib/engineering/roadWorkbenchPlot'
+import {terrainPreviewRoad,sectionFromRetainedTerrain,type RoadTerrainData} from '@/lib/engineering/roadTerrain'
+import {roadHorizontalStation} from '@/lib/engineering/roadCoordinateSetout'
 const button =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded border border-[var(--border-color)] px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-40'
 const value = (n: number | null | undefined) =>
@@ -36,15 +38,26 @@ export default function RoadWorkbench({
   road,
   reference,
   sourceLabel,
+  terrain,
 }: {
   projectId?: string
   road: RoadDesignData | null
   reference: QuantityReference
   sourceLabel?: string
+  terrain?: RoadTerrainData
 }) {
+  const [groundSource,setGroundSource]=useState<'measured'|'terrain'>('measured')
   const model = useMemo(
-    () => buildRoadWorkbenchModel(road, reference),
-    [road, reference],
+    () => {
+      if(groundSource==='measured')return buildRoadWorkbenchModel(road,reference)
+      try{
+        if(!road?.retainedTerrain||!terrain||terrain.identity.revisionId!==road.retainedTerrain.revisionId||terrain.identity.meshHash!==road.retainedTerrain.meshHash)throw Error('Load the exact selected terrain before reviewing computed sections.')
+        const computed=buildRoadWorkbenchModel(terrainPreviewRoad(road,reference,terrain.mesh,road.retainedTerrain),reference,{assessQuantities:false})
+        computed.issues.push('Terrain section areas are computed from retained faces. Whole-road terrain volumes remain unassessed until continuous coverage and volume integration are verified.')
+        return computed
+      }catch(cause){const empty=buildRoadWorkbenchModel(null,reference);empty.issues=[cause instanceof Error?cause.message:'Terrain review could not be computed.'];return empty}
+    },
+    [road, reference,terrain,groundSource],
   )
   const [chosen, setChosen] = useState<string | null>(null),
     [view, setView] = useState<View>('all')
@@ -55,8 +68,19 @@ export default function RoadWorkbench({
         ? Number(chosen)
         : Number.NaN
   const section = useMemo(
-    () => roadWorkbenchSection(model, chainage),
-    [model, chainage],
+    () => {
+      if(groundSource!=='terrain'||!terrain||!road?.retainedTerrain||!model.horizontal||model.stationByChainage.has(chainage))return roadWorkbenchSection(model,chainage)
+      try{
+        const position=roadHorizontalStation(model.horizontal,chainage)
+        if(!position)return roadWorkbenchSection(model,chainage)
+        const groundProfile=sectionFromRetainedTerrain(terrain.mesh,position,road.retainedTerrain.halfWidthM)
+        const centre=groundProfile.find(p=>p.offset===0)
+        if(!centre)return roadWorkbenchSection(model,chainage)
+        const stations=new Map(model.stationByChainage);stations.set(chainage,{chainage,groundLevel:centre.level,groundProfile,designLevelSource:'vertical-alignment'})
+        return roadWorkbenchSection({...model,stationByChainage:stations},chainage)
+      }catch(cause){const empty=roadWorkbenchSection({...model,stationByChainage:new Map()},chainage);empty.issues=[cause instanceof Error?cause.message:'Terrain coverage is unknown.'];return empty}
+    },
+    [model, chainage,groundSource,terrain,road],
   )
   const href = (step: string) =>
     `/project/${encodeURIComponent(projectId ?? '')}/engineering?tab=workflow&step=${step}`
@@ -114,6 +138,11 @@ export default function RoadWorkbench({
           )}
         </div>
       </header>
+      {road?.retainedTerrain&&<div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] pb-3" aria-label="Ground review source">
+        <button type="button" className={button} aria-pressed={groundSource==='measured'} onClick={()=>setGroundSource('measured')}>Measured sections</button>
+        <button type="button" className={button} aria-pressed={groundSource==='terrain'} disabled={!terrain} onClick={()=>setGroundSource('terrain')}>Retained terrain (computed)</button>
+        <p className="min-w-0 text-xs text-[var(--text-secondary)]">{road.retainedTerrain.name} · R{road.retainedTerrain.revision} · {groundSource==='terrain'?'Computed terrain sections; original measurements are unchanged.':'Original station observations.'}</p>
+      </div>}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <nav aria-label="Road view modes" className="flex flex-wrap gap-1">
           {modes.map(([mode, label, Icon]) => (
@@ -133,7 +162,7 @@ export default function RoadWorkbench({
           <button
             type="button"
             className={button}
-            aria-label="Previous measured section"
+            aria-label={groundSource==='terrain'?'Previous computed terrain section':'Previous measured section'}
             disabled={previous === undefined}
             onClick={() => {
               if (previous !== undefined) select(previous)
@@ -156,7 +185,7 @@ export default function RoadWorkbench({
           <button
             type="button"
             className={button}
-            aria-label="Next measured section"
+            aria-label={groundSource==='terrain'?'Next computed terrain section':'Next measured section'}
             disabled={next === undefined}
             onClick={() => {
               if (next !== undefined) select(next)
@@ -173,8 +202,8 @@ export default function RoadWorkbench({
             ['Selected northing', section.position?.northing],
             ['Selected target level', section.target],
             ['Selected cut area', section.cutArea],
-            ['Draft cut volume', model.quantity?.result.totalCut],
-            ['Draft fill volume', model.quantity?.result.totalFill],
+            [groundSource==='terrain'?'Terrain preview cut volume':'Draft cut volume', model.quantity?.result.totalCut],
+            [groundSource==='terrain'?'Terrain preview fill volume':'Draft fill volume', model.quantity?.result.totalFill],
           ] as const
         ).map(([name, n]) => (
           <div key={name} className="min-w-0">
@@ -229,11 +258,11 @@ export default function RoadWorkbench({
         )}
         {(view === 'all' || view === '3d') && (
           <Pane
-            title="3D formation and measured sections"
-            detail="Design preview and measured section lines. No terrain TIN is inferred."
+            title={groundSource==='terrain'?'3D formation and retained terrain':'3D formation and measured sections'}
+            detail={groundSource==='terrain'?'Exact retained mesh and computed section lines. Draft review only.':'Design preview and measured section lines. No terrain TIN is inferred.'}
           >
             {model.horizontal && reference.verticalDatum ? (
-              <RoadWorkbench3D model={model} chainage={chainage} />
+              <RoadWorkbench3D model={model} chainage={chainage} terrain={groundSource==='terrain'?terrain:undefined}/>
             ) : (
               <p className="flex min-h-64 items-center justify-center p-6 text-sm text-[var(--text-secondary)]">
                 A valid alignment and declared height reference are required for
@@ -245,7 +274,7 @@ export default function RoadWorkbench({
         {(view === 'all' || view === 'profile') && (
           <Pane
             title="Longitudinal profile"
-            detail="Evaluated vertical design; measured ground marks. Profile axes use independent scales."
+            detail={groundSource==='terrain'?'Evaluated vertical design and terrain-derived ground. Profile axes use independent scales.':'Evaluated vertical design; measured ground marks. Profile axes use independent scales.'}
           >
             <RoadPlot
               label="Longitudinal profile"
@@ -267,7 +296,7 @@ export default function RoadWorkbench({
         {(view === 'all' || view === 'section') && (
           <Pane
             title="Cross-section"
-            detail={`${Number.isFinite(chainage) ? chainage.toFixed(3) : 'Unselected'} m · ${section.targetSource || 'No target source'} · ${section.measured ? 'saved measured station' : 'no measured station'}`}
+            detail={`${Number.isFinite(chainage) ? chainage.toFixed(3) : 'Unselected'} m · ${section.targetSource || 'No target source'} · ${section.measured ? groundSource==='terrain'?'computed terrain section':'saved measured station' : 'no ground section'}`}
           >
             <RoadPlot
               label="Cross-section"
@@ -297,7 +326,7 @@ export default function RoadWorkbench({
       </div>
       <footer className="flex flex-wrap justify-between gap-3 text-xs text-[var(--text-secondary)]">
         <p className="max-w-prose">
-          Amber: evaluated design. Green: measured ground.{' '}
+          Amber: evaluated design. Green: {groundSource==='terrain'?'computed retained terrain':'measured ground'}.{' '}
           {projectId
             ? 'Views use the same saved project draft.'
             : 'All example inputs are synthetic.'}{' '}

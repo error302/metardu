@@ -2,6 +2,7 @@ import type { PoolClient } from 'pg'
 import { z } from 'zod'
 import { AppError } from '@/lib/api/errors'
 import { EngineeringPayloadSchema } from '@/lib/validation/engineeringPayload'
+import {loadRoadRetainedTerrain} from './roadTerrainServer'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 import {
   hashDesignPayload,
@@ -251,10 +252,14 @@ export async function executeRoadWorkbenchCommand(
       throw fail(
         'The saved engineering data or project reference changed. Your original request is retained; review the saved source before starting another.',
       )
+    const retainedTerrain=command.road.retainedTerrain
+      ? await loadRoadRetainedTerrain(client,actor,command.projectId,command.road.retainedTerrain.revisionId)
+      : undefined
     const evaluated = evaluateRoadWorkbenchDraft(
       source.road,
       createRoadWorkbenchDraft(command.road),
       source.reference,
+      retainedTerrain?.identity,
     )
     if (!evaluated.road) throw fail(evaluated.error, 422)
     if (

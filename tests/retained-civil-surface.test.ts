@@ -1,7 +1,18 @@
 /** @jest-environment node */
 import {XMLParser} from 'fast-xml-parser'
 import {civilHash,civilSurfaceFixture,clippedCivilSurfaceFixture,projectId,revisionId} from './civil-surface-fixture'
-import {generateRetainedCivilSurface} from '@/lib/export/retainedCivilSurface'
+import {generateRetainedCivilSurface,inspectRetainedCivilSurface} from '@/lib/export/retainedCivilSurface'
+
+test('road terrain inspection reuses the exact retained-mesh validation without generating a replacement TIN',()=>{
+  const row=civilSurfaceFixture(),before=JSON.stringify(row)
+  const result=inspectRetainedCivilSurface(row,projectId,revisionId)
+  expect(result.row.result.mesh).toEqual(row.result.mesh)
+  expect(result.reference.prs.verticalDatum).toBe('SYNTHETIC local BM')
+  expect(result.area).toBe(100)
+  expect(JSON.stringify(row)).toBe(before)
+  row.result.mesh.points[0].z=50
+  expect(()=>inspectRetainedCivilSurface(row,projectId,revisionId)).toThrow()
+})
 test('a retained mesh exports real 3D vertices, faces and breakline edge flags without retriangulation',()=>{
   const row=civilSurfaceFixture(),before=JSON.stringify(row)
   const xml=generateRetainedCivilSurface(row,projectId,revisionId)

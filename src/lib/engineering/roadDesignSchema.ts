@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import type { RoadDesignData } from '@/types/engineering'
+import {roadTerrainBindingSchema} from './roadTerrain'
 
 const finite = z.number().finite()
 // Validate complete source shapes before using JSONB as the quantity authority.
@@ -7,6 +8,7 @@ const finite = z.number().finite()
 export const roadDesignDataSchema: z.ZodType<RoadDesignData> = z
   .object({
     roadName: z.string(),
+    retainedTerrain:roadTerrainBindingSchema.optional(),
     startChainage: finite,
     datum: z.string(),
     coordinateSystem: z.string(),

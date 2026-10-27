@@ -44,6 +44,7 @@ const message = (e: unknown) =>
 export function buildRoadWorkbenchModel(
   road: RoadDesignData | null,
   reference: QuantityReference,
+  options: {assessQuantities?:boolean} = {},
 ): RoadWorkbenchModel {
   const model: RoadWorkbenchModel = {
     sourceKey: '',
@@ -163,7 +164,7 @@ export function buildRoadWorkbenchModel(
     )
     if (resolved.issues.length) model.issues.push(...resolved.issues)
     try {
-      model.quantity = calculateRoadQuantityRun(road, reference)
+      if(options.assessQuantities!==false)model.quantity = calculateRoadQuantityRun(road, reference)
     } catch (e) {
       model.issues.push(message(e))
     }

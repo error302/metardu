@@ -11,11 +11,13 @@ import {
   executeRoadWorkbenchCommand,
   loadRoadWorkbenchSource,
 } from '../roadWorkbenchRecoveryServer'
-import type { RoadWorkbenchCommand } from '../roadWorkbenchRecoveryContract'
+import { normalizedRoadJson,type RoadWorkbenchCommand } from '../roadWorkbenchRecoveryContract'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { verifyAlignmentMirrorSnapshot, syncAlignmentProjectInputs } from '../alignmentProjectSync'
 import { hashDesignPayload } from '../designRevisions'
 import type { OwnedAlignment } from '../alignmentAccess'
+import {loadRoadRetainedTerrain} from '../roadTerrainServer'
+import {fromReferenceSystemRow} from '@/lib/spatial/projectReferenceSystem'
 jest.mock('@/lib/db', () => ({ db: {} }))
 const native = process.env.METARDU_ROAD_NATIVE_SQL === '1' ? it : it.skip
 native(
@@ -38,6 +40,7 @@ native(
     const scope = client as unknown as PoolClient,
       actor = randomUUID(),
       project = randomUUID(),
+      terrainSurface=randomUUID(),terrainRevision=randomUUID(),
       checks: string[] = []
     const paths = [
       'src/lib/engineering/roadWorkbenchRecoveryServer.ts',
@@ -51,6 +54,9 @@ native(
       'src/app/api/db/route.ts',
       'src/lib/engineering/alignmentProjectSync.ts',
       'src/app/api/engineering/ips/route.ts',
+      'src/lib/engineering/roadTerrain.ts',
+      'src/lib/engineering/roadTerrainServer.ts',
+      'src/lib/export/retainedCivilSurface.ts',
     ]
     const hashes = async () =>
         Object.fromEntries(
@@ -299,6 +305,36 @@ native(
         'storage failure rollback restores the project and leaves no outcome',
         true,
       )
+      const referenceRow=(await client.query<Record<string,unknown>>('SELECT * FROM project_reference_systems WHERE project_id=$1',[project])).rows[0]
+      const referenceRecord=fromReferenceSystemRow(referenceRow)
+      if(!referenceRecord)throw Error('Missing synthetic terrain reference')
+      const mesh={points:[{x:499900,y:9499900,z:100.5},{x:500400,y:9499900,z:100.5},{x:500400,y:9500400,z:100.5},{x:499900,y:9500400,z:100.5}],triangles:[{a:0,b:1,c:2},{a:0,b:2,c:3}]}
+      const parameters={interval:1,maxVertexSpacing:1,indexInterval:5}
+      const observations=mesh.points.map(p=>({...p,id:randomUUID(),horizontalCrs:example.reference.code,verticalDatum:'Synthetic BM'}))
+      const snapshot=JSON.parse(JSON.stringify({schemaVersion:2,sourceAdmissionVersion:'surface-source-v2',hashAlgorithm:'sha256-canonical-json-v1',reference:referenceRow,referenceHash:hashDesignPayload({...referenceRecord}),parameters,fieldVerified:false,observations,sourceSelection:{pointIds:observations.map(p=>p.id)}})) as Record<string,unknown>
+      const retainedResult={snapshot,mesh,outputIntegrity:{algorithm:'sha256-canonical-json-v1',meshHash:hashDesignPayload(mesh)}}
+      await client.query("INSERT INTO surfaces(id,project_id,name,crs,vertical_datum,status,created_by) VALUES($1,$2,'SYNTHETIC native terrain fixture',$3,'Synthetic BM','COMPUTED',$4)",[terrainSurface,project,example.reference.code,actor])
+      await client.query("INSERT INTO surface_revisions(id,surface_id,revision,algorithm,algorithm_version,parameters,point_count,triangle_count,crs,input_hash,result,computed_by) VALUES($1,$2,1,'synthetic-retained-fixture','1',$3::jsonb,4,2,$4,$5,$6::jsonb,$7)",[terrainRevision,terrainSurface,JSON.stringify(parameters),example.reference.code,hashDesignPayload(snapshot),JSON.stringify(retainedResult),actor])
+      const terrain=await loadRoadRetainedTerrain(scope,actor,project,terrainRevision)
+      expect(terrain.mesh).toEqual(mesh)
+      await expect(loadRoadRetainedTerrain(scope,randomUUID(),project,terrainRevision)).rejects.toMatchObject({statusCode:403})
+      check('actual terrain read is owner-bound to the exact retained mesh and revision',true)
+      const terrainSource=await loadRoadWorkbenchSource(scope,actor,project)
+      const terrainDraft={...createRoadWorkbenchDraft(terrainSource.road),terrainRevisionId:terrainRevision,terrainIntervalM:'20',terrainHalfWidthM:'20'}
+      const terrainRoad=evaluateRoadWorkbenchDraft(terrainSource.road,terrainDraft,terrainSource.reference,terrain.identity).road
+      if(!terrainRoad)throw Error('Synthetic terrain binding failed')
+      const terrainCommand:RoadWorkbenchCommand={version:1,actorId:actor,projectId:project,requestId:randomUUID(),expectedEngineeringHash:terrainSource.engineeringHash,expectedReferenceHash:terrainSource.referenceHash,road:normalizedRoadJson(terrainRoad)}
+      const terrainOutcome=await executeRoadWorkbenchCommand(scope,actor,terrainCommand,'commit')
+      expect(terrainOutcome.state).toBe('committed')
+      const savedTerrain=(await loadRoadWorkbenchSource(scope,actor,project)).road
+      expect(savedTerrain.retainedTerrain?.revisionId).toBe(terrainRevision)
+      expect(savedTerrain.stations).toEqual(terrainSource.road.stations)
+      check('actual conditional terrain binding retains its immutable request and original measurements',true)
+      await client.query('SAVEPOINT terrain_reference_change')
+      await client.query("UPDATE project_reference_systems SET vertical_datum='SYNTHETIC changed BM' WHERE project_id=$1",[project])
+      await expect(loadRoadRetainedTerrain(scope,actor,project,terrainRevision)).rejects.toMatchObject({statusCode:409})
+      await client.query('ROLLBACK TO SAVEPOINT terrain_reference_change')
+      check('actual changed project reference refuses the retained terrain',true)
       await client.query('ROLLBACK')
       begun = false
       expect(
@@ -317,6 +353,8 @@ native(
         ).rows,
       ).toHaveLength(0)
       check('all native fixture identities and outcomes are rolled back', true)
+      expect((await client.query('SELECT id FROM surfaces WHERE id=$1',[terrainSurface])).rows).toHaveLength(0)
+      expect((await client.query('SELECT id FROM surface_revisions WHERE id=$1',[terrainRevision])).rows).toHaveLength(0)
       expect(
         (
           await client.query<{ version: string; checksum: string }>(
@@ -326,9 +364,9 @@ native(
       ).toEqual(migrations)
       check('applied migration hashes are unchanged', true)
       expect(await hashes()).toEqual(sourceHashes)
-      await mkdir('.cache/engineering-writer-boundary', { recursive: true })
+      await mkdir('.cache/road-terrain', { recursive: true })
       await writeFile(
-        '.cache/engineering-writer-boundary/native-sql.json',
+        '.cache/road-terrain/native-sql.json',
         JSON.stringify(
           {
             checkedAt: new Date().toISOString(),

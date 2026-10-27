@@ -10,16 +10,18 @@ process.env.TEST_ADMIN_DATABASE_URL ??=
   'postgresql://release_verify:local_release_verify_only@127.0.0.1:55433/metardu_runtime_verify'
 process.env.TEST_RUNTIME_DATABASE_URL ??=
   'postgresql://release_app:local_release_runtime_only@127.0.0.1:55433/metardu_runtime_verify'
+const terrainMode=process.argv.includes('--terrain')
+const fixtureModes=process.argv.slice(2).filter(v=>v!=='--terrain')
 assert.ok(
-  process.argv.slice(2).length <= 1 &&
+  process.argv.slice(2).length <= 2 && fixtureModes.length<=1 &&
     process.argv
       .slice(2)
-      .every((v) => ['--close-fixture', '--browser-check'].includes(v)),
+      .every((v) => ['--close-fixture', '--browser-check','--terrain','--terrain-read'].includes(v)) && (!process.argv.includes('--terrain-read')||terrainMode),
   'Use only the exact owned fixture verification modes.',
 )
 const config = rehearsalDatabaseConfig(),
   base = 'http://127.0.0.1:3021',
-  directory = '.cache/road-recovery'
+  directory = terrainMode?'.cache/road-terrain':'.cache/road-recovery'
 assert.equal(config.database, 'metardu_runtime_verify')
 assert.equal(new URL(config.adminUrl).hostname, '127.0.0.1')
 assert.equal(new URL(config.adminUrl).port, '55433')
@@ -38,6 +40,7 @@ const verificationSources = [
   'src/lib/engineering/roadWorkbenchRecoveryDevice.ts',
   'src/components/engineering/RecoverableRoadWorkbench.tsx',
   'src/components/engineering/RoadWorkbenchEditor.tsx',
+  ...(terrainMode?['src/app/api/engineering/road-terrain/route.ts','src/app/api/db/route.ts','src/lib/engineering/roadTerrain.ts','src/lib/engineering/roadTerrainServer.ts','src/lib/export/retainedCivilSurface.ts','src/components/engineering/RoadTerrainPicker.tsx','src/components/engineering/RoadWorkbench.tsx','src/components/engineering/RoadWorkbench3D.tsx']:[]),
 ]
 async function captureSources() {
   return Object.fromEntries(
@@ -264,8 +267,8 @@ try {
   }
   if (!f) {
     assert.equal(
-      process.argv.length,
-      2,
+      fixtureModes.length,
+      0,
       'The exact fixture must already exist for inspection or closure.',
     )
     f = {
@@ -331,6 +334,20 @@ try {
       ) + '\n',
     )
     process.exitCode = 0
+  } else if(process.argv.includes('--terrain-read')){
+    assert.equal(scope.is_suspended,false)
+    const call=await login(f)
+    const source=await call(`/api/engineering/road-workbench?project_id=${f.projectId}&expected_user_id=${f.actorId}`)
+    assert.equal(source.status,200)
+    const query=new URLSearchParams({actorId:f.actorId,projectId:f.projectId,engineeringHash:source.value.source.engineeringHash,referenceHash:source.value.source.referenceHash,revisionId:f.terrainRevisionId})
+    const result=await call(`/api/engineering/road-terrain?${query}`)
+    if(result.status!==200){
+      const row=(await admin.query('SELECT input_hash,result FROM surface_revisions WHERE id=$1 AND surface_id=$2',[f.terrainRevisionId,f.terrainSurfaceId])).rows[0]
+      const declared=await call(`/api/project/${f.projectId}/reference-system`)
+      console.log(JSON.stringify({snapshotHashMatches:digest(row.result.snapshot)===row.input_hash,meshHashMatches:digest(row.result.mesh)===row.result.outputIntegrity.meshHash,wireReferenceHashMatches:digest(declared.value.referenceSystem)===row.result.snapshot.referenceHash,snapshotDeclaredAt:row.result.snapshot.reference.declared_at,wireDeclaredAt:declared.value.referenceSystem.declaredAt}))
+    }
+    console.log(JSON.stringify({status:result.status,error:result.value.error,code:result.value.code,revisionId:result.value.terrain?.identity.revisionId}))
+    assert.equal(result.status,200)
   } else if (process.argv.includes('--browser-check')) {
     assert.equal(scope.is_suspended, false)
     const current = (
@@ -390,6 +407,23 @@ try {
       'synthetic browser operator remains an ordinary free account',
       subscriptions === 0 && scope.role === 'user',
     )
+    if(terrainMode){
+      assert.equal(current.road.retainedTerrain.revisionId,f.terrainRevisionId)
+      assert.equal(canonical(current.road.stations),canonical(engineering.road.stations))
+      const sourceResponse=await call(`/api/engineering/road-workbench?project_id=${f.projectId}&expected_user_id=${f.actorId}`)
+      assert.equal(sourceResponse.status,200)
+      const source=sourceResponse.value.source
+      const query=new URLSearchParams({actorId:f.actorId,projectId:f.projectId,engineeringHash:source.engineeringHash,referenceHash:source.referenceHash,revisionId:f.terrainRevisionId})
+      const selected=await call(`/api/engineering/road-terrain?${query}`)
+      check('browser terrain binding loads the exact retained revision and preserves observed stations',selected.status===200&&selected.value.terrain.identity.revisionId===f.terrainRevisionId&&selected.value.terrain.identity.meshHash===current.road.retainedTerrain.meshHash)
+      const spec={table:'projects',operation:'update',payload:{engineering_data:current},filters:[{op:'eq',column:'id',value:f.projectId},{op:'eq',column:'engineering_data',value:current}]}
+      const preserved=await call('/api/db',spec)
+      check('ordinary input save can preserve the exact terrain binding over real HTTP',preserved.status===200&&canonical(preserved.value.data[0].engineering_data)===canonical(current))
+      const forged=JSON.parse(JSON.stringify(spec));forged.payload.engineering_data.road.retainedTerrain.meshHash='f'.repeat(64)
+      const refused=await call('/api/db',forged)
+      const retained=(await admin.query('SELECT engineering_data FROM projects WHERE id=$1 AND user_id=$2',[f.projectId,f.actorId])).rows[0].engineering_data
+      check('generic HTTP writes cannot forge terrain evidence or replace the observed design',refused.status===409&&refused.value.error.code==='ROAD_TERRAIN_COMMAND_REQUIRED'&&canonical(retained)===canonical(current))
+    }
     const after = (
       await admin.query(
         'SELECT version,checksum FROM schema_migrations ORDER BY version',
@@ -557,6 +591,50 @@ try {
       "UPDATE project_reference_systems SET vertical_datum='Synthetic BM' WHERE project_id=$1",
       [f.projectId],
     )
+    if(terrainMode){
+      const reference=(await admin.query('SELECT * FROM project_reference_systems WHERE project_id=$1',[f.projectId])).rows[0]
+      const referenceResponse=await call(`/api/project/${f.projectId}/reference-system`)
+      assert.equal(referenceResponse.status,200)
+      const normalizedReference={...referenceResponse.value.referenceSystem}
+      assert.ok(normalizedReference)
+      // Match the native pg Date representation used by retained surface computation.
+      // PostgreSQL JSON may expose additional timestamp digits; do not mix that wire hash
+      // with a snapshot serialized from the native Date object.
+      assert.equal(new Date(normalizedReference.declaredAt).getTime(),reference.declared_at.getTime())
+      normalizedReference.declaredAt=reference.declared_at.toISOString()
+      f.terrainSurfaceId??=randomUUID();f.terrainRevisionId??=randomUUID()
+      if(f.terrainFixtureVersion!==2){f.previousTerrainRevisionId=f.terrainRevisionId;f.terrainRevisionId=randomUUID();f.terrainFixtureVersion=2}
+      const existing=(await admin.query('SELECT id FROM surface_revisions WHERE id=$1',[f.terrainRevisionId])).rows
+      if(!existing.length){
+        const mesh={points:[{x:499900,y:9499900,z:0.5},{x:500100,y:9499900,z:0.5},{x:500100,y:9500100,z:0.5},{x:499900,y:9500100,z:0.5}],triangles:[{a:0,b:1,c:2},{a:0,b:2,c:3}]}
+        const parameters={interval:1,maxVertexSpacing:1,indexInterval:5}
+        const observations=mesh.points.map(p=>({...p,id:randomUUID(),horizontalCrs:'EPSG:32737',verticalDatum:'Synthetic BM'}))
+        const snapshot=JSON.parse(JSON.stringify({schemaVersion:2,sourceAdmissionVersion:'surface-source-v2',hashAlgorithm:'sha256-canonical-json-v1',reference,referenceHash:digest(normalizedReference),parameters,fieldVerified:false,observations,sourceSelection:{pointIds:observations.map(p=>p.id)}}))
+        const result={snapshot,mesh,outputIntegrity:{algorithm:'sha256-canonical-json-v1',meshHash:digest(mesh)}}
+        await admin.query('BEGIN')
+        try{
+          const parent=(await admin.query('SELECT project_id,created_by FROM surfaces WHERE id=$1 FOR UPDATE',[f.terrainSurfaceId])).rows[0]
+          if(parent){assert.equal(parent.project_id,f.projectId);assert.equal(parent.created_by,f.actorId)}
+          else await admin.query("INSERT INTO surfaces(id,project_id,name,crs,vertical_datum,status,created_by) VALUES($1,$2,'SYNTHETIC terrain review fixture','EPSG:32737','Synthetic BM','COMPUTED',$3)",[f.terrainSurfaceId,f.projectId,f.actorId])
+          const revision=(await admin.query('SELECT COALESCE(MAX(revision),0)+1 AS next FROM surface_revisions WHERE surface_id=$1',[f.terrainSurfaceId])).rows[0].next
+          await admin.query("INSERT INTO surface_revisions(id,surface_id,revision,algorithm,algorithm_version,parameters,point_count,triangle_count,crs,input_hash,result,computed_by) VALUES($1,$2,$3,'synthetic-retained-fixture','1',$4::jsonb,4,2,'EPSG:32737',$5,$6::jsonb,$7)",[f.terrainRevisionId,f.terrainSurfaceId,revision,JSON.stringify(parameters),digest(snapshot),JSON.stringify(result),f.actorId])
+          await admin.query('COMMIT')
+        }catch(error){await admin.query('ROLLBACK');throw error}
+        await writeFile(fixturePath,JSON.stringify(f,null,2))
+      }
+      check('isolated terrain review fixture retains an explicit synthetic mesh without field or computation-worker claims',true)
+      const reviewedSource=await get()
+      const terrainQuery=new URLSearchParams({actorId:f.actorId,projectId:f.projectId,engineeringHash:reviewedSource.engineeringHash,referenceHash:reviewedSource.referenceHash,revisionId:f.terrainRevisionId})
+      const terrainUrl=`/api/engineering/road-terrain?${terrainQuery}`
+      check('anonymous terrain review requests expose no retained mesh',(await fetch(base+terrainUrl,{signal:AbortSignal.timeout(120000)})).status===401)
+      const retained=await call(terrainUrl)
+      check('authenticated terrain review returns the exact owned retained revision',retained.status===200&&retained.value.terrain.identity.revisionId===f.terrainRevisionId&&retained.value.terrain.mesh.triangles.length===2)
+      const staleQuery=new URLSearchParams(terrainQuery);staleQuery.set('engineeringHash','f'.repeat(64))
+      const actorQuery=new URLSearchParams(terrainQuery);actorQuery.set('actorId',randomUUID())
+      check('terrain review refuses stale road and changed account identities',(await call(`/api/engineering/road-terrain?${staleQuery}`)).status===409&&(await call(`/api/engineering/road-terrain?${actorQuery}`)).status===403)
+    }
+    const finalMigrations=(await admin.query('SELECT version,checksum FROM schema_migrations ORDER BY version')).rows
+    check('applied migration hashes remain unchanged after HTTP verification',canonical(finalMigrations)===canonical(migrations))
     await writeFile(
       `${directory}/native.json`,
       JSON.stringify(

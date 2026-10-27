@@ -466,3 +466,13 @@ write was removed. Real SQL-null standalone alignments retain their existing
 input/history path. See `ENGINEERING_WRITER_BOUNDARY_2026-10-27.md`. Mirror atomicity,
 legacy request/reference binding, retained terrain, revision-bound interchange
 and existing customer/provider/recovery/production/field gates remain open.
+
+27 October retained-road-terrain checkpoint: the workspace selects an exact
+owner-bound retained surface revision, checks full reference/geometry evidence,
+retains the binding through device recovery and conditional server save, and
+shows its mesh and computed sections separately from original observations.
+Whole-road terrain volumes remain unassessed pending continuous coverage and
+integration acceptance. See `ROAD_RETAINED_TERRAIN_2026-10-27.md`. Non-UTM admission,
+ground reassociation, selected issued road revisions, validated interchange,
+ward-scale collaboration and all existing independent field/provider/customer
+recovery/worker/security-deferral/production gates remain open.

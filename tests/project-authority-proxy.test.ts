@@ -7,7 +7,9 @@ jest.mock('@/lib/auth', () => ({ authOptions: {} }))
 jest.mock('@/lib/auth/requestContext', () => ({ setAuthenticatedDatabaseContext: jest.fn(), resolveAuthenticatedOrganization: jest.fn(async () => null) }))
 jest.mock('@/lib/security/projectAccess', () => ({ checkProjectAccess: jest.fn(async () => ({ allowed: true })) }))
 jest.mock('@/lib/env', () => ({ env: { ADMIN_EMAILS: '' } }))
-jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: (req: NextRequest, ctx: { body: unknown }) => Promise<NextResponse>) => async (req: NextRequest) => handler(req, { body: await req.json() as unknown }) }))
+// Parse JSON in the test realm: undici's Request.json creates nested objects in
+// its host realm, unlike this fixture's schema and handler modules.
+jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: (req: NextRequest, ctx: { body: unknown }) => Promise<NextResponse>) => async (req: NextRequest) => handler(req, { body: JSON.parse(await req.text()) as unknown }) }))
 import { POST } from '@/app/api/db/route'
 const request = (table: string, operation: string, payload: unknown) => new NextRequest('http://127.0.0.1/api/db', { method: 'POST', body: JSON.stringify({ table, operation, payload, onConflict: 'id', filters: [{ op: 'eq', column: 'id', value: '22222222-2222-4222-8222-222222222222' }] }) })
 beforeEach(() => mockQuery.mockClear())
@@ -79,4 +81,17 @@ test('refuses bulk, non-finite and OR-filtered engineering replacements',async()
   const raw=JSON.stringify({table:'projects',operation:'update',payload:{engineering_data:{bad:'NONFINITE'}},filters}).replace('"NONFINITE"','1e400')
   expect((await POST(new NextRequest('http://127.0.0.1/api/db',{method:'POST',body:raw}))).status).toBe(409)
   expect(mockQuery).not.toHaveBeenCalled()
+})
+test.each(['replace','remove'])('generic engineering saves cannot %s a retained terrain binding without its validated command',async operation=>{
+  const prior={...engineering,road:{retainedTerrain:{revisionId:'retained',meshHash:'a'.repeat(64)}}}
+  const next={...prior,road:operation==='remove'?{}:{retainedTerrain:{revisionId:'forged',meshHash:'b'.repeat(64)}}}
+  const response=await POST(engineeringRequest([projectFilter,{op:'eq',column:'engineering_data',value:prior}],{payload:{engineering_data:next}}))
+  expect(response.status).toBe(409)
+  expect(await response.json()).toMatchObject({error:{code:'ROAD_TERRAIN_COMMAND_REQUIRED'}})
+  expect(mockQuery).not.toHaveBeenCalled()
+})
+test('generic engineering saves can preserve an existing terrain binding while editing other inputs',async()=>{
+  const prior={...engineering,road:{retainedTerrain:{revisionId:'retained',meshHash:'a'.repeat(64)}}}
+  const response=await POST(engineeringRequest([projectFilter,{op:'eq',column:'engineering_data',value:prior}],{payload:{engineering_data:{...prior,standard:'KeRRA'}}}))
+  expect(response.status).toBe(200)
 })
