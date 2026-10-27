@@ -4,6 +4,16 @@
 claim that registration, commercial adoption or professional acceptance exists.
 The full production goal remains active.
 
+23 October follow-up: approved delayed automatic tunnel startup and restart
+actions are configured and independently read back. Public HTTP passed again
+at 19:20:58 UTC. Reboot/crash exercises remain open. See
+`PUBLIC_AVAILABILITY_2026-10-23.md` for current operations evidence and
+`PROJECT_SETTINGS_INTEGRITY_2026-10-23.md` for the metadata/reference and
+subscription-authority source repairs. The subsequent creation-path repair and
+remaining map workflow acceptance are recorded in
+`PROJECT_CREATION_INTEGRITY_2026-10-24.md`; observed public network recovery is in
+`TUNNEL_NETWORK_RECOVERY_2026-10-24.md`.
+
 The current product has meaningful implemented workflows and repeatable source
 checks. Its present acceptance stage is pre-release validation. A credible
 customer promise requires the same behavior to work on the deployed revision,
@@ -32,9 +42,9 @@ and hidden process. No DNS, credentials, application image, customer record or
 supporting service was changed. Public home and health returned 200 afterward.
 The later provider diagnostic again confirmed public health, notice, payment
 availability and the logo at 200. Public health reports an unknown release ID;
-that is not proof of the newest source deployment. Reliable connector supervision
-and automatic startup after host/login/reboot interruptions remain open operations
-work; the disabled service was not silently reconfigured.
+that is not proof of the newest source deployment. The service was subsequently
+configured with the owner's explicit approval, as recorded in the follow-up
+above. Forced-crash and reboot recovery exercises remain open.
 
 ChatGPT still reports `waiting`, ineligible and unconfigured, with eligibility
 recorded as 10 November 2026 at 17:56:45.516 UTC. Notice, deployment and actual
