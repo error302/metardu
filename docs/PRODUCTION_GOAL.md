@@ -494,3 +494,13 @@ runs use 1.0.1 while known older archives retain their original data and a revie
 notice. See `ROAD_SECTION_SWEEP_2026-10-27.md`. Whole-road terrain integration,
 global overlap/error treatment, persistence and issued delivery remain open, as
 do all existing independent field/customer/provider/recovery/production gates.
+
+27 October corridor-separation checkpoint: computed terrain mode now assesses
+the complete review strip for local folds and possible global self-overlap,
+using analytic projection bounds and shared interval enclosures. Unresolved
+separation stays unassessed; changed-project terrain/status admission is revoked
+even when old props persist. See `ROAD_CORRIDOR_OVERLAP_2026-10-27.md`. This is
+source/component model evidence, not interval certification or field acceptance.
+Whole-road integration/error bounds, independent corridor assumptions, durable
+issued delivery and all existing customer/provider/recovery/production/field
+gates remain open.

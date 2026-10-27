@@ -1,7 +1,8 @@
 import type { RoadDesignData } from '@/types/engineering'
 import { assertSurveyCrs } from '@/lib/spatial/projectCrs'
 import { terrainOrientation } from '@/lib/topo/terrainDomainValidation'
-import { buildRoadHorizontalGeometry, roadHorizontalStation, type ProjectHorizontalGeometry } from './roadCoordinateSetout'
+import { buildRoadHorizontalGeometry, type ProjectHorizontalGeometry } from './roadCoordinateSetout'
+import { roadStripEnclosure } from './roadStripGeometry'
 import { terrainMeshSchema, type TerrainMesh } from './roadTerrain'
 import type { QuantityReference } from './roadQuantity'
 
@@ -128,19 +129,10 @@ export async function assessRoadTerrainCoverage(
       if (result.checkedEnclosures % 32 === 1) { await pause(); abort(signal) }
       const interval = pending.pop()
       if (!interval) break
-      const { segment, start, end, depth } = interval, middle = start + (end - start) / 2, h = end - start
-      if (!Number.isFinite(h) || h <= 0 || middle <= start || middle >= end) throw Error('The terrain interval is below reliable chainage resolution. Coverage remains unassessed.')
-      const position = roadHorizontalStation(alignment, middle)
-      if (!position) throw Error('The continuous terrain enclosure lies outside the evaluated alignment.')
+      const { segment, start, end, depth } = interval, middle = start + (end - start) / 2
+      const {position,rectangle}=roadStripEnclosure(segment,start,end,halfWidthM)
       const point = { x: position.easting, y: position.northing }
       if (!candidates(faceTree, bounds([point]), spend).some(face => inside(point, face))) throw Error(`Terrain gap or exclusion at chainage ${middle}; continuous coverage remains unassessed.`)
-      const k = segment.kind === 'tangent' ? 0 : 1 / (segment.kind === 'circular' ? segment.radius : segment.spiral.input.radius)
-      const guard = Math.max(1e-7, 128 * Number.EPSILON * Math.max(1, Math.abs(point.x), Math.abs(point.y), h, k ? 1 / k : 0))
-      const expansion = k * h * h / 8 + halfWidthM * k * h / 2 + guard
-      const along = h / 2 + expansion, across = halfWidthM + expansion, angle = position.bearing * Math.PI / 180
-      const t = { x: Math.sin(angle), y: Math.cos(angle) }, n = { x: -Math.cos(angle), y: Math.sin(angle) }
-      const rectangle = [[-along, -across], [along, -across], [along, across], [-along, across]].map(([u, v]) => ({ x: point.x + u * t.x + v * n.x, y: point.y + u * t.y + v * n.y }))
-      if (rectangle.some(p => !Number.isFinite(p.x) || !Number.isFinite(p.y))) throw Error('A terrain enclosure exceeds the finite coordinate range.')
       const contact = candidates(edgeTree, bounds(rectangle), spend).some(edge => segmentMeetsRectangle(edge, rectangle))
       if (!contact) continue
       if (segment.kind === 'tangent' || depth >= 20 || middle <= start || middle >= end) throw Error(`Terrain boundary, gap or exclusion intersects the conservative strip enclosure at chainage ${start}–${end}. Coverage remains unassessed; boundary contact is not rounded away.`)

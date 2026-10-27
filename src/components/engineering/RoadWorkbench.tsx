@@ -29,6 +29,7 @@ import { roadWorkbenchPlot } from '@/lib/engineering/roadWorkbenchPlot'
 import {terrainPreviewRoad,sectionFromRetainedTerrain,type RoadTerrainData} from '@/lib/engineering/roadTerrain'
 import {roadHorizontalStation} from '@/lib/engineering/roadCoordinateSetout'
 import {assessRoadTerrainCoverage} from '@/lib/engineering/roadTerrainCoverage'
+import {assessRoadCorridorOverlap} from '@/lib/engineering/roadCorridorOverlap'
 const button =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded border border-[var(--border-color)] px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-40'
 const value = (n: number | null | undefined) =>
@@ -48,29 +49,35 @@ export default function RoadWorkbench({
   terrain?: RoadTerrainData
 }) {
   const [groundSource,setGroundSource]=useState<'measured'|'terrain'>('measured')
-  const exactTerrain=!!(road?.retainedTerrain&&terrain&&terrain.identity.revisionId===road.retainedTerrain.revisionId&&terrain.identity.meshHash===road.retainedTerrain.meshHash)
-  const [coverage,setCoverage]=useState<{road:RoadDesignData;terrain:RoadTerrainData;reference:QuantityReference;text:string}|null>(null)
+  const exactTerrain=!!(road?.retainedTerrain&&terrain&&terrain.identity.revisionId===road.retainedTerrain.revisionId&&terrain.identity.meshHash===road.retainedTerrain.meshHash&&(!projectId||terrain.identity.projectId===projectId&&road.retainedTerrain.projectId===projectId))
+  const [coverage,setCoverage]=useState<{projectId?:string;road:RoadDesignData;terrain:RoadTerrainData;reference:QuantityReference;text:string}|null>(null)
+  const [corridor,setCorridor]=useState<{projectId?:string;road:RoadDesignData;terrain:RoadTerrainData;reference:QuantityReference;text:string}|null>(null)
   useEffect(()=>{
-    if(groundSource!=='terrain'||!road?.retainedTerrain||!terrain||terrain.identity.revisionId!==road.retainedTerrain.revisionId||terrain.identity.meshHash!==road.retainedTerrain.meshHash)return
+    if(groundSource!=='terrain'||!road?.retainedTerrain||!terrain||!exactTerrain)return
     const controller=new AbortController()
-    void assessRoadTerrainCoverage(road,reference,terrain.mesh,road.retainedTerrain.halfWidthM,controller.signal).then(result=>{
-      if(!controller.signal.aborted)setCoverage({road,terrain,reference,text:result.status==='covered'?result.reason:`Coverage unassessed: ${result.reason}`})
+    void assessRoadCorridorOverlap(road,reference,road.retainedTerrain.halfWidthM,controller.signal).then(result=>{
+      if(!controller.signal.aborted)setCorridor({projectId,road,terrain,reference,text:result.status==='clear'?result.reason:`Overlap unassessed: ${result.reason}`})
     }).catch(()=>{
-      if(!controller.signal.aborted)setCoverage({road,terrain,reference,text:'Continuous terrain coverage could not be checked. Coverage and volumes remain unassessed.'})
+      if(!controller.signal.aborted)setCorridor({projectId,road,terrain,reference,text:'Corridor overlap could not be checked. Separation and volumes remain unassessed.'})
+    })
+    void assessRoadTerrainCoverage(road,reference,terrain.mesh,road.retainedTerrain.halfWidthM,controller.signal).then(result=>{
+      if(!controller.signal.aborted)setCoverage({projectId,road,terrain,reference,text:result.status==='covered'?result.reason:`Coverage unassessed: ${result.reason}`})
+    }).catch(()=>{
+      if(!controller.signal.aborted)setCoverage({projectId,road,terrain,reference,text:'Continuous terrain coverage could not be checked. Coverage and volumes remain unassessed.'})
     })
     return()=>controller.abort()
-  },[road,reference,terrain,groundSource])
+  },[road,reference,terrain,groundSource,projectId,exactTerrain])
   const model = useMemo(
     () => {
       if(groundSource==='measured')return buildRoadWorkbenchModel(road,reference)
       try{
-        if(!road?.retainedTerrain||!terrain||terrain.identity.revisionId!==road.retainedTerrain.revisionId||terrain.identity.meshHash!==road.retainedTerrain.meshHash)throw Error('Load the exact selected terrain before reviewing computed sections.')
+        if(!road?.retainedTerrain||!terrain||!exactTerrain)throw Error('Load the exact selected project terrain before reviewing computed sections.')
         const computed=buildRoadWorkbenchModel(terrainPreviewRoad(road,reference,terrain.mesh,road.retainedTerrain),reference,{assessQuantities:false})
         computed.issues.push('Terrain section areas are computed from retained faces. Whole-road terrain volumes remain unassessed until continuous coverage and volume integration are verified.')
         return computed
       }catch(cause){const empty=buildRoadWorkbenchModel(null,reference);empty.issues=[cause instanceof Error?cause.message:'Terrain review could not be computed.'];return empty}
     },
-    [road, reference,terrain,groundSource],
+    [road, reference,terrain,groundSource,exactTerrain],
   )
   const [chosen, setChosen] = useState<string | null>(null),
     [view, setView] = useState<View>('all')
@@ -153,7 +160,7 @@ export default function RoadWorkbench({
       </header>
       {road?.retainedTerrain&&<div className="flex flex-wrap items-center gap-2 border-b border-[var(--border-color)] pb-3" aria-label="Ground review source">
         <button type="button" className={button} aria-pressed={groundSource==='measured'} onClick={()=>setGroundSource('measured')}>Measured sections</button>
-        <button type="button" className={button} aria-pressed={groundSource==='terrain'} disabled={!terrain} onClick={()=>setGroundSource('terrain')}>Retained terrain (computed)</button>
+        <button type="button" className={button} aria-pressed={groundSource==='terrain'} disabled={!exactTerrain} onClick={()=>setGroundSource('terrain')}>Retained terrain (computed)</button>
         <p className="min-w-0 text-xs text-[var(--text-secondary)]">{road.retainedTerrain.name} · R{road.retainedTerrain.revision} · {groundSource==='terrain'?'Computed terrain sections; original measurements are unchanged.':'Original station observations.'}</p>
       </div>}
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -238,7 +245,10 @@ export default function RoadWorkbench({
         ))}
       </dl>
       {groundSource==='terrain'&&<p role="status" aria-label="Continuous terrain coverage" className="break-words border-l-2 border-[var(--border-color)] pl-3 text-xs text-[var(--text-secondary)]">
-        {!exactTerrain?'Load the exact selected terrain to check continuous coverage. Coverage and volumes remain unassessed.':coverage&&coverage.road===road&&coverage.terrain===terrain&&coverage.reference===reference?coverage.text:'Checking the full terrain review strip between sections… Coverage and volumes remain unassessed.'}
+        {!exactTerrain?'Load the exact selected terrain to check continuous coverage. Coverage and volumes remain unassessed.':coverage&&coverage.projectId===projectId&&coverage.road===road&&coverage.terrain===terrain&&coverage.reference===reference?coverage.text:'Checking the full terrain review strip between sections… Coverage and volumes remain unassessed.'}
+      </p>}
+      {groundSource==='terrain'&&<p role="status" aria-label="Corridor overlap review" className="break-words border-l-2 border-[var(--border-color)] pl-3 text-xs text-[var(--text-secondary)]">
+        {!exactTerrain?'Load the exact selected terrain to review the corridor strip. Separation and volumes remain unassessed.':corridor&&corridor.projectId===projectId&&corridor.road===road&&corridor.terrain===terrain&&corridor.reference===reference?corridor.text:'Checking the complete corridor strip for overlap… Separation and volumes remain unassessed.'}
       </p>}
       {model.issues.length > 0 && (
         <div

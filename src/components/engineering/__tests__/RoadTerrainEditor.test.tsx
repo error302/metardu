@@ -22,6 +22,7 @@ it('selects retained terrain, reviews computed sections and saves its binding wi
   expect(screen.getByLabelText('Terrain preview cut volume')).toHaveTextContent('Unassessed')
   expect(screen.getByLabelText('Selected cut area')).not.toHaveTextContent('Unassessed')
   await waitFor(()=>expect(screen.getByLabelText('Continuous terrain coverage')).toHaveTextContent('Full review strip covered'))
+  await waitFor(()=>expect(screen.getByLabelText('Corridor overlap review')).toHaveTextContent('Review strip does not overlap itself'))
   fireEvent.click(screen.getByRole('button',{name:'Save road draft'}))
   await waitFor(()=>expect(save).toHaveBeenCalledTimes(1))
   const saved=save.mock.calls[0] as unknown as [typeof example.road]

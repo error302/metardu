@@ -57,10 +57,16 @@ export function buildRoadHorizontalGeometry(ips: IntersectionPoint[], startChain
 }
 
 export function roadHorizontalStation(alignment: ProjectHorizontalGeometry, chainage: number) {
-  if (!Number.isFinite(chainage) || chainage < alignment.start || chainage > alignment.end) return null
+  if (!Number.isFinite(chainage) || chainage < alignment.start || chainage > alignment.end || !alignment.segments.length) return null
   let low = 0, high = alignment.segments.length - 1
   while (low < high) { const mid = Math.floor((low + high) / 2); if (alignment.segments[mid].end < chainage) low = mid + 1; else high = mid }
-  const segment = alignment.segments[low], distance = chainage - segment.start
+  return roadHorizontalSegmentStation(alignment.segments[low],chainage)
+}
+
+/** Evaluate an explicit canonical segment, including either side of a join. */
+export function roadHorizontalSegmentStation(segment: ProjectHorizontalGeometry['segments'][number], chainage: number) {
+  if (!Number.isFinite(chainage)||chainage<segment.start||chainage>segment.end) return null
+  const distance = chainage - segment.start
   if (segment.kind === 'spiral-circular-spiral') {
     // At the exact end use the engine's distance, avoiding subtraction drift.
     const station = stationAtDistance(segment.spiral, chainage === segment.end ? segment.spiral.totalLength : distance)
