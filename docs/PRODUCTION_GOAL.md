@@ -5,6 +5,16 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+27 October lint admission follow-up:
+`LINT_MEMORY_AND_ADMISSION_REPAIR_2026-10-27.md` records a complete 2,817-file
+scan without memory exhaustion and a regression for previously ignored
+error-severity findings. The measured 512 errors, 47 warnings and 32 untyped
+API calls remain blocking repair work; no baseline is raised. GitHub at
+7477ff19 now passes full Jest coverage, web/mobile builds and security, while
+browser/accessibility and repository-wide lint remain red. Await the new
+bounded runner's own Linux CI. This does not authorize production promotion
+past migration, worker, rollback, recovery or the other retained gates.
+
 27 October release-source repair: `DEPENDENCY_AND_PDF_RELEASE_REPAIR_2026-10-27.md`
 records the dependency, Node-22 packaging and actual PDF orientation repairs.
 `ZOD_4_COMPATIBILITY_REPAIR_2026-10-27.md` supersedes its remaining Zod finding:

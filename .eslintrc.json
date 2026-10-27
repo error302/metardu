@@ -78,6 +78,19 @@
   },
   "overrides": [
     {
+      "files": [
+        "src/test-utils/**/*.ts",
+        "src/test-utils/**/*.tsx",
+        "tests/**/*.ts",
+        "tests/**/*.tsx",
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
+        "src/**/__tests__/**/*.ts",
+        "src/**/__tests__/**/*.tsx"
+      ],
+      "parserOptions": { "project": ["./tsconfig.tests.json"] }
+    },
+    {
       "files": ["scripts/engine-verify.ts", "scripts/verify-export-repair.ts"],
       "parserOptions": { "project": ["./tsconfig.lint-tools.json"] }
     },

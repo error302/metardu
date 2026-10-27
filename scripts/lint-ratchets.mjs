@@ -2,9 +2,9 @@
 /**
  * lint-ratchets.mjs — ONE ESLint pass, TWO per-rule ratchets.
  *
- * Replaces the two ~2-3 min whole-repo lint passes (a11y-audit.mjs +
- * warning-ratchet.mjs) with a single `eslint.lintFiles()` run. From that one
- * pass it computes:
+ * Lints each selected file once in bounded sequential processes, then combines
+ * the complete results for both ratchets. TypeScript programs are released
+ * between batches rather than retained for the whole repository. It computes:
  *
  *   1. WARNING ratchet — per-rule counts of severity-1 messages compared
  *      against scripts/warning-baseline.json.
@@ -46,8 +46,8 @@
  */
 import nodeFs, { readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { execFileSync, spawnSync } from 'node:child_process'
-import { pathToFileURL } from 'node:url'
 import path from 'node:path'
+import { lintFilesInBatches } from './lint-batches.mjs'
 
 const args = process.argv.slice(2)
 const UPDATE = args.includes('--update')
@@ -115,20 +115,13 @@ if (EXISTING_SCOPE.length === 0) {
 // Regenerated local a11y evidence; ignored by Git, written only with --write-audit.
 const AUDIT_PATH = '.a11y-audit.json'
 
-const { ESLint } = await import(
-  pathToFileURL(path.resolve(process.cwd(), 'node_modules/eslint/lib/api.js')).href
-)
-
-const eslint = new ESLint({
-  cwd: process.cwd(),
-  resolvePluginsRelativeTo: process.cwd(),
-  useEslintrc: true,
-  extensions: ['.ts', '.tsx', '.js', '.mjs'],
-})
-
 let results
 try {
-  results = await eslint.lintFiles(EXISTING_SCOPE)
+  results = await lintFilesInBatches(EXISTING_SCOPE, {
+    onBatch: ({ batch, batches, completed, total, maxRssKb }) => console.error(
+      `[lint-ratchets] batch ${batch}/${batches}: ${completed}/${total} files; peak worker RSS ${Math.ceil(maxRssKb / 1024)} MiB`,
+    ),
+  })
 } catch (err) {
   console.error(`[lint-ratchets] eslint run failed: ${err.message.split('\n')[0]}`)
   process.exit(2)
@@ -150,6 +143,15 @@ for (const r of results) {
 
 const warnTotal = Object.values(warningCounts).reduce((a, b) => a + b, 0)
 const a11yTotal = Object.values(a11yCounts).reduce((a, b) => a + b, 0)
+const errorTotal = results.reduce((total, row) => total + row.errorCount, 0)
+console.error(`[lint-ratchets] ${results.length} files: ${errorTotal} ESLint errors, ${warnTotal} warnings.`)
+if (errorTotal) {
+  for (const row of results) for (const message of row.messages) {
+    if (message.severity === 2) console.error(
+      `  [error] ${path.relative(process.cwd(), row.filePath)}:${message.line ?? 0}:${message.column ?? 0} ${message.ruleId ?? 'parse'} - ${message.message}`,
+    )
+  }
+}
 
 // Write the committed a11y evidence file ONLY when explicitly requested.
 function writeAudit() {
@@ -168,6 +170,11 @@ function writeAudit() {
 }
 
 if (WRITE_AUDIT) writeAudit()
+
+if (errorTotal && updateFlags.some(([, enabled]) => enabled)) {
+  console.error('[lint-ratchets] Refusing baseline updates while ESLint errors remain.')
+  process.exit(1)
+}
 
 if (UPDATE) {
   if (!WRITE_AUDIT) writeAudit()
@@ -380,12 +387,12 @@ if (REPORT) {
 }
 const floorOver = floorChecks.filter((f) => f.over)
 
-if (warnRegressions.length || a11yRegressions.length || floorOver.length) {
+if (errorTotal || warnRegressions.length || a11yRegressions.length || floorOver.length) {
   const overNote = floorOver.length
     ? `, and ${floorOver.map((f) => `${f.rule} exceeded its dedicated floor`).join(', and ')}`
     : ''
   console.error(
-    `\n[lint-ratchets] FAIL: ${warnRegressions.length} warning rule(s) + ${a11yRegressions.length} a11y rule(s) exceeded baselines${overNote}. Fix, or ratchet deliberately (--update for warnings/a11y, --update-member-access / --update-assignment / --update-explicit-any for the family floors).`
+    `\n[lint-ratchets] FAIL: ${errorTotal} ESLint errors; ${warnRegressions.length} warning rule(s) + ${a11yRegressions.length} a11y rule(s) exceeded baselines${overNote}. Fix the findings while preserving committed baselines.`
   )
   for (const r of warnRegressions) console.error(`  ❌ [warn] ${r.rule}: ${r.prev} → ${r.now}`)
   for (const r of a11yRegressions) console.error(`  ❌ [a11y] ${r.rule}: ${r.prev} → ${r.now}`)

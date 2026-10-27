@@ -147,9 +147,9 @@ jobs:
   lint:
     name: ESLint
     runs-on: ubuntu-latest
-    # Two full eslint passes run here (a11y-audit + warning-ratchet) on top of
-    # the changed-files gate — 15 min gives both comfortable headroom.
-    timeout-minutes: 15
+    # Keep changed-file checks and the complete bounded-process scan blocking.
+    # Allow cold TypeScript program startup without raising memory limits.
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
         with:
@@ -228,13 +228,13 @@ jobs:
     # case) fails the commit's OWN run at the earliest point. ci.yml cancels
     # in-flight runs on rapid pushes (cancel-in-progress), which could
     # otherwise supersede the ESLint job before it reaches the ratchet step
-    # and push the failure to the next run. ~2 min (checkout + npm ci + one
-    # eslint pass), parallel to the other early jobs. The same ratchet still
+    # and push the failure to the next run. The complete bounded-process scan
+    # runs parallel to the other early jobs. The same ratchet still
     # runs inside the ESLint job (with --write-audit); this job is the
     # earliest, independent verdict.
     name: Lint Ratchet (fail-fast)
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -242,6 +242,8 @@ jobs:
           node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
+      - name: Verify isolated lint equivalence and exact file coverage
+        run: node --test tests/lint-batches.test.mjs
       - name: Whole-repo lint ratchets (blocking, per-rule baselines)
         run: node scripts/lint-ratchets.mjs --report
 
