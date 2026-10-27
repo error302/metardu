@@ -48,6 +48,14 @@ const STASH_SUBTREES = [
   '(dashboard)/survey/[id]',
   'guide/[type]',
   'project/[id]',
+  // Shared draft IDs are resolved by the web application, not pre-generated.
+  'p/[id]',
+  // These account, consent and live publication pages are served remotely.
+  'projects',
+  'organization',
+  'connect/chatgpt',
+  'docs/chatgpt-notice',
+  'support',
   'verify/[token]',
   'import/share-target',
   'auth/callback',

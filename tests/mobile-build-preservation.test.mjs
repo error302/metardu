@@ -22,10 +22,11 @@ function fixture(t, mode) {
   write('src/app/api/original.txt', 'original API source')
   write('src/app/auth/callback/route.ts', 'original callback source')
   write('src/app/.well-known/oauth-authorization-server/route.ts', 'remote authorization metadata')
+  write('src/app/p/[id]/page.tsx', 'remote shared draft route')
   write('build.cjs', `const fs=require('node:fs'); fs.writeFileSync('build-ran.txt','yes');
     const mode=${JSON.stringify(mode)};
     if(mode==='conflict'){fs.mkdirSync('src/app/api',{recursive:true});fs.writeFileSync('src/app/api/concurrent.txt','concurrent source');}
-    if(mode==='success'&&fs.existsSync('src/app/.well-known'))throw Error('server metadata included in mobile build');
+    if(mode==='success'&&(fs.existsSync('src/app/.well-known')||fs.existsSync('src/app/p/[id]')))throw Error('remote web routes included in mobile build');
     if(mode==='failure'||mode==='conflict')process.exitCode=9;
   `)
   const quote = value => `'${value.replaceAll("'", "'\\''")}'`
@@ -79,5 +80,6 @@ test('successful packaging excludes remote metadata and restores the exact origi
   assert.equal(result.status, 0, result.stdout + result.stderr)
   assert.equal(f.read('src/app/api/original.txt'), 'original API source')
   assert.equal(f.read('src/app/.well-known/oauth-authorization-server/route.ts'), 'remote authorization metadata')
+  assert.equal(f.read('src/app/p/[id]/page.tsx'), 'remote shared draft route')
   assert.equal(f.exists('src/.stash-mobile-build'), false)
 })

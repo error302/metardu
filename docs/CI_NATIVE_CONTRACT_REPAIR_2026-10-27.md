@@ -73,3 +73,36 @@ mobile/browser/account acceptance, worker drift, pending migration compatibility
 customer recovery/rollback, the deferred signing-key rotation and independent
 instrument/field/CAD/print/ward-scale acceptance remain open. Production and the
 localhost CAD drawing were preserved.
+
+## GitHub follow-up and the next preflight
+
+GitHub run 40527055014 at `a02f9c05` passes the native project design/set-out job,
+TypeScript, row typing, Python worker and production web build. Its surface and
+neighboring preflights advanced to the account-suspension check, which attempted
+linking without an eligible synthetic notice publication record. The real notice
+gate correctly refused that request.
+
+The suspension verifier now creates a uniquely owned, process-local notice store.
+It first proves that missing and newly published notices refuse linking, then
+uses only a matured synthetic publication to exercise credential revocation.
+The real filesystem notice reader and 30-day gate remain active. The deployment
+record is neither read nor changed by this fixture. Exact notice files and empty
+owned directories are removed afterwards. Twenty-two native checks pass, including
+racing consent/suspension and transactional rollback. The neighboring PostgreSQL
+protocol/config suites pass 21 checks; the native fieldbook audit upgrade also
+passes and rolls all fixture DDL/data back.
+
+The mobile build's next reported failure was `/p/[id]`. The source manifest now
+also excludes that web-resolved shared draft and the inspected server-backed
+project, firm, consent, live notice and support pages from the installed static
+bundle. The web application's pages remain available. Mobile packaging is not
+acceptance of these remote entry points or their navigation inside an installed
+application; complete mobile/browser workflow checks remain required. The dynamic
+page inventory found no other unstashed bracketed routes or explicitly dynamic
+pages. A new full export is still needed to discover rendering-time requirements.
+
+Before the Zod major change, an ignored diagnostic captured 2,169 synthetic input
+cases across 93 exported schemas, including 588 accepted results with exact output
+key/value representation. This is a compatibility sample for migration, not
+comprehensive validation or field evidence. Root Zod remains 3.25.76 and security
+admission remains unsatisfied.

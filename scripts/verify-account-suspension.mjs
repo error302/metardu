@@ -4,7 +4,7 @@ import assert from 'node:assert/strict'
 import { AsyncResource } from 'node:async_hooks'
 import { randomBytes, randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
-import { readFileSync } from 'node:fs'
+import { readFileSync, mkdirSync, mkdtempSync, writeFileSync, unlinkSync, rmdirSync, realpathSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
 import pg from 'pg'
@@ -32,6 +32,8 @@ const { db, getPool, setCurrentUserId, setCurrentOrgId } = require('../src/lib/d
 const { logAuditEvent } = require('../src/lib/enterprise/auditTrail.ts')
 const { authOptions } = require('../src/lib/auth.ts')
 const { authorizeChatGPT, exchangeToken, authenticateMcp, pkceChallenge, hashCredential } = require('../src/lib/chatgpt/oauth.ts')
+const { chatgptConfig } = require('../src/lib/chatgpt/config.ts')
+const { CHATGPT_NOTICE_CONTENT, CHATGPT_NOTICE_DIGEST, CHATGPT_NOTICE_PERIOD_MS, CHATGPT_NOTICE_RELATIVE_FILE } = require('../src/lib/chatgpt/notice.ts')
 const admin = new pg.Client({ connectionString: rehearsal.adminUrl, connectionTimeoutMillis: 5000 })
 const owner = randomUUID(), other = randomUUID()
 const clientId = randomBytes(32).toString('base64url')
@@ -39,6 +41,10 @@ const verifier = randomBytes(48).toString('base64url')
 const origin = process.env.METARDU_MCP_ORIGIN
 const redirect = 'https://chatgpt.com/connector_platform_oauth_redirect'
 const checks = []
+const previousStorageRoot = process.env.STORAGE_ROOT
+const noticeParent = path.resolve('.cache/account-suspension-notice')
+let noticeFixtureRoot
+let noticeFile
 const check = (name, condition) => { assert.ok(condition, name); checks.push({ name, passed: true }); console.log(`PASS ${name}`) }
 const request = token => new Request(origin + '/api/mcp', { headers: { Authorization: `Bearer ${token}` } })
 const freshSession = id => authOptions.callbacks.jwt({ token: {}, user: { id }, account: { provider: 'credentials' } })
@@ -65,6 +71,22 @@ async function actorScope(userId, work) {
 await admin.connect()
 try {
   check('real application pool is restricted', runtimeDatabaseRoleFailure((await getPool().query(RUNTIME_ROLE_QUERY)).rows[0]) === null)
+  // Exercise the real notice reader against process-local synthetic storage.
+  // Never read, publish, backdate or replace the deployment's notice record.
+  mkdirSync(noticeParent, { recursive: true })
+  noticeFixtureRoot = mkdtempSync(path.join(noticeParent, 'owned-'))
+  writeFileSync(path.join(noticeFixtureRoot, 'owner.txt'), owner, { flag: 'wx' })
+  process.env.STORAGE_ROOT = noticeFixtureRoot
+  noticeFile = path.resolve(noticeFixtureRoot, CHATGPT_NOTICE_RELATIVE_FILE)
+  assert.ok(noticeFile.startsWith(noticeFixtureRoot + path.sep))
+  mkdirSync(path.dirname(noticeFile), { recursive: true })
+  const notice = { version: CHATGPT_NOTICE_CONTENT.version, contentSha256: CHATGPT_NOTICE_DIGEST, publicationScope: 'in-platform' }
+  assert.throws(() => chatgptConfig(), /notice period/)
+  writeFileSync(noticeFile, JSON.stringify({ ...notice, publishedAt: new Date().toISOString() }), { flag: 'wx' })
+  assert.throws(() => chatgptConfig(), /notice period/)
+  check('missing and newly published notices still refuse linking', true)
+  writeFileSync(noticeFile, JSON.stringify({ ...notice, publishedAt: new Date(Date.now() - CHATGPT_NOTICE_PERIOD_MS - 1000).toISOString() }))
+  check('only the owned matured synthetic notice permits account-revocation testing', chatgptConfig().origin === 'https://metardu.example')
   assert.equal((await admin.query("SELECT 1 FROM pg_trigger WHERE tgname='revoke_suspended_account_access' AND NOT tgisinternal")).rowCount, 1,
     'Apply migration 098 to the disposable database before running this verifier')
   await admin.query(`INSERT INTO public.users(id,email,password_hash,full_name) VALUES
@@ -156,11 +178,20 @@ try {
 
   await mkdir('test-results/runtime-database', { recursive: true })
   await writeFile('test-results/runtime-database/account-suspension.json', JSON.stringify({ synthetic: true, sourceModules: true,
-    actualRestrictedPool: true, passed: true, checks }, null, 2) + '\n')
+    actualRestrictedPool: true, processLocalSyntheticNoticeOnly: true, passed: true, checks }, null, 2) + '\n')
 } finally {
   await admin.query('ROLLBACK')
   await admin.query('DELETE FROM public.users WHERE id=ANY($1::uuid[])', [[owner, other]])
   await admin.query('DELETE FROM public.chatgpt_clients WHERE client_id_hash=$1', [hashCredential(clientId)])
   await admin.end()
   await getPool().end()
+  if (noticeFixtureRoot) {
+    assert.equal(path.dirname(realpathSync(noticeFixtureRoot)), realpathSync(noticeParent))
+    assert.equal(readFileSync(path.join(noticeFixtureRoot, 'owner.txt'), 'utf8'), owner)
+    if (noticeFile) { unlinkSync(noticeFile); rmdirSync(path.dirname(noticeFile)); rmdirSync(path.dirname(path.dirname(noticeFile))) }
+    unlinkSync(path.join(noticeFixtureRoot, 'owner.txt'))
+    rmdirSync(noticeFixtureRoot)
+  }
+  if (previousStorageRoot === undefined) delete process.env.STORAGE_ROOT
+  else process.env.STORAGE_ROOT = previousStorageRoot
 }
