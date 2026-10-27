@@ -7,7 +7,7 @@ import {resolveStageReference} from '@/lib/workspaces/stageReference'
 import {roadFromAlignmentMirror} from './roadAlignmentMirror'
 import {lockOwnedAlignment,type OwnedAlignment} from './alignmentAccess'
 import {hashDesignPayload,type DesignRevisionRecord} from './designRevisions'
-import {ROAD_QUANTITY_ALGORITHM,ROAD_QUANTITY_VERSION,type RoadQuantityRecord} from './roadQuantity'
+import {ROAD_QUANTITY_ALGORITHM,ROAD_QUANTITY_ARCHIVE_VERSIONS,type RoadQuantityRecord} from './roadQuantity'
 
 import {roadDesignDataSchema as savedQuantityRoadSchema} from './roadDesignSchema'
 
@@ -61,7 +61,7 @@ export async function loadRoadQuantitySource(client:PoolClient,alignment:OwnedAl
 }
 export function quantityRecord(row:QuantityRevision):RoadQuantityRecord {
   const run=row.payload?.quantityRun
-  if(!run||run.schemaVersion!==1||run.algorithmId!==ROAD_QUANTITY_ALGORITHM||run.algorithmVersion!==ROAD_QUANTITY_VERSION||
+  if(!run||run.schemaVersion!==1||run.algorithmId!==ROAD_QUANTITY_ALGORITHM||!ROAD_QUANTITY_ARCHIVE_VERSIONS.has(run.algorithmVersion)||
     hashDesignPayload(row.payload)!==row.content_hash||hashDesignPayload(run.inputs)!==run.inputHash||hashDesignPayload(run.result)!==run.outputHash)throw new ConflictError('The archived quantity run failed its identity check; retain it for review.')
   return{id:row.id,revision:row.revision,status:row.status,created_at:new Date(row.created_at).toISOString(),created_by:row.created_by,quantity:run}
 }

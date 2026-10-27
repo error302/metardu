@@ -141,6 +141,28 @@ it('keeps an old immutable run readable after the current measurements change',a
   expect(result.data.quantity.result.totalCut).toBe(140)
   expect(response.headers.get('cache-control')).toBe('private, no-store')
 })
+it('retains an earlier algorithm archive without rewriting its inputs, results or version',async()=>{
+  const source=await preview();await invoke(POST,{alignment_id:alignment,client_run_id:delivery,expected_input_hash:source.input_hash})
+  const payload=records[0].payload as {quantityRun:import('@/lib/engineering/roadQuantity').RoadQuantityRecord['quantity']}
+  payload.quantityRun.algorithmVersion='1.0.0'
+  records[0].content_hash=hashDesignPayload(payload)
+  const original=JSON.stringify(records[0]),response=await invoke(GET,undefined,`&run_id=${records[0].id as string}`)
+  expect(response.status).toBe(200)
+  const saved=await response.json() as {data:import('@/lib/engineering/roadQuantity').RoadQuantityRecord}
+  expect(saved.data.quantity.algorithmVersion).toBe('1.0.0')
+  expect(saved.data.quantity.result.totalCut).toBe(140)
+  const replay=await invoke(POST,{alignment_id:alignment,client_run_id:delivery,expected_input_hash:source.input_hash})
+  expect(replay.status).toBe(200)
+  expect((await replay.json() as {data:import('@/lib/engineering/roadQuantity').RoadQuantityRecord}).data.quantity.algorithmVersion).toBe('1.0.0')
+  expect(JSON.stringify(records[0])).toBe(original)
+})
+it('refuses an unknown archived algorithm even with matching payload hashes',async()=>{
+  const source=await preview();await invoke(POST,{alignment_id:alignment,client_run_id:delivery,expected_input_hash:source.input_hash})
+  const payload=records[0].payload as {quantityRun:import('@/lib/engineering/roadQuantity').RoadQuantityRecord['quantity']}
+  payload.quantityRun.algorithmVersion='unknown-engine'
+  records[0].content_hash=hashDesignPayload(payload)
+  expect((await invoke(GET,undefined,`&run_id=${records[0].id as string}`)).status).toBe(409)
+})
 it('reports read-only access without allowing a project reader to record a run',async()=>{
   owner='other'
   const response=await invoke(GET)

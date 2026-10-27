@@ -2,7 +2,7 @@
 import {useEffect,useMemo,useRef,useState} from 'react'
 import type {RoadDesignData} from '@/types/engineering'
 import {canonicalJson} from '@/lib/provenance/canonicalJson'
-import {roadQuantityInputs,roadQuantityCsv,type QuantityReference,type RoadQuantityRecord,type RoadQuantityCalculation} from '@/lib/engineering/roadQuantity'
+import {roadQuantityInputs,roadQuantityCsv,roadQuantityVersionNotice,type QuantityReference,type RoadQuantityRecord,type RoadQuantityCalculation} from '@/lib/engineering/roadQuantity'
 
 interface Summary {id:string;revision:string;revision_number:number;status:string;created_at:string;input_hash:string;total_cut:number;total_fill:number}
 interface History {data:Summary[];next_before:number|null;can_record:boolean}
@@ -92,6 +92,7 @@ export function RoadQuantityRegister({projectId,data,reference,canRecord}:{proje
     {selected&&<div className="mt-4 space-y-2 text-sm">
       <p className="font-medium text-white">Recorded {selected.revision} · {selected.status} · calculation DRAFT</p>
       <p className="text-zinc-400">{selected.quantity.inputs.reference.horizontalCrs} · {selected.quantity.inputs.reference.verticalDatum} · {selected.quantity.algorithmVersion}</p>
+      {roadQuantityVersionNotice(selected.quantity.algorithmVersion)&&<p role="status" className="text-sm text-amber-300">{roadQuantityVersionNotice(selected.quantity.algorithmVersion)}</p>}
       <p className="text-zinc-300">Cut {selected.quantity.result.totalCut.toFixed(3)} m³ · Fill {selected.quantity.result.totalFill.toFixed(3)} m³ · {selected.quantity.result.rows.length} measured sections</p>
       <p className="break-all text-xs text-zinc-500">Input SHA-256: {selected.quantity.inputHash}</p>
       <p className="text-xs text-zinc-400">{canonicalJson(selected.quantity.inputs)===signature?'Recorded inputs match this view.':'This is an earlier input snapshot. Its archived CSV is not the current calculation.'}</p>

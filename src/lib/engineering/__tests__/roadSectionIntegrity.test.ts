@@ -21,4 +21,8 @@ describe('measured road section geometry integrity', () => {
     const template = { carriagewayWidth: 6, shoulderWidth: 1, cutSlope: '1:2', fillSlope: '1:1.5', camber: 0, subgradeDepth: 0 }
     expect(() => computeFormationLine(template, 0, [{ offset: -10, level: 1 }, { offset: 10, level: 1 }], true)).toThrow(/shoulder/i)
   })
+  it.each([-1,1])('does not invent daylight when same-sign residuals underflow in a product (side %s)',direction=>{
+    const ground=[1,2].map(value=>({offset:direction*value*1e-200,level:2e-200})).sort((a,b)=>a.offset-b.offset)
+    expect(computeSlopeIntercept(direction*1e-200,0,1,true,ground)).toBeNull()
+  })
 })

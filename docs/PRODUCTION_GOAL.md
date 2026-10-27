@@ -485,3 +485,12 @@ includes a 20,000-face synthetic work package and between-section exclusions.
 See `ROAD_CORRIDOR_COVERAGE_2026-10-27.md`. Whole-road volume integration and
 independent acceptance remain open, alongside selected issued revisions,
 interchange and all existing customer/provider/recovery/production/field gates.
+
+27 October curved-road section checkpoint: retained terrain can be prepared into
+source-bound local section rates using signed curvature and lateral first
+moments, with explicit one-sided curve derivatives and daylight/fold refusal.
+Profile sign/crossing arithmetic edge cases are corrected; new average-end-area
+runs use 1.0.1 while known older archives retain their original data and a review
+notice. See `ROAD_SECTION_SWEEP_2026-10-27.md`. Whole-road terrain integration,
+global overlap/error treatment, persistence and issued delivery remain open, as
+do all existing independent field/customer/provider/recovery/production gates.

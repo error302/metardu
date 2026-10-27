@@ -35,6 +35,17 @@ it('records only the saved input identity and exposes an archived CSV action',as
   expect(JSON.parse(post?.[1]?.body as string)).toEqual({alignment_id:'alignment',client_run_id:'11111111-1111-4111-8111-111111111111',expected_input_hash:inputHash})
   expect(screen.getByText(/R01/)).toBeInTheDocument()
 })
+it('labels an earlier algorithm result for review while retaining its recorded CSV action',async()=>{
+  const older={...archived,quantity:{...archived.quantity,algorithmVersion:'1.0.0'}}
+  const original=mockFetch.getMockImplementation()
+  if(!original)throw Error('Missing synthetic fetch implementation')
+  mockFetch.mockImplementation(async(url,init)=>init?.method==='POST'?{ok:true,json:async()=>({data:older,replayed:true})}:original(url,init))
+  render(<RoadQuantityRegister projectId="project" data={data} reference={reference} canRecord />)
+  const button=screen.getByRole('button',{name:'Record quantity run'})
+  await waitFor(()=>expect(button).toBeEnabled());fireEvent.click(button)
+  expect(await screen.findByText(/Earlier profile arithmetic.*review.*new draft/i)).toBeInTheDocument()
+  expect(screen.getByRole('button',{name:'Download recorded CSV'})).toBeEnabled()
+})
 it('refuses a saved snapshot that differs from the displayed inputs',async()=>{
   const changed={...data,stations:data.stations.map(station=>({...station,designLevel:-2}))}
   render(<RoadQuantityRegister projectId="project" data={changed} reference={reference} canRecord />)

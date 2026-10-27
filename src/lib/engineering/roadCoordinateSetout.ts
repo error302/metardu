@@ -80,6 +80,35 @@ export function roadHorizontalStation(alignment: ProjectHorizontalGeometry, chai
   return { chainage, ...point, bearing, segment: segment.kind }
 }
 
+export type RoadDerivativeSide = 'before' | 'after'
+/** Signed d(bearing radians)/d(grid chainage); positive for a right turn.
+ * Simple circular PC/PT curvature jumps require an explicit one-sided request.
+ * The outward derivative at a route endpoint is unknown, never extrapolated.
+ */
+export function roadHorizontalCurvature(alignment: ProjectHorizontalGeometry, chainage: number, side: RoadDerivativeSide): number | null {
+  if (side !== 'before' && side !== 'after') throw new RangeError('Choose the before or after side for the requested road derivative.')
+  if (!Number.isFinite(chainage) || chainage < alignment.start || chainage > alignment.end || !alignment.segments.length) return null
+  let low = 0, high = alignment.segments.length - 1
+  while (low < high) {
+    const mid = Math.floor((low + high) / 2), end = alignment.segments[mid].end
+    if (side === 'before' ? end < chainage : end <= chainage) low = mid + 1
+    else high = mid
+  }
+  const segment = alignment.segments[low]
+  if (side === 'before' ? chainage <= segment.start || chainage > segment.end : chainage < segment.start || chainage >= segment.end) return null
+  let curvature = 0
+  if (segment.kind === 'circular') curvature = segment.turn / segment.radius
+  else if (segment.kind === 'spiral-circular-spiral') {
+    const { input, totalLength, Lc } = segment.spiral, ls = input.spiralLength
+    const distance = chainage === segment.end ? totalLength : chainage - segment.start
+    const fraction = ls > 0 ? Math.min(1, distance / ls, (totalLength - distance) / ls) : 1
+    if (distance < 0 || distance > totalLength || Lc < 0 || fraction < 0) throw new RangeError('The transition derivative lacks consistent retained geometry.')
+    curvature = Math.sign(input.intersectionAngleDeg) * fraction / input.radius
+  }
+  if (!Number.isFinite(curvature)) throw new RangeError('Road curvature exceeds the finite calculation range.')
+  return curvature === 0 ? 0 : curvature
+}
+
 export interface CentrelineSetoutRow { chainage: number; easting: number; northing: number; bearing: number; designLevel: number; formationLevel: number | null; levelSource: 'manual' | 'vertical-alignment'; horizontalSegment: 'tangent' | 'circular' | 'entry-spiral' | 'exit-spiral' }
 export function buildRoadCentrelineSetout(data: RoadDesignData | null, crsCode: string, verticalDatum?: string | null) {
   try {

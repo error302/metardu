@@ -182,10 +182,21 @@ export function computeSlopeIntercept(
     const ga = interpolateProfile(sorted, a), gb = interpolateProfile(sorted, b)
     if (ga === null || gb === null) continue
     const d1 = ga - slopeAt(a), d2 = gb - slopeAt(b)
-    if (d1 * d2 > 0) continue
-    const x = d1 === d2 ? (direction > 0 ? a : b) : a + (b - a) * d1 / (d1 - d2)
+    if (![d1,d2].every(Number.isFinite)) throw new RangeError('Daylight residuals exceed the finite calculation range.')
+    if (d1 > 0 && d2 > 0 || d1 < 0 && d2 < 0) continue
+    let x:number
+    if (d1 === 0 && d2 === 0) x=direction > 0 ? a : b
+    else if (d1 === 0) x=a
+    else if (d2 === 0) x=b
+    else {
+      const first=Math.abs(d1),second=Math.abs(d2)
+      const ratio=first>=second?1/(1+second/first):(first/second)/(1+first/second)
+      x=a+(b-a)*ratio
+      if (!Number.isFinite(x)||x<=a||x>=b) throw new RangeError('The daylight crossing is below reliable offset resolution.')
+    }
     const level = interpolateProfile(sorted, x)
-    if (level !== null) return { offset: x, level }
+    if (level !== null && Number.isFinite(level)) return { offset: x, level }
+    throw new RangeError('The daylight intersection did not retain a finite observed ground height.')
   }
   return null
 }

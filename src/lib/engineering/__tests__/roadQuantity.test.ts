@@ -15,6 +15,7 @@ it('retains zero/negative inputs and computes the independently known 7 m2 secti
   expect(result.result.totalFill).toBe(0)
   expect(result.result.rows[0].cutVolume).toBe(0)
   expect(result.status).toBe('DRAFT')
+  expect(result.algorithmVersion).toBe('1.0.1')
 })
 
 it('uses the saved vertical design rather than caller cached target levels',()=>{
@@ -56,4 +57,8 @@ it('exports the selected archived run identity, basis, units and exact quantitie
   expect(csv).toContain('average-end-area')
   expect(csv).toContain('140')
   expect(csv).not.toContain('999')
+  const old={...calculation,algorithmVersion:'1.0.0',inputHash:'a'.repeat(64),outputHash:'b'.repeat(64),clientRunId:'old-delivery'}
+  const prior=roadQuantityCsv({id:'old-run',revision:'R00',status:'SUPERSEDED',created_at:'2026-10-16T00:00:00Z',created_by:'actor',quantity:old})
+  expect(prior).toContain('Earlier profile arithmetic')
+  expect(prior).toContain('1.0.0')
 })

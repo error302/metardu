@@ -6,7 +6,12 @@ import {resolveRoadDesignStations} from './roadVerticalAlignment'
 import {roadGroundAssociationIssue} from './roadGroundAssociation'
 
 export const ROAD_QUANTITY_ALGORITHM='road-average-end-area'
-export const ROAD_QUANTITY_VERSION='1.0.0'
+export const ROAD_QUANTITY_VERSION='1.0.1'
+/** Exact known archive versions remain readable; they are never recomputed on read. */
+export const ROAD_QUANTITY_ARCHIVE_VERSIONS:ReadonlySet<string>=new Set(['1.0.0',ROAD_QUANTITY_VERSION])
+export function roadQuantityVersionNotice(version:string):string {
+  return version===ROAD_QUANTITY_VERSION?'':'Earlier profile arithmetic: review and record a new draft before relying on these quantities. Original results are retained.'
+}
 export interface QuantityReference {code:string|null;verticalDatum:string|null;distanceMode:'grid'|'ground'|null}
 
 /** Shared input identity; no caches, inferred dimensions or calculated targets. */
@@ -68,7 +73,7 @@ export function roadQuantityCsv(record:RoadQuantityRecord) {
   return Papa.unparse(run.result.rows.map(row=>({
     Run_ID:record.id,Revision:record.revision,Record_status:record.status,Calculation_status:run.status,
     Recorded_at:record.created_at,Recorded_by:record.created_by??'',Algorithm:run.algorithmId,Algorithm_version:run.algorithmVersion,
-    Input_SHA256:run.inputHash,Output_SHA256:run.outputHash,Horizontal_CRS:run.inputs.reference.horizontalCrs,
+    Input_SHA256:run.inputHash,Output_SHA256:run.outputHash,Calculation_notice:roadQuantityVersionNotice(run.algorithmVersion),Horizontal_CRS:run.inputs.reference.horizontalCrs,
     Vertical_datum:run.inputs.reference.verticalDatum,Distance_mode:run.inputs.reference.distanceMode,Quantity_basis:run.basis,
     Method:row.method==='origin'?'origin':'average-end-area',Chainage_m:row.chainage,Ground_RL_m:row.groundLevel,
     Design_surface_RL_m:row.designLevel,Formation_RL_m:row.formationLevel,Cut_area_m2:row.cutArea,Fill_area_m2:row.fillArea,
