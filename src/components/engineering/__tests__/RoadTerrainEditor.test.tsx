@@ -21,6 +21,7 @@ it('selects retained terrain, reviews computed sections and saves its binding wi
   expect(screen.getByText(/Computed terrain sections/)).toBeInTheDocument()
   expect(screen.getByLabelText('Terrain preview cut volume')).toHaveTextContent('Unassessed')
   expect(screen.getByLabelText('Selected cut area')).not.toHaveTextContent('Unassessed')
+  await waitFor(()=>expect(screen.getByLabelText('Continuous terrain coverage')).toHaveTextContent('Full review strip covered'))
   fireEvent.click(screen.getByRole('button',{name:'Save road draft'}))
   await waitFor(()=>expect(save).toHaveBeenCalledTimes(1))
   const saved=save.mock.calls[0] as unknown as [typeof example.road]

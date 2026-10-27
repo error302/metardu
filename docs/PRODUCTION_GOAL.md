@@ -476,3 +476,12 @@ integration acceptance. See `ROAD_RETAINED_TERRAIN_2026-10-27.md`. Non-UTM admis
 ground reassociation, selected issued road revisions, validated interchange,
 ward-scale collaboration and all existing independent field/provider/customer
 recovery/worker/security-deferral/production gates remain open.
+
+27 October continuous-road-terrain checkpoint: computed review checks the full
+route strip independently of section spacing, including conservative circular
+and transition enclosures. Missing/ambiguous coverage remains unassessed; changed
+sources revoke old UI verdicts and unfinished checks cancel. Source evidence
+includes a 20,000-face synthetic work package and between-section exclusions.
+See `ROAD_CORRIDOR_COVERAGE_2026-10-27.md`. Whole-road volume integration and
+independent acceptance remain open, alongside selected issued revisions,
+interchange and all existing customer/provider/recovery/production/field gates.

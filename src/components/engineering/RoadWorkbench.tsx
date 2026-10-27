@@ -28,6 +28,7 @@ import RoadWorkbench3D from './RoadWorkbench3D'
 import { roadWorkbenchPlot } from '@/lib/engineering/roadWorkbenchPlot'
 import {terrainPreviewRoad,sectionFromRetainedTerrain,type RoadTerrainData} from '@/lib/engineering/roadTerrain'
 import {roadHorizontalStation} from '@/lib/engineering/roadCoordinateSetout'
+import {assessRoadTerrainCoverage} from '@/lib/engineering/roadTerrainCoverage'
 const button =
   'inline-flex min-h-11 items-center justify-center gap-2 rounded border border-[var(--border-color)] px-3 py-2 text-xs hover:bg-[var(--bg-secondary)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] disabled:opacity-40'
 const value = (n: number | null | undefined) =>
@@ -47,6 +48,18 @@ export default function RoadWorkbench({
   terrain?: RoadTerrainData
 }) {
   const [groundSource,setGroundSource]=useState<'measured'|'terrain'>('measured')
+  const exactTerrain=!!(road?.retainedTerrain&&terrain&&terrain.identity.revisionId===road.retainedTerrain.revisionId&&terrain.identity.meshHash===road.retainedTerrain.meshHash)
+  const [coverage,setCoverage]=useState<{road:RoadDesignData;terrain:RoadTerrainData;reference:QuantityReference;text:string}|null>(null)
+  useEffect(()=>{
+    if(groundSource!=='terrain'||!road?.retainedTerrain||!terrain||terrain.identity.revisionId!==road.retainedTerrain.revisionId||terrain.identity.meshHash!==road.retainedTerrain.meshHash)return
+    const controller=new AbortController()
+    void assessRoadTerrainCoverage(road,reference,terrain.mesh,road.retainedTerrain.halfWidthM,controller.signal).then(result=>{
+      if(!controller.signal.aborted)setCoverage({road,terrain,reference,text:result.status==='covered'?result.reason:`Coverage unassessed: ${result.reason}`})
+    }).catch(()=>{
+      if(!controller.signal.aborted)setCoverage({road,terrain,reference,text:'Continuous terrain coverage could not be checked. Coverage and volumes remain unassessed.'})
+    })
+    return()=>controller.abort()
+  },[road,reference,terrain,groundSource])
   const model = useMemo(
     () => {
       if(groundSource==='measured')return buildRoadWorkbenchModel(road,reference)
@@ -224,6 +237,9 @@ export default function RoadWorkbench({
           </div>
         ))}
       </dl>
+      {groundSource==='terrain'&&<p role="status" aria-label="Continuous terrain coverage" className="break-words border-l-2 border-[var(--border-color)] pl-3 text-xs text-[var(--text-secondary)]">
+        {!exactTerrain?'Load the exact selected terrain to check continuous coverage. Coverage and volumes remain unassessed.':coverage&&coverage.road===road&&coverage.terrain===terrain&&coverage.reference===reference?coverage.text:'Checking the full terrain review strip between sections… Coverage and volumes remain unassessed.'}
+      </p>}
       {model.issues.length > 0 && (
         <div
           role="status"
