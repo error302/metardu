@@ -136,6 +136,9 @@ has confirmed failures. The API query-type gate, strict app/test TypeScript
 (including PDF and 3D Webpack parser checks), Python/native worker tests and i18n
 check passed. The separate
 [secret scan](https://github.com/error302/metardu/actions/runs/40506769459) passed.
+Both Python and JavaScript/TypeScript jobs in
+[CodeQL run 40506769486](https://github.com/error302/metardu/actions/runs/40506769486)
+also completed successfully.
 These results do not mean the complete CI workflow passed.
 
 Confirmed failures and next diagnostics:
@@ -147,6 +150,7 @@ Confirmed failures and next diagnostics:
 | Design/set-out native SQL | `verify-design-revisions.mjs` stops on `setout_capture_snapshot_shape` during its capture cases. | Compare fixture and actual capture writer/constraint contracts; reproduce on the owned isolated database and keep all historical hashes and checks intact. Earlier deliberate SQL errors in that log are negative-test evidence, not all separate failures. |
 | E2E database preflight | All four shards stop in `verify-surface-runtime.mjs` at `legacy defaults cannot replace an explicit project reference`. Browser E2E does not run past this preflight. | Inspect actual request/response and current retained-request/reference admission, then repair the contract or fixture based on evidence. Do not relax the reference assertion to obtain green CI. |
 | Whole-repository lint | Fail-fast process aborts with V8 heap exhaustion near 4 GB. | Bound lint program/resource use and prove complete file/rule coverage; no skipped files, warning-floor inflation or suppressed checks. |
+| Mobile build | Static export stops at `/print/survey-plan`, whose dynamic server route has no static-export configuration. | Reconcile the mobile route/server-feature boundary and validate its intended online/offline print path; do not mark a dynamic authenticated print endpoint force-static to hide the error. |
 | Tailwind utility | One dead loading/error background class in `RoadWorkbench3D.tsx`. | Repaired after this run with an explicit 95% `color-mix`. The ordinary whole-source class gate now passes, and an actual Tailwind compiler check emits the background CSS. Scoped ESLint passes. This repair is separate from the earlier browser observation; fresh rendered acceptance remains open. |
 
 The dependency review verified the published fixes for
@@ -161,6 +165,6 @@ No dependency version was changed in this checkpoint. The Next advisory includes
 a sharp-version workaround and Sentry lists specific tunnel/auth conditions;
 neither advisory count alone establishes actual exploitation.
 
-Remote Jest/coverage, accessibility, mobile-build and remaining CodeQL status
+Remote Jest/coverage and accessibility status
 must be read to terminal before accepting the complete run. Further documentation
 or the CSS repair does not erase the above failed run or establish a deployment.
