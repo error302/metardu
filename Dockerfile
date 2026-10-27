@@ -17,6 +17,9 @@ COPY scripts/patch-cssnano.js ./scripts/patch-cssnano.js
 # networks (e.g. the Oracle Cloud VM) time out fetching those headers even
 # though the host can reach them, so we point node-gyp at /usr/local.
 ENV npm_config_nodedir=/usr/local
+# The runtime uses the explicitly installed Alpine Chromium executable.
+# Installing the required Puppeteer library must not download a second browser.
+ENV PUPPETEER_SKIP_DOWNLOAD=true
 # Persist successful package downloads even when a later fetch fails. Limit
 # concurrent transfers on slower origins; lockfile integrity remains enforced.
 # Dependency security auditing is a separate CI gate, not a build-time fetch.

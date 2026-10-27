@@ -15,6 +15,9 @@
 
 name: Math Regression
 
+env:
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+
 on:
   schedule:
     - cron: '30 2 * * *' # 02:30 UTC daily
@@ -33,7 +36,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
 
       - run: npm ci --legacy-peer-deps

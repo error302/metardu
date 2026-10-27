@@ -1,4 +1,8 @@
 /** Same-origin, empty landing document populated by the authorized plan viewer. */
+// This shell reads no request, cookie, project or observation. Export only its
+// constant empty document; the authorized viewer inserts the reviewed sheet.
+export const dynamic = 'force-static'
+
 export function GET() {
   return new Response('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Preparing survey print sheet</title></head><body><p>Preparing the A3 survey sheet… If this tab stays empty, return to the saved plan and reopen Print A3 sheet.</p></body></html>', {
     headers: {

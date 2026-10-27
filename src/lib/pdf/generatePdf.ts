@@ -47,7 +47,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
     })
 
     // Generate HTML content
-    const html = generateReportHtml(title, sections)
+    const html = generateReportHtml(title, sections, paperSize, orientation)
 
     // Set HTML content
     await page.setContent(html, {
@@ -79,7 +79,7 @@ export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer
   }
 }
 
-function generateReportHtml(title: string, sections: SectionContent[]): string {
+function generateReportHtml(title: string, sections: SectionContent[], paperSize: 'A4' | 'A3', orientation: 'portrait' | 'landscape'): string {
   return `
 <!DOCTYPE html>
 <html lang="en">
@@ -89,7 +89,7 @@ function generateReportHtml(title: string, sections: SectionContent[]): string {
   <title>${title}</title>
   <style>
     @page {
-      size: A4 portrait;
+      size: ${paperSize} ${orientation};
       margin: 10mm;
     }
 

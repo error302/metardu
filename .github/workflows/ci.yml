@@ -9,6 +9,10 @@
 
 name: CI
 
+env:
+  PUPPETEER_SKIP_DOWNLOAD: 'true'
+  PUPPETEER_EXECUTABLE_PATH: /usr/bin/google-chrome
+
 on:
   push:
     branches: [main, 'codex/**']
@@ -28,7 +32,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - name: Restore TypeScript incremental cache
@@ -51,6 +55,15 @@ jobs:
           path: test-results/runtime-database/pdf-webpack.json
       - name: Verify 3D parser through the Next Webpack compiler
         run: node scripts/verify-model-parser-webpack.mjs
+      - name: Verify actual PDF page geometry and offline rendering
+        run: node --test tests/native-pdf-output.test.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-pdf-output-evidence
+          path: |
+            test-results/native-pdf-output/result.json
+            test-results/native-pdf-output/*.pdf
       - uses: actions/upload-artifact@v4
         if: always()
         with:
@@ -141,7 +154,7 @@ jobs:
           fetch-depth: 0  # Need base branch for diff-based ratchet
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       # AUDIT FIX (2026-07-05): Reworked the lint gate.
@@ -224,7 +237,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - name: Whole-repo lint ratchets (blocking, per-rule baselines)
@@ -246,9 +259,11 @@ jobs:
           fetch-depth: 0  # base ref (origin/<base> on PRs, event.before on pushes) must exist locally
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
       - name: API row-typing gate (blocking, no untyped queries in touched routes)
         run: node scripts/api-row-sweep.mjs --check --paths-from-changed
+      - name: Verify pre-push ref selection and failure propagation
+        run: node --test tests/pre-push-range.test.mjs
 
   build:
     name: Production Build
@@ -261,7 +276,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - name: Restore Next.js build cache
@@ -315,7 +330,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - name: Verify all locale files parse and cover English keys
@@ -329,7 +344,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       # AUDIT FIX (2026-07-05): Was `npx jest --silent --passWithNoTests`
@@ -430,7 +445,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       # E2E_DB_SCHEMA (2026-08-12): the Postgres service container starts
@@ -560,7 +575,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       # AUDIT FIX (2026-08-03): The static export can only contain pages that
@@ -620,7 +635,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '22'
           cache: 'npm'
       - run: npm ci --legacy-peer-deps
       - name: Install Playwright chromium

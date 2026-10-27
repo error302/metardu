@@ -55,6 +55,14 @@ while read -r local_ref local_sha remote_ref remote_sha; do
   fi
 done
 
+# Git also invokes this hook when the remote is already synchronized (or only
+# deletions are requested). There are no new commits in that invocation. Keep
+# the manual fallback below, but never invent an origin/main range for Git.
+if [[ "${#PUSH_TARGETS[@]}" -eq 0 && "$#" -ge 2 ]]; then
+  echo "pre-push: no refs to push — no new commits to validate."
+  exit 0
+fi
+
 # Support direct local invocation without Git's pre-push ref input.
 if [[ "${#PUSH_TARGETS[@]}" -eq 0 ]]; then
   BASE_REF="origin/main"

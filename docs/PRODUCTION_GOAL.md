@@ -5,6 +5,17 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+27 October release-source repair: `DEPENDENCY_AND_PDF_RELEASE_REPAIR_2026-10-27.md`
+records compatible dependency patches (fresh audits: zero critical, one remaining
+high Zod finding), required Puppeteer/Node-22 packaging, corrected actual report
+PDF page orientation, constant empty print-shell export and synchronized-push
+ref selection. Native PDFs, focused regressions, strict typing and an isolated
+Windows source/standalone build are checked; the original loopback preview is
+resumed. The audit gate remains red for Zod. Final Linux/PWA/mobile/customer
+acceptance, the other CI failures, worker/migration/recovery/rollback promotion,
+owner-deferred key rotation and independent professional/field/provider gates
+remain open. This source checkpoint is not a deployment or completion claim.
+
 26 October boundary recovery checkpoint: the retained field-to-draft workflow
 now keeps account-bound original boundary requests on the device, recovers exact
 committed outcomes after reload, and requires durable server cancellation before
