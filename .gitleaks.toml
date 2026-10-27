@@ -3190,3 +3190,10 @@ description = "Suppress false positive for clarke1880_modified ellipsoid key"
 regexes = [
   'clarke1880_modified',
 ]
+
+[[allowlists]]
+id = "metardu-dummy-tokens"
+description = "Suppress false positive for dummy tokens"
+regexes = [
+  'abc123def456',
+]
