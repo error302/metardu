@@ -7,11 +7,11 @@ import { SaveStationsSchema } from '@/lib/validation/apiSchemas'
 import { ValidationError } from '@/lib/api/errors'
 import { alignmentReadAccess, lockOwnedAlignment } from '@/lib/engineering/alignmentAccess'
 import { recordAlignmentInputs } from '@/lib/engineering/alignmentInputHistory'
-import { syncAlignmentProjectInputs } from '@/lib/engineering/alignmentProjectSync'
+import { syncAlignmentProjectInputs, verifyAlignmentMirrorSnapshot } from '@/lib/engineering/alignmentProjectSync'
 import { interpolateProfile, validateProfile } from '@/lib/engineering/profileGeometry'
 
 export const POST = apiHandler({ auth: true, schema: SaveStationsSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
-  const { alignment_id, stations, replace } = ctx.body as z.infer<typeof SaveStationsSchema>
+  const { alignment_id, stations, replace, project_snapshot_hash } = ctx.body as z.infer<typeof SaveStationsSchema>
   if (new Set(stations.map(s => s.chainage)).size !== stations.length) throw new ValidationError('Station chainages must be unique.')
   for (const station of stations) {
     if (station.ground_profile) {
@@ -23,6 +23,7 @@ export const POST = apiHandler({ auth: true, schema: SaveStationsSchema, rateLim
   }
   const saved = await db.transaction(async client => {
     const alignment = await lockOwnedAlignment(client, alignment_id, ctx.userId)
+    const mirrorOnly=await verifyAlignmentMirrorSnapshot(client,alignment,project_snapshot_hash)
     const { rows: before } = await client.query<Record<string, unknown>>('SELECT * FROM cross_section_stations WHERE alignment_id = $1 ORDER BY chainage FOR UPDATE', [alignment_id])
     await recordAlignmentInputs(client, alignment, 'stations', before, ctx.userId, 'before')
     for (const station of stations) {
@@ -40,7 +41,7 @@ export const POST = apiHandler({ auth: true, schema: SaveStationsSchema, rateLim
     }
     if (replace) await client.query('DELETE FROM cross_section_stations WHERE alignment_id = $1 AND NOT (chainage = ANY($2::float8[]))', [alignment_id, stations.map(s => s.chainage)])
     const { rows } = await client.query<Record<string, unknown>>('SELECT * FROM cross_section_stations WHERE alignment_id = $1 ORDER BY chainage', [alignment_id])
-    await syncAlignmentProjectInputs(client, alignment, 'stations', rows)
+    await syncAlignmentProjectInputs(client, alignment, 'stations', rows, mirrorOnly)
     const { revision } = await recordAlignmentInputs(client, alignment, 'stations', rows, ctx.userId, 'saved')
     return { data: rows, design_revision: revision.revision }
   })

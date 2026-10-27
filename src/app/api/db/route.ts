@@ -24,6 +24,7 @@ import { QueryBuilder } from '@/lib/db/queryBuilder'
 import { checkProjectAccess } from '@/lib/security/projectAccess'
 import { isSafeSurveyorProfileWrite } from '@/lib/security/surveyorProfileWrite'
 import { env } from '@/lib/env'
+import { EngineeringPayloadSchema } from '@/lib/validation/engineeringPayload'
 
 // ponytail: Phase 6 Batch 7 — typed request body for /api/db proxy.
 // Browser client posts this shape; server-side narrowing guards each field.
@@ -142,6 +143,7 @@ function isAdmin(email: string | null | undefined): boolean {
 export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 60000 } }, async (request, ctx) => {
   const body = ctx.body as DbRequestBody
   const { table, operation, columns, filters, orFilters, order, limit, offset, single, maybeSingle, count, head, payload, onConflict } = body
+  let conditionalEngineeringWrite = false
 
   // ─── Table validation ─────────────────────────────────────────
   if (!table || FORBIDDEN_TABLES.has(table as string)) {
@@ -216,6 +218,21 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   }
   if (table === 'projects' && (operation === 'update' || operation === 'upsert')) {
     const rows = Array.isArray(payload) ? payload : [payload]
+    if (rows.some(row => row && Object.prototype.hasOwnProperty.call(row, 'engineering_data'))) {
+      const original = Array.isArray(filters) ? filters.filter(f => f.column === 'engineering_data') : []
+      const projects = Array.isArray(filters) ? filters.filter(f => f.column === 'id' && f.op === 'eq' && typeof f.value === 'string') : []
+      const prior = original[0]
+      const exactPrior = original.length === 1 && prior && (
+        (prior.op === 'is' && prior.value === null) ||
+        (prior.op === 'eq' && EngineeringPayloadSchema.safeParse(prior.value).success)
+      )
+      if (operation !== 'update' || !payload || Array.isArray(payload) || projects.length !== 1 ||
+        !exactPrior || (Array.isArray(orFilters) && orFilters.length > 0) ||
+        single || maybeSingle || !EngineeringPayloadSchema.safeParse(payload.engineering_data).success) {
+        return NextResponse.json({ data: null, error: { message: 'Engineering changes require the exact project and its originally loaded snapshot. Keep the draft and reopen the saved project for review.', code: 'ENGINEERING_VERSION_REQUIRED' } }, { status: 409 })
+      }
+      conditionalEngineeringWrite = true
+    }
     if (rows.some(row => row && Object.prototype.hasOwnProperty.call(row, 'boundary_data'))) {
       return NextResponse.json(
         { data: null, error: { message: 'Use the version-checked map drawing workflow; retain the local draft on conflict', code: 'MAP_DRAWING_VERSION_REQUIRED' } },
@@ -438,5 +455,8 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
 
   // Execute
   const result = await qb
+  if (conditionalEngineeringWrite && !result.error && (!Array.isArray(result.data) || result.data.length !== 1)) {
+    return NextResponse.json({ data: null, error: { message: 'The saved engineering project changed or is no longer writable. Your inputs were not applied. Keep the draft and review the saved project before retrying.', code: 'ENGINEERING_CONFLICT' } }, { status: 409 })
+  }
   return NextResponse.json(result)
 })

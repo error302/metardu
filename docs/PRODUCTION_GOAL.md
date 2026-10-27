@@ -448,3 +448,13 @@ observed, with native project/archive checks. See
 `ROAD_DRAFT_RECOVERY_2026-10-27.md`. Legacy writer adoption, collaborative conflict
 handling, retained terrain and selected-revision delivery, customer recovery,
 provider, security-deferral, production and independent field gates remain open.
+
+27 October engineering input-save checkpoint: generic engineering replacements
+now require the exact originally loaded JSON snapshot in the UPDATE predicate.
+The current input page retains that snapshot separately and binds automatic
+header/IP/VIP/station mirror copies to its acknowledged save; checked list copies
+do not write back into project JSON. See
+`ENGINEERING_CONDITIONAL_SAVES_2026-10-27.md`. Direct legacy alignment commands,
+durable legacy outcomes/reference binding, complete mirror consistency and all
+existing terrain, interchange, customer/provider/recovery and release gates remain
+open. This is not a production promotion.

@@ -141,3 +141,11 @@ alignment, owner-deferred signing-key work and production release retain their
 existing gates. Preserve Cloudflare parcel containment and the localhost CAD
 training drawing. No customer migration, production build, push or promotion was
 performed.
+
+The following input-workflow checkpoint is documented in
+`ENGINEERING_CONDITIONAL_SAVES_2026-10-27.md`: generic engineering replacements now
+require the original JSON snapshot, and the current page's automatic mirror
+copies are version checked without writing back into the project. Direct legacy
+alignment edits and complete writer adoption retain their gates. The expanded
+native test now writes its separate receipt to `.cache/engineering-cas/`; the
+earlier nine-check receipt above remains a historical artifact.

@@ -7,12 +7,14 @@ import { SaveIPsSchema, UpdateIPInputsSchema } from '@/lib/validation/apiSchemas
 import { NotFoundError } from '@/lib/api/errors'
 import { lockOwnedAlignment } from '@/lib/engineering/alignmentAccess'
 import { horizontalRowInput, saveHorizontalInputs } from '@/lib/engineering/alignmentHorizontalPersistence'
+import { verifyAlignmentMirrorSnapshot } from '@/lib/engineering/alignmentProjectSync'
 
 export const POST = apiHandler({ auth: true, schema: SaveIPsSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
-  const { alignment_id, ips } = ctx.body as z.infer<typeof SaveIPsSchema>
+  const { alignment_id, ips, project_snapshot_hash } = ctx.body as z.infer<typeof SaveIPsSchema>
   const saved = await db.transaction(async client => {
     const alignment = await lockOwnedAlignment(client, alignment_id, ctx.userId)
-    return saveHorizontalInputs(client, alignment, ips, ctx.userId)
+    const mirrorOnly=await verifyAlignmentMirrorSnapshot(client,alignment,project_snapshot_hash)
+    return saveHorizontalInputs(client, alignment, ips, ctx.userId, mirrorOnly)
   })
   return NextResponse.json(saved)
 })

@@ -12,6 +12,10 @@ import {
   loadRoadWorkbenchSource,
 } from '../roadWorkbenchRecoveryServer'
 import type { RoadWorkbenchCommand } from '../roadWorkbenchRecoveryContract'
+import { QueryBuilder } from '@/lib/db/queryBuilder'
+import { verifyAlignmentMirrorSnapshot } from '../alignmentProjectSync'
+import { hashDesignPayload } from '../designRevisions'
+import type { OwnedAlignment } from '../alignmentAccess'
 jest.mock('@/lib/db', () => ({ db: {} }))
 const native = process.env.METARDU_ROAD_NATIVE_SQL === '1' ? it : it.skip
 native(
@@ -43,6 +47,9 @@ native(
       'src/lib/engineering/designRevisions.ts',
       'src/lib/validation/engineeringPayload.ts',
       'src/lib/engineering/__tests__/roadWorkbenchRecoveryNative.test.ts',
+      'src/lib/db/queryBuilder.ts',
+      'src/app/api/db/route.ts',
+      'src/lib/engineering/alignmentProjectSync.ts',
     ]
     const hashes = async () =>
         Object.fromEntries(
@@ -122,6 +129,30 @@ native(
         'actual command client uses non-superuser/non-bypass release_app',
         role.role === 'release_app' && !role.rolsuper && !role.rolbypassrls,
       )
+      await client.query('SAVEPOINT conditional_engineering')
+      const newer={...engineering,reviewed:'synthetic conditional update'}
+      const accepted=await new QueryBuilder(scope,'projects').update({engineering_data:newer}).eq('id',project).eq('user_id',actor).eq('engineering_data',engineering)
+      expect(accepted.error).toBeNull()
+      expect(accepted.data).toHaveLength(1)
+      const stale=await new QueryBuilder(scope,'projects').update({engineering_data:engineering}).eq('id',project).eq('user_id',actor).eq('engineering_data',engineering)
+      expect(stale.error).toBeNull()
+      expect(stale.data).toEqual([])
+      check('actual conditional UPDATE refuses an older snapshot after a newer write',true)
+      const alignment={project_id:project} as OwnedAlignment
+      await expect(verifyAlignmentMirrorSnapshot(scope,alignment,hashDesignPayload({engineering}))).rejects.toThrow(/changed/i)
+      expect(await verifyAlignmentMirrorSnapshot(scope,alignment,hashDesignPayload({engineering:newer}))).toBe(true)
+      check('actual mirror precondition refuses a delayed copy and accepts the exact saved snapshot',true)
+      await client.query('UPDATE projects SET engineering_data=NULL WHERE id=$1',[project])
+      const initialized=await new QueryBuilder(scope,'projects').update({engineering_data:engineering}).eq('id',project).eq('user_id',actor).is('engineering_data',null)
+      expect(initialized.error).toBeNull()
+      expect(initialized.data).toHaveLength(1)
+      const repeated=await new QueryBuilder(scope,'projects').update({engineering_data:newer}).eq('id',project).eq('user_id',actor).is('engineering_data',null)
+      expect(repeated.error).toBeNull()
+      expect(repeated.data).toEqual([])
+      check('actual null-snapshot initialization cannot replace an already initialized project',true)
+      expect((await client.query<{engineering_data:unknown}>('SELECT engineering_data FROM projects WHERE id=$1',[project])).rows[0].engineering_data).toEqual(engineering)
+      check('conditional refusals preserve the exact saved engineering JSON',true)
+      await client.query('ROLLBACK TO SAVEPOINT conditional_engineering')
       await client.query(
         "UPDATE projects SET engineering_data=jsonb_set(engineering_data,'{precision_fixture}','0.333333333333333333333333333333'::jsonb,true) WHERE id=$1",
         [project],
@@ -287,9 +318,9 @@ native(
       ).toEqual(migrations)
       check('applied migration hashes are unchanged', true)
       expect(await hashes()).toEqual(sourceHashes)
-      await mkdir('.cache/road-recovery', { recursive: true })
+      await mkdir('.cache/engineering-cas', { recursive: true })
       await writeFile(
-        '.cache/road-recovery/native-sql.json',
+        '.cache/engineering-cas/native-sql.json',
         JSON.stringify(
           {
             checkedAt: new Date().toISOString(),

@@ -18,7 +18,7 @@ export const horizontalRowInput = (row: Record<string, unknown>): HorizontalInpu
   transition_length_out: row.transition_length_out == null ? null : Number(row.transition_length_out),
 })
 
-export async function saveHorizontalInputs(client: PoolClient, alignment: OwnedAlignment, inputs: HorizontalInput[], userId: string) {
+export async function saveHorizontalInputs(client: PoolClient, alignment: OwnedAlignment, inputs: HorizontalInput[], userId: string, mirrorOnly = false) {
   const { rows: previous } = await client.query<Record<string, unknown>>('SELECT * FROM alignment_ips WHERE alignment_id = $1 ORDER BY sort_order, created_at, id FOR UPDATE', [alignment.id])
   if (previous.length > 5000) throw new ValidationError('Review this large legacy alignment before replacing its input records.')
   const identities = inputs.flatMap(ip => ip.source_id ? [ip.source_id] : [])
@@ -54,7 +54,7 @@ export async function saveHorizontalInputs(client: PoolClient, alignment: OwnedA
     if (!rows[0]) throw new Error('An alignment IP was not saved.')
     saved.push(rows[0])
   }
-  await syncAlignmentProjectInputs(client, alignment, 'ips', saved)
+  await syncAlignmentProjectInputs(client, alignment, 'ips', saved, mirrorOnly)
   const { revision } = await recordAlignmentInputs(client, alignment, 'horizontal', saved, userId, 'saved')
   return { data: saved, calculation, design_revision: revision.revision }
 }

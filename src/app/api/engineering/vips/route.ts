@@ -7,13 +7,14 @@ import { SaveVIPsSchema } from '@/lib/validation/apiSchemas'
 import { ValidationError } from '@/lib/api/errors'
 import { lockOwnedAlignment } from '@/lib/engineering/alignmentAccess'
 import { recordAlignmentInputs } from '@/lib/engineering/alignmentInputHistory'
-import { syncAlignmentProjectInputs } from '@/lib/engineering/alignmentProjectSync'
+import { syncAlignmentProjectInputs, verifyAlignmentMirrorSnapshot } from '@/lib/engineering/alignmentProjectSync'
 
 export const POST = apiHandler({ auth: true, schema: SaveVIPsSchema, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
-  const { alignment_id, vips, replace } = ctx.body as z.infer<typeof SaveVIPsSchema>
+  const { alignment_id, vips, replace, project_snapshot_hash } = ctx.body as z.infer<typeof SaveVIPsSchema>
   if (new Set(vips.map(v => v.chainage)).size !== vips.length) throw new ValidationError('VIP chainages must be unique.')
   const saved = await db.transaction(async client => {
     const alignment = await lockOwnedAlignment(client, alignment_id, ctx.userId)
+    const mirrorOnly=await verifyAlignmentMirrorSnapshot(client,alignment,project_snapshot_hash)
     const { rows: before } = await client.query<Record<string, unknown>>('SELECT * FROM alignment_vertical_ips WHERE alignment_id = $1 ORDER BY chainage FOR UPDATE', [alignment_id])
     await recordAlignmentInputs(client, alignment, 'vertical', before, ctx.userId, 'before')
     for (const vip of vips) {
@@ -30,7 +31,7 @@ export const POST = apiHandler({ auth: true, schema: SaveVIPsSchema, rateLimit: 
     }
     if (replace) await client.query('DELETE FROM alignment_vertical_ips WHERE alignment_id = $1 AND NOT (chainage = ANY($2::float8[]))', [alignment_id, vips.map(v => v.chainage)])
     const { rows } = await client.query<Record<string, unknown>>('SELECT * FROM alignment_vertical_ips WHERE alignment_id = $1 ORDER BY chainage', [alignment_id])
-    await syncAlignmentProjectInputs(client, alignment, 'vips', rows)
+    await syncAlignmentProjectInputs(client, alignment, 'vips', rows, mirrorOnly)
     const { revision } = await recordAlignmentInputs(client, alignment, 'vertical', rows, ctx.userId, 'saved')
     return { data: rows, design_revision: revision.revision }
   })

@@ -293,6 +293,7 @@ export const NearbyBenchmarksSchema = z.object({
 
 export const CreateAlignmentSchema = z.object({
   project_id: z.string().min(1, 'project_id is required'),
+  project_snapshot_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   road_name: z.string().min(1, 'road_name is required').max(200).trim(),
   start_chainage: z.number().finite().optional().default(0),
   datum: z.string().max(50).trim().optional(),
@@ -308,6 +309,7 @@ export const CreateAlignmentSchema = z.object({
 
 export const SaveIPsSchema = z.object({
   alignment_id: z.string().min(1, 'alignment_id is required'),
+  project_snapshot_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   ips: z.array(z.object({
     id: z.string().uuid().optional(),
     source_id: z.string().trim().min(1).max(200).optional(),
@@ -331,6 +333,7 @@ export const UpdateIPInputsSchema = z.object({
 
 export const SaveVIPsSchema = z.object({
   alignment_id: z.string().min(1, 'alignment_id is required'),
+  project_snapshot_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   replace: z.boolean().optional().default(false),
   vips: z.array(z.object({
     source_id: z.string().trim().min(1).max(200).optional(),
@@ -345,6 +348,7 @@ export const SaveVIPsSchema = z.object({
 
 export const SaveStationsSchema = z.object({
   alignment_id: z.string().min(1, 'alignment_id is required'),
+  project_snapshot_hash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
   replace: z.boolean().optional().default(false),
   stations: z.array(z.object({
     chainage: z.number().finite(),

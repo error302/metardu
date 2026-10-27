@@ -43,3 +43,40 @@ test.each(['insert', 'upsert'])('generic project %s cannot bypass quota-checked 
   expect((await POST(request('projects', operation, { name: 'Synthetic bypass' }))).status).toBe(403)
   expect(mockQuery).not.toHaveBeenCalled()
 })
+
+const engineering = { mode: 'drainage', standard: 'KRDM2017' }
+const engineeringRequest = (filters: unknown[], extra: Record<string, unknown> = {}) => new NextRequest('http://127.0.0.1/api/db', { method: 'POST', body: JSON.stringify({ table:'projects',operation:'update',payload:{engineering_data:engineering},filters,...extra }) })
+const projectFilter = { op:'eq',column:'id',value:'22222222-2222-4222-8222-222222222222' }
+test.each([
+  [projectFilter],
+  [projectFilter,{op:'contains',column:'engineering_data',value:{}}],
+  [projectFilter,{op:'is',column:'engineering_data',value:false}],
+  [{op:'eq',column:'engineering_data',value:engineering}],
+].map(filters=>({filters})))('refuses an engineering replacement without an exact project and prior snapshot (%j)', async ({filters}) => {
+  expect((await POST(engineeringRequest(filters))).status).toBe(409)
+  expect(mockQuery).not.toHaveBeenCalled()
+})
+test.each([null, engineering])('uses the original engineering snapshot in the same conditional UPDATE (%j)', async prior => {
+  const snapshot={op:prior===null?'is':'eq',column:'engineering_data',value:prior}
+  expect((await POST(engineeringRequest([projectFilter,snapshot]))).status).toBe(200)
+  expect(mockQuery).toHaveBeenCalledTimes(1)
+  const [sql,params]=mockQuery.mock.calls[0] as [string,unknown[]]
+  expect(sql).toMatch(prior===null?/"engineering_data" IS NULL/:/"engineering_data" = \$/)
+  expect(params).toContain(projectFilter.value)
+  expect(params).toContain('11111111-1111-4111-8111-111111111111')
+  if(prior!==null)expect(params).toContainEqual(prior)
+})
+test('returns a conflict when the conditional engineering update affects no row',async()=>{
+  mockQuery.mockResolvedValueOnce({rows:[],rowCount:0})
+  const response=await POST(engineeringRequest([projectFilter,{op:'eq',column:'engineering_data',value:engineering}]))
+  expect(response.status).toBe(409)
+  expect(await response.json()).toMatchObject({error:{code:'ENGINEERING_CONFLICT'}})
+})
+test('refuses bulk, non-finite and OR-filtered engineering replacements',async()=>{
+  const filters=[projectFilter,{op:'is',column:'engineering_data',value:null}]
+  expect((await POST(engineeringRequest(filters,{orFilters:['id.neq.invalid']}))).status).toBe(409)
+  expect((await POST(engineeringRequest(filters,{payload:[{engineering_data:engineering}]}))).status).toBe(409)
+  const raw=JSON.stringify({table:'projects',operation:'update',payload:{engineering_data:{bad:'NONFINITE'}},filters}).replace('"NONFINITE"','1e400')
+  expect((await POST(new NextRequest('http://127.0.0.1/api/db',{method:'POST',body:raw}))).status).toBe(409)
+  expect(mockQuery).not.toHaveBeenCalled()
+})

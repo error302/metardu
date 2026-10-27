@@ -4,6 +4,9 @@ import EngineeringWorkspacePage from '../page'
 import * as persistence from '@/lib/engineering/projectEngineeringPersistence'
 import type { EngineeringData } from '@/types/engineering'
 import { roadWorkbenchExample } from '@/lib/engineering/roadWorkbenchExample'
+import { webcrypto, createHash } from 'node:crypto'
+import { canonicalJson } from '@/lib/provenance/canonicalJson'
+import { apiPost } from '@/lib/api/client'
 const projectId = '22222222-2222-4222-8222-222222222222'
 const fixtureProjectCrs = 'EPSG:32737'
 let projectReads = 0,
@@ -118,6 +121,7 @@ beforeEach(() => {
   mockCreateClient.mockClear()
 })
 afterEach(() => jest.restoreAllMocks())
+beforeAll(()=>Object.defineProperty(window,'crypto',{value:webcrypto,configurable:true}))
 it('finishes loading without creating a new client and refetching on each state update', async () => {
   render(<EngineeringWorkspacePage />)
   await waitFor(
@@ -191,7 +195,7 @@ it('honors explicit workflow and step links for an existing road', async () => {
   ).not.toBeInTheDocument()
 })
 it('keeps a new project in its input workflow when its first road is saved', async () => {
-  jest
+  const save = jest
     .spyOn(persistence, 'saveProjectEngineeringData')
     .mockResolvedValue(undefined)
   render(<EngineeringWorkspacePage />)
@@ -205,4 +209,45 @@ it('keeps a new project in its input workflow when its first road is saved', asy
   expect(
     screen.queryByText('Road visual workspace ready'),
   ).not.toBeInTheDocument()
+  expect(save.mock.calls[0][3]).toBeNull()
+  await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'Save synthetic road inputs' })) })
+  expect(save.mock.calls[1][3]).toEqual(save.mock.calls[0][2])
+})
+
+it('retains its original snapshot after a conflict and does not call mirror synchronization', async () => {
+  mockRoadData = roadWorkbenchExample().road as unknown as Record<string, unknown>
+  mockSearch = 'tab=workflow'
+  const save=jest.spyOn(persistence,'saveProjectEngineeringData').mockRejectedValue(new Error('Synthetic engineering conflict; retain inputs'))
+  const {apiPost}=jest.requireMock<typeof import('@/lib/api/client')>('@/lib/api/client')
+  jest.mocked(apiPost).mockClear()
+  render(<EngineeringWorkspacePage />)
+  await screen.findByText('Workspace ready')
+  await act(async()=>{fireEvent.click(screen.getByRole('button',{name:'Save synthetic road inputs'}))})
+  expect(screen.getByRole('alert')).toHaveTextContent('Synthetic engineering conflict')
+  const expected={mode:'road',standard:'KRDM2017',road:mockRoadData}
+  expect(save.mock.calls[0][3]).toEqual(expected)
+  expect(apiPost).not.toHaveBeenCalled()
+})
+
+it('binds every automatic mirror copy to the just-acknowledged engineering snapshot',async()=>{
+  const save=jest.spyOn(persistence,'saveProjectEngineeringData').mockResolvedValue(undefined)
+  jest.mocked(apiPost).mockReset().mockResolvedValue({data:{id:'mirror-alignment'}})
+  render(<EngineeringWorkspacePage />)
+  await screen.findByText('Workspace ready')
+  fireEvent.click(screen.getByRole('button',{name:'Save synthetic road inputs'}))
+  await waitFor(()=>expect(jest.mocked(apiPost).mock.calls).toHaveLength(4),{timeout:5000})
+  const snapshot=persistence.engineeringDataSnapshot(save.mock.calls[0][2])
+  const hash=createHash('sha256').update(canonicalJson({engineering:snapshot})).digest('hex')
+  for(const call of jest.mocked(apiPost).mock.calls)expect(call[2]).toMatchObject({project_snapshot_hash:hash})
+})
+it('refuses overlapping saves before the first conditional write is acknowledged',async()=>{
+  let finish:()=>void=()=>{throw Error('Synthetic write not started')}
+  const save=jest.spyOn(persistence,'saveProjectEngineeringData').mockImplementation(()=>new Promise<void>(resolve=>{finish=resolve}))
+  render(<EngineeringWorkspacePage />)
+  await screen.findByText('Workspace ready')
+  const button=screen.getByRole('button',{name:'Save synthetic road inputs'})
+  fireEvent.click(button)
+  fireEvent.click(button)
+  expect(save).toHaveBeenCalledTimes(1)
+  await act(async()=>{finish()})
 })

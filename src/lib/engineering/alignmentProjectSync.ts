@@ -1,9 +1,24 @@
 import type { PoolClient } from 'pg'
 import type { OwnedAlignment } from './alignmentAccess'
 import { roadFromAlignmentMirror } from './roadAlignmentMirror'
+import { EngineeringPayloadSchema } from '@/lib/validation/engineeringPayload'
+import { AppError } from '@/lib/api/errors'
+import { hashDesignPayload } from './designRevisions'
+
+/** Caller already holds the project lock. A checked mirror never becomes a project writer. */
+export async function verifyAlignmentMirrorSnapshot(client: PoolClient, alignment: Pick<OwnedAlignment,'project_id'>, expectedHash?: string): Promise<boolean> {
+  if (expectedHash === undefined) return false
+  const {rows}=await client.query<{engineering_data:unknown}>('SELECT engineering_data FROM projects WHERE id=$1',[alignment.project_id])
+  const engineering=rows[0]?.engineering_data
+  if(!EngineeringPayloadSchema.safeParse(engineering).success || hashDesignPayload({engineering})!==expectedHash) {
+    throw new AppError('The saved engineering project changed. The delayed mirror copy was refused; retain the saved draft and review the latest project.',409,'ENGINEERING_MIRROR_CONFLICT')
+  }
+  return true
+}
 
 /** Update only this selected design; retain unrelated project/input metadata. */
-export async function syncAlignmentProjectInputs(client: PoolClient, alignment: OwnedAlignment, section: 'ips' | 'vips' | 'stations', rows: Record<string, unknown>[]) {
+export async function syncAlignmentProjectInputs(client: PoolClient, alignment: OwnedAlignment, section: 'ips' | 'vips' | 'stations', rows: Record<string, unknown>[], mirrorOnly = false) {
+  if(mirrorOnly) return
   const { rows: current } = await client.query<{ inputs: unknown }>(
     'SELECT engineering_data #> $2::text[] AS inputs FROM projects WHERE id = $1', [alignment.project_id, ['road', section]])
   const previous = Array.isArray(current[0]?.inputs) ? current[0].inputs as unknown[] : []

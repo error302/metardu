@@ -8,6 +8,7 @@ import { GET as readAlignment } from '../alignment/route'
 import { POST as saveVIPs } from '../vips/route'
 import { POST as saveStations, GET as readStations } from '../stations/route'
 import { POST as saveEarthworks } from '../earthworks/route'
+import * as mirror from '@/lib/engineering/alignmentProjectSync'
 
 jest.mock('@/lib/apiHandler', () => ({ apiHandler: (options: { schema?: import('zod').ZodSchema }, handler: (req: NextRequest, ctx: { userId: string; body: unknown; params: Record<string, string> }) => Promise<Response>) =>
   async (req: NextRequest, ctx: { userId: string; body: unknown; params: Record<string, string> }) => {
@@ -50,6 +51,7 @@ type Handler = (req: NextRequest, ctx: { userId: string; body: unknown; params: 
 const invoke = (handler: unknown, body?: unknown, url = '/api/engineering/ips') => (handler as Handler)(new NextRequest(`http://127.0.0.1:3021${url}`, { method: body === undefined ? 'GET' : 'POST' }), { userId: 'owner', body, params: {} })
 
 beforeEach(() => {
+  jest.restoreAllMocks()
   jest.clearAllMocks(); owner = 'owner'; stored = []
   jest.mocked(db.getClient).mockResolvedValue(client as unknown as import('pg').PoolClient)
   jest.mocked(db.query).mockImplementation(query as unknown as typeof db.query)
@@ -111,4 +113,17 @@ it('writes VIPs and station profiles to the same canonical tables the reload end
   expect(query.mock.calls.some(([sql]) => /INSERT INTO alignment_vertical_ips/.test(sql))).toBe(true)
   expect(query.mock.calls.some(([sql]) => /INSERT INTO cross_section_stations/.test(sql))).toBe(true)
   expect(query.mock.calls.some(([sql, values]) => /cross_section_stations/.test(sql) && (values ?? []).some(value => typeof value === 'string' && value.includes('"designLevel":-1')))).toBe(true)
+})
+
+it.each([
+  [saveIPs,{alignment_id:'alignment',ips:input}],
+  [saveVIPs,{alignment_id:'alignment',vips:[]}],
+  [saveStations,{alignment_id:'alignment',stations:[]}],
+])('copies a version-checked mirror without writing back to project JSON',async(handler,body)=>{
+  const verify=jest.spyOn(mirror,'verifyAlignmentMirrorSnapshot').mockResolvedValue(true)
+  const sync=jest.spyOn(mirror,'syncAlignmentProjectInputs').mockResolvedValue(undefined)
+  expect((await invoke(handler,{...body,project_snapshot_hash:'a'.repeat(64)})).status).toBe(200)
+  expect(verify).toHaveBeenCalledWith(client,expect.objectContaining({id:'alignment'}),'a'.repeat(64))
+  expect(sync).toHaveBeenCalledWith(client,expect.objectContaining({id:'alignment'}),expect.any(String),expect.any(Array),true)
+  expect(query.mock.calls.some(([sql])=>/^\s*UPDATE projects/.test(sql))).toBe(false)
 })

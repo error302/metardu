@@ -9,7 +9,9 @@ import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/api-client/client'
 import { z } from 'zod'
 import { apiGet, apiPost } from '@/lib/api/client'
-import { saveProjectEngineeringData, hydrateSavedEngineeringRoad } from '@/lib/engineering/projectEngineeringPersistence'
+import { saveProjectEngineeringData, hydrateSavedEngineeringRoad, engineeringDataSnapshot } from '@/lib/engineering/projectEngineeringPersistence'
+import { sha256Hex } from '@/lib/crypto/sha256'
+import { canonicalJson } from '@/lib/provenance/canonicalJson'
 import { roadAlignmentMirrorPayload, roadFromAlignmentMirror } from '@/lib/engineering/roadAlignmentMirror'
 import { resolveStageReference, resolveDeclaredStageReference, type StageReference } from '@/lib/workspaces/stageReference'
 import type {
@@ -91,6 +93,8 @@ export default function EngineeringWorkspacePage() {
   const engineeringLoadGeneration = useRef(0)
   const projectLoadGeneration = useRef(0)
   const appliedStepRef = useRef<string | null>(null)
+  const originalEngineering = useRef<{projectId:string;data:EngineeringData|null}|null>(null)
+  const writeInFlight = useRef(false)
 
   // Sub-tab for quick compute panels
   const requestedStep = searchParams.get('step')
@@ -170,6 +174,7 @@ export default function EngineeringWorkspacePage() {
       : resolveStageReference(null, legacyReference)
     if (declaredReference && !projectReferenceSystem.code) throw new Error('Invalid saved reference system')
     const engData = (data?.engineering_data ?? null) as EngineeringData | null
+    originalEngineering.current = {projectId:data.id,data:engData===null?null:engineeringDataSnapshot(engData)}
     setLandingTab(engData?.mode==='road'&&engData.road?'design':'workflow')
     setProject({ ...data, engineering_data: engData, projectReferenceSystem } as EngineeringProject)
 
@@ -232,8 +237,15 @@ export default function EngineeringWorkspacePage() {
     if(type==='success')toastTimer.current=setTimeout(() => setToast(null), 3000)
   }
 
+  const persistEngineering = async (updated: EngineeringData) => {
+    const original=originalEngineering.current
+    if(!project || !original || original.projectId!==project.id) throw new Error('The original engineering snapshot is unavailable. Keep the inputs and reopen the project for review.')
+    await saveProjectEngineeringData(dbClient,project.id,updated,original.data)
+    originalEngineering.current={projectId:project.id,data:engineeringDataSnapshot(updated)}
+  }
   const handleModeChange = async (newMode: EngineeringMode) => {
-    if (!project) return
+    if (!project || writeInFlight.current) return
+    writeInFlight.current=true
     setSaving(true)
 
     try {
@@ -244,7 +256,7 @@ export default function EngineeringWorkspacePage() {
         standard: current.standard || 'KRDM2017'
       }
 
-      await saveProjectEngineeringData(dbClient, project.id, updated)
+      await persistEngineering(updated)
 
       setProject({ ...project, engineering_data: updated })
       setActiveStep('setup')
@@ -252,6 +264,7 @@ export default function EngineeringWorkspacePage() {
     } catch (failure) {
       showToast(failure instanceof Error?failure.message:'The save is unconfirmed. Keep the current inputs and recover the saved project before retrying.', 'error')
     } finally {
+      writeInFlight.current=false
       setSaving(false)
     }
   }
@@ -265,13 +278,14 @@ export default function EngineeringWorkspacePage() {
 
     try {
       const payload = roadAlignmentMirrorPayload(road, project.id)
-      const alignResult = await apiPost('/api/engineering/alignment', alignmentMutationSchema, payload.header)
+      const project_snapshot_hash=await sha256Hex(canonicalJson({engineering:engineeringDataSnapshot(engData)}))
+      const alignResult = await apiPost('/api/engineering/alignment', alignmentMutationSchema, {...payload.header,project_snapshot_hash})
       const aId = alignResult.data?.id
       if (!aId) throw new Error('No alignment ID returned')
       // Full snapshots explicitly replace even an emptied input list.
-      await apiPost('/api/engineering/ips', subResourceMutationSchema, { alignment_id: aId, ips: payload.ips })
-      await apiPost('/api/engineering/vips', subResourceMutationSchema, { alignment_id: aId, replace: true, vips: payload.vips })
-      await apiPost('/api/engineering/stations', subResourceMutationSchema, { alignment_id: aId, replace: true, stations: payload.stations })
+      await apiPost('/api/engineering/ips', subResourceMutationSchema, { alignment_id: aId, project_snapshot_hash, ips: payload.ips })
+      await apiPost('/api/engineering/vips', subResourceMutationSchema, { alignment_id: aId, project_snapshot_hash, replace: true, vips: payload.vips })
+      await apiPost('/api/engineering/stations', subResourceMutationSchema, { alignment_id: aId, project_snapshot_hash, replace: true, stations: payload.stations })
 
       return true
     } catch {
@@ -280,7 +294,8 @@ export default function EngineeringWorkspacePage() {
   }, [project])
 
   const handleSave = async (data: Partial<EngineeringData>) => {
-    if (!project) return false
+    if (!project || writeInFlight.current) return false
+    writeInFlight.current=true
     setSaving(true)
 
     try {
@@ -305,7 +320,7 @@ export default function EngineeringWorkspacePage() {
       }
 
       // Save to database (engineering_data JSONB column)
-      await saveProjectEngineeringData(dbClient, project.id, updated)
+      await persistEngineering(updated)
 
       setProject({ ...project, engineering_data: updated })
 
@@ -325,17 +340,19 @@ export default function EngineeringWorkspacePage() {
       showToast(failure instanceof Error?failure.message:'The save is unconfirmed. Keep the current inputs and recover the saved project before retrying.', 'error')
       return false
     } finally {
+      writeInFlight.current=false
       setSaving(false)
     }
   }
 
   // Save All handler — persists the full current state to the backend
   const handleSaveAll = async () => {
-    if (!project || !project.engineering_data) return
+    if (!project || !project.engineering_data || writeInFlight.current) return
+    writeInFlight.current=true
     setSaving(true)
     try {
       // First ensure local state is up to date
-      await saveProjectEngineeringData(dbClient, project.id, project.engineering_data)
+      await persistEngineering(project.engineering_data)
 
       if (project.engineering_data.mode === 'road' && project.engineering_data.road) {
         const backendOk = await saveToBackend(project.engineering_data)
@@ -350,6 +367,7 @@ export default function EngineeringWorkspacePage() {
     } catch (failure) {
       showToast(failure instanceof Error?failure.message:'The save is unconfirmed. Keep the current inputs and recover the saved project before retrying.', 'error')
     } finally {
+      writeInFlight.current=false
       setSaving(false)
     }
   }

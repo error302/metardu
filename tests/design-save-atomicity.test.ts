@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { NextRequest, NextResponse } from 'next/server'
 import { fieldBookRevision } from '@/lib/survey/fieldBookRevision'
+import * as alignmentMirror from '@/lib/engineering/alignmentProjectSync'
 const declaredWgs84Crs = 'EPSG:' + (32700 + 36)
 const startControl = { name: 'A', easting: 500000, northing: 9860000, crs: declaredWgs84Crs }
 const fieldRows = [['A', 'B', 0], ['B', 'C', 90], ['C', 'D', 180], ['D', 'A', 270]].map(([station, target, bearing], index) => ({
@@ -60,6 +61,7 @@ import { POST as alignmentPost } from '@/app/api/engineering/alignment/route'
 import { POST as pipelinePost } from '@/app/api/project/[id]/field-to-finish/route'
 
 beforeEach(() => {
+  jest.restoreAllMocks()
   jest.clearAllMocks()
   saved = false
   mockQuery.mockImplementation(async (sql: string) => {
@@ -82,9 +84,9 @@ beforeEach(() => {
   mockQa.mockResolvedValue({ runId: 'qa-1' })
 })
 
-function alignmentRequest() {
+function alignmentRequest(snapshot?:string) {
   return alignmentPost(new NextRequest('http://localhost/api/engineering/alignment', { method: 'POST',
-    body: JSON.stringify({ project_id: 'project-1', road_name: 'Road A', datum: 'Arc1960', coordinate_system: 'UTM' }),
+    body: JSON.stringify({ project_id: 'project-1', road_name: 'Road A', datum: 'Arc1960', coordinate_system: 'UTM',...(snapshot?{project_snapshot_hash:snapshot}:{}) }),
   }), { params: {} })
 }
 function pipelineRequest() {
@@ -114,6 +116,14 @@ test('alignment save and revision use one transaction client', async () => {
   expect((await alignmentRequest()).status).toBe(200)
   expect(mockTransaction).toHaveBeenCalledTimes(1)
   expect(mockRevision.mock.calls[0][1]).toBe(mockClient)
+})
+
+test('a rejected mirror snapshot prevents the header write and its revision',async()=>{
+  const verify=jest.spyOn(alignmentMirror,'verifyAlignmentMirrorSnapshot').mockRejectedValue(new Error('Synthetic changed project'))
+  expect((await alignmentRequest('a'.repeat(64))).status).toBeGreaterThanOrEqual(400)
+  expect(verify).toHaveBeenCalledWith(mockClient,{project_id:'project-1'},'a'.repeat(64))
+  expect(saved).toBe(false)
+  expect(mockRevision).not.toHaveBeenCalled()
 })
 test.each(['revision', 'computation', 'QA'])('pipeline %s failure cannot confirm partially saved results', async (failure) => {
   const operation = failure === 'revision' ? mockRevision : failure === 'computation' ? mockComputation : mockQa
