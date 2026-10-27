@@ -264,6 +264,8 @@ jobs:
         run: node scripts/api-row-sweep.mjs --check --paths-from-changed
       - name: Verify pre-push ref selection and failure propagation
         run: node --test tests/pre-push-range.test.mjs
+      - name: Verify upload source tracking and private data exclusions
+        run: node --test tests/upload-route-tracking.test.mjs
 
   build:
     name: Production Build

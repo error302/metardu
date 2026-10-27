@@ -131,6 +131,11 @@ localhost CAD training drawing.
 
 ## Host build and preview outcome
 
+Follow-up: CI exposed two local upload handlers hidden by an ignore rule. The
+Windows build included them, while the GitHub build did not. See
+[upload source availability and CI follow-up](UPLOAD_SOURCE_AND_CI_FOLLOWUP_2026-10-27.md)
+for the source-tracking repair and the remaining observed CI failures.
+
 The isolated-environment Next 15.5.28 host build completed with exit 0 on Node
 22.23.3 at `2026-10-27T13:44:34Z`, including generated-route type validation and
 218 generated static pages. No application/container was started by that

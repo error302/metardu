@@ -15,7 +15,7 @@ build/
 scripts/.out/
 
 # User uploads — should never be in the repo
-upload/
+/upload/
 
 # Local database files
 db/*.db
@@ -39,6 +39,10 @@ build-log.txt
 
 # Environment files with secrets - NEVER commit these
 .env
+.env.*
+!/.env.example
+!/.env.production.example
+!/.env.test.example
 .env.local
 .env.tunnel-token
 .env.*.local
