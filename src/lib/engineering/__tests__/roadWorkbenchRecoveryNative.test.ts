@@ -13,7 +13,7 @@ import {
 } from '../roadWorkbenchRecoveryServer'
 import type { RoadWorkbenchCommand } from '../roadWorkbenchRecoveryContract'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
-import { verifyAlignmentMirrorSnapshot } from '../alignmentProjectSync'
+import { verifyAlignmentMirrorSnapshot, syncAlignmentProjectInputs } from '../alignmentProjectSync'
 import { hashDesignPayload } from '../designRevisions'
 import type { OwnedAlignment } from '../alignmentAccess'
 jest.mock('@/lib/db', () => ({ db: {} }))
@@ -50,6 +50,7 @@ native(
       'src/lib/db/queryBuilder.ts',
       'src/app/api/db/route.ts',
       'src/lib/engineering/alignmentProjectSync.ts',
+      'src/app/api/engineering/ips/route.ts',
     ]
     const hashes = async () =>
         Object.fromEntries(
@@ -139,10 +140,17 @@ native(
       expect(stale.data).toEqual([])
       check('actual conditional UPDATE refuses an older snapshot after a newer write',true)
       const alignment={project_id:project} as OwnedAlignment
+      await expect(verifyAlignmentMirrorSnapshot(scope,alignment)).rejects.toMatchObject({statusCode:409,code:'ENGINEERING_SNAPSHOT_REQUIRED'})
+      await expect(syncAlignmentProjectInputs(scope,alignment,'ips',[])).rejects.toMatchObject({statusCode:409,code:'ENGINEERING_SNAPSHOT_REQUIRED'})
+      check('actual saved engineering project refuses blind legacy edits and obsolete sync-back',true)
       await expect(verifyAlignmentMirrorSnapshot(scope,alignment,hashDesignPayload({engineering}))).rejects.toThrow(/changed/i)
       expect(await verifyAlignmentMirrorSnapshot(scope,alignment,hashDesignPayload({engineering:newer}))).toBe(true)
       check('actual mirror precondition refuses a delayed copy and accepts the exact saved snapshot',true)
       await client.query('UPDATE projects SET engineering_data=NULL WHERE id=$1',[project])
+      expect(await verifyAlignmentMirrorSnapshot(scope,alignment)).toBe(false)
+      await syncAlignmentProjectInputs(scope,alignment,'ips',[])
+      expect((await client.query<{engineering_data:unknown}>('SELECT engineering_data FROM projects WHERE id=$1',[project])).rows[0].engineering_data).toBeNull()
+      check('standalone alignment editing admits SQL-null drafts without creating project JSON',true)
       const initialized=await new QueryBuilder(scope,'projects').update({engineering_data:engineering}).eq('id',project).eq('user_id',actor).is('engineering_data',null)
       expect(initialized.error).toBeNull()
       expect(initialized.data).toHaveLength(1)
@@ -318,9 +326,9 @@ native(
       ).toEqual(migrations)
       check('applied migration hashes are unchanged', true)
       expect(await hashes()).toEqual(sourceHashes)
-      await mkdir('.cache/engineering-cas', { recursive: true })
+      await mkdir('.cache/engineering-writer-boundary', { recursive: true })
       await writeFile(
-        '.cache/engineering-cas/native-sql.json',
+        '.cache/engineering-writer-boundary/native-sql.json',
         JSON.stringify(
           {
             checkedAt: new Date().toISOString(),

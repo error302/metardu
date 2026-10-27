@@ -458,3 +458,11 @@ do not write back into project JSON. See
 durable legacy outcomes/reference binding, complete mirror consistency and all
 existing terrain, interchange, customer/provider/recovery and release gates remain
 open. This is not a production promotion.
+
+27 October canonical road writer boundary: legacy alignment header/child edits
+without a source snapshot now refuse projects with existing engineering JSON.
+Individual PI edits use the same guard, and the obsolete child-to-project JSON
+write was removed. Real SQL-null standalone alignments retain their existing
+input/history path. See `ENGINEERING_WRITER_BOUNDARY_2026-10-27.md`. Mirror atomicity,
+legacy request/reference binding, retained terrain, revision-bound interchange
+and existing customer/provider/recovery/production/field gates remain open.

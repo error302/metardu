@@ -29,8 +29,9 @@ jest.mock('@/lib/observations/observationBatches', () => ({ recordEvidenceEvent:
 const fixtureCrs = 'EPSG:32737'
 const input = [{ name: 'A', easting: 0, northing: 0, radius: 0 }, { name: 'PI', easting: 100, northing: 0, radius: 20 }, { name: 'B', easting: 100, northing: 100, radius: 0 }]
 let owner = 'owner', stored: Array<Record<string, unknown>> = []
+let projectEngineering: unknown = null
 const query = jest.fn(async (sql: string, params: unknown[] = []): Promise<{ rows: Array<Record<string, unknown>> }> => {
-  if (/FROM road_alignments|JOIN road_alignments|FROM projects/.test(sql)) return { rows: [{ id: 'alignment', alignment_id: 'alignment', project_id: 'project', project_owner: owner, user_id: owner, road_name: 'Synthetic Road', start_chainage: 1000, coordinate_system: fixtureCrs }] }
+  if (/FROM road_alignments|JOIN road_alignments|FROM projects/.test(sql)) return { rows: [{ id: 'alignment', alignment_id: 'alignment', project_id: 'project', project_owner: owner, user_id: owner, road_name: 'Synthetic Road', start_chainage: 1000, coordinate_system: fixtureCrs, engineering_data:projectEngineering }] }
   if (/FROM alignment_ips/.test(sql)) return { rows: stored }
   if (/DELETE FROM alignment_ips/.test(sql)) { stored = []; return { rows: [] } }
   if (/INSERT INTO alignment_ips/.test(sql)) {
@@ -53,6 +54,7 @@ const invoke = (handler: unknown, body?: unknown, url = '/api/engineering/ips') 
 beforeEach(() => {
   jest.restoreAllMocks()
   jest.clearAllMocks(); owner = 'owner'; stored = []
+  projectEngineering=null
   jest.mocked(db.getClient).mockResolvedValue(client as unknown as import('pg').PoolClient)
   jest.mocked(db.query).mockImplementation(query as unknown as typeof db.query)
   jest.mocked(db.transaction).mockImplementation(async callback => callback(client as unknown as import('pg').PoolClient))
@@ -83,9 +85,9 @@ it('does not accept caller-authored computed geometry through PUT', async () => 
   expect(query).not.toHaveBeenCalled()
 })
 
-it('synchronizes accepted inputs with the matching canonical project draft before commit', async () => {
-  await invoke(saveIPs, { alignment_id: 'alignment', ips: input })
-  expect(query.mock.calls.some(([sql]) => /^\s*UPDATE projects/.test(sql) && sql.includes('jsonb_set') && sql.includes('roadName'))).toBe(true)
+it('saves standalone legacy inputs without adopting or replacing a project engineering draft', async () => {
+  expect((await invoke(saveIPs, { alignment_id: 'alignment', ips: input })).status).toBe(200)
+  expect(query.mock.calls.some(([sql]) => /^\s*UPDATE projects/.test(sql))).toBe(false)
 })
 
 it.each([
@@ -126,4 +128,18 @@ it.each([
   expect(verify).toHaveBeenCalledWith(client,expect.objectContaining({id:'alignment'}),'a'.repeat(64))
   expect(sync).toHaveBeenCalledWith(client,expect.objectContaining({id:'alignment'}),expect.any(String),expect.any(Array),true)
   expect(query.mock.calls.some(([sql])=>/^\s*UPDATE projects/.test(sql))).toBe(false)
+})
+
+it.each([
+  [saveIPs,{alignment_id:'alignment',ips:input}],
+  [saveVIPs,{alignment_id:'alignment',vips:[]}],
+  [saveStations,{alignment_id:'alignment',stations:[]}],
+  [updateIP,{id:'11111111-1111-4111-8111-111111111111',radius:20}],
+])('refuses legacy child edits before any mutation when a saved engineering draft exists',async(handler,body)=>{
+  projectEngineering={mode:'road',road:{roadName:'Synthetic Road',ips:[]}}
+  stored=[{id:'11111111-1111-4111-8111-111111111111',alignment_id:'alignment',name:'A',easting:0,northing:0,radius:0}]
+  const response=await invoke(handler,body)
+  expect(response.status).toBe(409)
+  expect(await response.json()).toMatchObject({code:'ENGINEERING_SNAPSHOT_REQUIRED'})
+  expect(query.mock.calls.some(([sql])=>/^\s*(UPDATE|INSERT|DELETE)\b/.test(sql))).toBe(false)
 })

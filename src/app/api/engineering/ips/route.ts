@@ -26,6 +26,7 @@ export const PUT = apiHandler({ auth: true, schema: UpdateIPInputsSchema, rateLi
     const { rows: found } = await client.query<{ alignment_id: string }>('SELECT alignment_id FROM alignment_ips WHERE id = $1', [id])
     if (!found[0]) throw new NotFoundError('Intersection point not found')
     const alignment = await lockOwnedAlignment(client, found[0].alignment_id, ctx.userId)
+    await verifyAlignmentMirrorSnapshot(client,alignment)
     const { rows } = await client.query<Record<string, unknown>>('SELECT * FROM alignment_ips WHERE alignment_id = $1 ORDER BY sort_order, created_at, id FOR UPDATE', [alignment.id])
     if (!rows.some(row => row.id === id)) throw new NotFoundError('Intersection point no longer belongs to this alignment')
     const inputs = rows.map(row => row.id !== id ? horizontalRowInput(row) : { ...horizontalRowInput(row), ...change,

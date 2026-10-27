@@ -72,7 +72,7 @@ beforeEach(() => {
     if (sql.includes('FROM survey_points')) return { rows: [{ name: 'A', easting: 500000, northing: 9860000 }] }
     if (sql.includes('FROM project_fieldbook_entries')) return { rows: fieldRows }
     if (sql.includes('FROM project_reference_systems')) return { rows: [{ horizontal_crs: declaredWgs84Crs, datum_name: 'WGS 84', distance_mode: 'grid', coordinate_precision: 3 }] }
-    return { rows: [{ id: 'project-1', user_id: 'user-1', revision: '2026-10-08', boundary_data: { startControl }, datum: 'Arc1960', utm_zone: 37, hemisphere: 'S', survey_type: 'cadastral' }] }
+    return { rows: [{ id: 'project-1', user_id: 'user-1', revision: '2026-10-08', boundary_data: { startControl }, datum: 'Arc1960', utm_zone: 37, hemisphere: 'S', survey_type: 'cadastral', engineering_data:null }] }
   })
   mockTransaction.mockImplementation(async (work: (client: typeof mockClient) => Promise<unknown>) => {
     const before = saved
@@ -122,6 +122,18 @@ test('a rejected mirror snapshot prevents the header write and its revision',asy
   const verify=jest.spyOn(alignmentMirror,'verifyAlignmentMirrorSnapshot').mockRejectedValue(new Error('Synthetic changed project'))
   expect((await alignmentRequest('a'.repeat(64))).status).toBeGreaterThanOrEqual(400)
   expect(verify).toHaveBeenCalledWith(mockClient,{project_id:'project-1'},'a'.repeat(64))
+  expect(saved).toBe(false)
+  expect(mockRevision).not.toHaveBeenCalled()
+})
+
+test('a header request without its source snapshot cannot edit a canonical engineering project',async()=>{
+  const original=mockQuery.getMockImplementation()
+  mockQuery.mockImplementation(async(sql:string,...args:unknown[])=>{
+    if(sql.includes('SELECT engineering_data FROM projects'))return{rows:[{engineering_data:{mode:'road',road:{roadName:'Road A'}}}]}
+    if(!original)throw Error('Missing synthetic query')
+    return original(sql,...args)
+  })
+  expect((await alignmentRequest()).status).toBeGreaterThanOrEqual(400)
   expect(saved).toBe(false)
   expect(mockRevision).not.toHaveBeenCalled()
 })

@@ -75,3 +75,9 @@ physical-phone checks, provider/paid lifecycle, rejected customer clone/restore
 admission, worker artifact alignment, owner-deferred signing-key work and coherent
 production promotion retain their gates. Preserve Cloudflare parcel containment
 and the localhost CAD training drawing.
+
+The following writer-boundary checkpoint is recorded in
+`ENGINEERING_WRITER_BOUNDARY_2026-10-27.md`. Its guard now refuses direct legacy
+edits against existing canonical engineering JSON and removes the obsolete
+sync-back write. SQL-null standalone alignments remain available. Its expanded
+native receipt is separate from the historical 13-check receipt in this document.
