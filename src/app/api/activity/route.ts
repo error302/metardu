@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server'
+import { z } from 'zod'
+import { activityFeedQuery, type ActivityFeedRow } from '@/lib/activityFeed'
 import { apiHandler, apiSuccess } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { getAuthUser } from '@/lib/auth/session'
@@ -22,7 +24,7 @@ export const dynamic = 'force-dynamic'
 /**
  * GET /api/activity
  *
- * Returns the current user's activity feed.
+ * Returns personal entries and project records/audit events within current read access.
  * Query params:
  *   - project_id: filter by project
  *   - limit: max results (default 20, max 50)
@@ -30,36 +32,28 @@ export const dynamic = 'force-dynamic'
  */
 export const GET = apiHandler(
   { auth: true, rateLimit: { max: 120, windowMs: 60000 } },
-  async (req, _ctx) => {
-    const user = await getAuthUser()
-    if (!user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
+  async (req, ctx) => {
     const url = new URL(req.url)
-    const projectId = url.searchParams.get('project_id')
-    const limit = Math.min(50, parseInt(url.searchParams.get('limit') || '20', 10))
-    const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10))
-
-    const params: unknown[] = [user.id, limit, offset]
-    let projectFilter = ''
-    if (projectId) {
-      projectFilter = ' AND project_id = $4'
-      params.push(projectId)
+    const parsed = z.object({
+      project_id: z.string().uuid().nullable(),
+      limit: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(1).max(50)),
+      offset: z.string().regex(/^\d+$/).transform(Number).pipe(z.number().int().min(0).max(100_000)),
+    }).safeParse({
+      project_id: url.searchParams.get('project_id'),
+      limit: url.searchParams.get('limit') ?? '20',
+      offset: url.searchParams.get('offset') ?? '0',
+    })
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid activity filters', code: 'VALIDATION_ERROR' }, { status: 400 })
     }
-
-    const result = await db.query<UserActivityRow>(
-      `SELECT id, project_id, activity_type, entity_type, entity_id, description, metadata, created_at
-       FROM user_activity
-       WHERE user_id = $1${projectFilter}
-       ORDER BY created_at DESC
-       LIMIT $2 OFFSET $3`,
-      params,
+    const { project_id: projectId, limit, offset } = parsed.data
+    const result = await db.query<ActivityFeedRow>(
+      activityFeedQuery, [ctx.userId, limit + 1, offset, projectId],
     )
-
+    const activities = result.rows.slice(0, limit)
     return apiSuccess({
-      activities: result.rows,
-      pagination: { limit, offset, total: result.rows.length },
+      activities,
+      pagination: { limit, offset, total: activities.length, hasMore: result.rows.length > limit },
     })
   },
 )

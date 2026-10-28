@@ -26,6 +26,7 @@ test.describe('Landing page', () => {
     await expect(page.getByText(/Keep field evidence, computations, maps, and draft outputs together/)).toBeVisible()
     await expect(page.getByRole('link', { name: 'Try the interactive sample' })).toHaveAttribute('href', '/demo')
     await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
+    await expect(page.locator('main a[href="/dashboard"]')).toHaveCount(0)
   })
 
   test('shows real reference photography with visible source and license credits', async ({ page }) => {

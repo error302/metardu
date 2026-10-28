@@ -42,3 +42,10 @@ it('aborts the pending activity request when the widget unmounts', () => {
   unmount()
   expect(signal.aborted).toBe(true)
 })
+
+it('identifies a shared project and actor without exposing an audit payload', async () => {
+  mockFetch.mockResolvedValueOnce(ok([{ ...activity, id: 'audit:a1', description: 'Parcel · update', actor_name: 'Crew member', project_name: 'Shared subdivision', source: 'project_audit' }]))
+  render(<ActivityFeed />)
+  await act(async () => {})
+  expect(screen.getByRole('link', { name: /Parcel · update/ })).toHaveTextContent('Crew member · Shared subdivision')
+})

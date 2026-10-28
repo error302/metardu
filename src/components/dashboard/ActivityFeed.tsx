@@ -25,6 +25,8 @@ import {
 const activityResponseSchema = z.object({ activities: z.array(z.object({
   id: z.string(), project_id: z.string().nullable(), activity_type: z.string(),
   entity_type: z.string().nullable(), description: z.string(), created_at: z.string(),
+  project_name: z.string().nullable().optional(), actor_name: z.string().optional(),
+  source: z.enum(['personal', 'project_record', 'project_audit']).optional(),
 })) })
 type Activity = z.infer<typeof activityResponseSchema>['activities'][number]
 
@@ -99,7 +101,7 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
           </div>
           <div>
             <h3 className="text-sm font-semibold text-[var(--text-primary)]">Recent activity</h3>
-            <p className="text-xs text-[var(--text-muted)]">Updates from your survey work</p>
+            <p className="text-xs text-[var(--text-muted)]">Updates from projects you can access</p>
           </div>
         </div>
       </div>
@@ -115,7 +117,7 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
           <Clock className="w-8 h-8 text-[var(--text-muted)] mb-2" />
           <p className="text-sm text-[var(--text-secondary)]">No recent activity</p>
           <p className="text-xs text-[var(--text-muted)] mt-1">
-            Create a project or run a computation to see activity here.
+            Project creation and recorded project changes appear here.
           </p>
         </div>
       ) : (
@@ -136,7 +138,8 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-[var(--text-primary)] leading-tight">{activity.description}</p>
-                    <div className="flex items-center gap-2 mt-0.5">
+                    {(activity.project_name || activity.actor_name) && <p className="mt-1 text-xs text-[var(--text-secondary)] break-words">{[activity.actor_name, activity.project_name].filter(Boolean).join(' · ')}</p>}
+                    <div className="flex flex-wrap items-center gap-2 mt-0.5">
                       <span className="text-xs text-[var(--text-muted)]">{timeAgo(activity.created_at)}</span>
                       {activity.entity_type && (
                         <span className="text-[10px] text-[var(--text-muted)] px-1 py-0.5 rounded bg-[var(--bg-tertiary)]">
@@ -150,9 +153,9 @@ export function ActivityFeed({ limit = 10 }: { limit?: number }) {
             )
 
             return href ? (
-              <Link key={activity.id} href={href}>{content}</Link>
+              <Link key={activity.id} href={href} className="relative block">{content}</Link>
             ) : (
-              <div key={activity.id}>{content}</div>
+              <div key={activity.id} className="relative">{content}</div>
             )
           })}
         </div>

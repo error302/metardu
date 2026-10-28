@@ -92,14 +92,11 @@ function HeroSection() {
             Keep field evidence, computations, maps, and draft outputs together in one survey project.
           </p>
           <div className={styles.heroActions}>
-            <Link href="/dashboard" className={styles.primaryAction}>
-              Open dashboard <span aria-hidden>→</span>
-            </Link>
-            <Link href="/register" className={styles.secondaryAction}>
+            <Link href="/register" className={styles.primaryAction}>
               Create an account <span aria-hidden>↗</span>
             </Link>
           </div>
-          <p className={styles.heroNote}>Your dashboard opens projects, field records, maps, and drawings. <Link href="/demo" className="underline underline-offset-4">Try the interactive sample</Link> with synthetic data before signing in.</p>
+          <p className={styles.heroNote}><Link href="/demo" className="underline underline-offset-4">Try the interactive sample</Link> with synthetic data before signing in.</p>
         </div>
 
         <figure className={styles.heroPhoto}>
