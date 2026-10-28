@@ -1,0 +1,3 @@
+## 2024-05-19 - Replace Math.min/max spread anti-pattern with loop for bounding box
+**Learning:** Using `Math.min(...array)` or `Math.max(...array)` with the spread operator on large datasets (like point cloud points or IDW samples) causes V8 "Maximum call stack size exceeded" errors and excessive memory allocation, as JavaScript engines have limits on the number of arguments a function can take.
+**Action:** Always use `for` loops (or `.reduce()`) instead of the spread operator with `Math.min()` and `Math.max()` when calculating bounds or min/max values on potentially large arrays in this codebase.
