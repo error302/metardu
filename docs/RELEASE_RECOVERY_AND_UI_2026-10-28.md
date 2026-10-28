@@ -180,3 +180,11 @@ raised. The selected follow-up requires its own source, CI and image evidence.
 The Docker ignore list retains its verifier-script exclusion and adds only the
 exact native PDF preflight exception required by the dependency-stage COPY.
 Private QA scripts and unrelated verification sources remain excluded.
+
+The new native acceptance initially ran in the dependency-free security-contract
+job and correctly failed there because no library install exists in that job.
+It now runs immediately after npm ci in the existing TypeScript job; the security
+contract command is restored unchanged. No native assertion or skip is removed.
+The 9502b0e9 source admission was explicitly cancelled during related tests to
+supersede this CI placement error; its failed receipt is retained, and it never
+started an image build or changed production.
