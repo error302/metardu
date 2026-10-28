@@ -126,3 +126,10 @@ follow-up revision requires its own clean pinned source receipt and CI results.
 
 Production remains the older 08fae427 app with worker artifact drift. These
 follow-up source results are not deployment evidence.
+
+The d3809cb8 navigation and sign-in browser shards passed. ControlBook has
+two equivalent Add Row actions inside its own region; its two browser tests
+now explicitly choose the header action. The related source run passed 575
+suites and 5,356 tests before its owned whole-lint subprocess was deliberately
+cancelled to supersede the known browser failure. That admission receipt remains
+failed and cannot admit promotion; the final revision requires fresh admission.
