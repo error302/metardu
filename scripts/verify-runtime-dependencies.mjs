@@ -1,3 +1,4 @@
+await import('./verify-pdf-native-runtime.mjs')
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import { createRequire, Module } from 'node:module'

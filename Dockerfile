@@ -12,6 +12,7 @@ RUN --mount=type=cache,id=metardu-apk-downloads,target=/var/cache/apk,sharing=lo
 COPY package.json package-lock.json* ./
 COPY eslint-plugin-metardu/ ./eslint-plugin-metardu/
 COPY scripts/patch-cssnano.js ./scripts/patch-cssnano.js
+COPY scripts/verify-pdf-native-runtime.mjs ./scripts/verify-pdf-native-runtime.mjs
 # Use the Node headers already shipped in node:22-alpine instead of letting
 # node-gyp download them from unofficial-builds.nodejs.org. Some build
 # networks (e.g. the Oracle Cloud VM) time out fetching those headers even
@@ -24,8 +25,12 @@ ENV PUPPETEER_SKIP_DOWNLOAD=true
 # concurrent transfers on slower origins; lockfile integrity remains enforced.
 # Dependency security auditing is a separate CI gate, not a build-time fetch.
 RUN --mount=type=cache,id=metardu-npm-downloads,target=/root/.npm \
-    npm ci --legacy-peer-deps --prefer-offline --no-audit --no-fund \
-      --maxsockets=5 --fetch-timeout=600000
+    for attempt in 1 2 3; do \
+      if npm ci --legacy-peer-deps --include=optional --libc=musl --prefer-offline --no-audit --no-fund \
+        --maxsockets=5 --fetch-timeout=600000 && node scripts/verify-pdf-native-runtime.mjs; then exit 0; fi; \
+      if [ "$attempt" -eq 3 ]; then exit 1; fi; \
+      sleep 5; \
+    done
 
 FROM deps AS builder
 WORKDIR /app

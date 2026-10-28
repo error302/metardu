@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import Drawing from 'dxf-writer'
-import { version as dxfWriterVersion } from 'dxf-writer/package.json'
-import { version as proj4Version } from 'proj4/package.json'
+import dxfWriterPackage from 'dxf-writer/package.json'
+import proj4Package from 'proj4/package.json'
 import { canonicalJSON } from '@/lib/audit/auditHash'
 import { AppError } from '@/lib/api/errors'
 import {
@@ -89,7 +89,7 @@ export function buildSchemeArtifact(
     format === 'geojson'
       ? {
           engine: 'proj4',
-          version: proj4Version,
+          version: proj4Package.version,
           source: definition,
           target,
           dimensions: 2,
@@ -202,7 +202,7 @@ export function buildSchemeArtifact(
       sourceDefinition: definition,
       encoder:
         format === 'dxf'
-          ? { name: 'dxf-writer', version: dxfWriterVersion }
+          ? { name: 'dxf-writer', version: dxfWriterPackage.version }
           : {
               name: 'ECMAScript JSON',
               engine: 'Node.js',

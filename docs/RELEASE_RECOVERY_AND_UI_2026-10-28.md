@@ -148,3 +148,31 @@ zero violations at the unchanged minor threshold, zero hydration failures and
 zero authentication failures. Excluded protected routes retain their independent
 acceptance requirements. Its navigation and sign-in shards also passed; final
 fieldbook and phone-readiness corrections require the next exact-source CI run.
+
+## Actual Alpine candidate gate
+
+Checkpoint 38ddb799 passed every GitHub CI job: 759 suites and 7,274 tests,
+with four suites and ten tests already skipped. Its full pinned source receipt
+passed: all 3,354 owned files had zero lint errors/warnings, app/test/tool types
+and 575 related suites passed, as did all eleven native upgrade checks and the
+actual rollback startup verifier. Nevertheless its Docker candidate failed at
+standalone preparation after successful compilation and type checking: PDF.js
+could not load @napi-rs/canvas-linux-x64-musl. The failed receipt and build log
+are retained; no production migration, replacement or worker promotion occurred.
+
+The lockfile already includes that exact native package. The repair makes the
+already installed 0.1.97 canvas library a required direct dependency; all existing
+package versions and integrity hashes are unchanged. Alpine installation explicitly
+includes optional dependencies and selects musl using npm's documented libc
+setting (https://docs.npmjs.com/cli/v10/using-npm/config/#libc). A real native
+preflight now runs immediately after locked installation and blocks on missing
+constructors/bindings, incorrect observed pixels or invalid PNG output. Installation
+and preflight have three bounded attempts before failing. The same native probe
+is exercised on Windows and CI Linux; an actual subprocess with a deliberately
+unavailable binding proves it cannot silently pass. The full image must pass
+its own Alpine check and final standalone preparation before promotion.
+
+Two observed package-version named-import warnings are repaired with default
+JSON imports, preserving the exact recorded version strings. Workbox's 6.02 MB
+chunk exclusion remains a distinct offline-cache limitation; its threshold is not
+raised. The selected follow-up requires its own source, CI and image evidence.

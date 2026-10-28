@@ -71,6 +71,7 @@
     "@leeskies/capacitor-usb-serial": "^0.1.0",
     "@mlc-ai/web-llm": "^0.2.84",
     "@modelcontextprotocol/sdk": "^1.32.0",
+    "@napi-rs/canvas": "0.1.97",
     "@next/env": "15.5.28",
     "@radix-ui/react-accordion": "^1.2.12",
     "@radix-ui/react-alert-dialog": "^1.1.15",
