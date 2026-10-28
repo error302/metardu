@@ -24,7 +24,6 @@ import { OfflineCacheIndicator } from './MobileFieldUX'
 import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
 import type { BookQualitySummary } from '@/lib/fieldbook/qualitySummary'
 import { SwipeableRow } from './FieldbookSwipeWrapper'
-import FieldbookInstallPrompt from '@/components/FieldbookInstallPrompt'
 import { logger } from '@/lib/logger'
 
 export type Row = { id: string; [key: string]: string }
@@ -171,7 +170,6 @@ export function MobileFieldbookShell({
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-3.5rem)] bg-[var(--bg-primary)]">
-      <FieldbookInstallPrompt />
       {/* ─── Capture status ─── */}
       <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">

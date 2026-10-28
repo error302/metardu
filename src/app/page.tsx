@@ -95,6 +95,9 @@ function HeroSection() {
             <Link href="/register" className={styles.primaryAction}>
               Create an account <span aria-hidden>↗</span>
             </Link>
+            <Link href="/install" className={styles.secondaryAction}>
+              Install the app <span aria-hidden>↗</span>
+            </Link>
           </div>
           <p className={styles.heroNote}><Link href="/demo" className="underline underline-offset-4">Try the interactive sample</Link> with synthetic data before signing in.</p>
         </div>

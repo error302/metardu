@@ -59,7 +59,7 @@ function isFieldbookRoute(pathname: string): boolean {
 // chunks and the 1.5s branded splash directly inflates LCP/FCP on the
 // first visit (the landing page is what Lighthouse scores).
 function isMarketingRoute(pathname: string): boolean {
-  return pathname === '/' || pathname === '/pricing' || pathname === '/enterprise' || pathname.startsWith('/connect/chatgpt')
+  return pathname === '/' || pathname === '/install' || pathname === '/offline' || pathname === '/pricing' || pathname === '/enterprise' || pathname.startsWith('/connect/chatgpt')
 }
 /* ── Shell Component ─────────────────────────────────────────────── */
 

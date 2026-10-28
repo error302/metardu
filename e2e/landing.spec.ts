@@ -27,6 +27,7 @@ test.describe('Landing page', () => {
     await expect(page.getByRole('link', { name: 'Try the interactive sample' })).toHaveAttribute('href', '/demo')
     await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
     await expect(page.locator('main a[href="/dashboard"]')).toHaveCount(0)
+    await expect(page.locator('main').getByRole('link', { name: 'Install the app' })).toHaveAttribute('href', '/install')
   })
 
   test('shows real reference photography with visible source and license credits', async ({ page }) => {

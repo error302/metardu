@@ -101,6 +101,8 @@ export function isExplicitPublicRoute(pathname: string | null | undefined) {
     '/docs',
     '/guide',
     '/pricing',
+    '/install',
+    '/offline',
     '/demo',
     '/online',
     '/login',

@@ -1,239 +1,57 @@
-'use client';
-
-/**
- * PWAInstallBanner
- * ────────────────────────────────────────────────────────────────────────────
- * A dismissible install banner that:
- *   • Listens for the browser's `beforeinstallprompt` event (Android Chrome,
- *     Edge desktop, etc.) and reveals an "Install app" CTA.
- *   • Falls back to manual iOS instructions for iOS Safari (which doesn't
- *     fire `beforeinstallprompt` — Apple requires users to use Share →
- *     Add to Home Screen manually).
- *   • Remembers dismissal for 14 days via localStorage so we don't nag.
- *   • Auto-hides once the app is running in standalone mode (already
- *     installed).
- *
- * Render this once near the top of AppShell.
- */
+'use client'
 
 import { useEffect, useState } from 'react'
-import { Download, X, Share, PlusSquare } from 'lucide-react'
+import Link from 'next/link'
+import { Download, X } from 'lucide-react'
 import { useLanguage } from '@/lib/i18n/LanguageContext'
+import { usePWAInstall } from './PWAInstallProvider'
 
 const DISMISS_KEY = 'metardu_pwa_install_dismissed_at'
-const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000 // 14 days
-
-type Platform = 'android-chrome' | 'ios-safari' | 'desktop-chrome' | 'unsupported'
-
-function detectPlatform(): Platform {
-  if (typeof window === 'undefined') return 'unsupported'
-  const ua = navigator.userAgent.toLowerCase()
-  const isIOS = /iphone|ipad|ipod/.test(ua)
-  const isSafari = /^((?!chrome|android|crios|fxios).)*safari/.test(ua)
-  if (isIOS && isSafari) return 'ios-safari'
-  const isAndroid = /android/.test(ua)
-  if (isAndroid && /chrome|edge/.test(ua)) return 'android-chrome'
-  if (/chrome|edge/.test(ua) && !isAndroid) return 'desktop-chrome'
-  return 'unsupported'
-}
-
-function isStandalone(): boolean {
-  if (typeof window === 'undefined') return false
-  // iOS Safari
-  if (navigator.standalone === true) return true
-  // Android Chrome / Edge
-  if (window.matchMedia('(display-mode: standalone)').matches) return true
-  return false
-}
-
-function wasRecentlyDismissed(): boolean {
+const DISMISS_TTL_MS = 14 * 24 * 60 * 60 * 1000
+function recentlyDismissed() {
   try {
-    const ts = Number(localStorage.getItem(DISMISS_KEY) || 0)
-    if (!ts) return false
-    return Date.now() - ts < DISMISS_TTL_MS
-  } catch {
-    return false
-  }
+    const timestamp = Number(localStorage.getItem(DISMISS_KEY))
+    return Number.isFinite(timestamp) && timestamp > 0 && Date.now() - timestamp >= 0 && Date.now() - timestamp < DISMISS_TTL_MS
+  } catch { return false }
 }
 
-function markDismissed() {
-  try {
-    localStorage.setItem(DISMISS_KEY, String(Date.now()))
-  } catch {
-    /* ignore quota errors */
-  }
-}
-
-interface BeforeInstallPromptEvent extends Event {
-  prompt: () => Promise<{ outcome: 'accepted' | 'dismissed' }>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
-
-export function PWAInstallBanner() {
+/** In-flow only: one shared prompt, no modal over active survey controls. */
+export function PWAInstallBanner({ manual = false }: { manual?: boolean }) {
   const { t, hydrated } = useLanguage()
-  const [visible, setVisible] = useState(false)
-  const [platform, setPlatform] = useState<Platform>('unsupported')
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
-  const [showIosSheet, setShowIosSheet] = useState(false)
-
+  const { available, accepted, installed, busy, ios, error, install } = usePWAInstall()
+  const [dismissed, setDismissed] = useState(false)
+  const [iosReady, setIosReady] = useState(false)
+  useEffect(() => { setDismissed(recentlyDismissed()) }, [])
   useEffect(() => {
-    if (isStandalone() || wasRecentlyDismissed()) return
-    setPlatform(detectPlatform())
-
-    const handler = (e: Event) => {
-      e.preventDefault()
-      setDeferredPrompt(e as BeforeInstallPromptEvent)
-      setVisible(true)
-    }
-    window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
-
-  // iOS Safari never fires beforeinstallprompt — show banner after a short delay
-  // so the user has time to engage with the page first.
-  useEffect(() => {
-    if (platform !== 'ios-safari' || isStandalone() || wasRecentlyDismissed()) return
-    const t = setTimeout(() => setVisible(true), 4000)
-    return () => clearTimeout(t)
-  }, [platform])
-
+    if (!ios || manual) return
+    const timer = setTimeout(() => setIosReady(true), 4000)
+    return () => clearTimeout(timer)
+  }, [ios, manual])
   const dismiss = () => {
-    setVisible(false)
-    setShowIosSheet(false)
-    markDismissed()
+    setDismissed(true)
+    try { localStorage.setItem(DISMISS_KEY, String(Date.now())) } catch { /* Storage may be unavailable. */ }
   }
-
-  const handleInstallClick = async () => {
-    if (platform === 'ios-safari') {
-      setShowIosSheet(true)
-      return
-    }
-    if (!deferredPrompt) return
-    await deferredPrompt.prompt()
-    const choice = await deferredPrompt.userChoice
-    if (choice.outcome === 'accepted') {
-      setVisible(false)
-    } else {
-      // User dismissed the native prompt — don't show our banner again for a while.
-      dismiss()
-    }
-    setDeferredPrompt(null)
-  }
-
-  if (!visible || !hydrated) return null
-
+  if (!hydrated || (!manual && (installed || dismissed || (!available && !iosReady && !error && !busy)))) return null
   return (
-    <>
-      {/* ─── Banner ─── */}
-      <div
-        role="region"
-        aria-label={t('pwa.installTitle')}
-        className="relative mx-auto my-3 w-[calc(100%-2rem)] max-w-3xl"
-      >
-        <div className="relative bg-[var(--bg-card)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-2xl shadow-2xl shadow-[color-mix(in_srgb,var(--accent)_10%,transparent)] overflow-hidden">
-          {/* Top accent stripe */}
-          <div className="h-1 w-full bg-gradient-to-r from-[var(--accent)] via-amber-400 to-orange-300" />
-
-          <div className="p-4 flex items-start gap-3">
-            {/* App icon */}
-            <div className="grid place-items-center w-12 h-12 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent-dim)] text-black shrink-0 shadow-lg shadow-[color-mix(in_srgb,var(--accent)_20%,transparent)]">
-              <Download className="w-6 h-6" strokeWidth={2.5} />
-            </div>
-
-            <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-[var(--text-primary)] mb-0.5">
-                {t('pwa.installTitle')}
-              </h3>
-              <p className="text-xs text-[var(--text-muted)] leading-relaxed">
-                {platform === 'ios-safari'
-                  ? t('pwa.installDescriptionIOS')
-                  : t('pwa.installDescription')}
-              </p>
-
-              <div className="mt-3 flex items-center gap-2">
-                <button
-                  onClick={handleInstallClick}
-                  className="px-3 py-1.5 rounded-lg bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black text-xs font-semibold transition-colors active:scale-95"
-                >
-                  {platform === 'ios-safari' ? t('pwa.showMeHow') : t('pwa.installNow')}
-                </button>
-                <button
-                  onClick={dismiss}
-                  className="px-3 py-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)] text-xs font-medium transition-colors"
-                >
-                  {t('pwa.notNow')}
-                </button>
-              </div>
-            </div>
-
-            <button
-              onClick={dismiss}
-              aria-label="Close install banner"
-              className="p-1.5 rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-tertiary)] transition-colors"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
+    <section aria-label="Install METARDU" className="relative mx-auto my-3 w-[calc(100%-2rem)] max-w-3xl rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+      <div className="flex items-start gap-3">
+        <Download aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-[var(--accent)]" />
+        <div className="min-w-0 flex-1">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)]">{installed ? 'METARDU is installed' : accepted ? 'Finish installing METARDU' : t('pwa.installTitle')}</h2>
+          <p className="mt-1 text-sm leading-relaxed text-[var(--text-secondary)]">{installed ? 'Open METARDU from your Home Screen or app launcher.' : accepted ? 'Installation was requested. Finish the browser’s steps, then look for METARDU on your Home Screen or app launcher.' : 'Add METARDU to your Home Screen for a dedicated app window and quick access to your survey workspace.'}</p>
+          {!installed && <div className="mt-3 flex flex-wrap items-center gap-2">
+            {(available || busy) && <button type="button" disabled={busy} onClick={async () => {
+              const outcome = await install()
+              if (outcome === 'dismissed' && !manual) dismiss()
+            }} className="btn btn-primary min-h-11 disabled:opacity-60">{busy ? 'Opening installer…' : t('pwa.installNow')}</button>}
+            {!manual && <Link href="/install" className="btn btn-secondary min-h-11">Installation guide</Link>}
+            {!manual && <button type="button" onClick={dismiss} className="min-h-11 rounded-lg px-3 text-sm text-[var(--text-secondary)] underline">{t('pwa.notNow')}</button>}
+          </div>}
+          {manual && !installed && !accepted && !available && !busy && <p className="mt-3 text-sm text-[var(--text-secondary)]">Use the steps below if your browser does not show an install button. Browser support and install menus vary by device.</p>}
+          {error && <p role="alert" className="mt-3 text-sm text-[var(--text-primary)]">{error}</p>}
         </div>
+        {!manual && <button type="button" onClick={dismiss} aria-label="Close install banner" className="grid h-11 w-11 shrink-0 place-items-center rounded-lg hover:bg-[var(--bg-tertiary)]"><X aria-hidden="true" className="h-4 w-4" /></button>}
       </div>
-
-      {/* ─── iOS instructions sheet ─── */}
-      {showIosSheet && (
-        <div
-          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[70] flex items-end sm:items-center justify-center"
-          style={{ animation: 'fadeIn 0.2s ease-out' }}
-          onClick={() => setShowIosSheet(false)}
-        >
-          <div
-            className="bg-[var(--bg-primary)] border border-[var(--border-color)] rounded-t-2xl sm:rounded-2xl w-full max-w-sm p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-base font-semibold text-[var(--text-primary)]">
-                {t('pwa.addToHomeScreen')}
-              </h3>
-              <button
-                onClick={() => setShowIosSheet(false)}
-                className="p-1.5 rounded-lg hover:bg-[var(--bg-tertiary)] text-[var(--text-muted)]"
-                aria-label="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <ol className="space-y-3">
-              <li className="flex items-start gap-3">
-                <span className="grid place-items-center w-6 h-6 rounded-full bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] text-xs font-bold shrink-0 mt-0.5">1</span>
-                <div>
-                  <p className="text-sm text-[var(--text-primary)]">{t('pwa.safariStep1')}</p>
-                  <Share className="w-4 h-4 text-[var(--accent)] mt-1" />
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="grid place-items-center w-6 h-6 rounded-full bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] text-xs font-bold shrink-0 mt-0.5">2</span>
-                <div>
-                  <p className="text-sm text-[var(--text-primary)]">{t('pwa.safariStep2')}</p>
-                  <PlusSquare className="w-4 h-4 text-[var(--accent)] mt-1" />
-                </div>
-              </li>
-              <li className="flex items-start gap-3">
-                <span className="grid place-items-center w-6 h-6 rounded-full bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] text-[var(--accent)] text-xs font-bold shrink-0 mt-0.5">3</span>
-                <p className="text-sm text-[var(--text-primary)]">{t('pwa.safariStep3')}</p>
-              </li>
-            </ol>
-
-            <button
-              onClick={() => {
-                setShowIosSheet(false)
-                dismiss()
-              }}
-              className="w-full mt-5 py-3 rounded-xl bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black font-semibold text-sm transition-colors active:scale-95"
-            >
-              {t('pwa.gotIt')}
-            </button>
-          </div>
-        </div>
-      )}
-    </>
+    </section>
   )
 }

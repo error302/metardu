@@ -1,3 +1,4 @@
+import { PWAInstallProvider } from '@/components/app/PWAInstallProvider'
 import type { Metadata, Viewport } from 'next'
 
 import './globals.css'
@@ -153,9 +154,11 @@ export default function RootLayout({
                   }),
                 }}
               />
+              <PWAInstallProvider>
               <AppShell>
                 {children}
               </AppShell>
+              </PWAInstallProvider>
             </QueryProvider>
           </ThemeProvider>
         </AuthProvider>

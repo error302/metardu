@@ -195,7 +195,6 @@ export function SearchTrigger({ t }: { t: Translator }) {
 }
 
 export default function NavBar() {
-  const [, setInstallPrompt] = useState<{ prompt: () => Promise<{ outcome: string }> } | null>(null)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<PlanId>('free')
@@ -215,7 +214,7 @@ export default function NavBar() {
 
   // Helper to check if a route is a mobile root-level view
   const isRootPath = (path: string) => {
-    const roots = ['/', '/dashboard', '/projects', '/fieldbook', '/map', '/tools', '/reports', '/marketplace', '/equipment']
+    const roots = ['/', '/install', '/dashboard', '/projects', '/fieldbook', '/map', '/tools', '/reports', '/marketplace', '/equipment']
     return roots.includes(path)
   }
 
@@ -289,17 +288,6 @@ export default function NavBar() {
     }
     fetchPlan()
   }, [user?.id])
-
-  useEffect(() => {
-    const handleBeforeInstall = (e: Event) => {
-      e.preventDefault()
-      setInstallPrompt(e as unknown as { prompt: () => Promise<{ outcome: string }> })
-    }
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-    }
-  }, [])
 
   const handleSignOut = async () => {
     try {

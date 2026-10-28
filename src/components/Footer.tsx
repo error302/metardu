@@ -6,6 +6,7 @@ const navigation = [
   { label: 'Survey tools', href: '/tools' },
   { label: 'Pricing', href: '/pricing' },
   { label: 'Quick start', href: '/docs/quick-start' },
+  { label: 'Install the app', href: '/install' },
   { label: 'ChatGPT connection', href: '/connect/chatgpt' },
 ]
 const legal = [
