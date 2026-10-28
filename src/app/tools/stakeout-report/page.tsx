@@ -392,7 +392,7 @@ export default function StakeoutReportPage() {
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Project Name</label>
-                  <input
+                  <input aria-label="Project name"
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)] font-semibold"
                     placeholder="Project Name"
                     value={projectName}
@@ -401,7 +401,7 @@ export default function StakeoutReportPage() {
                 </div>
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Parcel / LR No.</label>
-                  <input
+                  <input aria-label="Parcel or land reference"
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
                     placeholder="L.R. No."
                     value={landReference}
@@ -410,7 +410,7 @@ export default function StakeoutReportPage() {
                 </div>
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Surveyor Name</label>
-                  <input
+                  <input aria-label="Surveyor name"
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
                     placeholder="Surveyor Name"
                     value={surveyorName}
@@ -419,7 +419,7 @@ export default function StakeoutReportPage() {
                 </div>
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Survey Instrument</label>
-                  <input
+                  <input aria-label="Survey instrument"
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
                     placeholder="Instrument"
                     value={instrument}
@@ -428,7 +428,7 @@ export default function StakeoutReportPage() {
                 </div>
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Survey Method</label>
-                  <select
+                  <select aria-label="Survey method"
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
                     value={method}
                     onChange={(e) => setMethod(e.target.value as typeof method)}
@@ -573,7 +573,7 @@ export default function StakeoutReportPage() {
                           </td>
                         ))}
                         <td className="py-1.5 px-2 text-center">
-                          <button
+                          <button aria-label={`Remove stakeout point ${idx + 1}`}
                             onClick={() => removePoint(idx)}
                             className="text-red-400 hover:text-red-300 p-1"
                             title="Remove"

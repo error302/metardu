@@ -332,7 +332,7 @@ export default function FeeQuotationPage() {
                     Survey Extent (Area)
                   </label>
                   <div className="flex rounded-xl overflow-hidden border border-[var(--border-color)] bg-black/20 focus-within:border-[var(--accent)]">
-                    <input
+                    <input aria-label="Survey area"
                       type="number"
                       step="0.01"
                       min="0.01"
@@ -377,7 +377,7 @@ export default function FeeQuotationPage() {
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                       Resultant Sub-Plots
                     </label>
-                    <input
+                    <input aria-label="Resultant sub-plots"
                       type="number"
                       min="1"
                       value={resultantPlots}
@@ -394,7 +394,7 @@ export default function FeeQuotationPage() {
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                       Currency
                     </label>
-                    <select
+                    <select aria-label="Quotation currency"
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                       className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
@@ -416,7 +416,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     Boundary Beacons (PSC/MB)
                   </label>
-                  <input
+                  <input aria-label="Boundary beacons to set"
                     type="number"
                     min="0"
                     value={beaconsToSet}
@@ -434,7 +434,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                     Mobilization Distance (km one-way)
                   </label>
-                  <input
+                  <input aria-label="One-way mobilization distance in kilometres"
                     type="number"
                     min="0"
                     value={distanceKm}
@@ -455,7 +455,7 @@ export default function FeeQuotationPage() {
                     <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                       Proposal Currency
                     </label>
-                    <select
+                    <select aria-label="Quotation currency"
                       value={currency}
                       onChange={(e) => setCurrency(e.target.value as CurrencyCode)}
                       className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-sm focus:outline-none focus:border-[var(--accent)]"
@@ -475,7 +475,7 @@ export default function FeeQuotationPage() {
                         KRA Statutory Value Added Tax
                       </div>
                     </div>
-                    <input
+                    <input aria-label="Include value added tax"
                       type="checkbox"
                       checked={includeVat}
                       onChange={(e) => setIncludeVat(e.target.checked)}
@@ -495,7 +495,7 @@ export default function FeeQuotationPage() {
                     +{customMarkupPercent}%
                   </span>
                 </div>
-                <input
+                <input aria-label="Complexity markup percentage"
                   type="range"
                   min="0"
                   max="50"
@@ -527,7 +527,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Client Full Name / Company
                   </label>
-                  <input
+                  <input aria-label="Client full name or company"
                     type="text"
                     value={clientName}
                     onChange={(e) => setClientName(e.target.value)}
@@ -540,7 +540,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Project / Assignment Title
                   </label>
-                  <input
+                  <input aria-label="Project or assignment title"
                     type="text"
                     value={projectName}
                     onChange={(e) => setProjectName(e.target.value)}
@@ -553,7 +553,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     LR / Parcel Number / Registration Block
                   </label>
-                  <input
+                  <input aria-label="Parcel number or registration block"
                     type="text"
                     value={lrNumber}
                     onChange={(e) => setLrNumber(e.target.value)}
@@ -566,7 +566,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Survey Practice / Firm Name
                   </label>
-                  <input
+                  <input aria-label="Survey practice or firm name"
                     type="text"
                     value={firmName}
                     onChange={(e) => setFirmName(e.target.value)}
@@ -579,7 +579,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Practising Surveyor Name
                   </label>
-                  <input
+                  <input aria-label="Practising surveyor name"
                     type="text"
                     value={surveyorName}
                     onChange={(e) => setSurveyorName(e.target.value)}
@@ -592,7 +592,7 @@ export default function FeeQuotationPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     ISK / SRB License Registration No.
                   </label>
-                  <input
+                  <input aria-label="Surveyor licence registration number"
                     type="text"
                     value={iskNumber}
                     onChange={(e) => setIskNumber(e.target.value)}
@@ -636,7 +636,7 @@ export default function FeeQuotationPage() {
               {activeTab === 'quote' ? (
                 /* Itemized Table */
                 <div className="space-y-4">
-                  <div className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
+                  <div role="region" aria-label="Quotation line items" tabIndex={0} className="space-y-3 max-h-[380px] overflow-y-auto pr-1">
                     {quoteResult.items.map((item, idx) => (
                       <div
                         key={item.id}
@@ -653,7 +653,7 @@ export default function FeeQuotationPage() {
                         <p className="text-[11px] text-[var(--text-secondary)] leading-relaxed">
                           {item.description}
                         </p>
-                        <div className="text-[10px] text-zinc-500 font-mono">
+                        <div className="text-[10px] text-[var(--text-secondary)] font-mono">
                           {item.quantity} {item.unit} @ {quoteResult.currency} {fmt(item.rate)}
                         </div>
                       </div>

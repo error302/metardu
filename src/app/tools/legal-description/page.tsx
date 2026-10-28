@@ -399,7 +399,7 @@ export default function LegalDescriptionPage() {
                   <Building className="w-4 h-4 text-[var(--accent)]" />
                   1. Title & Registration Particulars
                 </h2>
-                <select
+                <select aria-label="Boundary example selection"
                   value={selectedPreset}
                   onChange={(e) => handlePresetSelect(e.target.value)}
                   className="rounded-lg border border-[var(--border-color)] bg-black/20 px-2.5 py-1 text-xs focus:outline-none focus:border-[var(--accent)]"
@@ -418,7 +418,7 @@ export default function LegalDescriptionPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Land Reference / Parcel No.
                   </label>
-                  <input
+                  <input aria-label="Land reference or parcel number"
                     type="text"
                     value={landRef}
                     onChange={(e) => setLandRef(e.target.value)}
@@ -429,7 +429,7 @@ export default function LegalDescriptionPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Registration Section
                   </label>
-                  <input
+                  <input aria-label="Registration section"
                     type="text"
                     value={regSection}
                     onChange={(e) => setRegSection(e.target.value)}
@@ -440,7 +440,7 @@ export default function LegalDescriptionPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Locality & County
                   </label>
-                  <input
+                  <input aria-label="Locality"
                     type="text"
                     value={locality}
                     onChange={(e) => setLocality(e.target.value)}
@@ -451,7 +451,7 @@ export default function LegalDescriptionPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Declared metre-based coordinate reference
                   </label>
-                  <input type="text" placeholder="Enter the full CRS / grid reference from your source records"
+                  <input aria-label="Coordinate reference datum" type="text" placeholder="Enter the full CRS / grid reference from your source records"
                     value={datum}
                     onChange={(e) => { setDatum(e.target.value); setReferenceConfirmed(false) }}
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-xs focus:outline-none focus:border-[var(--accent)]"
@@ -461,7 +461,7 @@ export default function LegalDescriptionPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Licensed Land Surveyor
                   </label>
-                  <input
+                  <input aria-label="Surveyor name"
                     type="text"
                     value={surveyorName}
                     onChange={(e) => setSurveyorName(e.target.value)}
@@ -472,7 +472,7 @@ export default function LegalDescriptionPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     SRB License Registration No.
                   </label>
-                  <input
+                  <input aria-label="Surveyor licence number"
                     type="text"
                     value={surveyorLicense}
                     onChange={(e) => setSurveyorLicense(e.target.value)}
@@ -482,8 +482,8 @@ export default function LegalDescriptionPage() {
               </div>
             </div>
 
-            <label className="flex items-start gap-2 text-sm text-[var(--text-secondary)]"><input type="checkbox" checked={referenceConfirmed} onChange={event => setReferenceConfirmed(event.target.checked)} />I confirm these coordinates use the declared metre-based grid. This does not verify the boundary or establish ground distances.</label>
-            <label className="block text-sm">Recorded survey date (if known)<input type="date" value={surveyDate} onChange={event => setSurveyDate(event.target.value)} className="block border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2" /></label>
+            <label className="flex items-start gap-2 text-sm text-[var(--text-secondary)]"><input aria-label="Confirm the project reference" type="checkbox" checked={referenceConfirmed} onChange={event => setReferenceConfirmed(event.target.checked)} />I confirm these coordinates use the declared metre-based grid. This does not verify the boundary or establish ground distances.</label>
+            <label className="block text-sm">Recorded survey date (if known)<input aria-label="Survey date" type="date" value={surveyDate} onChange={event => setSurveyDate(event.target.value)} className="block border border-[var(--border-color)] bg-[var(--bg-secondary)] p-2" /></label>
             {selectedPreset && <p role="status" className="text-sm text-[var(--warning)]">Synthetic example. Edited outputs remain labelled synthetic.</p>}
             {/* Beacons Schedule Manager */}
             <div className="border border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-2xl p-5 space-y-3 shadow-sm">
@@ -514,15 +514,15 @@ export default function LegalDescriptionPage() {
                     key={idx}
                     className="flex items-center gap-2 p-2 rounded-xl border border-[var(--border-color)] bg-black/20 text-xs"
                   >
-                    <input
+                    <input aria-label={`Boundary beacon ${idx + 1} identifier`}
                       type="text"
                       value={b.id}
                       onChange={(e) => updateBeacon(idx, 'id', e.target.value)}
                       className="w-16 bg-transparent font-bold font-mono focus:outline-none text-[var(--accent)]"
                     />
                     <div className="flex-1 flex gap-1 items-center">
-                      <span className="text-[10px] text-zinc-500">E:</span>
-                      <input
+                      <span className="text-[10px] text-[var(--text-secondary)]">E:</span>
+                      <input aria-label={`Boundary beacon ${idx + 1} easting in metres`}
                         type="number"
                         step="0.001"
                         value={Number.isFinite(b.easting) ? b.easting : ''}
@@ -531,8 +531,8 @@ export default function LegalDescriptionPage() {
                       />
                     </div>
                     <div className="flex-1 flex gap-1 items-center">
-                      <span className="text-[10px] text-zinc-500">N:</span>
-                      <input
+                      <span className="text-[10px] text-[var(--text-secondary)]">N:</span>
+                      <input aria-label={`Boundary beacon ${idx + 1} northing in metres`}
                         type="number"
                         step="0.001"
                         value={Number.isFinite(b.northing) ? b.northing : ''}
@@ -540,7 +540,7 @@ export default function LegalDescriptionPage() {
                         className="w-full bg-transparent font-mono text-xs focus:outline-none"
                       />
                     </div>
-                    <select
+                    <select aria-label={`Boundary beacon ${idx + 1} monument type`}
                       value={b.monumentType}
                       onChange={(e) => updateBeacon(idx, 'monumentType', e.target.value as Beacon['monumentType'])}
                       className="w-24 bg-transparent border border-[var(--border-color)] rounded px-1 py-0.5 text-[10px]"
@@ -552,7 +552,7 @@ export default function LegalDescriptionPage() {
                       <option value="peg" className="bg-[var(--bg-secondary)]">Peg</option>
                       <option value="natural" className="bg-[var(--bg-secondary)]">Natural</option>
                     </select>
-                    <button
+                    <button aria-label={`Remove boundary beacon ${idx + 1}`}
                       onClick={() => removeBeacon(idx)}
                       className="text-red-400 hover:text-red-300 p-1"
                     >
@@ -656,14 +656,14 @@ export default function LegalDescriptionPage() {
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
                 <h3 className="text-base font-bold">Paste Coordinate Schedule</h3>
-                <button onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
+                <button aria-label="Close coordinate import" onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
                   ✕
                 </button>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 Format: <code>BeaconID, Easting, Northing, [MonumentType]</code> (one beacon per line).
               </p>
-              <textarea
+              <textarea aria-label="Boundary beacon coordinates to import"
                 rows={6}
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}

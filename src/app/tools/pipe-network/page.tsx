@@ -575,7 +575,7 @@ export default function PipeNetworkPage() {
         spellCheck={false}
         className="mt-1 w-full resize-y bg-black/30 border border-[var(--border-color)] rounded px-2 py-1.5 font-mono text-white"
       />
-      <p className="text-[10px] text-zinc-500">The connected manholes are the start and end. Add only surveyed/design route bends; profile, grade and station chainage follow this developed route.</p>
+      <p className="text-[10px] text-[var(--text-secondary)]">The connected manholes are the start and end. Add only surveyed/design route bends; profile, grade and station chainage follow this developed route.</p>
       {alignmentErrors[pipe.id] && <p role="alert" className="text-[10px] text-red-300">{alignmentErrors[pipe.id]}</p>}
     </div>
   )
@@ -860,7 +860,7 @@ export default function PipeNetworkPage() {
               <div className="text-sm font-bold">Network data</div>
               <div className="text-xs text-[var(--text-secondary)]">Examples are labelled and cannot be exported</div>
             </div>
-            <select
+            <select aria-label="Network example selection"
               value={selectedPreset}
               onChange={(e) => handlePresetSelect(e.target.value)}
               className="min-w-0 flex-1 rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none font-medium"
@@ -1363,7 +1363,7 @@ export default function PipeNetworkPage() {
             ) : (
               <div className="overflow-x-auto">
                 <table className="min-w-[760px] w-full text-left text-xs">
-                  <thead className="text-[10px] uppercase tracking-wide text-zinc-500">
+                  <thead className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">
                     <tr>
                       <th className="py-2 pr-3">Pipe</th><th className="py-2 pr-3">Velocity</th><th className="py-2 pr-3">Friction loss</th>
                       <th className="py-2 pr-3">Upstream HGL</th><th className="py-2 pr-3">Downstream HGL</th><th className="py-2 pr-3">Crown margin</th><th className="py-2">Ground check at manholes</th>
@@ -1390,7 +1390,7 @@ export default function PipeNetworkPage() {
                     })}
                   </tbody>
                 </table>
-                <p className="mt-2 text-[10px] text-zinc-500">Ground comparison uses entered manhole ground levels only; terrain between manholes is not surveyed by this calculation. Review every boundary and loss assumption before design or field use.</p>
+                <p className="mt-2 text-[10px] text-[var(--text-secondary)]">Ground comparison uses entered manhole ground levels only; terrain between manholes is not surveyed by this calculation. Review every boundary and loss assumption before design or field use.</p>
               </div>
             )}
           </section>
@@ -1415,7 +1415,7 @@ export default function PipeNetworkPage() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-xs">
               <div>
                 <label className="text-zinc-400 block mb-1">Surface Catchment Type (C):</label>
-                <select
+                <select aria-label="Surface catchment type"
                   value={runoffPresetKey}
                   onChange={(e) => {
                     setRunoffPresetKey(e.target.value)
@@ -1432,31 +1432,31 @@ export default function PipeNetworkPage() {
                   ))}
                 </select>
                 <label className="text-zinc-400 block mt-2 mb-1">Runoff coefficient C (verify for this site):</label>
-                <input type="number" min="0" max="1" step="0.01" value={customC ?? ''} onChange={e => setCustomC(e.target.value === '' ? null : Number(e.target.value))} className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono" />
-                <div className="text-[10px] text-zinc-500 mt-1">Illustrative surface presets only; confirm coefficient and rainfall for this project. {RUNOFF_PRESETS[runoffPresetKey]?.desc}</div>
+                <input aria-label="Custom runoff coefficient" type="number" min="0" max="1" step="0.01" value={customC ?? ''} onChange={e => setCustomC(e.target.value === '' ? null : Number(e.target.value))} className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono" />
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">Illustrative surface presets only; confirm coefficient and rainfall for this project. {RUNOFF_PRESETS[runoffPresetKey]?.desc}</div>
               </div>
 
               <div>
                 <label className="text-zinc-400 block mb-1">Approved design rainfall intensity (I, mm/hr):</label>
-                <input
+                <input aria-label="Design rainfall intensity in millimetres per hour"
                   type="number"
                   value={stormIntensity}
                   onChange={(e) => setStormIntensity(parseFloat(e.target.value) || 0)}
                   className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono"
                 />
-                <div className="text-[10px] text-zinc-500 mt-1">Enter intensity from the project storm analysis.</div>
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">Enter intensity from the project storm analysis.</div>
               </div>
 
               <div>
                 <label className="text-zinc-400 block mb-1">Contributing catchment area (A, hectares):</label>
-                <input
+                <input aria-label="Contributing catchment area in hectares"
                   type="number"
                   step="0.05"
                   value={catchmentArea}
                   onChange={(e) => setCatchmentArea(parseFloat(e.target.value) || 0)}
                   className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono"
                 />
-                <div className="text-[10px] text-zinc-500 mt-1">1 Ha = 10,000 m²</div>
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">1 Ha = 10,000 m²</div>
               </div>
 
               <div className="bg-cyan-500/10 border border-cyan-500/30 rounded-xl p-3 flex flex-col justify-between">
@@ -1470,7 +1470,7 @@ export default function PipeNetworkPage() {
                   ) : <p className="text-xs text-amber-300">Enter a coefficient from 0 to 1 and positive rainfall and area.</p>}
                 </div>
                 <div className="flex items-center gap-2 mt-2">
-                  <select
+                  <select aria-label="Pipe receiving runoff"
                     value={targetPipeForRunoff}
                     onChange={(e) => setTargetPipeForRunoff(e.target.value)}
                     className="bg-black/40 border border-cyan-500/40 rounded-lg px-2 py-1 text-[11px] font-mono text-white flex-1"
@@ -1514,42 +1514,42 @@ export default function PipeNetworkPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 text-xs">
               <div>
                 <label className="text-zinc-400 block mb-1">Target design slope from approved profile (%):</label>
-                <input
+                <input aria-label="Target design slope percentage"
                   type="number"
                   step="0.1"
                   value={targetSlopePct}
                   onChange={(e) => setTargetSlopePct(e.target.value)}
                   className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono"
                 />
-                <div className="text-[10px] text-zinc-500 mt-1">No default is applied; enter the approved design value.</div>
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">No default is applied; enter the approved design value.</div>
               </div>
 
               <div>
                 <label className="text-zinc-400 block mb-1">Project minimum crown cover (m):</label>
-                <input
+                <input aria-label="Project minimum crown cover in metres"
                   type="number"
                   step="0.1"
                   value={coverRequirementText}
                   onChange={(e) => setCoverRequirementText(e.target.value)}
                   className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono"
                 />
-                <div className="text-[10px] text-zinc-500 mt-1">Enter the requirement from the approved project specification.</div>
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">Enter the requirement from the approved project specification.</div>
               </div>
 
               <div>
                 <label className="text-zinc-400 block mb-1">Manhole invert drop (mm):</label>
-                <input
+                <input aria-label="Manhole invert drop in millimetres"
                   type="number"
                   value={mhDropStepMm}
                   onChange={(e) => setMhDropStepMm(e.target.value)}
                   className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono"
                 />
-                <div className="text-[10px] text-zinc-500 mt-1">Enter the junction drop required by the design.</div>
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">Enter the junction drop required by the design.</div>
               </div>
               <div>
                 <label className="text-zinc-400 block mb-1">Starting invert out RL (m, optional):</label>
-                <input type="number" step="0.001" value={startInvertText} onChange={e => setStartInvertText(e.target.value)} placeholder="Derive from first GL" className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono" />
-                <div className="text-[10px] text-zinc-500 mt-1">Blank derives it from the first surveyed ground RL, entered crown-cover criterion, and first pipe diameter.</div>
+                <input aria-label="Starting invert out reduced level in metres" type="number" step="0.001" value={startInvertText} onChange={e => setStartInvertText(e.target.value)} placeholder="Derive from first GL" className="w-full bg-black/30 border border-[var(--border-color)] rounded-xl px-2.5 py-1.5 text-xs font-mono" />
+                <div className="text-[10px] text-[var(--text-secondary)] mt-1">Blank derives it from the first surveyed ground RL, entered crown-cover criterion, and first pipe diameter.</div>
               </div>
             </div>
 
@@ -1599,7 +1599,7 @@ export default function PipeNetworkPage() {
                   >
                     <div className="flex justify-between items-center">
                       <div className="flex items-center gap-2">
-                        <input
+                        <input aria-label={`Manhole ${idx + 1} identifier`}
                           type="text"
                           value={mh.id}
                           onChange={(e) => updateManhole(idx, 'id', e.target.value)}
@@ -1616,7 +1616,7 @@ export default function PipeNetworkPage() {
                           </span>
                         )}
                       </div>
-                      <button
+                      <button aria-label={`Remove manhole ${idx + 1}`}
                         onClick={() => removeManhole(idx)}
                         className="text-red-400 hover:text-red-300 p-1"
                       >
@@ -1626,8 +1626,8 @@ export default function PipeNetworkPage() {
 
                     <div className="grid grid-cols-2 gap-2 text-[11px]">
                       <div>
-                        <span className="text-zinc-500">Easting (m):</span>
-                        <input
+                        <span className="text-[var(--text-secondary)]">Easting (m):</span>
+                        <input aria-label={`Manhole ${idx + 1} easting in metres`}
                           type="number"
                           step="0.1"
                           value={mh.easting ?? ''}
@@ -1637,8 +1637,8 @@ export default function PipeNetworkPage() {
                         />
                       </div>
                       <div>
-                        <span className="text-zinc-500">Northing (m):</span>
-                        <input
+                        <span className="text-[var(--text-secondary)]">Northing (m):</span>
+                        <input aria-label={`Manhole ${idx + 1} northing in metres`}
                           type="number"
                           step="0.1"
                           value={mh.northing ?? ''}
@@ -1651,8 +1651,8 @@ export default function PipeNetworkPage() {
 
                     <div className="grid grid-cols-3 gap-2 text-[11px] pt-1 border-t border-[color-mix(in_srgb,var(--border-color)_40%,transparent)]">
                       <div>
-                        <span className="text-zinc-500">Ground (GL):</span>
-                        <input
+                        <span className="text-[var(--text-secondary)]">Ground (GL):</span>
+                        <input aria-label={`Manhole ${idx + 1} ground reduced level in metres`}
                           type="number"
                           step="0.01"
                           value={mh.groundLevel ?? ''}
@@ -1662,8 +1662,8 @@ export default function PipeNetworkPage() {
                         />
                       </div>
                       <div>
-                        <span className="text-zinc-500">Invert In:</span>
-                        <input
+                        <span className="text-[var(--text-secondary)]">Invert In:</span>
+                        <input aria-label={`Manhole ${idx + 1} incoming invert reduced level in metres`}
                           type="number"
                           step="0.01"
                           value={mh.invertIn ?? ''}
@@ -1673,8 +1673,8 @@ export default function PipeNetworkPage() {
                         />
                       </div>
                       <div>
-                        <span className="text-zinc-500">Invert Out:</span>
-                        <input
+                        <span className="text-[var(--text-secondary)]">Invert Out:</span>
+                        <input aria-label={`Manhole ${idx + 1} outgoing invert reduced level in metres`}
                           type="number"
                           step="0.01"
                           value={mh.invertOut ?? ''}
@@ -1696,7 +1696,7 @@ export default function PipeNetworkPage() {
                           onChange={(e) => updateManhole(idx, 'junctionLossK', e.target.value === '' ? undefined : Number(e.target.value))}
                           className="mt-1 w-full bg-transparent border border-[var(--border-color)] rounded px-2 py-1.5 font-mono text-[var(--text-primary)]"
                         />
-                        <span className="block mt-1 text-[10px] text-zinc-500">No default is assumed. Select K from the approved junction method; this solver uses h = K × V²/(2g) with the downstream pipe velocity.</span>
+                        <span className="block mt-1 text-[10px] text-[var(--text-secondary)]">No default is assumed. Select K from the approved junction method; this solver uses h = K × V²/(2g) with the downstream pipe velocity.</span>
                       </label>
                     )}
                   </div>
@@ -1761,7 +1761,7 @@ export default function PipeNetworkPage() {
                   </div>
                 </div>
               ))}
-              {pipes.length === 0 && <p className="text-xs text-zinc-500">Add at least two manholes, then add a pipe segment. No example geometry or design flow is inserted.</p>}
+              {pipes.length === 0 && <p className="text-xs text-[var(--text-secondary)]">Add at least two manholes, then add a pipe segment. No example geometry or design flow is inserted.</p>}
               {results.map((p, idx) => (
                 <div
                   key={p.id}
@@ -1774,7 +1774,7 @@ export default function PipeNetworkPage() {
                       <select id={`pipe-${idx}-from`} value={p.fromId} onChange={e => updatePipe(idx, 'fromId', e.target.value)} className="bg-black/30 border border-[var(--border-color)] rounded px-2 py-1 text-[10px] text-white">
                         {manholes.map(mh => <option key={mh.id} value={mh.id}>{mh.id}</option>)}
                       </select>
-                      <ArrowRight className="w-3 h-3 text-zinc-500" />
+                      <ArrowRight className="w-3 h-3 text-[var(--text-secondary)]" />
                       <label className="sr-only" htmlFor={`pipe-${idx}-to`}>Downstream manhole</label>
                       <select id={`pipe-${idx}-to`} value={p.toId} onChange={e => updatePipe(idx, 'toId', e.target.value)} className="bg-black/30 border border-[var(--border-color)] rounded px-2 py-1 text-[10px] text-white">
                         {manholes.map(mh => <option key={mh.id} value={mh.id}>{mh.id}</option>)}
@@ -1820,7 +1820,7 @@ export default function PipeNetworkPage() {
                         </span>
                       )}
 
-                      <button
+                      <button aria-label={`Remove pipe ${idx + 1}`}
                         onClick={() => removePipe(idx)}
                         className="text-red-400 hover:text-red-300 p-1 ml-1"
                       >
@@ -1831,19 +1831,19 @@ export default function PipeNetworkPage() {
 
                   <div className="grid grid-cols-2 sm:grid-cols-6 gap-2 text-[11px]">
                     <div>
-                      <label className="text-zinc-500 block">Hydraulic internal diameter (mm):
+                      <label className="text-[var(--text-secondary)] block">Hydraulic internal diameter (mm):
                         <input type="number" min="0.001" step="0.001" value={p.diameterMm || ''} onChange={e => updatePipe(idx, 'diameterMm', e.target.value === '' ? 0 : Number(e.target.value))} className="w-full bg-transparent border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs font-mono font-semibold" />
                       </label>
                     </div>
                     <div>
-                      <label className="text-zinc-500 block">Manufacturer outside diameter (mm):
+                      <label className="text-[var(--text-secondary)] block">Manufacturer outside diameter (mm):
                         <input type="number" min="0.001" step="0.001" value={p.outsideDiameterMm ?? ''} onChange={e => updatePipe(idx, 'outsideDiameterMm', e.target.value === '' ? undefined : Number(e.target.value))} className="w-full bg-transparent border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs font-mono font-semibold" />
                       </label>
                     </div>
 
                     <div>
-                      <span className="text-zinc-500 block">Material:</span>
-                      <select
+                      <span className="text-[var(--text-secondary)] block">Material:</span>
+                      <select aria-label={`Pipe ${idx + 1} material`}
                         value={p.material}
                         onChange={(e) => updatePipe(idx, 'material', e.target.value as Pipe['material'])}
                         className="w-full bg-transparent border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs"
@@ -1856,13 +1856,13 @@ export default function PipeNetworkPage() {
                     </div>
 
                     <div>
-                      <label className="text-zinc-500 block">Manning n (default preset; verify):
+                      <label className="text-[var(--text-secondary)] block">Manning n (default preset; verify):
                         <input type="number" min="0.000001" step="0.001" value={p.manningN ?? MANNING_N[p.material]} onChange={e => updatePipe(idx, 'manningN', e.target.value === '' ? undefined : Number(e.target.value))} className="w-full bg-transparent border border-[var(--border-color)] rounded px-1.5 py-0.5 text-xs font-mono" />
                       </label>
                     </div>
 
                     <div>
-                      <label htmlFor={`pipe-result-${idx}-design-flow`} className="text-zinc-500 block">Design flow (L/s):</label>
+                      <label htmlFor={`pipe-result-${idx}-design-flow`} className="text-[var(--text-secondary)] block">Design flow (L/s):</label>
                       <input
                         id={`pipe-result-${idx}-design-flow`}
                         type="number"
@@ -1876,11 +1876,11 @@ export default function PipeNetworkPage() {
                     </div>
 
                     <div>
-                      <span className="text-zinc-500 block">Full-bore capacity (L/s):</span>
+                      <span className="text-[var(--text-secondary)] block">Full-bore capacity (L/s):</span>
                       <div className="font-mono font-bold text-xs py-0.5 text-zinc-300">
                         {p.capacityLs.toFixed(1)} L/s
                       </div>
-                      <div className="text-[10px] text-zinc-500">
+                      <div className="text-[10px] text-[var(--text-secondary)]">
                         Open-channel maximum: {p.partial.maxFreeSurfaceCapacityLs.toFixed(1)} L/s
                       </div>
                     </div>
@@ -1890,7 +1890,7 @@ export default function PipeNetworkPage() {
                   {/* Partial Flow & Hydraulic Elements Row */}
                   <div className="p-2.5 rounded-lg bg-black/30 border border-white/5 grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-mono">
                     <div>
-                      <span className="text-zinc-500 block">Flow Depth (d/D):</span>
+                      <span className="text-[var(--text-secondary)] block">Flow Depth (d/D):</span>
                       <span className="text-cyan-400 font-bold">
                         {p.partial.flowCondition === 'Free surface'
                           ? `${p.partial.flowDepthMm}mm (${(p.partial.depthRatio * 100).toFixed(0)}%)`
@@ -1898,7 +1898,7 @@ export default function PipeNetworkPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-zinc-500 block">
+                      <span className="text-[var(--text-secondary)] block">
                         {p.partial.flowCondition === 'Free surface' ? 'Actual Velocity:' : 'Full-area mean velocity:'}
                       </span>
                       <span className={p.partial.flowCondition === 'Pressure flow analysis required'
@@ -1910,7 +1910,7 @@ export default function PipeNetworkPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-zinc-500 block">Froude (Regime):</span>
+                      <span className="text-[var(--text-secondary)] block">Froude (Regime):</span>
                       <span className="text-zinc-300">
                         {p.partial.froudeNumber === null
                           ? 'Not assessed; pressure flow'
@@ -1918,7 +1918,7 @@ export default function PipeNetworkPage() {
                       </span>
                     </div>
                     <div>
-                      <span className="text-zinc-500 block">Minimum crown cover:</span>
+                      <span className="text-[var(--text-secondary)] block">Minimum crown cover:</span>
                       <span className={p.cover.status === 'Below Criterion' || p.cover.status === 'Daylight' ? 'text-orange-400 font-bold' : p.cover.status === 'Not Assessed' ? 'text-amber-300' : 'text-zinc-300'}>
                         {p.cover.minCover === undefined ? 'Not assessed' : `${p.cover.minCover.toFixed(2)} m`}
                       </span>

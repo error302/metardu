@@ -33,17 +33,17 @@ test.describe('Entry & Navigation', () => {
     expect(response?.status()).not.toBe(404)
   })
 
-  test('primary navigation opens Marketplace', async ({ page }) => {
-    await page.goto('/')
+  test('public navigation opens Marketplace', async ({ page }) => {
+    await page.goto('/demo')
     const marketplace = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Marketplace' })
     await expect(marketplace).toBeVisible()
     await marketplace.click()
     await expect(page).toHaveURL(/\/marketplace(?:\?|$)/)
   })
 
-  test('tablet menu keeps Marketplace available', async ({ page }) => {
-    await page.setViewportSize({ width: 1024, height: 768 })
-    await page.goto('/')
+  test('tablet public menu keeps Marketplace available', async ({ page }) => {
+    await page.setViewportSize({ width: 1000, height: 768 })
+    await page.goto('/demo')
     const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
     const menu = navigation.getByRole('button', { name: 'Open menu' })
     await expect(menu).toBeVisible()
@@ -154,7 +154,7 @@ test.describe('404 Page & SEO', () => {
   test('homepage has description meta', async ({ page }) => {
     await page.goto('/')
     const description = page.locator('meta[name="description"]')
-    await expect(description).toHaveAttribute('content', /surveying/i)
+    await expect(description).toHaveAttribute('content', /survey project workspace/i)
   })
 
   test('homepage has theme-color meta', async ({ page }) => {

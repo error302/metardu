@@ -122,6 +122,7 @@ test.describe('Fieldbook — Survey Type Tabs', () => {
     await expect(controlTab).toBeVisible({ timeout: 8000 })
     await controlTab.click()
 
+    await page.getByRole('button', { name: /add row/i }).click()
     // Control book shows instrument height fields
     await expect(page.locator('input[aria-label="Instrument Height"]').first()).toBeVisible({ timeout: 8000 })
   })
@@ -173,6 +174,7 @@ test.describe('Fieldbook — Observation Form Fields', () => {
     await controlTab.click()
     await page.waitForTimeout(500)
 
+    await page.getByRole('button', { name: /add row/i }).click()
     // Control fields: instrument height and target height
     await expect(page.locator('input[aria-label="Instrument Height"]').first()).toBeVisible({ timeout: 8000 })
     await expect(page.locator('input[aria-label="Target Height"]').first()).toBeVisible({ timeout: 8000 })
@@ -236,7 +238,8 @@ test.describe('Fieldbook — Export Buttons', () => {
     await page.goto('/fieldbook', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
 
-    const pdfBtn = page.locator('button').filter({ hasText: /pdf/i }).first()
+    await page.locator('summary').filter({ hasText: 'Files & saved books' }).click()
+    const pdfBtn = page.getByRole('region', { name: 'Fieldbook workspace' }).getByRole('button', { name: 'PDF', exact: true })
     await expect(pdfBtn).toBeVisible({ timeout: 8000 })
   })
 
@@ -244,7 +247,8 @@ test.describe('Fieldbook — Export Buttons', () => {
     await page.goto('/fieldbook', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
 
-    const csvBtn = page.locator('button').filter({ hasText: /csv/i }).first()
+    await page.locator('summary').filter({ hasText: 'Files & saved books' }).click()
+    const csvBtn = page.getByRole('region', { name: 'Fieldbook workspace' }).getByRole('button', { name: 'CSV', exact: true })
     await expect(csvBtn).toBeVisible({ timeout: 8000 })
   })
 
@@ -252,7 +256,8 @@ test.describe('Fieldbook — Export Buttons', () => {
     await page.goto('/fieldbook', { waitUntil: 'domcontentloaded' })
     await page.waitForTimeout(2000)
 
-    const jsonBtn = page.locator('button').filter({ hasText: /json/i }).first()
+    await page.locator('summary').filter({ hasText: 'Files & saved books' }).click()
+    const jsonBtn = page.getByRole('region', { name: 'Fieldbook workspace' }).getByRole('button', { name: 'JSON', exact: true })
     await expect(jsonBtn).toBeVisible({ timeout: 8000 })
   })
 })

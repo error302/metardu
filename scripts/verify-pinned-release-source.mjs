@@ -47,8 +47,18 @@ try {
   await check('app-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.json'])
   await check('test-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.tests.json'])
   if(unified)await check('release-contracts',['--test','tests/release-plan.test.mjs','tests/field-observation-contract.test.mjs','tests/workflow-upgrade.test.mjs','tests/release-row-snapshot.test.mjs'])
-  await check('related-tests',[path.join(nm,'jest/bin/jest.js'),'--runInBand','--config',path.join(source,'jest.config.js'),'--findRelatedTests',...changed])
-  await check('changed-lint',[path.join(nm,'eslint/bin/eslint.js'),...changed])
+  if(unified) {
+    await check('tool-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.lint-owned.json'])
+    // Let Jest obtain the complete pinned Git diff itself. Passing the 999
+    // production-to-source paths exceeded Windows' command-line limit.
+    await check('related-tests',[path.join(nm,'jest/bin/jest.js'),'--maxWorkers=2','--config',path.join(source,'jest.config.js'),'--changedSince',base])
+    // The bounded owned-file scan preserves complete coverage without a large
+    // argv or one unbounded TypeScript/ESLint process. Baselines stay blocking.
+    await check('whole-lint',['scripts/lint-ratchets.mjs'])
+  } else {
+    await check('related-tests',[path.join(nm,'jest/bin/jest.js'),'--runInBand','--config',path.join(source,'jest.config.js'),'--findRelatedTests',...changed])
+    await check('changed-lint',[path.join(nm,'eslint/bin/eslint.js'),...changed])
+  }
   if(unified)assertPinnedCheckout()
   report.status='passed';report.changedFiles=changed.length;save()
 } catch(error) {report.status='failed';save();throw error}

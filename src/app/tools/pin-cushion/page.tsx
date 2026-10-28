@@ -463,7 +463,7 @@ export default function PinCushionPage() {
                   <h2 className="text-sm font-bold">Monument Recoveries ({recoveries.length} Observations)</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <select
+                  <select aria-label="Recovery example selection"
                     value={selectedPreset}
                     onChange={(e) => handlePresetSelect(e.target.value)}
                     className="rounded-lg border border-[var(--border-color)] bg-black/20 px-2.5 py-1 text-xs focus:outline-none"
@@ -493,7 +493,7 @@ export default function PinCushionPage() {
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Monument Beacon ID</label>
-                  <input
+                  <input aria-label="Monument beacon identifier"
                     type="text"
                     value={monumentId}
                     onChange={(e) => setMonumentId(e.target.value)}
@@ -502,7 +502,7 @@ export default function PinCushionPage() {
                 </div>
                 <div>
                   <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Monument Physical Mark</label>
-                  <select
+                  <select aria-label="Monument type"
                     value={monumentType}
                     onChange={(e) => setMonumentType(e.target.value)}
                     className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
@@ -542,13 +542,13 @@ export default function PinCushionPage() {
                     >
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <input
+                          <input aria-label={`Recovery ${idx + 1} identifier`}
                             type="text"
                             value={r.id}
                             onChange={(e) => updateRecovery(idx, 'id', e.target.value)}
                             className="w-16 bg-transparent font-mono font-bold focus:outline-none"
                           />
-                          <input
+                          <input aria-label={`Recovery ${idx + 1} surveyor`}
                             type="text"
                             value={r.surveyor}
                             placeholder="Surveyor / Agency"
@@ -562,7 +562,7 @@ export default function PinCushionPage() {
                               REJECTED OUTLIER
                             </span>
                           )}
-                          <button
+                          <button aria-label={`Remove recovery ${idx + 1}`}
                             onClick={() => removeRecovery(idx)}
                             className="text-red-400 hover:text-red-300 p-1"
                           >
@@ -573,8 +573,8 @@ export default function PinCushionPage() {
 
                       <div className="grid grid-cols-4 gap-2 text-[11px]">
                         <div>
-                          <span className="text-zinc-500">E: </span>
-                          <input
+                          <span className="text-[var(--text-secondary)]">E: </span>
+                          <input aria-label={`Recovery ${idx + 1} easting in metres`}
                             type="number"
                             step="0.001"
                             value={r.easting}
@@ -583,8 +583,8 @@ export default function PinCushionPage() {
                           />
                         </div>
                         <div>
-                          <span className="text-zinc-500">N: </span>
-                          <input
+                          <span className="text-[var(--text-secondary)]">N: </span>
+                          <input aria-label={`Recovery ${idx + 1} northing in metres`}
                             type="number"
                             step="0.001"
                             value={r.northing}
@@ -593,8 +593,8 @@ export default function PinCushionPage() {
                           />
                         </div>
                         <div>
-                          <span className="text-zinc-500">Method: </span>
-                          <select
+                          <span className="text-[var(--text-secondary)]">Method: </span>
+                          <select aria-label={`Recovery ${idx + 1} observation method`}
                             value={r.method}
                             onChange={(e) => updateRecovery(idx, 'method', e.target.value)}
                             className="bg-transparent border border-[var(--border-color)] rounded px-1 text-[10px]"
@@ -606,8 +606,8 @@ export default function PinCushionPage() {
                           </select>
                         </div>
                         <div>
-                          <span className="text-zinc-500">Weight: </span>
-                          <input
+                          <span className="text-[var(--text-secondary)]">Weight: </span>
+                          <input aria-label={`Recovery ${idx + 1} relative weight`}
                             type="number"
                             step="0.1"
                             min="0.1"
@@ -769,14 +769,14 @@ export default function PinCushionPage() {
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
                 <h3 className="text-base font-bold">Paste Monument Recovery Observations</h3>
-                <button onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
+                <button aria-label="Close coordinate import" onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
                   ✕
                 </button>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 Format: <code>ID, Easting, Northing, [Surveyor], [Method], [Weight]</code> (one recovery per line).
               </p>
-              <textarea
+              <textarea aria-label="Recovery observations to import"
                 rows={6}
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}

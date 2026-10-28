@@ -259,7 +259,7 @@ SendNMEA=1
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Select Regional Benchmark Center / Town
               </label>
-              <select
+              <select aria-label="Regional reference preset"
                 value={selectedPreset}
                 onChange={(e) => handlePresetSelect(e.target.value)}
                 className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
@@ -281,7 +281,7 @@ SendNMEA=1
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                   Latitude (Decimal Deg)
                 </label>
-                <input
+                <input aria-label="Rover latitude in decimal degrees"
                   type="number"
                   step="0.0001"
                   value={roverLat}
@@ -296,7 +296,7 @@ SendNMEA=1
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                   Longitude (Decimal Deg)
                 </label>
-                <input
+                <input aria-label="Rover longitude in decimal degrees"
                   type="number"
                   step="0.0001"
                   value={roverLon}
@@ -342,7 +342,7 @@ SendNMEA=1
               <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1.5">
                 Filter Reference Network
               </label>
-              <select
+              <select aria-label="Reference station network"
                 value={selectedNetwork}
                 onChange={(e) => setSelectedNetwork(e.target.value)}
                 className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-sm text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
@@ -361,7 +361,7 @@ SendNMEA=1
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                   NTRIP Username
                 </label>
-                <input
+                <input aria-label="NTRIP username"
                   type="text"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -373,7 +373,7 @@ SendNMEA=1
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                   NTRIP Password
                 </label>
-                <input
+                <input aria-label="NTRIP password"
                   type="password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}

@@ -196,7 +196,7 @@ async function rehearse() {
     receipt.rehearsal.importContract=assertImportSchemaContract(await readImportSchemaContract(client,rehearsalDatabaseConfig().runtimeRole))
     receipt.rehearsal.fieldContract=assertFieldObservationContract(await readFieldObservationContract(client,rehearsalDatabaseConfig().runtimeRole))
     await client.query('SELECT capture_snapshot,client_reading_id FROM verticality_readings WHERE false')
-    const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE conname IN ('setout_capture_snapshot_shape','verticality_capture_snapshot_shape') ORDER BY conname")
+    const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE (conrelid='public.setout_observations'::regclass AND conname='setout_capture_snapshot_shape') OR (conrelid='public.verticality_readings'::regclass AND conname='verticality_capture_snapshot_shape') ORDER BY conname")
     assert.equal(constraints.rows.length,2);assert.ok(constraints.rows.every(row=>row.convalidated))
     if(!legacy)receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
       registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:rehearsalDatabaseConfig().runtimeUrl})

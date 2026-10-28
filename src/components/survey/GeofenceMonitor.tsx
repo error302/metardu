@@ -441,7 +441,7 @@ export default function GeofenceMonitor() {
           <div className="p-3 rounded-xl bg-black/20 border border-[var(--border-color)] grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
             <div>
               <label className="text-[10px] text-[var(--text-secondary)] block">Manual Easting (m)</label>
-              <input
+              <input aria-label="Manual easting in metres"
                 type="number"
                 value={position.easting}
                 onChange={(e) => setPosition({ ...position, easting: parseFloat(e.target.value) || 0 })}
@@ -450,7 +450,7 @@ export default function GeofenceMonitor() {
             </div>
             <div>
               <label className="text-[10px] text-[var(--text-secondary)] block">Manual Northing (m)</label>
-              <input
+              <input aria-label="Manual northing in metres"
                 type="number"
                 value={position.northing}
                 onChange={(e) => setPosition({ ...position, northing: parseFloat(e.target.value) || 0 })}
@@ -462,7 +462,7 @@ export default function GeofenceMonitor() {
                 <span>Buffer Radius</span>
                 <span className="font-bold text-[var(--accent)]">{bufferDistance}m</span>
               </div>
-              <input
+              <input aria-label="Boundary buffer radius in metres"
                 type="range"
                 min="2"
                 max="40"
@@ -511,8 +511,8 @@ export default function GeofenceMonitor() {
                 >
                   <span className="w-6 font-mono text-[var(--text-secondary)] text-[10px]">#{idx + 1}</span>
                   <div className="flex-1 flex gap-1 items-center">
-                    <span className="text-[10px] text-zinc-500">E:</span>
-                    <input
+                    <span className="text-[10px] text-[var(--text-secondary)]">E:</span>
+                    <input aria-label={`Boundary vertex ${idx + 1} easting in metres`}
                       type="number"
                       value={pt.easting}
                       onChange={(e) => {
@@ -524,8 +524,8 @@ export default function GeofenceMonitor() {
                     />
                   </div>
                   <div className="flex-1 flex gap-1 items-center">
-                    <span className="text-[10px] text-zinc-500">N:</span>
-                    <input
+                    <span className="text-[10px] text-[var(--text-secondary)]">N:</span>
+                    <input aria-label={`Boundary vertex ${idx + 1} northing in metres`}
                       type="number"
                       value={pt.northing}
                       onChange={(e) => {
@@ -536,7 +536,7 @@ export default function GeofenceMonitor() {
                       className="w-full bg-transparent font-mono text-xs focus:outline-none"
                     />
                   </div>
-                  <button
+                  <button aria-label={`Remove boundary vertex ${idx + 1}`}
                     onClick={() => {
                       if (boundaryPoints.length <= 3) {
                         alert('Polygon requires at least 3 vertices.')
@@ -584,7 +584,7 @@ export default function GeofenceMonitor() {
                   className="p-2 rounded-lg border border-[var(--border-color)] bg-black/20 space-y-1.5 text-xs"
                 >
                   <div className="flex justify-between items-center">
-                    <input
+                    <input aria-label={`Hazard ${idx + 1} description`}
                       type="text"
                       value={hz.type}
                       onChange={(e) => {
@@ -594,7 +594,7 @@ export default function GeofenceMonitor() {
                       }}
                       className="bg-transparent font-semibold text-xs focus:outline-none text-[var(--text-primary)]"
                     />
-                    <button
+                    <button aria-label={`Remove hazard ${idx + 1}`}
                       onClick={() => setHazardPoints(hazardPoints.filter((_, i) => i !== idx))}
                       className="text-red-400 hover:text-red-300 p-0.5"
                     >
@@ -603,8 +603,8 @@ export default function GeofenceMonitor() {
                   </div>
                   <div className="grid grid-cols-3 gap-2 text-[11px]">
                     <div>
-                      <span className="text-zinc-500">Center E: </span>
-                      <input
+                      <span className="text-[var(--text-secondary)]">Center E: </span>
+                      <input aria-label={`Hazard ${idx + 1} centre easting in metres`}
                         type="number"
                         value={hz.center.easting}
                         onChange={(e) => {
@@ -616,8 +616,8 @@ export default function GeofenceMonitor() {
                       />
                     </div>
                     <div>
-                      <span className="text-zinc-500">Center N: </span>
-                      <input
+                      <span className="text-[var(--text-secondary)]">Center N: </span>
+                      <input aria-label={`Hazard ${idx + 1} centre northing in metres`}
                         type="number"
                         value={hz.center.northing}
                         onChange={(e) => {
@@ -629,8 +629,8 @@ export default function GeofenceMonitor() {
                       />
                     </div>
                     <div>
-                      <span className="text-zinc-500">Radius: </span>
-                      <input
+                      <span className="text-[var(--text-secondary)]">Radius: </span>
+                      <input aria-label={`Hazard ${idx + 1} radius in metres`}
                         type="number"
                         value={hz.radius}
                         onChange={(e) => {
@@ -705,14 +705,14 @@ export default function GeofenceMonitor() {
           <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
               <h3 className="text-base font-bold">Paste Boundary Coordinates (Easting, Northing)</h3>
-              <button onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
+              <button aria-label="Close coordinate import" onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
                 ✕
               </button>
             </div>
             <p className="text-xs text-[var(--text-secondary)]">
               Paste coordinate pairs in UTM meters, one per line (e.g., <code>250000, 9945000</code>).
             </p>
-            <textarea
+            <textarea aria-label="Boundary coordinates to import"
               rows={6}
               value={pasteText}
               onChange={(e) => setPasteText(e.target.value)}

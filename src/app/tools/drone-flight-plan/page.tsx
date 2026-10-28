@@ -344,7 +344,7 @@ export default function DroneFlightPlanPage() {
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                   Load Survey Benchmark Preset
                 </label>
-                <select
+                <select aria-label="Survey boundary preset"
                   value={selectedPreset}
                   onChange={(e) => handlePresetSelect(e.target.value)}
                   className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-xs focus:outline-none focus:border-[var(--accent)]"
@@ -379,8 +379,8 @@ export default function DroneFlightPlanPage() {
                         #{idx + 1}
                       </span>
                       <div className="flex-1 flex gap-1 items-center">
-                        <span className="text-[10px] text-zinc-500">Lon:</span>
-                        <input
+                        <span className="text-[10px] text-[var(--text-secondary)]">Lon:</span>
+                        <input aria-label={`Boundary vertex ${idx + 1} longitude in decimal degrees`}
                           type="number"
                           step="0.0001"
                           value={node.x}
@@ -389,8 +389,8 @@ export default function DroneFlightPlanPage() {
                         />
                       </div>
                       <div className="flex-1 flex gap-1 items-center">
-                        <span className="text-[10px] text-zinc-500">Lat:</span>
-                        <input
+                        <span className="text-[10px] text-[var(--text-secondary)]">Lat:</span>
+                        <input aria-label={`Boundary vertex ${idx + 1} latitude in decimal degrees`}
                           type="number"
                           step="0.0001"
                           value={node.y}
@@ -398,7 +398,7 @@ export default function DroneFlightPlanPage() {
                           className="w-full bg-transparent font-mono text-xs focus:outline-none"
                         />
                       </div>
-                      <button
+                      <button aria-label={`Remove boundary vertex ${idx + 1}`}
                         onClick={() => removeNode(idx)}
                         className="text-red-400 hover:text-red-300 p-1"
                         title="Remove node"
@@ -425,7 +425,7 @@ export default function DroneFlightPlanPage() {
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                   Drone Payload & Sensor
                 </label>
-                <select
+                <select aria-label="Drone payload and sensor"
                   value={params.cameraId}
                   onChange={(e) => setParams({ ...params, cameraId: e.target.value })}
                   className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-2 text-xs focus:outline-none focus:border-[var(--accent)]"
@@ -445,7 +445,7 @@ export default function DroneFlightPlanPage() {
                     <span className="text-[var(--text-secondary)]">Target Ground Resolution (GSD):</span>
                     <span className="font-mono font-bold text-[var(--accent)]">{params.targetGsd} cm/px</span>
                   </div>
-                  <input
+                  <input aria-label="Target ground sample distance in centimetres per pixel"
                     type="range"
                     min="0.5"
                     max="5.0"
@@ -461,7 +461,7 @@ export default function DroneFlightPlanPage() {
                     <span className="text-[var(--text-secondary)]">Flight Altitude (Above Ground Level):</span>
                     <span className="font-mono font-bold text-emerald-400">{params.flightAltitude} m AGL</span>
                   </div>
-                  <input
+                  <input aria-label="Flight altitude above ground in metres"
                     type="range"
                     min="30"
                     max="200"
@@ -480,7 +480,7 @@ export default function DroneFlightPlanPage() {
                     <span className="text-[var(--text-secondary)]">Forward Overlap:</span>
                     <span className="font-mono font-bold">{(params.forwardOverlap * 100).toFixed(0)}%</span>
                   </div>
-                  <input
+                  <input aria-label="Forward image overlap percentage"
                     type="range"
                     min="60"
                     max="85"
@@ -495,7 +495,7 @@ export default function DroneFlightPlanPage() {
                     <span className="text-[var(--text-secondary)]">Side Overlap:</span>
                     <span className="font-mono font-bold">{(params.sideOverlap * 100).toFixed(0)}%</span>
                   </div>
-                  <input
+                  <input aria-label="Side image overlap percentage"
                     type="range"
                     min="50"
                     max="80"
@@ -513,7 +513,7 @@ export default function DroneFlightPlanPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Flight Speed (m/s)
                   </label>
-                  <input
+                  <input aria-label="Flight speed in metres per second"
                     type="number"
                     min="2"
                     max="15"
@@ -526,7 +526,7 @@ export default function DroneFlightPlanPage() {
                   <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">
                     Grid Flight Line Angle
                   </label>
-                  <select
+                  <select aria-label="Flight line angle"
                     value={params.flightAngle === 'auto' ? 'auto' : params.flightAngle}
                     onChange={(e) =>
                       setParams({
@@ -714,14 +714,14 @@ export default function DroneFlightPlanPage() {
             <div className="bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-2xl max-w-lg w-full p-6 space-y-4 shadow-2xl">
               <div className="flex items-center justify-between border-b border-[var(--border-color)] pb-3">
                 <h3 className="text-base font-bold">Paste Parcel Boundary Coordinates</h3>
-                <button onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
+                <button aria-label="Close coordinate import" onClick={() => setPasteModalOpen(false)} className="text-zinc-400 hover:text-white">
                   ✕
                 </button>
               </div>
               <p className="text-xs text-[var(--text-secondary)]">
                 Paste coordinate pairs (one per line). Format can be <code>Longitude, Latitude</code> or <code>Latitude, Longitude</code> (e.g. <code>35.2690, 0.5140</code>).
               </p>
-              <textarea
+              <textarea aria-label="Boundary coordinates to import"
                 rows={6}
                 value={pasteText}
                 onChange={(e) => setPasteText(e.target.value)}

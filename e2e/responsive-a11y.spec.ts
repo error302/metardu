@@ -1,19 +1,36 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import { PLAN_CATALOG } from '../src/lib/subscription/catalog'
+
+async function expectNoHorizontalOverflow(page: Page) {
+  const dimensions = await page.evaluate(() => ({ width: document.documentElement.clientWidth, content: document.documentElement.scrollWidth }))
+  expect(dimensions.content).toBeLessThanOrEqual(dimensions.width + 1)
+}
+
+async function expectCurrentPricing(page: Page) {
+  for (const id of ['free', 'pro', 'team']) {
+    const plan = PLAN_CATALOG.find(item => item.id === id)
+    if (!plan) throw new Error('Missing maintained plan: ' + id)
+    const card = page.getByRole('heading', { name: id[0].toUpperCase() + id.slice(1), exact: true }).locator('..')
+    await expect(card).toContainText('KSh ' + plan.prices.KES.toLocaleString('en-KE'))
+  }
+}
 
 test.describe('Responsive Design — Mobile', () => {
   test.use({ viewport: { width: 375, height: 812 } }) // iPhone X
 
   test('landing page hero text is readable on mobile', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('h1')).toContainText('Field notes in')
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence.\s*Move the work forward./)
+    await expectNoHorizontalOverflow(page)
   })
 
   test('pricing cards visible on mobile', async ({ page }) => {
     await page.goto('/')
     // Scroll to pricing section first
     await page.locator('text=Start free, scale as you grow').scrollIntoViewIfNeeded()
-    await expect(page.locator('text=KSh 500')).toBeVisible()
-    await expect(page.locator('text=Most Popular')).toBeVisible()
+    await expectCurrentPricing(page)
+    await expect(page.getByRole('link', { name: 'Start Pro', exact: true })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
   })
 
   test('login page shows mobile branding', async ({ page }) => {
@@ -22,12 +39,22 @@ test.describe('Responsive Design — Mobile', () => {
     await expect(mobileBrand).toBeVisible()
   })
 
-  test('professional tools grid is single column on mobile', async ({ page }) => {
+  test('workflow steps remain readable in one column on mobile', async ({ page }) => {
     await page.goto('/')
-    // exact:true — 'Traverse' substring-matches the 'Traverse Adjustment'
-    // feature heading too.
-    await expect(page.getByRole('heading', { name: 'Traverse', exact: true })).toBeVisible()
-    await expect(page.getByRole('heading', { name: 'COGO', exact: true })).toBeVisible()
+    const steps = ['Set up the job', 'Bring in observations', 'Review and prepare outputs']
+    let previousBottom = 0
+    let previousLeft: number | null = null
+    for (const name of steps) {
+      const heading = page.getByRole('heading', { name, exact: true })
+      await expect(heading).toBeVisible()
+      const box = await heading.boundingBox()
+      if (!box) throw new Error('Workflow heading has no rendered bounds: ' + name)
+      expect(box.y).toBeGreaterThanOrEqual(previousBottom)
+      if (previousLeft !== null) expect(Math.abs(box.x - previousLeft)).toBeLessThanOrEqual(2)
+      previousBottom = box.y + box.height
+      previousLeft = box.x
+    }
+    await expectNoHorizontalOverflow(page)
   })
 })
 
@@ -36,13 +63,16 @@ test.describe('Responsive Design — Tablet', () => {
 
   test('landing page renders correctly on tablet', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('h1')).toContainText('Field notes in')
-    await expect(page.locator('h3').filter({ hasText: 'Traverse Adjustment' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence.\s*Move the work forward./)
+    await expectNoHorizontalOverflow(page)
+    await expect(page.getByRole('heading', { name: 'Bring in observations', exact: true })).toBeVisible()
   })
 
-  test('login page shows split layout on tablet', async ({ page }) => {
+  test('login form remains usable on tablet', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.locator('text=Kenya Survey Compliant')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible()
+    await expectNoHorizontalOverflow(page)
   })
 })
 
@@ -51,9 +81,10 @@ test.describe('Responsive Design — Desktop', () => {
 
   test('landing page full layout on desktop', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('h1')).toContainText('Field notes in')
-    await expect(page.locator('h3').filter({ hasText: 'Traverse Adjustment' })).toBeVisible()
-    await expect(page.locator('text=Most Popular')).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence.\s*Move the work forward./)
+    await expectNoHorizontalOverflow(page)
+    await expect(page.getByRole('heading', { name: 'Bring in observations', exact: true })).toBeVisible()
+    await expectCurrentPricing(page)
   })
 })
 

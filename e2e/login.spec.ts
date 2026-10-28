@@ -81,10 +81,10 @@ test.describe('Login Page', () => {
 
   test('register link is present on login page', async ({ page }) => {
     await page.goto('/login')
-    const registerLink = page.locator('a[href="/register"]').first()
+    const registerLink = page.getByRole('link', { name: 'Create one', exact: true })
     await expect(registerLink).toBeVisible()
     // Verify the link points to the correct destination
-    await expect(registerLink).toHaveAttribute('href', '/register')
+    await expect(registerLink).toHaveAttribute('href', '/register?next=%2Fdashboard')
   })
 
   test('METARDU branding visible on mobile', async ({ page }) => {
@@ -94,10 +94,12 @@ test.describe('Login Page', () => {
     await expect(mobileBranding).toBeAttached()
   })
 
-  test('left panel shows compliance checklist on desktop', async ({ page }) => {
+  test('focused login keeps branding and sign-in controls visible', async ({ page }) => {
     await page.goto('/login')
-    await expect(page.locator('text=Kenya Survey Compliant')).toBeVisible()
-    await expect(page.locator('text=Works Offline')).toBeVisible()
-    await expect(page.locator('text=Trusted Across East Africa')).toBeVisible()
+    await expect(page.locator('header a[href="/"]')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
+    await expect(page.getByLabel(/email/i)).toBeVisible()
+    await expect(page.getByLabel(/^password$/i)).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible()
   })
 })

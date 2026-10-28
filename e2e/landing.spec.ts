@@ -8,7 +8,7 @@ test.describe('Landing page', () => {
     await expect(nav.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#workflow')
     await expect(nav.getByRole('link', { name: 'Product demo' })).toHaveAttribute('href', '/demo')
     await expect(nav.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing')
-    await expect(nav.getByRole('link', { name: 'Dashboard' })).toHaveCount(0)
+    await expect(nav.getByRole('link', { name: 'Open dashboard', exact: true })).toHaveAttribute('href', '/dashboard')
     await expect(nav.getByRole('link', { name: 'Survey Map' })).toHaveCount(0)
     await expect(nav.getByRole('button', { name: 'Search' })).toHaveCount(0)
   })
@@ -42,7 +42,7 @@ test.describe('Landing page', () => {
       await expect(workflow.getByRole('heading', { name })).toBeVisible()
     }
     await expect(page.getByRole('link', { name: 'Explore field workflows' })).toHaveAttribute('href', '/field')
-    await expect(page.locator('main').getByText(/ChatGPT/i)).toHaveCount(0)
+    await expect(workflow.getByText(/ChatGPT/i)).toHaveCount(0)
   })
 
   test('shows pricing tiers, relevant guidance, and legal links', async ({ page }) => {
@@ -51,7 +51,10 @@ test.describe('Landing page', () => {
     for (const tier of ['Free', 'Pro', 'Team']) {
       await expect(page.getByRole('heading', { name: tier, exact: true })).toBeVisible()
     }
-    await expect(page.getByRole('heading', { name: 'Are METARDU drawings certified or automatically accepted?' })).toBeVisible()
+    const certification = page.locator('summary').filter({ hasText: 'Are METARDU drawings certified or automatically accepted?' })
+    await expect(certification).toBeVisible()
+    await certification.click()
+    await expect(page.getByText(/A qualified surveyor must verify the source evidence/)).toBeVisible()
     await expect(page.locator('footer a[href="/docs/privacy"]')).toBeVisible()
     await expect(page.locator('footer a[href="/docs/terms"]')).toBeVisible()
     await expect(page.locator('a[href="#main-content"]')).toBeAttached()
