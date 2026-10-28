@@ -381,6 +381,32 @@ async function login(context) {
   }
 }
 
+// The DOM can outlive a failed dev-server stylesheet request. Require the
+// actual shared CSS before evaluating contrast/target geometry; exhausted
+// retries remain admission failures rather than passing an unscanned page.
+export function pageReadinessProbe(selector) {
+  const styles = getComputedStyle(document.documentElement)
+  if (!styles.getPropertyValue('--bg-primary').trim() || !styles.getPropertyValue('--accent').trim()) return false
+  if (selector) return !!document.querySelector(selector)
+  const text = (document.body?.innerText || document.body?.textContent || '').trim()
+  return text.length > 40 && document.querySelectorAll('input, button, select, textarea, table, form').length > 0
+}
+
+export function scanAdmissionFailures(results, failAt) {
+  const failures = []
+  for (const result of results) {
+    if (result.status !== 'ok') {
+      failures.push({ page: result.page, reason: result.status, detail: result.error })
+      continue
+    }
+    for (const violation of result.violations) {
+      const rank = RANK[violation.impact]
+      if (!rank || rank >= failAt) failures.push({ page: result.page, reason: '[' + (violation.impact || 'unclassified') + '] ' + violation.id, detail: violation.nodes.length + ' node(s)' })
+    }
+  }
+  return failures
+}
+
 // ---------------------------------------------------------------------------
 // Per-page scan
 // ---------------------------------------------------------------------------
@@ -416,12 +442,7 @@ async function scanRoute(context, routeDef) {
       // Poll for hydration: explicit hint, else body text + interactive controls.
       const deadline = Date.now() + 45000
       while (Date.now() < deadline) {
-        const ready = await page.evaluate((sel) => {
-          if (sel) return !!document.querySelector(sel)
-          const text = (document.body?.innerText || '').trim()
-          const interactive = document.querySelectorAll('input, button, select, textarea, table, form').length
-          return text.length > 40 && interactive > 0
-        }, hint).catch(() => false)
+        const ready = await page.evaluate(pageReadinessProbe, hint).catch(() => false)
         if (ready) { hydrated = true; break }
         await page.waitForTimeout(1500)
       }
@@ -791,30 +812,7 @@ async function run() {
 
     // CI enforcement
     const failAt = RANK[FAIL_ON]
-    const failures = []
-    const hydrationIssues = []
-    for (const r of summarized) {
-      // Headless-only artifacts: pages that don't mount scannable content in
-      // the sweep (client-gated, session-less, or dev-server load) render only
-      // the layout shell. These are environment-dependent, NOT WCAG violations,
-      // so they are reported as warnings and do NOT fail CI. Real violations on
-      // rendered pages are still enforced below. (Axe sweep is flaky under load:
-      // different routes fail to hydrate on different runs, so failing on this
-      // produced false-red CI for pages that are fine.)
-      if (r.status === 'hydrate-failed' || r.status === 'missingContent') {
-        hydrationIssues.push({ page: r.page, reason: r.status, detail: r.error })
-        continue
-      }
-      if (r.status !== 'ok') {
-        failures.push({ page: r.page, reason: r.status, detail: r.error })
-        continue
-      }
-      for (const v of r.violations) {
-        if (RANK[v.impact] >= failAt) {
-          failures.push({ page: r.page, reason: `[${v.impact}] ${v.id}`, detail: `${v.nodes.length} node(s)` })
-        }
-      }
-    }
+    const failures = scanAdmissionFailures(summarized, failAt)
     const regressions = NO_BASELINE ? [] : checkBaseline(countsFor(results), BASELINE_PATH)
     if (failures.length || regressions.length) {
       console.error(`\n[axe] CI FAILED (--fail-on ${FAIL_ON})`)
@@ -827,10 +825,7 @@ async function run() {
     } else {
       console.error(`\n[axe] CI PASSED — no violations ≥ ${FAIL_ON}${NO_BASELINE ? '' : ', no baseline regressions'}`)
     }
-    if (hydrationIssues.length) {
-      console.error(`\n[axe] ⚠ ${hydrationIssues.length} route(s) did not hydrate in the headless sweep (reported, NOT blocking):`)
-      for (const h of hydrationIssues) console.error(`  ⚠ ${h.page}: ${h.reason} — ${h.detail || ''}`)
-    }
+
   } finally {
     // Always release the browser — on any thrown error, otherwise zombie
     // Chrome processes accumulate on Windows.

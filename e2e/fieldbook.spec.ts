@@ -122,7 +122,7 @@ test.describe('Fieldbook — Survey Type Tabs', () => {
     await expect(controlTab).toBeVisible({ timeout: 8000 })
     await controlTab.click()
 
-    await page.getByRole('button', { name: /add row/i }).click()
+    await page.getByRole('region', { name: 'Control observations', exact: true }).getByRole('button', { name: 'Add Row', exact: true }).click()
     // Control book shows instrument height fields
     await expect(page.locator('input[aria-label="Instrument Height"]').first()).toBeVisible({ timeout: 8000 })
   })
@@ -174,7 +174,7 @@ test.describe('Fieldbook — Observation Form Fields', () => {
     await controlTab.click()
     await page.waitForTimeout(500)
 
-    await page.getByRole('button', { name: /add row/i }).click()
+    await page.getByRole('region', { name: 'Control observations', exact: true }).getByRole('button', { name: 'Add Row', exact: true }).click()
     // Control fields: instrument height and target height
     await expect(page.locator('input[aria-label="Instrument Height"]').first()).toBeVisible({ timeout: 8000 })
     await expect(page.locator('input[aria-label="Target Height"]').first()).toBeVisible({ timeout: 8000 })

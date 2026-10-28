@@ -25,7 +25,7 @@ export function ControlBook({
   const outRows = computed.ok ? computed.rows : []
 
   return (
-    <div className="card">
+    <div role="region" aria-label="Control observations" className="card">
       <div className="card-header flex items-center justify-between gap-3">
         <span className="label">{t('field.controlNotes')}</span>
         <button

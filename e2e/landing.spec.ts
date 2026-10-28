@@ -5,6 +5,11 @@ test.describe('Landing page', () => {
     await page.goto('/')
 
     const nav = page.getByRole('navigation', { name: 'Primary navigation' })
+    const menu = nav.getByRole('button', { name: 'Open menu', exact: true })
+    if (await menu.isVisible()) {
+      await menu.click()
+      await expect(nav.getByRole('button', { name: 'Close menu', exact: true })).toHaveAttribute('aria-expanded', 'true')
+    }
     await expect(nav.getByRole('link', { name: 'How it works' })).toHaveAttribute('href', '/#workflow')
     await expect(nav.getByRole('link', { name: 'Product demo' })).toHaveAttribute('href', '/demo')
     await expect(nav.getByRole('link', { name: 'Pricing' })).toHaveAttribute('href', '/pricing')

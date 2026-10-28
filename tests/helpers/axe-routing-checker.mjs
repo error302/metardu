@@ -12,6 +12,7 @@
  * side to assert on. Notes/logs from the scanner go to stderr only.
  */
 import * as path from 'node:path'
+import { JSDOM } from 'jsdom'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
@@ -123,6 +124,31 @@ check('DEV_ERROR_VIEWPORT_RE: does not match the app viewport (maximum-scale=5)'
   falsy(mod.DEV_ERROR_VIEWPORT_RE.test('width=device-width, initial-scale=1, maximum-scale=5, user-scalable=1'))
   falsy(mod.DEV_ERROR_VIEWPORT_RE.test('width=device-width, initial-scale=1, maximum-scale=5'))
   falsy(mod.DEV_ERROR_VIEWPORT_RE.test('width=device-width, initial-scale=1'))
+})
+
+// Exercise the real browser predicate against a native DOM with/without CSS.
+function withReadinessDom(css, selector, action) {
+  const dom = new JSDOM('<!doctype html><html><head><style>' + css + '</style></head><body><h1>A complete survey tool with deliberately long readable content</h1><input id="reading" /></body></html>')
+  const saved = Object.fromEntries(['document', 'getComputedStyle'].map(key => [key, Object.getOwnPropertyDescriptor(globalThis, key)]))
+  Object.defineProperty(globalThis, 'document', { value: dom.window.document, configurable: true })
+  Object.defineProperty(globalThis, 'getComputedStyle', { value: dom.window.getComputedStyle.bind(dom.window), configurable: true })
+  try { action(mod.pageReadinessProbe(selector)) }
+  finally { for (const [key, descriptor] of Object.entries(saved)) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else delete globalThis[key] }; dom.window.close() }
+}
+const readyCss = ':root { --bg-primary: #151918; --accent: #d17b47; }'
+check('readiness: content without shared styles is refused', () => withReadinessDom('', '#reading', falsy))
+check('readiness: styled controls are accepted', () => withReadinessDom(readyCss, '#reading', truthy))
+check('readiness: an absent hydration hint is refused', () => withReadinessDom(readyCss, '#missing', falsy))
+check('readiness: styled interactive content passes without a hint', () => withReadinessDom(readyCss, undefined, truthy))
+check('admission: unreadable and missing routes always fail', () => {
+  const results = ['hydrate-failed', 'missingContent', 'auth-failed'].map(status => ({ page: '/tools/example', status, error: 'fixture', violations: [] }))
+  eq(mod.scanAdmissionFailures(results, 1).map(result => result.reason), ['hydrate-failed', 'missingContent', 'auth-failed'])
+})
+check('admission: real violations remain blocking', () => {
+  const result = {page:'/tools/example',status:'ok',violations:[{id:'label',impact:'critical',nodes:[{}]}]}
+  eq(mod.scanAdmissionFailures([result], 1).length, 1)
+  eq(mod.scanAdmissionFailures([{...result,violations:[]}], 1), [])
+  eq(mod.scanAdmissionFailures([{...result,violations:[{id:'unknown',impact:null,nodes:[{}]}]}], 1).length, 1)
 })
 
 process.stdout.write(JSON.stringify(checks) + '\n')

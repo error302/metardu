@@ -95,3 +95,34 @@ then promote once through the existing stack. Confirm the public release identit
 and ordinary account workflows afterward. No production migration, image build,
 image tag or service replacement was performed by this follow-up. Broader field,
 CAD/print/provider acceptance and the owner's deferred key rotation remain open.
+
+## Follow-up admission evidence
+
+The f6420264 checkpoint passed both complete lint jobs, app/test/tool TypeScript,
+release/security contracts, native worker acceptance, PostgreSQL regressions,
+and web/mobile builds. Its project/sign-in browser shard passed. Five remaining
+browser failures were scoped to ambiguous Add Row controls, a closed phone menu,
+and two Marketplace navigation waits. The control observations now form a named
+region; tests choose its exact Add Row button and open the phone menu. CUA
+reproduced a successful Marketplace cold compile taking 15.6 seconds, exceeding
+the former ten-second URL wait. That wait is bounded at 45 seconds within a
+90-second test budget, with navigation workers reduced from eight to two.
+
+All eight repaired tool pages passed the f642 accessibility sweep. The remaining
+Mass Haul report contained page-wide stylesheet-dependent geometry/contrast
+failures and connection resets. The scanner now requires the actual shared CSS
+variables before axe runs, uses two concurrent scans, and blocks exhausted
+hydration, missing-content or authentication failures. Native DOM tests cover
+styled and unstyled pages and preserve blocking real/unknown-impact violations.
+No violation threshold, exclusion list or existing test skip is increased.
+
+The earlier bf25ebc1 complete CI coverage run passed 759 suites and 7,268 tests
+with four suites and ten tests already skipped. The f642 pinned local source
+run passed all commands (including 575 related suites and 5,350 tests, and whole
+zero-warning lint) but correctly failed its final cleanliness check because the
+source preview regenerated next-env.d.ts. That receipt remains failed. The owned
+preview was stopped and only its generated type pointer restored; the selected
+follow-up revision requires its own clean pinned source receipt and CI results.
+
+Production remains the older 08fae427 app with worker artifact drift. These
+follow-up source results are not deployment evidence.

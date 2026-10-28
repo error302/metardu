@@ -34,14 +34,16 @@ test.describe('Entry & Navigation', () => {
   })
 
   test('public navigation opens Marketplace', async ({ page }) => {
+    test.setTimeout(90_000)
     await page.goto('/demo')
     const marketplace = page.getByRole('navigation', { name: 'Primary navigation' }).getByRole('link', { name: 'Marketplace' })
     await expect(marketplace).toBeVisible()
     await marketplace.click()
-    await expect(page).toHaveURL(/\/marketplace(?:\?|$)/)
+    await expect(page).toHaveURL(/\/marketplace(?:\?|$)/, { timeout: 45_000 })
   })
 
   test('tablet public menu keeps Marketplace available', async ({ page }) => {
+    test.setTimeout(90_000)
     await page.setViewportSize({ width: 1000, height: 768 })
     await page.goto('/demo')
     const navigation = page.getByRole('navigation', { name: 'Primary navigation' })
@@ -51,7 +53,7 @@ test.describe('Entry & Navigation', () => {
     const marketplace = navigation.getByRole('link', { name: 'Marketplace' })
     await expect(marketplace).toBeVisible()
     await marketplace.click()
-    await expect(page).toHaveURL(/\/marketplace(?:\?|$)/)
+    await expect(page).toHaveURL(/\/marketplace(?:\?|$)/, { timeout: 45_000 })
   })
 
   test('can navigate to pricing page', async ({ page }) => {
