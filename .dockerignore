@@ -75,3 +75,4 @@ scripts/*.test.*
 scripts/verify-*.mjs
 !scripts/verify-migrations.mjs
 !scripts/verify-runtime-dependencies.mjs
+!scripts/verify-pdf-native-runtime.mjs

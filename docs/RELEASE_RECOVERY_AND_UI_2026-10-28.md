@@ -176,3 +176,7 @@ Two observed package-version named-import warnings are repaired with default
 JSON imports, preserving the exact recorded version strings. Workbox's 6.02 MB
 chunk exclusion remains a distinct offline-cache limitation; its threshold is not
 raised. The selected follow-up requires its own source, CI and image evidence.
+
+The Docker ignore list retains its verifier-script exclusion and adds only the
+exact native PDF preflight exception required by the dependency-stage COPY.
+Private QA scripts and unrelated verification sources remain excluded.
