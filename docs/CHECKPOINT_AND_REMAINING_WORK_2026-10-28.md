@@ -6,6 +6,14 @@ through `44396a812f0c176f493dfecda87b285b6aab2a2e`. See
 `EQUIPMENT_CALIBRATION_REPAIR_2026-10-28.md` for new behavior and evidence.
 A pushed branch and clean Git status do not establish production deployment.
 
+Map follow-up: `CADASTRAL_MAP_INTEGRITY_2026-10-28.md` records repair of bent-cut
+geometry, discarded split faces, drawing CRS defaults, stale-parent delivery and
+ignored secondary snapping sources. It passes 237 affected/core/wiring tests and
+scoped source admission. The preceding 41a8d248 CI has completed: web/mobile,
+TypeScript, security, native design/set-out and API typing pass; lint, browser and
+accessibility fail and full Jest coverage is cancelled. The new map checkpoint
+needs its own CI and remains source work, not a production or field acceptance.
+
 Follow-up source admission: `CADASTRAL_INPUT_AND_RETIRED_JOBS_2026-10-28.md`
 supersedes the proposed community-job persistence repair below. The blueprint
 already retires that area and no current UI calls the job endpoint, so it now

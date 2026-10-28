@@ -5,18 +5,19 @@
  * createHistoryManager factory is tested for its return contract.
  * Orthogonal constraint logic is tested indirectly via the editing stack.
  *
- * OpenLayers modules are mocked because they require a browser DOM
- * and can't run in Jest's Node environment. The HistoryManager class
- * itself doesn't call OL at import time — it only uses OL types
- * for method signatures, which are erased at runtime.
+ * This legacy history suite isolates HistoryManager with OpenLayers mocks.
+ * Actual OL sources, geometry, snapping and draw events are exercised by the
+ * cadastralInteractionIntegrity and drawMeasurementIntegrity suites.
  */
 
 // Mock all OpenLayers imports — cadastralEditing.ts imports these at the
 // top level, but the test only exercises HistoryManager which is pure JS.
 jest.mock('ol/Map', () => ({ default: class Map {} }))
+jest.mock('ol/Collection', () => ({ default: class Collection {} }))
 jest.mock('ol/Feature', () => ({ default: class Feature {} }))
 jest.mock('ol/geom/Polygon', () => ({ default: class Polygon {} }))
 jest.mock('ol/geom/Point', () => ({ default: class Point {} }))
+jest.mock('ol/geom/LineString', () => ({ default: class LineString {} }))
 jest.mock('ol/source/Vector', () => ({ default: class VectorSource {} }))
 jest.mock('ol/layer/Vector', () => ({ default: class VectorLayer {} }))
 jest.mock('ol/interaction/Snap', () => ({ default: class Snap {} }))

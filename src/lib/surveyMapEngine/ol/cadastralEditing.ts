@@ -22,9 +22,11 @@
 // ---------------------------------------------------------------------------
 
 import Map from 'ol/Map'
+import Collection from 'ol/Collection'
 import Feature from 'ol/Feature'
 import Polygon from 'ol/geom/Polygon'
 import Point from 'ol/geom/Point'
+import LineString from 'ol/geom/LineString'
 import VectorSource from 'ol/source/Vector'
 import VectorLayer from 'ol/layer/Vector'
 import Snap from 'ol/interaction/Snap'
@@ -35,19 +37,17 @@ import Style from 'ol/style/Style'
 import Fill from 'ol/style/Fill'
 import Stroke from 'ol/style/Stroke'
 import Text from 'ol/style/Text'
-import { transform } from 'ol/proj'
 import { unByKey } from 'ol/Observable'
-import proj4 from 'proj4'
+import { assertProjectedCrs, resolveEpsg, surveyBearing, surveyDistance, transformPoint, type Position2D } from '@/lib/spatial/projectCrs'
+import { splitPolygonWithLine } from './editingTools'
 
 import type Geometry from 'ol/geom/Geometry'
 import type SimpleGeometry from 'ol/geom/SimpleGeometry'
-import type LineString from 'ol/geom/LineString'
 import type { FeatureLike } from 'ol/Feature'
 import type { EventsKey } from 'ol/events'
 import type { ModifyEvent } from 'ol/interaction/Modify'
 import type { DrawEvent } from 'ol/interaction/Draw'
 import type { GeometryFunction as DrawGeometryFunction } from 'ol/interaction/Draw'
-import type { Options as SnapOptions } from 'ol/interaction/Snap'
 import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------
@@ -106,8 +106,10 @@ export interface SubdivisionOptions {
   targetFeature: Feature;
   /** Snap tolerance in pixels (default: 10). */
   snapTolerance?: number;
-  /** EPSG code of the source geometry coordinates (default: 'EPSG:3857'). */
-  sourceProjection?: string;
+  /** Declared CRS of the source geometry coordinates. */
+  sourceProjection: string;
+  /** Declared projected project CRS for subdivision mathematics. */
+  projectCrs: string;
   /** Callback with the two resulting polygon features after subdivision. */
   onComplete: (polygonA: Feature, polygonB: Feature) => void;
   /** Callback if subdivision fails (e.g. split line does not cross the parcel). */
@@ -120,14 +122,18 @@ export interface MeasureWhileDrawOptions {
   map: Map;
   /** The OL Draw interaction to monitor. */
   drawInteraction: Draw;
-  /** Projection of the source geometry (default: 'EPSG:3857'). */
-  projection?: string;
+  /** Declared source geometry projection. */
+  projection: string;
+  /** Declared projected project CRS for grid distances and bearings. */
+  projectCrs: string;
   /** Whether to show per-edge bearing labels (default: true). */
   showBearing?: boolean;
   /** Whether to show cumulative distance (default: true). */
   showCumulativeDistance?: boolean;
   /** Whether to show per-edge distance (default: true). */
   showEdgeDistance?: boolean;
+  /** Invalid geometry clears annotations and reports the error. */
+  onError?: (error: Error) => void;
 }
 
 /** Handle returned by {@link createMeasureWhileDraw} for cleanup. */
@@ -135,7 +141,7 @@ export interface MeasureHandle {
   /** Remove all measurement features, event listeners, and the annotation layer from the map. */
   cleanup: () => void;
   /** The temporary OL VectorLayer containing measurement annotation features. */
-  layer: VectorLayer;
+  layer: VectorLayer<VectorSource<Feature>>;
 }
 
 // ---------------------------------------------------------------------------
@@ -160,31 +166,49 @@ function generateFeatureId(): string {
   return `${FEAT_ID_PREFIX}${Date.now()}_${_idCounter}`;
 }
 
-/**
- * Calculate planar distance between two coordinates (for projected CRS).
- * @param c1 - First coordinate [x, y].
- * @param c2 - Second coordinate [x, y].
- * @returns Distance in map units (metres for EPSG:21037 / EPSG:3857).
- */
-function planarDistance(c1: number[], c2: number[]): number {
-  const dx = c2[0] - c1[0];
-  const dy = c2[1] - c1[1];
-  return Math.sqrt(dx * dx + dy * dy);
+/** Transform display geometry only through the declared project authority. */
+function declaredFrames(source: string, project: string) {
+  if (typeof project !== 'string' || !project.trim()) throw new Error('Declare the projected project CRS before surveying operations.')
+  const grid = assertProjectedCrs(project).code
+  if (typeof source !== 'string' || !source.trim()) throw new Error('Declare the source geometry projection.')
+  const sourceCrs = resolveEpsg(source).code
+  const convert = (coordinate: number[], from: string, to: string): Position2D => {
+    if (coordinate.length < 2 || !Number.isFinite(coordinate[0]) || !Number.isFinite(coordinate[1])) throw new Error('Geometry coordinates must be finite before survey measurement.')
+    const result: Position2D = from === to ? [coordinate[0], coordinate[1]] : transformPoint(coordinate[0], coordinate[1], from, to)
+    if (!result.every(Number.isFinite)) throw new Error('The declared CRS conversion did not produce finite grid coordinates.')
+    return result
+  }
+  return { grid, toGrid: (coordinate: number[]) => convert(coordinate, sourceCrs, grid), fromGrid: (coordinate: number[]) => convert(coordinate, grid, sourceCrs) }
 }
 
-/**
- * Calculate bearing between two points (whole-circle bearing, 0 = North, 90 = East).
- * Works correctly for projected CRS where the Y axis points north.
- * @param from - Start coordinate [x, y].
- * @param to - End coordinate [x, y].
- * @returns Bearing in degrees 0–360.
- */
-function calculateBearingDeg(from: number[], to: number[]): number {
-  const dE = to[0] - from[0];
-  const dN = to[1] - from[1];
-  let bearing = (Math.atan2(dE, dN) * 180) / Math.PI;
-  if (bearing < 0) bearing += 360;
-  return bearing;
+/** OL Snap accepts a source or a feature Collection, never a sources array. */
+function snapForSources(sources: VectorSource<Feature>[], pixelTolerance: number) {
+  const features = new Collection<Feature>([], { unique: true })
+  const references = new WeakMap<Feature, number>()
+  const keys: EventsKey[] = []
+  const memberships: Set<Feature>[] = []
+  for (const source of new Set(sources)) {
+    const members = new Set<Feature>()
+    memberships.push(members)
+    const add = (feature: Feature) => {
+      if (members.has(feature)) return
+      members.add(feature)
+      const count = references.get(feature) ?? 0
+      references.set(feature, count + 1)
+      if (count === 0) features.push(feature)
+    }
+    const remove = (feature: Feature) => {
+      if (!members.delete(feature)) return
+      const count = references.get(feature) ?? 0
+      if (count <= 1) { references.delete(feature); features.remove(feature) }
+      else references.set(feature, count - 1)
+    }
+    source.getFeatures().forEach(add)
+    keys.push(source.on('addfeature', event => { if (event.feature) add(event.feature) }))
+    keys.push(source.on('removefeature', event => { if (event.feature) remove(event.feature) }))
+    keys.push(source.on('clear', () => { for (const feature of members) remove(feature) }))
+  }
+  return { snap: new Snap({ features, pixelTolerance }), cleanup: () => { unByKey(keys); memberships.forEach(members => members.clear()); features.clear() } }
 }
 
 /**
@@ -220,15 +244,8 @@ function formatBearingCardinal(deg: number): string {
 }
 
 /**
- * Calculate cumulative planar distance along a polyline.
- * @param coords - Array of coordinates [[x,y], ...].
- * @returns Total distance in map units.
+ * Types of operations that can be recorded by HistoryManager.
  */
-// ---------------------------------------------------------------------------
-// HistoryManager — undo / redo for editing operations
-// ---------------------------------------------------------------------------
-
-/** Types of operations that can be recorded. */
 type HistoryOpType = 'add' | 'modify' | 'delete';
 
 /**
@@ -611,16 +628,8 @@ export async function createEditingInteractionStack(
   const select = new Select({ hitTolerance: 5 });
 
   // ── Snap ───────────────────────────────────────────────────────────────
-  // OL Snap's option type only declares `source` (singular), but the runtime
-  // also accepts a `sources` array. Extend the type locally.
-  const snapOptions: SnapOptions & { sources?: VectorSource<Feature>[] } = {
-    source,
-    pixelTolerance: snapTolerance,
-  };
-  if (snapSource) {
-    snapOptions.sources = [source, snapSource];
-  }
-  const snap = new Snap(snapOptions);
+  const snapping = snapForSources(snapSource ? [source, snapSource] : [source], snapTolerance);
+  const snap = snapping.snap;
 
   // ── Modify ─────────────────────────────────────────────────────────────
   const modify = new Modify({ features: select.getFeatures() });
@@ -725,6 +734,7 @@ export async function createEditingInteractionStack(
 
   // ── Cleanup ───────────────────────────────────────────────────────────
   const removeAll = () => {
+    snapping.cleanup();
     if (typeof document !== 'undefined') {
       document.removeEventListener('keydown', onKeyDown);
     }
@@ -746,12 +756,11 @@ export async function createEditingInteractionStack(
  * Creates a subdivision interaction that lets the surveyor draw a split line
  * across an existing parcel, dividing it into two new parcels.
  *
- * The split line snaps to the parcel edges. On completion, the parcel is split
- * using `@turf/turf`'s `lineSplit` and the two resulting polygon features
- * are delivered via the `onComplete` callback.
+ * The split line snaps to the parcel edges. The shared grid splitter retains
+ * the drawn path and delivers exactly two complete polygon features.
  *
- * **Coordinate handling:** Source geometries are transformed to WGS84 for the
- * turf split, then the results are transformed back to the source projection.
+ * Source geometry is transformed to the declared project grid for topology;
+ * the resulting polygons are converted back for display.
  *
  * @param options - Subdivision configuration. See {@link SubdivisionOptions}.
  * @returns An object with the draw and snap interactions plus a cleanup function.
@@ -761,7 +770,8 @@ export async function createEditingInteractionStack(
  * const { draw, snap, cleanup } = await createSubdivisionInteraction({
  *   source: parcelSource,
  *   targetFeature: selectedParcel,
- *   sourceProjection: 'EPSG:3857',
+ *   sourceProjection: map.getView().getProjection().getCode(),
+ *   projectCrs: declaredProjectCrs,
  *   onComplete: (polyA, polyB) => {
  *     parcelSource.removeFeature(selectedParcel);
  *     parcelSource.addFeature(polyA);
@@ -775,164 +785,57 @@ export async function createEditingInteractionStack(
  */
 export async function createSubdivisionInteraction(
   options: SubdivisionOptions,
-): Promise<{
-  /** The OL Draw interaction for the split line (LineString type). */
-  draw: Draw;
-  /** The OL Snap interaction that snaps the split line to parcel edges. */
-  snap: Snap;
-  /** Remove event listeners and clean up temporary sources. */
-  cleanup: () => void;
-}> {
-  const {
-    targetFeature,
-    snapTolerance = 10,
-    sourceProjection = 'EPSG:3857',
-    onComplete,
-    onError,
-  } = options;
-
-  // ── Lazy-load turf ────────────────────────────────────────────────────
-  let turf: typeof import('@turf/turf');
-  try {
-    turf = await import('@turf/turf');
-  } catch {
-    throw new Error(
-      '[cadastralEditing] @turf/turf is required for parcel subdivision. ' +
-        'Install it with: npm install @turf/turf',
-    );
+): Promise<{ draw: Draw; snap: Snap; cleanup: () => void }> {
+  const { source, targetFeature, snapTolerance = 10, sourceProjection, projectCrs, onComplete, onError } = options
+  const frame = declaredFrames(sourceProjection, projectCrs)
+  const parentGeometry = targetFeature.getGeometry()
+  if (!(parentGeometry instanceof Polygon) || parentGeometry.getCoordinates().length !== 1) throw new Error('Subdivision requires one simple polygon without interior rings.')
+  if (!source.hasFeature(targetFeature)) throw new Error('The parent parcel is not in the editing source.')
+  const geometryRevision = parentGeometry.getRevision()
+  const featureRevision = targetFeature.getRevision()
+  const originalProperties = { ...targetFeature.getProperties() }
+  delete originalProperties.geometry
+  const parentId = targetFeature.getId()
+  const originalStyle = targetFeature.getStyle()
+  const parentGrid = parentGeometry.getCoordinates()[0].map(frame.toGrid)
+  const splitSource = new VectorSource<Feature>()
+  const targetSource = new VectorSource<Feature>({ features: [targetFeature] })
+  const snapping = snapForSources([splitSource, targetSource], snapTolerance)
+  const draw = new Draw({ source: splitSource, type: 'LineString', snapTolerance, minPoints: 2 })
+  let cleanedUp = false
+  const keys: EventsKey[] = []
+  function cleanup(): void {
+    if (cleanedUp) return
+    cleanedUp = true
+    unByKey(keys)
+    snapping.cleanup()
+    splitSource.clear()
+    targetSource.clear()
   }
-
-  // ── Temporary sources ─────────────────────────────────────────────────
-  const splitSource = new VectorSource();
-  const targetSource = new VectorSource({ features: [targetFeature] });
-
-  // ── Snap interaction ───────────────────────────────────────────────────
-  // OL Snap runtime supports a `sources` array but the v10.8 types only
-  // declare `source` (singular). Extend the type locally.
-  const snap = new Snap({
-    sources: [splitSource, targetSource],
-    pixelTolerance: snapTolerance,
-  } as SnapOptions & { sources?: VectorSource<Feature>[] });
-
-  // ── Draw interaction (split line) ─────────────────────────────────────
-  const draw = new Draw({
-    source: splitSource,
-    type: 'LineString',
-    snapTolerance: snapTolerance,
-    minPoints: 2,
-  });
-
-  let cleanedUp = false;
-
-  draw.on('drawend', async (event: DrawEvent) => {
-    if (cleanedUp) return;
-
-    const splitLineFeature = event.feature;
-    const splitLineGeom = splitLineFeature.getGeometry();
-
+  keys.push(draw.on('drawend', (event: DrawEvent) => {
+    if (cleanedUp) return
     try {
-      // ── Validate target geometry ───────────────────────────────────────
-      const parcelGeom = targetFeature.getGeometry();
-      if (!parcelGeom) {
-        throw new Error('Target feature has no geometry.');
-      }
-
-      // ── Transform to WGS84 for turf ───────────────────────────────────
-      const parcelRings = (parcelGeom as Polygon).getCoordinates();
-      const lineCoords = (splitLineGeom as LineString | null)?.getCoordinates() ?? [];
-
-      const parcelRingsWgs84 = parcelRings.map((ring: number[][]) =>
-        ring.map((c: number[]) => transform(c, sourceProjection, 'EPSG:4326')),
-      );
-      const lineCoordsWgs84 = lineCoords.map((c: number[]) =>
-        transform(c, sourceProjection, 'EPSG:4326'),
-      );
-
-      // ── Build turf geometries ─────────────────────────────────────────
-      const parcelGeoJSON = turf.polygon(parcelRingsWgs84);
-      const lineGeoJSON = turf.lineString(lineCoordsWgs84);
-
-      // ── Split ─────────────────────────────────────────────────────────
-      // NOTE: turf's `lineSplit(line, splitter)` types require the first arg to
-      // be a LineString, but the legacy call here passes a polygon first. The
-      // types reject this; we cast to preserve the existing runtime behaviour.
-      // (Pre-existing shape mismatch that was hidden by `any` — preserved per
-      // the type-hygiene migration recipe's "don't fix unrelated bugs" rule.)
-      const splitResult = turf.lineSplit(
-        parcelGeoJSON as unknown as Parameters<typeof turf.lineSplit>[0],
-        lineGeoJSON,
-      ) as unknown as { features: Array<{ geometry: { coordinates: number[][][] } }> };
-
-      if (
-        !splitResult ||
-        !splitResult.features ||
-        splitResult.features.length < 2
-      ) {
-        throw new Error(
-          'The split line does not fully cross the parcel. ' +
-            'Draw a line from one edge of the parcel to another.',
-        );
-      }
-
-      if (splitResult.features.length > 2) {
-        throw new Error(
-          `Split produced ${splitResult.features.length} polygons (expected 2). ` +
-            'The split line may cross a parcel vertex — try a different line.',
-        );
-      }
-
-      // ── Convert results back to source projection ─────────────────────
-      const feature0 = splitResult.features[0];
-      const feature1 = splitResult.features[1];
-      const coordsA = feature0.geometry.coordinates.map(
-        (ring: number[][]) =>
-          ring.map((c: number[]) => transform(c, 'EPSG:4326', sourceProjection)),
-      );
-      const coordsB = feature1.geometry.coordinates.map(
-        (ring: number[][]) =>
-          ring.map((c: number[]) => transform(c, 'EPSG:4326', sourceProjection)),
-      );
-
-      const polyA = new Feature({ geometry: new Polygon(coordsA) });
-      polyA.setId(generateFeatureId());
-
-      const polyB = new Feature({ geometry: new Polygon(coordsB) });
-      polyB.setId(generateFeatureId());
-
-      // ── Propagate properties from the original parcel ─────────────────
-      const props = { ...targetFeature.getProperties() };
-      delete props.geometry;
-      const parentId = targetFeature.getId();
-      polyA.setProperties({ ...props, subdivided_from: parentId });
-      polyB.setProperties({ ...props, subdivided_from: parentId });
-
-      // Copy the original feature's style if present
-      const origStyle = targetFeature.getStyle();
-      if (origStyle) {
-        polyA.setStyle(origStyle);
-        polyB.setStyle(origStyle);
-      }
-
-      onComplete(polyA, polyB);
-    } catch (err: unknown) {
-      const error = err instanceof Error ? err : new Error(String(err));
-      if (onError) {
-        onError(error);
-      } else {
-        logger.error('[cadastralEditing] Subdivision failed:', { error: error.message });
-      }
-    } finally {
-      splitSource.clear();
-      cleanup();
-    }
-  });
-
-  const cleanup = () => {
-    cleanedUp = true;
-    splitSource.clear();
-  };
-
-  return { draw, snap, cleanup };
+      if (!source.hasFeature(targetFeature) || targetFeature.getGeometry() !== parentGeometry || parentGeometry.getRevision() !== geometryRevision || targetFeature.getRevision() !== featureRevision) throw new Error('The parent parcel changed during drawing. Reopen subdivision on its current revision.')
+      const line = event.feature.getGeometry()
+      if (!(line instanceof LineString)) throw new Error('Draw a valid parcel dividing line.')
+      const result = splitPolygonWithLine(parentGrid, line.getCoordinates().map(frame.toGrid), frame.grid)
+      if (!result) throw new Error('The dividing line must create exactly two complete simple parcels. Review crossings, boundary overlaps and interior rings.')
+      const children = [result.polygon1, result.polygon2].map(ring => {
+        const child = new Feature({ geometry: new Polygon([ring.map(frame.fromGrid)]) })
+        child.setId(generateFeatureId())
+        child.setProperties({ ...originalProperties, subdivided_from: parentId })
+        if (originalStyle) child.setStyle(originalStyle)
+        return child
+      })
+      onComplete(children[0], children[1])
+    } catch (error) {
+      const failure = error instanceof Error ? error : new Error(String(error))
+      if (onError) onError(failure)
+      else logger.error('[cadastralEditing] Subdivision refused:', { error: failure.message })
+    } finally { cleanup() }
+  }))
+  keys.push(draw.on('drawabort', cleanup))
+  return { draw, snap: snapping.snap, cleanup }
 }
 
 // ---------------------------------------------------------------------------
@@ -948,9 +851,8 @@ export async function createSubdivisionInteraction(
  * - **Per-edge bearing** (e.g. "90.0° E") alongside the distance
  * - **Cumulative distance** (e.g. "Total: 67.89 m") at the cursor
  *
- * All measurements use planar distance (accurate for projected CRS such as
- * EPSG:21037 / EPSG:3857). For geographic CRS (EPSG:4326), proj4 is used to
- * project to Kenya UTM 36M before computing distances.
+ * All source positions are converted to the declared projected project grid.
+ * Distances and grid bearings use the shared CRS authority; no zone is guessed.
  *
  * @param options - Measurement configuration. See {@link MeasureWhileDrawOptions}.
  * @returns A handle with a `cleanup` function and a reference to the annotation layer.
@@ -960,7 +862,8 @@ export async function createSubdivisionInteraction(
  * const measure = await createMeasureWhileDraw({
  *   map,
  *   drawInteraction: stack.draw,
- *   projection: 'EPSG:3857',
+ *   projection: map.getView().getProjection().getCode(),
+ *   projectCrs: declaredProjectCrs,
  * });
  *
  * // When done (e.g. on unmount):
@@ -970,196 +873,103 @@ export async function createSubdivisionInteraction(
 export async function createMeasureWhileDraw(
   options: MeasureWhileDrawOptions,
 ): Promise<MeasureHandle> {
-  const {
-    map,
-    drawInteraction,
-    projection = 'EPSG:3857',
-    showBearing = true,
-    showCumulativeDistance = true,
-    showEdgeDistance = true,
-  } = options;
-
-  // ── Optional proj4 for geographic CRS ─────────────────────────────────
-  let toMetric: ((coord: number[]) => number[]) | null = null;
-
-  if (projection === 'EPSG:4326') {
-    // proj4 is a hard dependency (declared in package.json). Use it directly
-    // to convert WGS84 coordinates to Kenya UTM Zone 36M for metric distance.
-    // Default to Kenya UTM Zone 36M for metric conversion
-    const utm36m =
-      '+proj=utm +zone=36 +south +ellps=WGS84 +datum=WGS84 +units=m +no_defs';
-    toMetric = (coord: number[]) => proj4('EPSG:4326', utm36m, coord);
-  }
-
-  /**
-   * Compute distance between two coordinates, projecting to metric if needed.
-   */
-  const measureDistance = (c1: number[], c2: number[]): number => {
-    if (toMetric) {
-      return planarDistance(toMetric(c1), toMetric(c2));
-    }
-    return planarDistance(c1, c2);
-  };
-
-  // ── Annotation layer ──────────────────────────────────────────────────
-  const measureSource = new VectorSource();
-
+  const { map, drawInteraction, projection, projectCrs, showBearing = true, showCumulativeDistance = true, showEdgeDistance = true, onError } = options
+  const frame = declaredFrames(projection, projectCrs)
+  const measureSource = new VectorSource()
   const measureLayer = new VectorLayer({
     source: measureSource,
-    style: (feature: FeatureLike) => {
-      const label = (feature.get('measureLabel') as string) ?? '';
-      return new Style({
-        text: new Text({
-          font: '11px monospace',
-          fill: new Fill({ color: '#1a237e' }),
-          stroke: new Stroke({ color: '#ffffff', width: 3 }),
-          text: label,
-          offsetY: -14,
-          placement: 'point',
-        }),
-      });
-    },
+    style: (feature: FeatureLike) => new Style({
+      text: new Text({
+        font: '11px monospace', fill: new Fill({ color: '#1a237e' }),
+        stroke: new Stroke({ color: '#ffffff', width: 3 }),
+        text: (feature.get('measureLabel') as string) ?? '', offsetY: -14, placement: 'point',
+      }),
+    }),
     zIndex: 100,
-  });
-
-  map.addLayer(measureLayer);
-
-  // ── State ─────────────────────────────────────────────────────────────
-  let active = false;
-  let sketchFeature: Feature | null = null;
-  let annotationFeatures: Feature[] = [];
-  let geometryChangeKey: EventsKey | null = null;
-
-  /**
-   * Remove all annotation features from the measure source.
-   */
-  function clearAnnotations(): void {
-    for (const f of annotationFeatures) {
-      measureSource.removeFeature(f);
-    }
-    annotationFeatures = [];
-  }
-
-  /**
-   * (Re)build annotation features from the current sketch coordinates.
-   */
+  })
+  map.addLayer(measureLayer)
+  let active = false
+  let cleanedUp = false
+  let sketchFeature: Feature | null = null
+  let geometryChangeKey: EventsKey | null = null
+  const clearAnnotations = () => measureSource.clear()
   function updateAnnotations(coords: number[][]): void {
-    clearAnnotations();
-
-    if (coords.length < 2) return;
-
-    let cumulative = 0;
-
-    for (let i = 1; i < coords.length; i++) {
-      const from = coords[i - 1];
-      const to = coords[i];
-      const edgeDist = measureDistance(from, to);
-      cumulative += edgeDist;
-
-      const mid = midpoint(from, to);
-      const bear = calculateBearingDeg(from, to);
-
-      // Build label text
-      const parts: string[] = [];
-      if (showEdgeDistance) parts.push(formatDistance(edgeDist));
-      if (showBearing) parts.push(formatBearingCardinal(bear));
-
-      const feature = new Feature({ geometry: new Point(mid) });
-      feature.set('measureLabel', parts.join('  '));
-      feature.set('measureType', 'edge');
-      measureSource.addFeature(feature);
-      annotationFeatures.push(feature);
-    }
-
-    // Cumulative label at the last vertex
-    if (showCumulativeDistance && coords.length > 2) {
-      const lastCoord = coords[coords.length - 1];
-      const totalFeature = new Feature({ geometry: new Point(lastCoord) });
-      totalFeature.set('measureLabel', `\u03A3 ${formatDistance(cumulative)}`);
-      totalFeature.set('measureType', 'cumulative');
-      measureSource.addFeature(totalFeature);
-      annotationFeatures.push(totalFeature);
+    clearAnnotations()
+    if (coords.length < 2) return
+    try {
+      const grid = coords.map(frame.toGrid)
+      const annotations: Array<{ coordinate: number[]; label: string; type: string }> = []
+      let cumulative = 0
+      for (let index = 1; index < grid.length; index++) {
+        const from = grid[index - 1], to = grid[index]
+        const edgeDistance = surveyDistance(from[0], from[1], to[0], to[1], frame.grid)
+        cumulative += edgeDistance
+        if (!Number.isFinite(edgeDistance) || !Number.isFinite(cumulative)) throw new Error('The sketch has no finite survey distance.')
+        const parts: string[] = []
+        if (showEdgeDistance) parts.push(formatDistance(edgeDistance))
+        if (showBearing && edgeDistance > 0) parts.push(formatBearingCardinal(surveyBearing(from[0], from[1], to[0], to[1], frame.grid)))
+        annotations.push({ coordinate: midpoint(coords[index - 1], coords[index]), label: parts.join('  '), type: 'edge' })
+      }
+      if (showCumulativeDistance && grid.length > 2) annotations.push({ coordinate: coords[coords.length - 1], label: 'Σ ' + formatDistance(cumulative), type: 'cumulative' })
+      for (const annotation of annotations) {
+        const feature = new Feature({ geometry: new Point(annotation.coordinate) })
+        feature.set('measureLabel', annotation.label)
+        feature.set('measureType', annotation.type)
+        measureSource.addFeature(feature)
+      }
+    } catch (error) {
+      clearAnnotations()
+      const failure = error instanceof Error ? error : new Error(String(error))
+      if (onError) onError(failure)
+      else logger.error('[cadastralEditing] Measurement refused:', { error: failure.message })
     }
   }
-
-  /**
-   * Extract the current sketch ring coordinates from the sketch feature geometry.
-   */
   function readSketchCoords(): number[][] | null {
-    if (!sketchFeature) return null;
-    const geom = sketchFeature.getGeometry();
-    if (!geom) return null;
-
-    const type = geom.getType();
-    if (type === 'Polygon') {
-      const rings = (geom as Polygon).getCoordinates();
-      return rings.length > 0 ? rings[0] : null;
-    }
-    if (type === 'LineString') {
-      return (geom as LineString).getCoordinates();
-    }
-    return null;
+    const geometry = sketchFeature?.getGeometry()
+    if (geometry?.getType() === 'Polygon') return (geometry as Polygon).getCoordinates()[0] ?? null
+    if (geometry?.getType() === 'LineString') return (geometry as LineString).getCoordinates()
+    return null
   }
-
-  // ── Event handlers ────────────────────────────────────────────────────
-
-  function onDrawStart(event: DrawEvent): void {
-    active = true;
-    sketchFeature = event.feature;
-
-    // Listen for geometry changes on the sketch feature
-    const geom = sketchFeature.getGeometry();
-    if (geom) {
-      geometryChangeKey = geom.on('change', () => {
-        if (!active) return;
-        const coords = readSketchCoords();
-        if (coords) updateAnnotations(coords);
-      }) as EventsKey;
-    }
-
-    clearAnnotations();
-  }
-
-  function onDrawEnd(): void {
-    // Keep annotations visible after draw ends — caller decides when to cleanup
-    detachSketchListener();
-  }
-
-  function onDrawAbort(): void {
-    active = false;
-    clearAnnotations();
-    detachSketchListener();
-  }
-
   function detachSketchListener(): void {
-    if (geometryChangeKey) {
-      // unByKey is the correct OL API for removing a listener by its EventsKey
-      // (returned from `geom.on(...)`). The previous code passed the key to
-      // `geom.un('change', key)` which is a type error and a no-op at runtime.
-      unByKey(geometryChangeKey);
-    }
-    geometryChangeKey = null;
-    sketchFeature = null;
-    active = false;
+    if (geometryChangeKey) unByKey(geometryChangeKey)
+    geometryChangeKey = null
+    sketchFeature = null
+    active = false
   }
-
-  // ── Attach listeners ──────────────────────────────────────────────────
-  drawInteraction.on('drawstart', onDrawStart);
-  drawInteraction.on('drawend', onDrawEnd);
-  drawInteraction.on('drawabort', onDrawAbort);
-
-  // ── Cleanup ───────────────────────────────────────────────────────────
-
-  function cleanup(): void {
-    detachSketchListener();
-    drawInteraction.un('drawstart', onDrawStart);
-    drawInteraction.un('drawend', onDrawEnd);
-    drawInteraction.un('drawabort', onDrawAbort);
-    clearAnnotations();
-    map.removeLayer(measureLayer);
+  function onDrawStart(event: DrawEvent): void {
+    detachSketchListener()
+    active = true
+    sketchFeature = event.feature
+    const geometry = sketchFeature.getGeometry()
+    if (geometry) geometryChangeKey = geometry.on('change', () => {
+      if (!active) return
+      const coords = readSketchCoords()
+      if (coords) updateAnnotations(coords)
+    })
+    clearAnnotations()
   }
-
-  return { cleanup, layer: measureLayer };
+  function onDrawEnd(): void {
+    const coords = readSketchCoords()
+    if (coords) updateAnnotations(coords)
+    detachSketchListener()
+  }
+  function onDrawAbort(): void {
+    clearAnnotations()
+    detachSketchListener()
+  }
+  drawInteraction.on('drawstart', onDrawStart)
+  drawInteraction.on('drawend', onDrawEnd)
+  drawInteraction.on('drawabort', onDrawAbort)
+  return { layer: measureLayer, cleanup: () => {
+    if (cleanedUp) return
+    cleanedUp = true
+    detachSketchListener()
+    drawInteraction.un('drawstart', onDrawStart)
+    drawInteraction.un('drawend', onDrawEnd)
+    drawInteraction.un('drawabort', onDrawAbort)
+    clearAnnotations()
+    map.removeLayer(measureLayer)
+  } }
 }
 
 // ---------------------------------------------------------------------------

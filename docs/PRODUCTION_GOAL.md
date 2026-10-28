@@ -5,6 +5,15 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+28 October map-integrity checkpoint:
+`CADASTRAL_MAP_INTEGRITY_2026-10-28.md` records actual-path parcel splitting with
+full-area/two-face checks, explicit project-grid drawing measurements, parent
+revision refusal and real two-source snapping. All 237 affected/core/wiring tests,
+application/test typing and seven-file scoped lint pass. The production verifier
+passes without changing services. Source/component proof does not close browser,
+durable/collaborative cadastral delivery, ward-scale, CI, recovery, production,
+provider or independent field gates. The broader goal remains active.
+
 28 October input-admission follow-up:
 `CADASTRAL_INPUT_AND_RETIRED_JOBS_2026-10-28.md` records rejection of coerced
 survey numbers and malformed retained observations, while preserving declared

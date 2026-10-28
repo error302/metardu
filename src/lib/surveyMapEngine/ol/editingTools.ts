@@ -1,11 +1,10 @@
 /**
  * Editing Tools — real geometry operations for Split, Merge, Reshape, Rotate, Offset
  *
- * Topology operations use Turf's planar boolean geometry on coordinates that
- * have already been transformed to the declared project grid. Grid areas use
- * the shared project-CRS authority, and offsets are computed in projected
- * metres. The useDigitizingTools hook calls these from OL drawend and explicit
- * Apply actions.
+ * Splitting retains the actual cut path through the shared planar partitioner;
+ * merge and validity operations use Turf on declared project-grid coordinates.
+ * Grid areas use the shared project-CRS authority, and offsets use projected
+ * metres. The useDigitizingTools hook calls these from OL drawend and Apply.
  *
  * T0.6 FIX (2026-07-09): The floating DigitizingToolbar.tsx that previously
  * called these has been deleted (it was dead code — zero importers). The
@@ -17,6 +16,7 @@ import { logger } from '@/lib/logger'
 import * as turf from '@turf/turf'
 import type { Feature, Polygon as GeoPolygon } from 'geojson'
 import { assertProjectedCrs, surveyArea } from '@/lib/spatial/projectCrs'
+import { splitSimpleParcel } from '../core/parcelSplit'
 
 export interface SplitResult {
   polygon1: [number, number][]
@@ -35,91 +35,7 @@ export function splitPolygonWithLine(
   projectCrs: string,
 ): SplitResult | null {
   try {
-    assertProjectedCrs(projectCrs)
-    // Ensure closed ring
-    const closed = isClosed(polygonCoords) ? polygonCoords : [...polygonCoords, polygonCoords[0]]
-
-    const polygon = turf.polygon([closed.map(([e, n]) => [e, n])])
-    const line = turf.lineString(lineCoords.map(([e, n]) => [e, n]))
-
-    // Check if line actually intersects the polygon
-    const intersects = turf.lineIntersect(line, polygon)
-    if (intersects.features.length < 2) {
-      return null // Line must cross the polygon at least twice
-    }
-
-    // Get the intersection points
-    const intersectionPoints = intersects.features.map(f => {
-      const coords = f.geometry.coordinates as [number, number]
-      return coords
-    })
-
-    if (intersectionPoints.length < 2) return null
-
-    // Create a cutting polygon (a thin sliver rectangle along the extended line).
-    const bbox = turf.bbox(polygon)
-    const width = bbox[2] - bbox[0]
-    const height = bbox[3] - bbox[1]
-    const margin = Math.max(width, height) * 2
-
-    const lineStart = lineCoords[0] as [number, number]
-    const lineEnd = lineCoords[lineCoords.length - 1] as [number, number]
-
-    const dx = lineEnd[0] - lineStart[0]
-    const dy = lineEnd[1] - lineStart[1]
-    const len = Math.sqrt(dx * dx + dy * dy)
-    if (len === 0) return null
-
-    const ux = dx / len
-    const uy = dy / len
-
-    const extendedStart: [number, number] = [
-      lineStart[0] - ux * margin,
-      lineStart[1] - uy * margin,
-    ]
-    const extendedEnd: [number, number] = [
-      lineEnd[0] + ux * margin,
-      lineEnd[1] + uy * margin,
-    ]
-
-    const perpX = -uy
-    const perpY = ux
-    const halfWidth = 0.00001
-
-    const cutPolygon = turf.polygon([[
-      [extendedStart[0] + perpX * halfWidth, extendedStart[1] + perpY * halfWidth],
-      [extendedEnd[0] + perpX * halfWidth, extendedEnd[1] + perpY * halfWidth],
-      [extendedEnd[0] - perpX * halfWidth, extendedEnd[1] - perpY * halfWidth],
-      [extendedStart[0] - perpX * halfWidth, extendedStart[1] - perpY * halfWidth],
-      [extendedStart[0] + perpX * halfWidth, extendedStart[1] + perpY * halfWidth],
-    ]])
-
-    const diff = turf.difference(turf.featureCollection([polygon, cutPolygon]))
-
-    if (!diff || !diff.geometry) return null
-
-    const diffGeom = diff.geometry
-    if (diffGeom.type === 'Polygon') {
-      return null
-    }
-    if (diffGeom.type === 'MultiPolygon') {
-      const polys = diffGeom.coordinates as number[][][][]
-      if (polys.length < 2) return null
-      // Boolean difference uses a thin cutter to create two faces. Snap its
-      // two artificial parallel edges back onto the exact cut line so the
-      // output parts meet and retain the parcel's full grid area.
-      const p1Coords = snapCutBoundary(polys[0][0] as [number, number][], lineStart, [ux, uy], halfWidth)
-      const p2Coords = snapCutBoundary(polys[1][0] as [number, number][], lineStart, [ux, uy], halfWidth)
-
-      return {
-        polygon1: p1Coords,
-        polygon2: p2Coords,
-        area1: surveyArea(p1Coords, projectCrs),
-        area2: surveyArea(p2Coords, projectCrs),
-      }
-    }
-
-    return null
+    return splitSimpleParcel(polygonCoords, lineCoords, projectCrs)
   } catch (err) {
     logger.error('[editingTools] splitPolygonWithLine failed:', { error: err })
     return null
@@ -313,25 +229,6 @@ export function reshapePolygon(
 
 function stripClosingCoordinate(coords: [number, number][]): [number, number][] {
   return isClosed(coords) ? coords.slice(0, -1) : coords.slice()
-}
-
-function snapCutBoundary(
-  ring: [number, number][],
-  lineStart: [number, number],
-  direction: [number, number],
-  halfWidth: number,
-): [number, number][] {
-  return ring.map(([x, y]) => {
-    const dx = x - lineStart[0]
-    const dy = y - lineStart[1]
-    const along = dx * direction[0] + dy * direction[1]
-    const signedOffset = direction[0] * dy - direction[1] * dx
-    if (Math.abs(signedOffset) > halfWidth + 1e-8) return [x, y]
-    return [
-      lineStart[0] + direction[0] * along,
-      lineStart[1] + direction[1] * along,
-    ]
-  })
 }
 
 function signedRingArea(coords: [number, number][]): number {
