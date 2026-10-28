@@ -1,5 +1,5 @@
-import { chromium, type Page } from 'playwright'
-import { encode } from 'next-auth/jwt'
+import { chromium } from 'playwright';
+import { encode } from 'next-auth/jwt';
 import * as path from 'path'
 import * as fs from 'fs'
 

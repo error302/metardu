@@ -11,6 +11,8 @@
  */
 import { readdirSync, readFileSync } from 'fs';
 import { join, sep } from 'path';
+import { requiredValue } from '@/test-utils/requiredValue'
+
 
 const repoRoot = join(__dirname, '..', '..', '..', '..');
 const srcRoot = join(repoRoot, 'src');
@@ -154,7 +156,7 @@ describe('MapClient is a composition root again (plan Phase 5)', () => {
     }
     const client = readSource(files.mapClient);
     for (const path of extracted) {
-      expect(client).toContain(path.split('/').pop()!.replace('.ts', ''));
+      expect(client).toContain(requiredValue(path.split('/').pop()).replace('.ts', ''));
     }
   });
 

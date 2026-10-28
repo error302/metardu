@@ -1,5 +1,14 @@
 # METARDU production goal
 
+28 October lint/release follow-up: see `CODEBASE_LINT_HEALTH_2026-10-28.md`.
+The complete owned-file lint scan passes with zero errors/warnings, all three
+TypeScript projects pass, and the dependency-free release contract import is
+repaired. CI Jest has a measured 45-minute budget with coverage unchanged.
+The planner validates rollback source against the exact running image.
+This remains source evidence; production is still 08fae427 and worker, current
+recovery, full CI/browser/a11y and broader professional gates remain open.
+The release-tool JavaScript typed-safety backlog is not declared closed.
+
 Working goal established by the owner on 20 October 2026: make METARDU a
 trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one

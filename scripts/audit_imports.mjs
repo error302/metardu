@@ -80,7 +80,7 @@ for (const file of allFiles) {
     for (let i = 0; i < idx; i++) if (src[i] === '\n') lineNo++;
     const defaultImport = m[1];
     const namedBlock = m[2];
-    const namespaceImport = m[3];
+    const _namespaceImport = m[3];
     const spec = m[4];
     checked++;
     if (!spec.startsWith('.') && !spec.startsWith('@/')) continue;

@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 // Verify and optionally remove only the exact retained synthetic browser fixture.
 import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -29,7 +30,7 @@ try {
   const batches = (await client.query("SELECT id,point_count FROM observation_batches WHERE project_id=$1 AND source_file_name='browser-points.csv'", [fixture.project])).rows
   check('repeated UI submission retains one original two-point capture', batches.length === 1 && batches[0].point_count === 2)
   const drawing = job.boundary_data?.cadDocument
-  check('normal CAD save persists all 505 points in the declared CRS', drawing?.beacons.length === 505 && drawing.coordinateReferenceSystem === 'EPSG:32737' && drawing.boundaries.length === 0)
+  check('normal CAD save persists all 505 points in the declared CRS', drawing?.beacons.length === 505 && drawing.coordinateReferenceSystem === declaredFixtureCrs32737 && drawing.boundaries.length === 0)
   check('CAD save does not manufacture adjusted survey stations', !Object.hasOwn(job.boundary_data, 'adjustedStations'))
   const drawn = drawing.beacons.find(point => point.label === 'UI-UNKNOWN')
   check('CAD preserves imported grid coordinates without camera mutation', drawn?.easting === Number(unknown.easting) && drawn.northing === Number(unknown.northing))

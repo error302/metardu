@@ -102,7 +102,7 @@ function parseDuration(str) {
 
 function cleanLogLine(rawLine) {
   const parts = rawLine.split('\t')
-  let line = parts.length >= 3 ? parts.slice(2).join('\t') : rawLine
+  const line = parts.length >= 3 ? parts.slice(2).join('\t') : rawLine
   return line.replace(STRIP_ANSI, '').replace(/^\S+\s+/, '').trim()
 }
 
@@ -288,7 +288,7 @@ function printCompare(runCur, cur, runPrev, prev) {
       if (!o) rows.push({ spec, cur: a.seconds, delta: null, added: true })
       else if (Math.abs(a.seconds - o.seconds) >= SPEC_DELTA_THRESHOLD) rows.push({ spec, cur: a.seconds, delta: a.seconds - o.seconds, added: false })
     }
-    for (const [spec, o] of oldBySpec) {
+    for (const [spec, _o] of oldBySpec) {
       if (!p.perSpec.some(([s]) => s === spec)) rows.push({ spec, cur: null, delta: null, removed: true })
     }
     if (rows.length === 0) {

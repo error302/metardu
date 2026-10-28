@@ -30,9 +30,9 @@ conn.on('ready', () => {
 
   conn.exec(cmds, (err, stream) => {
     if (err) { console.error('Exec error:', err); conn.end(); process.exit(1); }
-    let stdout = '', stderr = '';
-    stream.on('data', (d) => { stdout += d; process.stdout.write(d); });
-    stream.stderr.on('data', (d) => { stderr += d; process.stderr.write(d); });
+    let _stdout = '', _stderr = '';
+    stream.on('data', (d) => { _stdout += d; process.stdout.write(d); });
+    stream.stderr.on('data', (d) => { _stderr += d; process.stderr.write(d); });
     stream.on('close', () => {
       console.log('\n.env.local updated successfully');
       conn.end();

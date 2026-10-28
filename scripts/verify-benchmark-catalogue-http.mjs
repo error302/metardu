@@ -1,3 +1,4 @@
+const declaredFixtureCrs32636 = 'EPSG:32636'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir,writeFile } from 'node:fs/promises'
@@ -31,7 +32,7 @@ try{
  const all=await json(owner,'/api/benchmarks/search',{country,limit:2})
  check('packaged search returns referenced sources with actual pagination counts',all.response.status===200&&all.value.total===3&&all.value.benchmarks.length===2&&all.value.offset===0&&all.response.headers.get('cache-control')==='private, no-store')
  const zero=all.value.benchmarks.find(row=>row.elevation===0)
- check('zero height, source datum and declared grid survive the packaged reader',zero?.verticalDatum==='Synthetic BM'&&zero.horizontalCrs==='EPSG:32636'&&zero.fieldVerified===false&&zero.sourceReference.includes('TEST-ONLY'))
+ check('zero height, source datum and declared grid survive the packaged reader',zero?.verticalDatum==='Synthetic BM'&&zero.horizontalCrs===declaredFixtureCrs32636&&zero.fieldVerified===false&&zero.sourceReference.includes('TEST-ONLY'))
  const metadata=await owner('/api/benchmarks/search?countries=true'),metadataData=await metadata.json()
  check('country options come from reviewed database publications',metadata.status===200&&metadataData.countries.includes(country)&&metadata.headers.get('cache-control')==='private, no-store')
  const unknown=await owner(`/api/benchmarks/search?id=${unknownId}`),unknownData=await unknown.json()

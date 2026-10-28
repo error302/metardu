@@ -1,3 +1,4 @@
+import type { SurveyPlanData } from '../src/lib/reports/surveyPlan/types'
 /**
  * Extract all SVG tags + attributes used by the survey plan renderers,
  * so the DOMPurify whitelist in sanitize.ts can be extended precisely.
@@ -17,18 +18,22 @@ function collect(svg: string) {
   for (const m of svg.matchAll(/([\w:-]+)\s*=/g)) attrs.add(m[1])
 }
 
+async function main() {
 // Standard renderer
-const r1 = new SurveyPlanRenderer(demoData as any)
-collect(r1.render())
+const r1 = new SurveyPlanRenderer(demoData)
+collect(await r1.render())
 
 // Form No.4 renderer (add folio data so it takes that path)
-const data4 = {
+const data4: SurveyPlanData = {
   ...demoData,
   project: { ...demoData.project, folioNumber: 'FR 105/1', registerNumber: 'IR 55555', lrNumber: 'LR 2090/105' },
 }
-const r2 = new FormNo4Renderer(data4 as any, {} as any)
-collect((r2 as any).renderFormNo4())
+const r2 = new FormNo4Renderer(data4, {})
+collect(await r2.renderFormNo4())
 
 console.log('TAGS:', JSON.stringify([...tags].sort(), null, 0))
 console.log()
 console.log('ATTRS:', JSON.stringify([...attrs].sort(), null, 0))
+
+}
+void main().catch(error => { console.error(error); process.exitCode = 1 })

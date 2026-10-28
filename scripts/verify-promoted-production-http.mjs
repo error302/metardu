@@ -1,3 +1,4 @@
+const declaredFixtureCrs32636 = 'EPSG:32636'
 // Normal-account HTTP proof on the one promoted production application.
 // Writes only clearly labelled, newly created synthetic fixtures. Immutable
 // evidence is retained; fixture accounts are disabled and sessions revoked.
@@ -114,7 +115,7 @@ try{
     const targetsResponse=await owner(`${endpoint}?definitionId=${definition.definitionId}`),targets=(await targetsResponse.json()).data?.points
     check('production drainage target metadata includes exact grade',targetsResponse.status===200 && targets?.length===3 && targets[1].metadata?.pipeGradientPercent===1 && targets[1].metadata?.pipeLengthM===100 && targets[1].metadata?.pipeFallM===1)
     for(const [index,target] of targets.entries()){
-      const shot=await owner(endpoint,{method:'POST',...json({action:'record_observation',definitionId:definition.definitionId,label:target.label,designRevision:1,designEasting:target.easting,designNorthing:target.northing,designRL:target.design_rl,observedEasting:target.easting+(index===1?0.1:0.00321),observedNorthing:target.northing+0.00432,observedRL:index===2?null:target.design_rl+0.0054,accuracyM:0.001,capturedCrs:'EPSG:32636',capturedAt:new Date().toISOString(),clientShotId:randomUUID(),instrument:'Synthetic test instrument',operatorName:'Synthetic operator',notes:'SYNTHETIC PRODUCTION VERIFICATION'})})
+      const shot=await owner(endpoint,{method:'POST',...json({action:'record_observation',definitionId:definition.definitionId,label:target.label,designRevision:1,designEasting:target.easting,designNorthing:target.northing,designRL:target.design_rl,observedEasting:target.easting+(index===1?0.1:0.00321),observedNorthing:target.northing+0.00432,observedRL:index===2?null:target.design_rl+0.0054,accuracyM:0.001,capturedCrs:declaredFixtureCrs32636,capturedAt:new Date().toISOString(),clientShotId:randomUUID(),instrument:'Synthetic test instrument',operatorName:'Synthetic operator',notes:'SYNTHETIC PRODUCTION VERIFICATION'})})
       const data=(await shot.json()).data
       check(`production drainage records ${['precise','failed','unknown-height'][index]} evidence`,shot.status===201 && (index===0?data?.result==='PASS':index===1?data?.result==='FAIL':data?.result!=='PASS'))
     }

@@ -1,3 +1,4 @@
+const declaredFixtureCrs32636 = 'EPSG:32636'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
@@ -58,7 +59,7 @@ try {
   await project('invalidBoundary', [{ ...stations[0], adjustedNorthing: null }, ...stations.slice(1)])
   await project('missingReference', stations, false)
   const boundary = await loadProjectMapData(projects.boundary, undefined, owner)
-  check('dedicated APIs load the declared grid and exact saved boundary with zero northing', boundary.epsg === 'EPSG:32636' && boundary.geometryKind === 'ordered_boundary' && boundary.stations[0].adjustedNorthing === 0 && boundary.stations.length === 4)
+  check('dedicated APIs load the declared grid and exact saved boundary with zero northing', boundary.epsg === declaredFixtureCrs32636 && boundary.geometryKind === 'ordered_boundary' && boundary.stations[0].adjustedNorthing === 0 && boundary.stations.length === 4)
   for (const suffix of ['', '/reference-system', '/points']) {
     const response = await owner(`/api/project/${projects.boundary}${suffix}`)
     check(`private map response ${suffix || '/project'} cannot enter shared cache`, response.status === 200 && response.headers.get('cache-control') === 'private, no-store')
@@ -67,7 +68,7 @@ try {
   const pointBody = { pointName: 'SYN-SINGLE-ZERO', easting: 500000, northing: 0, elevation: null }
   const created = await owner(`/api/project/${projects.points}/points`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(pointBody) })
   const point = (await created.json()).data
-  check('real point registration saves its declared grid and zero coordinate', created.status === 201 && point.horizontal_crs === 'EPSG:32636' && point.northing === 0)
+  check('real point registration saves its declared grid and zero coordinate', created.status === 201 && point.horizontal_crs === declaredFixtureCrs32636 && point.northing === 0)
   const points = await loadProjectMapData(projects.points, undefined, owner)
   check('a single raw point is displayable without a fake parcel or invented originals', points.geometryKind === 'points' && points.stations.length === 1 && points.stations[0].pointName === 'SYN-SINGLE-ZERO' && !('originalEasting' in points.stations[0]))
   // Only synthetic IDs created above are changed. Preserve the tombstone for proof.

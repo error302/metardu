@@ -1,3 +1,5 @@
+const fixtureCrs21037 = 'EPSG:21037'
+const fixtureCrs21036 = 'EPSG:21036'
 import assert from 'node:assert/strict'
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { PDFDocument } from 'pdf-lib'
@@ -17,12 +19,12 @@ const rows: SavedShotRow[] = Array.from({ length: 24 }, (_, index) => {
     rl: station === 2 ? null : (design.rl as number) + (station === 1 ? 0.02 : 0.0054) }
   const snapshot = createSetoutCaptureSnapshot({ projectId: 'synthetic-project', definitionId: 'synthetic-definition',
     pointId: `target-${revision}-${station}`, pointLabel: `DR-${station + 1}`, designRevision: revision,
-    horizontalCrs: 'EPSG:21037', definitionCrs: 'EPSG:21037', deviceCrs: index === 9 ? null : 'EPSG:21037',
+    horizontalCrs: fixtureCrs21037, definitionCrs: fixtureCrs21037, deviceCrs: index === 9 ? null : fixtureCrs21037,
     verticalDatum: index === 9 ? null : 'Synthetic benchmark BM-01', capturedAt: `2026-10-11T09:${String(index).padStart(2, '0')}:00Z`,
     design, capturedDesign: design, observed, reportedAccuracyM: 0.001, profile })
   return { id: `observation-${String(index + 1).padStart(3, '0')}`, project_id: snapshot.projectId,
     definition_id: snapshot.definitionId, definition_name: 'SYNTHETIC drainage deliverable - not field evidence',
-    definition_crs: 'EPSG:21036', design_revision: revision, setout_point_id: snapshot.pointId, label: snapshot.pointLabel,
+    definition_crs: fixtureCrs21036, design_revision: revision, setout_point_id: snapshot.pointId, label: snapshot.pointLabel,
     design_easting: design.easting, design_northing: design.northing, design_rl: design.rl,
     observed_easting: observed.easting, observed_northing: observed.northing, observed_rl: observed.rl,
     d_e: snapshot.assessment.dE, d_n: snapshot.assessment.dN, d_z: snapshot.assessment.dZ,

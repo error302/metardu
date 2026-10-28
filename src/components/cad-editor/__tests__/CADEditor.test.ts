@@ -1,6 +1,10 @@
 import { describe, it, expect } from '@jest/globals'
-import type { CADDocument, CADBeacon, CADBoundary } from '../CADEditor'
+import type { CADDocument } from '../CADEditor';
 import { generateCADDocumentDXF } from '../cadDxfExport'
+
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+
 
 describe('CADEditor types and utilities', () => {
   const sampleDoc: CADDocument = {
@@ -45,7 +49,7 @@ describe('CADEditor types and utilities', () => {
     metersPerPixel: 1,
     originEasting: 250000,
     originNorthing: 9799406,
-    coordinateReferenceSystem: 'EPSG:21037',
+    coordinateReferenceSystem: fixtureCrs21037,
   }
 
   it('CADDocument interface correctly supports background image and scale parameters', () => {

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateQuotePdf } from '@/lib/business/generateQuotePdf'
-import { FeeQuoteInput } from '@/lib/business/surveyFeeCalculator'
+import { feeQuoteInputSchema } from '@/lib/business/feeQuoteInput'
 
 export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest) {
   try {
-    const input: FeeQuoteInput = await req.json()
+    const parsed = feeQuoteInputSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return NextResponse.json({ error: 'Invalid quotation input', issues: parsed.error.issues }, { status: 400 })
+    const input = parsed.data
     const pdfBuffer = generateQuotePdf(input)
 
     const sanitizedLr = (input.lrNumber || input.projectName || 'Quotation')

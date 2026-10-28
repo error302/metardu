@@ -394,7 +394,7 @@ async function scanRoute(context, routeDef) {
   // (goto → hydrate → axe) on a fresh page is the only reliable recovery.
   for (let attempt = 1; attempt <= 3; attempt++) {
     console.error(`[axe] ${path} (attempt ${attempt})…`)
-    let page = await context.newPage()
+    const page = await context.newPage()
     // Fresh error buffer per attempt so failed attempts 1–2 don't inflate the
     // final Err count of a successful attempt 3.
     const attemptErrors = []

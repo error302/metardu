@@ -1,3 +1,5 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
+const declaredFixtureCrs32736 = 'EPSG:32736'
 // Actual source handlers and PostgreSQL; authentication is a bounded test adapter.
 // Writes are confined to one uniquely marked schema in the owned rehearsal DB.
 import assert from 'node:assert/strict'
@@ -147,14 +149,14 @@ try {
       const response = await invokeReference(undefined)
       assert.equal(response.status, 200)
       const actual = await response.json()
-      assert.equal(actual.referenceSystem?.prs.horizontalCrs, 'EPSG:32737')
+      assert.equal(actual.referenceSystem?.prs.horizontalCrs, declaredFixtureCrs32737)
       assert.equal(actual.referenceSystem?.prs.verticalDatum, 'SYNTHETIC BM')
       assert.deepEqual(await referenceState(), previous, 'Reading the declaration changed retained data')
     })
     await check('reference: owner commits canonical and legacy declarations together', async () => {
       const response = await invokeReference(form); assert.equal(response.status, 200)
       assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
-      const current = await referenceState(); assert.equal(current.projects[0].utm_zone, 36); assert.equal(current.references[0].horizontal_crs, 'EPSG:32736'); assert.equal(current.references[0].coordinate_precision, 0); assert.equal(leased.size, 0)
+      const current = await referenceState(); assert.equal(current.projects[0].utm_zone, 36); assert.equal(current.references[0].horizontal_crs, declaredFixtureCrs32736); assert.equal(current.references[0].coordinate_precision, 0); assert.equal(leased.size, 0)
     })
     for (const newOwner of [other,null]) await check(`reference: committed owner change to ${newOwner ? 'another owner' : 'unassigned'} is refused`, async () => {
       beforeClient = () => admin.query(`UPDATE ${schema}.projects SET user_id=$1 WHERE id=$2`, [newOwner, projectId])
@@ -163,7 +165,7 @@ try {
     })
     await check('reference: deleted project cannot acquire an orphaned declaration', async () => {
       beforeClient = () => admin.query(`DELETE FROM ${schema}.projects WHERE id=$1`, [projectId])
-      assert.equal((await invokeReference(form)).status, 404); assert.equal((await referenceState()).references[0].horizontal_crs, 'EPSG:32737'); assert.equal(leased.size, 0)
+      assert.equal((await invokeReference(form)).status, 404); assert.equal((await referenceState()).references[0].horizontal_crs, declaredFixtureCrs32737); assert.equal(leased.size, 0)
     })
     for (const mode of ['suppress_reference','invalid_reference','suppress_legacy','raise_legacy']) await check(`reference: ${mode} preserves both original representations`, async () => {
       const previous = await referenceState(); insertMode = mode
@@ -175,7 +177,7 @@ try {
     await check('reference: a shared viewer can read privately but cannot declare', async () => {
       await pool.query("INSERT INTO project_members VALUES($1,$2,'viewer')", [other, projectId])
       const response = await invokeReference(undefined, other); assert.equal(response.status, 200); assert.equal(response.headers.get('Cache-Control'), 'private, no-store')
-      assert.equal((await response.json()).referenceSystem.prs.horizontalCrs, 'EPSG:32737')
+      assert.equal((await response.json()).referenceSystem.prs.horizontalCrs, declaredFixtureCrs32737)
       const previous = await referenceState(); assert.equal((await invokeReference(form, other)).status, 403); assert.deepEqual(await referenceState(), previous)
     })
     await check('reference: owner transfer before the read snapshot cannot expose the declaration', async () => {

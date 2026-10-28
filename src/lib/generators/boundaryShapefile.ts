@@ -5,10 +5,10 @@ import { reportCrs } from './reportCrs';
 import shpwrite from 'shp-write';
 
 export async function generateBoundaryShapefile(projectId: string): Promise<Buffer> {
-  const {rows}=await db.query('SELECT name, utm_zone, hemisphere, datum FROM projects WHERE id=$1',[projectId]);
+  const {rows}=await db.query<{ name: string; utm_zone: number | null; hemisphere: string | null; datum: string | null }>('SELECT name, utm_zone, hemisphere, datum FROM projects WHERE id=$1',[projectId]);
   const project=rows[0];
   if (!project) throw new Error('Project not found');
-  const crs=reportCrs({utmZone:project.utm_zone,hemisphere:project.hemisphere,datum:project.datum});
+  const crs=reportCrs({utmZone:project.utm_zone ?? undefined,hemisphere:project.hemisphere ?? undefined,datum:project.datum ?? undefined});
   if(crs.epsg==='UNVERIFIED') throw new Error('Set a supported project datum, UTM zone and hemisphere before exporting a shapefile.');
   const geom=await computeDeedPlanGeometry(projectId);
   const ring=geom.stations.map(point=>[point.easting,point.northing]);
@@ -16,7 +16,7 @@ export async function generateBoundaryShapefile(projectId: string): Promise<Buff
   if(signed>0) ring.reverse(); // ESRI exterior rings run clockwise.
   ring.push([...ring[0]]);
   const parts=await new Promise<{shp:DataView;shx:DataView;dbf:DataView}>((resolve,reject)=>{
-    shpwrite.write([{AREA_M2:geom.areaM2,STATUS:'DRAFT'}],'POLYGON',[[ring]],(error:any,result:any)=>error?reject(error):resolve(result));
+    shpwrite.write([{AREA_M2:geom.areaM2,STATUS:'DRAFT'}],'POLYGON',[[ring]],(error,result)=>error?reject(error):resolve(result));
   });
   const arc=String(crs.epsg).startsWith('210');
   const geographic=arc?'GEOGCS["Arc 1960",DATUM["Arc_1960",SPHEROID["Clarke_1880_RGS",6378249.145,293.465]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]]':'GEOGCS["WGS 84",DATUM["WGS_1984",SPHEROID["WGS 84",6378137,298.257223563]],PRIMEM["Greenwich",0],UNIT["degree",0.0174532925199433]]';

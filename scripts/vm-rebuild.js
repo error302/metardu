@@ -6,7 +6,7 @@ const { Client } = require('ssh2');
 const fs = require('fs');
 const path = require('path');
 
-const keyPath = path.join(require('os').homedir(), '.ssh', 'id_ed25519');
+const _keyPath = path.join(require('os').homedir(), '.ssh', 'id_ed25519');
 const conn = new Client();
 
 conn.on('ready', () => {

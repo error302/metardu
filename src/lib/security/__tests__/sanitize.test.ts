@@ -8,10 +8,11 @@
  * elements/attributes survive; XSS vectors stay stripped.
  */
 import { sanitizeHtml } from '../sanitize'
+import type { SurveyPlanData } from '@/lib/reports/surveyPlan/types'
 import { SurveyPlanRenderer } from '@/lib/reports/surveyPlan/renderer'
 import { getBeaconSymbolSVG } from '@/lib/compute/beaconSymbols'
 
-const PLAN_DATA = {
+const PLAN_DATA: SurveyPlanData = {
   project: {
     name: 'TEST/PLOT 1',
     location: 'NAIROBI',
@@ -49,7 +50,7 @@ const PLAN_DATA = {
     { name: 'P1', easting: 250000, northing: 9945000, elevation: 1800, monumentType: 'found' },
   ],
   fenceOffsets: [],
-} as any
+}
 
 describe('sanitizeHtml — SVG drawing vocabulary', () => {
   it('keeps the survey plan renderer output intact (not a blank shell)', async () => {

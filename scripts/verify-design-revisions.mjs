@@ -1,3 +1,5 @@
+const declaredFixtureCrs21037 = 'EPSG:21037'
+const declaredFixtureCrs21036 = 'EPSG:21036'
 import { createRequire } from 'node:module'
 import { readFileSync, existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
@@ -228,7 +230,7 @@ try {
   for (let index = 0; index < 100; index++) {
     const capture = createSetoutCaptureSnapshot({
       projectId, definitionId: definition.id, pointId: capturePoint.id, pointLabel: 'MH-EXACT', designRevision: 3,
-      horizontalCrs: 'EPSG:21037', definitionCrs: 'EPSG:21037', deviceCrs: 'EPSG:21037', verticalDatum: 'Synthetic BM-01',
+      horizontalCrs: declaredFixtureCrs21037, definitionCrs: declaredFixtureCrs21037, deviceCrs: declaredFixtureCrs21037, verticalDatum: 'Synthetic BM-01',
       capturedAt: new Date(Date.UTC(2026, 9, 8, 6, 30, index)).toISOString(),
       design: { easting: 500000, northing: 9860000, rl: 100 }, capturedDesign: { easting: 500000, northing: 9860000, rl: 100 },
       observed: { easting: 500000.00321, northing: 9860000.00432, rl: index === 0 ? 100.0054 : 100.00321 },
@@ -268,8 +270,8 @@ try {
   await pool.query("UPDATE setout_definitions SET crs = 'EPSG:21036' WHERE id = $1", [definition.id])
   const exactExport = Papa.parse((await exportProjectSetoutCsv(projectId, definition.id, 3)).csv, { header: true })
   assert.equal(exactExport.data[0].Observed_RL_m, '100.0054')
-  assert.equal(exactExport.data[0].Capture_CRS, 'EPSG:21037')
-  assert.equal(exactExport.data[0].Current_Definition_CRS, 'EPSG:21036')
+  assert.equal(exactExport.data[0].Capture_CRS, declaredFixtureCrs21037)
+  assert.equal(exactExport.data[0].Current_Definition_CRS, declaredFixtureCrs21036)
   const savedShots = await loadProjectSetoutShots(projectId, definition.id, null)
   assert.equal(savedShots.length, 103)
   const html = generateProjectSetoutHtml(savedShots, { revision: null, synthetic: true,

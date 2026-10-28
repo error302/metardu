@@ -42,7 +42,7 @@ export function setup() {
   return { cookies: loginRes.cookies };
 }
 
-export default function (data) {
+export default function runLoadTest(data) {
   const params = {
     cookies: data.cookies,
     headers: { 'Content-Type': 'application/json' },
@@ -51,38 +51,38 @@ export default function (data) {
 
   // Test 1: Health endpoint
   const healthRes = http.get(`${BASE_URL}/api/health`, params);
-  check(healthRes, {
+  if (!check(healthRes, {
     'health check 200': (r) => r.status === 200,
-  }) || errorRate.add(1);
+  })) errorRate.add(1);
 
   // Test 2: Dashboard page load
   const dashboardRes = http.get(`${BASE_URL}/dashboard`, params);
-  check(dashboardRes, {
+  if (!check(dashboardRes, {
     'dashboard loads': (r) => r.status === 200 || r.status === 302,
-  }) || errorRate.add(1);
+  })) errorRate.add(1);
   apiDuration.add(dashboardRes.timings.duration);
 
   sleep(1);
 
   // Test 3: Projects API
   const projectsRes = http.get(`${BASE_URL}/api/projects`, params);
-  check(projectsRes, {
+  if (!check(projectsRes, {
     'projects API 200': (r) => r.status === 200 || r.status === 401,
-  }) || errorRate.add(1);
+  })) errorRate.add(1);
   apiDuration.add(projectsRes.timings.duration);
 
   sleep(1);
 
   // Test 4: Subscription status
   const subRes = http.get(`${BASE_URL}/api/subscription/status`, params);
-  check(subRes, {
+  if (!check(subRes, {
     'subscription API responds': (r) => r.status === 200 || r.status === 401 || r.status === 404,
-  }) || errorRate.add(1);
+  })) errorRate.add(1);
   apiDuration.add(subRes.timings.duration);
 
   sleep(2);
 }
 
-export function teardown(data) {
+export function teardown(_data) {
   console.log('Load test complete');
 }

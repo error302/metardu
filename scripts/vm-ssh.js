@@ -42,8 +42,8 @@ if (hasKey) {
 conn.on('ready', () => {
   conn.exec(cmd, (err, stream) => {
     if (err) { console.error('Exec error:', err); conn.end(); process.exit(1); }
-    let stdout = '', stderr = '';
-    stream.on('data', (d) => { stdout += d; process.stdout.write(d); });
+    let _stdout = '', stderr = '';
+    stream.on('data', (d) => { _stdout += d; process.stdout.write(d); });
     stream.stderr.on('data', (d) => { stderr += d; process.stderr.write(d); });
     stream.on('close', () => { conn.end(); process.exit(stderr ? 1 : 0); });
   });

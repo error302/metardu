@@ -1,5 +1,7 @@
 import type { NextRequest, NextResponse } from 'next/server'
 import { POST } from '../route'
+import { expect } from '@jest/globals'
+
 
 jest.mock('next/server', () => {
   class MockNextResponse {
@@ -24,7 +26,7 @@ jest.mock('next/server', () => {
       return this.bytes.buffer.slice(this.bytes.byteOffset, this.bytes.byteOffset + this.bytes.byteLength)
     }
 
-    async json() {
+    async json(): Promise<unknown> {
       return JSON.parse(new TextDecoder().decode(this.bytes))
     }
   }

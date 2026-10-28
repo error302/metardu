@@ -1,70 +1,60 @@
-/**
- * @module geodesicArea
- *
- * Geodesic Area & Distance Computation using ol/sphere
- *
- * Computes TRUE ellipsoidal surface area accounting for Earth's curvature.
- * This is critical for cadastral compliance — planar (Shoelace) area
- * calculations in Web Mercator (EPSG:3857) produce massive errors
- * that fail registry audits.
- *
- * Uses OpenLayers' ol/sphere module which implements:
- * - Karney's algorithm for geodesic polygon area (2013)
- * - Vincenty's formula for geodesic distance (1975)
- *
- * Reference: "Geodesics on an ellipsoid" by Charles Karney (2013)
- *            Survey Act Cap 299 — area must be in hectares to 4 decimal places
+/** Spherical area and length estimates from OpenLayers ol/sphere.
+ * These use the mean Earth radius, not an ellipsoidal cadastral adjustment.
+ * Callers must declare the geometry CRS; no accuracy or registry approval is inferred.
  */
 
 import { getArea, getLength } from 'ol/sphere'
 import type { Polygon, LineString } from 'ol/geom'
 import type { ProjectionLike } from 'ol/proj'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 
 export interface GeodesicMetrics {
-  /** True surface area in square meters */
+  /** Spherical surface area in square meters */
   areaSqM: number
   /** Area in hectares (4 decimal places) */
   areaHectares: number
   /** Area in acres (for reference) */
   areaAcres: number
-  /** True geodesic perimeter in meters */
+  /** Spherical geodesic perimeter in meters */
   perimeterM: number
   /** Number of vertices */
   vertexCount: number
   /** Whether the computation used geodesic (true) or planar (false) method */
   isGeodesic: boolean
   /** Estimated error in m² (based on coordinate precision) */
-  estimatedErrorSqM: number
+  estimatedErrorSqM: number | null
+  model: 'mean-earth-sphere'
 }
 
 /**
  * Compute geodesic area and perimeter of a polygon.
  *
- * This uses ol/sphere.getArea() which computes the true ellipsoidal
+ * This uses ol/sphere.getArea() which computes the spherical
  * surface area, correcting for projection distortion.
  *
  * @param geometry - OpenLayers Polygon geometry
- * @param projection - Map projection (default: EPSG:3857 Web Mercator)
+ * @param projection - Declared geometry CRS
  * @returns Geodesic metrics with area in m², ha, and acres
  */
 export function calculateGeodesicArea(
   geometry: Polygon,
-  projection: ProjectionLike = 'EPSG:3857',
+  projection: ProjectionLike,
 ): GeodesicMetrics {
-  // ol/sphere.getArea automatically handles projection transformation
+  if (!projection) throw new RangeError('A geometry CRS is required');
+  // ol/sphere.getArea handles projection transformation
   const areaSqM = getArea(geometry, { projection })
 
   // Geodesic perimeter
   const perimeterM = getLength(geometry, { projection })
+
+  if (!Number.isFinite(areaSqM) || !Number.isFinite(perimeterM)) throw new RangeError('Geometry produced non-finite metrics');
 
   // Vertex count
   const coords = geometry.getCoordinates()
   const ring = coords[0] || []
   const vertexCount = ring.length > 0 ? ring.length - 1 : 0 // exclude closing point
 
-  // Error estimate: for geodesic computation, error is minimal
-  // Based on coordinate precision (typically 1mm = 0.001m)
-  const estimatedErrorSqM = (0.001 * perimeterM) / 2
+  const estimatedErrorSqM = null
 
   return {
     areaSqM,
@@ -74,6 +64,7 @@ export function calculateGeodesicArea(
     vertexCount,
     isGeodesic: true,
     estimatedErrorSqM,
+    model: 'mean-earth-sphere',
   }
 }
 
@@ -85,8 +76,9 @@ export function calculateGeodesicArea(
  */
 export function calculateGeodesicLength(
   geometry: LineString,
-  projection: ProjectionLike = 'EPSG:3857',
+  projection: ProjectionLike,
 ): { lengthM: number; vertexCount: number } {
+  if (!projection) throw new RangeError('A geometry CRS is required');
   const lengthM = getLength(geometry, { projection })
   const coords = geometry.getCoordinates()
   return {
@@ -98,15 +90,15 @@ export function calculateGeodesicLength(
 /**
  * Compare planar (Shoelace) vs geodesic area to show the distortion error.
  *
- * This is useful for QA/QC — if the difference is > 0.001 ha,
- * the planar calculation would fail registry audit.
+ * This is useful for QA/QC — the difference quantifies model/projection disagreement.
+ * It cannot determine registry acceptance.
  *
  * @param geometry - OpenLayers Polygon geometry
  * @param projection - Map projection
  */
 export function compareAreaMethods(
   geometry: Polygon,
-  projection: ProjectionLike = 'EPSG:3857',
+  projection: ProjectionLike,
 ): {
   geodesic: GeodesicMetrics
   planar: { areaSqM: number; areaHectares: number }
@@ -115,6 +107,8 @@ export function compareAreaMethods(
   distortionPercent: number
   registryCompliant: boolean
 } {
+  if (!projection) throw new RangeError('A geometry CRS is required');
+  assertProjectedCrs(typeof projection === 'string' ? projection : projection.getCode());
   const geodesic = calculateGeodesicArea(geometry, projection)
 
   // Planar area (Shoelace in projected coordinates)
@@ -135,14 +129,14 @@ export function compareAreaMethods(
     differenceSqM,
     differenceHa: parseFloat(differenceHa.toFixed(6)),
     distortionPercent: parseFloat(distortionPercent.toFixed(4)),
-    registryCompliant: differenceHa <= 0.001, // tolerance: 10 m²
+    registryCompliant: false, // Numerical agreement alone cannot establish statutory compliance.
   }
 }
 
 /**
  * Format area for Kenya statutory documents.
  *
- * Per Survey Act Cap 299:
+ * Display conventions (not a statutory acceptance decision):
  * - Areas < 1 ha: show in m² with 2 decimal places
  * - Areas ≥ 1 ha: show in hectares with 4 decimal places
  * - Always show both for reference

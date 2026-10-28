@@ -26,26 +26,33 @@ test('isolated batches preserve real typed findings, overrides, ignores and exac
       plugins: ['@typescript-eslint'],
       parserOptions: { project: ['./tsconfig.json'], tsconfigRootDir: cwd, sourceType: 'module' },
       rules: { '@typescript-eslint/no-explicit-any': 'error', '@typescript-eslint/no-unsafe-assignment': 'error', 'no-console': 'warn' },
-      overrides: [{ files: ['**/*.test.ts'], parserOptions: { project: ['./tsconfig.tests.json'] }, rules: { '@typescript-eslint/no-explicit-any': 'warn' } }],
+      overrides: [
+        { files: ['**/*.test.ts'], parserOptions: { project: ['./tsconfig.tests.json'] }, rules: { '@typescript-eslint/no-explicit-any': 'warn' } },
+        { files: ['**/*.mjs', '**/*.cjs'], parserOptions: { project: null }, rules: { '@typescript-eslint/no-unsafe-assignment': 'off' } },
+      ],
     })
     write('.eslintignore', 'src/ignored.ts\n')
     const compilerOptions = { target: 'ES2020', module: 'ESNext', strict: true, types: [], noEmit: true }
-    write('tsconfig.json', { compilerOptions, include: ['src/app.ts'] })
+    write('tsconfig.json', { compilerOptions, include: ['src/app.ts', 'src/native.mts', 'src/native.cts'] })
     write('tsconfig.tests.json', { compilerOptions, include: ['src/sample.test.ts'] })
     const source = 'export const value: string = JSON.parse("1"); export const legacy: any = 1; console.log(value)\n'
     write('src/app.ts', source)
     write('src/sample.test.ts', source)
+    write('src/native.mts', 'export const value: number = 1\n')
+    write('src/native.cts', 'export const value: number = 1\n')
+    write('src/native.mjs', 'export const value = 1\n')
+    write('src/native.cjs', 'module.exports = { value: 1 }\n')
     write('src/ignored.ts', 'this file must remain ignored')
     const scope = ['src/', 'src/app.ts']
     const expected = await new ESLint(eslintOptions(cwd)).lintFiles(scope)
     const progress = []
     const actual = await lintFilesInBatches(scope, { cwd, batchSize: 1, heapMb: 512, onBatch: value => progress.push(value) })
     assert.deepEqual(actual, expected)
-    assert.equal(actual.length, 2)
-    assert.equal(progress.length, 2)
-    assert.equal(progress.at(-1).completed, 2)
+    assert.equal(actual.length, 6)
+    assert.equal(progress.length, 6)
+    assert.equal(progress.at(-1).completed, 6)
     assert.equal(actual.flatMap(row => row.messages).filter(message => message.ruleId === '@typescript-eslint/no-unsafe-assignment').length, 2)
-    assert.deepEqual(actual.map(row => row.messages.find(message => message.ruleId === '@typescript-eslint/no-explicit-any').severity), [2, 1])
+    assert.deepEqual(actual.flatMap(row => row.messages.filter(message => message.ruleId === '@typescript-eslint/no-explicit-any').map(message => message.severity)), [2, 1])
     await assert.rejects(lintFilesInBatches(['does-not-exist/**/*.ts'], { cwd }), /No files matching/)
     // Even when every warning is deliberately within a synthetic baseline,
     // real error-severity findings must refuse CI admission.

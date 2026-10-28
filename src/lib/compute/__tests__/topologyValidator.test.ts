@@ -1,4 +1,6 @@
 import { validateCadastralBoundary } from '../topologyValidator'
+import { expect } from '@jest/globals'
+
 
 describe('validateCadastralBoundary with projected metre coordinates', () => {
   const square: [number, number][] = [

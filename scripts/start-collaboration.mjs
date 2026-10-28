@@ -7,7 +7,7 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import { createRequire } from 'module';
-const require = createRequire(import.meta.url);
+const _require = createRequire(import.meta.url);
 
 const PORT = parseInt(process.env.PORT || '3001', 10);
 

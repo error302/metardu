@@ -200,7 +200,7 @@ if (BATCH !== null) {
 
 if (OUT) {
   // Keep the ranking JSON lean — drop the per-line violations from it.
-  const slim = files.map(({ violations, ...rest }) => rest)
+  const slim = files.map(({ violations: _violations, ...rest }) => rest)
   writeFileSync(OUT, JSON.stringify({ grand, files: slim, catTotals }, null, 2))
   console.log(`\n[argument-scan] JSON written to ${OUT}`)
 }

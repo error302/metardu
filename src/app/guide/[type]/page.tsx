@@ -4,10 +4,6 @@ import { useParams } from 'next/navigation'
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 
-interface PageProps {
-  params: { type: string }
-}
-
 interface Step {
   id: number;
   title: string;

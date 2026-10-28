@@ -1,3 +1,4 @@
+const fixtureCrs = 'EPSG:21037'
 /**
  * Integration tests for the turfHelpers boolean-geometry trio —
  * calculateIntersection, calculateUnion, calculateDifference — using the
@@ -115,7 +116,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
   // ── calculateIntersection ──────────────────────────────────────────────
   describe('calculateIntersection', () => {
     it('returns the 100 × 100 m overlap polygon for overlapping parcels', async () => {
-      const result = await calculateIntersection(NEW_PARCEL, OVERLAPPING_PARCEL)
+      const result = await calculateIntersection(NEW_PARCEL, OVERLAPPING_PARCEL, fixtureCrs)
       expect(result).not.toBeNull()
       const ring = result as SurveyPoint[]
 
@@ -132,7 +133,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
     })
 
     it('returns the contained parcel itself when one parcel is fully inside the other', async () => {
-      const result = await calculateIntersection(NEW_PARCEL, CONTAINED_PARCEL)
+      const result = await calculateIntersection(NEW_PARCEL, CONTAINED_PARCEL, fixtureCrs)
       expect(result).not.toBeNull()
       const ring = result as SurveyPoint[]
 
@@ -150,7 +151,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
     })
 
     it('returns null for disjoint parcels', async () => {
-      const result = await calculateIntersection(NEW_PARCEL, DISJOINT_PARCEL)
+      const result = await calculateIntersection(NEW_PARCEL, DISJOINT_PARCEL, fixtureCrs)
       expect(result).toBeNull()
     })
 
@@ -158,7 +159,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
       // A legitimate shared RIM boundary must yield no intersection — the
       // degenerate zero-area result turf can produce must map to null, not a
       // hairline polygon.
-      const result = await calculateIntersection(NEW_PARCEL, EDGE_TOUCHING_PARCEL)
+      const result = await calculateIntersection(NEW_PARCEL, EDGE_TOUCHING_PARCEL, fixtureCrs)
       expect(result).toBeNull()
     })
   })
@@ -166,7 +167,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
   // ── calculateUnion ─────────────────────────────────────────────────────
   describe('calculateUnion', () => {
     it('merges overlapping parcels into the combined 70,000 m² footprint', async () => {
-      const result = await calculateUnion(NEW_PARCEL, OVERLAPPING_PARCEL)
+      const result = await calculateUnion(NEW_PARCEL, OVERLAPPING_PARCEL, fixtureCrs)
 
       // 40,000 + 40,000 − 10,000 shared = 70,000 m². Under the old two-arg
       // union call the second parcel was silently ignored and this read
@@ -184,7 +185,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
     })
 
     it('returns the larger parcel unchanged when one contains the other', async () => {
-      const result = await calculateUnion(NEW_PARCEL, CONTAINED_PARCEL)
+      const result = await calculateUnion(NEW_PARCEL, CONTAINED_PARCEL, fixtureCrs)
       const area = await areaOf(result)
       expect(area).toBeGreaterThan(39000)
       expect(area).toBeLessThan(41000)
@@ -201,7 +202,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
       // the first polygon's exterior ring, so the documented behaviour is
       // "one of the two squares" — the important guard is that the call
       // resolves without throwing and yields valid ring geometry.
-      const result = await calculateUnion(NEW_PARCEL, DISJOINT_PARCEL)
+      const result = await calculateUnion(NEW_PARCEL, DISJOINT_PARCEL, fixtureCrs)
       expect(result.length).toBeGreaterThanOrEqual(4)
 
       const area = await areaOf(result)
@@ -213,7 +214,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
   // ── calculateDifference ────────────────────────────────────────────────
   describe('calculateDifference', () => {
     it('subtracts the 10,000 m² overlap, leaving 30,000 m²', async () => {
-      const result = await calculateDifference(NEW_PARCEL, OVERLAPPING_PARCEL)
+      const result = await calculateDifference(NEW_PARCEL, OVERLAPPING_PARCEL, fixtureCrs)
       expect(result).not.toBeNull()
       const ring = result as SurveyPoint[]
 
@@ -236,7 +237,7 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
     })
 
     it('cutting out a contained parcel leaves the container exterior ring (hole not represented)', async () => {
-      const result = await calculateDifference(NEW_PARCEL, CONTAINED_PARCEL)
+      const result = await calculateDifference(NEW_PARCEL, CONTAINED_PARCEL, fixtureCrs)
       expect(result).not.toBeNull()
       const ring = result as SurveyPoint[]
 
@@ -258,12 +259,12 @@ describe('turfHelpers boolean geometry (real turf + proj4 integration)', () => {
     })
 
     it('returns null when parcel2 fully contains parcel1 (nothing remains)', async () => {
-      const result = await calculateDifference(NEW_PARCEL, CONSUMING_PARCEL)
+      const result = await calculateDifference(NEW_PARCEL, CONSUMING_PARCEL, fixtureCrs)
       expect(result).toBeNull()
     })
 
     it('returns the source parcel unchanged for disjoint inputs', async () => {
-      const result = await calculateDifference(NEW_PARCEL, DISJOINT_PARCEL)
+      const result = await calculateDifference(NEW_PARCEL, DISJOINT_PARCEL, fixtureCrs)
       expect(result).not.toBeNull()
       const ring = result as SurveyPoint[]
 

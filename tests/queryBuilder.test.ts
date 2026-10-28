@@ -12,6 +12,7 @@
  * Fix: every select column runs through validateIdentifier(), and
  * limit/offset are coerced to non-negative integers.
  */
+import { requiredValue } from '@/test-utils/requiredValue'
 import { QueryBuilder } from '@/lib/db/queryBuilder'
 
 // Minimal fake pool — captures the exact SQL that would hit Postgres.
@@ -38,7 +39,7 @@ describe('VULN-001: select-column injection is blocked', () => {
     expect(calls.length).toBe(0)
     expect(result.error).not.toBeNull()
     expect(result.data).toBeNull()
-    expect(result.error!.message).toMatch(/Invalid column/i)
+    expect(requiredValue(result.error).message).toMatch(/Invalid column/i)
   })
 
   it('blocks semicolon/quote payloads on the first column', async () => {
@@ -182,7 +183,7 @@ describe('upsert column keys are validated (upsert hardening)', () => {
     expect(calls.length).toBe(0)
     expect(result.error).not.toBeNull()
     expect(result.data).toBeNull()
-    expect(result.error!.message).toMatch(/Invalid column/i)
+    expect(requiredValue(result.error).message).toMatch(/Invalid column/i)
   })
 
   it('blocks a malicious onConflict column synchronously at the setter', () => {
@@ -319,7 +320,7 @@ describe('or() / parseOrFilter column names are validated (VULN-002 extension)',
     expect(calls.length).toBe(0)
     expect(result.error).not.toBeNull()
     expect(result.data).toBeNull()
-    expect(result.error!.message).toMatch(/Invalid column/i)
+    expect(requiredValue(result.error).message).toMatch(/Invalid column/i)
   })
 
   it('drops quote/space breakout fragments so they never reach SQL', async () => {
@@ -359,7 +360,7 @@ describe('returningColumns is validated at execution (defense-in-depth)', () => 
     const result = await qb
     expect(calls.length).toBe(0)
     expect(result.error).not.toBeNull()
-    expect(result.error!.message).toMatch(/Invalid column/i)
+    expect(requiredValue(result.error).message).toMatch(/Invalid column/i)
   })
 })
 

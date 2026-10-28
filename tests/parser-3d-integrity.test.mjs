@@ -21,8 +21,8 @@ class ObservedGLTFLoader extends GLTFLoader {
 function loadSource(file) {
   const source = fs.readFileSync(file, 'utf8')
   const compiled = ts.transpileModule(source, { compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 } }).outputText
-  const module = { exports: {} }
-  vm.runInThisContext('(function(exports,require){' + compiled + '\n})', { filename: file })(module.exports, name => {
+  const loadedModule = { exports: {} }
+  vm.runInThisContext('(function(exports,require){' + compiled + '\n})', { filename: file })(loadedModule.exports, name => {
     imports.push(name)
     if (name === 'three') return THREE
     if (name === 'three/examples/jsm/loaders/GLTFLoader.js') return { GLTFLoader: ObservedGLTFLoader }
@@ -39,7 +39,7 @@ function loadSource(file) {
     }
     throw Error('Unexpected parser dependency: ' + name)
   })
-  return module.exports
+  return loadedModule.exports
 }
 const parserTypes = loadSource('src/lib/parsers/types.ts')
 const { parseOBJFile, parseGLTFFile } = loadSource('src/lib/parsers/parse3D.ts')

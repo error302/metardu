@@ -8,7 +8,7 @@ const messages: Array<{ revision: number; input: CadTopologyInput }> = []
 let reply: ((event: MessageEvent<{ revision: number; result: CadTopologyResult }>) => void) | null = null
 const terminate = jest.fn()
 jest.mock('@/lib/cad/cadTopologyWorker', () => ({ createCadTopologyWorker: () => ({
-  postMessage: (message: {revision:number;input:CadTopologyInput}) => messages.push(message), terminate: (...args:unknown[])=>terminate(...args),
+  postMessage: (message: {revision:number;input:CadTopologyInput}) => messages.push(message), terminate: (...args:unknown[])=>{ terminate(...args) },
   set onmessage(handler: typeof reply) { reply=handler }, set onerror(_handler:unknown) {},
 }) }))
 const response: CadTopologyResult = { status:'open',basis:'project-grid',faces:[],networkLengthM:100,totalAreaM2:null,totalAreaHa:null,totalAreaAcres:null,unenclosedEdgeCount:1,issues:[],measurements:[] }

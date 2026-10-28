@@ -1,3 +1,4 @@
+const fixtureCrs = 'EPSG:21037'
 /**
  * Tests for turfHelpers module
  *
@@ -89,7 +90,7 @@ beforeEach(() => {
 
 describe('toTurfCoord', () => {
   it('converts EPSG:21037 coordinates to WGS84 [lon, lat]', async () => {
-    const [lon, lat] = await toTurfCoord(500000, 9840000)
+    const [lon, lat] = await toTurfCoord(500000, 9840000, fixtureCrs)
     expect(typeof lon).toBe('number')
     expect(typeof lat).toBe('number')
     // With identity mock, values pass through
@@ -98,13 +99,13 @@ describe('toTurfCoord', () => {
   })
 
   it('returns a tuple of exactly 2 numbers', async () => {
-    const result = await toTurfCoord(300000, 9840000)
+    const result = await toTurfCoord(300000, 9840000, fixtureCrs)
     expect(result).toHaveLength(2)
   })
 
   it('different input produces different output', async () => {
-    const [lon1] = await toTurfCoord(300000, 9840000)
-    const [lon2] = await toTurfCoord(400000, 9850000)
+    const [lon1] = await toTurfCoord(300000, 9840000, fixtureCrs)
+    const [lon2] = await toTurfCoord(400000, 9850000, fixtureCrs)
     expect(lon1).not.toBe(lon2)
   })
 })
@@ -115,7 +116,7 @@ describe('toTurfCoord', () => {
 
 describe('fromTurfCoord', () => {
   it('converts WGS84 [lon, lat] to EPSG:21037 SurveyPoint', async () => {
-    const result = await fromTurfCoord([36.82, -1.28])
+    const result = await fromTurfCoord([36.82, -1.28], fixtureCrs)
     expect(result).toHaveProperty('easting')
     expect(result).toHaveProperty('northing')
     expect(typeof result.easting).toBe('number')
@@ -123,15 +124,15 @@ describe('fromTurfCoord', () => {
   })
 
   it('returns an object with easting and northing properties', async () => {
-    const result = await fromTurfCoord([36.82, -1.28])
+    const result = await fromTurfCoord([36.82, -1.28], fixtureCrs)
     expect(result).toHaveProperty('easting')
     expect(result).toHaveProperty('northing')
   })
 
   it('round-trips correctly with toTurfCoord', async () => {
     const original = { easting: 500123, northing: 9845678 }
-    const [lon, lat] = await toTurfCoord(original.easting, original.northing)
-    const roundTripped = await fromTurfCoord([lon, lat])
+    const [lon, lat] = await toTurfCoord(original.easting, original.northing, fixtureCrs)
+    const roundTripped = await fromTurfCoord([lon, lat], fixtureCrs)
     // With identity mock, values are exactly preserved
     expect(roundTripped.easting).toBe(original.easting)
     expect(roundTripped.northing).toBe(original.northing)
@@ -144,9 +145,9 @@ describe('fromTurfCoord', () => {
 
 describe('calculateParcelAreaSqM', () => {
   it('returns 0 for fewer than 3 vertices', async () => {
-    expect(await calculateParcelAreaSqM([])).toBe(0)
-    expect(await calculateParcelAreaSqM([{ easting: 0, northing: 0 }])).toBe(0)
-    expect(await calculateParcelAreaSqM([{ easting: 0, northing: 0 }, { easting: 100, northing: 0 }])).toBe(0)
+    expect(await calculateParcelAreaSqM([], fixtureCrs)).toBe(0)
+    expect(await calculateParcelAreaSqM([{ easting: 0, northing: 0 }], fixtureCrs)).toBe(0)
+    expect(await calculateParcelAreaSqM([{ easting: 0, northing: 0 }, { easting: 100, northing: 0 }], fixtureCrs)).toBe(0)
   })
 
   it('calls turf.area and returns the result', async () => {
@@ -157,7 +158,7 @@ describe('calculateParcelAreaSqM', () => {
       { easting: 100, northing: 100 },
       { easting: 0, northing: 100 },
     ]
-    expect(await calculateParcelAreaSqM(vertices)).toBe(25000)
+    expect(await calculateParcelAreaSqM(vertices, fixtureCrs)).toBe(25000)
     expect(mockTurfArea).toHaveBeenCalled()
   })
 
@@ -169,7 +170,7 @@ describe('calculateParcelAreaSqM', () => {
       { easting: 100, northing: 100 },
       { easting: 0, northing: 100 },
     ]
-    expect(await calculateParcelAreaSqM(vertices)).toBe(10000)
+    expect(await calculateParcelAreaSqM(vertices, fixtureCrs)).toBe(10000)
   })
 })
 
@@ -179,8 +180,8 @@ describe('calculateParcelAreaSqM', () => {
 
 describe('calculateParcelPerimeterM', () => {
   it('returns 0 for fewer than 2 vertices', async () => {
-    expect(await calculateParcelPerimeterM([])).toBe(0)
-    expect(await calculateParcelPerimeterM([{ easting: 0, northing: 0 }])).toBe(0)
+    expect(await calculateParcelPerimeterM([], fixtureCrs)).toBe(0)
+    expect(await calculateParcelPerimeterM([{ easting: 0, northing: 0 }], fixtureCrs)).toBe(0)
   })
 
   it('calls turf.length and returns the result', async () => {
@@ -189,7 +190,7 @@ describe('calculateParcelPerimeterM', () => {
       { easting: 0, northing: 0 },
       { easting: 100, northing: 0 },
     ]
-    expect(await calculateParcelPerimeterM(vertices)).toBe(500)
+    expect(await calculateParcelPerimeterM(vertices, fixtureCrs)).toBe(500)
   })
 
   it('returns correct perimeter for a square (400m)', async () => {
@@ -201,7 +202,7 @@ describe('calculateParcelPerimeterM', () => {
       { easting: 0, northing: 100 },
       { easting: 0, northing: 0 },
     ]
-    expect(await calculateParcelPerimeterM(vertices)).toBe(400)
+    expect(await calculateParcelPerimeterM(vertices, fixtureCrs)).toBe(400)
   })
 })
 
@@ -211,7 +212,7 @@ describe('calculateParcelPerimeterM', () => {
 
 describe('isPointInParcel', () => {
   it('returns false for fewer than 3 parcel vertices', async () => {
-    expect(await isPointInParcel(50, 50, [])).toBe(false)
+    expect(await isPointInParcel(50, 50, [], fixtureCrs)).toBe(false)
   })
 
   it('returns true when point is inside (mocked)', async () => {
@@ -222,7 +223,7 @@ describe('isPointInParcel', () => {
       { easting: 100, northing: 100 },
       { easting: 0, northing: 100 },
     ]
-    expect(await isPointInParcel(50, 50, parcel)).toBe(true)
+    expect(await isPointInParcel(50, 50, parcel, fixtureCrs)).toBe(true)
     expect(mockTurfBooleanPointInPolygon).toHaveBeenCalled()
   })
 
@@ -234,7 +235,7 @@ describe('isPointInParcel', () => {
       { easting: 100, northing: 100 },
       { easting: 0, northing: 100 },
     ]
-    expect(await isPointInParcel(200, 200, parcel)).toBe(false)
+    expect(await isPointInParcel(200, 200, parcel, fixtureCrs)).toBe(false)
   })
 
   it('returns true when point is on the edge (mocked)', async () => {
@@ -245,7 +246,7 @@ describe('isPointInParcel', () => {
       { easting: 100, northing: 100 },
       { easting: 0, northing: 100 },
     ]
-    expect(await isPointInParcel(50, 0, parcel)).toBe(true)
+    expect(await isPointInParcel(50, 0, parcel, fixtureCrs)).toBe(true)
   })
 })
 
@@ -273,7 +274,7 @@ describe('calculateIntersection', () => {
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [[[50, 50], [100, 50], [100, 100], [50, 100], [50, 50]]] },
     })
-    await calculateIntersection(rectA, rectB)
+    await calculateIntersection(rectA, rectB, fixtureCrs)
     // FeatureCollection must receive BOTH polygons
     expect(mockTurfFeatureCollection).toHaveBeenCalledWith([
       expect.objectContaining({ type: 'Feature' }),
@@ -287,7 +288,7 @@ describe('calculateIntersection', () => {
   it('returns null when the intersection has fewer than 3 vertices', async () => {
     mockTurfFeatureCollection.mockReturnValue({ type: 'FeatureCollection', features: [] })
     mockTurfIntersect.mockReturnValue(null)
-    expect(await calculateIntersection(rectA, rectB)).toBeNull()
+    expect(await calculateIntersection(rectA, rectB, fixtureCrs)).toBeNull()
   })
 })
 
@@ -315,7 +316,7 @@ describe('calculateDifference', () => {
       type: 'Feature',
       geometry: { type: 'Polygon', coordinates: [[[0, 0], [50, 0], [50, 50], [0, 50], [0, 0]]] },
     })
-    await calculateDifference(rectA, rectB)
+    await calculateDifference(rectA, rectB, fixtureCrs)
     expect(mockTurfFeatureCollection).toHaveBeenCalledWith([
       expect.objectContaining({ type: 'Feature' }),
       expect.objectContaining({ type: 'Feature' }),
@@ -326,7 +327,7 @@ describe('calculateDifference', () => {
   it('returns null when the difference is empty', async () => {
     mockTurfFeatureCollection.mockReturnValue({ type: 'FeatureCollection', features: [] })
     mockTurfDifference.mockReturnValue(null)
-    expect(await calculateDifference(rectA, rectB)).toBeNull()
+    expect(await calculateDifference(rectA, rectB, fixtureCrs)).toBeNull()
   })
 })
 
@@ -336,8 +337,8 @@ describe('calculateDifference', () => {
 
 describe('calculateCompactness', () => {
   it('returns 0 for fewer than 3 vertices', async () => {
-    expect(await calculateCompactness([])).toBe(0)
-    expect(await calculateCompactness([{ easting: 0, northing: 0 }])).toBe(0)
+    expect(await calculateCompactness([], fixtureCrs)).toBe(0)
+    expect(await calculateCompactness([{ easting: 0, northing: 0 }], fixtureCrs)).toBe(0)
   })
 
   it('computes Polsby-Popper compactness (4πA / P²)', async () => {
@@ -350,7 +351,7 @@ describe('calculateCompactness', () => {
       { easting: 0, northing: 100 },
     ]
     // 4π × 10000 / 400² = 4π × 10000 / 160000 = π/4 ≈ 0.785
-    expect(await calculateCompactness(vertices)).toBeCloseTo(Math.PI / 4, 3)
+    expect(await calculateCompactness(vertices, fixtureCrs)).toBeCloseTo(Math.PI / 4, 3)
   })
 
   it('returns 0 when perimeter is 0', async () => {
@@ -361,7 +362,7 @@ describe('calculateCompactness', () => {
       { easting: 0, northing: 0 },
       { easting: 0, northing: 0 },
     ]
-    expect(await calculateCompactness(vertices)).toBe(0)
+    expect(await calculateCompactness(vertices, fixtureCrs)).toBe(0)
   })
 
   it('circle approaches 1.0 compactness', async () => {
@@ -375,7 +376,7 @@ describe('calculateCompactness', () => {
       { easting: 1, northing: 1 },
       { easting: 0, northing: 1 },
     ]
-    expect(await calculateCompactness(vertices)).toBeCloseTo(1.0, 1)
+    expect(await calculateCompactness(vertices, fixtureCrs)).toBeCloseTo(1.0, 1)
   })
 
   it('very elongated shape has low compactness', async () => {
@@ -388,6 +389,6 @@ describe('calculateCompactness', () => {
       { easting: 0, northing: 1 },
     ]
     // C = 4π × 1000 / 2002² ≈ 0.00313
-    expect(await calculateCompactness(vertices)).toBeLessThan(0.01)
+    expect(await calculateCompactness(vertices, fixtureCrs)).toBeLessThan(0.01)
   })
 })

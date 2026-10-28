@@ -1,10 +1,11 @@
 #!/usr/bin/env node
+const declaredFixtureCrs21037 = 'EPSG:21037'
 // Packaged HTTP surface workflow on the allowlisted synthetic rehearsal database.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { mkdir, writeFile, readFile } from 'node:fs/promises'
-import { createHash } from 'node:crypto'
-import { isDeepStrictEqual } from 'node:util'
+import { mkdir, writeFile } from 'node:fs/promises';
+import 'node:crypto';
+import 'node:util';
 import pg from 'pg'
 import bcrypt from 'bcryptjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
@@ -51,7 +52,7 @@ try {
  const project=await json(owner,'/api/projects',{name:'SYNTHETIC beacon QA HTTP only',survey_type:'engineering'})
  projectId=project.value.data?.id
  check('real project creation works',project.response.status===201&&typeof projectId==='string')
- const ref=await json(owner,`/api/project/${projectId}/reference-system`,{horizontalCrs:'EPSG:21037',datum:'ARC1960',units:'metres',utmZone:37,hemisphere:'S',verticalDatum:'Synthetic BM',verticalReference:'local',distanceMode:'grid',coordinatePrecision:3},'PUT')
+ const ref=await json(owner,`/api/project/${projectId}/reference-system`,{horizontalCrs:declaredFixtureCrs21037,datum:'ARC1960',units:'metres',utmZone:37,hemisphere:'S',verticalDatum:'Synthetic BM',verticalReference:'local',distanceMode:'grid',coordinatePrecision:3},'PUT')
  check('real declared reference writes under the session',ref.response.status===200)
  await admin.query("INSERT INTO beacon_registry(id,created_by,project_id,beacon_number,easting,northing,elevation) VALUES($1,$2,$3,$4,500000,9800000,123.456789)",[originalId,ownerId,projectId,`SYN-HTTP-${originalId}`])
  const observation={requestId,projectId,easting:500000.01234,northing:9800000.05678,elevation:0,horizontalCrs:'EPSG:21037',originalHorizontalCrs:'EPSG:21037',verticalDatum:'Synthetic BM',ties:'SYN-A 12.000 m; SYN-B 18.000 m; synthetic only',instrument:'SYN-TS-HTTP',note:'Synthetic re-observation; not field evidence',observationDate:'2026-10-01T09:00:00+03:00'}
@@ -67,12 +68,12 @@ try {
  check('real HTTP reload returns private immutable evidence',historyResponse.status===200&&historyResponse.headers.get('cache-control')==='private, no-store'&&history.data.captures[0].id===capture.id)
  if (registryMode) {
   const choicesResponse = await owner(`/api/beacons/projects?onlyId=${projectId}`), choices = await choicesResponse.json()
-  check('packaged project selector returns only the owned declared project', choicesResponse.status === 200 && choicesResponse.headers.get('cache-control') === 'private, no-store' && choices.data.projects.length === 1 && choices.data.projects[0].horizontalCrs === 'EPSG:21037')
+  check('packaged project selector returns only the owned declared project', choicesResponse.status === 200 && choicesResponse.headers.get('cache-control') === 'private, no-store' && choices.data.projects.length === 1 && choices.data.projects[0].horizontalCrs === declaredFixtureCrs21037)
   check('another real session cannot discover the project', (await (await other(`/api/beacons/projects?onlyId=${projectId}`)).json()).data.projects.length === 0)
   const body = { projectId, beaconNumber: `SYN-REG-HTTP-${ownerId}`, easting: 500020.01234, northing: 9800020.05678, elevation: 0, verticalDatum: 'Synthetic BM', description: 'Synthetic browser verification only' }
   const registered = await json(owner, '/api/beacons', body)
   registeredId = registered.value.data?.beacon?.id
-  check('real registry form endpoint creates declared coordinates and zero height', registered.response.status === 201 && registered.value.data.beacon.horizontal_crs === 'EPSG:21037' && registered.value.data.beacon.elevation === 0)
+  check('real registry form endpoint creates declared coordinates and zero height', registered.response.status === 201 && registered.value.data.beacon.horizontal_crs === declaredFixtureCrs21037 && registered.value.data.beacon.elevation === 0)
   check('duplicate registry mark conflicts', (await json(owner, '/api/beacons', body)).response.status === 409)
   check('another session cannot register on the project', (await json(other, '/api/beacons', { ...body, beaconNumber: `SYN-OTHER-${otherId}` })).response.status === 403)
   const nearResponse = await owner(`/api/beacons?q=${body.beaconNumber}&easting=500020.01234&northing=9800020.05678&crs=EPSG:21037&radius=1&limit=1`), near = await nearResponse.json()

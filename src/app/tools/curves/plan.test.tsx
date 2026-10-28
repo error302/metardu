@@ -82,7 +82,7 @@ test('compound CSV downloads full-precision arc stations and draft provenance', 
     expect(csv).toContain('395.2802448803402')
     expect(csv).toContain('PCC_m,500')
     expect(csv).toContain('LOCAL_CALCULATION_DRAFT,NOT_ASSESSED,NOT_VERIFIED')
-  } finally { click.mockRestore(); URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke }
+  } finally { await new Promise(resolve => setTimeout(resolve, 1100)); click.mockRestore(); URL.createObjectURL = originalCreate; URL.revokeObjectURL = originalRevoke }
 })
 
 test('late PDF renderer cannot export a calculation after an input edit', async () => {

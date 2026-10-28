@@ -66,7 +66,7 @@ export async function importDWG(file: File): Promise<{
       if (['POINT', 'LINE', 'POLYLINE', 'LWPOLYLINE'].includes(type)) {
         let layer = '0';
         let x: number | undefined, y: number | undefined, z: number | undefined;
-        let points: Array<{x: number; y: number; z?: number}> = [];
+        const points: Array<{x: number; y: number; z?: number}> = [];
         
         i += 2;
         while (i < lines.length && lines[i] !== '0') {

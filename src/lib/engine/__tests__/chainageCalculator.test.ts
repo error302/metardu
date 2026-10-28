@@ -11,6 +11,10 @@ import { formatChainage, parseChainage, findAssetsNearChainage, calculateChainag
 import LineString from 'ol/geom/LineString'
 import { approxEqual } from '@/test-utils/approx'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+
+
 describe('formatChainage', () => {
   it('formats a whole-meter chainage as KM XX+XXX', () => {
     // The implementation uses a specific padding/formatting convention.
@@ -125,7 +129,7 @@ describe('calculateChainage CRS validation', () => {
 
   it('computes valid chainage when passed an authorized projected CRS', () => {
     const line = new LineString([[250000, 9850000], [250100, 9850000]])
-    const result = calculateChainage(line, [250050, 9850010], 'EPSG:21037')
+    const result = calculateChainage(line, [250050, 9850010], fixtureCrs21037)
     expect(result).not.toBeNull()
     expect(result?.chainage).toBeCloseTo(50, 1)
     expect(result?.offset).toBeCloseTo(10, 1)

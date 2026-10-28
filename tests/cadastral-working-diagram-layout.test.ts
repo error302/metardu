@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { writeFileSync } from 'node:fs'
 import {generateWorkingDiagramPdf} from '@/lib/generators/workingDiagram'
 jest.mock('@/lib/db',()=>({__esModule:true,default:{query:async()=>({rows:[{name:'Fictional rectangle',survey_type:'cadastral'}]})}}))
 jest.mock('@/lib/generators/deedPlanGeometry',()=>({loadPreAdjustedFromDB:async()=>null,computeDeedPlanGeometry:async()=>({
@@ -12,5 +13,5 @@ test('working diagram keeps complete northings on one line',async()=>{
  const pdf=await generateWorkingDiagramPdf('qa')
  expect(pdf.toString('latin1')).toContain('(9900080.000)')
  expect(pdf.toString('latin1')).toContain('(COORDINATE-DERIVED BOUNDARY SCHEDULE)')
- if(process.env.WRITE_QA_PDF==='1') require('fs').writeFileSync('live-test-results/cadastral-generated/working-diagram-layout-check.pdf',pdf)
+ if(process.env.WRITE_QA_PDF==='1') writeFileSync('live-test-results/cadastral-generated/working-diagram-layout-check.pdf',pdf)
 })

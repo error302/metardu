@@ -113,8 +113,8 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
   });
 
   // Track pages for numbering — we add footer at the end for all pages
-  let currentPage = 1;
-  const totalPages = estimateTotalPages(input.stations.length);
+
+
 
   // =========================================================================
   // PAGE 1 — Header + Info + Tables 1 & 2
@@ -137,7 +137,7 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
   // Check if we need a new page for Table 3 & 4
   if (y > PAGE_H - 100) {
     doc.addPage();
-    currentPage++;
+
     y = MARGIN;
   }
 
@@ -152,7 +152,7 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
   // Check if we need a new page for certificate
   if (y > PAGE_H - 70) {
     doc.addPage();
-    currentPage++;
+
     y = MARGIN;
   }
 
@@ -178,12 +178,7 @@ export function generateFormC22Pdf(input: FormC22Input): Buffer {
 // Estimate page count
 // ---------------------------------------------------------------------------
 
-function estimateTotalPages(stationCount: number): number {
-  // Rough heuristic: up to ~15 stations fit on 1 page, more needs 2
-  if (stationCount <= 15) return 1;
-  if (stationCount <= 30) return 2;
-  return 3;
-}
+
 
 // ---------------------------------------------------------------------------
 // Draw the Republic of Kenya / DoLS header

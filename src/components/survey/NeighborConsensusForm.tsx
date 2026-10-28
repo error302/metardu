@@ -12,6 +12,7 @@
  * The signature pad is locked until GPS verifies the surveyor is on-site.
  */
 
+import { assertProjectedCrs, transformPoint } from '@/lib/spatial/projectCrs'
 import { useState, useCallback, useRef, useEffect } from 'react'
 import {
   User, Phone, MapPin, PenTool, CheckCircle2, AlertTriangle,
@@ -33,7 +34,7 @@ interface NeighborConsensusFormProps {
   onConsensusCaptured?: (record: NeighborConsensusRecord) => void
   onClose?: () => void
   /** T1.5 FIX (2026-07-09): UTM EPSG for GPS→UTM transform (default 'EPSG:21037') */
-  epsg?: string
+  epsg: string
 }
 
 export function NeighborConsensusForm({
@@ -44,7 +45,7 @@ export function NeighborConsensusForm({
   surveyorLicense,
   onConsensusCaptured,
   onClose,
-  epsg = 'EPSG:21037',
+  epsg,
 }: NeighborConsensusFormProps) {
   const [neighborName, setNeighborName] = useState('')
   const [neighborNationalId, setNeighborNationalId] = useState('')
@@ -79,8 +80,8 @@ export function NeighborConsensusForm({
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          const { transform } = await import('ol/proj')
-          const [e, n] = transform([pos.coords.longitude, pos.coords.latitude], 'EPSG:4326', epsg) as [number, number]
+          assertProjectedCrs(epsg)
+          const [e, n] = transformPoint(pos.coords.longitude, pos.coords.latitude, 'EPSG:4326', epsg)
           const position = { easting: e, northing: n }
           setCurrentPos(position)
 

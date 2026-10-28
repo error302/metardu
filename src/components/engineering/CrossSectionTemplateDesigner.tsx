@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState } from 'react';
 
 export interface TemplateElement {
   id: string;
@@ -292,7 +292,7 @@ export function CrossSectionTemplateDesigner() {
     const paths: JSX.Element[] = [];
 
     // Left elements (render from center outwards)
-    leftEls.forEach((el, i) => {
+    leftEls.forEach((el) => {
       const widthPx = el.side === 'both' ? (el.width / 2) * zoom : el.width * zoom;
       const dropPx = (el.slope / 100) * widthPx; // assuming slope is %
       const nextX = currentXLeft - widthPx;
@@ -320,7 +320,7 @@ export function CrossSectionTemplateDesigner() {
     });
 
     // Right elements
-    rightEls.forEach((el, i) => {
+    rightEls.forEach((el) => {
       const widthPx = el.side === 'both' ? (el.width / 2) * zoom : el.width * zoom;
       const dropPx = (el.slope / 100) * widthPx;
       const nextX = currentXRight + widthPx;
@@ -406,10 +406,10 @@ export function CrossSectionTemplateDesigner() {
                   + Add
                 </button>
                 <div className="absolute right-0 top-full mt-1 w-32 bg-gray-800 border border-gray-700 rounded shadow-xl hidden group-hover:block z-10">
-                  {['carriageway', 'shoulder', 'cut_slope', 'fill_slope', 'ditch'].map(type => (
+                  {(['carriageway', 'shoulder', 'cut_slope', 'fill_slope', 'ditch'] as const).map(type => (
                     <button
                       key={type}
-                      onClick={() => addElement(type as any)}
+                      onClick={() => addElement(type)}
                       className="block w-full text-left px-3 py-2 text-xs hover:bg-gray-700 capitalize"
                     >
                       {type.replace('_', ' ')}
@@ -431,7 +431,10 @@ export function CrossSectionTemplateDesigner() {
                       <label className="text-gray-500 block mb-1">Side</label>
                       <select 
                         value={el.side} 
-                        onChange={(e) => updateElement(el.id, { side: e.target.value as any })}
+                        onChange={(e) => {
+                          const side = e.target.value;
+                          if (side === 'left' || side === 'right' || side === 'both') updateElement(el.id, { side });
+                        }}
                         className="w-full bg-gray-950 border border-gray-700 rounded p-1"
                       >
                         <option value="left">Left</option>

@@ -1,8 +1,4 @@
-import {
-  reduceGroundToGrid,
-  approximateLatitudeFromNorthing,
-  calculateMeanRadiusOfCurvature,
-} from '@/lib/engine/geodeticReduction';
+import { reduceGroundToGrid, approximateLatitudeFromNorthing } from '@/lib/engine/geodeticReduction';
 
 describe('Geodetic Ground-to-Grid Reduction & Equatorial Geodesy', () => {
   // Typical Central Kenya station (Nairobi / Kiambu in UTM Zone 37S)

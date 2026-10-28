@@ -8,6 +8,8 @@
  */
 import { computeTraverseAccuracy, ACCURACY_CLASSES } from '@/lib/reports/traverseAccuracy'
 import { STANDARD_SCALES } from '@/lib/survey/surveyRegulationsExtended'
+import { requiredValue } from '@/test-utils/requiredValue'
+
 
 describe('Kenya precision audit — RDM 1.1 Table 2.4 closure classes', () => {
   it('classifies a first-order-class-I traverse (tight closure)', () => {
@@ -29,9 +31,9 @@ describe('Kenya precision audit — RDM 1.1 Table 2.4 closure classes', () => {
     // C/√K constant → identical class and allowance, proving √K scaling.
     const short = computeTraverseAccuracy(0.0005, 1000)    // 0.5mm @ 1km
     const long = computeTraverseAccuracy(0.005, 100000)    // 5mm @ 100km
-    expect(short!.allowed).toBeCloseTo(long!.allowed, 5)
-    expect(short!.order).toBe(long!.order)
-    expect(long!.C_mm).toBeCloseTo(short!.C_mm * 10, 3)
+    expect(requiredValue(short).allowed).toBeCloseTo(requiredValue(long).allowed, 5)
+    expect(requiredValue(short).order).toBe(requiredValue(long).order)
+    expect(requiredValue(long).C_mm).toBeCloseTo(requiredValue(short).C_mm * 10, 3)
   })
 
   it('rejects degenerate input', () => {
@@ -50,7 +52,7 @@ describe('Kenya precision audit — Reg 89 standard plotting scales', () => {
   it('includes the 1:1250 cadastral deed-plan default (≤4ha)', () => {
     const s = STANDARD_SCALES.find((x) => x.scale === 1250)
     expect(s).toBeDefined()
-    expect(s!.maxAreaHa).toBe(4)
+    expect(requiredValue(s).maxAreaHa).toBe(4)
   })
 
   it('covers all area bands from small plots to perimeter farms without gaps', () => {

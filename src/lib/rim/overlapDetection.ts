@@ -48,6 +48,7 @@
  */
 
 import type { Point2D } from '@/types/surveyPoint'
+import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 import { calculateIntersection } from '@/lib/map/turfHelpers'
 import { shoelaceArea } from '@/lib/engine/area'
 import { logger } from '@/lib/logger'
@@ -118,9 +119,11 @@ export const MIN_OVERLAP_AREA_SQM = 0.01
 export async function detectOverlaps(params: {
   newParcel: ParcelForOverlap
   existingParcels: ParcelForOverlap[]
+  projectCrs: string
 }): Promise<OverlapDetectionResult> {
   const startTime = Date.now()
-  const { newParcel, existingParcels } = params
+  const { newParcel, existingParcels, projectCrs } = params
+  assertProjectedCrs(projectCrs)
 
   const newParcelAreaSqm = shoelaceArea(newParcel.vertices)
   const overlaps: OverlapResult[] = []
@@ -136,7 +139,8 @@ export async function detectOverlaps(params: {
     try {
       const intersection = await calculateIntersection(
         newParcel.vertices as Point2D[],
-        existing.vertices as Point2D[]
+        existing.vertices as Point2D[],
+        projectCrs
       )
 
       if (!intersection || intersection.length < 3) {
@@ -193,8 +197,10 @@ export async function detectOverlaps(params: {
 export async function hasAnyOverlap(params: {
   newParcel: ParcelForOverlap
   existingParcels: ParcelForOverlap[]
+  projectCrs: string
 }): Promise<boolean> {
-  const { newParcel, existingParcels } = params
+  const { newParcel, existingParcels, projectCrs } = params
+  assertProjectedCrs(projectCrs)
 
   for (const existing of existingParcels) {
     if (existing.vertices.length < 3) continue
@@ -202,7 +208,8 @@ export async function hasAnyOverlap(params: {
     try {
       const intersection = await calculateIntersection(
         newParcel.vertices as Point2D[],
-        existing.vertices as Point2D[]
+        existing.vertices as Point2D[],
+        projectCrs
       )
       if (intersection && intersection.length >= 3) {
         const area = shoelaceArea(intersection)

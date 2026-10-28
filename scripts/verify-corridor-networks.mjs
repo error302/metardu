@@ -1,3 +1,4 @@
+const declaredFixtureCrs32632 = 'EPSG:32632'
 // Actual source handlers + PostgreSQL in the exact owned synthetic service.
 // No customer clone, credentials, migration application or container lifecycle.
 import assert from 'node:assert/strict'
@@ -163,7 +164,7 @@ try {
     const response = await create(body('native-values', [point('ZERO', 0), point('NEGATIVE', -1), point('UNKNOWN')]), owner)
     assert.equal(response.status, 201)
     const saved = await state('native-values'), row = saved.networks[0]
-    assert.equal(row.epsg_code, 'EPSG:32632'); assert.equal(row.utm_zone, 32); assert.equal(row.hemisphere, 'N'); assert.equal(row.datum, 'WGS 84')
+    assert.equal(row.epsg_code, declaredFixtureCrs32632); assert.equal(row.utm_zone, 32); assert.equal(row.hemisphere, 'N'); assert.equal(row.datum, 'WGS 84')
     assert.deepEqual(saved.points.map(point => [point.point_name, point.elevation]), [['NEGATIVE', -1], ['UNKNOWN', null], ['ZERO', 0]])
   })
   await check('ambiguous historical head versions require review before mutation', async () => {

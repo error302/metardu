@@ -1,4 +1,6 @@
 /** @jest-environment node */
+import { invokeMockApi } from '@/test-utils/invokeMockApi'
+import { requiredValue } from '@/test-utils/requiredValue'
 import JSZip from 'jszip'
 import { db } from '@/lib/db'
 import { POST } from '@/app/api/survey-report/export/route'
@@ -14,7 +16,7 @@ const row = {
   sections: [{ sectionNumber: 1, section: 'INTRODUCTION', title: 'Recorded observations',
     content: '<p>Recorded closure is 1:12345 from actual measurements.</p>' }],
 }
-const context = { userId: 'owner', body: { reportId: 'report', format: 'docx' } } as any
+const context = { userId: 'owner', body: { reportId: 'report', format: 'docx' } }
 
 beforeEach(() => {
   jest.clearAllMocks()
@@ -27,10 +29,10 @@ beforeEach(() => {
 })
 
 test('exports the owner saved sections and canonical title through the server database', async () => {
-  const response = await POST({} as any, context)
+  const response = await invokeMockApi(POST, context)
   expect(response.status).toBe(200)
   const zip = await JSZip.loadAsync(await response.arrayBuffer())
-  const xml = await zip.file('word/document.xml')!.async('string')
+  const xml = await requiredValue(zip.file('word/document.xml')).async('string')
   expect(xml).toContain('Recorded closure is 1:12345')
   expect(xml).toContain('SAVED SURVEY REPORT')
   expect(xml).toContain('Recorded client')
@@ -40,10 +42,10 @@ test('exports the owner saved sections and canonical title through the server da
 
 test('does not export a report absent from the owner-scoped query', async () => {
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [] })
-  expect((await POST({} as any, context)).status).toBe(404)
+  expect((await invokeMockApi(POST, context)).status).toBe(404)
 })
 
 test('does not invent sections when the saved report contains no content', async () => {
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ ...row, sections: null }] })
-  expect((await POST({} as any, context)).status).toBe(422)
+  expect((await invokeMockApi(POST, context)).status).toBe(422)
 })

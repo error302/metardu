@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 // Native source-only API proof. Reuse the existing marked synthetic DB/server.
 // Immutable synthetic evidence is retained; QA accounts are disabled afterward.
 import assert from 'node:assert/strict'
@@ -100,7 +101,7 @@ try {
     try {
       const reference=await foreign(`/api/project/${project}/reference-system`)
       report.readerReference={status:reference.response.status,code:reference.data?.code??null,referencePresent:Boolean(reference.data?.referenceSystem),crs:reference.data?.referenceSystem?.prs?.horizontalCrs??null};save()
-      check('authorized project reader can load the private declared reference',reference.response.status===200&&reference.data.referenceSystem.prs.horizontalCrs==='EPSG:32737')
+      check('authorized project reader can load the private declared reference',reference.response.status===200&&reference.data.referenceSystem.prs.horizontalCrs===declaredFixtureCrs32737)
       const readOnly=await foreign(path)
       check('project reader receives history with recording explicitly disabled',readOnly.response.status===200&&readOnly.data.can_record===false&&readOnly.data.data.length===2)
       check('project reader still cannot record or change reference settings',(await foreign('/api/engineering/earthworks',{...body,client_run_id:randomUUID()})).response.status===403&&(await foreign(`/api/project/${project}/reference-system`,{},false,'PUT')).response.status===403)

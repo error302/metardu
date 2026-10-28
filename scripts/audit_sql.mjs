@@ -2,7 +2,9 @@
 // SQL audit: scan src/app/api/**/route.ts files for db.query() strings,
 // extract referenced table names, check against migrations.
 
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+// SQL audit: scan src/app/api/**/route.ts files for db.query() strings,
+// extract referenced table names, check against migrations.
+import { readFileSync } from 'node:fs';
 import { execSync } from 'node:child_process';
 import { join } from 'node:path';
 
@@ -17,7 +19,7 @@ const tables = new Set();
 const dropTables = new Set();
 const tableColumns = new Map(); // table -> Set(column)
 
-function extractTablesFromSql(sql, sourceLabel) {
+function extractTablesFromSql(sql, _sourceLabel) {
   // CREATE TABLE [IF NOT EXISTS] table_name (
   for (const m of sql.matchAll(/CREATE\s+TABLE\s+(?:IF\s+NOT\s+EXISTS\s+)?(?:public\.)?([a-z_][a-z0-9_]*)\s*\(/gi)) {
     tables.add(m[1]);
@@ -38,7 +40,7 @@ function extractTablesFromSql(sql, sourceLabel) {
 for (const f of migrationFiles) {
   try {
     extractTablesFromSql(readFileSync(f, 'utf8'), f);
-  } catch (e) {}
+  } catch  {}
 }
 
 console.error(`Migrations define ${tables.size} tables, drop ${dropTables.size}, alter ${tableColumns.size}`);
@@ -63,11 +65,11 @@ const suspiciousTables = new Map(); // tableName -> [{file, line, snippet}]
 for (const file of routeFiles) {
   let src;
   try { src = readFileSync(file, 'utf8'); } catch { continue; }
-  const lines = src.split('\n');
-  let inString = false;
+  const _lines = src.split('\n');
+  const _inString = false;
   // Find all SQL-like strings inside backticks or quotes
   // Use a state machine to handle multi-line template literals
-  let i = 0, line = 1;
+  const _i = 0, _line = 1;
   // Walk through text char by char
   let buf = '';
   let inTpl = false;
@@ -75,7 +77,7 @@ for (const file of routeFiles) {
   let charLine = 1;
   for (let idx = 0; idx < src.length; idx++) {
     const c = src[idx];
-    const next = src[idx + 1];
+    const _next = src[idx + 1];
     if (c === '\n') { charLine++; }
     if (!inTpl) {
       if (c === '`') {

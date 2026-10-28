@@ -128,7 +128,8 @@ export class SpatialRTree<T = unknown> {
     const stack: RTreeNode<T>[] = [this.root]
 
     while (stack.length > 0) {
-      const node = stack.pop()!
+      const node = stack.pop()
+      if (!node) break
       for (let i = 0; i < node.children.length; i++) {
         const child = node.children[i]
         if (node.leaf) {

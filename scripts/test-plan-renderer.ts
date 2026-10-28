@@ -1,6 +1,9 @@
+import type { DocumentProject } from '../src/lib/reports/documentEvidence'
+import type { PointData } from '../src/lib/reports/documentPackage'
+import type { SurveyPlanData } from '../src/lib/reports/surveyPlan/types'
 import { config } from 'dotenv';
 import { writeFile } from 'fs/promises';
-config({ path: '.env', quiet: true } as any);
+config({ path: '.env' });
 process.env.DATABASE_URL = `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || 'metardu')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@127.0.0.1:5432/${process.env.POSTGRES_DB || 'metardu'}`;
 
 async function testRenderer() {
@@ -10,13 +13,13 @@ async function testRenderer() {
   const { shoelaceArea, shoelacePerimeter, bearingFromDelta, distance, formatBearingDegMinSec } = await import('../src/lib/reports/surveyPlan/geometry');
 
   const projectId = '0e7f1a12-2e1f-4b33-91ba-27dca290426c';
-  const projRes = await db.query('SELECT * FROM projects WHERE id = $1', [projectId]);
+  const projRes = await db.query<DocumentProject>('SELECT * FROM projects WHERE id = $1', [projectId]);
   const project = projRes.rows[0];
-  const ptsRes = await db.query('SELECT * FROM survey_points WHERE project_id = $1 ORDER BY created_at', [projectId]);
+  const ptsRes = await db.query<PointData>('SELECT * FROM survey_points WHERE project_id = $1 ORDER BY created_at', [projectId]);
   const evidence = resolveDocumentEvidence(project, ptsRes.rows);
 
   const boundaryPts = evidence.boundaryPoints;
-  const bearingSchedule = boundaryPts.map((pt: any, i: number) => {
+  const bearingSchedule = boundaryPts.map((pt, i) => {
     const next = boundaryPts[(i + 1) % boundaryPts.length];
     const dE = next.easting - pt.easting;
     const dN = next.northing - pt.northing;
@@ -28,7 +31,7 @@ async function testRenderer() {
     };
   });
 
-  const planData = {
+  const planData: SurveyPlanData = {
     project: {
       name: project.name,
       location: project.location || '',
@@ -54,7 +57,7 @@ async function testRenderer() {
     adjacentLots: [],
   };
 
-  const renderer = new SurveyPlanRenderer(planData as any);
+  const renderer = new SurveyPlanRenderer(planData);
   const svg = await renderer.render();
   await writeFile('live-test-results/audit-documents/survey-plan.svg', svg);
   console.log('Successfully rendered survey plan SVG! Length:', svg.length);

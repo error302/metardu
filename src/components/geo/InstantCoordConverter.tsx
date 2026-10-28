@@ -263,7 +263,6 @@ export function InstantCoordConverter({
     cassiniE,
     cassiniN,
     cassiniUnit,
-    selectedSheetId,
     selectedSheet,
     utmE,
     utmN,

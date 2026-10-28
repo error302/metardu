@@ -2,7 +2,7 @@
 // No production connection, customer clone, new container, email or payment.
 import assert from 'node:assert/strict'
 import {spawnSync} from 'node:child_process'
-import {readFileSync,writeFileSync,mkdirSync,existsSync} from 'node:fs'
+import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import {join,resolve} from 'node:path'
 import {randomUUID,randomBytes,createHash} from 'node:crypto'
 import pg from 'pg'

@@ -31,7 +31,7 @@ const VENDOR_PRIORITY = [
 const VENDOR_NAMES = VENDOR_PRIORITY.map((name) => name.slice('vendor-'.length))
 
 // Known heavy deps that should be lazy-loaded (informational flag)
-const LAZY_LOAD_TARGETS = {
+const _LAZY_LOAD_TARGETS = {
   'three': 'Dynamic import in /tools/point-cloud-import',
   'pdfjs-dist': 'Dynamic import in /documents and /import',
   'exceljs': 'Dynamic import in /fieldbook and /tools/statutory-workbook',

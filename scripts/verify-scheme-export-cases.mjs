@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 import assert from 'node:assert/strict'
 import {
   readFileSync,
@@ -271,7 +272,7 @@ export async function verifySchemeExports(c) {
           const revision = snapshot.deliverable_revisions[0]
           assert.equal(
             revision.project_crs,
-            format === 'dxf' ? 'EPSG:32737' : 'EPSG:4326',
+            format === 'dxf' ? declaredFixtureCrs32737 : 'EPSG:4326',
           )
           assert.equal(revision.manifest.sourceHash, body.sourceHash)
           assert.equal(revision.manifest.fieldVerified, false)
@@ -734,7 +735,7 @@ export async function verifySchemeExports(c) {
             traverse_id: t,
             request_id: randomUUID(),
             evidence_hash: source.evidenceHash,
-            source_crs: 'EPSG:32737',
+            source_crs: declaredFixtureCrs32737,
             expected_user_id:actor,
             ordered_coordinate_ids: ps,
             reviewed: true,

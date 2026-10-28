@@ -6,7 +6,6 @@ import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { existsSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { join, resolve } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import pg from 'pg'
 import { migrationChecksums, computeDrift } from './verify-migrations.mjs'
 import { WORKFLOW_UPGRADE_VERSIONS } from './workflow-upgrade-contract.mjs'
 import { snapshotExistingRows } from './release-row-snapshot.mjs'
@@ -52,6 +51,7 @@ async function main() {
   const revision = process.argv[2]
   assert.equal(process.argv.length, 3, 'Supply one full pinned source commit.')
   assert.match(revision ?? '', /^[a-f0-9]{40}$/)
+  const { default: pg } = await import('pg')
   const root = process.cwd()
   const git = args => command('git', ['-c', 'core.fsmonitor=false', ...args])
   assert.equal(git(['rev-parse', 'HEAD']).trim(), revision)

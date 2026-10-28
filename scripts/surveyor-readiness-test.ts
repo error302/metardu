@@ -11,6 +11,7 @@
  * 5. Optical Leveling Engine (Rise & Fall, Collimation reduced levels)
  */
 
+const fixtureCrs21037 = 'EPSG:21037'
 import { computeTraverse } from '../src/lib/computations/traverseEngine'
 import { generateCADDocumentDXF } from '../src/components/cad-editor/cadDxfExport'
 import type { CADDocument } from '../src/components/cad-editor/CADEditor'
@@ -172,7 +173,7 @@ test('CAD & Deed Plan', 'CAD document generates AutoCAD AC1021 DXF with all surv
     metersPerPixel: 1,
     originEasting: 249900,
     originNorthing: 9799506,
-    coordinateReferenceSystem: 'EPSG:21037',
+    coordinateReferenceSystem: fixtureCrs21037,
   }
 
   const dxf = generateCADDocumentDXF(samplePlan)
@@ -296,8 +297,8 @@ async function main() {
         console.log('\x1b[31mFAIL (assertion failed)\x1b[0m')
         failed++
       }
-    } catch (err: any) {
-      console.log(`\x1b[31mFAIL (exception: ${err.message})\x1b[0m`)
+    } catch (err: unknown) {
+      console.log(`\x1b[31mFAIL (exception: ${(err instanceof Error ? err.message : String(err))})\x1b[0m`)
       failed++
     }
   }

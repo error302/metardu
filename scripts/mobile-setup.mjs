@@ -21,7 +21,7 @@
  */
 
 import { execSync } from 'child_process'
-import { existsSync, mkdirSync, copyFileSync, readdirSync } from 'fs'
+import { existsSync, mkdirSync, copyFileSync } from 'fs';
 import { join } from 'path'
 
 const ROOT = process.cwd()

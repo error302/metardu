@@ -1,4 +1,5 @@
 /** @jest-environment node */
+import { expect } from '@jest/globals'
 import { NextRequest } from 'next/server'
 import { buildProjectReferenceSystem, toReferenceSystemRow } from '@/lib/spatial/projectReferenceSystem'
 
@@ -12,13 +13,19 @@ const prs = buildProjectReferenceSystem({ datum: 'WGS84', utmZone: 36, hemispher
 const declared = toReferenceSystemRow(projectId, { prs }, 'owner')
 
 const mockQuery = jest.fn<Promise<{ rows: unknown[] }>, [string, unknown[]?]>()
-const mockAccess = jest.fn()
+const mockAccess = jest.fn<Promise<{ ok: boolean; error?: Response }>, unknown[]>()
 jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: unknown) => handler }))
 jest.mock('@/lib/db', () => ({ db: { query: (...args: [string, unknown[]?]) => mockQuery(...args) } }))
 jest.mock('@/lib/auth/ownership', () => ({ requireProjectReadAccess: (...args: unknown[]) => mockAccess(...args) }))
 jest.mock('@/lib/audit/auditLog', () => ({ appendAuditEntry: jest.fn().mockResolvedValue(undefined) }))
 
 import { POST } from '@/app/api/export/nlims/route'
+import { responseObject, recordValue } from '@/test-utils/response'
+
+
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs32736 = 'EPSG:32736'
+
 
 const requestBody = {
   projectId,
@@ -51,12 +58,12 @@ test('generates a private METARDU draft from saved boundary coordinates and decl
   const response = await POST(request(), context())
   expect(response.status).toBe(200)
   expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
-  const body = await response.json()
+  const body = await responseObject(response)
   expect(body.payload).toMatchObject({
     draftMetadata: {
       format: 'METARDU_CADASTRAL_DRAFT_V1',
       projectId,
-      coordinateReference: 'EPSG:32736',
+      coordinateReference: fixtureCrs32736,
       officialRegistryFormatVerified: false,
       registryTransmission: 'not_sent',
     },
@@ -67,9 +74,9 @@ test('generates a private METARDU draft from saved boundary coordinates and decl
       }),
     ]),
   })
-  expect(body.payload.beacons).toEqual([])
-  expect(body.validation.warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'BEACON_DATA_NOT_INCLUDED' })]))
-  expect(body.provenance.registryTransmission).toBe('not_sent')
+  expect(recordValue(body.payload).beacons).toEqual([])
+  expect(recordValue(body.validation).warnings).toEqual(expect.arrayContaining([expect.objectContaining({ code: 'BEACON_DATA_NOT_INCLUDED' })]))
+  expect(recordValue(body.provenance).registryTransmission).toBe('not_sent')
 })
 
 test('does not export another user’s project', async () => {
@@ -111,7 +118,9 @@ test('uses saved project geometry instead of caller-supplied coordinates', async
   // the handler. This direct handler test confirms the handler itself never
   // consumes client-supplied geometry.
   expect(response.status).toBe(200)
-  const result = await response.json()
-  expect(result.payload.resultingParcels[0].parcelNumber).toBe('SYN-LOT-1')
-  expect(result.payload.draftMetadata.officialRegistryFormatVerified).toBe(false)
+  const result = await responseObject(response)
+  const parcels = recordValue(result.payload).resultingParcels
+  if (!Array.isArray(parcels)) throw new Error('Expected resulting parcels.')
+  expect(recordValue(parcels[0]).parcelNumber).toBe('SYN-LOT-1')
+  expect(recordValue(recordValue(result.payload).draftMetadata).officialRegistryFormatVerified).toBe(false)
 })

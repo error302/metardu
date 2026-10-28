@@ -45,7 +45,7 @@ export function CalibrationTracker({ equipmentList = [], onCalibrationAdded }: C
       if (ms.length > 0 && ms.length === cs.length) {
         return computeEDMBaseline(ms, cs);
       }
-    } catch (e) {
+    } catch {
       // Ignore
     }
     return null;
@@ -57,13 +57,14 @@ export function CalibrationTracker({ equipmentList = [], onCalibrationAdded }: C
     e.preventDefault();
     const equip = equipmentList.find(eq => eq.id === formEquip);
     
-    if (!equip) return;
+    const equipmentType = (['total_station', 'gnss_receiver', 'digital_level', 'tape', 'prism'] as const).find(type => type === equip?.type);
+    if (!equip || !equipmentType) return;
 
     const newRecord: CalibrationRecord = {
       id: crypto.randomUUID(),
       equipmentId: equip.id,
       equipmentName: equip.name,
-      equipmentType: equip.type as any,
+      equipmentType,
       calibrationType: formType,
       date: formDate,
       nextDueDate: formDueDate,
@@ -114,7 +115,7 @@ export function CalibrationTracker({ equipmentList = [], onCalibrationAdded }: C
             
             <div>
               <label className="block text-sm text-slate-400 mb-1">Calibration Type</label>
-              <select className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-200" value={formType} onChange={e => setFormType(e.target.value as any)}>
+              <select className="w-full bg-slate-950 border border-slate-700 rounded p-2 text-slate-200" value={formType} onChange={e => { const type = (['collimation', 'edm_baseline', 'tilt_sensor', 'bubble', 'optical_plummet', 'full_service'] as const).find(value => value === e.target.value); if (type) setFormType(type); }}>
                 <option value="collimation">Collimation (2C)</option>
                 <option value="edm_baseline">EDM Baseline</option>
                 <option value="tilt_sensor">Tilt Sensor</option>

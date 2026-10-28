@@ -33,7 +33,7 @@ async function json(request, path, body, method = 'POST') {
   const response = await request(path, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   return { response, value: await response.json() }
 }
-let seeded = false, markerVerified = false, passwordSessionsVerified = false, projectId, browserSourceId, passed = false
+let _seeded = false, markerVerified = false, passwordSessionsVerified = false, projectId, browserSourceId, passed = false
 const source = { name: `SYN-HTTP-CATALOG-${ownerId}`, beaconType: 'gnss', easting: 500000.01234, northing: 9800000.05678, elevation: 0, horizontalCrs: 'EPSG:21037', verticalDatum: 'Synthetic BM', sourceReference: 'Synthetic source document HTTP-ONLY; not official survey evidence', authority: 'Synthetic publisher', country: 'Kenya' }
 await admin.connect()
 try {
@@ -44,7 +44,7 @@ try {
     await admin.query("INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,$3,'Synthetic control HTTP verification')", [id, email(id), await bcrypt.hash(password, 10)])
     await admin.query('INSERT INTO surveyor_profiles(user_id,role,is_suspended) VALUES($1,$2,false)', [id, id === reviewerId ? 'admin' : 'surveyor'])
   }
-  seeded = true
+  _seeded = true
   const owner = await login(ownerId), reviewer = await login(reviewerId), other = await login(otherId)
   passwordSessionsVerified = true
   check('owner, independent reviewer and other real password sessions work', true)

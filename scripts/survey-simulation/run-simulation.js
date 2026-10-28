@@ -183,7 +183,7 @@ class SurveySimulationAgent {
       
       // Look for "New Project" button or navigate to /projects/new
       console.log('🔍 Looking for new project button...');
-      let newProjectButton = await this.page.$('a[href*="new"]');
+      const newProjectButton = await this.page.$('a[href*="new"]');
       if (!newProjectButton) {
         console.log('🔄 Trying direct navigation to /projects/new...');
         await this.page.goto(`${this.baseUrl}/projects/new`, { waitUntil: 'domcontentloaded', timeout: 15000 });

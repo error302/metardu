@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "*.ts",
+    "scripts/**/*.ts",
+    "e2e/**/*.ts",
+    "tests/**/*.mts",
+    "tests/**/*.cts",
+    "src/**/*.d.ts"
+  ],
+  "exclude": [
+    "node_modules"
+  ],
+  "compilerOptions": {
+    "allowImportingTsExtensions": true,
+    "module": "esnext"
+  }
+}

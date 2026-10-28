@@ -9,9 +9,13 @@ jest.mock('@/lib/security/loginLimiter', () => ({
 
 import { db } from '@/lib/db'
 import { authOptions } from '@/lib/auth'
+import { requiredValue } from '@/test-utils/requiredValue'
+import { mr } from '@/test-utils/mock-rows'
 
-const query = db.query as jest.Mock
-const signIn = authOptions.callbacks!.signIn!
+
+
+const query = db.query as jest.MockedFunction<typeof db.query>
+const signIn = requiredValue(requiredValue(authOptions.callbacks).signIn)
 const existingUser = {
   id: 'account-1', email: 'surveyor@example.test', password_hash: 'password-hash',
   full_name: 'Surveyor', isk_number: null, verified_isk: false, role: 'user',
@@ -30,28 +34,26 @@ describe('OAuth identity resolution', () => {
   beforeEach(() => query.mockReset())
 
   it('rejects an unverified Microsoft email matching a verified password account', async () => {
-    query.mockResolvedValue({ rows: [existingUser] })
+    query.mockResolvedValue(mr([existingUser]))
     expect(await signIn(request())).toBe(false)
     expect(query.mock.calls.some(([sql]) => /^UPDATE users/.test(sql))).toBe(false)
   })
 
   it('rejects an unverified email matching a different OAuth identity', async () => {
-    query.mockResolvedValue({ rows: [{ ...existingUser, password_hash: 'OAUTH_NO_PASSWORD', provider: 'google', oauth_provider_id: 'google-subject' }] })
+    query.mockResolvedValue(mr([{ ...existingUser, password_hash: 'OAUTH_NO_PASSWORD', provider: 'google', oauth_provider_id: 'google-subject' }]))
     expect(await signIn(request())).toBe(false)
   })
 
   it('rejects Google when the email verification claim is missing', async () => {
-    query.mockResolvedValue({ rows: [existingUser] })
+    query.mockResolvedValue(mr([existingUser]))
     expect(await signIn(request('google', 'google-subject'))).toBe(false)
     expect(query).not.toHaveBeenCalled()
   })
 
   it('accepts a previously linked Microsoft subject when its email has changed', async () => {
-    query.mockImplementation(async (sql: string) => ({
-      rows: sql.startsWith('SELECT id, email')
+    query.mockImplementation(async (sql: string) => (mr(sql.startsWith('SELECT id, email')
         ? [{ ...existingUser, password_hash: 'OAUTH_NO_PASSWORD', provider: 'azure-ad', oauth_provider_id: 'microsoft-subject' }]
-        : [],
-    }))
+        : [])))
     const input = request()
     input.user.email = 'changed@example.test'
     expect(await signIn(input)).toBe(true)
@@ -60,19 +62,19 @@ describe('OAuth identity resolution', () => {
   })
 
   it('rejects a changed subject on an already linked provider', async () => {
-    query.mockResolvedValue({ rows: [{ ...existingUser, provider: 'azure-ad', oauth_provider_id: 'original-subject' }] })
+    query.mockResolvedValue(mr([{ ...existingUser, provider: 'azure-ad', oauth_provider_id: 'original-subject' }]))
     expect(await signIn(request('azure-ad', 'different-subject', true))).toBe(false)
   })
 
   it('links verified Google email only to an already verified account', async () => {
-    query.mockImplementation(async (sql: string) => ({ rows: sql.startsWith('SELECT id, email') ? [existingUser] : [] }))
+    query.mockImplementation(async (sql: string) => (mr(sql.startsWith('SELECT id, email') ? [existingUser] : [])))
     const input = request('google', 'google-subject', true)
     expect(await signIn(input)).toBe(true)
     expect(input.user.provider).toBe('google')
   })
 
   it('rejects a verified Google identity matching an unverified existing account', async () => {
-    query.mockResolvedValue({ rows: [{ ...existingUser, email_verified: false }] })
+    query.mockResolvedValue(mr([{ ...existingUser, email_verified: false }]))
     expect(await signIn(request('google', 'google-subject', true))).toBe(false)
   })
 
@@ -83,14 +85,14 @@ describe('OAuth identity resolution', () => {
 
   it('rejects ambiguous duplicate stable identities', async () => {
     const linked = { ...existingUser, provider: 'azure-ad', oauth_provider_id: 'microsoft-subject' }
-    query.mockResolvedValue({ rows: [linked, { ...linked, id: 'account-2' }] })
+    query.mockResolvedValue(mr([linked, { ...linked, id: 'account-2' }]))
     expect(await signIn(request())).toBe(false)
   })
 
   it('keeps an established identity when its new email belongs to another account', async () => {
-    query.mockImplementation(async (sql: string) => ({ rows: sql.startsWith('SELECT id, email')
+    query.mockImplementation(async (sql: string) => (mr(sql.startsWith('SELECT id, email')
       ? [{ ...existingUser, provider: 'azure-ad', oauth_provider_id: 'microsoft-subject' }, { ...existingUser, id: 'other-account', email: 'changed@example.test' }]
-      : [] }))
+      : [])))
     const input = request()
     input.user.email = 'changed@example.test'
     expect(await signIn(input)).toBe(true)
@@ -99,24 +101,24 @@ describe('OAuth identity resolution', () => {
   })
 
   it('creates a new Microsoft identity without claiming its email is verified', async () => {
-    query.mockImplementation(async (sql: string) => ({ rows: sql.startsWith('INSERT INTO users')
+    query.mockImplementation(async (sql: string) => (mr(sql.startsWith('INSERT INTO users')
       ? [{ id: 'new-account', email: existingUser.email, full_name: 'Surveyor', role: 'user', provider: 'azure-ad' }]
-      : [] }))
+      : [])))
     const input = request()
     expect(await signIn(input)).toBe(true)
     const insert = query.mock.calls.find(([sql]) => sql.startsWith('INSERT INTO users'))
-    expect(insert?.[1][6]).toBe(false)
+    expect(insert?.[1]?.[6]).toBe(false)
     expect(input.user.id).toBe('new-account')
     expect(input.user.role).toBe('user')
   })
 
   it('rejects a Microsoft email claim for automatic linking even if a tenant supplies email_verified', async () => {
-    query.mockResolvedValue({ rows: [existingUser] })
+    query.mockResolvedValue(mr([existingUser]))
     expect(await signIn(request('azure-ad', 'microsoft-subject', true))).toBe(false)
   })
 
   it('requires separate ownership proof for a third-party Google email without a hosted-domain claim', async () => {
-    query.mockResolvedValue({ rows: [existingUser] })
+    query.mockResolvedValue(mr([existingUser]))
     const input = request('google', 'google-subject', true)
     delete (input.profile as Record<string, unknown>).hd
     expect(await signIn(input)).toBe(false)
@@ -125,9 +127,9 @@ describe('OAuth identity resolution', () => {
   it('denies sign-in when the account suspension check cannot be completed', async () => {
     query.mockImplementation(async (sql: string) => {
       if (sql.startsWith('SELECT is_suspended')) throw new Error('database unavailable')
-      return { rows: sql.startsWith('SELECT id, email')
+      return mr(sql.startsWith('SELECT id, email')
         ? [{ ...existingUser, provider: 'azure-ad', oauth_provider_id: 'microsoft-subject' }]
-        : [] }
+        : [])
     })
     expect(await signIn(request())).toBe(false)
   })

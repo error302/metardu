@@ -8,7 +8,7 @@ import { createHash } from 'node:crypto'
 import pg from 'pg'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
@@ -93,9 +93,11 @@ async function plan() {
   const recovery=JSON.parse(readFileSync('test-results/recovery-proof/verification.json','utf8'))
   assert.equal(recovery.status,'passed')
   assert.ok(Object.values(recovery.cleanup).every(value=>value===true))
-  const image=before.find(c=>c.Name==='/metardu-app').Image
+  const app=before.find(c=>c.Name==='/metardu-app'), image=app.Image
+  const rollbackIdentity=deployedAppRevision(app,JSON.parse(docker(['image','inspect',image]))[0])
+  assert.equal(git(['rev-parse',rollbackIdentity.revision]),rollbackIdentity.revision,'The rollback revision must exist in this repository.')
   const result={revision,status:'planned',candidateTag,rollbackTag,before:before.map(describe),project:before.find(c=>c.Name==='/metardu-app').Config.Labels['com.docker.compose.project'],
-    migrationBefore:applied,pending:drift.missing,rollbackImage:image,priorRevision:envOf(before.find(c=>c.Name==='/metardu-app')).METARDU_BUILD_SHA,
+    migrationBefore:applied,pending:drift.missing,rollbackImage:image,priorRevision:rollbackIdentity.revision,rollbackIdentity,
     sourceRegistry:files.map(file=>({version:file.version,checksum:file.checksum})),
     recoveryEvidence:{status:recovery.status,archiveSha256:recovery.archiveSha256,cleanup:recovery.cleanup},phases:[]}
   if(!legacy) {

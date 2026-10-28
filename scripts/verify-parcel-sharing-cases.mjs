@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { randomBytes, createHash } from 'node:crypto'
@@ -152,7 +153,7 @@ export async function verifyParcelSharing(c) {
         'gridAreaSqM',
         'label',
       ])
-      assert.equal(data.snapshot.sourceCrs, 'EPSG:32737')
+      assert.equal(data.snapshot.sourceCrs, declaredFixtureCrs32737)
       assert.equal(data.snapshot.fieldVerified, false)
       assert.doesNotMatch(
         JSON.stringify(data.snapshot),
@@ -455,7 +456,7 @@ export async function verifyParcelSharing(c) {
       )
       assert.doesNotMatch(
         JSON.stringify(first),
-        /token_hash|command_hash|coordinates|snapshot\":|key\":/,
+        /token_hash|command_hash|coordinates|snapshot":|key":/,
       )
     },
   )

@@ -1,4 +1,5 @@
 /** @jest-environment jsdom */
+const fixtureCrs21037 = 'EPSG:21037'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { PublicControlCatalog } from '@/components/beacons/PublicControlCatalog'
 import { PublicControlSubmission } from '@/components/beacons/PublicControlSubmission'
@@ -17,12 +18,12 @@ test('published zero and explicit reference reach the real submission contract',
   const fetchMock = jest.fn(async () => response({ data: { beacon: { status: 'pending' } } }, 201))
   globalThis.fetch = fetchMock
   render(<PublicControlSubmission />)
-  for (const [label, value] of [['Reference name', 'SYN-CONTROL'], ['Published horizontal grid (EPSG code)', 'EPSG:21037'], ['Published easting (m)', '500000.01234'], ['Published northing (m)', '9800000.05678'], ['Published height (m, optional)', '0'], ['Published vertical datum', 'Synthetic BM'], ['Source document, sheet, revision or publication reference', 'Synthetic source sheet'], ['Source publisher or authority', 'Synthetic publisher'], ['Country', 'Kenya']]) fireEvent.change(screen.getByLabelText(label), { target: { value } })
+  for (const [label, value] of [['Reference name', 'SYN-CONTROL'], ['Published horizontal grid (EPSG code)', fixtureCrs21037], ['Published easting (m)', '500000.01234'], ['Published northing (m)', '9800000.05678'], ['Published height (m, optional)', '0'], ['Published vertical datum', 'Synthetic BM'], ['Source document, sheet, revision or publication reference', 'Synthetic source sheet'], ['Source publisher or authority', 'Synthetic publisher'], ['Country', 'Kenya']]) fireEvent.change(screen.getByLabelText(label), { target: { value } })
   fireEvent.click(screen.getByRole('button', { name: 'Submit for catalogue review' }))
   await screen.findByText('Submission recorded for independent catalogue review.')
   const call = (fetchMock as jest.Mock).mock.calls[0] as [string, RequestInit]
   expect(call[0]).toBe('/api/public-beacons')
-  expect(JSON.parse(String(call[1].body))).toMatchObject({ elevation: 0, horizontalCrs: 'EPSG:21037', verticalDatum: 'Synthetic BM' })
+  expect(JSON.parse(String(call[1].body))).toMatchObject({ elevation: 0, horizontalCrs: fixtureCrs21037, verticalDatum: 'Synthetic BM' })
   expect(JSON.parse(String(call[1].body))).not.toHaveProperty('status')
 })
 test('catalogue imports keep a retry identity and direct the surveyor to their control register', async () => {

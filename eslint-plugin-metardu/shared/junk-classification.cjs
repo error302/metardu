@@ -79,6 +79,7 @@ const ALLOWED_TOKENS = new Set(['GitHub', 'METARDU', 'SurveyorName'])
  * @param {string|null} placeholder raw placeholder attribute value (nullable)
  * @returns {'empty'|'punctuation'|'generic'|'crunched'|'placeholder-equals-name'|null}
  */
+/** @param {string} value @param {string | null} placeholder */
 function classify(value, placeholder) {
   const v = (value ?? '').trim()
   if (v === '') return 'empty'

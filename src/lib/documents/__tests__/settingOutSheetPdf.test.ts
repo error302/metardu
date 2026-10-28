@@ -1,6 +1,10 @@
 import { inflateSync } from 'node:zlib'
 import { SETTING_OUT_TEMPLATE } from '../templates/setting-out'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs32737 = 'EPSG:32737'
+
+
 function pdfTextStreams(pdf: Buffer): string {
   const binary = pdf.toString('latin1')
   const streams: string[] = []
@@ -33,7 +37,7 @@ describe('general setting-out PDF', () => {
       checkedByName: 'Checker Example',
       checkedByLicense: 'LS-456',
       date: '2026-10-12',
-      projection: 'EPSG:32737',
+      projection: fixtureCrs32737,
       datum: 'WGS 84',
       points: [{ pointId: 'MH-01', designE: 500010, designN: 9900000, remarks: 'Start manhole' }],
     })

@@ -14,6 +14,7 @@
  * self-executing CLI script, so we run it as a subprocess against temp-dir
  * fixtures, following tests/aria-label-gate.test.ts.
  */
+import { subprocessFailure } from '@/test-utils/subprocessFailure'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
@@ -74,8 +75,8 @@ function runGateOn(
         },
       })
       return { code: 0, output }
-    } catch (err: any) {
-      return { code: err.status ?? 1, output: String(err.stdout ?? '') }
+    } catch (err: unknown) {
+      return subprocessFailure(err)
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })
@@ -285,8 +286,8 @@ describe('schema-drift-gate: baseline ratchet', () => {
             },
           })
           return { code: 0, output }
-        } catch (err: any) {
-          return { code: err.status ?? 1, output: String(err.stdout ?? '') }
+        } catch (err: unknown) {
+          return subprocessFailure(err)
         }
       } finally {
         rmSync(dir, { recursive: true, force: true })

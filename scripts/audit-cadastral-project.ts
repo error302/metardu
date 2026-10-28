@@ -1,8 +1,10 @@
+import type { DocumentProject } from '../src/lib/reports/documentEvidence'
+import type { PointData } from '../src/lib/reports/documentPackage'
 import { config } from 'dotenv';
 import path from 'path';
 import { readFile, mkdir, writeFile } from 'fs/promises';
 
-config({ path: '.env', quiet: true } as any);
+config({ path: '.env' });
 process.env.DATABASE_URL = `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || 'metardu')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@127.0.0.1:5432/${process.env.POSTGRES_DB || 'metardu'}`;
 process.env.STORAGE_ROOT = path.resolve('live-test-results/export-storage');
 
@@ -14,24 +16,22 @@ async function audit() {
     generateComputationSheet,
     generateAreaCertificate,
     generateCoverLetter,
-    generateFieldNotes,
-    generateBeaconDescriptions,
   } = await import('../src/lib/reports/documentPackage');
   const { generateDocument } = await import('../src/lib/submission/assembleDocument');
 
   console.log('=== AUDITING PROJECT:', projectId);
 
   // 1. Load project and survey_points from DB
-  const projRes = await db.query('SELECT * FROM projects WHERE id = $1', [projectId]);
+  const projRes = await db.query<DocumentProject & { user_id: string; survey_type?: string }>('SELECT * FROM projects WHERE id = $1', [projectId]);
   if (!projRes.rows[0]) throw new Error(`Project ${projectId} not found`);
   const project = projRes.rows[0];
-  const ptsRes = await db.query('SELECT * FROM survey_points WHERE project_id = $1 ORDER BY created_at', [projectId]);
+  const ptsRes = await db.query<PointData>('SELECT * FROM survey_points WHERE project_id = $1 ORDER BY created_at', [projectId]);
   const surveyPoints = ptsRes.rows;
 
   console.log(`Loaded project: "${project.name}", survey_type: ${project.survey_type}, points in survey_points table: ${surveyPoints.length}`);
 
   // 2. Resolve document evidence
-  const evidence = resolveDocumentEvidence(project, surveyPoints.map((p: any) => ({
+  const evidence = resolveDocumentEvidence(project, surveyPoints.map((p) => ({
     name: p.name,
     easting: p.easting,
     northing: p.northing,
@@ -40,8 +40,8 @@ async function audit() {
   })));
 
   console.log('\n--- EVIDENCE RESOLUTION ---');
-  console.log('Resolved point names:', evidence.points.map((p: any) => p.name));
-  console.log('Coordinates:', evidence.points.map((p: any) => ({ name: p.name, E: p.easting, N: p.northing, Z: p.elevation })));
+  console.log('Resolved point names:', evidence.points.map((p) => p.name));
+  console.log('Coordinates:', evidence.points.map((p) => ({ name: p.name, E: p.easting, N: p.northing, Z: p.elevation })));
   console.log('Area:', evidence.area);
   console.log('Traverse:', {
     totalDistance: evidence.traverse?.totalDistance,
@@ -131,21 +131,22 @@ async function audit() {
         surveyType: 'cadastral',
         userId: project.user_id,
       });
-      const key = new URL(result.fileUrl, 'http://localhost').searchParams.get('path')!;
-      const filePath = path.join(process.env.STORAGE_ROOT!, key);
+      const key = new URL(result.fileUrl, 'http://localhost').searchParams.get('path');
+      if (!key || !process.env.STORAGE_ROOT) throw new Error('Export storage path is missing');
+      const filePath = path.join(process.env.STORAGE_ROOT, key);
       const buffer = await readFile(filePath);
       submissionResults[docId] = { bytes: buffer.length, path: filePath };
       console.log(`  -> SUCCESS: ${docId} (${buffer.length} bytes) at ${filePath}`);
-    } catch (err: any) {
-      console.error(`  -> FAILED: ${docId}:`, err.message);
-      submissionResults[docId] = { bytes: 0, path: `ERROR: ${err.message}` };
+    } catch (err: unknown) {
+      console.error(`  -> FAILED: ${docId}:`, (err instanceof Error ? err.message : String(err)));
+      submissionResults[docId] = { bytes: 0, path: `ERROR: ${(err instanceof Error ? err.message : String(err))}` };
     }
   }
 
   console.log('\n=== AUDIT SUMMARY ===');
   console.log(JSON.stringify({
     projectId,
-    coordinates: evidence.points.map((p: any) => ({ name: p.name, E: p.easting, N: p.northing, Z: p.elevation ?? null })),
+    coordinates: evidence.points.map((p) => ({ name: p.name, E: p.easting, N: p.northing, Z: p.elevation ?? null })),
     areaM2: evidence.area?.squareMeters,
     areaHa: evidence.area?.hectares,
     perimeterM: evidence.area?.perimeter,

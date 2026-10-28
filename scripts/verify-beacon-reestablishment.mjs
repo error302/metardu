@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+const declaredFixtureCrs32737 = 'EPSG:32737'
+const declaredFixtureCrs21037 = 'EPSG:21037'
 // Actual beacon re-establishment routes, transactions and immutable captures and restricted PostgreSQL; synthetic sessions only.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks'
@@ -57,7 +59,7 @@ try {
  check('another account cannot replace a globally readable mark',(await invoke(ids.other,'POST',ids.original,observed)).response.status===404)
  check('an undeclared project cannot infer the registry default CRS',(await invoke(ids.owner,'POST',ids.unsupported,{...observed,projectId:ids.undeclared})).response.status===400)
  check('missing observed ties cannot produce a replacement',(await invoke(ids.owner,'POST',ids.original,{...observed,ties:''})).response.status===400)
- check('a mismatched observed grid cannot change a mark',(await invoke(ids.owner,'POST',ids.original,{...observed,horizontalCrs:'EPSG:32737'})).response.status===409)
+ check('a mismatched observed grid cannot change a mark',(await invoke(ids.owner,'POST',ids.original,{...observed,horizontalCrs:declaredFixtureCrs32737})).response.status===409)
  check('observed height needs its declared vertical datum',(await invoke(ids.owner,'POST',ids.original,{...observed,verticalDatum:null})).response.status===409)
  const saved=await invoke(ids.owner,'POST',ids.original,observed)
  check('real central handler consumes JSON once and records a replacement',saved.response.status===201&&!saved.value.data.replayed)
@@ -65,7 +67,7 @@ try {
  const after=(await admin.query('SELECT * FROM beacon_registry WHERE id=$1',[ids.original])).rows[0]
  const unchanged=row=>Object.fromEntries(Object.entries(row).filter(([key])=>!['status','superseded_by_id','updated_at'].includes(key)))
  check('original full record stays exact while the successor link changes',isDeepStrictEqual(unchanged(original),unchanged(after))&&after.status==='SUPERSEDED'&&after.superseded_by_id===newId)
- check('measured XY precision and zero RL survive persistence',replacement.easting===observed.easting&&replacement.northing===observed.northing&&replacement.elevation===0&&replacement.horizontal_crs==='EPSG:21037')
+ check('measured XY precision and zero RL survive persistence',replacement.easting===observed.easting&&replacement.northing===observed.northing&&replacement.elevation===0&&replacement.horizontal_crs===declaredFixtureCrs21037)
  check('new observation does not invent verification, adoption or five-millimetre precision',replacement.sigma_e===null&&replacement.sigma_n===null&&replacement.sigma_rl===null&&Number(replacement.source_confidence)===0&&!replacement.is_adopted&&replacement.last_verified_at===null&&replacement.metadata.verified===false)
  check('immutable capture retains ties, instrument, date and predecessor height',capture.observation.ties===observed.ties&&capture.observation.instrument===observed.instrument&&capture.observation.observationDate==='2026-10-01T06:00:00.000Z'&&capture.predecessor_snapshot.elevation===123.456789&&capture.reference_snapshot.originalReferenceSource==='surveyor_declaration'&&capture.observation.certified===false)
  const history=await invoke(ids.owner,'GET',newId)

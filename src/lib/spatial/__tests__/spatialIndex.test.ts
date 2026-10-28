@@ -5,6 +5,8 @@ import {
   type SpatialItem,
   type Point2DItem,
 } from '../spatialIndex'
+import { requiredValue } from '@/test-utils/requiredValue'
+
 
 describe('High-Capacity Spatial Indexing Engine', () => {
   describe('SpatialRTree (STR Bulk-Loaded 2D R-Tree)', () => {
@@ -90,8 +92,8 @@ describe('High-Capacity Spatial Indexing Engine', () => {
       // Query near BP2 (52, 49)
       const nearest = kdTree.nearest(52, 49)
       expect(nearest).not.toBeNull()
-      expect(nearest!.item.data.beacon).toBe('BP2')
-      expect(nearest!.distance).toBeCloseTo(Math.hypot(2, -1), 2)
+      expect(requiredValue(nearest).item.data.beacon).toBe('BP2')
+      expect(requiredValue(nearest).distance).toBeCloseTo(Math.hypot(2, -1), 2)
     })
 
     test('finds all beacons within snap radius', () => {

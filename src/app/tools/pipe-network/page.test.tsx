@@ -2,6 +2,10 @@ import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import PipeNetworkPage from './page'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+
+
 jest.mock('@/components/shared/PageHeader', () => ({ PageHeader: () => null }))
 
 describe('pipe network flow screening', () => {
@@ -43,14 +47,14 @@ describe('pipe network flow screening', () => {
     const originalFetch = global.fetch
     const network = {
       version: 1 as const,
-      projectCrs: 'EPSG:21037',
+      projectCrs: fixtureCrs21037,
       minimumCoverM: 1.2,
       stationIntervalM: 5,
       manholes: [{ id: 'MH-01', easting: 500000, northing: 9800000, groundLevel: 100, invertOut: 98 }],
       pipes: [],
     }
     const fetchMock = jest.fn()
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ projectName: 'Drainage A', declaredProjectCrs: 'EPSG:21037', network }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ projectName: 'Drainage A', declaredProjectCrs: fixtureCrs21037, network }) })
       .mockResolvedValueOnce({ ok: true, json: async () => ({ saved: true, network }) })
     global.fetch = fetchMock as unknown as typeof fetch
     window.history.pushState({}, '', '/tools/pipe-network?projectId=project-1')

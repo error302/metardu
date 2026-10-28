@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 import assert from 'node:assert/strict'
 export const EXPECTED_CASES = 29
 export async function verifySchemeViews(context) {
@@ -105,7 +106,7 @@ export async function verifySchemeViews(context) {
       assert.equal(feature.properties.receiptId, receipt.receiptId)
       assert.equal(feature.properties.gridAreaSqM, 200)
       assert.equal(feature.properties.assessment, 'unverified')
-      assert.equal(payload.crs, 'EPSG:32737')
+      assert.equal(payload.crs, declaredFixtureCrs32737)
     },
   )
   for (const mutation of [

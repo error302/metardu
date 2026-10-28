@@ -1,5 +1,5 @@
 import fs from 'fs';
-import path from 'path';
+import 'path';
 
 const key = process.env.NVIDIA_API_KEY || fs.readFileSync('.env','utf8').match(/NVIDIA_API_KEY=(.+)/)?.[1]?.trim();
 if (!key) { console.error('No NVIDIA key'); process.exit(1); }
@@ -69,7 +69,7 @@ for (const [code, cfg] of Object.entries(targets)) {
   const tgtModel = typeof cfg === 'object' && cfg.model ? cfg.model : model;
   console.log(`\n=== ${code} → ${name} [${tgtModel}] ===`);
   const existing = JSON.parse(fs.readFileSync(`messages/${code}.json`,'utf8'));
-  const flatExisting = flatten(existing);
+  const _flatExisting = flatten(existing);
   const outFlat = {};
   const batchSize = 30;
   for (let i=0;i<allKeys.length;i+=batchSize) {

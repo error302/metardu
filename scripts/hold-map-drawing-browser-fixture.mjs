@@ -2,7 +2,7 @@
 // Authentication is a bounded adapter; this does not prove production HTTP or RLS.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { createHash, randomUUID } from 'node:crypto'
+import { randomUUID } from 'node:crypto'
 import { createRequire } from 'node:module'
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
@@ -31,7 +31,7 @@ let created=false,original,ledger,owner
 await admin.connect()
 try{
   assert.equal((await admin.query("SELECT shobj_description(oid,'pg_database') marker FROM pg_database WHERE datname=current_database()")).rows[0].marker,'METARDU synthetic beacon verification only 2026-10-08')
-  const actor=(await admin.query(`SELECT p.user_id,p.name,(u.email ~* '(\.invalid|\.test|@localhost)$') AS reserved_actor FROM public.projects p JOIN public.users u ON u.id=p.user_id WHERE p.id=$1`,['3801daa3-b41f-41be-9a85-1b8c71b531cf'])).rows[0]
+  const actor=(await admin.query(`SELECT p.user_id,p.name,(u.email ~* '(\\.invalid|\\.test|@localhost)$') AS reserved_actor FROM public.projects p JOIN public.users u ON u.id=p.user_id WHERE p.id=$1`,['3801daa3-b41f-41be-9a85-1b8c71b531cf'])).rows[0]
   assert.equal(actor?.name,'SYNTHETIC capture recovery browser QA - not field evidence')
   assert.equal(actor.reserved_actor,true,'The existing session is not tied to a verified reserved-domain synthetic actor. No fixture was written.')
   owner=actor.user_id

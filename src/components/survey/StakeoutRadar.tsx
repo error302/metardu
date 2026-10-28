@@ -14,6 +14,7 @@
  * - Audio beep that speeds up as you approach
  */
 
+import { assertProjectedCrs, transformPoint } from '@/lib/spatial/projectCrs'
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { Target, Navigation, Crosshair, Volume2, VolumeX, X, Camera, Compass } from 'lucide-react'
 
@@ -21,7 +22,7 @@ interface StakeoutRadarProps {
   targetE: number
   targetN: number
   onClose?: () => void
-  epsg?: string
+  epsg: string
 }
 
 interface Position {
@@ -32,7 +33,7 @@ interface Position {
   northing: number
 }
 
-export function StakeoutRadar({ targetE, targetN, onClose, epsg = 'EPSG:21037' }: StakeoutRadarProps) {
+export function StakeoutRadar({ targetE, targetN, onClose, epsg }: StakeoutRadarProps) {
   const [, setPosition] = useState<Position | null>(null)
   const [distance, setDistance] = useState<number | null>(null)
   const [bearing, setBearing] = useState<number | null>(null)
@@ -51,13 +52,13 @@ export function StakeoutRadar({ targetE, targetN, onClose, epsg = 'EPSG:21037' }
   const streamRef = useRef<MediaStream | null>(null)
 
   // Transform WGS84 to UTM
-  const transformToUTM = useCallback(async (lat: number, lng: number): Promise<{ easting: number; northing: number }> => {
+  const transformToUTM = useCallback(async (lat: number, lng: number): Promise<{ easting: number; northing: number } | null> => {
     try {
-      const { transform } = await import('ol/proj')
-      const [e, n] = transform([lng, lat], 'EPSG:4326', epsg) as [number, number]
+      assertProjectedCrs(epsg)
+      const [e, n] = transformPoint(lng, lat, 'EPSG:4326', epsg)
       return { easting: e, northing: n }
     } catch {
-      return { easting: 0, northing: 0 }
+      return null
     }
   }, [epsg])
 
@@ -91,7 +92,9 @@ export function StakeoutRadar({ targetE, targetN, onClose, epsg = 'EPSG:21037' }
     }
     watchIdRef.current = navigator.geolocation.watchPosition(
       async (pos) => {
-        const { easting, northing } = await transformToUTM(pos.coords.latitude, pos.coords.longitude)
+        const coordinates = await transformToUTM(pos.coords.latitude, pos.coords.longitude)
+        if (!coordinates) { setDistance(null); setBearing(null); return }
+        const { easting, northing } = coordinates
         setPosition({
           lat: pos.coords.latitude,
           lng: pos.coords.longitude,

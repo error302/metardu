@@ -1,3 +1,4 @@
+const declaredFixtureCrs21037 = 'EPSG:21037'
 // Read-only DB corroboration of the exact command observed in Chrome/CUA.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -17,7 +18,7 @@ try{
   const project=(await client.query('SELECT user_id,name FROM projects WHERE id=$1',[fixture.projectId])).rows[0];assert.equal(project.user_id,fixture.userId);assert.equal(project.name,fixture.projectName)
   const source=(await client.query('SELECT point_name,easting::float8,northing::float8,elevation::float8,horizontal_crs,vertical_datum FROM survey_points WHERE project_id=$1 ORDER BY point_name',[fixture.projectId])).rows
   assert.deepEqual(source.map(point=>[point.point_name,point.easting,point.northing,point.elevation]),[['P1',500000,9850000,-2],['P2',500020,9850000,0],['P3',500020,9850020,2],['P4',500000,9850020,0],['P5',500010,9850010,0]])
-  assert.ok(source.every(point=>point.horizontal_crs==='EPSG:21037'&&point.vertical_datum==='Synthetic local benchmark - no field evidence'))
+  assert.ok(source.every(point=>point.horizontal_crs===declaredFixtureCrs21037&&point.vertical_datum==='Synthetic local benchmark - no field evidence'))
   const rows=(await client.query(`SELECT s.id surface_id,s.name,r.id revision_id,r.revision,r.input_hash,r.result,c.lines
     FROM surface_revisions r JOIN surfaces s ON s.id=r.surface_id JOIN contour_sets c ON c.surface_revision_id=r.id AND c.surface_id=s.id
     WHERE s.project_id=$1 AND r.result#>>'{snapshot,request,id}'=$2 AND r.result#>>'{snapshot,request,userId}'=$3`,[fixture.projectId,requestId,fixture.userId])).rows

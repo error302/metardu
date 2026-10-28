@@ -1,3 +1,6 @@
+const fixtureCrs32636 = 'EPSG:32636'
+const fixtureCrs21036 = 'EPSG:21036'
+import { requiredValue } from '@/test-utils/requiredValue'
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 import { applyCadReferenceFrame, calibrateCadScale } from '@/lib/cad/cadReferenceFrame'
 
@@ -20,7 +23,7 @@ const raster = { id: 'raster', url: 'data:image/png;base64,AA==', x: 20, y: 20, 
 test('explicit reference anchors zero northing and derives grid coordinates and edge measurements', () => {
   const original = drawing()
   const doc = applyCadReferenceFrame(original, reference)
-  expect(doc).toMatchObject({ originEasting: 500000, originNorthing: -694, coordinateReferenceSystem: 'EPSG:32636', metersPerPixel: 1 })
+  expect(doc).toMatchObject({ originEasting: 500000, originNorthing: -694, coordinateReferenceSystem: fixtureCrs32636, metersPerPixel: 1 })
   expect(doc.beacons.map(b => [b.easting, b.northing])).toEqual([[500100, 0], [500200, 0]])
   expect(doc.boundaries[0]).toMatchObject({ distanceM: 100, bearingDeg: 90, bearing: '90°00\'00"' })
   expect(original.beacons[0].easting).toBeUndefined()
@@ -55,7 +58,7 @@ test.each(['EPSG:4326', 'EPSG:3857', 'EPSG:99999'])('refuses unsuitable or unkno
 
 test('cannot relabel a registered CRS or replace a known anchor coordinate through layout settings', () => {
   const doc = applyCadReferenceFrame(drawing(), reference)
-  expect(() => applyCadReferenceFrame(doc, { ...reference, coordinateReferenceSystem: 'EPSG:21036' })).toThrow(/transform/i)
+  expect(() => applyCadReferenceFrame(doc, { ...reference, coordinateReferenceSystem: fixtureCrs21036 })).toThrow(/transform/i)
   expect(() => applyCadReferenceFrame(doc, { ...reference, easting: 500101 })).toThrow(/anchor/i)
 })
 
@@ -98,7 +101,7 @@ test('calibration respects rotated image bounds, visibility, locks and finite di
   expect(calibrateCadScale(doc, inside, 50).backgroundImage?.rotation).toBe(90)
   expect(() => calibrateCadScale(doc, picks, 50)).toThrow(/inside/i)
   for (const patch of [{ locked: true }, { visible: false }]) {
-    expect(() => calibrateCadScale({ ...doc, backgroundImage: { ...doc.backgroundImage!, ...patch } }, inside, 50)).toThrow()
+    expect(() => calibrateCadScale({ ...doc, backgroundImage: { ...requiredValue(doc.backgroundImage), ...patch } }, inside, 50)).toThrow()
   }
   for (const distance of [NaN, Infinity, 0, -50]) expect(() => calibrateCadScale(doc, inside, distance)).toThrow()
   expect(() => calibrateCadScale(doc, [inside[0], inside[0]], 50)).toThrow(/close/i)

@@ -1,3 +1,4 @@
+const declaredFixtureCrs32632 = 'EPSG:32632'
 // Actual source handler and survey engines, real SQL, uniquely owned schema.
 // The HTTP/session/RLS wrapper is adapted here; it needs separate HTTP proof.
 import assert from 'node:assert/strict'
@@ -382,7 +383,7 @@ try{
     const ends=zero.coordinates.flatMap(path=>[path[0],path.at(-1)]).sort();assert.deepEqual(ends,[[500002,9850018],[500008,9850012],[500012,9850008],[500018,9850002]].sort())
     const record=await loadSurfaceRevision(fixture.id,response.json.data.revisionId);assert.equal(record.snapshot.terrainDomain.sourceLabel,mask().sourceLabel)
   })
-  await check('a mask with a different declared basis cannot borrow the project label',async()=>{const fixture=await seed();await noMutation(fixture,{terrainDomain:{...mask(),horizontalCrs:'EPSG:32632'}},400)})
+  await check('a mask with a different declared basis cannot borrow the project label',async()=>{const fixture=await seed();await noMutation(fixture,{terrainDomain:{...mask(),horizontalCrs:declaredFixtureCrs32632}},400)})
   await check('a self-crossing footprint preserves all existing source and revisions',async()=>{
     const fixture=await seed(),definition=mask();definition.regions[0].outer=[definition.regions[0].outer[0],definition.regions[0].outer[2],definition.regions[0].outer[1],definition.regions[0].outer[3]]
     await noMutation(fixture,{terrainDomain:definition},400)

@@ -30,14 +30,19 @@ export function parseStakeoutCsv(text: string): StakeoutPoint[] {
       if (!value || !Number.isFinite(parsedValue)) throw new RangeError(`CSV row ${line}: ${field} must be a finite number.`)
       return parsedValue
     }
+    function requiredNumber(field: string): number {
+      const value = number(field, true)
+      if (value === undefined) throw new RangeError(`CSV row ${line}: ${field} is required.`)
+      return value
+    }
     const accuracyM = number('accuracy_m', false)
     if (accuracyM !== undefined && accuracyM < 0) throw new RangeError(`CSV row ${line}: accuracy_m cannot be negative.`)
     const timestamp = row.observed_at?.trim() ?? ''
     if (timestamp && !Number.isFinite(Date.parse(timestamp))) throw new RangeError(`CSV row ${line}: observed_at must be a valid date/time.`)
     return {
       pointId,
-      design: { easting: number('design_e', true)!, northing: number('design_n', true)!, elevation: number('design_z', false) },
-      staked: { easting: number('staked_e', true)!, northing: number('staked_n', true)!, elevation: number('staked_z', false) },
+      design: { easting: requiredNumber('design_e'), northing: requiredNumber('design_n'), elevation: number('design_z', false) },
+      staked: { easting: requiredNumber('staked_e'), northing: requiredNumber('staked_n'), elevation: number('staked_z', false) },
       timestamp, notes: row.notes?.trim() || undefined, accuracyM,
     }
   })

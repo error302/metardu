@@ -1,5 +1,6 @@
+import type { DocumentProject } from '../src/lib/reports/documentEvidence'
 import { config } from 'dotenv';
-config({ path: '.env', quiet: true } as any);
+config({ path: '.env' });
 process.env.DATABASE_URL = `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || 'metardu')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@127.0.0.1:5432/${process.env.POSTGRES_DB || 'metardu'}`;
 
 async function testInvalidationAndRecompute() {
@@ -13,8 +14,8 @@ async function testInvalidationAndRecompute() {
   console.log('=== TEST OBSERVATION INVALIDATION AND RECOMPUTATION ===');
 
   // 1. Fetch current project & entries backup
-  const projOriginal = (await db.query('SELECT * FROM projects WHERE id = $1', [projectId])).rows[0];
-  const entriesOriginal = (await db.query('SELECT * FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC', [projectId])).rows;
+  const projOriginal = (await db.query<DocumentProject & Record<string, unknown>>('SELECT * FROM projects WHERE id = $1', [projectId])).rows[0];
+  const entriesOriginal = (await db.query<{ raw_data: Record<string, unknown> }>('SELECT * FROM project_fieldbook_entries WHERE project_id = $1 AND deleted_at IS NULL ORDER BY row_index ASC', [projectId])).rows;
 
   console.log(`Original state: Area = ${projOriginal.area_sqm} m2, Perimeter = ${projOriginal.boundary_data?.perimeter_m} m`);
 
@@ -45,7 +46,7 @@ async function testInvalidationAndRecompute() {
 
     // 3. Verify invalidation: check DB and resolveDocumentEvidence
     console.log('\nStep 2: Checking invalidation state...');
-    const projInvalidated = (await db.query('SELECT * FROM projects WHERE id = $1', [projectId])).rows[0];
+    const projInvalidated = (await db.query<DocumentProject & Record<string, unknown>>('SELECT * FROM projects WHERE id = $1', [projectId])).rows[0];
     console.log('projInvalidated.area_sqm:', projInvalidated.area_sqm);
     console.log('projInvalidated.boundary_data.adjustedStations:', projInvalidated.boundary_data?.adjustedStations);
     console.log('projInvalidated.boundary_data.computation:', projInvalidated.boundary_data?.computation);
@@ -126,7 +127,7 @@ async function testInvalidationAndRecompute() {
       );
     });
 
-    const restoredProj = (await db.query('SELECT * FROM projects WHERE id = $1', [projectId])).rows[0];
+    const restoredProj = (await db.query<DocumentProject & Record<string, unknown>>('SELECT * FROM projects WHERE id = $1', [projectId])).rows[0];
     console.log(`Restored state: Area = ${restoredProj.area_sqm} m2, Perimeter = ${restoredProj.boundary_data?.perimeter_m} m`);
     const dxfRestored = (await generateSettingOutDxf(projectId)).toString('utf-8');
     if (!dxfRestored.includes('500100') || dxfRestored.includes('500120')) {

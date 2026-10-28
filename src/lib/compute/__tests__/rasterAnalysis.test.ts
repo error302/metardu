@@ -1,4 +1,6 @@
 import { computeRasterAnalysis, validateRasterRequest } from '../rasterAnalysis'
+import { expect } from '@jest/globals'
+
 
 const params = { elevation_grid: [[0, 2, 4], [3, 5, 7], [6, 8, 10]] }
 const directionParams = { ...params, cell_size_x: 1, cell_size_y: 1, z_factor: 1, row_order: 'south_to_north' as const }

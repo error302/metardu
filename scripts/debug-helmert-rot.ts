@@ -1,5 +1,5 @@
 // Debug script: rotation test case
-const { computeHelmertTransformationRigorous } = require('../src/lib/geo/helmertRigorous')
+import { computeHelmertTransformationRigorous } from '../src/lib/geo/helmertRigorous'
 
 const rotAngle = 0.001  // 1 milliradian
 const cosR = Math.cos(rotAngle)

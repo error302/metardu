@@ -19,6 +19,7 @@
  * verdicts. Same real-code-under-test guarantee as the schema-drift gate
  * tests, which spawn the gate CLI directly.
  */
+import { z } from 'zod'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
@@ -82,7 +83,7 @@ try {
     cwd: ROOT,
     encoding: 'utf8',
   })
-  verdicts = JSON.parse(output.trim().split('\n').pop() as string)
+  verdicts = z.array(z.object({ name: z.string(), pass: z.boolean(), detail: z.unknown() })).parse(JSON.parse(output.trim().split('\n').pop() as string))
 } finally {
   rmSync(fixture, { recursive: true, force: true })
 }

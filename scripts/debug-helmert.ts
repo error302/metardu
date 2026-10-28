@@ -1,5 +1,5 @@
 // Debug script: trace through the rigorous Helmert computation
-const { computeHelmertTransformationRigorous, transformPointFull, fullRotationMatrix } = require('../src/lib/geo/helmertRigorous')
+import { computeHelmertTransformationRigorous, transformPointFull } from '../src/lib/geo/helmertRigorous'
 
 const testPoints = [
   { id: 'P1', sourceX: 5000000, sourceY: 3000000, sourceZ: -1000000, targetX: 5000100, targetY: 3000200, targetZ: -1000050 },

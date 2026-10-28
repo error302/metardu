@@ -3,12 +3,9 @@
  *
  * Run: npx jest tests/eslint-rules --coverage=false
  */
-import * as path from 'node:path'
+import { RuleTester } from 'eslint'
+import rule from '../../eslint-plugin-metardu/rules/no-placeholder-as-aria-label'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { RuleTester } = require('eslint')
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const rule = require(path.join(__dirname, '..', '..', 'eslint-plugin-metardu', 'rules', 'no-placeholder-as-aria-label'))
 
 const tester = new RuleTester({
   parserOptions: {

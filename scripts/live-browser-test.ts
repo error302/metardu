@@ -5,7 +5,7 @@
  * Run: npx tsx scripts/live-browser-test.ts
  */
 
-import { chromium } from 'playwright'
+import { chromium, type Page } from 'playwright'
 import * as fs from 'fs'
 import * as path from 'path'
 
@@ -40,13 +40,13 @@ async function ensureDevServer() {
   process.exit(1)
 }
 
-async function prepareBrowserContext(page: any) {
+async function prepareBrowserContext(page: Page) {
   await page.addInitScript(() => {
     localStorage.setItem('metardu_onboarding_seen', 'true')
   })
 }
 
-async function dismissOnboardingIfPresent(page: any) {
+async function dismissOnboardingIfPresent(page: Page) {
   const overlay = page.locator('.fixed.inset-0.z-50')
   if (await overlay.count()) {
     await page.evaluate(() => {
@@ -58,7 +58,7 @@ async function dismissOnboardingIfPresent(page: any) {
   }
 }
 
-async function loginAsTestUser(page: any): Promise<boolean> {
+async function loginAsTestUser(page: Page): Promise<boolean> {
   console.log('Logging in as test user...')
   console.log(`  Email: ${TEST_EMAIL}`)
 
@@ -116,13 +116,13 @@ async function loginAsTestUser(page: any): Promise<boolean> {
   return true
 }
 
-async function takeScreenshot(page: any, name: string): Promise<string> {
+async function takeScreenshot(page: Page, name: string): Promise<string> {
   const filename = path.join(RESULTS_DIR, `${name}.png`)
   await page.screenshot({ path: filename, fullPage: true })
   return filename
 }
 
-async function testAuthentication(page: any): Promise<TestResult> {
+async function testAuthentication(page: Page): Promise<TestResult> {
   const start = Date.now()
   console.log('\nTEST: Authentication')
   try {
@@ -137,17 +137,17 @@ async function testAuthentication(page: any): Promise<TestResult> {
       error: !hasLogin ? 'Login form not found' : undefined,
       duration: Date.now() - start,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       name: 'Authentication',
       status: 'FAIL',
-      error: error.message,
+      error: (error instanceof Error ? error.message : String(error)),
       duration: Date.now() - start,
     }
   }
 }
 
-async function testProjectCreation(page: any): Promise<TestResult> {
+async function testProjectCreation(page: Page): Promise<TestResult> {
   const start = Date.now()
   console.log('\nTEST: Project Creation')
   try {
@@ -212,17 +212,17 @@ async function testProjectCreation(page: any): Promise<TestResult> {
       error: !isPageLoaded ? `Project creation form not found. Page content preview: ${hasText.substring(0, 200)}` : undefined,
       duration: Date.now() - start,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       name: 'Project Creation',
       status: 'FAIL',
-      error: error.message,
+      error: (error instanceof Error ? error.message : String(error)),
       duration: Date.now() - start,
     }
   }
 }
 
-async function testTraverseComputation(page: any): Promise<TestResult> {
+async function testTraverseComputation(page: Page): Promise<TestResult> {
   const start = Date.now()
   console.log('\nTEST: Traverse Computation')
   try {
@@ -236,17 +236,17 @@ async function testTraverseComputation(page: any): Promise<TestResult> {
       error: !hasInput ? 'Traverse computation page empty' : undefined,
       duration: Date.now() - start,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       name: 'Traverse Computation',
       status: 'FAIL',
-      error: error.message,
+      error: (error instanceof Error ? error.message : String(error)),
       duration: Date.now() - start,
     }
   }
 }
 
-async function testSurveyReportBuilder(page: any): Promise<TestResult> {
+async function testSurveyReportBuilder(page: Page): Promise<TestResult> {
   const start = Date.now()
   console.log('\nTEST: Survey Report Builder')
   try {
@@ -273,17 +273,17 @@ async function testSurveyReportBuilder(page: any): Promise<TestResult> {
       error: !hasHeading && !hasProjectSelector && !hasContent ? 'Survey report builder not found' : undefined,
       duration: Date.now() - start,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       name: 'Survey Report Builder',
       status: 'FAIL',
-      error: error.message,
+      error: (error instanceof Error ? error.message : String(error)),
       duration: Date.now() - start,
     }
   }
 }
 
-async function testDashboard(page: any): Promise<TestResult> {
+async function testDashboard(page: Page): Promise<TestResult> {
   const start = Date.now()
   console.log('\nTEST: Dashboard')
   try {
@@ -298,11 +298,11 @@ async function testDashboard(page: any): Promise<TestResult> {
       error: !hasDashboard && !isLoginRedirect ? 'Dashboard not accessible' : undefined,
       duration: Date.now() - start,
     }
-  } catch (error: any) {
+  } catch (error: unknown) {
     return {
       name: 'Dashboard',
       status: 'FAIL',
-      error: error.message,
+      error: (error instanceof Error ? error.message : String(error)),
       duration: Date.now() - start,
     }
   }

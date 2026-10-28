@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
+import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,deployedAppRevision,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
 const source=[{version:'107_existing',path:'src/lib/db/migrations/107_existing.sql',checksum:'old',equivalentChecksums:[]},{version:'108_pipeline_asbuilt_history',path:'src/lib/db/migrations/108_pipeline_asbuilt_history.sql',checksum:'new',equivalentChecksums:[]}]
 test('release commands require a pinned commit and stay in one reusable namespace',()=>{
@@ -92,4 +92,30 @@ test('older rehearsal evidence cannot admit newer workflow migrations',()=>{
   const registry=baseline.concat(workflowPending.map(version=>({version,path:`src/lib/db/migrations/${version}.sql`,checksum:'b'.repeat(64)})))
   assert.deepEqual(assertSurveyReleaseDrift(registry,baseline).missing,workflowPending)
   assert.throws(()=>assertSurveyReleaseDrift(registry.concat({version:'124_unknown',checksum:'c'.repeat(64)}),baseline))
+})
+
+function deployedIdentity(runtime='unknown') {
+  const image={Id:'sha256:'+'a'.repeat(64),Config:{Labels:{'org.opencontainers.image.revision':sha}}}
+  const app={Name:'/metardu-app',Image:image.Id,Config:{Labels:{'com.docker.compose.service':'metardu-app'},Env:runtime===null?[]:['METARDU_BUILD_SHA='+runtime]}}
+  return {app,image}
+}
+test('rollback revision is pinned to the exact running image when runtime identity is unknown',()=>{
+  for(const runtime of ['unknown','',null,sha]){
+    const {app,image}=deployedIdentity(runtime)
+    assert.deepEqual(deployedAppRevision(app,image),{revision:sha,imageId:image.Id,source:'org.opencontainers.image.revision',runtimeRevision:runtime??''})
+  }
+})
+test('conflicting, missing, malformed or foreign deployed identities block release planning',()=>{
+  const mutations=[
+    ({app})=>app.Name='/other',
+    ({app})=>app.Config.Labels['com.docker.compose.service']='other',
+    ({app})=>app.Image='sha256:invalid',
+    ({image})=>image.Id='sha256:'+'b'.repeat(64),
+    ({image})=>delete image.Config.Labels,
+    ({image})=>image.Config.Labels['org.opencontainers.image.revision']='unknown',
+    ({app})=>app.Config.Env=['METARDU_BUILD_SHA='+'b'.repeat(40)],
+    ({app})=>app.Config.Env=['METARDU_BUILD_SHA=working-tree-unverified'],
+    ({app})=>app.Config.Env.push('METARDU_BUILD_SHA='+sha),
+  ]
+  for(const mutate of mutations){const fixture=deployedIdentity();mutate(fixture);assert.throws(()=>deployedAppRevision(fixture.app,fixture.image))}
 })

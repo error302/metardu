@@ -312,7 +312,7 @@ export async function getAppliedMigrations(pool) {
 /**
  * Apply a single migration.
  */
-async function applyMigration(pool, migration, dryRun = false, force = false) {
+async function applyMigration(pool, migration, dryRun = false, _force = false) {
   const sql = readFileSync(migration.filepath, 'utf8')
   const upSql = extractUpSql(sql)
   const checksum = computeChecksum(migration.filepath)
@@ -421,7 +421,7 @@ async function showStatus(pool, allMigrations, applied) {
   let mismatchCount = 0
 
   for (const m of allMigrations) {
-    const currentChecksum = computeChecksum(m.filepath)
+    const _currentChecksum = computeChecksum(m.filepath)
     const record = applied.get(m.version)
 
     let marker = '○' // pending
@@ -530,7 +530,7 @@ async function main() {
 
       if (FORCE) {
         // --force: re-apply even if tracked
-        const currentChecksum = computeChecksum(m.filepath)
+        const _currentChecksum = computeChecksum(m.filepath)
         if (!checksumMatches(m.filepath, record.checksum)) {
           warn(`${m.filename} was previously applied but file has changed — re-applying with --force`)
         } else {

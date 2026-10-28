@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 // Live HTTPS authorization checks using explicitly marked disposable QA records.
 // No real customer records, measured batches, email delivery or OAuth-provider
 // flow is exercised. Credentials and cookies remain in memory.
@@ -5,7 +6,7 @@ import assert from 'node:assert/strict'
 import {createHash,randomBytes,randomUUID} from 'node:crypto'
 import {spawnSync} from 'node:child_process'
 import {readFileSync,writeFileSync} from 'node:fs'
-import {resolve,join} from 'node:path'
+import { join } from 'node:path';
 import {pathToFileURL} from 'node:url'
 import {isDeepStrictEqual} from 'node:util'
 import pg from 'pg'
@@ -116,7 +117,7 @@ async function main() {
     const retry=await owned(importPath,{body:{...capture,requestId:randomUUID()}})
     check('live retry replays the original capture without duplicate points',retry.response.status===200&&retry.data?.data?.batchId===captureId&&retry.data.data.replayed===true)
     const points=(await client.query('SELECT point_name,easting,northing,elevation,horizontal_crs FROM survey_points WHERE project_id=$1 ORDER BY point_name',[project])).rows
-    check('live SQL preserves unknown and zero heights with exact declared coordinates',points.length===2&&points[0].point_name==='SYN-UNKNOWN'&&points[0].elevation===null&&Number(points[1].elevation)===0&&Number(points[0].easting)===500000&&Number(points[0].northing)===9850000&&points[0].horizontal_crs==='EPSG:32737')
+    check('live SQL preserves unknown and zero heights with exact declared coordinates',points.length===2&&points[0].point_name==='SYN-UNKNOWN'&&points[0].elevation===null&&Number(points[1].elevation)===0&&Number(points[0].easting)===500000&&Number(points[0].northing)===9850000&&points[0].horizontal_crs===declaredFixtureCrs32737)
     const original=await owned(importPath+`?source=${captureId}`,{raw:true})
     check('live original-file download preserves exact SHA-256 including BOM',original.response.status===200&&createHash('sha256').update(original.bytes).digest('hex')===sourceFileHash)
     const document={width:1122,height:794,metersPerPixel:1,originEasting:499900,originNorthing:9849306,coordinateReferenceSystem:'EPSG:32737',

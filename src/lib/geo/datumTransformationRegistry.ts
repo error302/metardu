@@ -1,3 +1,5 @@
+import proj4 from 'proj4'
+
 /**
  * Datum Transformation Registry — provenance-tracked datum transformations
  *
@@ -269,14 +271,20 @@ export function transformWithProvenance(
   lon: number,
   lat: number,
   targetCrs: string,
-  transformationId: string = 'EPSG:1122',
+  transformationId: string,
   userId?: string,
 ): TransformedCoordinate {
   const ts = getTransformation(transformationId)
 
   // Build the proj4 definition string with the selected parameters
   const towgs84 = `${ts.parameters.dx},${ts.parameters.dy},${ts.parameters.dz},${ts.parameters.rx},${ts.parameters.ry},${ts.parameters.rz},${ts.parameters.ds}`
-  const zone = targetCrs.includes('21036') ? 36 : 37
+  if (targetCrs !== 'EPSG:21036' && targetCrs !== 'EPSG:21037') {
+    throw new RangeError('This Arc 1960 operation supports only EPSG:21036 and EPSG:21037')
+  }
+  if (!Number.isFinite(lon) || !Number.isFinite(lat) || Math.abs(lon) > 180 || Math.abs(lat) > 90) {
+    throw new RangeError('Valid WGS84 longitude and latitude are required')
+  }
+  const zone = targetCrs === 'EPSG:21036' ? 36 : 37
   const projDef = `+proj=utm +zone=${zone} +south +ellps=clrk80 +towgs84=${towgs84} +units=m +no_defs`
 
   // Use proj4 to transform
@@ -306,7 +314,7 @@ export function transformWithProvenance(
  * Get the proj4 towgs84 string for a transformation set.
  * Useful when registering projections with proj4.defs().
  */
-export function getTowgs84String(transformationId: string = 'EPSG:1122'): string {
+export function getTowgs84String(transformationId: string): string {
   const ts = getTransformation(transformationId)
   const p = ts.parameters
   return `${p.dx},${p.dy},${p.dz},${p.rx},${p.ry},${p.rz},${p.ds}`
@@ -320,29 +328,9 @@ export function getTowgs84String(transformationId: string = 'EPSG:1122'): string
  * registered before calling (via registerProjections()).
  */
 function transformViaProj4(lon: number, lat: number, targetProjDef: string): [number, number] {
-  // We use the global proj4 instance that's already registered with defs.
-  // This is safe because registerProjections() is called on map init.
-  // For server-side use, the caller must ensure proj4 is loaded.
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const serverProj4 = require('proj4') as { default?: typeof import('proj4') } & typeof import('proj4')
-  const proj4 = (typeof window !== 'undefined')
-    ? window.proj4
-    : (serverProj4.default || serverProj4)
-
-  if (!proj4) {
-    throw new Error('[datumRegistry] proj4 is not loaded — call registerProjections() before transforming.')
-  }
-
-  // Register the target projection temporarily
-  const tempKey = `__temp_${Date.now()}`
-  proj4.defs(tempKey, targetProjDef)
-
-  try {
-    const [easting, northing] = proj4('EPSG:4326', tempKey, [lon, lat]) as [number, number]
-    return [easting, northing]
-  } finally {
-    // Clean up temp def (proj4 doesn't have a remove, but re-defining is harmless)
-  }
+  const [easting, northing] = proj4('EPSG:4326', targetProjDef, [lon, lat]);
+  if (!Number.isFinite(easting) || !Number.isFinite(northing)) throw new RangeError('Datum transformation failed');
+  return [easting, northing];
 }
 
 // ─── Validation ─────────────────────────────────────────────────────────────

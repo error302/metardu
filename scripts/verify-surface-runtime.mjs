@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const declaredFixtureCrs21037 = 'EPSG:21037'
 // Actual surface routes/handler/engines and restricted PostgreSQL; synthetic sessions only.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks'
@@ -88,7 +89,7 @@ try {
   const firstRequest = await reviewedBody(ids.project)
   const saved = await invoke(ids.owner, 'POST', ids.project, firstRequest)
   if (saved.response.status !== 201) console.log(JSON.stringify(saved.value))
-  check('actual consumed JSON reaches the saved-surface route and returns the declared EPSG', saved.response.status === 201 && saved.value.data.crs === 'EPSG:21037' && saved.value.data.revision === 1)
+  check('actual consumed JSON reaches the saved-surface route and returns the declared EPSG', saved.response.status === 201 && saved.value.data.crs === declaredFixtureCrs21037 && saved.value.data.revision === 1)
   const data = saved.value.data
   const replay = await invoke(ids.owner, 'POST', ids.project, firstRequest)
   check('retrying the same reviewed request returns its original committed revision', replay.response.status === 200
@@ -97,7 +98,7 @@ try {
   const one = data.contours.find(c => c.elevation === 1)
   check('saved contour geometry includes both sides of the measured ridge', one.coordinates.length === 2 && one.coordinates.flat().some(([x]) => x === 500002.5) && one.coordinates.flat().some(([x]) => x === 500007.5))
   const stored = (await admin.query('SELECT result,input_hash FROM public.surface_revisions WHERE id=$1', [data.revisionId])).rows[0]
-  check('immutable revision preserves full observation, breakline, reference and mesh evidence', stored.result.snapshot.observations.length === 4 && stored.result.snapshot.breaklines[0].points[0].z === 2 && stored.result.snapshot.reference.horizontal_crs === 'EPSG:21037' && stored.result.mesh.points.length === 6 && stored.input_hash.length === 64)
+  check('immutable revision preserves full observation, breakline, reference and mesh evidence', stored.result.snapshot.observations.length === 4 && stored.result.snapshot.breaklines[0].points[0].z === 2 && stored.result.snapshot.reference.horizontal_crs === declaredFixtureCrs21037 && stored.result.mesh.points.length === 6 && stored.input_hash.length === 64)
   const reload = await invoke(ids.owner, 'GET', ids.project, undefined, `?contourRevision=${data.revisionId}`)
   check('reload returns the original privately cached contour revision', reload.response.status === 200 && reload.response.headers.get('cache-control') === 'private, no-store' && isDeepStrictEqual(reload.value.data.contours, data.contours))
   const wrongProject = await invoke(ids.owner, 'GET', ids.second, undefined, `?contourRevision=${data.revisionId}`)
@@ -108,7 +109,7 @@ try {
   const changedReference = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { surfaceId: data.surfaceId, expectedReferenceHash: '0'.repeat(64) }))
   check('a stale reviewed reference cannot add a revision', changedReference.response.status === 409 && changedReference.value.code === 'SURFACE_REFERENCE_CHANGED'
     && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === before)
-  const invalid = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { breaklines: [{ ...ridge, points: ridge.points.map(({ z, ...xy }) => xy) }] }))
+  const invalid = await invoke(ids.owner, 'POST', ids.project, await reviewedBody(ids.project, { breaklines: [{ ...ridge, points: ridge.points.map(({ z: _z, ...xy }) => xy) }] }))
   check('missing breakline height is rejected without adding a revision', invalid.response.status === 400 && (await admin.query('SELECT count(*)::int AS n FROM public.surface_revisions WHERE surface_id=$1', [data.surfaceId])).rows[0].n === before)
   const staleSourceRequest = await reviewedBody(ids.project, { surfaceId: data.surfaceId })
   await admin.query('UPDATE public.survey_points SET elevation=0.125 WHERE project_id=$1 AND point_name=$2', [ids.project, 'SYN-0'])

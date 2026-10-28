@@ -15,6 +15,7 @@
 import { useEffect, useState } from 'react'
 import { Globe, MapPin, Layers } from 'lucide-react'
 import { logger } from '@/lib/logger'
+import { assertProjectedCrs, transformPoint } from '@/lib/spatial/projectCrs'
 
 interface CoordinateChipProps {
   lat: number
@@ -27,7 +28,7 @@ interface CoordinateChipProps {
   accuracy?: number
   /** Compact mode — smaller text, single line per datum */
   compact?: boolean
-  /** T1.5 FIX (2026-07-09): UTM EPSG for the transform (default 'EPSG:21037') */
+  /** T1.5 FIX (2026-07-09): Declared project CRS; omit to display WGS84 only */
   epsg?: string
 }
 
@@ -44,7 +45,7 @@ export function CoordinateChip({
   label,
   accuracy,
   compact = false,
-  epsg = 'EPSG:21037',
+  epsg,
 }: CoordinateChipProps) {
   const [datums, setDatums] = useState<DatumDisplay>({
     wgs84: { lat, lng },
@@ -60,8 +61,9 @@ export function CoordinateChip({
         // Transform to UTM (Arc 1960 / UTM 37S by default)
         let utm37s: { easting: number; northing: number } | null = null
         try {
-          const { transform } = await import('ol/proj')
-          const [e, n] = transform([lng, lat], 'EPSG:4326', epsg) as [number, number]
+          if (!epsg) throw new Error('Project CRS is not declared')
+          assertProjectedCrs(epsg)
+          const [e, n] = transformPoint(lng, lat, 'EPSG:4326', epsg)
           if (!cancelled && isFinite(e) && isFinite(n)) {
             utm37s = { easting: e, northing: n }
           }
@@ -129,7 +131,7 @@ export function CoordinateChip({
         <div className="flex items-start gap-2">
           <MapPin className="w-3 h-3 text-[#D17B47] shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <span className="text-[9px] text-gray-600 uppercase tracking-wider">Arc 1960 / UTM 37S</span>
+            <span className="text-[9px] text-gray-600 uppercase tracking-wider">{epsg}</span>
             <div className={`font-mono text-gray-300 ${compact ? 'text-[10px]' : 'text-xs'}`}>
               E: {fmt(datums.utm37s.easting, 3)}, N: {fmt(datums.utm37s.northing, 3)}
             </div>

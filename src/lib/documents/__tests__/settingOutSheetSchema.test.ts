@@ -1,4 +1,10 @@
 import { prepareSettingOutSheet } from '../settingOutSheetSchema'
+import { expect } from '@jest/globals'
+
+
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs32737 = 'EPSG:32737'
+
 
 const validRequest = {
   projectName: 'North access road',
@@ -16,7 +22,7 @@ describe('general setting-out sheet validation', () => {
     const result = prepareSettingOutSheet(validRequest)
     expect(result.ok).toBe(true)
     if (!result.ok) return
-    expect(result.data.projection).toBe('EPSG:32737')
+    expect(result.data.projection).toBe(fixtureCrs32737)
     expect(result.data.datum).toBe('WGS 84')
   })
 

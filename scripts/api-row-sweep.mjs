@@ -195,7 +195,7 @@ const trafficIdx = args.indexOf('--traffic')
 const TRAFFIC_FILE = trafficIdx >= 0 && args[trafficIdx + 1] && !args[trafficIdx + 1].startsWith('--')
   ? args[trafficIdx + 1]
   : (trafficIdx >= 0 || captureIdx >= 0 ? DEFAULT_TRAFFIC : null)
-const TRAFFIC_USED = !!(TRAFFIC_FILE || CAPTURE_TRAFFIC_URL)
+const _TRAFFIC_USED = !!(TRAFFIC_FILE || CAPTURE_TRAFFIC_URL)
 
 // In --check / --paths-from-changed mode, the token immediately after --check / --paths-from-changed (if not a flag) is the
 // base ref; otherwise it is resolved from the CI event env, mirroring

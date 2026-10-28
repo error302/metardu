@@ -1,5 +1,5 @@
 // Debug: calibration outlier detection
-const { calibrateTransformation } = require('../src/lib/geo/transformationCalibration')
+import { calibrateTransformation } from '../src/lib/geo/transformationCalibration'
 
 const commonPoints = [
   { id: 'P1', source: { x: 5000000, y: 3000000, z: -1000000 }, target: { x: 5000100, y: 3000200, z: -999950 } },

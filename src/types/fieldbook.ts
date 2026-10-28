@@ -16,7 +16,7 @@ export interface FieldBookColumn {
   placeholder?: string;
 }
 
-export type FieldBookRow = Record<string, any>;
+export type FieldBookRow = Record<string, unknown>;
 
 export interface FieldBookTemplate {
   surveyType: string;

@@ -115,7 +115,9 @@ export function playGeofenceAlert(type: 'warning' | 'breach'): void {
   if (typeof window === 'undefined') return;
   
   if (!audioContext) {
-    audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const AudioContextConstructor = window.AudioContext ?? window.webkitAudioContext;
+    if (!AudioContextConstructor) return;
+    audioContext = new AudioContextConstructor();
   }
 
   if (audioContext.state === 'suspended') {

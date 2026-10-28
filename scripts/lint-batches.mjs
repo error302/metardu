@@ -11,7 +11,7 @@ const projectRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 const workerPath = fileURLToPath(new URL('./lint-batch-worker.mjs', import.meta.url))
 export const eslintOptions = cwd => ({
   cwd, resolvePluginsRelativeTo: projectRoot, useEslintrc: true,
-  extensions: ['.ts', '.tsx', '.js', '.mjs'],
+  extensions: ['.ts', '.tsx', '.mts', '.cts', '.js', '.mjs', '.cjs'],
 })
 
 export function assertBatchCoverage(files, results) {

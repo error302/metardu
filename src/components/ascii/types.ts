@@ -113,7 +113,7 @@ export interface MaskConfig {
   showOverlay: boolean
   invert: boolean
   dataUrl: string | null
-  shapes: any[]
+  shapes: unknown[]
 }
 
 export interface ToneCurvePoint {

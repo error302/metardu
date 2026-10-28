@@ -1,6 +1,6 @@
-import { chromium } from 'playwright'
+import { chromium } from 'playwright';
 import * as path from 'path'
-import * as fs from 'fs'
+import 'fs';
 
 const BASE_URL = process.env.BASE_URL || 'http://localhost:3000'
 const RESULTS_DIR = path.resolve(process.cwd(), 'live-test-results')

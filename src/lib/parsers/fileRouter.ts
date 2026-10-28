@@ -99,10 +99,10 @@ async function parseDWG(file: File, base: ParsedInput): Promise<ParsedInput> {
     const result = await parseDXFFileContent(dxfContent, file.name)
     // Update the base type to reflect it came from DWG but was parsed as DXF
     return { ...result, type: 'DWG' }
-  } catch (err: any) {
+  } catch (err: unknown) {
     return {
       ...base,
-      errors: [`DWG conversion failed: ${err.message}`],
+      errors: [`DWG conversion failed: ${err instanceof Error ? err.message : 'Unknown converter error'}`],
     }
   }
 }

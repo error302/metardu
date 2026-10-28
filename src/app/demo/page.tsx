@@ -31,7 +31,7 @@ const DEMO_PROJECT = {
   date: new Date().toLocaleDateString('en-GB'),
 };
 
-interface DemoObservation {
+type DemoObservation = {
   station: string;
   bearing: string;
   distance: number;

@@ -168,19 +168,19 @@ describe('assertSurveyCrs / assertProjectedCrs — the professional gate', () =>
 
 describe('projectCrs guards propagate into every measurement function', () => {
   it('surveyDistance refuses EPSG:3857 and EPSG:4326', () => {
-    expect(() => surveyDistance(0, 0, 1, 1, 'EPSG:3857')).toThrow(CrsError)
+    expect(() => Reflect.apply(surveyDistance, undefined, [0, 0, 1, 1, 'EPSG:3857'])).toThrow(CrsError)
     expect(() => surveyDistance(0, 0, 1, 1, 'EPSG:4326')).toThrow(/geographic/)
     expect(() => surveyDistance(0, 0, 1, 1, 'EPSG:99999')).toThrow(/not registered/)
   })
 
   it('surveyBearing refuses invalid CRS', () => {
-    expect(() => surveyBearing(0, 0, 1, 1, 'EPSG:3857')).toThrow(CrsError)
+    expect(() => Reflect.apply(surveyBearing, undefined, [0, 0, 1, 1, 'EPSG:3857'])).toThrow(CrsError)
     expect(() => surveyBearing(0, 0, 1, 1, 'EPSG:21037')).not.toThrow()
   })
 
   it('surveyArea / surveyPerimeter refuse invalid CRS', () => {
     const ring: [number, number][] = [[500000, 9950000], [500100, 9950000], [500100, 9950100]]
-    expect(() => surveyArea(ring, 'EPSG:3857')).toThrow(CrsError)
+    expect(() => Reflect.apply(surveyArea, undefined, [ring, 'EPSG:3857'])).toThrow(CrsError)
     expect(() => surveyPerimeter(ring, 'EPSG:4326')).toThrow(CrsError)
     expect(surveyArea(ring, 'EPSG:21037')).toBeCloseTo(5000, 6)
   })

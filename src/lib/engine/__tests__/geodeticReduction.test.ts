@@ -1,9 +1,4 @@
-import {
-  reduceGroundToGrid,
-  calculateMeanRadiusOfCurvature,
-  formatDegreesToDMS,
-  ELLIPSOIDS,
-} from '../geodeticReduction'
+import { reduceGroundToGrid, calculateMeanRadiusOfCurvature, formatDegreesToDMS } from '../geodeticReduction';
 
 describe('Geodetic Reduction Engine', () => {
   test('calculates mean radius of curvature for Clarke 1880 at Equator', () => {

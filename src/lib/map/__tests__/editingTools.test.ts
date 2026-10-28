@@ -13,6 +13,10 @@ import {
   reshapePolygon,
 } from '@/lib/surveyMapEngine/ol/editingTools'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+
+
 describe('splitPolygonWithLine', () => {
   // A 100x100 square polygon (UTM coordinates)
   const square: [number, number][] = [
@@ -21,7 +25,7 @@ describe('splitPolygonWithLine', () => {
 
   it('splits a square in half with a vertical line', () => {
     const line: [number, number][] = [[50, -10], [50, 110]]
-    const result = splitPolygonWithLine(square, line, 'EPSG:21037')
+    const result = splitPolygonWithLine(square, line, fixtureCrs21037)
     expect(result).not.toBeNull()
     if (!result) return
     expect(result.polygon1.length).toBeGreaterThan(3)
@@ -32,19 +36,19 @@ describe('splitPolygonWithLine', () => {
 
   it('returns null when the line does not cross the polygon', () => {
     const line: [number, number][] = [[200, 200], [300, 300]]
-    const result = splitPolygonWithLine(square, line, 'EPSG:21037')
+    const result = splitPolygonWithLine(square, line, fixtureCrs21037)
     expect(result).toBeNull()
   })
 
   it('returns null when the line only touches one edge (1 intersection)', () => {
     const line: [number, number][] = [[50, -10], [50, 0]]
-    const result = splitPolygonWithLine(square, line, 'EPSG:21037')
+    const result = splitPolygonWithLine(square, line, fixtureCrs21037)
     expect(result).toBeNull()
   })
 
   it('produces two non-empty polygons', () => {
     const line: [number, number][] = [[50, -10], [50, 110]]
-    const result = splitPolygonWithLine(square, line, 'EPSG:21037')
+    const result = splitPolygonWithLine(square, line, fixtureCrs21037)
     if (!result) return
     // Both polygons should have at least 4 vertices (valid ring)
     expect(result.polygon1.length).toBeGreaterThanOrEqual(4)
@@ -60,7 +64,7 @@ describe('splitPolygonWithLine', () => {
       [200000, 9900100], [200000, 9900000],
     ]
     const line: [number, number][] = [[200050, 9899990], [200050, 9900110]]
-    const result = splitPolygonWithLine(utmSquare, line, 'EPSG:21037')
+    const result = splitPolygonWithLine(utmSquare, line, fixtureCrs21037)
     expect(result).not.toBeNull()
     expect(result?.area1).toBeCloseTo(5000, 5)
     expect(result?.area2).toBeCloseTo(5000, 5)
@@ -128,7 +132,7 @@ describe('rotatePolygon', () => {
 describe('createOffset', () => {
   it('creates an offset of a line', () => {
     const line: [number, number][] = [[0, 0], [100, 0], [100, 100]]
-    const offset = createOffset(line, 5, false, 'EPSG:21037')
+    const offset = createOffset(line, 5, false, fixtureCrs21037)
     expect(offset).not.toBeNull()
     if (!offset) return
     expect(offset.length).toBeGreaterThanOrEqual(2)
@@ -136,7 +140,7 @@ describe('createOffset', () => {
 
   it('creates an offset of a polygon (buffer)', () => {
     const poly: [number, number][] = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 0]]
-    const offset = createOffset(poly, 2, true, 'EPSG:21037')
+    const offset = createOffset(poly, 2, true, fixtureCrs21037)
     expect(offset).not.toBeNull()
     if (!offset) return
     expect(offset.length).toBeGreaterThanOrEqual(4)
@@ -145,14 +149,14 @@ describe('createOffset', () => {
   it('returns null for invalid input (zero distance on line)', () => {
     const line: [number, number][] = [[0, 0], [100, 0]]
     // turf.lineOffset may fail for zero distance
-    const offset = createOffset(line, 0, false, 'EPSG:21037')
+    const offset = createOffset(line, 0, false, fixtureCrs21037)
     // Implementation may return null or an empty array — just verify no crash
     expect(offset === null || Array.isArray(offset)).toBe(true)
   })
 
   it('offsets lines by the requested metre distance in a real UTM grid', () => {
     const line: [number, number][] = [[200000, 9900000], [200100, 9900000]]
-    const offset = createOffset(line, 5, false, 'EPSG:21037')
+    const offset = createOffset(line, 5, false, fixtureCrs21037)
     expect(offset).toEqual([[200000, 9900005], [200100, 9900005]])
   })
 
@@ -161,8 +165,8 @@ describe('createOffset', () => {
       [200000, 9900000], [200100, 9900000], [200100, 9900100],
       [200000, 9900100], [200000, 9900000],
     ]
-    const expanded = createOffset(polygon, 5, true, 'EPSG:21037')
-    const contracted = createOffset(polygon, -5, true, 'EPSG:21037')
+    const expanded = createOffset(polygon, 5, true, fixtureCrs21037)
+    const contracted = createOffset(polygon, -5, true, fixtureCrs21037)
     expect(expanded).not.toBeNull()
     expect(contracted).not.toBeNull()
     expect(Math.min(...(expanded ?? []).map(([e]) => e))).toBeCloseTo(199995, 8)
@@ -190,7 +194,7 @@ describe('reshapePolygon', () => {
     // Draw a line that crosses the square from (-10, 50) to (110, 50)
     // This should replace part of the boundary with the new line
     const newSegment: [number, number][] = [[-10, 50], [110, 50]]
-    const result = reshapePolygon(square, newSegment, 'EPSG:21037')
+    const result = reshapePolygon(square, newSegment, fixtureCrs21037)
     expect(result).not.toBeNull()
     if (!result) return
     // The reshaped polygon should have a different coordinate count
@@ -200,19 +204,19 @@ describe('reshapePolygon', () => {
 
   it('returns null when the new line does not cross the polygon', () => {
     const newSegment: [number, number][] = [[200, 200], [300, 300]]
-    const result = reshapePolygon(square, newSegment, 'EPSG:21037')
+    const result = reshapePolygon(square, newSegment, fixtureCrs21037)
     expect(result).toBeNull()
   })
 
   it('returns null when the line only touches one edge', () => {
     const newSegment: [number, number][] = [[-10, 50], [0, 50]]
-    const result = reshapePolygon(square, newSegment, 'EPSG:21037')
+    const result = reshapePolygon(square, newSegment, fixtureCrs21037)
     expect(result).toBeNull()
   })
 
   it('produces a valid polygon with positive area', () => {
     const newSegment: [number, number][] = [[-10, 50], [110, 50]]
-    const result = reshapePolygon(square, newSegment, 'EPSG:21037')
+    const result = reshapePolygon(square, newSegment, fixtureCrs21037)
     if (!result) return
     // The result should be a closed ring (first ≈ last)
     expect(result.length).toBeGreaterThanOrEqual(4)

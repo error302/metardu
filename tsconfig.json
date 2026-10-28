@@ -40,10 +40,13 @@
     ".next/types/**/*.ts",
     "middleware.ts",
     "instrumentation-client.ts",
+    "instrumentation.ts",
     "tailwind.config.ts",
     "next-env.d.ts",
     "src/**/*.ts",
     "src/**/*.tsx",
+    "src/app/.well-known/oauth-authorization-server/route.ts",
+    "src/app/.well-known/oauth-protected-resource/route.ts",
     ".cache/cad-io-preview-next/types/**/*.ts"
   ],
   "exclude": [

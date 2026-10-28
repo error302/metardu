@@ -1,31 +1,8 @@
 'use client'
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react'
-import {
-  Point,
-  GeofenceZone,
-  HazardZone,
-  GeofenceStatus,
-  evaluateZoneStatus,
-  playGeofenceAlert,
-} from '@/lib/survey/geofenceEngine'
-import {
-  ShieldAlert,
-  ShieldCheck,
-  AlertTriangle,
-  MapPin,
-  Volume2,
-  VolumeX,
-  Vibrate,
-  Download,
-  Plus,
-  Trash2,
-  Upload,
-  RotateCcw,
-  Navigation,
-  Clock,
-  Printer,
-} from 'lucide-react'
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { Point, GeofenceZone, HazardZone, GeofenceStatus, evaluateZoneStatus, playGeofenceAlert } from '@/lib/survey/geofenceEngine';
+import { ShieldAlert, ShieldCheck, AlertTriangle, MapPin, Volume2, VolumeX, Vibrate, Download, Plus, Trash2, Upload, Navigation, Clock } from 'lucide-react';
 
 interface IncidentEvent {
   id: string
@@ -64,8 +41,6 @@ export default function GeofenceMonitor() {
     northing: 9945060,
   })
 
-  // Live GPS tracking toggle
-  const [liveGpsActive, setLiveGpsActive] = useState(false)
 
   // Alert Settings
   const [audioEnabled, setAudioEnabled] = useState(true)

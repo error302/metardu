@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+const declaredFixtureCrs32636 = 'EPSG:32636'
+const declaredFixtureCrs32736 = 'EPSG:32736'
+const declaredFixtureCrs21037 = 'EPSG:21037'
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage,AsyncResource } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
@@ -32,7 +35,7 @@ try{
  check('benchmark catalogue uses a restricted runtime login',runtimeDatabaseRoleFailure((await getPool().query(RUNTIME_ROLE_QUERY)).rows[0])===null)
  for(const id of [owner,reviewer]){await admin.query("INSERT INTO users(id,email,password_hash,full_name) VALUES($1,$2,'synthetic-no-login','Synthetic benchmark catalogue test')",[id,`benchmark-${id}@example.invalid`]);await admin.query('INSERT INTO surveyor_profiles(user_id,role,is_suspended) VALUES($1,$2,false)',[id,id===reviewer?'admin':'surveyor'])}seeded=true
  check('anonymous benchmark search is denied',(await invoke(null,search,'POST',{country})).response.status===401)
- const nearMark=await mark('EQ-Z-NEAR',33.001,0,'EPSG:32636'),farMark=await mark('EQ-A-FAR',33.01,0,'EPSG:32636'),unknown=await mark('UNKNOWN',36.8,-1.5,'EPSG:32736','control',null),cross=await mark('CROSS',36.8,-1.5,'EPSG:21037'),tidal=await mark('TIDAL',36.8,-1.5,'EPSG:32736','tidal',0)
+ const nearMark=await mark('EQ-Z-NEAR',33.001,0,declaredFixtureCrs32636),farMark=await mark('EQ-A-FAR',33.01,0,declaredFixtureCrs32636),unknown=await mark('UNKNOWN',36.8,-1.5,declaredFixtureCrs32736,'control',null),cross=await mark('CROSS',36.8,-1.5,declaredFixtureCrs21037),tidal=await mark('TIDAL',36.8,-1.5,declaredFixtureCrs32736,'tidal',0)
  const absent=await invoke(owner,search,'POST',{country})
  check('pending publications never appear as reviewed benchmarks',absent.response.status===200&&absent.value.total===0&&absent.value.benchmarks.length===0&&absent.value.fromCache===false)
  check('pending-only country is absent from live country metadata',!(await invoke(owner,metadata,'GET',undefined,'?countries=true')).value.countries.includes(country))
@@ -46,7 +49,7 @@ try{
  const countryList=await invoke(owner,metadata,'GET',undefined,'?countries=true')
  check('reviewed country becomes available from the database',countryList.value.countries.includes(country)&&countryList.response.headers.get('cache-control')==='private, no-store')
  const id=await invoke(owner,metadata,'GET',undefined,`?id=${unknown.id}`)
- check('unknown height remains null with its real original grid',id.response.status===200&&id.value.elevation===null&&id.value.verticalDatum===null&&id.value.horizontalCrs==='EPSG:32736'&&id.value.type==='CP')
+ check('unknown height remains null with its real original grid',id.response.status===200&&id.value.elevation===null&&id.value.verticalDatum===null&&id.value.horizontalCrs===declaredFixtureCrs32736&&id.value.type==='CP')
  check('missing reference UUID returns not found',(await invoke(owner,metadata,'GET',undefined,`?id=${randomUUID()}`)).response.status===404)
  for(const change of [{latitude:0},{longitude:0},{radiusKm:1},{limit:0},{offset:-1},{latitude:91,longitude:0},{published_easting:1}])check(`malformed benchmark body ${JSON.stringify(change)} is rejected`,(await invoke(owner,search,'POST',{country,...change})).response.status===400)
  const eq=await invoke(owner,nearest,'GET',undefined,`?lat=0&lon=33&radiusKm=0.2&limit=1&country=${encodeURIComponent(country)}&q=${prefix}-EQ`)
@@ -58,7 +61,7 @@ try{
  const coincident=await invoke(owner,nearest,'GET',undefined,`?lat=0&lon=33.001&radiusKm=0&country=${encodeURIComponent(country)}&q=${prefix}-EQ-Z`)
  check('zero radius and coincident navigation do not invent a north azimuth',coincident.response.status===200&&coincident.value.beacons.length===1&&coincident.value.beacons[0].distanceKm===0&&coincident.value.beacons[0].bearingDeg===null)
  const mixed=await invoke(owner,nearest,'GET',undefined,`?lat=-1.5&lon=36.8&radiusKm=0.01&country=${encodeURIComponent(country)}`)
- check('nearby navigation retains different explicit grids without relabelling them',mixed.response.status===200&&mixed.value.beacons.some(row=>row.beacon.id===unknown.id&&row.beacon.horizontalCrs==='EPSG:32736')&&mixed.value.beacons.some(row=>row.beacon.id===cross.id&&row.beacon.horizontalCrs==='EPSG:21037'))
+ check('nearby navigation retains different explicit grids without relabelling them',mixed.response.status===200&&mixed.value.beacons.some(row=>row.beacon.id===unknown.id&&row.beacon.horizontalCrs===declaredFixtureCrs32736)&&mixed.value.beacons.some(row=>row.beacon.id===cross.id&&row.beacon.horizontalCrs===declaredFixtureCrs21037))
  const bmNearby=await invoke(owner,nearby,'GET',undefined,`?lat=0&lon=33&radius=0.2&country=${encodeURIComponent(country)}&q=${prefix}-EQ`)
  check('legacy nearby array uses reviewed BMs and real geographic distance',bmNearby.response.status===200&&Array.isArray(bmNearby.value)&&bmNearby.value.length===1&&bmNearby.value[0].id===nearMark.id&&bmNearby.response.headers.get('x-navigation-only')==='true')
  for(const query of ['?lat=0','?lat=0garbage&lon=33','?lat=0&lon=33&limit=0','?lat=0&lon=33&radiusKm=-1','?lat=0&lon=33&types=FAKE'])check(`invalid nearby query ${query} rejected`,(await invoke(owner,nearest,'GET',undefined,query)).response.status===400)

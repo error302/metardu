@@ -10,12 +10,12 @@ import { Info, Shield, MapPin, Ruler, BookOpen } from 'lucide-react';
  */
 export function TrustSignals({
   compact = false,
-  coordinateSystem = 'Arc 1960 / UTM Zone 37S',
-  srid = 'EPSG:21037',
+  coordinateSystem,
+  srid,
 }: {
   compact?: boolean;
-  coordinateSystem?: string;
-  srid?: string;
+  coordinateSystem: string;
+  srid: string;
 }) {
   if (compact) {
     return (

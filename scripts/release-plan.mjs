@@ -96,3 +96,19 @@ export function assertSyntheticUpgradeProof(proof,revision,expected) {
   assert.equal(proof.cleanup?.syntheticDatabaseRemoved,true)
   assert.ok(proof.checks?.length>=5&&proof.checks.every(check=>check.passed===true),'A completed forward upgrade and preservation check is required.')
 }
+
+// Resolve rollback source from the exact inspected running image. An unknown
+// runtime value cannot replace its immutable, validated OCI revision label.
+export function deployedAppRevision(app,image) {
+  assert.equal(app.Name,'/metardu-app')
+  assert.equal(app.Config.Labels['com.docker.compose.service'],'metardu-app')
+  assert.match(app.Image,/^sha256:[a-f0-9]{64}$/)
+  assert.equal(image.Id,app.Image,'The revision must belong to the running image.')
+  const revision=image.Config.Labels?.['org.opencontainers.image.revision']
+  assert.match(revision??'',/^[a-f0-9]{40}$/,'The running image requires a full immutable source revision.')
+  const entries=app.Config.Env.filter(value=>value.startsWith('METARDU_BUILD_SHA='))
+  assert.ok(entries.length<=1,'Ambiguous runtime release identity.')
+  const runtimeRevision=entries[0]?.slice('METARDU_BUILD_SHA='.length)??''
+  assert.ok(runtimeRevision===''||runtimeRevision==='unknown'||runtimeRevision===revision,'Runtime and image release identities disagree.')
+  return {revision,imageId:image.Id,source:'org.opencontainers.image.revision',runtimeRevision}
+}

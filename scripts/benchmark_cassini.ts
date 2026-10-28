@@ -24,8 +24,6 @@ import {
   utmToWGS84,
   cassiniFeetToWGS84Exact,
   KENYA_SUB_SHEETS,
-  findSubSheet,
-  convertCassiniToUTM,
   CLARKE_1858_A_FT,
   CLARKE_1858_B_FT,
   CLARKE_1880_A_M,
@@ -33,8 +31,6 @@ import {
   FT_TO_M,
   KENYA_BURSA_WOLF,
   type TopoSheetParams,
-  type SubSheetDef,
-  type BursaWolfParams,
 } from '../src/lib/geo/cassini'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────
@@ -314,6 +310,7 @@ function testE() {
     )
   }
 
+  console.log(`Selected sheets with A/B coefficients: ${withAB}; without: ${withoutAB}`)
   console.log()
   console.log(`  Summary across all ${KENYA_TOPO_SHEETS.length} sheets:`)
 
@@ -384,7 +381,8 @@ function testF() {
 
   for (const pt of cassPoints) {
     // Method 1: Helmert 4-param (use the sheet this point belongs to)
-    const sheet = KENYA_TOPO_SHEETS.find(s => s.id === pt.sheet)!
+    const sheet = KENYA_TOPO_SHEETS.find(s => s.id === pt.sheet)
+    if (!sheet) throw new Error(`No declared sheet for benchmark ${pt.sheet}`)
     const helmert = cassiniFeetToUTM([{ easting: pt.cassE, northing: pt.cassN }], sheet)[0]
     const h_dE = helmert.utmE - pt.utmE
     const h_dN = helmert.utmN - pt.utmN

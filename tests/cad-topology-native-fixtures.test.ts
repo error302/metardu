@@ -28,7 +28,7 @@ const cases = [
 test('exports actual source-engine cases for independent native comparison', async () => {
   await mkdir('test-results/cad-topology',{recursive:true})
   await writeFile('test-results/cad-topology/source-engine.json',JSON.stringify({synthetic:true,sourceEngine:'analyseCadTopology',cases:cases.map(item=>({...item,result:analyseCadTopology(item.input)}))},null,2)+'\n')
-  console.log(`Wrote ${cases.length} actual source-engine results for independent native comparison.`)
+  process.stdout.write(`Wrote ${cases.length} actual source-engine results for independent native comparison.\n`)
   expect(cases).toHaveLength(8)
 })
 

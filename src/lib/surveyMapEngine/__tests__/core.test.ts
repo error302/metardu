@@ -16,17 +16,7 @@
 import * as coreMeasure from '@/lib/surveyMapEngine/core/measure';
 import * as geodesy from '@/lib/geodesy/coordinates';
 import * as gnss from '@/lib/gnss/coordinates';
-import {
-  formatArea,
-  formatBearingAzimuth,
-  formatBearingWCB,
-  formatCoordinate,
-  formatDistance,
-  formatGridPoint,
-  formatPoint,
-  latLonToString,
-  squareMetersToHectares,
-} from '@/lib/surveyMapEngine/core/format';
+import { formatArea, formatBearingWCB, formatCoordinate, formatDistance, formatGridPoint, formatPoint, latLonToString } from '@/lib/surveyMapEngine/core/format';
 import { isValidMapExtent } from '@/lib/surveyMapEngine/core/extent';
 import { CrsError, surveyDistance } from '@/lib/spatial/projectCrs';
 
@@ -50,7 +40,7 @@ describe('engine canonical implementations (plan Phase 1, shims deleted Phase 5)
   });
 
   test('deprecated CRS-less math is enforced by the CRS authority, not by legacy stubs', () => {
-    expect(() => surveyDistance(0, 0, 1, 1, 'EPSG:3857')).toThrow(CrsError);
+    expect(() => Reflect.apply(surveyDistance, undefined, [0, 0, 1, 1, 'EPSG:3857'])).toThrow(CrsError);
   });
 
   test('gnss.formatCoordinate wraps core.formatGridPoint with identical output', () => {
@@ -89,7 +79,7 @@ describe('deprecated CRS-less math (plan F2) — removed with the Phase 5 shim d
   test('lib/map/measurements.ts no longer exists; CRS-less calculate* are gone', () => {
     // Pinned by singleImplementation + phase5Wiring greps; nothing may call
     // surveyDistance/surveyBearing/surveyArea with display CRS either.
-    expect(() => surveyDistance(4089000, -145000, 4089340, -144640, 'EPSG:3857')).toThrow(/EPSG:3857|CRS|crs/i);
+    expect(() => Reflect.apply(surveyDistance, undefined, [4089000, -145000, 4089340, -144640, 'EPSG:3857'])).toThrow(/EPSG:3857|CRS|crs/i);
   });
 });
 

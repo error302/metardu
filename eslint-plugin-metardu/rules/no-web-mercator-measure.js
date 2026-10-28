@@ -26,6 +26,7 @@ function isMercatorLiteral(node) {
   return node.type === 'Literal' && node.value === 'EPSG:3857'
 }
 
+/** @type {import('eslint').Rule.RuleModule} */
 module.exports = {
   meta: {
     type: 'problem',

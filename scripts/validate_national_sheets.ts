@@ -44,7 +44,7 @@ interface SheetReport {
 }
 
 const reports: SheetReport[] = []
-let poorSheets: SheetReport[] = []
+const poorSheets: SheetReport[] = []
 
 for (const sheet of NATIONAL_SHEETS) {
   const acc = estimateSheetAccuracy(sheet)
@@ -78,11 +78,6 @@ console.log(
 console.log('─'.repeat(90))
 
 for (const r of reports) {
-  const gradeStr = r.grade === 'EXCELLENT' ? '★★★★★' :
-    r.grade === 'GOOD' ? '★★★★☆' :
-    r.grade === 'MODERATE' ? '★★★☆☆' :
-    r.grade === 'LOW' ? '★★☆☆☆' : '★☆☆☆☆'
-  const gradeColor = r.grade === 'EXCELLENT' ? 'OK' : r.grade === 'GOOD' ? 'OK' : r.grade === 'MODERATE' ? 'WARN' : 'FAIL'
   console.log(
     r.id.padEnd(14) +
     r.grade.padStart(11) +

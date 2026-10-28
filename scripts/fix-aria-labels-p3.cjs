@@ -14,7 +14,7 @@
  *     supplied by the HEADER_MAP (file → line → name); placeholder stays.
  */
 const { readFileSync, writeFileSync } = require('fs')
-const path = require('path')
+const _path = require('path')
 
 // ---------------------------------------------------------------------------
 // Rule C header-derived names, keyed by `${file}|${line}` (forward slashes).

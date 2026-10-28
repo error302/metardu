@@ -1,3 +1,5 @@
+import { logger } from '@/lib/logger'
+
 /**
  * Offline basemap packages (blueprint §18.1 "Offline packages", §4.3 cached map).
  *
@@ -174,7 +176,7 @@ export async function buildLocalTileResolver(
     // better-sqlite3 is an optional dependency; without it the device copy
     // cannot be decoded and we fall back to no local tiles rather than
     // pretending the basemap is available.
-    console.warn('[offlineBasemap] local tile decoding unavailable', error);
+    logger.warn('[offlineBasemap] local tile decoding unavailable', { error: error });
     return { resolve: async () => null, dispose: () => {} };
   }
 

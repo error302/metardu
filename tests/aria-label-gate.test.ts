@@ -12,13 +12,13 @@
  * running the REAL gate CLI (subprocess) against fixture files, via the
  * ARIA_GATE_SRC test seam (the gate normally scans the repo src/ tree).
  */
+import { subprocessFailure } from '@/test-utils/subprocessFailure'
 import * as path from 'node:path'
 import { execFileSync } from 'node:child_process'
 import { writeFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const { classify } = require(path.join(__dirname, '..', 'eslint-plugin-metardu', 'shared', 'junk-classification.cjs'))
+import { classify } from '../eslint-plugin-metardu/shared/junk-classification.cjs'
 
 const GATE = path.join(__dirname, '..', 'scripts', 'aria-label-gate.mjs')
 const ROOT = path.join(__dirname, '..')
@@ -37,9 +37,9 @@ function runGateOn(files: Record<string, string>): { code: number; output: strin
         env: { ...process.env, ARIA_GATE_SRC: dir },
       })
       return { code: 0, output }
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Non-zero exit carries the JSON report on stdout.
-      return { code: err.status ?? 1, output: String(err.stdout ?? '') }
+      return subprocessFailure(err)
     }
   } finally {
     rmSync(dir, { recursive: true, force: true })

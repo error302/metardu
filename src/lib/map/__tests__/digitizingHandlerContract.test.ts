@@ -29,6 +29,10 @@ import {
 import { defined } from '@/test-utils/defined'
 import { surveyArea } from '@/lib/spatial/projectCrs'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+
+
 // ─── Shared fixtures (UTM metres) ────────────────────────────────────────────
 
 // A 100x100 square polygon at the origin.
@@ -119,22 +123,22 @@ describe('[T0.2] Rotate contract: honors the user-provided angle', () => {
 // ════════════════════════════════════════════════════════════════════════════
 describe('[T0.3] Offset contract: distance is a parameter, not a side effect', () => {
   it('createOffset is a pure function of (coords, distance)', () => {
-    const off1 = createOffset(square100, 5, true, 'EPSG:21037')
-    const off2 = createOffset(square100, 5, true, 'EPSG:21037')
+    const off1 = createOffset(square100, 5, true, fixtureCrs21037)
+    const off2 = createOffset(square100, 5, true, fixtureCrs21037)
     expect(off1).not.toBeNull()
     expect(off2).not.toBeNull()
     expect(off1).toEqual(off2)
   })
 
   it('a positive distance produces a LARGER polygon (buffer outward)', () => {
-    const off = createOffset(square100, 10, true, 'EPSG:21037')
+    const off = createOffset(square100, 10, true, fixtureCrs21037)
     expect(off).not.toBeNull()
-    expect(surveyArea(defined(off), 'EPSG:21037')).toBeGreaterThan(surveyArea(square100, 'EPSG:21037'))
+    expect(surveyArea(defined(off), fixtureCrs21037)).toBeGreaterThan(surveyArea(square100, fixtureCrs21037))
   })
 
   it('different distances produce different offsets', () => {
-    const off5 = createOffset(square100, 5, true, 'EPSG:21037')
-    const off20 = createOffset(square100, 20, true, 'EPSG:21037')
+    const off5 = createOffset(square100, 5, true, fixtureCrs21037)
+    const off20 = createOffset(square100, 20, true, fixtureCrs21037)
     expect(off5).not.toEqual(off20)
   })
 })
@@ -145,7 +149,7 @@ describe('[T0.3] Offset contract: distance is a parameter, not a side effect', (
 describe('[T0.4] Split contract: operates on the polygon the line crosses', () => {
   it('splits the polygon whose boundary the line crosses twice', () => {
     const line: [number, number][] = [[50, -10], [50, 110]]
-    const result = splitPolygonWithLine(square100, line, 'EPSG:21037')
+    const result = splitPolygonWithLine(square100, line, fixtureCrs21037)
     expect(result).not.toBeNull()
     expect(defined(result).polygon1.length).toBeGreaterThan(3)
     expect(defined(result).polygon2.length).toBeGreaterThan(3)
@@ -153,13 +157,13 @@ describe('[T0.4] Split contract: operates on the polygon the line crosses', () =
 
   it('returns null when the line does not cross the polygon', () => {
     const farLine: [number, number][] = [[500, -10], [500, 110]]
-    const result = splitPolygonWithLine(square100, farLine, 'EPSG:21037')
+    const result = splitPolygonWithLine(square100, farLine, fixtureCrs21037)
     expect(result).toBeNull()
   })
 
   it('returns null when the line only touches one edge', () => {
     const cornerLine: [number, number][] = [[200, 100], [300, 100]]
-    const result = splitPolygonWithLine(square100, cornerLine, 'EPSG:21037')
+    const result = splitPolygonWithLine(square100, cornerLine, fixtureCrs21037)
     expect(result).toBeNull()
   })
 })
@@ -167,14 +171,14 @@ describe('[T0.4] Split contract: operates on the polygon the line crosses', () =
 describe('[T0.4] Reshape contract: operates on the polygon the line crosses', () => {
   it('reshapes the polygon whose boundary the new segment crosses', () => {
     const newSegment: [number, number][] = [[20, -10], [80, 110]]
-    const result = reshapePolygon(square100, newSegment, 'EPSG:21037')
+    const result = reshapePolygon(square100, newSegment, fixtureCrs21037)
     expect(result).not.toBeNull()
     expect(defined(result).length).toBeGreaterThanOrEqual(4)
   })
 
   it('returns null when the new segment does not cross the polygon', () => {
     const farSegment: [number, number][] = [[500, -10], [600, 110]]
-    const result = reshapePolygon(square100, farSegment, 'EPSG:21037')
+    const result = reshapePolygon(square100, farSegment, fixtureCrs21037)
     expect(result).toBeNull()
   })
 })
@@ -188,7 +192,7 @@ describe('[T0.5] CRS contract: survey operations receive a project CRS', () => {
     const squareInAnotherZone: [number, number][] = square100.map(([e, n]) => [e + offset, n])
 
     const line: [number, number][] = [[50 + offset, -10], [50 + offset, 110]]
-    const split = splitPolygonWithLine(squareInAnotherZone, line, 'EPSG:21037')
+    const split = splitPolygonWithLine(squareInAnotherZone, line, fixtureCrs21037)
     expect(split).not.toBeNull()
 
     const rotated = rotatePolygon(squareInAnotherZone, 45)
@@ -212,12 +216,12 @@ describe('[T0.7] Toast honesty contract: null return = honest failure', () => {
   })
 
   it('splitPolygonWithLine returns null (not a degenerate polygon) on failure', () => {
-    const result = splitPolygonWithLine(square100, [[500, 0], [600, 0]], 'EPSG:21037')
+    const result = splitPolygonWithLine(square100, [[500, 0], [600, 0]], fixtureCrs21037)
     expect(result).toBeNull()
   })
 
   it('createOffset returns null (not an empty array) on failure', () => {
-    const result = createOffset(square100, 0, true, 'EPSG:21037')
+    const result = createOffset(square100, 0, true, fixtureCrs21037)
     if (result !== null) {
       expect(result.length).toBeGreaterThan(0)
     }

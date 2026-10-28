@@ -12,7 +12,20 @@
  *   node scripts/assignment-scan.mjs [--top N] [--out path.json]
  *   node scripts/assignment-scan.mjs --batch N [--batch-size 500]
  */
-import { readFileSync, writeFileSync } from 'node:fs'
+/**
+ * assignment-scan.mjs — ranked remediation plan data for
+ * @typescript-eslint/no-unsafe-assignment.
+ *
+ * Lints the whole repo (ESLint Node API, same scope as lint-ratchets.mjs),
+ * then aggregates every no-unsafe-assignment message per file, ranked by
+ * count. Mirrors member-scan.mjs so grind sessions can chunk the family the
+ * same way (--top / --out / --batch / --batch-size).
+ *
+ * Usage:
+ *   node scripts/assignment-scan.mjs [--top N] [--out path.json]
+ *   node scripts/assignment-scan.mjs --batch N [--batch-size 500]
+ */
+import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url'
 import path from 'node:path'
 
@@ -169,7 +182,7 @@ if (BATCH !== null) {
 }
 
 if (OUT) {
-  const slim = files.map(({ violations, ...rest }) => rest)
+  const slim = files.map(({ violations: _violations, ...rest }) => rest)
   writeFileSync(OUT, JSON.stringify({ grand, files: slim, catTotals }, null, 2))
   console.log(`\n[assignment-scan] JSON written to ${OUT}`)
 }

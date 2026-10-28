@@ -18,7 +18,7 @@ console.log('=====================\n');
 try {
   const command = args ? `node scripts/run-migrations.js ${args}` : 'node scripts/run-migrations.js';
   execSync(command, { stdio: 'inherit', cwd: process.cwd() });
-} catch (err) {
+} catch  {
   console.error('Database setup failed. See errors above.');
   process.exit(1);
 }

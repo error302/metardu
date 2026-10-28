@@ -13,9 +13,11 @@ export interface AutoCalculateResult {
   warnings: FieldBookWarning[];
 }
 
-function parseNumber(value: string | number | null | undefined): number | null {
-  if (value === '' || value === null || value === undefined) return null;
-  return typeof value === 'number' ? value : Number(value);
+function parseNumber(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null;
+  if (typeof value !== 'string' || !/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value.trim())) return null;
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : null;
 }
 
 function calculateEngineeringRL(

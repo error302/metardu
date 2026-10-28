@@ -7,7 +7,7 @@ import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { isDeepStrictEqual } from 'node:util'
+import 'node:util';
 import pg from 'pg'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
 import { RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'

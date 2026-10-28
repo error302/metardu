@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+const declaredFixtureCrs21037 = 'EPSG:21037'
+const declaredFixtureCrs21036 = 'EPSG:21036'
 // Real packaged drainage workflow. Fresh marked database and synthetic evidence only.
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
@@ -78,7 +80,7 @@ try {
     distanceMode: 'grid', coordinatePrecision: 3, verticalDatum: 'Synthetic benchmark BM-01', verticalReference: 'local',
     benchmarkBasis: 'Synthetic level datum, not field control', notes: 'SYNTHETIC HTTP VERIFICATION' }, 'PUT')
   check('surveyor can save an explicit horizontal and vertical reference', declared.response.ok
-    && (await admin.query('SELECT horizontal_crs,vertical_datum FROM public.project_reference_systems WHERE project_id=$1', [projectId])).rows[0]?.horizontal_crs === 'EPSG:21037')
+    && (await admin.query('SELECT horizontal_crs,vertical_datum FROM public.project_reference_systems WHERE project_id=$1', [projectId])).rows[0]?.horizontal_crs === declaredFixtureCrs21037)
   const drainage = { projectCrs: 'EPSG:21037', minimumCoverM: 1.2, setoutIntervalM: 50,
     setoutToleranceProfile: { name: 'Synthetic drainage criteria', jurisdiction: 'Synthetic project only', version: 'SYN-R1', horizontalMm: '10', verticalMm: '10',
       effectiveDate: '2026-10-08', source: 'SYNTHETIC TEST REQUIREMENT — not a construction specification', approvedBy: 'Synthetic test approver', acknowledged: true },
@@ -93,7 +95,7 @@ try {
   const generated = await json(owner, endpoint, { action: 'save_drainage_definition' })
   definitionId = generated.value.data?.definitionId
   check('saved drainage creates three revisioned invert targets', generated.response.status === 201 && generated.value.data?.pointCount === 3
-    && generated.value.data.revision === 1 && generated.value.data.crs === 'EPSG:21037' && typeof definitionId === 'string')
+    && generated.value.data.revision === 1 && generated.value.data.crs === declaredFixtureCrs21037 && typeof definitionId === 'string')
   const targetsResponse = await owner(`${endpoint}?definitionId=${definitionId}`)
   const targets = (await targetsResponse.json()).data?.points
   check('field target coordinates and levels match the known pipe run', targetsResponse.ok && targets?.length === 3
@@ -114,7 +116,7 @@ try {
   const snapshot = (await admin.query('SELECT capture_snapshot FROM public.setout_observations WHERE id=$1', [accepted.value.data.id])).rows[0].capture_snapshot
   check('stored capture preserves original precision, time, reference and revision', snapshot.observed.rl === 100.0054
     && snapshot.observed.easting === 500000.00321 && snapshot.capturedAt === acceptedShot.capturedAt
-    && snapshot.horizontalCrs === 'EPSG:21037' && snapshot.verticalDatum === 'Synthetic benchmark BM-01' && snapshot.designRevision === 1)
+    && snapshot.horizontalCrs === declaredFixtureCrs21037 && snapshot.verticalDatum === 'Synthetic benchmark BM-01' && snapshot.designRevision === 1)
   const replay = await json(owner, endpoint, acceptedShot)
   check('retrying the same offline shot does not duplicate the saved observation', replay.response.status === 200 && replay.value.replayed === true
     && replay.value.data.id === accepted.value.data.id
@@ -125,7 +127,7 @@ try {
   check('failed construction comparison is saved as evidence', rejected.response.status === 201 && rejected.value.data?.result === 'FAIL')
   const unknown = await json(owner, endpoint, makeShot(targets[1], { observedRL: null }))
   check('missing observed invert cannot earn acceptance', unknown.response.status === 201 && unknown.value.data?.result !== 'PASS')
-  const crossCrs = await json(owner, endpoint, makeShot(targets[2], { capturedCrs: 'EPSG:21036' }))
+  const crossCrs = await json(owner, endpoint, makeShot(targets[2], { capturedCrs: declaredFixtureCrs21036 }))
   check('mismatched capture CRS is rejected without a new record', crossCrs.response.status === 409 && crossCrs.value.code === 'SETOUT_CRS_CHANGED'
     && (await admin.query('SELECT 1 FROM public.setout_observations WHERE project_id=$1', [projectId])).rowCount === 3)
   const exportPath = `${endpoint}/export?definitionId=${definitionId}&revision=1`

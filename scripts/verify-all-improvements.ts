@@ -1,3 +1,4 @@
+import { z } from 'zod'
 import { chromium } from 'playwright'
 import * as path from 'path'
 
@@ -58,7 +59,8 @@ async function verifyAll() {
   const spatialRes = await fetch(`${BASE_URL}/api/spatial-index?west=36.7&south=-1.35&east=37.1&north=-1.20`)
   console.log(`GET /api/spatial-index status: ${spatialRes.status} (${spatialRes.statusText})`)
   if (spatialRes.ok) {
-    const spatialData = await spatialRes.json()
+    const body: unknown = await spatialRes.json()
+    const spatialData = z.object({ data: z.object({ features: z.array(z.unknown()) }) }).parse(body)
     console.log(`Spatial Index Features returned: ${spatialData?.data?.features?.length ?? 0}`)
   }
 

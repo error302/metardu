@@ -1,3 +1,4 @@
+const declaredFixtureCrs21037 = 'EPSG:21037'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
 import { mkdir,writeFile } from 'node:fs/promises'
@@ -21,7 +22,7 @@ try{
  const owner=await login(ownerId),other=await login(otherId);check('two real password sessions work',true)
  const project=await json(owner,'/api/projects',{name:'SYNTHETIC field control HTTP project',survey_type:'engineering'});projectId=project.value.data?.id
  check('owned project creation succeeds',project.response.status===201&&typeof projectId==='string')
- const reference=await json(owner,`/api/project/${projectId}/reference-system`,{horizontalCrs:'EPSG:21037',datum:'ARC1960',units:'metres',utmZone:37,hemisphere:'S',verticalDatum:'Synthetic BM',verticalReference:'local',distanceMode:'grid',coordinatePrecision:3},'PUT')
+ const reference=await json(owner,`/api/project/${projectId}/reference-system`,{horizontalCrs:declaredFixtureCrs21037,datum:'ARC1960',units:'metres',utmZone:37,hemisphere:'S',verticalDatum:'Synthetic BM',verticalReference:'local',distanceMode:'grid',coordinatePrecision:3},'PUT')
  check('project reference is saved',reference.response.status===200)
  const point=await json(owner,`/api/project/${projectId}/points`,{pointName:'SYN-FIELD-CONTROL',easting:500000,northing:9800000,elevation:0,isControl:true});pointId=point.value.data?.id
  check('current control point with zero height is registered',point.response.status===201&&point.value.data.elevation===0&&point.value.fieldVerified===false)

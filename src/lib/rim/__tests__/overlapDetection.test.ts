@@ -1,3 +1,4 @@
+const fixtureCrs = 'EPSG:21037'
 /**
  * Integration tests for RIM overlap detection using the REAL geospatial stack.
  *
@@ -88,13 +89,13 @@ const NEAR_EDGE_PARCEL: ParcelForOverlap = {
 describe('RIM overlap detection (real turf + proj4 integration)', () => {
   it('flags a genuinely overlapping parcel as an overlap', async () => {
     await expect(
-      hasAnyOverlap({ newParcel: NEW_PARCEL, existingParcels: [OVERLAPPING_PARCEL] })
+      hasAnyOverlap({ projectCrs: fixtureCrs, newParcel: NEW_PARCEL, existingParcels: [OVERLAPPING_PARCEL] })
     ).resolves.toBe(true)
   })
 
   it('reports disjoint parcels as no overlap', async () => {
     await expect(
-      hasAnyOverlap({ newParcel: NEW_PARCEL, existingParcels: [DISJOINT_PARCEL] })
+      hasAnyOverlap({ projectCrs: fixtureCrs, newParcel: NEW_PARCEL, existingParcels: [DISJOINT_PARCEL] })
     ).resolves.toBe(false)
   })
 
@@ -104,12 +105,12 @@ describe('RIM overlap detection (real turf + proj4 integration)', () => {
     // sub-centimeter threshold existed, the transform round-trip could
     // produce a hairline sliver that looked like a real overlap.
     await expect(
-      hasAnyOverlap({ newParcel: NEW_PARCEL, existingParcels: [EDGE_TOUCHING_PARCEL] })
+      hasAnyOverlap({ projectCrs: fixtureCrs, newParcel: NEW_PARCEL, existingParcels: [EDGE_TOUCHING_PARCEL] })
     ).resolves.toBe(false)
   })
 
   it('detectOverlaps checks edge-touching parcels fully and reports no overlap', async () => {
-    const result = await detectOverlaps({
+    const result = await detectOverlaps({ projectCrs: fixtureCrs,
       newParcel: NEW_PARCEL,
       existingParcels: [EDGE_TOUCHING_PARCEL],
     })
@@ -123,7 +124,7 @@ describe('RIM overlap detection (real turf + proj4 integration)', () => {
   })
 
   it('detectOverlaps reports exactly the real overlap with its area and percent', async () => {
-    const result = await detectOverlaps({
+    const result = await detectOverlaps({ projectCrs: fixtureCrs,
       newParcel: NEW_PARCEL,
       existingParcels: [OVERLAPPING_PARCEL, DISJOINT_PARCEL],
     })
@@ -142,7 +143,7 @@ describe('RIM overlap detection (real turf + proj4 integration)', () => {
   })
 
   it('detectOverlaps returns a clean result when nothing overlaps', async () => {
-    const result = await detectOverlaps({
+    const result = await detectOverlaps({ projectCrs: fixtureCrs,
       newParcel: NEW_PARCEL,
       existingParcels: [DISJOINT_PARCEL],
     })
@@ -160,7 +161,7 @@ describe('RIM overlap detection (real turf + proj4 integration)', () => {
     // but far enough that it must never be treated as a boundary conflict
     // (real RIM parcels routinely abut within survey tolerance).
     await expect(
-      hasAnyOverlap({ newParcel: NEW_PARCEL, existingParcels: [NEAR_EDGE_PARCEL] })
+      hasAnyOverlap({ projectCrs: fixtureCrs, newParcel: NEW_PARCEL, existingParcels: [NEAR_EDGE_PARCEL] })
     ).resolves.toBe(false)
   })
 
@@ -174,17 +175,17 @@ describe('RIM overlap detection (real turf + proj4 integration)', () => {
     // at the contract level, not by a magic number.
     const nearEdgeSliver = await calculateIntersection(
       NEW_PARCEL.vertices,
-      NEAR_EDGE_PARCEL.vertices
+      NEAR_EDGE_PARCEL.vertices, fixtureCrs
     )
     expect(shoelaceArea(nearEdgeSliver ?? [])).toBeLessThan(MIN_OVERLAP_AREA_SQM)
 
     const touchingSliver = await calculateIntersection(
       NEW_PARCEL.vertices,
-      EDGE_TOUCHING_PARCEL.vertices
+      EDGE_TOUCHING_PARCEL.vertices, fixtureCrs
     )
     expect(shoelaceArea(touchingSliver ?? [])).toBeLessThan(MIN_OVERLAP_AREA_SQM)
 
-    const result = await detectOverlaps({
+    const result = await detectOverlaps({ projectCrs: fixtureCrs,
       newParcel: NEW_PARCEL,
       existingParcels: [NEAR_EDGE_PARCEL],
     })

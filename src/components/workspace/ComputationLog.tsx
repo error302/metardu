@@ -1,21 +1,9 @@
 'use client';
 
 import React, { useRef, useEffect, useState, useCallback, memo } from 'react';
-import {
-  ChevronUp,
-  ChevronDown,
-  Trash2,
-  Loader2,
-  AlertCircle,
-  CheckCircle2,
-  AlertTriangle,
-  Info,
-} from 'lucide-react';
+import { ChevronUp, ChevronDown, Trash2, Loader2, AlertCircle, CheckCircle2, AlertTriangle, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import {
-  useWorkspaceBridge,
-  type ComputationLogEntry,
-} from '@/hooks/useWorkspaceBridge'
+import { useWorkspaceBridge, type ComputationLogEntry } from '@/hooks/useWorkspaceBridge';
 import { HydrationSafeTime } from '@/components/shared/HydrationSafeTime';
 
 /* ------------------------------------------------------------------ */
@@ -63,13 +51,6 @@ const PHASE_STYLES: Record<
   output: { badge: 'bg-emerald-500/10 text-emerald-400' },
 };
 
-function formatTime(d: Date): string {
-  return d.toLocaleTimeString('en-GB', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  });
-}
 
 /* ------------------------------------------------------------------ */
 

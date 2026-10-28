@@ -8,8 +8,7 @@ describe('Yjs CRDT Real-Time Collaboration Mesh', () => {
   })
 
   test('creates Y.Doc for project and persists points in CRDT map', () => {
-    const doc = realtimeService.getDoc(projectId)
-    expect(doc).toBeDefined()
+    expect(realtimeService.getDoc(projectId)).toBeDefined()
 
     // Broadcast a test beacon point
     realtimeService.broadcastPoint(projectId, {
@@ -28,7 +27,7 @@ describe('Yjs CRDT Real-Time Collaboration Mesh', () => {
   })
 
   test('handles concurrent point insertions without collision', () => {
-    const doc = realtimeService.getDoc(projectId)
+    realtimeService.getDoc(projectId)
 
     // Simulate Field Crew Tablet
     realtimeService.broadcastPoint(projectId, {

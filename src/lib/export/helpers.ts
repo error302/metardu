@@ -1,3 +1,5 @@
+import { logger } from '../logger'
+
 /**
  * METARDU — Shared export utilities for PDF and CSV downloads
  *
@@ -209,7 +211,7 @@ export async function generatePDF(
   const filename = `${meta.title.toLowerCase().replace(/\s+/g, '-')}-${new Date().toISOString().slice(0, 10)}.pdf`
   doc.save(filename)
   } catch (error) {
-    console.error('[METARDU] PDF export failed to load or render', error)
+    logger.error('[METARDU] PDF export failed to load or render', { error: error })
     try {
       const { toast } = await import('sonner')
       toast.error('Could not create the PDF. Please try again.')

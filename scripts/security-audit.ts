@@ -6,8 +6,8 @@
  */
 
 import * as fs from 'fs'
-import * as path from 'path'
-import { glob } from 'glob'
+import 'path';
+import { glob } from 'glob';
 
 interface SecurityIssue {
   file: string
@@ -90,14 +90,14 @@ async function scanFile(filePath: string): Promise<SecurityIssue[]> {
   const content = fs.readFileSync(filePath, 'utf-8')
   const issues: SecurityIssue[] = []
   
-  for (const [patternName, pattern] of Object.entries(PATTERNS)) {
+  for (const pattern of Object.values(PATTERNS)) {
     const lines = content.split('\n')
     lines.forEach((line, index) => {
       if (pattern.regex.test(line)) {
         issues.push({
           file: filePath,
           line: index + 1,
-          severity: pattern.severity as any,
+          severity: pattern.severity,
           type: pattern.type,
           message: pattern.message,
           suggestion: pattern.suggestion,

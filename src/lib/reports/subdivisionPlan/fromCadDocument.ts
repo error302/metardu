@@ -25,8 +25,8 @@ export function closedSubdivisionPortionFromCad(
 
   const points = new Map<string, PlanPoint2D>()
   for (const beacon of document.beacons) {
-    if (!Number.isFinite(beacon.easting) || !Number.isFinite(beacon.northing) || points.has(beacon.id)) return null
-    points.set(beacon.id, { easting: beacon.easting!, northing: beacon.northing! })
+    if (typeof beacon.easting !== 'number' || typeof beacon.northing !== 'number' || !Number.isFinite(beacon.easting) || !Number.isFinite(beacon.northing) || points.has(beacon.id)) return null
+    points.set(beacon.id, { easting: beacon.easting, northing: beacon.northing })
   }
   if (document.boundaries.length !== points.size) return null
 
@@ -34,8 +34,11 @@ export function closedSubdivisionPortionFromCad(
   for (const beaconId of points.keys()) adjacency.set(beaconId, [])
   for (const boundary of document.boundaries) {
     if (boundary.fromId === boundary.toId || !points.has(boundary.fromId) || !points.has(boundary.toId)) return null
-    adjacency.get(boundary.fromId)!.push({ edgeId: boundary.id, nextId: boundary.toId })
-    adjacency.get(boundary.toId)!.push({ edgeId: boundary.id, nextId: boundary.fromId })
+    const from = adjacency.get(boundary.fromId)
+    const to = adjacency.get(boundary.toId)
+    if (!from || !to) return null
+    from.push({ edgeId: boundary.id, nextId: boundary.toId })
+    to.push({ edgeId: boundary.id, nextId: boundary.fromId })
   }
   if (Array.from(adjacency.values()).some((edges) => edges.length !== 2)) return null
 
@@ -45,7 +48,7 @@ export function closedSubdivisionPortionFromCad(
   let currentId = startId
   let previousEdge: string | undefined
   for (let index = 0; index < points.size; index += 1) {
-    const next = adjacency.get(currentId)!.find((edge) => edge.edgeId !== previousEdge && !usedEdges.has(edge.edgeId))
+    const next = adjacency.get(currentId)?.find((edge) => edge.edgeId !== previousEdge && !usedEdges.has(edge.edgeId))
     if (!next) return null
     usedEdges.add(next.edgeId)
     previousEdge = next.edgeId
@@ -57,7 +60,12 @@ export function closedSubdivisionPortionFromCad(
   }
   if (currentId !== startId || usedEdges.size !== document.boundaries.length || orderedIds.length !== points.size) return null
 
-  const boundaryPoints = orderedIds.map((id) => points.get(id)!)
+  const boundaryPoints: PlanPoint2D[] = []
+  for (const id of orderedIds) {
+    const point = points.get(id)
+    if (!point) return null
+    boundaryPoints.push(point)
+  }
   if (!isSimplePolygonRing(boundaryPoints)) return null
   const area = coordinateArea(boundaryPoints)
   if (!(area.areaSqm > 0) || !Number.isFinite(area.areaHa)) return null

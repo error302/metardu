@@ -1,6 +1,8 @@
 import { chromium } from 'playwright'
 
 async function debugProject() {
+  const testEmail = process.env.TEST_EMAIL, testPassword = process.env.TEST_PASSWORD
+  if (!testEmail || !testPassword) throw new Error('Provide explicit TEST_EMAIL and TEST_PASSWORD for an authorized QA account')
   const browser = await chromium.launch({ channel: 'msedge', headless: true })
   const context = await browser.newContext()
   await context.addInitScript(() => {
@@ -18,8 +20,8 @@ async function debugProject() {
 
   // 1. Login
   await page.goto('http://localhost:3000/login', { waitUntil: 'networkidle' })
-  await page.locator('input[type="email"]').fill('mohameddosho20@gmail.com')
-  await page.locator('input[type="password"]').fill('Dosho10701$')
+  await page.locator('input[type="email"]').fill(testEmail)
+  await page.locator('input[type="password"]').fill(testPassword)
   await page.locator('button[type="submit"]').click()
   await page.waitForURL(url => !url.pathname.includes('/login'))
 
@@ -33,9 +35,9 @@ async function debugProject() {
 
   const cadState = await page.evaluate(async () => {
     const res = await fetch('/api/project/de742cbc-c28c-42e3-8241-cff536ba0473')
-    const json = await res.json()
+    const json: unknown = await res.json()
     const pointsRes = await fetch('/api/project/de742cbc-c28c-42e3-8241-cff536ba0473/points')
-    const pointsJson = await pointsRes.json().catch(() => null)
+    const pointsJson: unknown = await pointsRes.json().catch(() => null)
     return {
       project: json,
       points: pointsJson,

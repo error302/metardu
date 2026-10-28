@@ -49,6 +49,8 @@ jest.mock('@/lib/logger', () => ({
 import { POST } from '../route'
 import db, { setCurrentRlsServiceRole } from '@/lib/db'
 import type { PlanId } from '@/lib/subscription/catalog'
+import { responseObject } from '@/test-utils/response'
+
 
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockGetClient = db.getClient as jest.MockedFunction<typeof db.getClient>
@@ -77,7 +79,7 @@ function webhookRequest(body: unknown, bearer?: string): NextRequest {
 }
 
 function txClient(opts: { claimRowCount?: number } = {}) {
-  const q = jest.fn().mockImplementation((sql: string) => {
+  const q = jest.fn((sql: string, _params?: unknown[]) => {
     if (sql === 'BEGIN' || sql === 'COMMIT' || sql === 'ROLLBACK') {
       return Promise.resolve(mr([]))
     }
@@ -135,7 +137,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auth fails CLOSED', () => {
     const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
     expect(mockSetCurrentRlsServiceRole).toHaveBeenCalledWith('payment_provider')
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.action).toBe('recorded_unclaimed_payment')
   })
 
@@ -155,7 +157,7 @@ describe('POST /api/payments/mpesa/sms-webhook — unparseable input', () => {
   test('SMS without a transaction code → 422 with the raw text echoed', async () => {
     const res = await POST(webhookRequest({ sms: 'hello world no code here' }, SECRET))
     expect(res.status).toBe(422)
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.error).toContain('transaction code')
     expect(body.rawText).toContain('hello world')
   })
@@ -189,7 +191,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
 
     const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.action).toBe('activated_pending_claim')
     expect(body.planId).toBe('pro')
 
@@ -224,7 +226,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
 
     const res = await POST(webhookRequest(SMS_WRONG_AMOUNT, SECRET))
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.action).toBe('routed_to_manual_review')
     expect(body.reason).toBe('amount_mismatch')
 
@@ -262,7 +264,7 @@ describe('POST /api/payments/mpesa/sms-webhook — auto-match with amount verifi
 
     const res = await POST(webhookRequest(SMS_OK_2500, SECRET))
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.action).toBe('already_processed')
 
     const rolledBack = clientQuery.mock.calls.some((c) => c[0] === 'ROLLBACK')

@@ -1,3 +1,4 @@
+const declaredFixtureCrs21037 = 'EPSG:21037'
 // Actual route/command/PostGIS checks in an exactly marked synthetic schema.
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
@@ -884,7 +885,7 @@ try {
     const body = await command(),
       before = await state()
     assert.equal(
-      (await save({ ...body, source_crs: 'EPSG:21037' })).status,
+      (await save({ ...body, source_crs: declaredFixtureCrs21037 })).status,
       400,
     )
     assert.deepEqual(await state(), before)

@@ -1,5 +1,6 @@
+import type { SurveyPlanData } from '../src/lib/reports/surveyPlan/types'
 /** Demo data mirroring src/app/tools/survey-plan-demo/page.tsx (the shape renderers need). */
-export const demoData = {
+export const demoData: SurveyPlanData = {
   project: {
     name: 'NYERI/MWEIGA/PLOT 105',
     location: 'MWEIGA, NYERI COUNTY',

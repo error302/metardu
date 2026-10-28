@@ -90,6 +90,7 @@ describe('non-cadastral survey computation evidence', () => {
     ];
     const pass1 = applyAutoCalculations('topographic', initialRows, 0);
     const pass1RL = pass1[0].rl;
+    if (typeof pass1RL !== 'number') throw new Error('The computed RL must be numeric.');
     expect(pass1RL).toBeCloseTo(100.8748866, 4);
 
     // Simulating user editing a second row: pass1 is re-evaluated

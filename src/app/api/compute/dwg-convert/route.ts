@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { writeFile, readFile, unlink, mkdtemp, rm } from 'fs/promises';
+import { writeFile, readFile, mkdtemp, rm } from 'fs/promises';
 import { exec } from 'child_process';
 import { promisify } from 'util';
 import path from 'path';
 import os from 'os';
+import { logger } from '@/lib/logger';
 
 const execAsync = promisify(exec);
 
@@ -38,7 +39,6 @@ export async function POST(req: NextRequest) {
 
     await writeFile(inputPath, buffer);
 
-    let converted = false;
     let stderrOut = '';
 
     // 1. Check for ODAFileConverter
@@ -46,36 +46,35 @@ export async function POST(req: NextRequest) {
     if (await isCommandAvailable('ODAFileConverter')) {
       try {
         await execAsync(`ODAFileConverter "${tmpDir}" "${tmpDir}" "ACAD2018" "DXF" "0" "1"`);
-        const files = await promisify(exec)(`dir /b "${tmpDir}\\*.dxf"`).catch(() => ({ stdout: '' }));
         // ODAFileConverter outputs the file with the same name as the input file
         const odaOutputPath = path.join(tmpDir, 'input.dxf');
         const dxfContent = await readFile(odaOutputPath, 'utf-8');
         return new NextResponse(dxfContent, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-      } catch (err: any) {
-        stderrOut += `ODAFileConverter failed: ${err.message}\n`;
+      } catch (err: unknown) {
+        stderrOut += `ODAFileConverter failed: ${err instanceof Error ? err.message : 'Unknown converter error'}\n`;
       }
     }
 
     // 2. Check for dwg2dxf (LibreDWG)
-    if (!converted && await isCommandAvailable('dwg2dxf')) {
+    if (await isCommandAvailable('dwg2dxf')) {
       try {
         await execAsync(`dwg2dxf -o "${outputPath}" "${inputPath}"`);
         const dxfContent = await readFile(outputPath, 'utf-8');
         return new NextResponse(dxfContent, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-      } catch (err: any) {
-        stderrOut += `dwg2dxf failed: ${err.message}\n`;
+      } catch (err: unknown) {
+        stderrOut += `dwg2dxf failed: ${err instanceof Error ? err.message : 'Unknown converter error'}\n`;
       }
     }
 
     // 3. Check for qcad
-    if (!converted && await isCommandAvailable('qcad')) {
+    if (await isCommandAvailable('qcad')) {
       try {
         // qcad -no-gui -autostart scripts/Pro/Tools/Dwg2Dxf/Dwg2Dxf.js input.dwg -o output.dxf
         await execAsync(`qcad -no-gui -autostart scripts/Pro/Tools/Dwg2Dxf/Dwg2Dxf.js "${inputPath}" -o "${outputPath}"`);
         const dxfContent = await readFile(outputPath, 'utf-8');
         return new NextResponse(dxfContent, { status: 200, headers: { 'Content-Type': 'text/plain' } });
-      } catch (err: any) {
-        stderrOut += `qcad failed: ${err.message}\n`;
+      } catch (err: unknown) {
+        stderrOut += `qcad failed: ${err instanceof Error ? err.message : 'Unknown converter error'}\n`;
       }
     }
 
@@ -89,14 +88,14 @@ export async function POST(req: NextRequest) {
       error: 'No DWG converter installed on the server. Please install one of the following:\n1. ODA File Converter (https://www.opendesign.com/guestfiles/oda_file_converter)\n2. LibreDWG (https://www.gnu.org/software/libredwg/)\n3. QCAD (https://qcad.org/)'
     }, { status: 501 });
 
-  } catch (error: any) {
-    return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+  } catch (error: unknown) {
+    return NextResponse.json({ error: error instanceof Error ? error.message : 'Internal Server Error' }, { status: 500 });
   } finally {
     if (tmpDir) {
       try {
         await rm(tmpDir, { recursive: true, force: true });
       } catch (e) {
-        console.error('Failed to cleanup temp directory', e);
+        logger.error('Failed to clean up DWG conversion temporary directory', { error: e });
       }
     }
   }

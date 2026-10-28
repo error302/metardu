@@ -1,4 +1,8 @@
 /** @jest-environment node */
+import { createAuthSession } from '@/test-utils/auth-session'
+import { invokeMockApi } from '@/test-utils/invokeMockApi'
+import { responseObject, recordValue, recordArray } from '@/test-utils/response'
+
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { getSubscription } from '@/lib/subscription/subscriptionEngine'
@@ -39,7 +43,7 @@ beforeEach(() => {
 test.each(['sale', 'wanted'])('creating a %s listing cannot self-assert verification', async type => {
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ ...listing, type }] })
 
-  const response = await POST({} as any, {
+  const response = await invokeMockApi(POST, {
     userId: 'seller-1',
     body: {
       type,
@@ -55,10 +59,10 @@ test.each(['sale', 'wanted'])('creating a %s listing cannot self-assert verifica
       sellerContact: 'seller@example.com',
       verified: true,
     },
-  } as any)
+  })
 
   expect(response.status).toBe(201)
-  expect((await response.json()).data.verified).toBe(false)
+  expect(recordValue((await responseObject(response)).data).verified).toBe(false)
   const [sql, params] = (db.query as jest.Mock).mock.calls[0] as [string, unknown[]]
   expect(sql).toMatch(/images,\s*verified\)\s*VALUES\s*\([^)]*,FALSE\)/)
   expect(params).toHaveLength(17)
@@ -71,11 +75,11 @@ test.each([null, { plan: 'free' }])(
   async subscription => {
     ;(getSubscription as jest.Mock).mockResolvedValue(subscription)
 
-    const response = await POST({} as any, {
+    const response = await invokeMockApi(POST, {
       userId: 'seller-1',
-      session: { user: { email: 'seller@example.com' } },
+      session: { ...createAuthSession('seller-1'), user: { ...createAuthSession('seller-1').user, email: 'seller@example.com' } },
       body: { verified: true },
-    } as any)
+    })
 
     expect(response.status).toBe(403)
     expect(getSubscription).toHaveBeenCalledWith('seller-1', 'seller@example.com')
@@ -87,7 +91,7 @@ test('seller updates cannot set or clear verification', async () => {
     .mockResolvedValueOnce({ rows: [{ user_id: 'seller-1', updated_at: listing.updated_at }] })
     .mockResolvedValueOnce({ rows: [listing] })
 
-  const response = await PATCH({} as any, {
+  const response = await invokeMockApi(PATCH, {
     params: { id: listing.id },
     userId: 'seller-1',
     body: {
@@ -95,10 +99,10 @@ test('seller updates cannot set or clear verification', async () => {
       updated_at: listing.updated_at,
       verified: true,
     },
-  } as any)
+  })
 
   expect(response.status).toBe(200)
-  expect((await response.json()).data.verified).toBe(false)
+  expect(recordValue((await responseObject(response)).data).verified).toBe(false)
   const [sql, params] = (db.query as jest.Mock).mock.calls[1] as [string, unknown[]]
   expect(sql).not.toMatch(/\bverified\b/i)
   expect(params).toEqual(['Updated total station', listing.id, listing.updated_at])
@@ -106,12 +110,9 @@ test('seller updates cannot set or clear verification', async () => {
 test('public reads do not repeat legacy verification claims without evidence', async () => {
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ ...listing, verified: true }] })
 
-  const listResponse = await LIST_GET(
-    new NextRequest('http://localhost/api/marketplace/listings'),
-    {} as any,
-  )
-  const detailResponse = await DETAIL_GET({} as any, { params: { id: listing.id } } as any)
+  const listResponse = await invokeMockApi(LIST_GET, {}, new NextRequest('http://localhost/api/marketplace/listings'))
+  const detailResponse = await invokeMockApi(DETAIL_GET, { params: { id: listing.id } })
 
-  expect((await listResponse.json()).data[0].verified).toBe(false)
-  expect((await detailResponse.json()).data.verified).toBe(false)
+  expect(recordArray((await responseObject(listResponse)).data)[0].verified).toBe(false)
+  expect(recordValue((await responseObject(detailResponse)).data).verified).toBe(false)
 })

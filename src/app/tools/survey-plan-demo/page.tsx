@@ -15,27 +15,26 @@
  * - Land Registration Act 2012
  */
 
-import React, { useState, useMemo, useCallback, useRef } from 'react'
+/**
+ * METARDU — Survey Plan & Boundary Identification Viewer
+ * =======================================================
+ * Interactive CAD-style boundary identification plan renderer and
+ * Survey of Kenya Form No. 4 deed plan generator.
+ *
+ * Allows surveyors to view, edit, import coordinates, inspect bearing schedules,
+ * verify cadastral boundary closure, and export to SVG, DXF, CSV, and printable PDF.
+ *
+ * Statutory references:
+ * - Survey Act Cap. 299 Laws of Kenya
+ * - Survey Regulations 1994 (Form No. 3 & Form No. 4 standards)
+ * - Land Registration Act 2012
+ */
+import React, { useState, useMemo, useRef } from 'react';
 import SurveyPlanViewer from '@/components/SurveyPlanViewer'
 import { ToolGate } from '@/components/shared/ToolGate'
 import { generateCadastralPlanDXF } from '@/lib/export/cadastralPlanDXF'
 import type { SurveyPlanData, ControlPoint } from '@/lib/reports/surveyPlan/types'
-import {
-  FileText,
-  Upload,
-  Download,
-  Plus,
-  Trash2,
-  RefreshCw,
-  CheckCircle2,
-  AlertTriangle,
-  Compass,
-  Layers,
-  ArrowLeft,
-  Printer,
-  ChevronDown,
-  ChevronUp,
-} from 'lucide-react'
+import { FileText, Upload, Download, Plus, Trash2, CheckCircle2, Compass, ArrowLeft, ChevronDown, ChevronUp } from 'lucide-react';
 
 // ─── Standard Presets ────────────────────────────────────────────────
 
@@ -271,14 +270,14 @@ export default function SurveyPlanViewerPage() {
   const handlePresetSelect = (key: string) => {
     setSelectedPreset(key)
     if (PRESETS[key]) {
-      setPlanData(JSON.parse(JSON.stringify(PRESETS[key].data)))
+      setPlanData(structuredClone(PRESETS[key].data))
     }
   }
 
   // Update boundary point
   const updatePoint = (index: number, field: string, value: string | number) => {
     setPlanData((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as SurveyPlanData
+      const next = structuredClone(prev)
       const pt = next.parcel.boundaryPoints[index]
       if (!pt) return prev
 
@@ -308,7 +307,7 @@ export default function SurveyPlanViewerPage() {
   // Add beacon point
   const addPoint = () => {
     setPlanData((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as SurveyPlanData
+      const next = structuredClone(prev)
       const lastPt = next.parcel.boundaryPoints[next.parcel.boundaryPoints.length - 1]
       const newName = `P${next.parcel.boundaryPoints.length + 1}`
       const newPt = {
@@ -340,7 +339,7 @@ export default function SurveyPlanViewerPage() {
       return
     }
     setPlanData((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as SurveyPlanData
+      const next = structuredClone(prev)
       const removed = next.parcel.boundaryPoints.splice(index, 1)[0]
       if (next.controlPoints) {
         next.controlPoints = next.controlPoints.filter((c) => c.name !== removed?.name)
@@ -355,11 +354,10 @@ export default function SurveyPlanViewerPage() {
   }
 
   // Update metadata field
-  const updateMetadata = (field: string, value: string | number) => {
+  const updateMetadata = <Key extends keyof SurveyPlanData['project']>(field: Key, value: SurveyPlanData['project'][Key]) => {
     setPlanData((prev) => {
-      const next = JSON.parse(JSON.stringify(prev)) as SurveyPlanData
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      ;(next.project as any)[field] = value
+      const next = structuredClone(prev)
+      next.project[field] = value
       if (field === 'parcel_id') next.parcel.pin = String(value)
       return next
     })
@@ -406,7 +404,7 @@ export default function SurveyPlanViewerPage() {
 
       if (parsedPoints.length >= 3) {
         setPlanData((prev) => {
-          const next = JSON.parse(JSON.stringify(prev)) as SurveyPlanData
+          const next = structuredClone(prev)
           next.parcel.boundaryPoints = parsedPoints
           next.controlPoints = parsedControl
           const geo = computeShoelace(parsedPoints)

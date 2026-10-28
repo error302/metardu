@@ -1,6 +1,11 @@
 import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { requiredValue } from '@/test-utils/requiredValue'
 import SettingOutSheetPage from './page'
+
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs32737 = 'EPSG:32737'
+
 
 describe('general setting-out sheet page', () => {
   const originalFetch = global.fetch
@@ -43,16 +48,18 @@ describe('general setting-out sheet page', () => {
     fireEvent.change(screen.getByLabelText('Sheet date'), { target: { value: '2026-10-12' } })
     fireEvent.change(screen.getByLabelText(/Surveyor name/), { target: { value: 'Surveyor Example' } })
     fireEvent.change(screen.getByLabelText(/Registration \/ licence/), { target: { value: 'LS-123' } })
-    fireEvent.change(screen.getByLabelText(/Declared project CRS/), { target: { value: 'EPSG:32737' } })
+    fireEvent.change(screen.getByLabelText(/Declared project CRS/), { target: { value: fixtureCrs32737 } })
     fireEvent.change(screen.getByLabelText('CSV / TSV point rows'), { target: { value: 'P-01,500010,9900000,,,0.1,0.2,,Foundation corner' } })
     fireEvent.click(screen.getByRole('button', { name: 'Generate draft PDF' }))
 
     await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(1))
-    const [url, request] = (global.fetch as jest.Mock).mock.calls[0]
+    const [url, init] = jest.mocked(global.fetch).mock.calls[0]
+    const request = requiredValue(init)
+    if (typeof request.body !== 'string') throw new Error('Expected a JSON request body')
     expect(url).toBe('/api/documents/setting-out-sheet')
     expect(request.method).toBe('POST')
     expect(JSON.parse(request.body)).toMatchObject({
-      projection: 'EPSG:32737',
+      projection: fixtureCrs32737,
       points: [{ pointId: 'P-01', designE: 500010, designN: 9900000, offsetE: 0.1, offsetN: 0.2 }],
     })
     expect(await screen.findByRole('status')).toHaveTextContent(/draft pdf downloaded with 1 supplied point/i)

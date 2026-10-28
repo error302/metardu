@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const declaredFixtureCrs21037 = 'EPSG:21037'
 // Actual beacon re-establishment routes, transactions and immutable captures and restricted PostgreSQL; synthetic sessions only.
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage, AsyncResource } from 'node:async_hooks'
@@ -7,7 +8,7 @@ import { createRequire } from 'node:module'
 import { readFileSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import path from 'node:path'
-import { isDeepStrictEqual } from 'node:util'
+import 'node:util';
 import pg from 'pg'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
 import { RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
@@ -47,7 +48,7 @@ try {
  for(const [id,x,status,crs]of [[ids.live,500004,'ESTABLISHED','EPSG:21037'],[ids.retired,500000,'SUPERSEDED','EPSG:21037'],[ids.wrong,500001,'ESTABLISHED','EPSG:32736'],[ids.unclaimed,500002,'ESTABLISHED',null]])await admin.query('INSERT INTO beacon_registry(id,created_by,project_id,beacon_number,easting,northing,elevation,status,horizontal_crs) VALUES($1,$2,$3,$4,$5,9800000,0,$6,$7)',[id,ids.owner,ids.project,`SYN-REG-${ids.project}-${id}`,x,status,crs])
  check('anonymous registry requests are rejected',(await invoke(null,'GET')).response.status===401)
  const owned=await invoke(ids.owner,'GET',`?id=${ids.project}`,undefined,true)
- check('owned project choices expose only minimal declared reference data',owned.response.status===200&&owned.value.data.projects.length===1&&owned.value.data.projects[0].horizontalCrs==='EPSG:21037'&&Object.keys(owned.value.data.projects[0]).sort().join(',')==='horizontalCrs,id,name,verticalDatum')
+ check('owned project choices expose only minimal declared reference data',owned.response.status===200&&owned.value.data.projects.length===1&&owned.value.data.projects[0].horizontalCrs===declaredFixtureCrs21037&&Object.keys(owned.value.data.projects[0]).sort().join(',')==='horizontalCrs,id,name,verticalDatum')
  check('other accounts cannot enumerate project choices',(await invoke(ids.other,'GET',`?id=${ids.project}`,undefined,true)).value.data.projects.length===0)
  const page=await invoke(ids.owner,'GET','?limit=1',undefined,true)
  const next=await invoke(ids.owner,'GET',`?limit=1&cursor=${page.value.data.nextCursor}`,undefined,true)
@@ -68,12 +69,12 @@ try {
  check('new entries require an owned declared project',(await invoke(ids.owner,'POST','',{...body,projectId:ids.legacy})).response.status===400&&(await invoke(ids.other,'POST','',body)).response.status===403)
  check('a client cannot self-assert adoption on a new registration',(await invoke(ids.owner,'POST','',{...body,isAdopted:true})).response.status===400)
  const created=await invoke(ids.owner,'POST','',body)
- check('new registration records exact zero height and explicit project CRS',created.response.status===201&&created.value.data.beacon.elevation===0&&created.value.data.beacon.horizontal_crs==='EPSG:21037')
+ check('new registration records exact zero height and explicit project CRS',created.response.status===201&&created.value.data.beacon.elevation===0&&created.value.data.beacon.horizontal_crs===declaredFixtureCrs21037)
  check('duplicate current numbers are rejected within the owned project',(await invoke(ids.owner,'POST','',body)).response.status===409)
  check('invalid establishment calendar dates are client errors',(await invoke(ids.owner,'POST','',{...body,beaconNumber:`SYN-DATE-${randomUUID()}`,establishedDate:'2026-02-30'})).response.status===400)
  const stored=(await admin.query('SELECT * FROM beacon_registry WHERE id=$1',[created.value.data.beacon.id])).rows[0]
  const audit=(await admin.query("SELECT * FROM audit_logs WHERE table_name='beacon_registry' AND record_id=$1",[stored.id])).rows[0]
- check('registration audit records the actual beacon, actor and reference in the same transaction',audit?.user_id===ids.owner&&audit.details.input.elevation===0&&audit.details.reference.horizontal_crs==='EPSG:21037')
+ check('registration audit records the actual beacon, actor and reference in the same transaction',audit?.user_id===ids.owner&&audit.details.input.elevation===0&&audit.details.reference.horizontal_crs===declaredFixtureCrs21037)
  check('new registration retains unknown uncertainty and unverified confidence',stored.sigma_e===null&&stored.sigma_n===null&&stored.sigma_rl===null&&Number(stored.source_confidence)===0&&!stored.is_adopted&&stored.last_verified_at===null)
  await admin.query(`CREATE FUNCTION synthetic_registry_audit_fault() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN IF NEW.user_id='${ids.owner}'::uuid AND NEW.table_name='beacon_registry' THEN RAISE EXCEPTION 'Synthetic registry audit failure'; END IF; RETURN NEW; END $$`)
  await admin.query('CREATE TRIGGER synthetic_registry_audit_fault BEFORE INSERT ON audit_logs FOR EACH ROW EXECUTE FUNCTION synthetic_registry_audit_fault()');auditFault=true

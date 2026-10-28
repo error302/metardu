@@ -1,5 +1,14 @@
 # GitHub source checkpoint and remaining acceptance
 
+28 October lint/release follow-up: see `CODEBASE_LINT_HEALTH_2026-10-28.md`.
+The complete owned-file lint scan passes with zero errors/warnings, all three
+TypeScript projects pass, and the dependency-free release contract import is
+repaired. CI Jest has a measured 45-minute budget with coverage unchanged.
+The planner validates rollback source against the exact running image.
+This remains source evidence; production is still 08fae427 and worker, current
+recovery, full CI/browser/a11y and broader professional gates remain open.
+The release-tool JavaScript typed-safety backlog is not declared closed.
+
 The pending equipment repair is collected on the existing
 `codex/metardu-workflow-readiness-2026-10-12` branch. Prior source work is pushed
 through `44396a812f0c176f493dfecda87b285b6aab2a2e`. See

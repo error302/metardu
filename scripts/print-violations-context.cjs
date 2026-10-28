@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const gatePath = path.join(__dirname, 'aria-label-gate.mjs');
-const src = fs.readFileSync(gatePath, 'utf8');
+const _src = fs.readFileSync(gatePath, 'utf8');
 
 // Extract the JSON output by spawning the gate with --json
 const { execSync } = require('child_process');

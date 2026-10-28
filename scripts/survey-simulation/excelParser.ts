@@ -1,5 +1,5 @@
-import * as fs from 'fs';
-import * as path from 'path';
+import 'fs';
+type ExcelRow = Array<string | number | boolean | null>;
 import ExcelJS from 'exceljs';
 
 export interface TraverseObservation {
@@ -92,8 +92,8 @@ export async function parseSurveyExcel(filePath: string): Promise<ParsedExcelDat
   }
 }
 
-function worksheetToRows(worksheet: ExcelJS.Worksheet): any[][] {
-  const rows: any[][] = [];
+function worksheetToRows(worksheet: ExcelJS.Worksheet): ExcelRow[] {
+  const rows: ExcelRow[] = [];
   worksheet.eachRow({ includeEmpty: true }, row => {
     const values = Array.isArray(row.values) ? row.values.slice(1) : [];
     rows.push(values.map(normalizeCellValue));
@@ -114,8 +114,8 @@ function normalizeCellValue(cell: unknown): string | number | boolean | null {
   return String(cell);
 }
 
-function parseProjectSheet(data: any[], metadata: ProjectMetadata) {
-  data.forEach((row: any) => {
+function parseProjectSheet(data: ExcelRow[], metadata: ProjectMetadata) {
+  data.forEach((row: ExcelRow) => {
     if (Array.isArray(row) && row.length >= 2) {
       const key = String(row[0] || '').toLowerCase();
       const value = String(row[1] || '');
@@ -135,11 +135,11 @@ function parseProjectSheet(data: any[], metadata: ProjectMetadata) {
   });
 }
 
-function parseTraverseSheet(data: any[], observations: TraverseObservation[]) {
+function parseTraverseSheet(data: ExcelRow[], observations: TraverseObservation[]) {
   // Skip header rows and find data start
   let dataStart = 0;
   for (let i = 0; i < data.length; i++) {
-    const row = data[i] as string[];
+    const row = data[i];
     if (row && row.some(cell => String(cell || '').toLowerCase().includes('station'))) {
       dataStart = i + 1;
       break;
@@ -147,7 +147,7 @@ function parseTraverseSheet(data: any[], observations: TraverseObservation[]) {
   }
 
   for (let i = dataStart; i < data.length; i++) {
-    const row = data[i] as string[];
+    const row = data[i];
     if (!row || row.length < 5) continue;
 
     const observation: TraverseObservation = {
@@ -175,11 +175,11 @@ function parseTraverseSheet(data: any[], observations: TraverseObservation[]) {
   }
 }
 
-function parseLevellingSheet(data: any[], observations: LevellingObservation[]) {
+function parseLevellingSheet(data: ExcelRow[], observations: LevellingObservation[]) {
   // Skip header rows and find data start
   let dataStart = 0;
   for (let i = 0; i < data.length; i++) {
-    const row = data[i] as string[];
+    const row = data[i];
     if (row && row.some(cell => String(cell || '').toLowerCase().includes('station'))) {
       dataStart = i + 1;
       break;
@@ -187,7 +187,7 @@ function parseLevellingSheet(data: any[], observations: LevellingObservation[]) 
   }
 
   for (let i = dataStart; i < data.length; i++) {
-    const row = data[i] as string[];
+    const row = data[i];
     if (!row || row.length < 3) continue;
 
     const observation: LevellingObservation = {
@@ -205,18 +205,20 @@ function parseLevellingSheet(data: any[], observations: LevellingObservation[]) 
   }
 }
 
-function parseAreaSheet(data: any[], result: ParsedExcelData) {
+function parseAreaSheet(data: ExcelRow[], result: ParsedExcelData) {
   // Initialize area data if not present
   if (!result.areaData) {
     result.areaData = {};
   }
+
+  const areaData = result.areaData;
 
   // Look for coordinate data
   const coordinates: Array<{ easting: number; northing: number }> = [];
   let dataStart = 0;
 
   for (let i = 0; i < data.length; i++) {
-    const row = data[i] as string[];
+    const row = data[i];
     if (row && row.some(cell => String(cell || '').toLowerCase().includes('easting') || String(cell || '').toLowerCase().includes('x'))) {
       dataStart = i + 1;
       break;
@@ -224,7 +226,7 @@ function parseAreaSheet(data: any[], result: ParsedExcelData) {
   }
 
   for (let i = dataStart; i < data.length; i++) {
-    const row = data[i] as string[];
+    const row = data[i];
     if (!row || row.length < 2) continue;
 
     const easting = parseFloat(String(row[0] || '0'));
@@ -240,13 +242,13 @@ function parseAreaSheet(data: any[], result: ParsedExcelData) {
   }
 
   // Look for expected area value
-  data.forEach((row: any) => {
+  data.forEach((row: ExcelRow) => {
     if (Array.isArray(row) && row.length >= 2) {
       const key = String(row[0] || '').toLowerCase();
       const value = parseFloat(String(row[1] || '0'));
       
       if ((key.includes('area') || key.includes('size')) && !isNaN(value)) {
-        result.areaData!.expectedArea = value;
+        areaData.expectedArea = value;
       }
     }
   });

@@ -1,7 +1,7 @@
 import { config } from 'dotenv';
 import { writeFile, mkdir } from 'fs/promises';
 import JSZip from 'jszip';
-config({ path: '.env', quiet: true } as any);
+config({ path: '.env' });
 process.env.DATABASE_URL = `postgresql://${encodeURIComponent(process.env.POSTGRES_USER || 'metardu')}:${encodeURIComponent(process.env.POSTGRES_PASSWORD || '')}@127.0.0.1:5432/${process.env.POSTGRES_DB || 'metardu'}`;
 
 async function testShapefileAndDxf() {

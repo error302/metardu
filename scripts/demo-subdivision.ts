@@ -32,6 +32,8 @@ const result = computeTraverse({
   observations: OBS,
 });
 
+if (result.linearError === null || result.C_mm === null || result.precisionRatio === null || result.allowable === null) throw new Error('Synthetic traverse did not produce complete closure evidence');
+
 console.log('════════ METARDU COMPUTE — SUBDIVISION TRAVERSE ════════');
 console.log(`Perimeter        : ${result.totalPerimeter.toFixed(3)} m`);
 console.log(`Linear misclosure: ${(result.linearError * 1000).toFixed(2)} mm  (C=${result.C_mm.toFixed(2)}mm, K=${result.K_km.toFixed(3)}km)`);
@@ -42,15 +44,20 @@ console.log(`Formula          : ${result.formula}`);
 console.log('');
 console.log('── Adjusted beacons ──');
 for (const c of result.coordinates) {
-  console.log(`  ${c.station.padEnd(4)}  E ${c.easting.toFixed(3)}  N ${c.northing.toFixed(3)}  RL ${c.rl!.toFixed(2)}`);
+  console.log(`  ${c.station.padEnd(4)}  E ${c.easting.toFixed(3)}  N ${c.northing.toFixed(3)}  RL ${typeof c.rl === 'number' ? c.rl.toFixed(2) : 'Unobserved'}`);
 }
 console.log('');
 
 // ── Subdivision: cut line between midpoints of long boundaries ────────────
 const adj = result.coordinates;
 const byStn = new Map(adj.map((c) => [c.station, c]));
-const mb1 = byStn.get('MB1')!, mb2 = byStn.get('MB2')!;
-const mb3 = byStn.get('MB3')!, mb4 = byStn.get('MB4')!;
+function station(name: string) {
+  const point = byStn.get(name);
+  if (!point) throw new Error(`Synthetic station ${name} was not computed`);
+  return point;
+}
+const mb1 = station('MB1'), mb2 = station('MB2');
+const mb3 = station('MB3'), mb4 = station('MB4');
 // New internal beacons placed at midpoints of the north and south boundaries
 const mid = (a: typeof mb1, b: typeof mb1) => ({
   easting: (a.easting + b.easting) / 2,

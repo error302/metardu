@@ -100,12 +100,12 @@ async function runLiveAudit() {
         } else {
           console.log(`✅ Link OK: ${link.text} (${resp.status()})`)
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         issues.push({
           page: '/',
           type: 'broken_link',
           title: `Failed to fetch footer link: ${link.text}`,
-          details: err.message,
+          details: (err instanceof Error ? err.message : String(err)),
         })
       }
     }

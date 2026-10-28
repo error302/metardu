@@ -4,6 +4,15 @@ import { db } from '@/lib/db'
 import { requireProjectOwnership, requireProjectReadAccess } from '@/lib/auth/ownership'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 import { GET, PUT } from '@/app/api/project/[id]/pipe-network/route'
+import { expect } from '@jest/globals'
+import { mr } from '@/test-utils/mock-rows'
+
+
+
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+const fixtureCrs21036 = 'EPSG:21036'
+
 
 jest.mock('@/lib/apiHandler', () => ({
   apiHandler: (_options: unknown, handler: unknown) => handler,
@@ -17,7 +26,7 @@ jest.mock('@/lib/workspaces/stageReference', () => ({
   resolveStageReference: jest.fn((reference: Record<string, unknown> | undefined) => ({ code: reference?.horizontal_crs ?? null })),
 }))
 
-const mockQuery = db.query as jest.Mock
+const mockQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockOwnership = requireProjectOwnership as jest.Mock
 const mockReadAccess = requireProjectReadAccess as jest.Mock
 const mockResolveReference = resolveStageReference as jest.Mock
@@ -59,14 +68,14 @@ beforeEach(() => {
 
 test('loads the saved project network and its declared CRS using read access', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'project-1', name: 'Drainage A', utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: { manholes: [{ id: 'existing' }] }, pipeNetwork: network } }] })
-    .mockResolvedValueOnce({ rows: [{ horizontal_crs: 'EPSG:21037' }] })
+    .mockResolvedValueOnce(mr([{ id: 'project-1', name: 'Drainage A', utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: { manholes: [{ id: 'existing' }] }, pipeNetwork: network } }]))
+    .mockResolvedValueOnce(mr([{ horizontal_crs: fixtureCrs21037 }]))
 
   const response = await callGet()
   const result = await response.json() as Record<string, unknown>
 
   expect(response.status).toBe(200)
-  expect(result).toMatchObject({ projectName: 'Drainage A', declaredProjectCrs: 'EPSG:21037', network })
+  expect(result).toMatchObject({ projectName: 'Drainage A', declaredProjectCrs: fixtureCrs21037, network })
   expect(response.headers.get('Cache-Control')).toBe('private, no-store')
   expect(mockReadAccess).toHaveBeenCalledWith('project-1', 'alice')
 })
@@ -80,8 +89,8 @@ test('refuses to load project data when read access is denied', async () => {
 
 test('returns an explicit error when a saved project CRS declaration is invalid', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'project-1', name: 'Drainage A', utm_zone: null, hemisphere: null, datum: null, engineering_data: { pipeNetwork: network } }] })
-    .mockResolvedValueOnce({ rows: [{}] })
+    .mockResolvedValueOnce(mr([{ id: 'project-1', name: 'Drainage A', utm_zone: null, hemisphere: null, datum: null, engineering_data: { pipeNetwork: network } }]))
+    .mockResolvedValueOnce(mr([{}]))
   mockResolveReference.mockReturnValueOnce({ code: null })
 
   const response = await callGet()
@@ -95,8 +104,8 @@ test('returns an explicit error when a saved project CRS declaration is invalid'
 
 test('refuses to save coordinates when their CRS differs from the declared project CRS', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'project-1', name: 'Drainage A', utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: { safe: true } } }] })
-    .mockResolvedValueOnce({ rows: [{ horizontal_crs: 'EPSG:21036' }] })
+    .mockResolvedValueOnce(mr([{ id: 'project-1', name: 'Drainage A', utm_zone: 37, hemisphere: 'S', datum: 'Arc 1960', engineering_data: { drainage: { safe: true } } }]))
+    .mockResolvedValueOnce(mr([{ horizontal_crs: fixtureCrs21036 }]))
 
   const response = await callPut({ network })
   expect(response.status).toBe(409)
@@ -106,9 +115,9 @@ test('refuses to save coordinates when their CRS differs from the declared proje
 
 test('saves only the standalone network JSON and preserves other engineering data', async () => {
   mockQuery
-    .mockResolvedValueOnce({ rows: [{ id: 'project-1', name: 'Drainage A', utm_zone: null, hemisphere: null, datum: null, engineering_data: { drainage: { manholes: [{ id: 'existing' }] } } }] })
-    .mockResolvedValueOnce({ rows: [] })
-    .mockResolvedValueOnce({ rows: [{ id: 'project-1' }] })
+    .mockResolvedValueOnce(mr([{ id: 'project-1', name: 'Drainage A', utm_zone: null, hemisphere: null, datum: null, engineering_data: { drainage: { manholes: [{ id: 'existing' }] } } }]))
+    .mockResolvedValueOnce(mr([]))
+    .mockResolvedValueOnce(mr([{ id: 'project-1' }]))
 
   const response = await callPut({ network })
 

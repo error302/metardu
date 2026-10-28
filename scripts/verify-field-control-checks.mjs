@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+const declaredFixtureCrs21037 = 'EPSG:21037'
 import assert from 'node:assert/strict'
 import { AsyncLocalStorage,AsyncResource } from 'node:async_hooks'
 import { randomUUID } from 'node:crypto'
@@ -33,7 +34,7 @@ try{
  await admin.query("INSERT INTO project_reference_systems(project_id,horizontal_crs,horizontal_name,datum_name,units,zone,hemisphere,vertical_datum,vertical_reference,distance_mode,coordinate_precision,declared_by) VALUES($1,'EPSG:21037','Synthetic grid','ARC1960','metres',37,'S','Synthetic BM','local','grid',3,$2)",[ids.project,ids.owner])
  for(const [id,control]of [[ids.point,true],[ids.noncontrol,false]])await admin.query("INSERT INTO survey_points(id,project_id,point_name,easting,northing,elevation,is_control,horizontal_crs,vertical_datum) VALUES($1,$2,$3,500000,9800000,0,$4,'EPSG:21037','Synthetic BM')",[id,ids.project,`SYN-${id}`,control])
  await admin.query("INSERT INTO beacon_registry(id,project_id,created_by,beacon_number,easting,northing,elevation,horizontal_crs,metadata) VALUES($1,$2,$3,$4,500000,9800000,0,'EPSG:21037',$5)",[ids.beacon,ids.project,ids.owner,`SYN-${ids.beacon}`,JSON.stringify({reference:{verticalDatum:'Synthetic BM'}})])
- for(const [id,declared]of [[ids.monument,true],[ids.legacyMonument,false]])await admin.query("INSERT INTO boundary_monuments(id,project_id,created_by,monument_number,boundary_name,treaty_reference,easting,northing,elevation,horizontal_crs,vertical_datum) VALUES($1,$2,$3,$4,'Synthetic boundary','Synthetic TEST-ONLY reference',500000,9800000,0,$5,$6)",[id,ids.project,ids.owner,`SYN-${id}`,declared?'EPSG:21037':null,declared?'Synthetic BM':null])
+ for(const [id,declared]of [[ids.monument,true],[ids.legacyMonument,false]])await admin.query("INSERT INTO boundary_monuments(id,project_id,created_by,monument_number,boundary_name,treaty_reference,easting,northing,elevation,horizontal_crs,vertical_datum) VALUES($1,$2,$3,$4,'Synthetic boundary','Synthetic TEST-ONLY reference',500000,9800000,0,$5,$6)",[id,ids.project,ids.owner,`SYN-${id}`,declared?declaredFixtureCrs21037:null,declared?'Synthetic BM':null])
  await admin.query("INSERT INTO control_point_verifications(point_type,point_id,point_name,verification_date,verified_by,condition) VALUES('survey_point',$1,'Synthetic legacy check','2026-10-08',$2,'good')",[ids.point,ids.owner])
  check('anonymous field checks are denied',(await invoke(null,GET,'GET',undefined,`?projectId=${ids.project}`)).response.status===401)
  check('project selection is required',(await invoke(ids.owner,GET,'GET')).response.status===400)

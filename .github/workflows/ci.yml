@@ -347,9 +347,10 @@ jobs:
   test:
     name: Jest Tests
     runs-on: ubuntu-latest
-    # The full coverage run was still executing tests at the 15-minute limit.
-    # Bound compiler workers and allow installation plus all suites to finish.
-    timeout-minutes: 25
+    # At 68d77258, 613 suites passed before the 25-minute timeout; the
+    # current inventory has 763 suites. Retain two workers and every coverage
+    # threshold while allowing the complete bounded run to finish.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

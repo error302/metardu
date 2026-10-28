@@ -201,7 +201,7 @@ export default function GeodeticReductionPage() {
                 <select
                   id="gr-ellipsoid"
                   value={ellipsoid}
-                  onChange={(e) => setEllipsoid(e.target.value as any)}
+                  onChange={(e) => { const value = e.target.value; if (value === 'clarke1880_modified' || value === 'clarke1858' || value === 'wgs84') setEllipsoid(value); }}
                   className="input text-xs w-full py-1.5"
                 >
                   <option value="clarke1880_modified">Clarke 1880 (Modified) — Arc 1960 (Kenya Cadastre)</option>

@@ -263,10 +263,12 @@ export function fieldToFinish(
     }
 
     const groupKey = `${baseCode}_${sequence}`
-    if (!groups.has(groupKey)) {
-      groups.set(groupKey, { definition, points: [] })
+    let group = groups.get(groupKey)
+    if (!group) {
+      group = { definition, points: [] }
+      groups.set(groupKey, group)
     }
-    groups.get(groupKey)!.points.push(point)
+    group.points.push(point)
   }
 
   // Generate features from groups

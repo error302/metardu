@@ -1,6 +1,10 @@
 import { closedSubdivisionPortionFromCad } from '../fromCadDocument'
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+
+
 function square(): CADDocument {
   return {
     beacons: [
@@ -26,7 +30,7 @@ function square(): CADDocument {
 
 test('builds a portion only from a closed, CRS-bound CAD loop and computes its area from coordinates', () => {
   const result = closedSubdivisionPortionFromCad(square())
-  expect(result?.projectCrs).toBe('EPSG:21037')
+  expect(result?.projectCrs).toBe(fixtureCrs21037)
   expect(result?.portion.areaSqM).toBe(400)
   expect(result?.portion.areaHa).toBe(0.04)
   expect(result?.portion.boundaryPoints).toHaveLength(4)

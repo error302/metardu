@@ -13,7 +13,7 @@ export function DrainageStep2Pipes({
   data: DrainageData | null
   onSave: (pipeRuns: PipeRun[]) => void | Promise<boolean>
 }) {
-  const manholes = data?.manholes || []
+  const manholes = useMemo(() => data?.manholes ?? [], [data?.manholes])
   const { runs, issues } = useMemo(() => calculateProjectDrainageRuns(manholes), [manholes])
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)

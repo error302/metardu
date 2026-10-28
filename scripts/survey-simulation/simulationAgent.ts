@@ -35,6 +35,11 @@ export class SurveySimulationAgent {
     this.baseUrl = baseUrl;
   }
 
+  private get requiredPage(): Page {
+    if (!this.page) throw new Error('Initialize the synthetic browser session before executing a step');
+    return this.page;
+  }
+
   async initialize(excelFilePath: string): Promise<void> {
     console.log('🚀 Initializing Survey Simulation Agent...');
     
@@ -145,46 +150,46 @@ export class SurveySimulationAgent {
     try {
       // Navigate to login page
       console.log('📍 Navigating to login page...');
-      await this.page!.goto(`${this.baseUrl}/login`, { waitUntil: 'networkidle2' });
+      await this.requiredPage.goto(`${this.baseUrl}/login`, { waitUntil: 'networkidle2' });
       await this.takeScreenshot('step1-login-page');
       
       // Check if login page loaded
-      const loginForm = await this.page!.$('form');
+      const loginForm = await this.requiredPage.$('form');
       if (!loginForm) {
         throw new Error('Login form not found on page');
       }
       
       // Fill in test surveyor credentials
       console.log('📝 Entering test credentials...');
-      await this.page!.type('input[type="email"]', 'test.surveyor@metardu.com');
-      await this.page!.type('input[type="password"]', 'TestPassword123!');
+      await this.requiredPage.type('input[type="email"]', 'test.surveyor@metardu.com');
+      await this.requiredPage.type('input[type="password"]', 'TestPassword123!');
       
       await this.takeScreenshot('step1-credentials-filled');
       
       // Submit form
       console.log('🚀 Submitting login form...');
       await Promise.all([
-        this.page!.waitForNavigation({ waitUntil: 'networkidle2' }),
-        this.page!.click('button[type="submit"]')
+        this.requiredPage.waitForNavigation({ waitUntil: 'networkidle2' }),
+        this.requiredPage.click('button[type="submit"]')
       ]);
       
       await this.takeScreenshot('step1-after-login');
       
       // Check for successful redirect to dashboard
-      const currentUrl = this.page!.url();
+      const currentUrl = this.requiredPage.url();
       if (!currentUrl.includes('/dashboard')) {
         throw new Error(`Expected redirect to dashboard, but ended up at: ${currentUrl}`);
       }
       
       // Verify dashboard content
       console.log('✅ Verifying dashboard content...');
-      const dashboardContent = await this.page!.$('main');
+      const dashboardContent = await this.requiredPage.$('main');
       if (!dashboardContent) {
         throw new Error('Dashboard main content not found');
       }
       
       // Check for surveyor name and ISK number
-      const pageText = await this.page!.$eval('body', el => el.textContent || '');
+      const pageText = await this.requiredPage.$eval('body', el => el.textContent || '');
       if (!pageText.includes('ISK')) {
         this.createBugReport(
           'STEP 1 - Authentication',
@@ -221,17 +226,17 @@ export class SurveySimulationAgent {
     try {
       // Navigate to projects page
       console.log('📍 Navigating to projects page...');
-      await this.page!.goto(`${this.baseUrl}/projects`, { waitUntil: 'networkidle2' });
+      await this.requiredPage.goto(`${this.baseUrl}/projects`, { waitUntil: 'networkidle2' });
       await this.takeScreenshot('step2-projects-page');
       
       // Look for "New Project" button or navigate to /projects/new
-      let newProjectButton = await this.page!.$('a[href*="new"], button:contains("New")');
+      const newProjectButton = await this.requiredPage.$('a[href*="new"], button:contains("New")');
       if (!newProjectButton) {
         console.log('🔄 Trying direct navigation to /projects/new...');
-        await this.page!.goto(`${this.baseUrl}/projects/new`, { waitUntil: 'networkidle2' });
+        await this.requiredPage.goto(`${this.baseUrl}/projects/new`, { waitUntil: 'networkidle2' });
       } else {
         await newProjectButton.click();
-        await this.page!.waitForNavigation({ waitUntil: 'networkidle2' });
+        await this.requiredPage.waitForNavigation({ waitUntil: 'networkidle2' });
       }
       
       await this.takeScreenshot('step2-new-project-form');
@@ -256,12 +261,12 @@ export class SurveySimulationAgent {
       
       for (const field of fieldMappings) {
         try {
-          const element = await this.page!.$(field.selector);
+          const element = await this.requiredPage.$(field.selector);
           if (element) {
             if (field.selector.includes('select')) {
-              await this.page!.select(field.selector, field.value);
+              await this.requiredPage.select(field.selector, field.value);
             } else {
-              await this.page!.type(field.selector, field.value);
+              await this.requiredPage.type(field.selector, field.value);
             }
             console.log(`✅ Filled ${field.selector} with: ${field.value}`);
           } else {
@@ -278,14 +283,14 @@ export class SurveySimulationAgent {
       // Submit form
       console.log('🚀 Submitting project form...');
       await Promise.all([
-        this.page!.waitForNavigation({ waitUntil: 'networkidle2' }),
-        this.page!.click('button[type="submit"], button:contains("Create"), button:contains("Save")')
+        this.requiredPage.waitForNavigation({ waitUntil: 'networkidle2' }),
+        this.requiredPage.click('button[type="submit"], button:contains("Create"), button:contains("Save")')
       ]);
       
       await this.takeScreenshot('step2-project-created');
       
       // Verify project was created
-      const currentUrl = this.page!.url();
+      const currentUrl = this.requiredPage.url();
       if (currentUrl.includes('/projects/') && !currentUrl.includes('/new')) {
         console.log('✅ Project created successfully');
         

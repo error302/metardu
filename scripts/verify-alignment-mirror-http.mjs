@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 // Real source HTTP and native schema proof in the existing marked synthetic DB.
 import assert from 'node:assert/strict'
 import {randomUUID} from 'node:crypto'
@@ -65,7 +66,7 @@ try{
   const alignmentId=created.value.data.id
   const canonical={mode:'road',standard:'KRDM2017',road:{roadName:header.road_name,startChainage:1000,datum:'WGS84',coordinateSystem:'EPSG:32737',designSpeed:40,roadClass:'C',crossSectionTemplate:template,ips:[{id:'source-PI',name:'PI',easting:100,northing:0,radius:20,fieldNote:'Retain this source note',tangentLength:999}],vips:[],stations:[]}}
   await admin.query('UPDATE projects SET engineering_data=$2::jsonb WHERE id=$1',[projectId,JSON.stringify(canonical)])
-  check('header retains explicit sampling and authoritative CRS',Number(created.value.data.vertical_station_interval_m)===20&&created.value.data.coordinate_system==='EPSG:32737')
+  check('header retains explicit sampling and authoritative CRS',Number(created.value.data.vertical_station_interval_m)===20&&created.value.data.coordinate_system===declaredFixtureCrs32737)
   const ips=[{source_id:'source-A',name:'A',easting:0,northing:0,radius:0},{source_id:'source-PI',name:'PI',easting:100,northing:0,radius:20},{source_id:'source-B',name:'B',easting:100,northing:100,radius:0}]
   const horizontal=await call(owner,'/api/engineering/ips',{alignment_id:alignmentId,ips})
   check('zero-radius endpoints and the middle PI survive real HTTP saving',horizontal.response.status===200&&horizontal.value.calculation.status==='ready'&&horizontal.value.data.length===3&&horizontal.value.data[0].tangent_length===null&&Math.abs(Number(horizontal.value.data[1].chainage_tc)-1080)<1e-9)

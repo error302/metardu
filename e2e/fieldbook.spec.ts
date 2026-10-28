@@ -142,7 +142,6 @@ test.describe('Fieldbook — Observation Form Fields', () => {
     // Leveling fields: BS (Backsight), IS (Intermediate Sight), FS ( Foresight)
     // These should appear as table headers or input placeholders
     const bsHeader = page.locator('th, label, span').filter({ hasText: /BS|Backsight/i }).first()
-    const isHeader = page.locator('th, label, span').filter({ hasText: /^IS$|Intermediate/i }).first()
     const fsHeader = page.locator('th, label, span').filter({ hasText: /FS|Foresight/i }).first()
 
     await expect(bsHeader).toBeVisible({ timeout: 8000 })
@@ -194,9 +193,7 @@ test.describe('Fieldbook — Feature Buttons', () => {
     // VoiceDictationButton renders a microphone icon button
     // On mobile, the MobileFieldbookShell includes the UniversalMobileObservationForm
     // which has the VoiceDictationButton
-    const micButton = page.locator('button[aria-label*="icrophone"], button[aria-label*="oice"], button[aria-label*="ictate"]').first()
     // The button might not have aria-label, so also check for SVG mic icon
-    const voiceBtn = page.locator('button').filter({ hasText: /voice|dictate|mic/i }).first()
 
     // At minimum, the fieldbook should render on mobile
     await expect(page.locator('body')).toBeVisible()
@@ -209,7 +206,6 @@ test.describe('Fieldbook — Feature Buttons', () => {
 
     // BeaconPhotoCapture renders in UniversalMobileObservationForm
     // It shows a file input for camera capture
-    const photoInput = page.locator('input[type="file"][accept*="image"], input[capture]').first()
 
     // The fieldbook page should render on mobile viewport
     await expect(page.locator('body')).toBeVisible()
@@ -222,7 +218,6 @@ test.describe('Fieldbook — Feature Buttons', () => {
 
     // The "Pull from instrument" button appears in UniversalMobileObservationForm
     // when onPullInstrumentReading is provided (which it is)
-    const pullBtn = page.locator('button').filter({ hasText: /pull|instrument|connect/i }).first()
 
     // The fieldbook page should render on mobile viewport
     await expect(page.locator('body')).toBeVisible()

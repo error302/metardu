@@ -2,6 +2,10 @@ import React from 'react'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import SettingOutPage from './page'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs32737 = 'EPSG:32737'
+
+
 const syntheticDxf = `0\nSECTION\n2\nENTITIES\n0\nPOINT\n8\nSTAKEOUT\n10\n500010\n20\n9900000\n30\n100\n0\nENDSEC\n0\nEOF`
 
 describe('setting-out source workflow', () => {
@@ -17,7 +21,7 @@ describe('setting-out source workflow', () => {
     fireEvent.change(screen.getByLabelText('Station RL (m)'), { target: { value: '100' } })
     fireEvent.change(screen.getByLabelText('Instrument height (m)'), { target: { value: '1.5' } })
     fireEvent.change(screen.getByLabelText('Target height (m)'), { target: { value: '2' } })
-    fireEvent.change(screen.getByLabelText('Coordinate frame / EPSG'), { target: { value: 'EPSG:32737' } })
+    fireEvent.change(screen.getByLabelText('Coordinate frame / EPSG'), { target: { value: fixtureCrs32737 } })
     fireEvent.change(screen.getByLabelText('Backsight E'), { target: { value: '500000' } })
     fireEvent.change(screen.getByLabelText('Backsight N'), { target: { value: '9900010' } })
     fireEvent.click(screen.getByRole('button', { name: 'Compute Stakeout List' }))

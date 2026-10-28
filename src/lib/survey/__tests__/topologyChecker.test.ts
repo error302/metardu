@@ -21,6 +21,11 @@ import {
 } from '../topologyChecker'
 import type { SurveyPoint } from '@/lib/map/turfHelpers'
 
+// Declared reference systems for the synthetic controls in this suite.
+const fixtureCrs21037 = 'EPSG:21037'
+const fixtureCrs32736 = 'EPSG:32736'
+
+
 // ---------------------------------------------------------------------------
 // Mock @turf/turf
 // ---------------------------------------------------------------------------
@@ -101,7 +106,7 @@ describe('checkParcelOverlap', () => {
     mockTurfIntersect.mockReturnValue(fakePolygon)
     mockTurfArea.mockReturnValue(2500)
 
-    const issues = await checkParcelOverlap(square, [existing], 1, 'EPSG:21037')
+    const issues = await checkParcelOverlap(square, [existing], 1, fixtureCrs21037)
 
     expect(mockTurfFeatureCollection).toHaveBeenCalledWith([
       expect.objectContaining({ type: 'Feature' }),
@@ -117,14 +122,14 @@ describe('checkParcelOverlap', () => {
 
   it('reports no overlap when intersect returns null', async () => {
     mockTurfIntersect.mockReturnValue(null)
-    const issues = await checkParcelOverlap(square, [existing], 1, 'EPSG:21037')
+    const issues = await checkParcelOverlap(square, [existing], 1, fixtureCrs21037)
     expect(issues).toHaveLength(0)
   })
 
   it('ignores overlaps below the tolerance', async () => {
     mockTurfIntersect.mockReturnValue(fakePolygon)
     mockTurfArea.mockReturnValue(0.5) // below default 1 m² tolerance
-    const issues = await checkParcelOverlap(square, [existing], 1, 'EPSG:21037')
+    const issues = await checkParcelOverlap(square, [existing], 1, fixtureCrs21037)
     expect(issues).toHaveLength(0)
   })
 })
@@ -141,7 +146,7 @@ describe('checkSliverPolygons', () => {
       .mockReturnValueOnce(null) // directIntersection
     mockTurfArea.mockReturnValue(20)
 
-    const issues = await checkSliverPolygons(square, [existing], 0.5, 'EPSG:21037')
+    const issues = await checkSliverPolygons(square, [existing], 0.5, fixtureCrs21037)
     expect(issues).toHaveLength(1)
     expect(issues[0].type).toBe('sliver')
     // buffered + direct intersects both get a FeatureCollection
@@ -158,7 +163,7 @@ describe('checkSliverPolygons', () => {
 
   it('reports no sliver when both intersects are null', async () => {
     mockTurfIntersect.mockReturnValue(null)
-    const issues = await checkSliverPolygons(square, [existing], 0.5, 'EPSG:21037')
+    const issues = await checkSliverPolygons(square, [existing], 0.5, fixtureCrs21037)
     expect(issues).toHaveLength(0)
   })
 })
@@ -182,7 +187,7 @@ describe('checkRoadReserveEncroachment', () => {
     mockTurfIntersect.mockReturnValue(fakePolygon)
     mockTurfArea.mockReturnValue(500)
 
-    const issues = await checkRoadReserveEncroachment(square, [road], 'EPSG:21037')
+    const issues = await checkRoadReserveEncroachment(square, [road], fixtureCrs21037)
     expect(issues).toHaveLength(1)
     expect(issues[0].type).toBe('road_encroachment')
     expect(mockTurfIntersect).toHaveBeenCalledWith(
@@ -192,7 +197,7 @@ describe('checkRoadReserveEncroachment', () => {
 
   it('refuses an uncomputable road buffer instead of reporting no encroachment', async () => {
     mockTurfBuffer.mockReturnValue(null)
-    await expect(checkRoadReserveEncroachment(square, [road], 'EPSG:21037')).rejects.toThrow('could not be completed')
+    await expect(checkRoadReserveEncroachment(square, [road], fixtureCrs21037)).rejects.toThrow('could not be completed')
     expect(mockTurfIntersect).not.toHaveBeenCalled()
   })
 })
@@ -204,7 +209,7 @@ describe('checkRoadReserveEncroachment', () => {
 describe('checkSelfIntersection', () => {
   it('returns [] when kinks finds no self-intersections', async () => {
     mockTurfKinks.mockReturnValue({ type: 'FeatureCollection', features: [] })
-    const points = await checkSelfIntersection(square, 'EPSG:21037')
+    const points = await checkSelfIntersection(square, fixtureCrs21037)
     expect(points).toHaveLength(0)
   })
 
@@ -215,31 +220,31 @@ describe('checkSelfIntersection', () => {
         { type: 'Feature', geometry: { type: 'Point', coordinates: [50, 50] } },
       ],
     })
-    const points = await checkSelfIntersection(square, 'EPSG:21037')
+    const points = await checkSelfIntersection(square, fixtureCrs21037)
     expect(points).toHaveLength(1)
     expect(points[0].easting).toBe(50)
     expect(points[0].northing).toBe(50)
   })
 
   it('returns [] for fewer than 4 vertices', async () => {
-    expect(await checkSelfIntersection(square.slice(0, 3), 'EPSG:21037')).toHaveLength(0)
+    expect(await checkSelfIntersection(square.slice(0, 3), fixtureCrs21037)).toHaveLength(0)
   })
 })
 
 
 test('the supplied project CRS is used for forward and inverse self-intersection coordinates', async () => {
   mockTurfKinks.mockReturnValue({ features: [{ geometry: { coordinates: [50, 50] } }] })
-  await checkSelfIntersection(square, 'EPSG:32736')
+  await checkSelfIntersection(square, fixtureCrs32736)
   const proj4 = (await import('proj4')).default
-  expect(proj4).toHaveBeenCalledWith('EPSG:32736', 'EPSG:4326', expect.any(Array))
-  expect(proj4).toHaveBeenCalledWith('EPSG:4326', 'EPSG:32736', [50, 50])
+  expect(proj4).toHaveBeenCalledWith(fixtureCrs32736, 'EPSG:4326', expect.any(Array))
+  expect(proj4).toHaveBeenCalledWith('EPSG:4326', fixtureCrs32736, [50, 50])
 })
 test('a geometry engine failure cannot become a no-overlap pass', async () => {
   mockTurfIntersect.mockImplementationOnce(() => { throw new Error('Injected geometry failure') })
-  await expect(checkParcelOverlap(square, [existing], 1, 'EPSG:32736')).rejects.toThrow('could not evaluate')
+  await expect(checkParcelOverlap(square, [existing], 1, fixtureCrs32736)).rejects.toThrow('could not evaluate')
 })
 test('invalid coordinates and display projections are rejected before geometric operations', async () => {
-  await expect(checkParcelOverlap([{ easting: NaN, northing: 1 }], [existing], 1, 'EPSG:21037')).rejects.toThrow('finite')
+  await expect(checkParcelOverlap([{ easting: NaN, northing: 1 }], [existing], 1, fixtureCrs21037)).rejects.toThrow('finite')
   await expect(checkParcelOverlap(square, [existing], 1, 'EPSG:3857')).rejects.toThrow('display projection')
   await expect(checkParcelOverlap(square, [existing], 1, 'EPSG:4326')).rejects.toThrow('geographic')
 })

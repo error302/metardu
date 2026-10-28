@@ -1,5 +1,7 @@
 'use client'
 
+import { logger } from '@/lib/logger'
+
 import React, { useState, useMemo, useCallback, useEffect } from 'react'
 import { X, Download, Printer, Copy, Check, Building } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -87,7 +89,7 @@ export function SubdivisionPlanModal({
     try {
       return renderSubdivisionPlan(planData)
     } catch (err) {
-      console.error('Failed to render subdivision plan:', err)
+      logger.error('Failed to render subdivision plan:', { error: err })
       return '<svg><text x="20" y="30" fill="red">Render Error</text></svg>'
     }
   }, [planData])
@@ -349,7 +351,7 @@ export function SubdivisionPlanModal({
                     <div>
                       <label className="text-[9px] text-gray-400 uppercase block font-mono">Calculated area</label>
                       <div className="h-7 flex items-center text-xs text-gray-200 font-mono">
-                        {portionAreas[idx] === null ? 'Unavailable' : `${portionAreas[idx]!.toFixed(4)} ha`}
+                        {typeof portionAreas[idx] !== 'number' ? 'Unavailable' : `${portionAreas[idx]?.toFixed(4)} ha`}
                       </div>
                     </div>
                     <div>

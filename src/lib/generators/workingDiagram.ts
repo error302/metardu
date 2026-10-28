@@ -98,8 +98,6 @@ export async function generateWorkingDiagramPdf(
   });
 
   const totalDist = geom.bearingSchedule.reduce((s, l) => s + parseFloat(l.distance), 0);
-  const lastSt = geom.stations[geom.stations.length - 1];
-  const firstSt = geom.stations[0];
 
   autoTable(doc, {
     startY: ry,

@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 // Real PostgreSQL + HTTP checks against the existing loopback synthetic preview.
 // No customer database, application container, browser storage or email access.
 import assert from 'node:assert/strict'
@@ -70,7 +71,7 @@ try {
   check('actual HTTP commit acknowledges exact selected records and durable point IDs',receipt.requestId===requestId&&receipt.imported===2&&new Set(receipt.pointIds).size===2&&receipt.fieldVerified===false)
   const points=(await admin.query('SELECT point_name,easting,northing,elevation,horizontal_crs,vertical_datum,ST_X(geom) lon,ST_Y(geom) lat FROM survey_points WHERE project_id=$1 ORDER BY point_name',[project])).rows
   check('unknown height is SQL NULL while explicit zero remains zero',points[0].point_name==='NULL-H'&&points[0].elevation===null&&Number(points[1].elevation)===0&&points[0].vertical_datum===null)
-  check('coordinates and WGS84 geometry persist in the declared reference',Number(points[0].easting)===500000&&Number(points[0].northing)===9850000&&points[0].horizontal_crs==='EPSG:32737'&&Math.abs(points[0].lon-39)<1e-8&&points[0].lat<0)
+  check('coordinates and WGS84 geometry persist in the declared reference',Number(points[0].easting)===500000&&Number(points[0].northing)===9850000&&points[0].horizontal_crs===declaredFixtureCrs32737&&Math.abs(points[0].lon-39)<1e-8&&points[0].lat<0)
   const download=await owned(path+`?source=${requestId}`)
   check('source download preserves the exact original bytes including BOM',download.response.status===200&&createHash('sha256').update(download.text).digest('hex')===body.sourceFileHash)
   const retained=(await admin.query('SELECT quality_metadata,source_file_hash FROM observation_batches WHERE id=$1',[requestId])).rows[0]

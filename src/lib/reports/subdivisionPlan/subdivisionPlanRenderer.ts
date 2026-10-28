@@ -15,25 +15,28 @@
  *   6. Draft metadata and review status, without claiming official approval
  */
 
-import type {
-  SubdivisionPlanData,
-  SubdivisionPortion,
-  PlanPoint2D
-} from './types'
-import { escapeXml } from '@/lib/xml/escape'
-import { coordinateArea } from '@/lib/engine/area'
-import { resolveProjectCadCrs } from '@/lib/cad/projectCadDocument'
-import {
-  hasPolygonInteriorOverlap,
-  isSimplePolygonRing,
-  polygonInteriorPoint,
-} from '@/lib/spatial/simplePolygon'
-import {
-  distance,
-  bearingFromDelta,
-  bearingToDMS,
-  midpoint,
-} from '@/lib/reports/surveyPlan/geometry'
+/**
+ * Subdivision / Amalgamation Scheme Plan — SVG & Print Renderer
+ *
+ * Produces an A3 landscape draft from user-supplied geometry and metadata.
+ *
+ * Page Specification:
+ * - Dimensions: Standard A3 Landscape (420mm × 297mm)
+ * - Units: Millimeters (mm), vector SVG with high-DPI font metrics
+ * - Drawing layers:
+ *   1. Page background & Double-bezel border
+ *   2. A coordinate grid positioned from the registered project CRS
+ *   3. Main subdivision parcels with bearings, distances, beacons, and Ha areas
+ *   4. Supplied road reserve polygons (when spatial geometry is available)
+ *   5. User-entered location references and notes, clearly marked as not to scale
+ *   6. Draft metadata and review status, without claiming official approval
+ */
+import type { SubdivisionPlanData, SubdivisionPortion } from './types';
+import { escapeXml } from '@/lib/xml/escape';
+import { coordinateArea } from '@/lib/engine/area';
+import { resolveProjectCadCrs } from '@/lib/cad/projectCadDocument';
+import { hasPolygonInteriorOverlap, isSimplePolygonRing, polygonInteriorPoint } from '@/lib/spatial/simplePolygon';
+import { distance, bearingFromDelta, bearingToDMS, midpoint } from '@/lib/reports/surveyPlan/geometry';
 
 // ─── Layout Dimensions (mm) ────────────────────────────────────────────────
 const PAGE_W = 420
@@ -192,8 +195,8 @@ export function renderSubdivisionPlan(data: SubdivisionPlanData): string {
   const toCanvasY = (n: number) => canvasCenterM.y - (n - centerN) * plotScale
 
   // 5. Coordinate grid labels are positioned from the actual CRS coordinates.
-  if (hasValidGeometry) {
-    parts.push(renderCoordinateGrid(bbox, centerE, centerN, plotScale, canvasCenterM, projectCrs!))
+  if (hasValidGeometry && projectCrs) {
+    parts.push(renderCoordinateGrid(bbox, centerE, centerN, plotScale, canvasCenterM, projectCrs))
   } else {
     parts.push(`
       <text x="${drawArea.x1 + drawArea.w / 2}" y="${drawArea.y1 + drawArea.h / 2}" text-anchor="middle" font-size="3.2mm" font-weight="bold" fill="#92400e">BOUNDARY NOT PLOTTED</text>

@@ -12,6 +12,10 @@
       "./tsconfig.tests.json"
     ]
   },
+  "ignorePatterns": [
+    "!src/app/.well-known/",
+    "!src/app/.well-known/**"
+  ],
   "rules": {
     "react/no-unescaped-entities": "off",
     "@next/next/no-page-custom-font": "off",
@@ -79,6 +83,19 @@
   "overrides": [
     {
       "files": [
+        "scripts/**/*.ts",
+        "e2e/**/*.ts",
+        "capacitor.config.ts",
+        "playwright.config.ts"
+      ],
+      "parserOptions": {
+        "project": [
+          "./tsconfig.lint-owned.json"
+        ]
+      }
+    },
+    {
+      "files": [
         "src/test-utils/**/*.ts",
         "src/test-utils/**/*.tsx",
         "tests/**/*.ts",
@@ -88,11 +105,22 @@
         "src/**/__tests__/**/*.ts",
         "src/**/__tests__/**/*.tsx"
       ],
-      "parserOptions": { "project": ["./tsconfig.tests.json"] }
+      "parserOptions": {
+        "project": [
+          "./tsconfig.tests.json"
+        ]
+      }
     },
     {
-      "files": ["scripts/engine-verify.ts", "scripts/verify-export-repair.ts"],
-      "parserOptions": { "project": ["./tsconfig.lint-tools.json"] }
+      "files": [
+        "scripts/engine-verify.ts",
+        "scripts/verify-export-repair.ts"
+      ],
+      "parserOptions": {
+        "project": [
+          "./tsconfig.lint-tools.json"
+        ]
+      }
     },
     {
       "files": [
@@ -162,6 +190,81 @@
       "rules": {
         "metardu/no-hardcoded-srid-default": "error",
         "metardu/no-web-mercator-measure": "error"
+      }
+    },
+    {
+      "files": [
+        "scripts/**/*.js",
+        "scripts/**/*.mjs",
+        "scripts/**/*.cjs",
+        "tests/**/*.js",
+        "tests/**/*.mjs",
+        "eslint-plugin-metardu/**/*.js",
+        "eslint-plugin-metardu/**/*.cjs",
+        "data/**/*.cjs",
+        "jest.chatgpt.config.cjs",
+        "jest.config.js",
+        "next.config.js",
+        "ntrip-proxy.js",
+        "postcss.config.js",
+        "tailwind.config.js"
+      ],
+      "extends": [
+        "plugin:@typescript-eslint/disable-type-checked"
+      ],
+      "parserOptions": {
+        "project": null
+      }
+    },
+    {
+      "files": [
+        "scripts/**/*.{js,mjs,cjs,ts,mts,cts}",
+        "tests/**/*.{js,mjs,cjs}",
+        "ntrip-proxy.js"
+      ],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": [
+        "**/*.cjs",
+        "eslint-plugin-metardu/**/*.js",
+        "scripts/**/*.js",
+        "jest.config.js",
+        "next.config.js",
+        "postcss.config.js",
+        "tailwind.config.js",
+        "ntrip-proxy.js"
+      ],
+      "rules": {
+        "@typescript-eslint/no-require-imports": "off"
+      }
+    },
+    {
+      "files": [
+        "tests/**/*.mts",
+        "tests/**/*.cts"
+      ],
+      "parserOptions": {
+        "project": [
+          "./tsconfig.lint-owned.json"
+        ]
+      }
+    },
+    {
+      "files": [
+        "next-env.d.ts"
+      ],
+      "rules": {
+        "@typescript-eslint/triple-slash-reference": [
+          "error",
+          {
+            "path": "always",
+            "types": "prefer-import",
+            "lib": "always"
+          }
+        ]
       }
     }
   ]

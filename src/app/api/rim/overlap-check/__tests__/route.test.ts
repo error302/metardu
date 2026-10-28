@@ -35,6 +35,8 @@ jest.mock('@/lib/logger', () => ({
   auditLog: jest.fn(),
 }))
 
+const fixtureCrs = 'EPSG:21037'
+
 import { POST } from '../route'
 import { db } from '@/lib/db'
 import { getServerSession } from 'next-auth'
@@ -82,7 +84,7 @@ const OVERLAPPING_PARCEL: ParcelForOverlap = {
 }
 
 function postBody(newParcel: ParcelForOverlap, existingParcels: ParcelForOverlap[]) {
-  return JSON.stringify({ newParcel, existingParcels })
+  return JSON.stringify({ newParcel, existingParcels, projectCrs: fixtureCrs })
 }
 
 /** Typed view of the success response so assertions need no unsafe casts. */
@@ -179,4 +181,12 @@ describe('POST /api/rim/overlap-check', () => {
     const data = (await res.json()) as { error: string; code: string }
     expect(data.code).toBe('UNAUTHORIZED')
   })
+  it.each([undefined, 'EPSG:3857', 'EPSG:4326', 'EPSG:99999'])('rejects an absent or invalid measurement CRS: %s', async projectCrs => {
+    const response = await POST(makeRequest('/api/rim/overlap-check', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ newParcel: NEW_PARCEL, existingParcels: [], projectCrs }),
+    }))
+    expect(response.status).toBe(400)
+  })
+
 })

@@ -141,12 +141,8 @@ export function generateTraverseComputationSheet(
   });
 
   // Estimate total pages
-  const totalPages = estimateTotalPages(
-    input.observations.length,
-    input.legs.length,
-    input.coordinates.length
-  );
-  let currentPage = 1;
+
+
 
   // =========================================================================
   // PAGE 1 — Header + Info + Tables 1 & 2
@@ -165,7 +161,7 @@ export function generateTraverseComputationSheet(
   // Check if we need a new page for Table 2
   if (y > PAGE_H - 80) {
     doc.addPage();
-    currentPage++;
+
     y = MARGIN;
   }
 
@@ -176,7 +172,7 @@ export function generateTraverseComputationSheet(
   // Check if we need a new page for Table 3
   if (y > PAGE_H - 80) {
     doc.addPage();
-    currentPage++;
+
     y = MARGIN;
   }
 
@@ -187,7 +183,7 @@ export function generateTraverseComputationSheet(
   // Check if we need a new page for Closure Summary + Certificate
   if (y > PAGE_H - 120) {
     doc.addPage();
-    currentPage++;
+
     y = MARGIN;
   }
 
@@ -198,7 +194,7 @@ export function generateTraverseComputationSheet(
   // Check if we need a new page for certificate
   if (y > PAGE_H - 70) {
     doc.addPage();
-    currentPage++;
+
     y = MARGIN;
   }
 
@@ -222,16 +218,7 @@ export function generateTraverseComputationSheet(
 // Estimate page count
 // ---------------------------------------------------------------------------
 
-function estimateTotalPages(
-  obsCount: number,
-  legCount: number,
-  coordCount: number
-): number {
-  const maxRows = Math.max(obsCount, legCount, coordCount);
-  if (maxRows <= 12) return 1;
-  if (maxRows <= 25) return 2;
-  return 3;
-}
+
 
 // ---------------------------------------------------------------------------
 // Draw the Republic of Kenya / DoLS header

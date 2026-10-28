@@ -48,9 +48,9 @@ async function runQuickTests() {
     console.log(`   Title: ${title}`)
     console.log(`   Has content: ${hasContent ? 'YES' : 'NO'}`)
     tests.push({ name: 'Home Page', status: hasContent ? 'PASS' : 'FAIL' })
-  } catch (e: any) {
-    console.log(`   ERROR: ${e.message}`)
-    tests.push({ name: 'Home Page', status: 'FAIL', error: e.message })
+  } catch (e: unknown) {
+    console.log(`   ERROR: ${(e instanceof Error ? e.message : String(e))}`)
+    tests.push({ name: 'Home Page', status: 'FAIL', error: (e instanceof Error ? e.message : String(e)) })
   }
   
   // Test 2: Login page
@@ -65,9 +65,9 @@ async function runQuickTests() {
     console.log(`   Email input: ${hasEmailInput ? 'YES' : 'NO'}`)
     console.log(`   Password input: ${hasPasswordInput ? 'YES' : 'NO'}`)
     tests.push({ name: 'Login Page', status: hasForm && hasEmailInput && hasPasswordInput ? 'PASS' : 'FAIL' })
-  } catch (e: any) {
-    console.log(`   ERROR: ${e.message}`)
-    tests.push({ name: 'Login Page', status: 'FAIL', error: e.message })
+  } catch (e: unknown) {
+    console.log(`   ERROR: ${(e instanceof Error ? e.message : String(e))}`)
+    tests.push({ name: 'Login Page', status: 'FAIL', error: (e instanceof Error ? e.message : String(e)) })
   }
   
   // Test 3: Dashboard (should redirect to login if not authenticated)
@@ -80,9 +80,9 @@ async function runQuickTests() {
     console.log(`   URL: ${url}`)
     console.log(`   Redirected to login: ${redirectedToLogin ? 'YES' : 'NO'}`)
     tests.push({ name: 'Dashboard Auth', status: redirectedToLogin ? 'PASS' : 'FAIL' })
-  } catch (e: any) {
-    console.log(`   ERROR: ${e.message}`)
-    tests.push({ name: 'Dashboard Auth', status: 'FAIL', error: e.message })
+  } catch (e: unknown) {
+    console.log(`   ERROR: ${(e instanceof Error ? e.message : String(e))}`)
+    tests.push({ name: 'Dashboard Auth', status: 'FAIL', error: (e instanceof Error ? e.message : String(e)) })
   }
   
   // Test 4: Traverse tool
@@ -93,9 +93,9 @@ async function runQuickTests() {
     const hasInput = await page.locator('input, textarea').count() > 0
     console.log(`   Has inputs: ${hasInput ? 'YES' : 'NO'}`)
     tests.push({ name: 'Traverse Tool', status: hasInput ? 'PASS' : 'FAIL' })
-  } catch (e: any) {
-    console.log(`   ERROR: ${e.message}`)
-    tests.push({ name: 'Traverse Tool', status: 'FAIL', error: e.message })
+  } catch (e: unknown) {
+    console.log(`   ERROR: ${(e instanceof Error ? e.message : String(e))}`)
+    tests.push({ name: 'Traverse Tool', status: 'FAIL', error: (e instanceof Error ? e.message : String(e)) })
   }
   
   // Test 5: Survey Report Builder
@@ -108,9 +108,9 @@ async function runQuickTests() {
     console.log(`   URL: ${url}`)
     console.log(`   Has content: ${hasContent ? 'YES' : 'NO'}`)
     tests.push({ name: 'Survey Report Builder', status: hasContent ? 'PASS' : 'FAIL' })
-  } catch (e: any) {
-    console.log(`   ERROR: ${e.message}`)
-    tests.push({ name: 'Survey Report Builder', status: 'FAIL', error: e.message })
+  } catch (e: unknown) {
+    console.log(`   ERROR: ${(e instanceof Error ? e.message : String(e))}`)
+    tests.push({ name: 'Survey Report Builder', status: 'FAIL', error: (e instanceof Error ? e.message : String(e)) })
   }
   
   await browser.close()

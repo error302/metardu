@@ -13,7 +13,7 @@ const statePath=resolve(directory,'private-qa-state.json')
 const resultPath=resolve(directory,'live-auth.json')
 mkdirSync(directory,{recursive:true})
 let state=existsSync(statePath)?JSON.parse(readFileSync(statePath,'utf8')):null
-let evidence=existsSync(resultPath)?JSON.parse(readFileSync(resultPath,'utf8')):{origin,checks:[],customerPasswordsChanged:false}
+const evidence=existsSync(resultPath)?JSON.parse(readFileSync(resultPath,'utf8')):{origin,checks:[],customerPasswordsChanged:false}
 function save(){if(state)writeFileSync(statePath,JSON.stringify(state),{mode:0o600});writeFileSync(resultPath,JSON.stringify(evidence,null,2)+'\n')}
 function checked(name,detail={}){evidence.checks.push({name,passed:true,...detail});save();console.log(JSON.stringify({check:name,passed:true,...detail}))}
 async function request(path,{method='GET',body,form=false,jar=state?.cookies??{},...options}={}) {

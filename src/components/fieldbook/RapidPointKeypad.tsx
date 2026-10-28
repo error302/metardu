@@ -1,18 +1,7 @@
 'use client'
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import {
-  Mic,
-  MicOff,
-  Plus,
-  Minus,
-  Sparkles,
-  Tag,
-  Hash,
-  Check,
-  RotateCcw,
-  Volume2,
-} from 'lucide-react'
+import { Mic, MicOff, Plus, Minus } from 'lucide-react';
 
 export interface SurveyFeatureCode {
   code: string
@@ -55,8 +44,18 @@ export function RapidPointKeypad({
 }: RapidPointKeypadProps) {
   const [listening, setListening] = useState(false)
   const [selectedCode, setSelectedCode] = useState<string | null>(null)
-  const [autoAdvanceNumber, setAutoAdvanceNumber] = useState(true)
-  const recognitionRef = useRef<any>(null)
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+
+  useEffect(() => () => {
+    const recognition = recognitionRef.current
+    recognitionRef.current = null
+    if (recognition) {
+      recognition.onresult = null
+      recognition.onerror = null
+      recognition.onend = null
+      recognition.abort()
+    }
+  }, [])
 
   // Increment point number (e.g. MB-01 -> MB-02 or STN1 -> STN2)
   const handleIncrement = useCallback(() => {
@@ -103,7 +102,7 @@ export function RapidPointKeypad({
     }
 
     const SpeechRecognition =
-      (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+      window.SpeechRecognition ?? window.webkitSpeechRecognition
     if (!SpeechRecognition) {
       alert('Speech Recognition not supported in this browser. Use Chrome or Edge.')
       return
@@ -115,9 +114,11 @@ export function RapidPointKeypad({
       recognition.interimResults = false
       recognition.lang = 'en-KE' // Kenyan English / East Africa
 
-      recognition.onresult = (e: any) => {
-        const transcript = e.results[0][0].transcript
-        onDescriptionChange(description ? `${description} ${transcript}` : transcript)
+      recognition.onresult = (e: SpeechRecognitionEventLike) => {
+        const transcript = e.results[0]?.[0]?.transcript
+        if (typeof transcript === 'string' && transcript.trim()) {
+          onDescriptionChange(description ? `${description} ${transcript}` : transcript)
+        }
         setListening(false)
       }
 

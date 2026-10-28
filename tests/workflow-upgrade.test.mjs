@@ -1,4 +1,5 @@
 import test from 'node:test'
+import { spawnSync } from 'node:child_process'
 import assert from 'node:assert/strict'
 import { workflowUpgradeTarget, workflowUpgradeRegistry } from '../scripts/verify-workflow-upgrade.mjs'
 
@@ -22,4 +23,13 @@ test('workflow rehearsal pins the complete 119-to-128 migration registry', () =>
   for (const bad of [files.slice(1), files.concat({ version: '124_unreviewed' }), files.map((file, index) => index === 119 ? { version: '115_unknown' } : file), files.map((file, index) => index === 118 ? files[0] : file)]) {
     assert.throws(() => workflowUpgradeRegistry(bad))
   }
+})
+
+
+test('contract imports work without any installed runtime package', () => {
+  const loader = "import {isBuiltin} from 'node:module'; export async function resolve(s,c,next) { if(!isBuiltin(s)&&!s.startsWith('.')&&!s.startsWith('/')&&!s.startsWith('file:')) throw new Error('Runtime package loaded during contract import: '+s); return next(s,c) }"
+  const source = "import {register} from 'node:module'; register('data:text/javascript,'+encodeURIComponent(process.argv[1]),import.meta.url); const verifier=await import(process.argv[2]); if(typeof verifier.workflowUpgradeTarget!=='function'||typeof verifier.workflowUpgradeRegistry!=='function') throw new Error('Contract exports missing')"
+  const result = spawnSync(process.execPath, ['--input-type=module', '-e', source, loader, new URL('../scripts/verify-workflow-upgrade.mjs', import.meta.url).href], { encoding: 'utf8', windowsHide: true, timeout: 30000 })
+  assert.ifError(result.error)
+  assert.equal(result.status, 0, result.stderr)
 })

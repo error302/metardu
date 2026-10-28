@@ -23,6 +23,8 @@ jest.mock('@/lib/logger', () => ({
 
 import { POST } from '../route'
 import { db, setCurrentRlsServiceRole } from '@/lib/db'
+import { responseObject } from '@/test-utils/response'
+
 
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockSetCurrentRlsServiceRole = setCurrentRlsServiceRole as jest.MockedFunction<typeof setCurrentRlsServiceRole>
@@ -75,7 +77,7 @@ describe('POST /api/cron/reconcile-payments — auth', () => {
 
     const res = await POST(cronRequest(KEY))
     expect(res.status).toBe(200)
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.ok).toBe(true)
     expect(body.expiredIntents).toBe(1)
     expect(body.expiredIntentIds).toEqual(['i1'])
@@ -149,7 +151,7 @@ describe('POST /api/cron/reconcile-payments — failure handling', () => {
     mockDbQuery.mockRejectedValueOnce(new Error('connection refused'))
     const res = await POST(cronRequest(KEY))
     expect(res.status).toBe(500)
-    const body = await res.json()
+    const body = await responseObject(res)
     expect(body.error).toBe('Reconciliation sweep failed')
   })
 })

@@ -99,11 +99,15 @@ if (updateFlags.length > 1) {
   process.exit(2)
 }
 const scopeIdx = args.indexOf('--scope')
-const SCOPE = scopeIdx >= 0 && args[scopeIdx + 1] ? args[scopeIdx + 1].split(',') : ['src/middleware.ts', 'src/']
+// Git owns the product inventory; preserve ignored private QA scripts and
+// vendored agent skills/archived documentation examples outside product lint.
+const SCOPE = scopeIdx >= 0 && args[scopeIdx + 1] ? args[scopeIdx + 1].split(',')
+  : [...new Set(execFileSync('git', ['-c', 'core.fsmonitor=false', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], { encoding: 'utf8', windowsHide: true })
+    .split('\0').filter(file => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file) && !/^(?:\.claude|docs)\//.test(file)))]
 
 // Some scoped runs (tests) operate in a partial checkout that may lack
 // middleware.ts — drop scope entries that don't exist instead of failing.
-const EXISTING_SCOPE = SCOPE.filter((p) => existsSync(p) || /[\/*?]/.test(p))
+const EXISTING_SCOPE = SCOPE.filter((p) => existsSync(p) || /[/*?]/.test(p))
 if (EXISTING_SCOPE.length !== SCOPE.length) {
   console.error(`[lint-ratchets] note: ${SCOPE.length - EXISTING_SCOPE.length} scope path(s) not present in this checkout, linting ${EXISTING_SCOPE.join(', ')}`)
 }

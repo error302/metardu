@@ -1,18 +1,11 @@
 'use client'
 
-import React, { useState } from 'react'
+import React from 'react';
 import GeofenceMonitor from '@/components/survey/GeofenceMonitor'
 import { ToolGate } from '@/components/shared/ToolGate'
 import { PageHeader } from '@/components/shared/PageHeader'
-import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
-import { ShieldAlert } from 'lucide-react'
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from '@/components/ui/breadcrumb';
+
 
 export default function GeofencePage() {
   return (

@@ -1,3 +1,4 @@
+const declaredFixtureCrs32737 = 'EPSG:32737'
 // Owned synthetic HTTP/native proof only. Never reads deployment DATABASE_URL or applies migrations.
 import assert from 'node:assert/strict'
 import { randomUUID, createHash } from 'node:crypto'
@@ -608,7 +609,7 @@ try {
       if(!existing.length){
         const mesh={points:[{x:499900,y:9499900,z:0.5},{x:500100,y:9499900,z:0.5},{x:500100,y:9500100,z:0.5},{x:499900,y:9500100,z:0.5}],triangles:[{a:0,b:1,c:2},{a:0,b:2,c:3}]}
         const parameters={interval:1,maxVertexSpacing:1,indexInterval:5}
-        const observations=mesh.points.map(p=>({...p,id:randomUUID(),horizontalCrs:'EPSG:32737',verticalDatum:'Synthetic BM'}))
+        const observations=mesh.points.map(p=>({...p,id:randomUUID(),horizontalCrs:declaredFixtureCrs32737,verticalDatum:'Synthetic BM'}))
         const snapshot=JSON.parse(JSON.stringify({schemaVersion:2,sourceAdmissionVersion:'surface-source-v2',hashAlgorithm:'sha256-canonical-json-v1',reference,referenceHash:digest(normalizedReference),parameters,fieldVerified:false,observations,sourceSelection:{pointIds:observations.map(p=>p.id)}}))
         const result={snapshot,mesh,outputIntegrity:{algorithm:'sha256-canonical-json-v1',meshHash:digest(mesh)}}
         await admin.query('BEGIN')

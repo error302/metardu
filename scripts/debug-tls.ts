@@ -1,5 +1,5 @@
 // Debug: TLS convergence with the larger 6×3 system
-const { computeStandardTLS } = require('../src/lib/survey/totalLeastSquares')
+import { computeStandardTLS } from '../src/lib/survey/totalLeastSquares'
 
 // Try a much simpler system: 4 equations, 2 unknowns
 const A = [

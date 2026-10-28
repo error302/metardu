@@ -8,7 +8,7 @@ async function main() {
   // Try fallback connection strings if needed
   try {
     await c.connect();
-  } catch (err) {
+  } catch  {
     console.log('Connecting with env or default failed, trying alternate...');
     const c2 = new Client({
       host: 'localhost',

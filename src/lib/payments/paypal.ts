@@ -3,7 +3,7 @@
  * Processes PayPal payments
  */
 import { logger } from '@/lib/logger'
-import { resolvePayPalCurrency } from './paypalCurrency'
+
 import type { PayPalBillingCurrency } from './paypalCurrency'
 
 export { resolvePayPalCurrency } from './paypalCurrency'

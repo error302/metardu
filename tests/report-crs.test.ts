@@ -1,5 +1,8 @@
-import { reportCrs } from '@/lib/generators/reportCrs'
+const fixtureCrs21037 = 'EPSG:21037'
+const fixtureCrs32636 = 'EPSG:32636'
 import { ellipsoidForDatum } from '@/lib/spatial/projectCrs'
+import { reportCrs } from '@/lib/generators/reportCrs'
+
 
 test.each([
   [{utmZone:37,hemisphere:'N',datum:'Arc 1960'}, '21097'],
@@ -16,7 +19,7 @@ describe('reportCrs described metadata', () => {
   it('describes a declared Arc 1960 zone 37S project', () => {
     const crs = reportCrs({ utmZone: 37, hemisphere: 'S', datum: 'Arc 1960' })
     if (!crs.verified) throw new Error('expected verified CRS')
-    expect(crs.epsgCode).toBe('EPSG:21037')
+    expect(crs.epsgCode).toBe(fixtureCrs21037)
     expect(crs.crsName).toBe('Arc 1960 / UTM Zone 37S')
     expect(crs.ellipsoid).toBe('Clarke 1880 (RGS)')
     expect(crs.ellipsoidA).toBe(6378249.145)
@@ -27,7 +30,7 @@ describe('reportCrs described metadata', () => {
   it('describes a declared WGS 84 zone 36N project', () => {
     const crs = reportCrs({ utmZone: 36, hemisphere: 'N', datum: 'WGS84' })
     if (!crs.verified) throw new Error('expected verified CRS')
-    expect(crs.epsgCode).toBe('EPSG:32636')
+    expect(crs.epsgCode).toBe(fixtureCrs32636)
     expect(crs.crsName).toBe('WGS 84 / UTM Zone 36N')
     expect(crs.ellipsoid).toBe('WGS 84')
     expect(crs.ellipsoidA).toBe(6378137)

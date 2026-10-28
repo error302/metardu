@@ -1,3 +1,4 @@
+import { requiredValue } from '@/test-utils/requiredValue'
 import {
   endpointsBearingInCrs,
   polygonAreaInCrs,
@@ -42,7 +43,7 @@ describe('map measurement uses survey maths, not Web Mercator', () => {
     const coords = [toDisplayPt(500000, 9860000), toDisplayPt(500300, 9860400)]
     const bearing = endpointsBearingInCrs(coords, CRS)
     expect(bearing).not.toBeNull()
-    expect(bearing!).toBeCloseTo((Math.atan2(300, 400) * 180) / Math.PI, 6)
+    expect(requiredValue(bearing)).toBeCloseTo((Math.atan2(300, 400) * 180) / Math.PI, 6)
   })
 
   it('returns null bearing for coincident endpoints', () => {

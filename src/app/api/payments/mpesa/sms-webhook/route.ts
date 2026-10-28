@@ -90,7 +90,8 @@ export async function POST(req: NextRequest) {
     }
 
     const mpesaCode = parsed.mpesaCode
-    if (!Number.isFinite(parsed.amount) || parsed.amount! <= 0) {
+    const smsAmount = parsed.amount
+    if (typeof smsAmount !== 'number' || !Number.isFinite(smsAmount) || smsAmount <= 0) {
       return NextResponse.json({ error: 'SMS must contain a positive payment amount' }, { status: 422 })
     }
     const tillNumber = getMpesaTillNumber()
@@ -120,7 +121,6 @@ export async function POST(req: NextRequest) {
       // review instead of activation.
       const { getPlanPrice } = await import('@/lib/subscription/catalog')
       const expectedAmount = getPlanPrice(planId, 'KES')
-      const smsAmount = parsed.amount!
       if (
         !Number.isFinite(smsAmount) ||
         smsAmount <= 0 ||

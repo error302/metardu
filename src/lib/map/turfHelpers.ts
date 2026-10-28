@@ -1,22 +1,6 @@
-/**
- * @module turfHelpers
- *
- * Pure-computation geospatial helpers wrapping @turf/turf for Kenyan cadastral
- * surveying on Metardu.
- *
- * **CRS convention** — every public API accepts and returns coordinates in a
- * Kenya UTM CRS (default EPSG:21037 / Arc 1960 / UTM Zone 37 South) expressed
- * as `{easting, northing}` (metres).  Internally, coordinates are round-tripped
- * through proj4 to/from WGS84 (EPSG:4326) so that turf can operate on
- * geographic [lon, lat] values.
- *
- * T1.5 FIX (2026-07-09): All functions now accept an optional `epsg` parameter
- * (default 'EPSG:21037'). Pass the project's actual UTM zone to avoid silent
- * wrong-coordinate bugs outside Zone 37S (Mombasa, Kisumu, Turkana).
- * Supported zones: EPSG:21036, EPSG:21037, EPSG:32736, EPSG:32737.
- *
- * No OpenLayers dependency — this module is safe for use in Node workers,
- * server-side code, and any environment where only numeric results are needed.
+/** Geospatial helpers using the caller's declared projected CRS.
+ * Turf operates in WGS84; project transformations use the shared CRS authority.
+ * Turf areas and lengths are spherical estimates, not statutory acceptance.
  */
 
 // ---------------------------------------------------------------------------
@@ -27,7 +11,7 @@ import type { Point2D } from '@/types/surveyPoint'
 
 import type { Feature, LineString, MultiPolygon, Polygon } from 'geojson'
 
-import type proj4Type from 'proj4'
+import { assertProjectedCrs, transformPoint } from '@/lib/spatial/projectCrs'
 
 /**
  * A survey point on the Kenya cadastral grid.
@@ -45,51 +29,20 @@ export type SurveyPoint = Point2D
 type TurfModule = typeof import('@turf/turf')
 
 let _turf: TurfModule | null = null;
-let _proj4: typeof proj4Type | null = null;
-
-/**
- * T1.5 FIX (2026-07-09): Proj4 definitions for all Kenya UTM zones.
- * Previously only EPSG:21037 was registered — projects in Zone 36 (Kisumu,
- * Mombasa) would silently get wrong coordinates.
- */
-const KENYA_UTM_DEFS: Record<string, string> = {
-  'EPSG:21036': '+proj=utm +zone=36 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
-  'EPSG:21037': '+proj=utm +zone=37 +south +ellps=clrk80 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs',
-  // WGS 84 UTM zones are built into proj4js but we register for clarity
-  'EPSG:32736': '+proj=utm +zone=36 +south +datum=WGS84 +units=m +no_defs',
-  'EPSG:32737': '+proj=utm +zone=37 +south +datum=WGS84 +units=m +no_defs',
-}
-
-/**
- * Ensures turf and proj4 are loaded (once, lazily on first call).
- * Also registers all Kenya UTM zone definitions.
- * Idempotent — subsequent calls resolve instantly.
- */
 async function ensureLoaded(): Promise<void> {
-  if (!_turf || !_proj4) {
-    const [turfMod, proj4Mod] = await Promise.all([
-      import('@turf/turf'),
-      import('proj4'),
-    ]);
-    _turf = turfMod as TurfModule;
-    _proj4 = (proj4Mod.default ?? proj4Mod) as typeof proj4Type;
-    // T1.5: Register ALL Kenya UTM zones, not just 21037
-    for (const [code, def] of Object.entries(KENYA_UTM_DEFS)) {
-      (_proj4 as typeof proj4Type).defs(code, def);
-    }
-  }
+  _turf ??= await import('@turf/turf');
 }
-
-/** Narrow _turf after ensureLoaded. */
 async function getTurf(): Promise<TurfModule> {
   await ensureLoaded();
-  return _turf as TurfModule
+  if (!_turf) throw new Error('Turf did not load');
+  return _turf;
 }
 
-/** Narrow _proj4 after ensureLoaded. */
-async function getProj4(): Promise<typeof proj4Type> {
-  await ensureLoaded();
-  return _proj4 as typeof proj4Type
+function project(x: number, y: number, from: string, to: string): [number, number] {
+  if (!Number.isFinite(x) || !Number.isFinite(y)) throw new RangeError('Coordinates must be finite');
+  const result = transformPoint(x, y, from, to);
+  if (!result.every(Number.isFinite)) throw new RangeError('Coordinate transformation failed');
+  return result;
 }
 
 // ---------------------------------------------------------------------------
@@ -102,7 +55,7 @@ async function getProj4(): Promise<typeof proj4Type> {
  *
  * @param easting - Easting in metres.
  * @param northing - Northing in metres.
- * @param epsg - Source EPSG code (default 'EPSG:21037' for Arc 1960 / UTM 37S).
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns Tuple `[longitude, latitude]` in degrees (WGS84).
  *
  * @example
@@ -112,12 +65,10 @@ async function getProj4(): Promise<typeof proj4Type> {
 export async function toTurfCoord(
   easting: number,
   northing: number,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<[number, number]> {
-  await ensureLoaded();
-  // ensureLoaded() guarantees _proj4 is set
-  const p4 = _proj4 as typeof proj4Type
-  const [lon, lat] = p4(epsg, 'EPSG:4326', [easting, northing]);
+  assertProjectedCrs(epsg);
+  const [lon, lat] = project(easting, northing, epsg, 'EPSG:4326');
   return [lon, lat];
 }
 
@@ -125,7 +76,7 @@ export async function toTurfCoord(
  * Convert a WGS84 [lon, lat] coordinate (turf format) back to UTM.
  *
  * @param coord - `[longitude, latitude]` in degrees (WGS84).
- * @param epsg - Target EPSG code (default 'EPSG:21037').
+ * @param epsg - Target EPSG code (required project CRS).
  * @returns Object with `easting` and `northing` in metres.
  *
  * @example
@@ -134,10 +85,11 @@ export async function toTurfCoord(
  */
 export async function fromTurfCoord(
   coord: [number, number],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint> {
+  assertProjectedCrs(epsg);
   await ensureLoaded();
-  const [easting, northing] = (await getProj4())('EPSG:4326', epsg, coord);
+  const [easting, northing] = project(coord[0], coord[1], 'EPSG:4326', epsg);
   return { easting, northing };
 }
 
@@ -147,17 +99,17 @@ export async function fromTurfCoord(
  * The ring is automatically closed if the first and last vertices differ.
  *
  * @param vertices - Array of `{easting, northing}` objects.
- * @param epsg - Source EPSG code (default 'EPSG:21037').
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns A turf Polygon GeoJSON in WGS84.
  */
 export async function polygonToTurf(
   vertices: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<Feature<Polygon>> {
+  assertProjectedCrs(epsg);
   await ensureLoaded();
-  const p4 = await getProj4();
   const ring = vertices.map((v) =>
-    p4(epsg, 'EPSG:4326', [v.easting, v.northing]),
+    project(v.easting, v.northing, epsg, 'EPSG:4326'),
   );
   // Ensure the ring is closed
   if (ring.length > 0) {
@@ -174,17 +126,17 @@ export async function polygonToTurf(
  * Convert an array of UTM survey points to a turf {@link LineString}.
  *
  * @param vertices - Array of `{easting, northing}` objects.
- * @param epsg - Source EPSG code (default 'EPSG:21037').
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns A turf LineString GeoJSON in WGS84.
  */
 export async function lineStringToTurf(
   vertices: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<Feature<LineString>> {
+  assertProjectedCrs(epsg);
   await ensureLoaded();
-  const p4 = await getProj4();
   const coords = vertices.map((v) =>
-    p4(epsg, 'EPSG:4326', [v.easting, v.northing]),
+    project(v.easting, v.northing, epsg, 'EPSG:4326'),
   );
   return (await getTurf()).lineString(coords);
 }
@@ -201,7 +153,7 @@ export async function lineStringToTurf(
  * For a MultiPolygon, only the first polygon's exterior ring is returned.
  *
  * @param geo - A turf Polygon or MultiPolygon GeoJSON.
- * @param epsg - Target EPSG code (default 'EPSG:21037').
+ * @param epsg - Target EPSG code (required project CRS).
  * @returns Array of `{easting, northing}` vertices (ring is **not** closed).
  */
 type TurfPolygonGeom =
@@ -210,8 +162,9 @@ type TurfPolygonGeom =
 
 async function turfToVertices(
   geo: Feature<Polygon | MultiPolygon> | TurfPolygonGeom,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint[]> {
+  assertProjectedCrs(epsg);
   await ensureLoaded();
 
   let g: TurfPolygonGeom;
@@ -229,9 +182,8 @@ async function turfToVertices(
   }
   const exteriorRing: number[][] = g.type === 'Polygon' ? g.coordinates[0] : g.coordinates[0][0];
 
-  const p4 = await getProj4();
   return exteriorRing.map((c: number[]) => {
-    const [easting, northing] = p4('EPSG:4326', epsg, c);
+    const [easting, northing] = project(c[0], c[1], 'EPSG:4326', epsg);
     return { easting, northing };
   });
 }
@@ -245,13 +197,14 @@ async function turfToVertices(
  * {@link https://turfjs.org/docs/#area turf.area}.
  *
  * @param vertices - Parcel boundary as `{easting, northing}` vertices.
- * @param epsg - Source EPSG code (default 'EPSG:21037').
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns Area in m². Returns `0` when fewer than 3 vertices are supplied.
  */
 export async function calculateParcelAreaSqM(
   vertices: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<number> {
+  assertProjectedCrs(epsg);
   if (vertices.length < 3) return 0;
   const poly = await polygonToTurf(vertices, epsg);
   return (await getTurf()).area(poly);
@@ -262,13 +215,14 @@ export async function calculateParcelAreaSqM(
  * {@link https://turfjs.org/docs/#length turf.length}.
  *
  * @param vertices - Parcel boundary as `{easting, northing}` vertices.
- * @param epsg - Source EPSG code (default 'EPSG:21037').
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns Perimeter in metres. Returns `0` when fewer than 2 vertices are supplied.
  */
 export async function calculateParcelPerimeterM(
   vertices: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<number> {
+  assertProjectedCrs(epsg);
   if (vertices.length < 2) return 0;
   const line = await lineStringToTurf(vertices, epsg);
   return (await getTurf()).length(line, { units: 'meters' });
@@ -283,7 +237,7 @@ export async function calculateParcelPerimeterM(
  * @param easting  - Easting of the centre point (m).
  * @param northing - Northing of the centre point (m).
  * @param radiusM  - Buffer radius in metres.
- * @param epsg - Source/target EPSG code (default 'EPSG:21037').
+ * @param epsg - Source/target EPSG code (required project CRS).
  * @returns Array of `{easting, northing}` vertices describing the buffer
  *          polygon.
  */
@@ -291,8 +245,9 @@ export async function bufferPoint(
   easting: number,
   northing: number,
   radiusM: number,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint[]> {
+  assertProjectedCrs(epsg);
   await ensureLoaded();
   const [lon, lat] = await toTurfCoord(easting, northing, epsg);
   const pt = (await getTurf()).point([lon, lat]);
@@ -308,14 +263,15 @@ export async function bufferPoint(
  *
  * @param vertices  - Parcel boundary vertices.
  * @param distanceM - Buffer distance in metres (negative to shrink).
- * @param epsg - Source/target EPSG code (default 'EPSG:21037').
+ * @param epsg - Source/target EPSG code (required project CRS).
  * @returns New array of vertices representing the buffered parcel.
  */
 export async function bufferParcel(
   vertices: SurveyPoint[],
   distanceM: number,
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint[]> {
+  assertProjectedCrs(epsg);
   const poly = await polygonToTurf(vertices, epsg);
   const buffered = (await getTurf()).buffer(poly, distanceM, {
     units: 'meters',
@@ -330,15 +286,16 @@ export async function bufferParcel(
  *
  * @param parcel1 - First parcel boundary vertices.
  * @param parcel2 - Second parcel boundary vertices.
- * @param epsg - Source/target EPSG code (default 'EPSG:21037').
+ * @param epsg - Source/target EPSG code (required project CRS).
  * @returns Vertices of the intersection polygon, or `null` if the parcels
  *          do not overlap (or the intersection is degenerate).
  */
 export async function calculateIntersection(
   parcel1: SurveyPoint[],
   parcel2: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint[] | null> {
+  assertProjectedCrs(epsg);
   const [poly1, poly2] = await Promise.all([
     polygonToTurf(parcel1, epsg),
     polygonToTurf(parcel2, epsg),
@@ -376,14 +333,15 @@ export async function calculateIntersection(
  *
  * @param parcel1 - First parcel boundary vertices.
  * @param parcel2 - Second parcel boundary vertices.
- * @param epsg - Source/target EPSG code (default 'EPSG:21037').
+ * @param epsg - Source/target EPSG code (required project CRS).
  * @returns Vertices of the combined (union) parcel.
  */
 export async function calculateUnion(
   parcel1: SurveyPoint[],
   parcel2: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint[]> {
+  assertProjectedCrs(epsg);
   const [poly1, poly2] = await Promise.all([
     polygonToTurf(parcel1, epsg),
     polygonToTurf(parcel2, epsg),
@@ -399,15 +357,16 @@ export async function calculateUnion(
  *
  * @param parcel1 - Source parcel (the parcel to subtract *from*).
  * @param parcel2 - Subtract parcel (the parcel to remove).
- * @param epsg - Source/target EPSG code (default 'EPSG:21037').
+ * @param epsg - Source/target EPSG code (required project CRS).
  * @returns Vertices of the resulting parcel, or `null` if parcel2 fully
  *          contains parcel1 (nothing remains).
  */
 export async function calculateDifference(
   parcel1: SurveyPoint[],
   parcel2: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<SurveyPoint[] | null> {
+  assertProjectedCrs(epsg);
   const [poly1, poly2] = await Promise.all([
     polygonToTurf(parcel1, epsg),
     polygonToTurf(parcel2, epsg),
@@ -447,15 +406,16 @@ export async function calculateDifference(
  * @param easting        - Easting of the query point (m).
  * @param northing       - Northing of the query point (m).
  * @param parcelVertices - Parcel boundary vertices.
- * @param epsg - Source EPSG code (default 'EPSG:21037').
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns `true` if the point is inside (or on the boundary of) the parcel.
  */
 export async function isPointInParcel(
   easting: number,
   northing: number,
   parcelVertices: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<boolean> {
+  assertProjectedCrs(epsg);
   if (parcelVertices.length < 3) return false;
   const [lon, lat] = await toTurfCoord(easting, northing, epsg);
   const pt = (await getTurf()).point([lon, lat]);
@@ -479,14 +439,15 @@ export async function isPointInParcel(
  * disputes or survey errors in Kenyan land records.
  *
  * @param vertices - Parcel boundary vertices.
- * @param epsg - Source EPSG code (default 'EPSG:21037').
+ * @param epsg - Source EPSG code (required project CRS).
  * @returns Compactness score between 0 and 1. Returns `0` when fewer than 3
  *          vertices are supplied.
  */
 export async function calculateCompactness(
   vertices: SurveyPoint[],
-  epsg: string = 'EPSG:21037',
+  epsg: string,
 ): Promise<number> {
+  assertProjectedCrs(epsg);
   if (vertices.length < 3) return 0;
 
   const [areaSqM, perimeterM] = await Promise.all([

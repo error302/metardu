@@ -36,7 +36,7 @@ const fakePool = {
   },
 }
 
-function tryAttack(name: string, build: () => Promise<unknown>) {
+function tryAttack(name: string, build: () => PromiseLike<unknown>) {
   const before = sqlCalls
   // limit()/range()/upsert(onConflict) validate synchronously at the setter,
   // so `build` itself can throw before any promise exists — catch that too.

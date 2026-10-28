@@ -1,6 +1,10 @@
 import type { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { GET } from '../route'
+import { expect } from '@jest/globals'
+import { mr } from '@/test-utils/mock-rows'
+
+
 
 jest.mock('next/server', () => {
   class MockNextResponse {
@@ -19,7 +23,7 @@ jest.mock('next/server', () => {
       return new MockNextResponse(JSON.stringify(body), { status: init?.status, headers })
     }
 
-    async json() {
+    async json(): Promise<unknown> {
       return JSON.parse(this.content)
     }
   }
@@ -36,7 +40,7 @@ jest.mock('@/lib/db', () => ({
 }))
 
 const getLookup = GET as unknown as (request: NextRequest, context: never) => Promise<NextResponse>
-const query = db.query as jest.Mock
+const query = db.query as jest.MockedFunction<typeof db.query>
 const mockFetch = jest.fn()
 const originalFetch = global.fetch
 
@@ -52,7 +56,7 @@ describe('GET /api/nlims/lookup', () => {
   beforeEach(() => {
     jest.clearAllMocks()
     Object.defineProperty(global, 'fetch', { configurable: true, writable: true, value: mockFetch })
-    query.mockResolvedValue({ rows: [] })
+    query.mockResolvedValue(mr([]))
   })
 
   afterEach(() => {
@@ -76,13 +80,13 @@ describe('GET /api/nlims/lookup', () => {
   })
 
   it('returns private, non-cacheable personal-vault records scoped to the authenticated user', async () => {
-    query.mockResolvedValueOnce({ rows: [{
+    query.mockResolvedValueOnce(mr([{
       parcel_number: 'NRM/123',
       user_id: 'user-session',
       parsed_data: { parcelNumber: 'NRM/123', county: 'Nairobi' },
       freshness: 'checked by user',
       certificate_date: null,
-    }] })
+    }]))
     const response = await getLookup(request('https://metardu.test/api/nlims/lookup?parcel=nrm%2F123'), context())
 
     expect(response.status).toBe(200)

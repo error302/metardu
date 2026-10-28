@@ -17,7 +17,7 @@ const SRC = join(root, 'src')
 let changedRaw = ''
 try {
   changedRaw = execSync('git diff --name-only HEAD -- "src/**/*.tsx"', { cwd: root, maxBuffer: 64 * 1024 * 1024 }).toString()
-} catch (e) {
+} catch  {
   changedRaw = execSync('git diff --name-only -- "src/**/*.tsx"', { cwd: root, maxBuffer: 64 * 1024 * 1024 }).toString()
 }
 const changed = new Set(changedRaw.split(/\r?\n/).map(s => s.trim()).filter(Boolean).map(p => join(root, p.replace(/\//g, '\\'))))

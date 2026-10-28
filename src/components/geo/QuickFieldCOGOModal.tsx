@@ -1,26 +1,8 @@
 'use client'
 
 import React, { useState, useMemo, useEffect } from 'react'
-import {
-  Compass,
-  X,
-  Target,
-  Copy,
-  Check,
-  Navigation2,
-  Crosshair,
-  Ruler,
-  Layers,
-  ArrowRight,
-  ExternalLink,
-} from 'lucide-react'
-import {
-  computeBearingAndDistance,
-  computePoint,
-  lineLineIntersection,
-  circleCircleIntersection,
-  type Point,
-} from '@/lib/survey/cogo/engine'
+import { Compass, X, Target, Copy, Check, Crosshair } from 'lucide-react';
+import { computeBearingAndDistance, computePoint, lineLineIntersection, circleCircleIntersection, type Point } from '@/lib/survey/cogo/engine';
 export type COGOMode = 'bearing_bearing' | 'distance_distance' | 'radiation' | 'missing_on_line'
 
 export type COGOResult =

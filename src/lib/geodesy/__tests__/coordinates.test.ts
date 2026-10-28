@@ -1,4 +1,6 @@
-import { geographicToUTM, utmToGeographic } from '../coordinates'
+import { geographicToUTM, utmToGeographic, latLonToMGRS, mgrsToLatLon } from '../coordinates'
+import { requiredValue } from '@/test-utils/requiredValue'
+
 
 describe('geographicToUTM', () => {
   it('Nairobi is in UTM Zone 37S', () => {
@@ -55,7 +57,6 @@ describe('utmToGeographic round-trip', () => {
 })
 
 describe('MGRS conversions', () => {
-  const { latLonToMGRS, mgrsToLatLon } = require('../coordinates')
 
   it('converts Nairobi coordinates to MGRS and round-trips back', () => {
     const lat = -1.2921
@@ -66,8 +67,8 @@ describe('MGRS conversions', () => {
 
     const pt = mgrsToLatLon(mgrs)
     expect(pt).not.toBeNull()
-    expect(pt!.lat).toBeCloseTo(lat, 3)
-    expect(pt!.lon).toBeCloseTo(lon, 3)
+    expect(requiredValue(pt).lat).toBeCloseTo(lat, 3)
+    expect(requiredValue(pt).lon).toBeCloseTo(lon, 3)
   })
 
   it('handles spaces in MGRS inputs gracefully', () => {
@@ -76,8 +77,8 @@ describe('MGRS conversions', () => {
     const withSpaces = `${originalMgrs.slice(0, 3)} ${originalMgrs.slice(3, 5)} ${originalMgrs.slice(5, 10)} ${originalMgrs.slice(10)}`
     const pt = mgrsToLatLon(withSpaces)
     expect(pt).not.toBeNull()
-    expect(pt!.lat).toBeCloseTo(-1.2921, 3)
-    expect(pt!.lon).toBeCloseTo(36.8219, 3)
+    expect(requiredValue(pt).lat).toBeCloseTo(-1.2921, 3)
+    expect(requiredValue(pt).lon).toBeCloseTo(36.8219, 3)
   })
 
   it('returns null on invalid MGRS string', () => {

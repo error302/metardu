@@ -13,13 +13,21 @@
  * 8. Kinetic animation styles (wave, pulse, shimmer, ripple, flicker)
  */
 
-import type {
-  AsciiRecipeConfig,
-  RenderMode,
-  AnimStyle,
-  GradientSourceConfig,
-  GradientColorStop,
-} from './types'
+/**
+ * AsciiRasterEngine — High-Performance Canvas2D ASCII & Generative Raster Engine
+ * Recreates the 21st.dev raster pipeline with zero external runtime dependencies.
+ *
+ * Implements the 8-step render pipeline:
+ * 1. Animated gradient source (radial/linear/conic multi-stop, animated over time)
+ * 2. Grid sampling (cellSize, luminance, color, edgeEmphasis)
+ * 3. Shape rendering per renderMode (all 24 21st.dev modes including 'stars')
+ * 4. Color grading (brightness, contrast, saturation, grayscale, tint, overlayBlend, blur)
+ * 5. Post-effects (vignette, scanlines, bloom, chromatic, filmGrain, glitch, halftone, pixelate, filmDust)
+ * 6. Ambient point lights
+ * 7. Mask reveal
+ * 8. Kinetic animation styles (wave, pulse, shimmer, ripple, flicker)
+ */
+import type { AsciiRecipeConfig, RenderMode, AnimStyle, GradientSourceConfig } from './types';
 
 // Pre-computed Bayer 4x4 matrix for ordered dithering
 const BAYER_4X4 = [
@@ -231,7 +239,7 @@ export class AsciiRasterEngine {
     const t = (timeMs * 0.001 * (animSpeed / 100) * 3)
 
     // Pre-calculate luminance buffer for edge emphasis computation
-    const lumMatrix: number[][] = Array.from({ length: rows }, () => new Array(cols).fill(0))
+    const lumMatrix = Array.from({ length: rows }, () => Array<number>(cols).fill(0))
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
@@ -259,9 +267,9 @@ export class AsciiRasterEngine {
         const sampleY = Math.min(height - 1, Math.floor(cellY + cellSize / 2))
         const idx = (sampleY * width + sampleX) * 4
 
-        let red = imgData[idx]
-        let green = imgData[idx + 1]
-        let blue = imgData[idx + 2]
+        const red = imgData[idx]
+        const green = imgData[idx + 1]
+        const blue = imgData[idx + 2]
         const alpha = imgData[idx + 3] / 255
 
         let baseLum = lumMatrix[r][c]
@@ -301,7 +309,7 @@ export class AsciiRasterEngine {
           animOffset = (rand - 0.5) * strength * 0.7
         }
 
-        let lum = Math.max(0, Math.min(1, baseLum + animOffset))
+        const lum = Math.max(0, Math.min(1, baseLum + animOffset))
 
         cells.push({
           col: c,
@@ -412,7 +420,7 @@ export class AsciiRasterEngine {
     density: number,
     charSetRamp: string,
     timeMs: number,
-    cols: number
+    _cols: number
   ) {
     const cx = cell.x + cellSize / 2
     const cy = cell.y + cellSize / 2
@@ -471,7 +479,6 @@ export class AsciiRasterEngine {
         const bY = cell.row % 4
         const threshold = (BAYER_4X4[bY][bX] + 0.5) / 16
         if (lum > threshold) {
-          const r = (cellSize / 2) * 0.85
           ctx.fillRect(cell.x + 1, cell.y + 1, cellSize - 2, cellSize - 2)
         }
         break
@@ -769,7 +776,8 @@ export class AsciiRasterEngine {
   ) {
     const width = targetCanvas.width
     const height = targetCanvas.height
-    const ctx = targetCanvas.getContext('2d')!
+    const ctx = targetCanvas.getContext('2d')
+    if (!ctx) throw new Error('A 2D canvas context is required for raster effects.')
     const pfx = cfg.pfx
 
     // ── 1. Bloom Pass ──
@@ -933,7 +941,7 @@ export class AsciiRasterEngine {
     }
 
     // 3. Grid Sampling
-    const { cells, cols, rows } = this.sampleGrid(
+    const { cells, cols } = this.sampleGrid(
       sourceImgData,
       width,
       height,

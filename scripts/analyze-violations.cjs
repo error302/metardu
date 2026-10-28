@@ -4,12 +4,12 @@ const { readFileSync } = require('fs')
 let lastFile = null
 let lines = null
 let withLabel = 0
-let withoutLabel = []
+const withoutLabel = []
 for (const v of d.violations) {
   const file = v.file
   if (file !== lastFile) { lastFile = file; lines = readFileSync(file, 'utf8').split(/\r?\n/) }
   // collect the full tag starting at v.line (may span multiple lines)
-  let tagLines = []
+  const tagLines = []
   let depth = 0
   for (let i = v.line - 1; i < lines.length && i < v.line + 6; i++) {
     tagLines.push(lines[i])

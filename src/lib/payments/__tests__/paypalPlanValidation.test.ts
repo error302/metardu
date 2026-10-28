@@ -1,5 +1,7 @@
 import { validatePayPalBillingPlan } from '../paypalPlanValidation'
 import type { PayPalBillingPlanDetails } from '../paypalPlanValidation'
+import { requiredValue } from '@/test-utils/requiredValue'
+
 
 const activeMonthlyUsdPlan: PayPalBillingPlanDetails = {
   id: 'P-TEST',
@@ -26,7 +28,7 @@ describe('validatePayPalBillingPlan', () => {
 
   it('rejects inactive, annual and ambiguous plans', () => {
     expect(validatePayPalBillingPlan({ ...activeMonthlyUsdPlan, status: 'INACTIVE' }, { amount: 19, currency: 'USD' })).toEqual({ valid: false, error: 'inactive' })
-    expect(validatePayPalBillingPlan({ ...activeMonthlyUsdPlan, billing_cycles: [{ ...activeMonthlyUsdPlan.billing_cycles![0], frequency: { interval_unit: 'YEAR', interval_count: 1 } }] }, { amount: 19, currency: 'USD' })).toEqual({ valid: false, error: 'billing_interval' })
+    expect(validatePayPalBillingPlan({ ...activeMonthlyUsdPlan, billing_cycles: [{ ...requiredValue(activeMonthlyUsdPlan.billing_cycles)[0], frequency: { interval_unit: 'YEAR', interval_count: 1 } }] }, { amount: 19, currency: 'USD' })).toEqual({ valid: false, error: 'billing_interval' })
     expect(validatePayPalBillingPlan({ ...activeMonthlyUsdPlan, billing_cycles: [] }, { amount: 19, currency: 'USD' })).toEqual({ valid: false, error: 'regular_cycle' })
   })
 })

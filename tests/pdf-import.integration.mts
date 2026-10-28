@@ -11,7 +11,7 @@ async function makePdf(text?: string): Promise<File> {
     page.drawText(text, { x: 48, y: 720, font, size: 12 })
   }
   const bytes = await document.save()
-  return new File([bytes], 'survey-drawing.pdf', { type: 'application/pdf' })
+  return new File([new Uint8Array(bytes)], 'survey-drawing.pdf', { type: 'application/pdf' })
 }
 
 test('PDF text extraction returns text without fabricating survey geometry', async () => {

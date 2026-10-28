@@ -71,9 +71,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Tools Hub check completed.')
-  } catch (err: any) {
-    console.error('   Tools Hub failed:', err.message)
-    results.push({ tool: 'Tools Hub', url: '/tools', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Tools Hub failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Tools Hub', url: '/tools', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 2. Verify Pipe Network (/tools/pipe-network)
@@ -124,9 +124,9 @@ async function runLiveVerification() {
       screenshot: screenshot1,
     })
     console.log('   Pipe Network check completed.')
-  } catch (err: any) {
-    console.error('   Pipe Network failed:', err.message)
-    results.push({ tool: 'Pipe Network', url: '/tools/pipe-network', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Pipe Network failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Pipe Network', url: '/tools/pipe-network', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 3. Verify Multi-CORS Selector (/tools/cors-networks)
@@ -153,9 +153,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Multi-CORS check completed.')
-  } catch (err: any) {
-    console.error('   Multi-CORS failed:', err.message)
-    results.push({ tool: 'Multi-CORS', url: '/tools/cors-networks', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Multi-CORS failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Multi-CORS', url: '/tools/cors-networks', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 4. Verify Drone Flight Planner (/tools/drone-flight-plan)
@@ -182,9 +182,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Drone Flight Planner check completed.')
-  } catch (err: any) {
-    console.error('   Drone Flight Planner failed:', err.message)
-    results.push({ tool: 'Drone Flight Planner', url: '/tools/drone-flight-plan', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Drone Flight Planner failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Drone Flight Planner', url: '/tools/drone-flight-plan', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 5. Verify Geofence Monitor (/tools/geofence)
@@ -211,9 +211,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Geofence check completed.')
-  } catch (err: any) {
-    console.error('   Geofence failed:', err.message)
-    results.push({ tool: 'Geofence', url: '/tools/geofence', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Geofence failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Geofence', url: '/tools/geofence', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 6. Verify Legal Description Writer (/tools/legal-description)
@@ -240,9 +240,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Legal Description Writer check completed.')
-  } catch (err: any) {
-    console.error('   Legal Description Writer failed:', err.message)
-    results.push({ tool: 'Legal Description', url: '/tools/legal-description', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Legal Description Writer failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Legal Description', url: '/tools/legal-description', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 7. Verify Pin-Cushion Analysis (/tools/pin-cushion)
@@ -269,9 +269,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Pin-Cushion check completed.')
-  } catch (err: any) {
-    console.error('   Pin-Cushion failed:', err.message)
-    results.push({ tool: 'Pin-Cushion', url: '/tools/pin-cushion', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Pin-Cushion failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Pin-Cushion', url: '/tools/pin-cushion', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 8. Verify Stakeout Cut Sheet (/tools/stakeout-report)
@@ -298,9 +298,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   Stakeout Cut Sheet check completed.')
-  } catch (err: any) {
-    console.error('   Stakeout Cut Sheet failed:', err.message)
-    results.push({ tool: 'Stakeout Cut Sheet', url: '/tools/stakeout-report', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   Stakeout Cut Sheet failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'Stakeout Cut Sheet', url: '/tools/stakeout-report', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   // 9. Verify CAD Canvas (/tools/cad-editor)
@@ -330,9 +330,9 @@ async function runLiveVerification() {
       screenshot,
     })
     console.log('   CAD Canvas check completed.')
-  } catch (err: any) {
-    console.error('   CAD Canvas failed:', err.message)
-    results.push({ tool: 'CAD Canvas', url: '/tools/cad-editor', status: 'FAIL', elementsFound: [], screenshot: '', details: err.message })
+  } catch (err: unknown) {
+    console.error('   CAD Canvas failed:', (err instanceof Error ? err.message : String(err)))
+    results.push({ tool: 'CAD Canvas', url: '/tools/cad-editor', status: 'FAIL', elementsFound: [], screenshot: '', details: (err instanceof Error ? err.message : String(err)) })
   }
 
   await browser.close()

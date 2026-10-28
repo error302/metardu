@@ -5,9 +5,25 @@
  * Uses jsPDF + jspdf-autotable for universal Node.js and browser compatibility.
  */
 
+/**
+ * generateQuotePdf.ts
+ * ────────────────────────────────────────────────────────────────────────────
+ * Generates a clean, vector-crisp client proposal & statutory fee quotation PDF.
+ * Uses jsPDF + jspdf-autotable for universal Node.js and browser compatibility.
+ */
 import { jsPDF } from 'jspdf'
 import autoTable from 'jspdf-autotable'
-import { FeeQuoteInput, FeeQuoteResult, computeSurveyFee } from './surveyFeeCalculator'
+import { FeeQuoteInput, computeSurveyFee } from './surveyFeeCalculator';
+
+function tableBottom(doc: jsPDF): number {
+  if (!('lastAutoTable' in doc)) throw new Error('Quotation table was not generated.')
+  const table: unknown = doc.lastAutoTable
+  if (typeof table !== 'object' || table === null || !('finalY' in table)
+    || typeof table.finalY !== 'number' || !Number.isFinite(table.finalY) || table.finalY < 0) {
+    throw new Error('Quotation table position is invalid.')
+  }
+  return table.finalY
+}
 
 export function generateQuotePdf(input: FeeQuoteInput): Buffer {
   const quote = computeSurveyFee(input)
@@ -111,8 +127,7 @@ export function generateQuotePdf(input: FeeQuoteInput): Buffer {
     },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let currentY = (doc as any).lastAutoTable.finalY + 4
+  let currentY = tableBottom(doc) + 4
 
   // 4. Totals Summary Box
   const summaryX = pageWidth - margin - 75
@@ -173,8 +188,7 @@ export function generateQuotePdf(input: FeeQuoteInput): Buffer {
     },
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  currentY = (doc as any).lastAutoTable.finalY + 8
+  currentY = tableBottom(doc) + 8
 
   // 6. Signatures & Acceptance
   if (currentY > 240) {

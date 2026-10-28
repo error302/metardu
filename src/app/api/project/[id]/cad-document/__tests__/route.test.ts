@@ -4,6 +4,10 @@ import { db } from '@/lib/db'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
 import { GET, PUT } from '@/app/api/project/[id]/cad-document/route'
 import { buildProjectCadDocument } from '@/lib/cad/projectCadDocument'
+import { expect } from '@jest/globals'
+import { mr } from '@/test-utils/mock-rows'
+
+
 
 jest.mock('@/lib/apiHandler', () => ({
   apiHandler: (_options: unknown, handler: unknown) => handler,
@@ -11,7 +15,7 @@ jest.mock('@/lib/apiHandler', () => ({
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn() } }))
 jest.mock('@/lib/auth/ownership', () => ({ requireProjectOwnership: jest.fn() }))
 
-const mockDbQuery = db.query as jest.Mock
+const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockOwnership = requireProjectOwnership as jest.Mock
 
 const document = buildProjectCadDocument({ projectName: 'CAD test' }, []).document
@@ -39,7 +43,7 @@ function invokeGet() {
 }
 
 beforeEach(() => {
-  mockDbQuery.mockReset().mockResolvedValue({ rows: [{ id: 'project-1', updated_at: new Date('2026-10-07T00:00:00Z') }] })
+  mockDbQuery.mockReset().mockResolvedValue(mr([{ id: 'project-1', updated_at: new Date('2026-10-07T00:00:00Z') }]))
   mockOwnership.mockReset().mockResolvedValue({ ok: true, projectUserId: 'alice' })
 })
 
@@ -64,14 +68,14 @@ test('rejects malformed CAD data before accessing the project row', async () => 
 })
 
 test('does not report success when project boundary data cannot be safely updated', async () => {
-  mockDbQuery.mockResolvedValueOnce({ rows: [] })
+  mockDbQuery.mockResolvedValueOnce(mr([]))
   const response = await invoke({ document })
   expect(response.status).toBe(409)
   expect(await response.json()).toMatchObject({ error: expect.any(String) })
 })
 
 test('loads only the explicit saved CAD artifact for the owning project', async () => {
-  mockDbQuery.mockResolvedValueOnce({ rows: [{ cad_document: document }] })
+  mockDbQuery.mockResolvedValueOnce(mr([{ cad_document: document }]))
   const response = await invokeGet()
 
   expect(response.status).toBe(200)
@@ -82,7 +86,7 @@ test('loads only the explicit saved CAD artifact for the owning project', async 
 })
 
 test('does not treat project survey points or malformed JSON as a saved boundary document', async () => {
-  mockDbQuery.mockResolvedValueOnce({ rows: [{ cad_document: { beacons: 'not-an-array' } }] })
+  mockDbQuery.mockResolvedValueOnce(mr([{ cad_document: { beacons: 'not-an-array' } }]))
   const response = await invokeGet()
   expect(response.status).toBe(404)
   expect(await response.json()).toMatchObject({ error: expect.any(String) })

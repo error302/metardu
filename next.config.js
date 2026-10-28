@@ -20,7 +20,7 @@ try {
       },
     }
   }
-} catch (e) {
+} catch  {
   // bundle-analyzer not available, pass-through
 }
 
@@ -128,7 +128,7 @@ const nextConfig = {
 
   // ─── Linting & TypeScript ───
   eslint: {
-    ignoreDuringBuilds: true,  // ESLint still has ~1300 any warnings; run via CI separately
+    ignoreDuringBuilds: true,  // ESLint runs separately through the bounded full-codebase gate.
   },
   typescript: {
     // Keep isolated bundle-analysis builds from rewriting the app's tsconfig
