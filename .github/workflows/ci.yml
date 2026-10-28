@@ -544,13 +544,15 @@ jobs:
           GOOGLE_CLIENT_SECRET: 'e2e-google-client-secret'
           AZURE_AD_CLIENT_ID: 'e2e-azure-client-id'
           AZURE_AD_CLIENT_SECRET: 'e2e-azure-client-secret'
-        run: npx playwright test --reporter=list --workers=${{ matrix.workers }} ${{ matrix.specs }}
+        run: npx playwright test --reporter=list,html --workers=${{ matrix.workers }} ${{ matrix.specs }}
       - name: Upload shard report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: playwright-report-shard-${{ matrix.shard }}
-          path: playwright-report/
+          path: |
+            e2e-results/
+            test-results/
           retention-days: 7
 
   e2e-report:

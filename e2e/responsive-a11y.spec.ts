@@ -34,7 +34,7 @@ test.describe('Responsive Design — Mobile', () => {
   })
 
   test('login page shows mobile branding', async ({ page }) => {
-    await page.goto('/login')
+    await page.goto('/login', { waitUntil: 'domcontentloaded' })
     const mobileBrand = page.locator('header a[href="/"]').first()
     await expect(mobileBrand).toBeVisible()
   })
@@ -69,7 +69,7 @@ test.describe('Responsive Design — Tablet', () => {
   })
 
   test('login form remains usable on tablet', async ({ page }) => {
-    await page.goto('/login')
+    await page.goto('/login', { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible()
     await expectNoHorizontalOverflow(page)
@@ -99,7 +99,7 @@ test.describe('Accessibility', () => {
   })
 
   test('form inputs have associated labels', async ({ page }) => {
-    await page.goto('/login')
+    await page.goto('/login', { waitUntil: 'domcontentloaded' })
     const emailLabel = page.locator('label').filter({ hasText: 'Email' })
     await expect(emailLabel).toBeVisible()
     const passwordLabel = page.locator('label').filter({ hasText: 'Password' })

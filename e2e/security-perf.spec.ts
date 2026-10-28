@@ -77,7 +77,9 @@ test.describe('Performance', () => {
       if (msg.type() === 'error') errors.push(msg.text())
     })
     
-    await page.goto('/login')
+    await page.goto('/login', { waitUntil: 'domcontentloaded' })
+    await expect(page.getByRole('heading', { name: 'Welcome back', exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Sign In', exact: true })).toBeVisible()
     await page.waitForTimeout(2000)
     
     const realErrors = errors.filter(e => 

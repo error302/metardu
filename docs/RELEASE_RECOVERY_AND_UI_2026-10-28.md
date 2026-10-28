@@ -133,3 +133,18 @@ now explicitly choose the header action. The related source run passed 575
 suites and 5,356 tests before its owned whole-lint subprocess was deliberately
 cancelled to supersede the known browser failure. That admission receipt remains
 failed and cannot admit promotion; the final revision requires fresh admission.
+
+The d380 phone shard also exposed four login navigations waiting for the full
+load event. Responsive form tests now wait for DOM content and assert rendered
+branding, labels, form controls and overflow; the login console test additionally
+requires the actual heading and Sign In control. Test/expectation timeouts remain
+unchanged. This does not establish why a resource delayed load or prove measured
+production performance. CI now enables its existing HTML reporter and uploads the
+actual e2e-results and test-results paths, retaining screenshots/traces that the
+former list-only reporter and nonexistent playwright-report path discarded.
+
+The d3809cb8 accessibility sweep subsequently passed all 96 included routes:
+zero violations at the unchanged minor threshold, zero hydration failures and
+zero authentication failures. Excluded protected routes retain their independent
+acceptance requirements. Its navigation and sign-in shards also passed; final
+fieldbook and phone-readiness corrections require the next exact-source CI run.
