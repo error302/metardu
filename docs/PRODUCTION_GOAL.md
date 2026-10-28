@@ -5,6 +5,17 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+28 October input-admission follow-up:
+`CADASTRAL_INPUT_AND_RETIRED_JOBS_2026-10-28.md` records rejection of coerced
+survey numbers and malformed retained observations, while preserving declared
+grid observations and boundary/save behavior. The obsolete community job-board
+endpoint now returns an explicit 410 under the existing retirement blueprint;
+stored jobs are untouched. All 63 focused tests, strict application/test typing,
+four-file scoped lint and the zero-untyped-query API inventory pass. The existing
+source preview serves the retirement response. Full CI, other legacy community
+paths, authenticated browser and all release/recovery/provider/field gates remain
+open; this is not a production promotion.
+
 28 October equipment/source checkpoint:
 `EQUIPMENT_CALIBRATION_REPAIR_2026-10-28.md` records explicit evidence states,
 owner-bound records, atomic notifications, retained due dates and reversible

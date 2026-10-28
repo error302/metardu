@@ -6,6 +6,16 @@ through `44396a812f0c176f493dfecda87b285b6aab2a2e`. See
 `EQUIPMENT_CALIBRATION_REPAIR_2026-10-28.md` for new behavior and evidence.
 A pushed branch and clean Git status do not establish production deployment.
 
+Follow-up source admission: `CADASTRAL_INPUT_AND_RETIRED_JOBS_2026-10-28.md`
+supersedes the proposed community-job persistence repair below. The blueprint
+already retires that area and no current UI calls the job endpoint, so it now
+returns an explicit 410 while retaining stored data. The API inventory is now
+zero untyped queries across 328 routes. Cadastral input coercion is also repaired;
+63 focused tests, strict typing and four-file lint pass. The calibration revision's
+new CI reports 439 lint errors and 47 warnings, while web/mobile builds pass;
+browser/accessibility and broader admission still require work. Review the
+follow-up's own pushed revision and CI before promotion.
+
 ## Site and runtime observations
 
 On 28 October `npm run docker:verify` passed for the existing application, worker,
