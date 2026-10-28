@@ -1,478 +1,155 @@
-'use client';
+'use client'
 
-import { useState, useEffect, useCallback } from 'react'
-import {
-  EquipmentWithStatus, Equipment, CalibrationLog, BRANDS, INTERVALS, getEquipmentTypes, calcStatus
-} from '@/lib/integrations/equipment'
-import {
-  fetchAllEquipment, createEquipmentApi, updateEquipmentApi, deleteEquipmentApi, logCalibrationApi, fetchCalibrationLogs
-} from '@/lib/integrations/equipmentApi'
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useId, useState, type FormEvent, type ReactNode } from 'react'
+import Link from 'next/link'
+import { useSession } from 'next-auth/react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Telescope, Plus, Archive, NotebookPen, Pencil, RotateCcw } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog'
+import { BRANDS, INTERVALS, getEquipmentTypes, type EquipmentDetails, type EquipmentWithStatus } from '@/lib/integrations/equipment'
+import { createEquipmentApi, fetchAllEquipment, fetchCalibrationLogs, logCalibrationApi, updateEquipmentApi, type CalibrationEntry } from '@/lib/integrations/equipmentApi'
+import { calendarDay, type CalibrationStatus } from '@/lib/equipment/calibration'
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
+const labels: Record<CalibrationStatus, string> = { ok: 'Schedule current', due_soon: 'Due soon', overdue: 'Overdue', not_recorded: 'Not recorded', invalid: 'Review dates', failed: 'Failed calibration', review_required: 'Review result' }
+const statusStyle = (status: CalibrationStatus) => status === 'failed' || status === 'overdue' ? 'border-red-700 text-red-200 bg-red-950/30' : status === 'ok' ? 'border-emerald-700 text-emerald-200 bg-emerald-950/30' : 'border-amber-700 text-amber-100 bg-amber-950/30'
+const message = (error: unknown) => error instanceof Error ? error.message : 'The operation could not be confirmed. Refresh before retrying.'
+const fmtDate = (value?: string | null) => value && calendarDay(value) !== null ? new Date(value + 'T00:00:00Z').toLocaleDateString('en-GB', { timeZone: 'UTC', day: 'numeric', month: 'short', year: 'numeric' }) : 'Not recorded'
 
-function daysLabel(d: number) {
-  if (d < 0) return `${Math.abs(d)}d overdue`
-  if (d === 0) return 'Due today'
-  if (d === 1) return '1 day'
-  return `${d} days`
+function Field({ label, children }: { label: string; children: (id: string) => ReactNode }) {
+  const id = useId()
+  return <div className="min-w-0"><label htmlFor={id} className="mb-1 block text-sm text-[var(--text-secondary)]">{label}</label>{children(id)}</div>
 }
-
-function fmtDate(iso: string) {
-  const d = new Date(iso)
-  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+function SaveError({ error }: { error: string }) {
+  return error ? <p role="alert" className="rounded-lg border border-red-700 bg-red-950/30 p-3 text-sm text-red-200">{error}</p> : null
 }
-
-function statusPill(s: EquipmentWithStatus['status']) {
-  if (s === 'overdue')  return 'bg-red-900/40 text-red-300 border border-red-700/50'
-  if (s === 'due_soon') return 'bg-amber-900/40 text-amber-300 border border-amber-700/50'
-  return 'bg-green-900/40 text-green-300 border border-green-700/50'
-}
-
-function statusLabel(e: EquipmentWithStatus) {
-  if (e.status === 'overdue')  return 'Overdue'
-  if (e.status === 'due_soon') return 'Due soon'
-  return 'Current'
-}
-
-function CountdownBar({ e }: { e: EquipmentWithStatus }) {
-  const pct = e.percentUsed
-  const color = e.status === 'overdue' ? 'bg-red-500' : e.status === 'due_soon' ? 'bg-amber-400' : 'bg-green-500'
-  return (
-    <div className="mt-3">
-      <div className="flex justify-between text-xs text-[var(--text-muted)] mb-1">
-        <span>{fmtDate(e.lastCalibrationDate)}</span>
-        <span className={e.status === 'overdue' ? 'text-red-400 font-semibold' : e.status === 'due_soon' ? 'text-amber-400' : 'text-green-400'}>
-          {e.status === 'overdue' ? daysLabel(e.daysUntilDue) : `${daysLabel(e.daysUntilDue)} left`}
-        </span>
-        <span>{fmtDate(e.nextCalibrationDate)}</span>
-      </div>
-      <div className="h-2 rounded-full bg-[var(--bg-tertiary)] overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  )
-}
-
-// ── Add / Edit form ───────────────────────────────────────────────────────────
-
-const BLANK = {
-  name: '', type: 'total_station' as Equipment['type'], brand: '',
-  model: '', serialNumber: '', purchaseDate: '', lastCalibrationDate: '',
-  intervalDays: 365, location: '', notes: '',
-}
-
-function EquipmentForm({
-  initial, onSave, onCancel,
-}: { initial?: Partial<Equipment>; onSave: (data: Omit<Equipment, 'id' | 'createdAt'>) => void; onCancel: () => void }) {
-  const [form, setForm] = useState({ ...BLANK, ...initial })
+function DetailsForm({ initial, busy, save, cancel }: { initial?: EquipmentWithStatus; busy: boolean; save: (data: EquipmentDetails) => Promise<void>; cancel: () => void }) {
+  const [form, setForm] = useState<EquipmentDetails>({
+    name: initial?.name ?? '', type: initial?.type ?? 'total_station', brand: initial?.brand ?? '', model: initial?.model ?? '',
+    serialNumber: initial?.serialNumber ?? '', purchaseDate: initial?.purchaseDate ?? '', intervalDays: initial && Number.isInteger(initial.intervalDays) && initial.intervalDays > 0 ? initial.intervalDays : 365,
+    location: initial?.location ?? '', notes: initial?.notes ?? '',
+  })
+  const [error, setError] = useState('')
   const types = getEquipmentTypes()
-  const f = (k: keyof typeof BLANK, v: string | number) => setForm(p => ({ ...p, [k]: v }))
-  const today = new Date().toISOString().split('T')[0]
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl w-full max-w-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]">
-            {initial?.id ? 'Edit instrument' : 'Register new instrument'}
-          </h2>
-          <button onClick={onCancel} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xl leading-none">×</button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="col-span-2">
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="instrument-name">Instrument name *</label>
-              <input id="instrument-name" value={form.name} onChange={e => f('name', e.target.value)}
-                placeholder="e.g. Leica TS16 — Site A"
-                className="input w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="type">Type *</label>
-              <select id="type" value={form.type} onChange={e => f('type', e.target.value as Equipment['type'])} className="input w-full">
-                {types.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="brand">Brand</label>
-              <input id="brand" value={form.brand} onChange={e => f('brand', e.target.value)}
-                list="brands-list" placeholder="Leica, Trimble…" className="input w-full" />
-              <datalist id="brands-list">{BRANDS.map((b) => <option key={b} value={b} />)}</datalist>
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="model">Model</label>
-              <input id="model" value={form.model} onChange={e => f('model', e.target.value)} placeholder="TS16" className="input w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="serial-number">Serial number</label>
-              <input id="serial-number" value={form.serialNumber} onChange={e => f('serialNumber', e.target.value)} placeholder="1847293" className="input w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="purchase-date">Purchase date</label>
-              <input id="purchase-date" type="date" max={today} value={form.purchaseDate} onChange={e => f('purchaseDate', e.target.value)} className="input w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="last-calibration-date">Last calibration date *</label>
-              <input id="last-calibration-date" type="date" max={today} value={form.lastCalibrationDate} onChange={e => f('lastCalibrationDate', e.target.value)} className="input w-full" />
-            </div>
-            <div>
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="calibration-interval">Calibration interval *</label>
-              <select id="calibration-interval" value={form.intervalDays} onChange={e => f('intervalDays', Number(e.target.value))} className="input w-full">
-                {INTERVALS.map((i) => <option key={i.days} value={i.days}>{i.label}</option>)}
-              </select>
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="location-office">Location / Office</label>
-              <input id="location-office" value={form.location} onChange={e => f('location', e.target.value)} placeholder="Nairobi Office, Site B…" className="input w-full" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="notes">Notes</label>
-              <textarea id="notes" value={form.notes} onChange={e => f('notes', e.target.value)} rows={2} placeholder="Any relevant notes…" className="input w-full resize-none" />
-            </div>
-          </div>
-        </div>
-        <div className="flex gap-3 px-6 pb-5">
-          <button onClick={onCancel} className="btn btn-secondary flex-1">Cancel</button>
-          <button
-            onClick={() => {
-              if (!form.name || !form.lastCalibrationDate) return
-              onSave(form)
-            }}
-            className="btn btn-primary flex-1"
-          >
-            {initial?.id ? 'Save changes' : 'Register instrument'}
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  const today = new Date().toISOString().slice(0, 10)
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setError('')
+    try { await save(form) } catch (error) { setError(message(error)) }
+  }
+  return <form onSubmit={submit} className="space-y-4">
+    <SaveError error={error} />
+    <fieldset disabled={busy} className="grid gap-4 sm:grid-cols-2">
+      <div className="sm:col-span-2"><Field label="Instrument name">{id => <input id={id} required maxLength={200} value={form.name} onChange={e => setForm({ ...form, name: e.target.value })} className="input w-full" />}</Field></div>
+      <Field label="Instrument type">{id => <select id={id} value={form.type} onChange={e => setForm({ ...form, type: e.target.value })} className="input w-full">
+        {!types.some(type => type.id === form.type) && <option value={form.type}>{form.type}</option>}
+        {types.map(type => <option key={type.id} value={type.id}>{type.label}</option>)}
+      </select>}</Field>
+      <Field label="Brand">{id => <><input id={id} list={id + '-brands'} maxLength={200} value={form.brand} onChange={e => setForm({ ...form, brand: e.target.value })} className="input w-full" /><datalist id={id + '-brands'}>{BRANDS.map(brand => <option key={brand} value={brand} />)}</datalist></>}</Field>
+      <Field label="Model">{id => <input id={id} maxLength={200} value={form.model} onChange={e => setForm({ ...form, model: e.target.value })} className="input w-full" />}</Field>
+      <Field label="Serial number">{id => <input id={id} maxLength={200} value={form.serialNumber} onChange={e => setForm({ ...form, serialNumber: e.target.value })} className="input w-full" />}</Field>
+      <Field label="Purchase date">{id => <input id={id} type="date" max={today} value={form.purchaseDate} onChange={e => setForm({ ...form, purchaseDate: e.target.value })} className="input w-full" />}</Field>
+      <Field label="Adopted calibration interval">{id => <select id={id} value={form.intervalDays} onChange={e => setForm({ ...form, intervalDays: Number(e.target.value) })} className="input w-full">
+        {!INTERVALS.some(item => item.days === form.intervalDays) && <option value={form.intervalDays}>{form.intervalDays} days</option>}
+        {INTERVALS.map(item => <option key={item.days} value={item.days}>{item.label}</option>)}
+      </select>}</Field>
+      <div className="sm:col-span-2"><Field label="Location or office">{id => <input id={id} maxLength={200} value={form.location} onChange={e => setForm({ ...form, location: e.target.value })} className="input w-full" />}</Field></div>
+      <div className="sm:col-span-2"><Field label="Notes">{id => <textarea id={id} maxLength={5000} rows={3} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} className="input w-full" />}</Field></div>
+    </fieldset>
+    <p className="text-sm text-[var(--text-secondary)]">Record the actual calibration date and result using Log calibration. Changing the interval does not rewrite an existing record's due date.</p>
+    <div className="flex flex-wrap justify-end gap-3"><button type="button" onClick={cancel} disabled={busy} className="btn btn-secondary">Cancel</button><button type="submit" disabled={busy} className="btn btn-primary">{busy ? 'Saving…' : initial ? 'Save instrument' : 'Register instrument'}</button></div>
+  </form>
 }
-
-// ── Log calibration form ─────────────────────────────────────────────────────
-
-function LogForm({ equipment, onSave, onCancel }: { equipment: EquipmentWithStatus; onSave: () => void; onCancel: () => void }) {
-  const today = new Date().toISOString().split('T')[0]
-  const [form, setForm] = useState({
-    date: today,
-    result: 'passed' as CalibrationLog['result'],
-    technician: '',
-    certificate: '',
-    notes: '',
-  })
-  const f = (k: keyof typeof form, v: string) => setForm(p => ({ ...p, [k]: v }))
-
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 px-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
-          <div>
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]">Log calibration</h2>
-            <p className="text-xs text-[var(--text-muted)] mt-0.5">{equipment.name}</p>
-          </div>
-          <button onClick={onCancel} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xl leading-none">×</button>
-        </div>
-        <div className="p-6 space-y-4">
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="calibration-date">Calibration date *</label>
-            <input id="calibration-date" aria-label="Date" type="date" max={today} value={form.date} onChange={e => f('date', e.target.value)} className="input w-full" />
-          </div>
-          <div>
-            <div className="block text-xs text-[var(--text-muted)] mb-1">Result *</div>
-            <div className="flex gap-2">
-              {(['passed', 'adjusted', 'failed'] as const).map((r) => (
-                <button key={r} onClick={() => f('result', r)}
-                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
-                    form.result === r
-                      ? r === 'passed' ? 'bg-green-900/40 text-green-300 border-green-700'
-                        : r === 'adjusted' ? 'bg-amber-900/40 text-amber-300 border-amber-700'
-                        : 'bg-red-900/40 text-red-300 border-red-700'
-                      : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)]'
-                  }`}>
-                  {r.charAt(0).toUpperCase() + r.slice(1)}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="technician-lab">Technician / Lab</label>
-            <input id="technician-lab" value={form.technician} onChange={e => f('technician', e.target.value)} placeholder="ABC Metrology Lab" className="input w-full" />
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="certificate-number">Certificate number</label>
-            <input id="certificate-number" value={form.certificate} onChange={e => f('certificate', e.target.value)} placeholder="CERT-2024-001" className="input w-full" />
-          </div>
-          <div>
-            <label className="block text-xs text-[var(--text-muted)] mb-1" htmlFor="notes-2">Notes</label>
-            <textarea id="notes-2" value={form.notes} onChange={e => f('notes', e.target.value)} rows={2} className="input w-full resize-none" placeholder="Adjustments made, etc." />
-          </div>
-        </div>
-        <div className="flex gap-3 px-6 pb-5">
-          <button onClick={onCancel} className="btn btn-secondary flex-1">Cancel</button>
-          <button onClick={async () => {
-            if (!form.date) return
-            await logCalibrationApi({ equipmentId: equipment.id, ...form })
-            onSave()
-          }} className="btn btn-primary flex-1">
-            Save calibration record
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+function CalibrationForm({ equipment, busy, save, cancel }: { equipment: EquipmentWithStatus; busy: boolean; save: (data: CalibrationEntry) => Promise<void>; cancel: () => void }) {
+  const [date, setDate] = useState('')
+  const [nextDate, setNextDate] = useState('')
+  const [result, setResult] = useState<CalibrationEntry['result'] | ''>('')
+  const [technician, setTechnician] = useState('')
+  const [certificate, setCertificate] = useState('')
+  const [notes, setNotes] = useState('')
+  const [error, setError] = useState('')
+  const submit = async (event: FormEvent) => {
+    event.preventDefault(); setError('')
+    if (!result) { setError('Choose the recorded calibration result.'); return }
+    try { await save({ equipmentId: equipment.id, date, nextDate: nextDate || undefined, result, technician, certificate, notes }) } catch (error) { setError(message(error)) }
+  }
+  return <form onSubmit={submit} className="space-y-4">
+    <SaveError error={error} />
+    <fieldset disabled={busy} className="space-y-4">
+      <Field label="Recorded calibration date">{id => <input id={id} type="date" required max={new Date().toISOString().slice(0, 10)} value={date} onChange={e => setDate(e.target.value)} className="input w-full" />}</Field>
+      <Field label="Recorded result">{id => <select id={id} required value={result} onChange={e => { const value = e.target.value; if (value === 'passed' || value === 'failed' || value === 'adjusted' || value === '') setResult(value) }} className="input w-full">
+        <option value="">Choose the recorded result</option><option value="passed">Passed</option><option value="failed">Failed</option><option value="adjusted">Adjusted, review required</option>
+      </select>}</Field>
+      <Field label="Next calibration date from the record, if specified">{id => <input id={id} type="date" min={date || undefined} value={nextDate} onChange={e => setNextDate(e.target.value)} className="input w-full" />}</Field>
+      <p className="text-sm text-[var(--text-secondary)]">{Number.isInteger(equipment.intervalDays) && equipment.intervalDays > 0 ? 'If no due date is specified, the server uses the adopted interval of ' + String(equipment.intervalDays) + ' days from the recorded calibration date.' : 'Declare an interval in instrument details, or supply the due date from the retained record.'}</p>
+      <Field label="Technician or laboratory">{id => <input id={id} maxLength={200} value={technician} onChange={e => setTechnician(e.target.value)} className="input w-full" />}</Field>
+      <Field label="Certificate reference">{id => <input id={id} maxLength={200} value={certificate} onChange={e => setCertificate(e.target.value)} className="input w-full" />}</Field>
+      <Field label="Record notes">{id => <textarea id={id} rows={3} maxLength={5000} value={notes} onChange={e => setNotes(e.target.value)} className="input w-full" />}</Field>
+    </fieldset>
+    <div className="flex flex-wrap justify-end gap-3"><button type="button" onClick={cancel} disabled={busy} className="btn btn-secondary">Cancel</button><button type="submit" disabled={busy} className="btn btn-primary">{busy ? 'Retaining record…' : 'Save calibration record'}</button></div>
+  </form>
 }
-
-// ── Detail drawer ────────────────────────────────────────────────────────────
-
-function DetailDrawer({ equipment, onClose, onEdit, onLog, onDelete }: {
-  equipment: EquipmentWithStatus
-  onClose: () => void
-  onEdit: () => void
-  onLog: () => void
-  onDelete: () => void
-}) {
-  const { data: logs = [] } = useQuery({
-    queryKey: ['calibrationLogs', equipment.id],
-    queryFn: () => fetchCalibrationLogs(equipment.id),
-  })
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-  return (
-    <div className="fixed inset-0 z-40 flex">
-      <button type="button" aria-label="Close dialog" tabIndex={-1} className="flex-1 cursor-pointer border-0 p-0" onClick={onClose} />
-      <div className="w-full max-w-md bg-[var(--bg-card)] border-l border-[var(--border-color)] h-full overflow-y-auto shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-label={equipment.name}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
-          <h2 className="font-semibold text-[var(--text-primary)]">{equipment.name}</h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xl leading-none">×</button>
-        </div>
-        <div className="p-6 space-y-6">
-          {/* Status banner */}
-          <div className={`rounded-lg p-4 ${equipment.status === 'overdue' ? 'bg-red-900/30 border border-red-700/40' : equipment.status === 'due_soon' ? 'bg-amber-900/30 border border-amber-700/40' : 'bg-green-900/20 border border-green-700/30'}`}>
-            <div className="flex items-baseline gap-2">
-              <span className={`text-2xl font-bold ${equipment.status === 'overdue' ? 'text-red-300' : equipment.status === 'due_soon' ? 'text-amber-300' : 'text-green-300'}`}>
-                {Math.abs(equipment.daysUntilDue)}
-              </span>
-              <span className={`text-sm ${equipment.status === 'overdue' ? 'text-red-400' : equipment.status === 'due_soon' ? 'text-amber-400' : 'text-green-400'}`}>
-                {equipment.status === 'overdue' ? 'days overdue' : equipment.status === 'due_soon' ? 'days until due' : 'days remaining'}
-              </span>
-            </div>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
-              Next calibration: {fmtDate(equipment.nextCalibrationDate)}
-            </p>
-            <CountdownBar e={equipment} />
-          </div>
-
-          {/* Details */}
-          <div className="grid grid-cols-2 gap-3 text-sm">
-            {[
-              ['Type', getEquipmentTypes().find((t) => t.id === equipment.type)?.label || equipment.type],
-              ['Brand / Model', `${equipment.brand} ${equipment.model}`.trim() || '—'],
-              ['Serial number', equipment.serialNumber || '—'],
-              ['Location', equipment.location || '—'],
-              ['Purchase date', equipment.purchaseDate ? fmtDate(equipment.purchaseDate) : '—'],
-              ['Interval', INTERVALS.find((i) => i.days === equipment.intervalDays)?.label || `${equipment.intervalDays} days`],
-            ].map(([k, v]) => (
-              <div key={k}>
-                <p className="text-[var(--text-muted)] text-xs">{k}</p>
-                <p className="text-[var(--text-primary)] mt-0.5">{v}</p>
-              </div>
-            ))}
-          </div>
-
-          {equipment.notes && (
-            <div>
-              <p className="text-[var(--text-muted)] text-xs mb-1">Notes</p>
-              <p className="text-sm text-[var(--text-secondary)]">{equipment.notes}</p>
-            </div>
-          )}
-
-          {/* Actions */}
-          <div className="flex gap-2">
-            <button onClick={onLog} className="btn btn-primary flex-1 text-sm py-2">Log calibration</button>
-            <button onClick={onEdit} className="btn btn-secondary text-sm py-2 px-4">Edit</button>
-            <button onClick={onDelete} className="btn btn-secondary text-sm py-2 px-3 text-red-400 border-red-700/30 hover:bg-red-900/20">Delete</button>
-          </div>
-
-          {/* Calibration history */}
-          {logs.length > 0 && (
-            <div>
-              <h3 className="text-sm font-medium text-[var(--text-primary)] mb-3">Calibration history</h3>
-              <div className="space-y-2">
-                {logs.map((log) => (
-                  <div key={log.id} className="bg-[var(--bg-secondary)] rounded-lg p-3 text-sm">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium">{fmtDate(log.date)}</span>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${log.result === 'passed' ? 'bg-green-900/40 text-green-300' : log.result === 'adjusted' ? 'bg-amber-900/40 text-amber-300' : 'bg-red-900/40 text-red-300'}`}>
-                        {log.result}
-                      </span>
-                    </div>
-                    {log.technician && <p className="text-[var(--text-muted)] text-xs">{log.technician}{log.certificate && ` · ${log.certificate}`}</p>}
-                    {log.notes && <p className="text-[var(--text-muted)] text-xs mt-1">{log.notes}</p>}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  )
+function InstrumentDetail({ item, ownerId, edit, log, archive }: { item: EquipmentWithStatus; ownerId: string; edit: () => void; log: () => void; archive: () => void }) {
+  const history = useQuery({ queryKey: ['calibrationLogs', ownerId, item.id], queryFn: () => fetchCalibrationLogs(item.id) })
+  return <div className="space-y-5">
+    <div className={'rounded-lg border p-4 ' + statusStyle(item.status)}><p className="font-semibold">{labels[item.status]}</p><p className="mt-1 text-sm">{item.statusReason}</p></div>
+    <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">{[
+      ['Serial number', item.serialNumber || 'Not recorded'], ['Location', item.location || 'Not recorded'],
+      ['Last calibration', fmtDate(item.lastCalibrationDate)], ['Retained next due date', fmtDate(item.nextCalibrationDate)],
+      ['Adopted interval', Number.isInteger(item.intervalDays) && item.intervalDays > 0 ? String(item.intervalDays) + ' days' : 'Not recorded'], ['Instrument state', item.lifecycleStatus || 'active'],
+    ].map(([name, value]) => <div key={name}><dt className="text-[var(--text-muted)]">{name}</dt><dd className="break-words text-[var(--text-primary)]">{value}</dd></div>)}</dl>
+    {item.notes && <p className="whitespace-pre-wrap break-words text-sm">{item.notes}</p>}
+    <div className="flex flex-wrap gap-3"><button onClick={log} className="btn btn-primary"><NotebookPen size={16} aria-hidden />Log calibration</button><button onClick={edit} className="btn btn-secondary"><Pencil size={16} aria-hidden />Edit details</button><button onClick={archive} className="btn btn-secondary">{item.lifecycleStatus === 'inactive' ? <RotateCcw size={16} aria-hidden /> : <Archive size={16} aria-hidden />}{item.lifecycleStatus === 'inactive' ? 'Restore instrument' : 'Archive instrument'}</button></div>
+    <section aria-label="Calibration history" className="space-y-3"><h3 className="font-semibold">Calibration history</h3>
+      {history.isLoading && <p role="status">Loading retained history…</p>}
+      {history.isError && <div role="alert"><p>Calibration history could not be loaded.</p><button className="btn btn-secondary mt-2" onClick={() => void history.refetch()}>Retry history</button></div>}
+      {history.isSuccess && history.data.length === 0 && <p className="text-sm text-[var(--text-secondary)]">No calibration records are retained.</p>}
+      {history.data?.map(record => <article key={record.id} className="space-y-1 rounded-lg border border-[var(--border-color)] p-3 text-sm"><p className="font-medium">{fmtDate(record.date)} · {record.result === 'unknown' ? 'Result not recorded' : record.result}</p><p>Next due: {fmtDate(record.nextDate)}</p>{record.technician && <p>{record.technician}</p>}{record.certificate && <p>Certificate: {record.certificate}</p>}{record.notes && <p className="whitespace-pre-wrap break-words">{record.notes}</p>}</article>)}
+    </section>
+  </div>
 }
-
-// ── Main page ────────────────────────────────────────────────────────────────
+type Modal = { kind: 'add' | 'edit' | 'calibration' | 'detail' | 'archive'; id?: string; ownerId: string }
 
 export default function EquipmentPage() {
-  const queryClient = useQueryClient()
-  const { data: items = [], isLoading } = useQuery({
-    queryKey: ['equipment'],
-    queryFn: fetchAllEquipment,
-  })
-
-  const [view, setView] = useState<'all' | 'overdue' | 'due_soon' | 'ok'>('all')
-  const [showAdd, setShowAdd] = useState(false)
-  const [editItem, setEditItem] = useState<EquipmentWithStatus | null>(null)
-  const [logItem, setLogItem] = useState<EquipmentWithStatus | null>(null)
-  const [detailItem, setDetailItem] = useState<EquipmentWithStatus | null>(null)
-
-  const reload = useCallback(() => queryClient.invalidateQueries({ queryKey: ['equipment'] }), [queryClient])
-
-  const filtered = view === 'all' ? items : items.filter((i) => i.status === view)
-
-  const counts = {
-    overdue: items.filter((i) => i.status === 'overdue').length,
-    due_soon: items.filter((i) => i.status === 'due_soon').length,
-    ok: items.filter((i) => i.status === 'ok').length,
+  const { data: session, status: sessionStatus } = useSession()
+  const ownerId = session?.user?.id
+  const client = useQueryClient()
+  const [includeArchived, setIncludeArchived] = useState(false)
+  const [filter, setFilter] = useState('all')
+  const [modal, setModal] = useState<Modal | null>(null)
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState('')
+  const query = useQuery({ queryKey: ['equipment', ownerId, includeArchived], queryFn: () => fetchAllEquipment(includeArchived), enabled: Boolean(ownerId) })
+  const items = query.data ?? []
+  const active = modal && modal.ownerId === ownerId ? items.find(item => item.id === modal.id) : undefined
+  const open = (kind: Modal['kind'], id?: string) => { if (ownerId) { setError(''); setModal({ kind, id, ownerId }) } }
+  const close = () => { if (!busy) setModal(null) }
+  const save = async (operation: () => Promise<unknown>) => {
+    setBusy(true); setError('')
+    try { await operation(); await client.invalidateQueries({ queryKey: ['equipment', ownerId] }); await client.invalidateQueries({ queryKey: ['calibrationLogs', ownerId] }); setModal(null) }
+    finally { setBusy(false) }
   }
-
-  if (isLoading) {
-    return <div className="min-h-screen bg-[var(--bg-primary)] p-8">Loading equipment...</div>
-  }
-
-  return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-5xl mx-auto px-4 py-8 pb-24 md:pb-8">
-
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-bold text-[var(--text-primary)]">Instrument calibration</h1>
-            <p className="text-sm text-[var(--text-muted)] mt-1">Track calibration schedules for your survey equipment</p>
-          </div>
-          <button onClick={() => setShowAdd(true)} className="btn btn-primary">
-            + Add instrument
-          </button>
-        </div>
-
-        {/* Summary cards */}
-        {items.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-6">
-            {([
-              { key: 'overdue', label: 'Overdue', color: 'text-red-400', border: 'border-red-700/30 bg-red-900/10' },
-              { key: 'due_soon', label: 'Due within 30 days', color: 'text-amber-400', border: 'border-amber-700/30 bg-amber-900/10' },
-              { key: 'ok', label: 'Current', color: 'text-green-400', border: 'border-green-700/30 bg-green-900/10' },
-            ] as const).map(({ key, label, color, border }) => (
-              <button key={key} onClick={() => setView(v => v === key ? 'all' : key)}
-                className={`p-4 rounded-xl border transition-all text-left ${view === key ? border : 'border-[var(--border-color)] bg-[var(--bg-card)]'}`}>
-                <p className={`text-2xl font-bold ${color}`}>{counts[key]}</p>
-                <p className="text-xs text-[var(--text-muted)] mt-0.5">{label}</p>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Empty state */}
-        {items.length === 0 && (
-          <div className="text-center py-24 border border-dashed border-[var(--border-color)] rounded-2xl">
-            <div className="text-4xl mb-4">[Compass]</div>
-            <h2 className="text-xl font-semibold text-[var(--text-primary)] mb-2">No instruments registered</h2>
-            <p className="text-sm text-[var(--text-muted)] mb-6 max-w-sm mx-auto">
-              Add your total stations, GNSS receivers, levels, and other instruments to track their calibration schedules.
-            </p>
-            <button onClick={() => setShowAdd(true)} className="btn btn-primary">
-              Register your first instrument
-            </button>
-          </div>
-        )}
-
-        {/* Equipment list */}
-        {items.length > 0 && (
-          <div className="space-y-3">
-            {filtered.length === 0 && (
-              <div className="text-center py-12 text-[var(--text-muted)] text-sm">
-                No instruments with that status
-              </div>
-            )}
-            {filtered.map((eq) => (
-              <div key={eq.id}
-                role="button" tabIndex={0}
-                onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDetailItem(eq); } }}
-                className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl p-5 cursor-pointer hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)] transition-colors"
-                onClick={() => setDetailItem(eq)}>
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-semibold text-[var(--text-primary)]">{eq.name}</h3>
-                      <span className={`text-xs px-2 py-0.5 rounded-full ${statusPill(eq.status)}`}>
-                        {statusLabel(eq)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-[var(--text-muted)] mt-0.5">
-                      {[eq.brand, eq.model].filter(Boolean).join(' ')}
-                      {eq.serialNumber && ` · ${eq.serialNumber}`}
-                      {eq.location && ` · ${eq.location}`}
-                    </p>
-                    <CountdownBar e={eq} />
-                  </div>
-                  <div className="text-right flex-shrink-0">
-                    <p className={`text-xl font-bold tabular-nums ${eq.status === 'overdue' ? 'text-red-400' : eq.status === 'due_soon' ? 'text-amber-400' : 'text-green-400'}`}>
-                      {Math.abs(eq.daysUntilDue)}
-                    </p>
-                    <p className="text-xs text-[var(--text-muted)]">
-                      {eq.status === 'overdue' ? 'days late' : 'days left'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Modals */}
-      {showAdd && (
-        <EquipmentForm
-          onSave={async (data) => { await createEquipmentApi(data); reload(); setShowAdd(false) }}
-          onCancel={() => setShowAdd(false)}
-        />
-      )}
-      {editItem && (
-        <EquipmentForm
-          initial={editItem}
-          onSave={async (data) => { await updateEquipmentApi(editItem.id, data); reload(); setEditItem(null); setDetailItem(null) }}
-          onCancel={() => setEditItem(null)}
-        />
-      )}
-      {logItem && (
-        <LogForm
-          equipment={logItem}
-          onSave={() => { reload(); setLogItem(null); setDetailItem(null) }}
-          onCancel={() => setLogItem(null)}
-        />
-      )}
-      {detailItem && (
-        <DetailDrawer
-          equipment={items.find((i) => i.id === detailItem.id) || detailItem}
-          onClose={() => setDetailItem(null)}
-          onEdit={() => { setEditItem(detailItem); setDetailItem(null) }}
-          onLog={() => { setLogItem(detailItem); setDetailItem(null) }}
-          onDelete={async () => { await deleteEquipmentApi(detailItem.id); reload(); setDetailItem(null) }}
-        />
-      )}
-    </div>
-  )
+  if (sessionStatus === 'loading') return <main className="mx-auto max-w-5xl p-6"><p role="status">Checking account…</p></main>
+  if (!ownerId) return <main className="mx-auto max-w-5xl space-y-4 p-6"><h1 className="text-2xl font-semibold">Instrument register</h1><p>Sign in to view your instrument and calibration records.</p><Link href="/login?next=%2Fequipment" className="btn btn-primary">Sign in</Link></main>
+  const visible = items.filter(item => filter === 'all' || item.status === filter)
+  const dialogOpen = modal?.ownerId === ownerId && (modal.kind === 'add' || Boolean(active))
+  const titles = { add: 'Register instrument', edit: 'Edit instrument details', calibration: 'Log calibration', detail: active?.name ?? 'Instrument details', archive: active?.lifecycleStatus === 'inactive' ? 'Restore instrument' : 'Archive instrument' }
+  return <main className="mx-auto w-full max-w-5xl space-y-6 px-4 py-6 sm:px-6">
+    <header className="flex flex-wrap items-start justify-between gap-4"><div className="space-y-2"><p className="text-xs uppercase tracking-widest text-[var(--text-muted)]">Field equipment</p><h1 className="flex items-center gap-3 text-2xl font-semibold"><Telescope aria-hidden size={26} />Instrument register</h1><p className="max-w-2xl text-sm text-[var(--text-secondary)]">Retain instrument details and calibration history. A schedule reflects recorded information and requires professional review before field use.</p></div><button className="btn btn-primary" onClick={() => open('add')}><Plus aria-hidden size={18} />Register instrument</button></header>
+    <div className="flex flex-wrap items-end justify-between gap-4"><Field label="Calibration status">{id => <select id={id} value={filter} onChange={e => setFilter(e.target.value)} className="input"><option value="all">All statuses</option>{Object.entries(labels).map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select>}</Field><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={includeArchived} onChange={e => setIncludeArchived(e.target.checked)} />Include archived instruments</label></div>
+    {query.isLoading && <p role="status">Loading instrument records…</p>}
+    {query.isError && <div role="alert" className="rounded-lg border border-red-700 p-4"><p>{message(query.error)}</p><button className="btn btn-secondary mt-3" onClick={() => void query.refetch()}>Retry instrument records</button></div>}
+    {query.isSuccess && items.length === 0 && <section className="space-y-3 rounded-xl border border-dashed border-[var(--border-color)] px-6 py-12 text-center"><Telescope className="mx-auto text-[var(--text-muted)]" size={36} aria-hidden /><h2 className="text-lg font-semibold">No instruments registered</h2><p className="text-sm text-[var(--text-secondary)]">Register your instrument, then retain its actual calibration record.</p><button className="btn btn-primary" onClick={() => open('add')}>Register your first instrument</button></section>}
+    {items.length > 0 && visible.length === 0 && <p>No instruments match this status.</p>}
+    <ul className="space-y-3">{visible.map(item => <li key={item.id}><button onClick={() => open('detail', item.id)} className="w-full rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--accent)] sm:p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3"><div className="min-w-0 space-y-1"><h2 className="break-words font-semibold">{item.name}{item.lifecycleStatus === 'inactive' && <span className="ml-2 text-sm text-[var(--text-muted)]">Archived</span>}</h2><p className="break-words text-sm text-[var(--text-secondary)]">{[item.brand, item.model, item.serialNumber].filter(Boolean).join(' · ') || item.type}</p></div><span className={'rounded-full border px-3 py-1 text-xs ' + statusStyle(item.status)}>{labels[item.status]}</span></div>
+      <p className="mt-3 text-sm text-[var(--text-secondary)]">{item.daysUntilDue === null ? item.statusReason : item.daysUntilDue < 0 ? String(Math.abs(item.daysUntilDue)) + ' days overdue' : item.daysUntilDue === 0 ? 'Due today' : String(item.daysUntilDue) + ' days until due'}</p>
+    </button></li>)}</ul>
+    <Dialog open={Boolean(dialogOpen)} onOpenChange={value => { if (!value) close() }}><DialogContent showCloseButton={!busy} className="max-h-[calc(100dvh-2rem)] overflow-y-auto border-[var(--border-color)] bg-[var(--bg-card)] text-[var(--text-primary)] sm:max-w-2xl">
+      <DialogHeader><DialogTitle>{modal ? titles[modal.kind] : 'Instrument register'}</DialogTitle><DialogDescription>{modal?.kind === 'calibration' ? active?.name : modal?.kind === 'archive' ? 'Archiving retains the instrument and its calibration history. It can be restored later.' : 'Account-owned instrument details and retained, user-reported calibration information.'}</DialogDescription></DialogHeader>
+      {modal?.kind === 'add' && <DetailsForm busy={busy} save={data => save(() => createEquipmentApi(data))} cancel={close} />}
+      {modal?.kind === 'edit' && active && <DetailsForm key={active.id} initial={active} busy={busy} save={data => save(() => updateEquipmentApi(active.id, data))} cancel={close} />}
+      {modal?.kind === 'calibration' && active && <CalibrationForm key={active.id} equipment={active} busy={busy} save={data => save(() => logCalibrationApi(data))} cancel={close} />}
+      {modal?.kind === 'detail' && active && <InstrumentDetail item={active} ownerId={ownerId} edit={() => open('edit', active.id)} log={() => open('calibration', active.id)} archive={() => open('archive', active.id)} />}
+      {modal?.kind === 'archive' && active && <div className="space-y-4"><SaveError error={error} /><div className="flex flex-wrap justify-end gap-3"><button className="btn btn-secondary" disabled={busy} onClick={close}>Cancel</button><button className="btn btn-primary" disabled={busy} onClick={async () => { try { await save(() => updateEquipmentApi(active.id, { status: active.lifecycleStatus === 'inactive' ? 'active' : 'inactive' })) } catch (error) { setError(message(error)) } }}>{busy ? 'Saving…' : active.lifecycleStatus === 'inactive' ? 'Restore instrument' : 'Archive instrument'}</button></div></div>}
+    </DialogContent></Dialog>
+  </main>
 }

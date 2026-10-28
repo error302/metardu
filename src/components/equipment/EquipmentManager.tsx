@@ -9,13 +9,15 @@
  * - View calibration history per item
  * - Add calibration record
  * - Visual alerts for expiring/overdue calibrations
- * - Per Survey Act: total stations need annual calibration
+ * - Schedule information requires review against the retained calibration record
  */
 
 import { useState, useCallback, useEffect } from 'react'
+import { z } from 'zod'
+import { equipmentRowSchema, calibrationRowSchema, updateEquipmentApi } from '@/lib/integrations/equipmentApi'
 import {
   Wrench, Plus, Loader2, AlertTriangle, CheckCircle2, Clock,
-  Calendar, X, ChevronDown, ChevronUp, Trash2,
+  Calendar, X, ChevronDown, ChevronUp, Archive,
 } from 'lucide-react'
 
 interface Equipment {
@@ -40,7 +42,7 @@ interface Calibration {
   calibrated_by?: string | null
   calibration_lab?: string | null
   certificate_number?: string | null
-  results: string
+  results: string | null
   notes?: string | null
 }
 
@@ -59,7 +61,10 @@ const CAL_STATUS_CONFIG: Record<string, { color: string; bg: string; border: str
   current: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', icon: CheckCircle2, label: 'Current' },
   expiring: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30', icon: Clock, label: 'Expiring Soon' },
   overdue: { color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: AlertTriangle, label: 'Overdue' },
-  never: { color: 'text-gray-400', bg: 'bg-gray-500/10', border: 'border-gray-500/30', icon: Clock, label: 'Never Calibrated' },
+  never: { color: 'text-gray-300', bg: 'bg-gray-500/10', border: 'border-gray-500/30', icon: Clock, label: 'Calibration Not Recorded' },
+  failed: { color: 'text-red-300', bg: 'bg-red-500/10', border: 'border-red-500/30', icon: AlertTriangle, label: 'Failed Calibration' },
+  review_required: { color: 'text-amber-200', bg: 'bg-amber-500/10', border: 'border-amber-500/30', icon: AlertTriangle, label: 'Review Calibration Result' },
+  invalid: { color: 'text-amber-200', bg: 'bg-amber-500/10', border: 'border-amber-500/30', icon: AlertTriangle, label: 'Review Calibration Dates' },
 }
 
 export function EquipmentManager() {
@@ -76,8 +81,9 @@ export function EquipmentManager() {
     try {
       const res = await fetch('/api/equipment?include_calibration=true')
       if (!res.ok) return
-      const data = (await res.json()) as { data?: { equipment: Equipment[] } }
-      setEquipment(data.data?.equipment || [])
+      const payload: unknown = await res.json()
+      const data = z.object({ equipment: z.array(equipmentRowSchema) }).parse(payload)
+      setEquipment(data.equipment.map(row => ({ ...row, status: row.status ?? 'unknown' })))
     } catch {} finally {
       setLoading(false)
     }
@@ -98,8 +104,10 @@ export function EquipmentManager() {
     try {
       const res = await fetch(`/api/equipment/${equipId}/calibration`)
       if (res.ok) {
-        const data = (await res.json()) as { data?: { calibrations: Calibration[] } }
-        setCalibrations(data.data?.calibrations || [])
+        const payload: unknown = await res.json()
+        const data = z.object({ calibrations: z.array(calibrationRowSchema) }).parse(payload)
+        if (data.calibrations.some(row => row.equipment_id !== equipId)) throw new Error('Calibration record belongs to another instrument')
+        setCalibrations(data.calibrations)
       }
     } catch {} finally {
       setLoadingCal(false)
@@ -108,9 +116,9 @@ export function EquipmentManager() {
 
   const handleDelete = useCallback(async (id: string, e: React.MouseEvent) => {
     e.stopPropagation()
-    if (!confirm('Delete this equipment and all calibration records?')) return
+    if (!confirm('Archive this instrument? Its calibration history will be retained.')) return
     try {
-      await fetch(`/api/equipment?id=${id}`, { method: 'DELETE' })
+      await updateEquipmentApi(id, { status: 'inactive' })
       setEquipment(prev => prev.filter(e => e.id !== id))
     } catch {}
   }, [])
@@ -224,10 +232,11 @@ export function EquipmentManager() {
                   </div>
                   <div className="flex items-center gap-1">
                     <button
+                      aria-label="Archive instrument"
                       onClick={(e) => handleDelete(equip.id, e)}
                       className="w-7 h-7 flex items-center justify-center rounded text-gray-500 hover:text-red-400"
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Archive aria-hidden className="w-3.5 h-3.5" />
                     </button>
                     {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-500" /> : <ChevronDown className="w-4 h-4 text-gray-500" />}
                   </div>
@@ -270,9 +279,9 @@ export function EquipmentManager() {
                         {calibrations.map(cal => (
                           <div key={cal.id} className="flex items-start gap-3 p-2.5 rounded-lg bg-white/[0.02] border border-[var(--border-color)]">
                             <div className={`shrink-0 w-7 h-7 rounded flex items-center justify-center ${
-                              cal.results === 'pass' ? 'bg-emerald-500/10' : 'bg-red-500/10'
+                              cal.results === 'pass' || cal.results === 'passed' ? 'bg-emerald-500/10' : 'bg-red-500/10'
                             }`}>
-                              {cal.results === 'pass' ? (
+                              {cal.results === 'pass' || cal.results === 'passed' ? (
                                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                               ) : (
                                 <AlertTriangle className="w-3.5 h-3.5 text-red-400" />
@@ -385,11 +394,11 @@ function AddEquipmentForm({ onClose, onAdded }: { onClose: () => void; onAdded: 
 }
 
 function AddCalibrationForm({ equipmentId, onClose, onAdded }: { equipmentId: string; onClose: () => void; onAdded: () => void }) {
-  const [calDate, setCalDate] = useState(new Date().toISOString().split('T')[0])
-  const [nextDate, setNextDate] = useState(new Date(Date.now() + 365 * 86400000).toISOString().split('T')[0])
+  const [calDate, setCalDate] = useState('')
+  const [nextDate, setNextDate] = useState('')
   const [lab, setLab] = useState('')
   const [certNumber, setCertNumber] = useState('')
-  const [results, setResults] = useState('pass')
+  const [results, setResults] = useState('')
   const [notes] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -402,7 +411,7 @@ function AddCalibrationForm({ equipmentId, onClose, onAdded }: { equipmentId: st
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          calibrationDate: calDate, nextCalibrationDate: nextDate,
+          calibrationDate: calDate, nextCalibrationDate: nextDate || undefined,
           calibrationLab: lab, certificateNumber: certNumber,
           results, notes,
         }),
@@ -437,14 +446,15 @@ function AddCalibrationForm({ equipmentId, onClose, onAdded }: { equipmentId: st
         <input type="text" value={certNumber} onChange={e => setCertNumber(e.target.value)} placeholder="Certificate No." className="h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)] font-mono placeholder-gray-600" />
       </div>
       <select value={results} onChange={e => setResults(e.target.value)} className="w-full h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded text-xs text-[var(--text-primary)]">
+        <option value="">Choose the recorded result</option>
         <option value="pass">Pass</option>
         <option value="fail">Fail</option>
-        <option value="conditional">Conditional Pass</option>
+        <option value="conditional">Conditional result — review required</option>
       </select>
       {error && <p className="text-xs text-red-400">{error}</p>}
       <div className="flex gap-2">
         <button onClick={onClose} className="flex-1 h-8 rounded bg-[var(--bg-tertiary)] border border-[var(--border-color)] text-xs text-gray-400">Cancel</button>
-        <button onClick={handleSave} disabled={saving} className="flex-1 h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">
+        <button onClick={handleSave} disabled={saving || !results || !calDate} className="flex-1 h-8 rounded bg-[var(--accent)] text-black text-xs font-semibold disabled:opacity-40">
           {saving ? 'Saving...' : 'Save'}
         </button>
       </div>

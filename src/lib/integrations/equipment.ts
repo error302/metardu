@@ -1,15 +1,18 @@
 /**
  * Equipment Calibration Tracker
- * User-owned data — persisted in localStorage, keyed by user session.
- * No mock data. Users register their own instruments.
+ * Pure schedule assessment and legacy device storage helpers.
+ * The authenticated equipment page uses the server API, not these storage keys.
  */
 
 export type EquipmentType = 'total_station' | 'gnss' | 'level' | 'theodolite' | 'edm' | 'prism_pole' | 'accessory'
 
+import { assessCalibration, type CalibrationAssessment } from '@/lib/equipment/calibration'
+export type { CalibrationStatus } from '@/lib/equipment/calibration'
+
 export interface Equipment {
   id: string
   name: string
-  type: EquipmentType
+  type: string
   brand: string
   model: string
   serialNumber: string
@@ -19,26 +22,25 @@ export interface Equipment {
   location: string
   notes: string
   createdAt: string
+  calibrationResult?: CalibrationLog['result']
+  recordedNextCalibrationDate?: string | null
+  lifecycleStatus?: string
 }
+
+export type EquipmentDetails = Omit<Equipment, 'id' | 'createdAt' | 'lastCalibrationDate' | 'calibrationResult' | 'recordedNextCalibrationDate' | 'lifecycleStatus'>
 
 export interface CalibrationLog {
   id: string
   equipmentId: string
   date: string          // ISO date string
-  result: 'passed' | 'failed' | 'adjusted'
+  result: 'passed' | 'failed' | 'adjusted' | 'conditional' | 'unknown'
   technician: string
   certificate: string
   notes: string
+  nextDate?: string | null
 }
 
-export type CalibrationStatus = 'ok' | 'due_soon' | 'overdue'
-
-export interface EquipmentWithStatus extends Equipment {
-  nextCalibrationDate: string
-  daysUntilDue: number       // negative = overdue
-  status: CalibrationStatus
-  percentUsed: number        // 0–100, how far through the interval
-}
+export interface EquipmentWithStatus extends Equipment, CalibrationAssessment {}
 
 const STORAGE_KEY = 'metardu_equipment'
 const LOG_KEY = 'metardu_calibration_logs'
@@ -72,33 +74,19 @@ function saveLogs(logs: CalibrationLog[]): void {
 // ── Status calculation ───────────────────────────────────────────────────────
 
 export function calcStatus(eq: Equipment): EquipmentWithStatus {
-  const lastCal = new Date(eq.lastCalibrationDate)
-  const nextCal = new Date(lastCal.getTime() + eq.intervalDays * 86_400_000)
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const daysUntilDue = Math.ceil((nextCal.getTime() - today.getTime()) / 86_400_000)
+  return { ...eq, ...assessCalibration({ date: eq.lastCalibrationDate, nextDate: eq.recordedNextCalibrationDate, intervalDays: eq.intervalDays, result: eq.calibrationResult }) }
+}
 
-  let status: CalibrationStatus = 'ok'
-  if (daysUntilDue < 0) status = 'overdue'
-  else if (daysUntilDue <= 30) status = 'due_soon'
-
-  const elapsed = today.getTime() - lastCal.getTime()
-  const total = nextCal.getTime() - lastCal.getTime()
-  const percentUsed = Math.min(100, Math.max(0, Math.round((elapsed / total) * 100)))
-
-  return {
-    ...eq,
-    nextCalibrationDate: nextCal.toISOString().split('T')[0],
-    daysUntilDue,
-    status,
-    percentUsed,
-  }
+export function compareCalibrationSchedules(a: EquipmentWithStatus, b: EquipmentWithStatus): number {
+  if (a.daysUntilDue === null && b.daysUntilDue !== null) return -1
+  if (a.daysUntilDue !== null && b.daysUntilDue === null) return 1
+  return (a.daysUntilDue ?? 0) - (b.daysUntilDue ?? 0) || a.name.localeCompare(b.name)
 }
 
 // ── CRUD ─────────────────────────────────────────────────────────────────────
 
 export function getAll(): EquipmentWithStatus[] {
-  return load().map(calcStatus).sort((a, b) => a.daysUntilDue - b.daysUntilDue)
+  return load().map(calcStatus).sort(compareCalibrationSchedules)
 }
 
 export function addEquipment(data: Omit<Equipment, 'id' | 'createdAt'>): Equipment {
@@ -126,7 +114,7 @@ export function logCalibration(data: Omit<CalibrationLog, 'id'>): CalibrationLog
   const log: CalibrationLog = { ...data, id: `LOG_${Date.now()}` }
   saveLogs([...loadLogs(), log])
   // Update the equipment's lastCalibrationDate
-  updateEquipment(data.equipmentId, { lastCalibrationDate: data.date })
+  updateEquipment(data.equipmentId, { lastCalibrationDate: data.date, calibrationResult: data.result, recordedNextCalibrationDate: data.nextDate })
   return log
 }
 

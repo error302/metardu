@@ -5,6 +5,16 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+28 October equipment/source checkpoint:
+`EQUIPMENT_CALIBRATION_REPAIR_2026-10-28.md` records explicit evidence states,
+owner-bound records, atomic notifications, retained due dates and reversible
+archiving. All 47 focused tests, strict application/test typing, 12-file scoped
+lint and 17 rolled-back native database checks pass. Browser visual acceptance
+remains open after the computer-use helper stopped. The current live site is
+healthy but reports an unknown release identity; source push is not deployment.
+`CHECKPOINT_AND_REMAINING_WORK_2026-10-28.md` records updated CI findings and the
+ordered backlog, preserving all production/recovery/provider/field gates.
+
 27 October lint admission follow-up:
 `LINT_MEMORY_AND_ADMISSION_REPAIR_2026-10-27.md` records a complete 2,817-file
 scan without memory exhaustion and a regression for previously ignored
