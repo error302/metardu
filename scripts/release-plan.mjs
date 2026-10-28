@@ -1,8 +1,9 @@
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import {computeDrift} from './verify-migrations.mjs'
+import {WORKFLOW_UPGRADE_VERSIONS,assertWorkflowUpgradeProof} from './workflow-upgrade-contract.mjs'
 
-export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles']
+export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles',...WORKFLOW_UPGRADE_VERSIONS]
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
@@ -72,10 +73,12 @@ export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
   assert.ok(Number.isFinite(freeBytes)&&freeBytes>=reserveBytes,'Host free space is below the 8 GiB build reserve.')
 }
 
-export function assertSyntheticUpgradeProof(proof,revision) {
+export function assertSyntheticUpgradeProof(proof,revision,expected) {
   assert.equal(proof.revision,revision)
   assert.equal(proof.status,'passed')
-  assert.ok([112,115,117,118].includes(proof.sourceBaseline))
+  assert.ok([112,115,117,118,119].includes(proof.sourceBaseline))
+  if(expected?.pending?.some(version=>WORKFLOW_UPGRADE_VERSIONS.includes(version)))assert.equal(proof.sourceBaseline,119,'Older rehearsal evidence cannot admit the workflow upgrade.')
+  if(proof.sourceBaseline===119)assertWorkflowUpgradeProof(proof,expected)
   if(proof.sourceBaseline===118){
     assert.deepEqual(proof.pending,['114_field_observation_roles'])
     assert.equal(proof.targetLedgerCount,119)

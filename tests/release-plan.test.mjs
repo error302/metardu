@@ -72,3 +72,24 @@ test('118-ledger field-role upgrade requires preserved policies, rejection cases
   assertSyntheticUpgradeProof(proof,sha)
   for(const change of [{variants:['canonical']},{unsafePoliciesRejected:false},{disabledRlsRejected:false},{restrictivePoliciesPreserved:false},{nativeServiceVerified:false},{pending:[]},{cleanup:{syntheticDatabaseRemoved:true}}])assert.throws(()=>assertSyntheticUpgradeProof({...proof,...change},sha))
 })
+
+const workflowPending=['115_fieldbook_delivery_revisions','116_surface_request_recovery','117_scheme_import_receipts','118_block_identity_retention','119_reviewed_parcel_boundary_drafts','120_scheme_export_requests','121_parcel_draft_sharing','122_retained_parcel_traverses','123_boundary_request_recovery']
+function workflowProof(){return {revision:sha,status:'passed',sourceBaseline:119,targetLedgerCount:128,pending:workflowPending,variants:['canonical','duplicate_parcel','duplicate_block','unexpected_block_fk','malformed_boundary'],sourceRegistry:Array.from({length:119},(_,i)=>({version:`${i}_old`,checksum:'a'.repeat(64)})).concat(workflowPending.map(version=>({version,checksum:'b'.repeat(64)}))),originalValuesPreserved:true,historicalHashesPreserved:true,normalRuntimeProvisioning:true,boundaryBackfillPreserved:true,restrictedRoleVerified:true,legacyFieldbookWritersVerified:true,precisionPreserved:true,retainedBlockDeletionGuard:true,incompatibleDataRejected:true,productionMutated:false,customerDataCopied:false,newContainer:false,cleanup:{syntheticDatabaseRemoved:true,syntheticRoleRemoved:true},checks:Array.from({length:11},(_,i)=>({name:`check-${i}`,passed:true}))}}
+
+test('119-to-128 workflow proof is bound to the planned migration registry and full rejection matrix',()=>{
+  const proof=workflowProof(),expected={pending:workflowPending,sourceRegistry:proof.sourceRegistry}
+  assertSyntheticUpgradeProof(proof,sha,expected)
+  for(const change of [{sourceBaseline:118},{variants:['canonical']},{targetLedgerCount:127},{incompatibleDataRejected:false},{precisionPreserved:false},{restrictedRoleVerified:false},{boundaryBackfillPreserved:false},{productionMutated:true},{sourceRegistry:proof.sourceRegistry.slice(1)},{checks:proof.checks.slice(0,10)},{cleanup:{syntheticDatabaseRemoved:true}}])assert.throws(()=>assertSyntheticUpgradeProof({...proof,...change},sha,expected))
+  assert.throws(()=>assertSyntheticUpgradeProof(proof,sha,{...expected,pending:workflowPending.slice(1)}))
+  assert.throws(()=>assertSyntheticUpgradeProof(proof,sha,{...expected,sourceRegistry:proof.sourceRegistry.map((file,i)=>i===127?{...file,checksum:'c'.repeat(64)}:file)}))
+  assert.throws(()=>assertSyntheticUpgradeProof(proof,sha))
+})
+
+test('older rehearsal evidence cannot admit newer workflow migrations',()=>{
+  const old={revision:sha,status:'passed',sourceBaseline:112,customerDataCopied:false,newContainer:false,cleanup:{syntheticDatabaseRemoved:true},checks:Array.from({length:5},()=>({passed:true}))}
+  assert.throws(()=>assertSyntheticUpgradeProof(old,sha,{pending:workflowPending,sourceRegistry:workflowProof().sourceRegistry}))
+  const baseline=[{version:'114_field_observation_roles',path:'src/lib/db/migrations/114_field_observation_roles.sql',checksum:'a'.repeat(64)}]
+  const registry=baseline.concat(workflowPending.map(version=>({version,path:`src/lib/db/migrations/${version}.sql`,checksum:'b'.repeat(64)})))
+  assert.deepEqual(assertSurveyReleaseDrift(registry,baseline).missing,workflowPending)
+  assert.throws(()=>assertSurveyReleaseDrift(registry.concat({version:'124_unknown',checksum:'c'.repeat(64)}),baseline))
+})

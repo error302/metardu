@@ -46,7 +46,7 @@ async function check(name,args) {
 try {
   await check('app-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.json'])
   await check('test-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.tests.json'])
-  if(unified)await check('release-contracts',['--test','tests/release-plan.test.mjs','tests/field-observation-contract.test.mjs'])
+  if(unified)await check('release-contracts',['--test','tests/release-plan.test.mjs','tests/field-observation-contract.test.mjs','tests/workflow-upgrade.test.mjs','tests/release-row-snapshot.test.mjs'])
   await check('related-tests',[path.join(nm,'jest/bin/jest.js'),'--runInBand','--config',path.join(source,'jest.config.js'),'--findRelatedTests',...changed])
   await check('changed-lint',[path.join(nm,'eslint/bin/eslint.js'),...changed])
   if(unified)assertPinnedCheckout()

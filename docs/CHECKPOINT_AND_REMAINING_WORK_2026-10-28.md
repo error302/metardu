@@ -6,6 +6,16 @@ through `44396a812f0c176f493dfecda87b285b6aab2a2e`. See
 `EQUIPMENT_CALIBRATION_REPAIR_2026-10-28.md` for new behavior and evidence.
 A pushed branch and clean Git status do not establish production deployment.
 
+Release follow-up: `WORKFLOW_UPGRADE_ADMISSION_2026-10-28.md` records 11 native
+checks for the normal 119-to-128 upgrade and four legacy-state rejection cases,
+with 64 release/recovery contract tests. The build gate binds this new proof to
+the exact planned source registry. Original-data fingerprints now include the
+cadastral/fieldbook tables and are shared by promotion and rehearsal. Production
+still runs `08fae427`; no migration or deployment occurred. At `2ceadbae`, full
+Jest, typing, security, native database, worker and web/mobile checks now pass;
+whole lint, accessibility and all four browser shards still fail. Its results
+do not establish CI acceptance for these later release-tool changes.
+
 Map follow-up: `CADASTRAL_MAP_INTEGRITY_2026-10-28.md` records repair of bent-cut
 geometry, discarded split faces, drawing CRS defaults, stale-parent delivery and
 ignored secondary snapping sources. It passes 237 affected/core/wiring tests and
@@ -55,12 +65,12 @@ These remain blockers; baselines and admission rules are unchanged.
 
 | Priority | Area | Required action |
 | --- | --- | --- |
-| P0 | CI admission | Review this commit's checks. Repair full lint findings, including survey CRS defaults and unsafe cadastral input. Repair community jobs persistence/authentication rather than only typing its two queries. |
+| P0 | CI admission | Review each checkpoint's exact checks. Repair remaining full lint and `.mjs` typed-lint coverage, accessibility and browser failures. Cadastral coercion and the obsolete community job endpoint have their recorded source repairs. |
 | P1 | Navigation/browser | Diagnose all browser shards. Last desktop shard had 45 passes and three failures, including old navigation and homepage metadata expectations. Verify meaningful current behavior before changing expectations. |
 | P1 | Accessibility | Repair/rescan CORS networks, drone flight plan, fee quotation, geofence, legal description, pipe network, pin cushion and stakeout report. |
 | P1 | Workspace/admin | Use existing authorized accounts to verify landing/dashboard, projects, fieldbook, map, drawing and actual admin screens, including loading/errors, phone/tablet widths, keyboard and overlays. Preserve CAD and closed QA accounts. |
 | P1 | Equipment | Verify primary page in browser; repair secondary read failures/history races, legacy storage ownership and helpful interval validation. Independently verify real instrument/certificate evidence. |
-| P0 | Promotion/recovery | Review migrations 115–123, worker artifact drift, current-production rollback identity, release-helper compatibility and actual restore evidence before one pinned promotion. Preserve the rejected-clone boundary and applied migration hashes. Expose the exact live release identity. |
+| P0 | Promotion/recovery | The synthetic 115–123 upgrade matrix passes; rerun it for the selected release. Resolve worker artifact drift, current-production rollback identity and actual restore evidence before one pinned promotion. Preserve the rejected-clone boundary and applied migration hashes. Expose the exact live release identity. |
 | P0 | Security | Owner-deferred signing-key rotation stays open; preserve Cloudflare legacy parcel containment. |
 | P1 | Professional/provider | Complete instrument/control imports, independent calculations, receiving-CAD, calibrated print and actual purchase/webhook/entitlement lifecycle acceptance. |
 | P1 | Large/offline | Exercise ward-scale teams/blocks/permissions, interrupted capture, reconnect/multi-tab/device recovery, quota and acknowledged delivery using retained original evidence. |

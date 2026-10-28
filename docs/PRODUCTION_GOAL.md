@@ -5,6 +5,16 @@ trustworthy, production-ready field-to-finish engineering platform worth paying
 for. The goal remains active. Passing an isolated test/build or deploying one
 increment does not complete it.
 
+28 October release-upgrade admission:
+`WORKFLOW_UPGRADE_ADMISSION_2026-10-28.md` records a normal synthetic 119-to-128
+upgrade, four incompatible legacy-state refusal variants, 11 native checks and
+64 release/recovery contract tests. Build admission now binds the complete proof
+to the planned source registry; promotion and rehearsal share original-data
+fingerprints across 22 tables. Production duplicate-identity aggregates are zero.
+No production migration or promotion was performed. The `.mjs` typed-lint
+coverage gap, failed whole lint/browser/accessibility, worker drift, actual
+recovery, rollback identity and security/provider/field gates remain open.
+
 28 October map-integrity checkpoint:
 `CADASTRAL_MAP_INTEGRITY_2026-10-28.md` records actual-path parcel splitting with
 full-area/two-face checks, explicit project-grid drawing measurements, parent

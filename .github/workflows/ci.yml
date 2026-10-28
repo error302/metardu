@@ -617,7 +617,7 @@ jobs:
       - name: Security, migration immutability & bug invariant gate
         run: node scripts/security-and-bug-gate.mjs
       - name: Release, migration drift, worker artifact & recovery script gates
-        run: node --test tests/migration-logic-isolation.test.mjs tests/release-plan.test.mjs tests/survey-upgrade.test.mjs scripts/worker-runtime-contract.test.mjs tests/recovery-scripts.test.mjs tests/legacy-migration-entrypoint.test.mjs
+        run: node --test tests/migration-logic-isolation.test.mjs tests/release-plan.test.mjs tests/survey-upgrade.test.mjs tests/workflow-upgrade.test.mjs tests/release-row-snapshot.test.mjs scripts/worker-runtime-contract.test.mjs tests/recovery-scripts.test.mjs tests/legacy-migration-entrypoint.test.mjs
       - uses: actions/upload-artifact@v4
         if: always()
         with:

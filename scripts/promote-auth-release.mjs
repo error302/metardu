@@ -13,6 +13,7 @@ import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
 import { readFieldObservationContract, assertFieldObservationContract, FIELD_OBSERVATION_VERSION } from './field-observation-contract.mjs'
+import { snapshotExistingRows } from './release-row-snapshot.mjs'
 
 const legacy = process.argv.length === 3
 const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
@@ -65,28 +66,6 @@ function databaseConfig(containers) {
 async function withAdmin(containers,work) {
   const client=new pg.Client(databaseConfig(containers));await client.connect()
   try{return await work(client)}finally{await client.end()}
-}
-async function snapshotExistingRows(client, catalog) {
-  const tables=catalog || (await client.query(`SELECT table_name AS name,array_agg(column_name::text ORDER BY ordinal_position) AS columns
-    FROM information_schema.columns WHERE table_schema='public'
-    AND table_name IN ('setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations','observation_batches','survey_points','import_sessions','survey_observations','field_photos')
-    GROUP BY table_name ORDER BY table_name`)).rows
-  const rows=[]
-  const literal=value=>`'${value.replaceAll("'","''")}'`
-  await client.query('BEGIN TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY')
-  try {
-    for(const table of tables) {
-      assert.ok(['setout_points','setout_observations','verticality_readings','user_consents','surveyor_profiles','road_alignments','alignment_ips','alignment_vertical_ips','cross_section_stations','observation_batches','survey_points','import_sessions','survey_observations','field_photos'].includes(table.name))
-      const result=await client.query(`SELECT count(*)::integer AS rows,
-        md5(COALESCE(string_agg(md5(payload::text),'' ORDER BY md5(payload::text)),'')) AS fingerprint
-        FROM (SELECT (SELECT jsonb_object_agg(j.key,CASE ${table.name==='road_alignments' ? "WHEN j.key='cross_section_template' THEN t.cross_section_template::text::jsonb" : ''} WHEN jsonb_typeof(j.value)='number'
-          THEN to_jsonb(trim_scale((j.value #>> '{}')::numeric)) ELSE j.value END ORDER BY j.key)
-          FROM jsonb_each(to_jsonb(t)) j WHERE j.key=ANY(ARRAY[${table.columns.map(literal).join(',')}]::text[])) AS payload
-          FROM public."${table.name}" t) normalized`)
-      rows.push({name:table.name,...result.rows[0]})
-    }
-    await client.query('COMMIT');return {catalog:tables,rows}
-  }catch(error){await client.query('ROLLBACK');throw error}
 }
 const ledger = async client => (await client.query('SELECT version,checksum FROM public.schema_migrations ORDER BY version')).rows
 function validateContainers(before) {
@@ -147,7 +126,7 @@ async function build() {
   assert.equal(receipt.rehearsal?.passed,true,'Pending SQL must first succeed on the existing synthetic database')
   if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'source-checks.json'),'utf8'));assert.equal(proof.revision,revision);assert.equal(proof.status,'passed');receipt.sourceChecks=proof.checks}
   if(!legacy)assert.equal(receipt.rehearsal.rollbackVerifier?.passed,true,'The current image startup verifier must accept the pinned forward registry in the existing synthetic database.')
-  if(!legacy&&receipt.pending.length){const proof=JSON.parse(readFileSync(join(directory,'upgrade-checks.json'),'utf8'));assertSyntheticUpgradeProof(proof,revision);receipt.syntheticUpgrade=proof}
+  if(!legacy&&receipt.pending.length){const proof=JSON.parse(readFileSync(join(directory,'upgrade-checks.json'),'utf8'));assertSyntheticUpgradeProof(proof,revision,{pending:receipt.pending,sourceRegistry:receipt.sourceRegistry});receipt.syntheticUpgrade=proof}
   else if(!legacy){
     assert.equal(receipt.rehearsal.applied,receipt.migrationBefore.length,'A no-SQL release must match the complete applied registry in both plan and rehearsal.')
     receipt.syntheticUpgrade={notRequired:true,reason:'No pending SQL; full applied registry matched production and synthetic rehearsal.'}
