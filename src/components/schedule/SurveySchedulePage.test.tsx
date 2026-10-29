@@ -57,3 +57,23 @@ it('does not expose field collection for a viewer or a deleted project',async()=
  expect(screen.queryByRole('button',{name:'Start field collection'})).not.toBeInTheDocument()
  expect(screen.queryByRole('link',{name:'Open project'})).not.toBeInTheDocument()
 })
+
+it('preserves the original instant and time zone when editing only notes on work already started',async()=>{
+ const started={...job,status:'in_progress',starts_at:'2020-01-03T06:00:37.123Z',time_zone:'Pacific/Auckland'}
+ jest.mocked(apiGet).mockImplementation(async url=>url.startsWith('/api/schedules/projects')?{projects:[project],hasMore:false}:{schedule:started})
+ render(<SurveySchedulePage focusedJob={id} selectedProject={null} newJob={false}/>)
+ fireEvent.click(await screen.findByRole('button',{name:'Edit job'}))
+ fireEvent.change(screen.getByLabelText('Field notes'),{target:{value:'Crew arrived at control station'}})
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Save job changes'})).toBeEnabled())
+ fireEvent.submit(screen.getByRole('form',{name:'Schedule survey job'}))
+ await waitFor(()=>expect(apiPatch).toHaveBeenCalledWith('/api/schedules/'+id,expect.anything(),expect.objectContaining({starts_at:started.starts_at,time_zone:started.time_zone,notes:'Crew arrived at control station',status:'in_progress'})))
+})
+
+it('uses the device time zone when the surveyor explicitly changes the start time',async()=>{
+ render(<SurveySchedulePage focusedJob={id} selectedProject={null} newJob={false}/>)
+ fireEvent.click(await screen.findByRole('button',{name:'Edit job'}))
+ fireEvent.change(screen.getByLabelText('Start date and time'),{target:{value:'2027-02-03T11:15'}})
+ await waitFor(()=>expect(screen.getByRole('button',{name:'Save job changes'})).toBeEnabled())
+ fireEvent.submit(screen.getByRole('form',{name:'Schedule survey job'}))
+ await waitFor(()=>expect(apiPatch).toHaveBeenCalledWith('/api/schedules/'+id,expect.anything(),expect.objectContaining({starts_at:new Date(2027,1,3,11,15).toISOString(),time_zone:Intl.DateTimeFormat().resolvedOptions().timeZone})))
+})

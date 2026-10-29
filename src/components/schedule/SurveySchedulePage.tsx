@@ -58,8 +58,10 @@ function ScheduleForm({initial,onSaved,onCancel,projectId}:{initial:SurveySchedu
     if(saving)return
     setSaving(true);setError('')
     try {
-      const data={project_id:project,title:title.trim(),notes,location,starts_at:localInputToInstant(start),
-        time_zone:zone,duration_minutes:duration,reminder_minutes:[...reminders].sort((a,b)=>b-a)}
+      const keepStart=initial&&(initial.status==='upcoming'||initial.status==='in_progress')&&start===localDateTime(initial.starts_at)
+      const data={project_id:project,title:title.trim(),notes,location,
+        starts_at:keepStart?initial.starts_at:localInputToInstant(start),time_zone:keepStart?initial.time_zone:zone,
+        duration_minutes:duration,reminder_minutes:[...reminders].sort((a,b)=>b-a)}
       let saved:SurveySchedule
       if(initial)saved=(await apiPatch('/api/schedules/'+initial.id,scheduleResponseSchema,{
         ...data,version:initial.version,status:initial.status==='cancelled'||initial.status==='completed'?'upcoming':initial.status,

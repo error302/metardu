@@ -8,7 +8,7 @@ This change introduces one new additive migration, 124_project_schedules_and_pho
 
 ## User workflow
 
-- Website and work navigation share one persistent, labelled mode control. The website uses public presentation even for signed-in users; switching back opens the dashboard without signing out.
+- Website and work navigation share a persistent mode control: an icon-only Home link in work mode and a labelled Dashboard link on the website. The website uses public presentation even for signed-in users; switching back opens the dashboard without signing out.
 - Schedule job is an in-page form rather than a nested scrolling overlay. It searches readable projects, records a start instant and the device's IANA time zone, and retains meeting-point and crew/equipment notes.
 - Project overview links can preselect the project in the form.
 - Saved jobs offer Open project and, with current write access, Start field collection. The latter updates the job only after server confirmation and opens that project in the instrument collector. Known survey-type aliases are normalized; unknown profiles require an explicit workflow choice.
@@ -53,3 +53,5 @@ Browser QA initially exposed missing new-table grants in the rehearsal login. Th
 The work-to-website control is a home icon only, with no visible name or tooltip; its invisible accessible name is Home. The public navbar retains the Dashboard entry. Flag emoji were removed from the shared navbar. Scheduling and focused field entry omit competing promotional/footer chrome; search remains available when explicitly opened.
 
 Local source compilation and the earlier full-lint worker hit resource timeouts; failed evidence remains retained. Lint batches were reduced while preserving the complete inventory, all rules and the existing per-worker deadline. These observations are not production failures or permission to bypass the final gates. Exact source checks, the new revision's native rehearsal, CI, candidate startup and deployed identity remain required.
+
+Notes-only edits preserve the exact saved start instant, including seconds and milliseconds, and its original time zone, even for an in-progress survey recorded on another device. An explicit start-time edit uses the current device zone; cancelled/completed rescheduling selects a new future time. The focused scheduling and icon tests passed all seven assertions/cases after a failing regression reproduced timestamp truncation and zone replacement.
