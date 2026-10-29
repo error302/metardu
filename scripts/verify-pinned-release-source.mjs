@@ -46,7 +46,7 @@ async function check(name,args) {
 try {
   await check('app-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.json'])
   await check('test-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.tests.json'])
-  if(unified)await check('release-contracts',['--test','tests/release-plan.test.mjs','tests/field-observation-contract.test.mjs','tests/workflow-upgrade.test.mjs','tests/release-row-snapshot.test.mjs','tests/schedule-release-contract.test.mjs','tests/lint-batches.test.mjs'])
+  if(unified)await check('release-contracts',['--test','tests/migration-logic-isolation.test.mjs','tests/release-plan.test.mjs','tests/survey-upgrade.test.mjs','tests/workflow-upgrade.test.mjs','tests/release-row-snapshot.test.mjs','scripts/worker-runtime-contract.test.mjs','tests/recovery-scripts.test.mjs','tests/legacy-migration-entrypoint.test.mjs','tests/schedule-release-contract.test.mjs','tests/field-observation-contract.test.mjs','tests/lint-batches.test.mjs'])
   if(unified) {
     await check('tool-types',[path.join(nm,'typescript/bin/tsc'),'--noEmit','--project','tsconfig.lint-owned.json'])
     // Let Jest obtain the complete pinned Git diff itself. Passing the 999

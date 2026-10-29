@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process'
 
 test('static migration and release checks import without an installed database client', () => {
   const fixture = mkdtempSync(path.join(tmpdir(), 'metardu-migration-logic-'))
-  const modules = ['verify-migrations.mjs', 'release-plan.mjs', 'workflow-upgrade-contract.mjs', 'release-row-snapshot.mjs', 'rehearsal-database.mjs', 'verify-survey-upgrade.mjs']
+  const modules = ['verify-migrations.mjs', 'release-plan.mjs', 'workflow-upgrade-contract.mjs', 'release-row-snapshot.mjs', 'rehearsal-database.mjs', 'verify-survey-upgrade.mjs', 'schedule-upgrade-contract.mjs', 'schedule-schema-contract.mjs', 'survey-push-environment.mjs', 'verify-schedule-upgrade.mjs', 'check-schedule-runtime.mjs']
   const driver = path.join(fixture, 'probe.mjs')
   try {
     for (const file of modules) writeFileSync(path.join(fixture, file), readFileSync(path.join('scripts', file)))
@@ -24,6 +24,10 @@ test('static migration and release checks import without an installed database c
       assert.equal(typeof release.pinnedReleaseArguments, 'function')
       assert.equal(typeof snapshot.snapshotExistingRows, 'function')
       assert.equal(typeof upgrade.surveyUpgradeTarget, 'function')
+      const schedules = await import('./verify-schedule-upgrade.mjs')
+      assert.equal(typeof schedules.scheduleUpgradeTarget, 'function')
+      assert.equal(typeof (await import('./schedule-schema-contract.mjs')).assertScheduleSchemaContract, 'function')
+      assert.equal(typeof (await import('./survey-push-environment.mjs')).assertSurveyPushEnvironment, 'function')
       process.stdout.write('static checks available without pg')
     `)
     const result = spawnSync(process.execPath, [driver], { encoding: 'utf8', windowsHide: true, timeout: 15000 })
