@@ -1,5 +1,6 @@
 import { z } from 'zod'
-import { apiHandler,apiSuccess } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
+import { privateApiSuccess as apiSuccess } from '@/lib/api/privateResponse'
 import { disablePushDevice } from '@/lib/notifications/pushSubscriptions'
 const input=z.object({endpoint_hash:z.string().regex(/^[a-f0-9]{64}$/)}).strict()
 export const dynamic='force-dynamic'

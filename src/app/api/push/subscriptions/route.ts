@@ -1,4 +1,5 @@
-import { apiHandler,apiSuccess } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
+import { privateApiSuccess as apiSuccess } from '@/lib/api/privateResponse'
 import { subscriptionSchema,pushConfiguration } from '@/lib/notifications/webPush'
 import { savePushSubscription } from '@/lib/notifications/pushSubscriptions'
 import { AppError } from '@/lib/api/errors'

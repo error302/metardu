@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
-import { apiHandler,apiSuccess } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
+import { privateApiSuccess as apiSuccess } from '@/lib/api/privateResponse'
 import { listScheduleProjects } from '@/lib/schedule/server'
 export const dynamic='force-dynamic'
 export const GET=apiHandler({auth:true,rateLimit:{max:120,windowMs:60_000}},async(req)=>{

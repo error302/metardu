@@ -35,7 +35,7 @@ self.addEventListener('push', event => {
       tag: id ? 'survey-' + id : 'metardu-survey-reminder',
       data: { url: reminderUrl(message.url) }, renotify: false,
     })
-  })().catch(() => { console.warn('METARDU reminder could not be displayed') }))
+  })())
 })
 self.addEventListener('notificationclick', event => {
   event.notification.close()

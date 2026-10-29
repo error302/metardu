@@ -1,5 +1,6 @@
 import { surveyReminderRuntimeStatus } from '@/lib/notifications/surveyReminderRunner'
-import { apiHandler,apiSuccess } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
+import { privateApiSuccess as apiSuccess } from '@/lib/api/privateResponse'
 import { pushConfiguration } from '@/lib/notifications/webPush'
 export const dynamic='force-dynamic'
 export const GET=apiHandler({auth:true,rateLimit:{max:60,windowMs:60000}},async()=>{

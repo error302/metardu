@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { NextResponse } from 'next/server'
-import { apiHandler,apiSuccess } from '@/lib/apiHandler'
+import { apiHandler } from '@/lib/apiHandler'
+import { privateApiSuccess as apiSuccess } from '@/lib/api/privateResponse'
 import { db } from '@/lib/db'
 export const dynamic='force-dynamic'
 interface FieldProjectRow {

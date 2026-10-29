@@ -2,6 +2,7 @@ import { fireEvent,render,screen,waitFor } from '@testing-library/react'
 import { SurveySchedulePage } from './SurveySchedulePage'
 import { apiGet,apiPost,apiPatch } from '@/lib/api/client'
 const mockPush=jest.fn(),mockReplace=jest.fn()
+const originalRandomUUID=Object.getOwnPropertyDescriptor(crypto,'randomUUID')
 jest.mock('next/navigation',()=>({useRouter:()=>({push:mockPush,replace:mockReplace})}))
 jest.mock('next-auth/react',()=>({useSession:()=>({data:{user:{id:'owner'}},status:'authenticated'})}))
 jest.mock('@/lib/api/client',()=>({apiGet:jest.fn(),apiPost:jest.fn(),apiPatch:jest.fn()}))
@@ -15,6 +16,10 @@ beforeEach(()=>{
  jest.mocked(apiPost).mockResolvedValue({schedule:job})
  jest.mocked(apiPatch).mockResolvedValue({schedule:{...job,status:'in_progress',version:2}})
  Object.defineProperty(crypto,'randomUUID',{configurable:true,value:()=>id})
+})
+afterEach(()=>{
+ if(originalRandomUUID)Object.defineProperty(crypto,'randomUUID',originalRandomUUID)
+ else Reflect.deleteProperty(crypto,'randomUUID')
 })
 it('opens the exact notified job and starts collection only after the server confirms the change',async()=>{
  render(<SurveySchedulePage focusedJob={id} selectedProject={null} newJob={false}/>)
