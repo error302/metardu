@@ -95,7 +95,7 @@ function ScheduleForm({initial,onSaved,onCancel,projectId}:{initial:SurveySchedu
     </section>
     <section className="card p-5 sm:p-6" aria-labelledby="schedule-reminder-heading">
       <h2 id="schedule-reminder-heading" className="text-lg font-semibold">Reminder times</h2>
-      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">A booking confirmation is queued when you save. Choose additional reminders before fieldwork starts; phone alerts require an enabled device.</p>
+      <p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">A booking confirmation is queued when you save. Choose additional reminders before fieldwork starts; phone alerts require an enabled device. Reminder times that have already passed are skipped.</p>
       <fieldset className="mt-4 flex flex-wrap gap-3"><legend className="sr-only">Additional reminders</legend>{[[10080,'7 days before'],[1440,'24 hours before'],[60,'1 hour before'],[0,'At the start']] .map(([minutes,label])=><label key={minutes} className="inline-flex min-h-11 items-center gap-2 rounded-lg border border-[var(--border-color)] px-3 text-sm"><input type="checkbox" checked={reminders.includes(Number(minutes))} onChange={e=>setReminders(values=>e.target.checked?[...values,Number(minutes)]:values.filter(value=>value!==minutes))}/>{label}</label>)}</fieldset>
     </section>
     <section className="card p-5 sm:p-6"><label htmlFor="schedule-notes" className="text-lg font-semibold">Field notes</label><p className="mt-2 text-sm text-[var(--text-secondary)]">Access arrangements, equipment and crew notes for this job.</p><textarea id="schedule-notes" rows={4} maxLength={4000} value={notes} onChange={e=>setNotes(e.target.value)} className={inputClass}/></section>

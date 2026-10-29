@@ -218,15 +218,15 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 E2E project-crud shard fails). NavBar's SSR bailout recovers
                 fine client-side without it. */}
             <NavBar />
-            <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden pb-40 md:pb-0 mobile-nav-spacer">
+            <main id="main-content" className={'min-h-screen max-w-full overflow-x-hidden'+(pathname==='/schedule'?'':' pb-40 md:pb-0 mobile-nav-spacer')}>
               {['/','/dashboard','/projects','/account','/fieldbook'].includes(pathname) && <ChatGPTNoticeBanner />}
               {children}
             </main>
-            <Footer />
+            {!hideGlobalOverlays && <Footer />}
             {!hideGlobalOverlays && <FeedbackWidget />}
             {!hideGlobalOverlays && <HotkeyHelpOverlay />}
-            {!fieldbookPage && <MobileNav />}
-            {!hideGlobalOverlays && <CommandPalette />}
+            {!fieldbookPage && pathname !== '/schedule' && <MobileNav />}
+            <CommandPalette />
             <NotificationToast />
             {!hideGlobalOverlays && <OnboardingTour />}
           </SubscriptionProvider>

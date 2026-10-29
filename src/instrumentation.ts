@@ -1,5 +1,3 @@
-import * as Sentry from '@sentry/nextjs'
-
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs' && process.env.METARDU_SURVEY_REMINDERS_ENABLED === 'true') {
     const { startSurveyReminderRunner } = await import('./lib/notifications/surveyReminderRunner')
@@ -7,6 +5,7 @@ export async function register() {
   }
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN
   if (!dsn || dsn.includes('mockup')) return
+  const Sentry = await import('@sentry/nextjs')
 
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     Sentry.init({

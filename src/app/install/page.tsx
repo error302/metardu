@@ -1,6 +1,6 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
-import { Smartphone, Monitor, Share2, ShieldCheck } from 'lucide-react'
+import { Smartphone, Monitor, Share2, ShieldCheck, BellRing } from 'lucide-react'
 import { PWAInstallBanner } from '@/components/app/PWAInstallBanner'
 
 export const metadata: Metadata = {
@@ -36,9 +36,12 @@ export default function InstallPage() {
     <section className="mt-5 card p-5 sm:p-6" aria-labelledby="install-desktop">
       <div className="flex items-start gap-3"><Monitor aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-[var(--accent)]" /><div><h2 id="install-desktop" className="text-lg font-semibold">On a computer</h2><p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">In Chrome or Edge, use the install icon in the address bar or the browser’s app menu. If installation is unavailable, METARDU still works in a normal browser tab.</p></div></div>
     </section>
+    <section className="mt-5 card p-5 sm:p-6" aria-labelledby="install-reminders">
+      <div className="flex items-start gap-3"><BellRing aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-[var(--accent)]" /><div><h2 id="install-reminders" className="text-lg font-semibold">Survey reminders on your phone</h2><p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">From the installed app, sign in, open Survey schedule and choose <strong>Enable phone reminders</strong>. Allow notifications when asked. Link a job to its project so alerts can identify the project and survey time.</p><p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">On iPhone and iPad, enable reminders from the Home Screen app. If notifications are blocked, allow METARDU in your phone or browser notification settings.</p></div></div>
+    </section>
     <section className="mt-5 card p-5 sm:p-6" aria-labelledby="install-fieldwork">
       <div className="flex items-start gap-3"><ShieldCheck aria-hidden="true" className="mt-1 h-5 w-5 shrink-0 text-[var(--accent)]" /><div><h2 id="install-fieldwork" className="text-lg font-semibold">Before leaving for the field</h2><p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">Sign in from the installed app while connected. Keep the tools and records you need open, check the field book’s saved and delivery status, and export a backup. Installation does not make every page, map or server operation available offline.</p><p className="mt-2 text-sm leading-relaxed text-[var(--text-secondary)]">Private pages are fetched from the server. Updates wait for you to save your work and choose when to reload; returning online does not reload your working page.</p></div></div>
     </section>
-    <div className="mt-8 flex flex-wrap gap-3"><Link href="/dashboard" className="btn btn-primary min-h-11">Open dashboard</Link><Link href="/docs/quick-start" className="btn btn-secondary min-h-11">Read the quick start</Link></div>
+    <div className="mt-8 flex flex-wrap gap-3"><Link href="/schedule" className="btn btn-primary min-h-11">Plan a survey</Link><Link href="/docs/quick-start" className="btn btn-secondary min-h-11">Read the quick start</Link></div>
   </div>
 }

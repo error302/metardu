@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import { standalonePaths, copyStandaloneStaticAssets, assertBuildDestination, assertNoBundledEnvironmentFiles, removeBundledEnvironmentFiles } from './standalone-paths.mjs'
 
 const rootDir = process.cwd()
-const {standalone:standaloneDir}=standalonePaths(rootDir,process.env.METARDU_NEXT_DIST_DIR||'.next')
+const {build:buildDir,standalone:standaloneDir}=standalonePaths(rootDir,process.env.METARDU_NEXT_DIST_DIR||'.next')
 
 if (!existsSync(standaloneDir)) {
   console.log('[prepare-standalone] standalone output missing, skipping asset copy')
@@ -31,6 +31,15 @@ if (existsSync(publicSource)) {
   console.log('[prepare-standalone] copied public into standalone output')
 }
 
+// Startup hooks must survive output tracing; otherwise durable reminders never run.
+if(existsSync(path.join(rootDir,'src','instrumentation.ts'))){
+  for(const hook of [path.join(buildDir,'server','instrumentation.js'),path.join(standaloneDir,path.relative(rootDir,buildDir),'server','instrumentation.js')]){
+    if(!existsSync(hook))throw new Error('[prepare-standalone] server startup instrumentation is missing from the runtime artifact')
+  }
+  if(!readFileSync(path.join(publicSource,'survey-push.js')).equals(readFileSync(path.join(publicTarget,'survey-push.js'))))throw new Error('[prepare-standalone] survey notification worker differs from source')
+  console.log('[prepare-standalone] verified packaged startup instrumentation and survey notification worker')
+}
+
 // Runtime secrets are loaded by the source launcher or injected by the host.
 // Never copy dotenv files into a portable deployment artifact.
 
@@ -45,6 +54,8 @@ if(!existsSync(nmTarget))throw new Error('[prepare-standalone] traced runtime de
 // Keep PDFKit external and attest the built-in metrics in the packaged tree.
 // Its default font is opened during document construction, before custom fonts.
 const standaloneRequire=createRequire(path.join(standaloneDir,'package.json'))
+if(typeof standaloneRequire('web-push').sendNotification!=='function')throw new Error('[prepare-standalone] server push runtime dependency is unavailable')
+console.log('[prepare-standalone] verified packaged server push dependency without sending a notification')
 const pdfkitEntry=standaloneRequire.resolve('pdfkit')
 const fontMetrics=path.join(path.dirname(pdfkitEntry),'data','Helvetica.afm')
 if(!existsSync(fontMetrics))throw new Error('[prepare-standalone] PDFKit built-in font metrics were not traced into the runtime')

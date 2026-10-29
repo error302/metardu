@@ -149,6 +149,7 @@ const nextConfig = {
   // Only imports the named exports actually used instead of the entire package
   serverExternalPackages: [
       'pg',
+      'web-push',
       'canvas',
       '@google-cloud/storage',
       'bcryptjs',

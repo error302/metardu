@@ -6,7 +6,7 @@ import path from 'node:path'
 const require=createRequire(import.meta.url), root=process.cwd()
 const manifest=JSON.parse(await readFile(path.join(root,'package.json'),'utf8'))
 const lock=JSON.parse(await readFile(path.join(root,'package-lock.json'),'utf8'))
-const expected={next:'15.5.28',sharp:'0.35.5',dompurify:'3.4.17',nodemailer:'10.2.1','@sentry/nextjs':'10.75.2',puppeteer:'25.16.0',zod:'4.6.7','source-map-js':'1.2.2','fast-uri':'3.1.9',handlebars:'4.7.10'}
+const expected={'web-push':'3.6.7',next:'15.5.28',sharp:'0.35.5',dompurify:'3.4.17',nodemailer:'10.2.1','@sentry/nextjs':'10.75.2',puppeteer:'25.16.0',zod:'4.6.7','source-map-js':'1.2.2','fast-uri':'3.1.9',handlebars:'4.7.10'}
 for(const [name,version]of Object.entries(expected)){
  const installed=JSON.parse(await readFile(path.join(root,'node_modules',name,'package.json'),'utf8'))
  assert.equal(installed.version,version,`${name}: run a clean locked install before verification`)

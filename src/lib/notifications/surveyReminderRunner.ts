@@ -173,7 +173,11 @@ export function startSurveyReminderRunner() {
   const tick=async()=>{
     if(state.busy)return
     state.busy=true
-    try { await runSurveyReminderBatch();state.lastRunAt=new Date().toISOString();state.lastError=null }
+    try {
+      await runSurveyReminderBatch()
+      if(!state.lastRunAt)logger.info('METARDU survey reminder runner completed its first cycle')
+      state.lastRunAt=new Date().toISOString();state.lastError=null
+    }
     catch { state.lastError='REMINDER_RUN_FAILED';logger.error('METARDU survey reminder runner failed; details suppressed') }
     finally { state.busy=false }
   }

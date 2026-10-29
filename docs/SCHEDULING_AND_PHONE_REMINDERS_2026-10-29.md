@@ -43,3 +43,13 @@ The user has offered both Android and iPhone for physical acceptance. On each de
 5. Reschedule/cancel a test job, and verify obsolete reminders stop. Disable notifications and verify the device status.
 
 These checks do not establish instrument accuracy, receiving-CAD compatibility, professional approval, or the broader field-to-finish readiness gates.
+
+## Source browser findings retained before promotion
+
+At the owned 127.0.0.1:3021 source preview, the existing ordinary synthetic account saved a marked QA survey against its original synthetic topographic project, then Start field collection opened that exact project's station-setup screen. No instrument was connected and no measurement was captured. A 390 by 844 viewport showed 380px document width, no dialog, no fixed bottom navigation on scheduling, and both form actions visible and unobstructed.
+
+Browser QA initially exposed missing new-table grants in the rehearsal login. The release path now uses the normal restricted-role provisioner for both rehearsal and production migrations and requires all four individual CRUD privileges, RLS, the binding trigger and project-access helper before cutover. Normal QA provisioning retained all 129 ledger hashes. Applied migration SQL was not edited.
+
+The work-to-website control is a home icon only, with no visible name or tooltip; its invisible accessible name is Home. The public navbar retains the Dashboard entry. Flag emoji were removed from the shared navbar. Scheduling and focused field entry omit competing promotional/footer chrome; search remains available when explicitly opened.
+
+Local source compilation and the earlier full-lint worker hit resource timeouts; failed evidence remains retained. Lint batches were reduced while preserving the complete inventory, all rules and the existing per-worker deadline. These observations are not production failures or permission to bypass the final gates. Exact source checks, the new revision's native rehearsal, CI, candidate startup and deployed identity remain required.

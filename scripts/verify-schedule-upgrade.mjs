@@ -9,6 +9,7 @@ import { pathToFileURL } from 'node:url'
 import { migrationChecksums, computeDrift } from './verify-migrations.mjs'
 import { SCHEDULE_UPGRADE_VERSION } from './schedule-upgrade-contract.mjs'
 import {runScheduleRuntimeChecks} from './check-schedule-runtime.mjs'
+import {readScheduleSchemaContract,assertScheduleSchemaContract} from './schedule-schema-contract.mjs'
 import { snapshotExistingRows } from './release-row-snapshot.mjs'
 
 const pendingVersions = [SCHEDULE_UPGRADE_VERSION]
@@ -155,6 +156,8 @@ async function main() {
         const tables=['job_schedule','survey_push_subscriptions','survey_reminder_outbox','survey_push_deliveries']
         assert.equal((await target.query("SELECT count(*)::int n FROM pg_class c JOIN pg_namespace n ON n.oid=c.relnamespace WHERE n.nspname='public' AND c.relname=ANY($1) AND c.relrowsecurity",[tables])).rows[0].n,4)
         check('canonical: all four new tables enforce row-level security')
+        assertScheduleSchemaContract(await readScheduleSchemaContract(target,runtimeRole))
+        check('canonical: runtime table privileges, project binding and RLS contract are verified before application admission')
         const runtimeUrl=new URL(targetUrl);runtimeUrl.username=runtimeRole;runtimeUrl.password=runtimePassword
         await runScheduleRuntimeChecks({runtimeUrl:runtimeUrl.href,admin:target,check})
         Object.assign(report,{restrictedRoleVerified:true,scheduleLifecycleVerified:true,reminderDeliveryVerified:true})

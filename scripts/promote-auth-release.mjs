@@ -7,6 +7,8 @@ import { resolve, join } from 'node:path'
 import { createHash } from 'node:crypto'
 import pg from 'pg'
 import {assertSurveyPushEnvironment} from './survey-push-environment.mjs'
+import {readScheduleSchemaContract,assertScheduleSchemaContract} from './schedule-schema-contract.mjs'
+import {SCHEDULE_UPGRADE_VERSION} from './schedule-upgrade-contract.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
 import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
@@ -47,11 +49,18 @@ const inspect = () => JSON.parse(docker(['inspect',...names]))
 function stageMigrations(files) {
   const staging=join(directory,'migration-source')
   for(const file of files){const destination=join(staging,file.path);mkdirSync(resolve(destination,'..'),{recursive:true});writeFileSync(destination,file.content)}
-  for(const name of ['migrate-unified.mjs','verify-migrations.mjs']){mkdirSync(join(staging,'scripts'),{recursive:true});writeFileSync(join(staging,'scripts',name),git(['show',`${revision}:scripts/${name}`],{rawOutput:true}))}
+  for(const name of ['migrate-unified.mjs','verify-migrations.mjs','provision-runtime-db-role.mjs']){mkdirSync(join(staging,'scripts'),{recursive:true});writeFileSync(join(staging,'scripts',name),git(['show',`${revision}:scripts/${name}`],{rawOutput:true}))}
   return staging
 }
 function runMigrations(staging, databaseUrl) {
   return spawnSync(process.execPath,[join(staging,'scripts/migrate-unified.mjs')],{cwd:staging,env:{...process.env,DATABASE_URL:databaseUrl},encoding:'utf8',windowsHide:true,timeout:180_000,maxBuffer:8*1024*1024})
+}
+function runProvisionedMigrations(staging,adminUrl,runtimeUrl) {
+  const admin=new URL(adminUrl),runtime=new URL(runtimeUrl)
+  assert.equal(admin.hostname,runtime.hostname);assert.equal(admin.port,runtime.port);assert.equal(admin.pathname,runtime.pathname)
+  assert.notEqual(admin.username,runtime.username,'Use a separate restricted runtime login')
+  const config=(prefix,url)=>Object.fromEntries(Object.entries({HOST:url.hostname,PORT:url.port||'5432',NAME:decodeURIComponent(url.pathname.slice(1)),USER:decodeURIComponent(url.username),PASSWORD:decodeURIComponent(url.password)}).map(([key,value])=>[prefix+key,value]))
+  return spawnSync(process.execPath,[join(staging,'scripts/provision-runtime-db-role.mjs')],{cwd:staging,env:{...process.env,DATABASE_URL:'',MIGRATIONS_DIR:'',...config('MIGRATION_DB_',admin),...config('APP_DB_',runtime),NODE_ENV:'production'},encoding:'utf8',windowsHide:true,timeout:180_000,maxBuffer:8*1024*1024})
 }
 function sourceMigrations() {
   return git(['ls-tree','-r','--name-only',revision,'src/lib/db/migrations']).split('\n').filter(p=>p.endsWith('.sql')).sort().map(path=>{
@@ -111,6 +120,7 @@ async function plan() {
     result.compatibility={existingTemplatesParseAsJson:true,templateRows:parsed,reviewedPendingVersions:drift.missing}
     result.compatibility.importContract=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{allowPendingObservationExtension:drift.missing.includes(OBSERVATION_COMPATIBILITY_VERSION)}))
     result.compatibility.fieldContract=await withAdmin(before,async client=>assertFieldObservationContract(await readFieldObservationContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{pending:drift.missing.includes(FIELD_OBSERVATION_VERSION)}))
+    result.compatibility.scheduleContract=await withAdmin(before,async client=>assertScheduleSchemaContract(await readScheduleSchemaContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{pending:drift.missing.includes(SCHEDULE_UPGRADE_VERSION)}))
     result.hostFreeBytes=hostFreeBytes()
   }
   save(result)
@@ -180,6 +190,7 @@ async function rehearse() {
   assert.equal(address.port,'55433')
   address.pathname='/metardu_runtime_verify'
   const url=address.toString()
+  const runtimeAddress=new URL(rehearsalDatabaseConfig().runtimeUrl);runtimeAddress.pathname=address.pathname
   const client=new pg.Client({connectionString:url,connectionTimeoutMillis:5000});await client.connect()
   const files=sourceMigrations()
   try {
@@ -187,7 +198,7 @@ async function rehearse() {
     assert.equal(marker,'METARDU synthetic beacon verification only 2026-10-08')
     const drift=computeDrift(files,await ledger(client));assert.equal(drift.mutated.length,0);assert.equal(drift.ghost.length,0)
     receipt.rehearsal={database:'metardu_runtime_verify',pending:drift.missing,customerDataCopied:false,existingContainer:true}
-    const result=runMigrations(stageMigrations(files),url)
+    const result=legacy?runMigrations(stageMigrations(files),url):runProvisionedMigrations(stageMigrations(files),url,runtimeAddress.href)
     if(result.error||result.status!==0) {
       receipt.rehearsal.failedAt=(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'
       receipt.rehearsal.errorCode=(result.stderr||'').match(/code: ['"]([A-Z0-9]+)['"]/)?.[1]||null
@@ -196,11 +207,12 @@ async function rehearse() {
     const after=await ledger(client);assert.ok(computeDrift(files,after).ok)
     receipt.rehearsal.importContract=assertImportSchemaContract(await readImportSchemaContract(client,rehearsalDatabaseConfig().runtimeRole))
     receipt.rehearsal.fieldContract=assertFieldObservationContract(await readFieldObservationContract(client,rehearsalDatabaseConfig().runtimeRole))
+    receipt.rehearsal.scheduleContract=assertScheduleSchemaContract(await readScheduleSchemaContract(client,rehearsalDatabaseConfig().runtimeRole))
     await client.query('SELECT capture_snapshot,client_reading_id FROM verticality_readings WHERE false')
     const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE (conrelid='public.setout_observations'::regclass AND conname='setout_capture_snapshot_shape') OR (conrelid='public.verticality_readings'::regclass AND conname='verticality_capture_snapshot_shape') ORDER BY conname")
     assert.equal(constraints.rows.length,2);assert.ok(constraints.rows.every(row=>row.convalidated))
     if(!legacy)receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
-      registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:rehearsalDatabaseConfig().runtimeUrl})
+      registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:runtimeAddress.href})
     receipt.rehearsal.passed=true;receipt.rehearsal.applied=after.length;receipt.rehearsal.constraints=constraints.rows;save(receipt)
     console.log(JSON.stringify(receipt.rehearsal))
   }finally{await client.end()}
@@ -219,6 +231,7 @@ async function migrateAndPromote() {
   assert.deepEqual(applied,receipt.migrationBefore)
   receipt.importContractBefore=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER),{allowPendingObservationExtension:receipt.pending.includes(OBSERVATION_COMPATIBILITY_VERSION)}))
   receipt.fieldContractBefore=await withAdmin(before,async client=>assertFieldObservationContract(await readFieldObservationContract(client,oldEnv.DB_USER),{pending:receipt.pending.includes(FIELD_OBSERVATION_VERSION)}))
+  receipt.scheduleContractBefore=await withAdmin(before,async client=>assertScheduleSchemaContract(await readScheduleSchemaContract(client,oldEnv.DB_USER),{pending:receipt.pending.includes(SCHEDULE_UPGRADE_VERSION)}))
   const jobs=await withAdmin(before,async client=>(await client.query(`SELECT
     (SELECT count(*)::integer FROM background_jobs WHERE status='running') AS background,
     (SELECT count(*)::integer FROM render_jobs WHERE status='running') AS render,
@@ -243,7 +256,8 @@ async function migrateAndPromote() {
     receipt.existingRecordsBefore=await withAdmin(before,client=>snapshotExistingRows(client));save(receipt)
     const config=databaseConfig(before)
     const address=new URL('postgresql://localhost');address.hostname=config.host;address.port=String(config.port);address.username=config.user;address.password=config.password;address.pathname='/'+config.database
-    const result=runMigrations(staging,address.toString())
+    const runtimeAddress=new URL(address);runtimeAddress.username=oldEnv.DB_USER;runtimeAddress.password=oldEnv.DB_PASSWORD
+    const result=legacy?runMigrations(staging,address.toString()):runProvisionedMigrations(staging,address.href,runtimeAddress.href)
     receipt.migrationExit=result.status
     receipt.migrationSummary=(result.stdout||'').split('\n').filter(line=>/Applying:|Applied |All migrations|up to date|pending|successfully/i.test(line));save(receipt)
     if(result.error||result.status!==0) throw new Error(`Migration runner failed at ${(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'}; database diagnostic payload suppressed`)
@@ -255,6 +269,7 @@ async function migrateAndPromote() {
     receipt.existingRecordsPreserved=true
     receipt.importContractAfter=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER)))
     receipt.fieldContractAfter=await withAdmin(before,async client=>assertFieldObservationContract(await readFieldObservationContract(client,oldEnv.DB_USER)))
+    receipt.scheduleContractAfter=await withAdmin(before,async client=>assertScheduleSchemaContract(await readScheduleSchemaContract(client,oldEnv.DB_USER)))
     assert.equal(receipt.fieldContractAfter.restrictivePolicyHash,receipt.fieldContractBefore.restrictivePolicyHash,'Existing restrictive field policies must remain unchanged.')
     const access=await withAdmin(before,async client=>(await client.query(`SELECT
       has_table_privilege($1,$2,'SELECT') AS can_read,

@@ -521,7 +521,7 @@ export default function NavBar() {
             {/* Narrow screens use the language control inside the menu. */}
             <div className={useGroupedDesktopNav ? 'hidden xl:block' : 'hidden md:block'}>
               <Dropdown
-                label={`${currentLang.flag} ${currentLang.code.toUpperCase()}`}
+                label={currentLang.code.toUpperCase()}
                 isOpen={openDropdown === 'lang'}
                 onToggle={() => handleDropdownToggle('lang')}
                 align="right"
@@ -539,7 +539,7 @@ export default function NavBar() {
                       language === lang.code ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'
                     }`}
                   >
-                    {lang.flag} {lang.name}
+                    {lang.name}
                   </button>
                 ))}
               </Dropdown>
@@ -636,7 +636,7 @@ export default function NavBar() {
                                 aria-pressed={language === lang.code}
                                 className={`rounded px-2 py-1 text-xs border border-[var(--border-color)] hover:border-[var(--accent)] ${language === lang.code ? 'text-[var(--accent)]' : 'text-[var(--text-secondary)]'}`}
                               >
-                                {lang.flag} {lang.code.toUpperCase()}
+                                {lang.code.toUpperCase()}
                               </button>
                             ))}
                           </div>

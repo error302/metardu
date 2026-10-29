@@ -6,6 +6,8 @@ test('provides a public, responsive installation guide for both phone platforms'
   await expect(page.getByRole('heading', { name: 'Android', exact: true })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'iPhone and iPad', exact: true })).toBeVisible()
   await expect(page.getByText(/Installation does not make every page/)).toBeVisible()
+  await expect(page.getByRole('heading',{name:'Survey reminders on your phone'})).toBeVisible()
+  await expect(page.getByRole('link',{name:'Plan a survey'})).toHaveAttribute('href','/schedule')
   await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.json')
   await expect(page.locator('footer').getByRole('link', { name: 'Install the app' })).toHaveAttribute('href', '/install')
   const overflow = await page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1)

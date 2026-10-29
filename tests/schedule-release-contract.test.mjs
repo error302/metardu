@@ -23,3 +23,13 @@ test('schedule admission requires exact native 128-to-129 evidence and cleanup',
  assert.throws(()=>assertScheduleUpgradeProof({...proof,cleanup:{}},{sourceRegistry,pending}))
  assert.throws(()=>assertScheduleUpgradeProof({...proof,sourceRegistry:sourceRegistry.slice(1)},{sourceRegistry,pending}))
 })
+
+import {assertScheduleSchemaContract,SCHEDULE_TABLES} from '../scripts/schedule-schema-contract.mjs'
+test('runtime grants and RLS are required independently from a completed migration ledger',()=>{
+ const value={relations:SCHEDULE_TABLES.map(name=>({name,rls:true,privileges:true})),trigger:true,helper:true}
+ assert.equal(assertScheduleSchemaContract(value).runtimePrivileges,true)
+ for(const change of [{relations:value.relations.slice(1)},{relations:value.relations.map(row=>({...row,privileges:false}))},{relations:value.relations.map(row=>({...row,rls:false}))},{trigger:false},{helper:false}])
+  assert.throws(()=>assertScheduleSchemaContract({...value,...change}))
+ assert.deepEqual(assertScheduleSchemaContract({relations:[],trigger:false,helper:false},{pending:true}),{passed:true,pending:true})
+ assert.throws(()=>assertScheduleSchemaContract(value,{pending:true}))
+})
