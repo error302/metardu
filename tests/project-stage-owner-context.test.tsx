@@ -3,11 +3,12 @@ import StagePage from '@/app/project/[id]/StagePage'
 
 let mockContextUser: string | null = null
 jest.mock('@/lib/auth/session', () => ({ getAuthUser: async () => ({ id: 'owner', email: 'synthetic@example.invalid' }), isPlatformAdmin: async () => false }))
-jest.mock('@/lib/auth/requestContext', () => ({ setAuthenticatedDatabaseContext: (id: string) => { mockContextUser = id } }))
+jest.mock('@/lib/auth/requestContext', () => ({ setAuthenticatedDatabaseContext: (id: string) => { mockContextUser = id }, resolveAuthenticatedOrganization: async()=>null }))
+jest.mock('@/lib/auth/ownership',()=>({requireProjectReadAccess:jest.fn().mockResolvedValue({ok:true,projectUserId:'owner'})}))
 jest.mock('@/lib/api-client/server', () => ({ createClient: async () => ({ from: () => {
   const builder = {
     select: () => builder, eq: () => builder,
-    single: async () => ({ data: { id: 'project', name: 'Synthetic survey', datum: 'Arc 1960', utm_zone: 37, hemisphere: 'S' }, error: null }),
+    single: async () => ({ data: { id: 'project', user_id:'owner', name: 'Synthetic survey', datum: 'Arc 1960', utm_zone: 37, hemisphere: 'S' }, error: null }),
     limit: async () => ({ data: [] }),
   }
   return builder

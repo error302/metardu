@@ -1,4 +1,4 @@
-import { isExplicitPublicRoute, PUBLIC_SHELL_LINKS } from '../navigation-shell'
+import { isExplicitPublicRoute, isWebsiteRoute, PUBLIC_SHELL_LINKS } from '../navigation-shell'
 
 describe('navigation shells', () => {
   it('keeps workspace destinations out of the public navigation', () => {
@@ -14,4 +14,9 @@ describe('navigation shells', () => {
     expect(isExplicitPublicRoute('/demo/field-collection')).toBe(true)
     expect(isExplicitPublicRoute('/dashboard')).toBe(false)
   })
+})
+
+it('keeps website presentation stable while signed in',()=>{
+ for(const path of ['/','/pricing','/install','/docs','/docs/field'])expect(isWebsiteRoute(path)).toBe(true)
+ for(const path of ['/dashboard','/schedule','/projects','/field/collect','/admin'])expect(isWebsiteRoute(path)).toBe(false)
 })

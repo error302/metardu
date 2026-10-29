@@ -19,7 +19,7 @@ import { z } from 'zod'
 import {
   FolderKanban, FileText, MapPin, Calculator, FileCheck2,
   Users, CreditCard, Settings, Activity as ActivityIcon,
-  Loader2, Clock,
+  Loader2, Clock, CalendarDays,
 } from 'lucide-react'
 
 const activityResponseSchema = z.object({ activities: z.array(z.object({
@@ -32,6 +32,8 @@ type Activity = z.infer<typeof activityResponseSchema>['activities'][number]
 
 const ACTIVITY_ICONS: Record<string, typeof FolderKanban> = {
   project_created: FolderKanban,
+  survey_scheduled: CalendarDays,
+  survey_schedule_updated: CalendarDays,
   project_updated: FolderKanban,
   document_generated: FileText,
   fieldbook_saved: FileText,

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getAuthUser, isPlatformAdmin as checkIsAdmin } from '@/lib/auth/session'
-import { setAuthenticatedDatabaseContext } from '@/lib/auth/requestContext'
+import { requireProjectReadAccess } from '@/lib/auth/ownership'
+import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { createClient } from '@/lib/api-client/server'
 import { db } from '@/lib/db'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
@@ -27,17 +28,19 @@ export default async function StagePage({ params, stageId }: Props) {
   if (!user) redirect('/login')
 
   const userIsAdmin = await checkIsAdmin()
+  setAuthenticatedDatabaseContext(user.id)
+  const organizationId = await resolveAuthenticatedOrganization(user.id)
+  setAuthenticatedDatabaseContext(user.id, organizationId)
+  if (!userIsAdmin && !(await requireProjectReadAccess(id, user.id)).ok) redirect('/dashboard')
   const dbClient = await createClient()
 
-  let query = dbClient
+  const query = dbClient
     .from('projects')
-    .select('id, name, project_type, datum, utm_zone, hemisphere, boundary_data')
+    .select('id, user_id, name, project_type, datum, utm_zone, hemisphere, boundary_data')
     .eq('id', id)
 
-  if (!userIsAdmin) query = query.eq('user_id', user.id)
-
   const { data: project, error } = await query.single()
-  if (error || !project) redirect('/dashboard')
+  if (error || !project || !project.user_id) redirect('/dashboard')
   if (project.project_type === 'scheme') {
     if(stageId==='deliver')return <SchemeExportReview key={id} projectId={id} parcelIds={[]}/>
     redirect(`/project/${id}/scheme`)
@@ -60,7 +63,7 @@ export default async function StagePage({ params, stageId }: Props) {
   let summary: StageSummary | null = null
   if (stageId === 'overview') {
     try {
-      setAuthenticatedDatabaseContext(user.id)
+      setAuthenticatedDatabaseContext(user.id, organizationId)
       const { rows } = await db.query<SummaryRow>(
         `SELECT
            (SELECT COUNT(*)::int FROM survey_points WHERE project_id = $1) AS point_count,

@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation'
 import { ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import NavBar from '@/components/NavBar'
+import { isWebsiteRoute } from '@/lib/navigation-shell'
 import Footer from '@/components/Footer'
 import { ProjectionInit } from '@/components/layout/ProjectionInit'
 import FieldModeToggle from '@/components/shared/FieldModeToggle'
@@ -59,7 +60,7 @@ function isFieldbookRoute(pathname: string): boolean {
 // chunks and the 1.5s branded splash directly inflates LCP/FCP on the
 // first visit (the landing page is what Lighthouse scores).
 function isMarketingRoute(pathname: string): boolean {
-  return pathname === '/' || pathname === '/install' || pathname === '/offline' || pathname === '/pricing' || pathname === '/enterprise' || pathname.startsWith('/connect/chatgpt')
+  return isWebsiteRoute(pathname) || pathname === '/offline'
 }
 /* ── Shell Component ─────────────────────────────────────────────── */
 
@@ -75,7 +76,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // Map and fieldbook are full-data-entry surfaces. Keep the global mobile
   // navigation on the map so surveyors can switch pages without leaving it;
   // hide the other overlays that compete with map and fieldbook controls.
-  const hideGlobalOverlays = mapPage || fieldbookPage
+  const hideGlobalOverlays = mapPage || fieldbookPage || pathname === '/schedule' || pathname.startsWith('/field/')
 
   // Capability views have their own responsive shell. No account overlays,
   // location watchers, survey defaults or feedback capture on recipient pages.
@@ -207,7 +208,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
       <LanguageProvider>
         <CountryProvider>
           <SubscriptionProvider>
-            <PWAInstallBanner />
+            {!hideGlobalOverlays && <PWAInstallBanner />}
             {/* NavBar renders on ALL app routes. (An earlier audit hid it on
                 /dashboard because that group used the AppSidebar layout — that
                 layout is gone, so hiding it here left the dashboard with no
@@ -223,11 +224,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
             </main>
             <Footer />
             {!hideGlobalOverlays && <FeedbackWidget />}
-            <HotkeyHelpOverlay />
+            {!hideGlobalOverlays && <HotkeyHelpOverlay />}
             {!fieldbookPage && <MobileNav />}
             {!hideGlobalOverlays && <CommandPalette />}
             <NotificationToast />
-            <OnboardingTour />
+            {!hideGlobalOverlays && <OnboardingTour />}
           </SubscriptionProvider>
         </CountryProvider>
       </LanguageProvider>

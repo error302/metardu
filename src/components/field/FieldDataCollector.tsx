@@ -38,7 +38,8 @@ import { startFieldAutoDelivery } from '@/lib/field/autoDelivery'
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, resolveRoadFieldPlanCrsCode, roadFieldPlanCrsIsBoundToProject, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
 import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
-import { createClient } from '@/lib/api-client/client'
+import { apiGet } from '@/lib/api/client'
+import { fieldProjectsSchema } from '@/lib/field/projectContext'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 
 function isOfflinePlanFetchFailure(error: unknown): boolean {
@@ -48,6 +49,7 @@ function isOfflinePlanFetchFailure(error: unknown): boolean {
 
 interface FieldDataCollectorProps {
   projectId: string
+  projectName?: string
   surveyType?: SurveyType
   roadSurvey?: boolean
 }
@@ -56,6 +58,7 @@ type Panel = 'measure' | 'stakeout' | 'list' | 'sync' | null
 
 export function FieldDataCollector({
   projectId,
+  projectName,
   surveyType = 'cadastral',
   roadSurvey = false,
 }: FieldDataCollectorProps) {
@@ -159,12 +162,8 @@ export function FieldDataCollector({
       }
 
       try {
-        const result = await createClient()
-          .from('projects')
-          .select('name,engineering_data,datum,utm_zone,hemisphere')
-          .eq('id', projectId)
-          .limit(1) as unknown as { data: Array<{ name?: unknown; engineering_data?: unknown; datum?: unknown; utm_zone?: unknown; hemisphere?: unknown }> | null; error: unknown }
-        if (result.error) throw result.error
+        const context = await apiGet('/api/field/projects?projectId='+encodeURIComponent(projectId)+'&includePlan=1',fieldProjectsSchema,{ttlMs:0})
+        const result={ data:context.projects }
         const engineeringData = result.data?.[0]?.engineering_data
         const planValue = typeof engineeringData === 'object' && engineeringData !== null
           ? (engineeringData as { roadFieldPlan?: unknown }).roadFieldPlan
@@ -182,13 +181,7 @@ export function FieldDataCollector({
           return
         }
 
-        const referenceResult = await createClient()
-          .from('project_reference_systems')
-          .select('*')
-          .eq('project_id', projectId)
-          .limit(1)
-        if (referenceResult.error) throw referenceResult.error
-        const declaredReference = (referenceResult.data as unknown as Array<Record<string, unknown>> | null)?.[0] ?? null
+        const declaredReference = context.projects[0]?.reference_system ?? null
         const projectRow = result.data?.[0]
         const projectReference = resolveStageReference(
           declaredReference,
@@ -402,6 +395,7 @@ export function FieldDataCollector({
           onSyncClick={handleSync}
         />
         <div className="flex-1 overflow-y-auto p-4 max-w-2xl mx-auto w-full">
+          {projectName && <p className="mb-4 break-words text-sm font-semibold">{projectName}</p>}
           <FieldStationSetup
             onComplete={handleSetupComplete}
             initialSetup={sessionState.setup}
@@ -414,6 +408,7 @@ export function FieldDataCollector({
   // ─── Main Collector UI ───────────────────────────────────────────────────
   return (
     <div className={`min-h-screen flex flex-col ${isSunlightMode ? 'bg-white text-black font-bold border-b-4 border-black' : 'bg-[var(--bg-primary)]'}`}>
+      {projectName && <p className="break-words border-b border-[var(--border-color)] px-4 py-3 text-sm font-semibold">{projectName}</p>}
       {/* Connection Bar */}
       <FieldConnectionBar
         isOnline={sessionState.isOnline}
@@ -423,8 +418,8 @@ export function FieldDataCollector({
       />
 
       {/* Station Info Bar */}
-      <div className={`flex items-center gap-3 px-4 py-2 border-b ${isSunlightMode ? 'bg-yellow-300 text-black border-black border-b-2 font-black' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
-        <div className="flex-1 flex items-center gap-3">
+      <div className={`flex flex-wrap items-center gap-3 px-4 py-2 border-b ${isSunlightMode ? 'bg-yellow-300 text-black border-black border-b-2 font-black' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
+        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-3">
           <span className={`text-sm font-mono font-bold ${isSunlightMode ? 'text-black underline' : 'text-[var(--accent)]'}`}>
             {sessionState.setup?.stationName}
           </span>

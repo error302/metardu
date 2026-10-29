@@ -39,6 +39,7 @@ const withPWA = require('@ducanh2912/next-pwa').default({
       (process.platform === 'win32' && process.env.ENABLE_PWA_ON_WINDOWS !== 'true'),
     workboxOptions: {
       disableDevLogs: true,
+      importScripts: ['/survey-push.js'],
       skipWaiting: false,
       clientsClaim: false,
       runtimeCaching: [
@@ -456,6 +457,10 @@ const nextConfig = {
           { key: 'Content-Type', value: 'application/manifest+json; charset=utf-8' },
           { key: 'Cache-Control', value: 'no-cache, must-revalidate' },
         ],
+      },
+      {
+        source: '/survey-push.js',
+        headers: [{ key: 'Cache-Control', value: 'no-cache, no-store, must-revalidate' }],
       },
       {
         source: '/sw.js',

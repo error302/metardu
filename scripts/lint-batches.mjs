@@ -42,7 +42,7 @@ async function runBatch(files, { cwd, heapMb, timeoutMs }) {
       child.once('exit', resolve)
       child.send({ files, cwd }, error => { if (error) reject(error) })
     })
-    assert.ok(!timedOut, `Lint worker timed out after ${timeoutMs} ms`)
+    assert.ok(!timedOut, `Lint worker timed out after ${timeoutMs} ms (${files.length} files; first ${path.relative(cwd,files[0])})`)
     assert.equal(code, 0, `Lint worker failed: ${stderr || `exit ${code}`}`)
     assert.equal(messages, 1, 'Lint worker must return exactly one complete result')
     assertBatchCoverage(files, message?.results)
@@ -54,7 +54,7 @@ async function runBatch(files, { cwd, heapMb, timeoutMs }) {
 }
 
 export async function lintFilesInBatches(scope, {
-  cwd = process.cwd(), batchSize = 400, heapMb = 3072, timeoutMs = 180000,
+  cwd = process.cwd(), batchSize = 150, heapMb = 2048, timeoutMs = 180000,
   onBatch = () => {},
 } = {}) {
   assert.ok(Number.isInteger(batchSize) && batchSize > 0 && batchSize <= 400)

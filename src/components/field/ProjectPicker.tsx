@@ -9,7 +9,8 @@
 
 import { useState, useEffect } from 'react'
 import { FolderKanban, ChevronRight, Loader2, MapPin } from 'lucide-react'
-import { createClient } from '@/lib/api-client/client'
+import { apiGet } from '@/lib/api/client'
+import { fieldProjectsSchema } from '@/lib/field/projectContext'
 import { logger } from '@/lib/logger'
 import { formatRoadChainage, parseRoadFieldPlan, roadFieldPlanCrsIsBoundToProject } from '@/lib/engineering/roadFieldPlan'
 import type { OfflineRoadFieldPlan } from '@/lib/offline/fieldBookDB'
@@ -18,12 +19,12 @@ interface Project {
   id: string
   name: string
   survey_type?: string
-  county?: string
+  location?: string
   created_at?: string
 }
 
 interface ProjectPickerProps {
-  onPick: (projectId: string, surveyType?: string) => void
+  onPick: (projectId: string, surveyType?: string, projectName?: string) => void
   title: string
   subtitle: string
   initialProjectId?: string | null
@@ -60,7 +61,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
           if (initialProjectId) {
             const selected = validPlans.find((cached) => cached.projectId === initialProjectId)
             if (selected) {
-              onPick(selected.projectId, initialSurveyType || 'engineering')
+              onPick(selected.projectId, initialSurveyType || 'engineering', selected.projectName)
             } else {
               setError('No verified offline road plan is cached for this project. Open its field plan online before leaving for the field.')
             }
@@ -85,33 +86,17 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
         }
 
         setShowingOfflinePlans(false)
-        const db = createClient()
+        const response=await apiGet('/api/field/projects'+(initialProjectId?'?projectId='+encodeURIComponent(initialProjectId):''),fieldProjectsSchema,{ttlMs:0})
+        const available=response.projects.map(item=>({...item,survey_type:item.survey_type??undefined,location:item.location??undefined}))
+        if (!current) return
         if (initialProjectId) {
-          const selected = await db
-            .from('projects')
-            .select('id, name, survey_type, county, created_at')
-            .eq('id', initialProjectId)
-            .limit(1) as unknown as { data: Project[] | null; error: unknown }
-
-          if (selected.error) throw selected.error
-          const matchingProject = selected.data?.[0]
-          if (matchingProject) {
-            if (current) {
-              setProjects([matchingProject])
-              onPick(matchingProject.id, initialSurveyType || matchingProject.survey_type)
-            }
-            return
-          }
+          const selected=available.find(item=>item.id===initialProjectId)
+          if (!selected) throw new Error('This project is unavailable for field collection.')
+          onPick(selected.id,initialSurveyType||selected.survey_type,selected.name)
+        } else {
+          setProjects(available)
+          setError(null)
         }
-
-        const { data, error } = await db
-          .from('projects')
-          .select('id, name, survey_type, county, created_at')
-          .order('created_at', { ascending: false })
-          .limit(50) as unknown as { data: Project[] | null; error: unknown }
-
-        if (error) throw error
-        if (current) setProjects((data ?? []) as Project[])
       } catch (err) {
         logger.error('[project-picker] Failed to load projects:', { error: err })
         const networkFailure = typeof navigator !== 'undefined' && !navigator.onLine
@@ -169,7 +154,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
                     <button
                       key={cached.projectId}
                       type="button"
-                      onClick={() => onPick(cached.projectId, initialSurveyType || 'engineering')}
+                      onClick={() => onPick(cached.projectId, initialSurveyType || 'engineering', cached.projectName)}
                       className="w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] p-4 text-left transition-colors hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[var(--bg-secondary)]"
                     >
                       <span className="flex items-center justify-between gap-3">
@@ -206,7 +191,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
             {projects.map((project) => (
               <button
                 key={project.id}
-                onClick={() => onPick(project.id, project.survey_type)}
+                onClick={() => onPick(project.id, project.survey_type, project.name)}
                 className="w-full flex items-center gap-3 p-4 bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] hover:bg-[var(--bg-secondary)] transition-all text-left"
               >
                 <FolderKanban className="w-5 h-5 text-[var(--accent)] shrink-0" />
@@ -218,7 +203,7 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
                     {project.survey_type && (
                       <span className="capitalize">{project.survey_type}</span>
                     )}
-                    {project.county && <span>· {project.county}</span>}
+                    {project.location && <span>· {project.location}</span>}
                     {project.created_at && (
                       <span>· {new Date(project.created_at).toLocaleDateString('en-KE')}</span>
                     )}

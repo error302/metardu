@@ -1,4 +1,6 @@
 'use client';
+import { ModeSwitch } from '@/components/layout/ModeSwitch'
+import { disconnectPushBeforeSignOut } from '@/lib/notifications/pushClient'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useSession, signOut } from 'next-auth/react'
@@ -11,7 +13,7 @@ import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
-import { APP_DESKTOP_NAV, APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isNavGroupActive, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
+import { APP_DESKTOP_NAV, APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isWebsiteRoute, isNavGroupActive, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
 import FieldModeToggle from '@/components/shared/FieldModeToggle'
 
 const LANDING_NAV_LINKS: PrimaryNavItem[] = [
@@ -290,6 +292,7 @@ export default function NavBar() {
   }, [user?.id])
 
   const handleSignOut = async () => {
+    await disconnectPushBeforeSignOut()
     try {
       await signOut({ redirect: false })
     } catch {
@@ -338,7 +341,7 @@ export default function NavBar() {
   }, [pathname])
 
   const currentLang = languages.find((l) => l.code === language) || languages[0]
-  const shellVariant = !isAuthenticated && isExplicitPublicRoute(pathname) ? 'public' : 'app'
+  const shellVariant = isWebsiteRoute(pathname) || (!isAuthenticated && isExplicitPublicRoute(pathname)) ? 'public' : 'app'
   const landingPage = pathname === '/'
   const showDashboardEntry = landingPage || shellVariant === 'public'
   const shellLinks = shellVariant === 'app' ? APP_SHELL_LINKS : PUBLIC_SHELL_LINKS
@@ -498,10 +501,7 @@ export default function NavBar() {
 
           {/* Right Side */}
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2 min-w-0">
-            {showDashboardEntry && <Link href="/dashboard" prefetch={false} aria-label="Open dashboard"
-              className="inline-flex min-h-10 shrink-0 items-center gap-2 rounded-lg bg-[var(--accent)] px-3 text-xs font-semibold text-black transition-colors hover:bg-[var(--accent-dim)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:[outline-color:var(--accent)] sm:text-sm">
-              Dashboard <span aria-hidden="true">→</span>
-            </Link>}
+            <ModeSwitch target={showDashboardEntry?'workspace':'website'} authenticated={isAuthenticated}/>
             {/* Quick action: the most common start-of-day step */}
             {useGroupedDesktopNav && (
               <Link

@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { ModeSwitch } from '@/components/layout/ModeSwitch'
 import { usePathname } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import { ArrowUpRight, ShieldCheck } from 'lucide-react'
@@ -18,7 +19,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <header className="admin-shell-header"><div className="admin-shell-inner">
       <Link href="/admin" className="admin-shell-brand" aria-label="METARDU business overview"><MetarduLogo size={30} /></Link>
       <span className="admin-shell-label"><ShieldCheck className="h-3.5 w-3.5" /> Business administration</span>
-      <div className="admin-shell-actions"><OutdoorModeToggle /><Link className="admin-text-link text-xs" href="/dashboard">Back to app <ArrowUpRight className="h-3.5 w-3.5" /></Link><NotificationBell /></div>
+      <div className="admin-shell-actions"><OutdoorModeToggle /><ModeSwitch target="website" authenticated/><Link className="admin-text-link text-xs" href="/dashboard">Back to app <ArrowUpRight className="h-3.5 w-3.5" /></Link><NotificationBell /></div>
     </div></header>
     {status === 'loading' ? <div className="mx-auto max-w-7xl px-5 py-12" role="status">Checking administrator access…</div> : !permitted ? <div className="mx-auto max-w-xl px-5 py-16"><h1 className="text-2xl font-semibold">Administrator access required</h1><p className="mt-3 text-[var(--text-secondary)]">This workspace is available to platform administrators.</p><Link href={status === 'unauthenticated' ? '/login?next=%2Fadmin' : '/dashboard'} className="btn btn-primary mt-6">{status === 'unauthenticated' ? 'Sign in' : 'Return to dashboard'}</Link></div> : <>
       <nav className="admin-primary-nav" aria-label="Administration"><div className="admin-shell-inner">{[['/admin', 'Business overview'], ['/admin/users', 'Customer directory'], ['/admin/payments', 'Payment ledger'], ['/audit-logs', 'Audit trail']].map(([href, label]) => <Link key={href} href={href} aria-current={pathname === href ? 'page' : undefined}>{label}</Link>)}<span className="ml-auto hidden text-xs text-[var(--text-muted)] md:block">{role?.replace('_', ' ')} · private workspace</span></div></nav>

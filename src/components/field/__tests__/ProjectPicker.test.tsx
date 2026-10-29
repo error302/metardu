@@ -2,9 +2,9 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { ProjectPicker } from '../ProjectPicker'
 import { listCachedRoadFieldPlans } from '@/lib/offline/fieldBookDB'
 import type { OfflineRoadFieldPlan } from '@/lib/offline/fieldBookDB'
-import { createClient } from '@/lib/api-client/client'
+import { apiGet } from '@/lib/api/client'
 
-jest.mock('@/lib/api-client/client', () => ({ createClient: jest.fn() }))
+jest.mock('@/lib/api/client', () => ({ apiGet: jest.fn() }))
 jest.mock('@/lib/offline/fieldBookDB', () => ({ listCachedRoadFieldPlans: jest.fn() }))
 
 const projectId = '11111111-1111-4111-8111-111111111111'
@@ -46,15 +46,13 @@ describe('ProjectPicker offline road plans', () => {
 
   it('lets a field operator retry project selection when the connection returns', async () => {
     const onPick = jest.fn()
-    jest.mocked(createClient).mockReturnValue({ from: () => ({ select: () => ({ order: () => ({ limit: async () => ({
-      data: [{ id: projectId, name: 'Synthetic level run', survey_type: 'leveling' }], error: null,
-    }) }) }) }) } as unknown as ReturnType<typeof createClient>)
+    jest.mocked(apiGet).mockResolvedValue({projects:[{id:projectId,name:'Synthetic level run',survey_type:'leveling'}],hasMore:false})
     render(<ProjectPicker onPick={onPick} title="Choose a field project" subtitle="Select your field project" />)
     await screen.findByText('Connect to load your projects. Your existing device records are retained.')
     setOnline(true)
     fireEvent.click(screen.getByRole('button', { name: 'Retry project list' }))
     fireEvent.click(await screen.findByRole('button', { name: /Synthetic level run/i }))
-    expect(onPick).toHaveBeenCalledWith(projectId, 'leveling')
+    expect(onPick).toHaveBeenCalledWith(projectId, 'leveling', 'Synthetic level run')
   })
 
   it('offers a verified device-cached plan and opens it for engineering collection', async () => {
@@ -73,7 +71,7 @@ describe('ProjectPicker offline road plans', () => {
     expect(screen.getByText(/CH 0\+000\.000–0\+100\.000 · EPSG/)).toBeInTheDocument()
     fireEvent.click(project)
 
-    expect(onPick).toHaveBeenCalledWith(projectId, 'engineering')
+    expect(onPick).toHaveBeenCalledWith(projectId, 'engineering', 'Kijani access road')
   })
 
   it('automatically resumes the requested project when its verified plan is cached', async () => {
@@ -89,7 +87,7 @@ describe('ProjectPicker offline road plans', () => {
       />,
     )
 
-    await waitFor(() => expect(onPick).toHaveBeenCalledWith(projectId, 'engineering'))
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(projectId, 'engineering', 'Kijani access road'))
   })
 
   it('does not offer a cached plan whose project CRS binding is missing', async () => {

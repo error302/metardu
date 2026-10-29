@@ -92,6 +92,13 @@ export const PUBLIC_SHELL_LINKS: PrimaryNavItem[] = [
   { href: '/pricing', label: 'Pricing' },
 ]
 
+/** Website/workspace presentation is independent of sign-in state. */
+export function isWebsiteRoute(pathname: string | null | undefined) {
+  const path=pathname||'/'
+  return path==='/'||['/pricing','/enterprise','/demo','/install','/docs','/guide','/connect/chatgpt','/support']
+    .some(prefix=>path===prefix||path.startsWith(prefix+'/'))
+}
+
 export function isExplicitPublicRoute(pathname: string | null | undefined) {
   const path = pathname || '/'
 

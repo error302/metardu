@@ -117,6 +117,7 @@ export default function StageShell({
 
       {stageId === 'overview' ? (
         <section className="mb-6" aria-label="Project record summary">
+          <div className="mb-5 flex flex-wrap gap-3"><Link href={`/schedule?new=1&projectId=${encodeURIComponent(projectId)}`} className="btn btn-secondary min-h-11">Schedule survey</Link><Link href={`/field/collect?projectId=${encodeURIComponent(projectId)}`} className="btn btn-primary min-h-11">Collect field points</Link></div>
           <div className="flex items-end justify-between gap-3 mb-3">
             <div>
               <h2 className="text-sm font-semibold text-[var(--text-primary)]">Project records</h2>

@@ -58,7 +58,7 @@ export async function middleware(request: NextRequest) {
 
   // ─── Protected routes ───
   const protectedPaths = [
-    '/dashboard', '/project', '/fieldbook', '/deed-plan',
+    '/dashboard', '/project', '/fieldbook', '/deed-plan', '/schedule',
     '/tools/survey-report-builder', '/fieldguard', '/cadastra',
     '/minetwin', '/automator', '/hydrolive', '/usv',
     '/equipment', '/cpd', '/jobs',

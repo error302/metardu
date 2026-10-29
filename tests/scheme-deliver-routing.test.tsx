@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { redirect } from 'next/navigation'
 import StagePage from '@/app/project/[id]/StagePage'
 import { getAuthUser } from '@/lib/auth/session'
+import {requireProjectReadAccess} from '@/lib/auth/ownership'
 import { createClient } from '@/lib/api-client/server'
 const actor = '11111111-1111-4111-8111-111111111111',
   project = '33333333-3333-4333-8333-333333333333'
@@ -16,8 +17,10 @@ jest.mock('@/lib/auth/session', () => ({
 }))
 jest.mock('@/lib/auth/requestContext', () => ({
   setAuthenticatedDatabaseContext: jest.fn(),
+  resolveAuthenticatedOrganization: async()=>null,
 }))
 jest.mock('@/lib/api-client/server', () => ({ createClient: jest.fn() }))
+jest.mock('@/lib/auth/ownership',()=>({requireProjectReadAccess:jest.fn()}))
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn() } }))
 jest.mock('@/app/project/[id]/StageShell', () => ({
   __esModule: true,
@@ -37,6 +40,7 @@ const single = jest.fn(),
   }
 beforeEach(() => {
   jest.clearAllMocks()
+  jest.mocked(requireProjectReadAccess).mockResolvedValue({ok:true,projectUserId:actor})
   jest
     .mocked(getAuthUser)
     .mockResolvedValue({ id: actor } as Awaited<ReturnType<typeof getAuthUser>>)
@@ -46,7 +50,7 @@ beforeEach(() => {
       ReturnType<typeof createClient>
     >)
   single.mockResolvedValue({
-    data: { id: project, name: 'SYNTHETIC scheme', project_type: 'scheme' },
+    data: { id: project, user_id:actor, name: 'SYNTHETIC scheme', project_type: 'scheme' },
     error: null,
   })
 })
@@ -64,7 +68,8 @@ it('opens the scheme output workflow without redirecting or showing generic expo
   ).toBeInTheDocument()
   expect(screen.queryByText('General workspace')).not.toBeInTheDocument()
   expect(redirect).not.toHaveBeenCalled()
-  expect(query.eq).toHaveBeenCalledWith('user_id', actor)
+  expect(requireProjectReadAccess).toHaveBeenCalledWith(project, actor)
+  expect(query.eq).toHaveBeenCalledWith('id',project)
 })
 it('retains scheme routing for other generic stages', async () => {
   await expect(
@@ -83,4 +88,14 @@ it('does not expose an unavailable or unowned project', async () => {
   await expect(
     StagePage({ params: Promise.resolve({ id: project }), stageId: 'deliver' }),
   ).rejects.toThrow('redirect:/dashboard')
+})
+
+it('rejects a failed shared-project admission before querying project contents',async()=>{
+ jest.mocked(requireProjectReadAccess).mockResolvedValue({ok:false})
+ await expect(StagePage({params:Promise.resolve({id:project}),stageId:'deliver'})).rejects.toThrow('redirect:/dashboard')
+ expect(createClient).not.toHaveBeenCalled()
+})
+it('retains the ownership-review gate for an unassigned legacy record',async()=>{
+ single.mockResolvedValue({data:{id:project,user_id:null,project_type:'scheme'},error:null})
+ await expect(StagePage({params:Promise.resolve({id:project}),stageId:'deliver'})).rejects.toThrow('redirect:/dashboard')
 })

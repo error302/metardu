@@ -6,6 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync, existsSync, createWriteStream, 
 import { resolve, join } from 'node:path'
 import { createHash } from 'node:crypto'
 import pg from 'pg'
+import {assertSurveyPushEnvironment} from './survey-push-environment.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
 import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
@@ -77,14 +78,14 @@ function validateContainers(before) {
 function composeConfig() {return JSON.parse(docker(['compose','-f','docker-compose.yml','config','--format','json']))}
 function assertEnvironment(before, config) {
   const old=envOf(before.find(c=>c.Name==='/metardu-app')), next=config.services['metardu-app'].environment
-  for(const [key,value] of Object.entries(next)) if(key!=='METARDU_BUILD_SHA') assert.equal(String(value??''),String(old[key]??''),`Review runtime setting before changing it: ${key}`)
+  return assertSurveyPushEnvironment(old,next)
 }
 async function plan() {
   if(existsSync(receiptPath)) throw new Error('A release receipt already exists. Inspect its status before changing or resuming this release.')
   assert.equal(git(['rev-parse',revision]),revision)
   const before=inspect();validateContainers(before)
   assert.notEqual(envOf(before.find(c=>c.Name==='/metardu-app')).METARDU_BUILD_SHA,revision,'This release is already promoted; use read-only verification')
-  const config=composeConfig();assertEnvironment(before,config)
+  const config=composeConfig();const pushEnvironment=assertEnvironment(before,config)
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
   const drift=legacy?computeDrift(files,applied):assertSurveyReleaseDrift(files,applied)
@@ -97,7 +98,7 @@ async function plan() {
   const rollbackIdentity=deployedAppRevision(app,JSON.parse(docker(['image','inspect',image]))[0])
   assert.equal(git(['rev-parse',rollbackIdentity.revision]),rollbackIdentity.revision,'The rollback revision must exist in this repository.')
   const result={revision,status:'planned',candidateTag,rollbackTag,before:before.map(describe),project:before.find(c=>c.Name==='/metardu-app').Config.Labels['com.docker.compose.project'],
-    migrationBefore:applied,pending:drift.missing,rollbackImage:image,priorRevision:rollbackIdentity.revision,rollbackIdentity,
+    pushEnvironment,migrationBefore:applied,pending:drift.missing,rollbackImage:image,priorRevision:rollbackIdentity.revision,rollbackIdentity,
     sourceRegistry:files.map(file=>({version:file.version,checksum:file.checksum})),
     recoveryEvidence:{status:recovery.status,archiveSha256:recovery.archiveSha256,cleanup:recovery.cleanup},phases:[]}
   if(!legacy) {
@@ -146,7 +147,7 @@ async function build() {
   }
   docker(['image','tag',receipt.rollbackImage,rollbackTag])
   assert.equal(docker(['image','inspect',rollbackTag,'--format','{{.Id}}']),receipt.rollbackImage)
-  const config=composeConfig();assertEnvironment(before,config)
+  const config=composeConfig();assert.deepEqual(assertEnvironment(before,config),receipt.pushEnvironment,'Reviewed push setup changed after planning')
   const args=['build','--builder','desktop-linux','--progress=plain','--tag',candidateTag,'--label',`org.opencontainers.image.revision=${revision}`,
     '--build-arg',`NEXT_PUBLIC_APP_URL=${config.services['metardu-app'].environment.NEXT_PUBLIC_APP_URL}`,
     '--build-arg',`NEXT_PUBLIC_PAYPAL_CLIENT_ID=${config.services['metardu-app'].build.args.NEXT_PUBLIC_PAYPAL_CLIENT_ID||''}`,'-']
@@ -211,7 +212,7 @@ async function migrateAndPromote() {
   assert.equal(app.Image,receipt.rollbackImage)
   assert.equal(docker(['image','inspect',rollbackTag,'--format','{{.Id}}']),receipt.rollbackImage)
   assert.equal(docker(['image','inspect',candidateTag,'--format','{{.Id}}']),receipt.candidateImage)
-  assertEnvironment(before,composeConfig())
+  assert.deepEqual(assertEnvironment(before,composeConfig()),receipt.pushEnvironment,'Reviewed push setup changed after planning')
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
   if(!legacy)assertSurveyReleaseDrift(files,applied)

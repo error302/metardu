@@ -42,7 +42,7 @@ export const GET = apiHandler(
     const offset = Math.max(0, parseInt(url.searchParams.get('offset') || '0', 10))
 
     const params: unknown[] = [user.id, limit, offset]
-    let whereClause = 'WHERE user_id = $1'
+    let whereClause = 'WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > NOW())'
     if (unreadOnly) {
       whereClause += ' AND read_at IS NULL'
     }
@@ -57,7 +57,7 @@ export const GET = apiHandler(
     )
 
     const unreadResult = await db.query<{ count: string }>(
-      `SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read_at IS NULL`,
+      `SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read_at IS NULL AND (expires_at IS NULL OR expires_at > NOW())`,
       [user.id],
     )
     const unreadCount = parseInt(unreadResult.rows[0]?.count || '0', 10)

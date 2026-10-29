@@ -19,6 +19,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { FieldDataCollector } from '@/components/field/FieldDataCollector'
 import { ProjectPicker } from '@/components/field/ProjectPicker'
+import { collectionSurveyType, type CollectionSurveyType } from '@/lib/field/projectContext'
 
 export default function FieldCollectPage() {
   const [routeContext, setRouteContext] = useState<{ ready: boolean; projectId: string | null; roadSurvey: boolean }>({
@@ -27,7 +28,8 @@ export default function FieldCollectPage() {
     roadSurvey: false,
   })
   const [projectId, setProjectId] = useState<string | null>(null)
-  const [surveyType, setSurveyType] = useState<'cadastral' | 'engineering' | 'topographic' | 'control'>('cadastral')
+  const [surveyType, setSurveyType] = useState<CollectionSurveyType | null>(null)
+  const [projectName, setProjectName] = useState('')
 
   useEffect(() => {
     const searchParams = new URLSearchParams(window.location.search)
@@ -40,13 +42,10 @@ export default function FieldCollectPage() {
 
   const { ready, projectId: initialProjectId, roadSurvey } = routeContext
 
-  const handlePick = useCallback((id: string, type?: string) => {
+  const handlePick = useCallback((id: string, type?: string, name?: string) => {
     setProjectId(id)
-    if (roadSurvey) {
-      setSurveyType('engineering')
-    } else if (type && ['cadastral', 'engineering', 'topographic', 'control'].includes(type)) {
-      setSurveyType(type as 'cadastral' | 'engineering' | 'topographic' | 'control')
-    }
+    setProjectName(name ?? '')
+    setSurveyType(roadSurvey ? 'engineering' : collectionSurveyType(type))
   }, [roadSurvey])
 
   if (!ready) {
@@ -66,5 +65,10 @@ export default function FieldCollectPage() {
     )
   }
 
-  return <FieldDataCollector projectId={projectId} surveyType={surveyType} roadSurvey={roadSurvey} />
+  if (!surveyType) return <div className="mx-auto max-w-2xl px-4 py-8">
+    <h1 className="text-2xl font-semibold">Choose the field workflow</h1>
+    <p className="mt-3 text-sm text-[var(--text-secondary)]">{projectName || 'This project'} needs an explicit measurement workflow. This choice does not change its reference system or project type.</p>
+    <div className="mt-6 grid gap-3 sm:grid-cols-2">{(['cadastral','engineering','topographic','control'] as const).map(type=><button key={type} type="button" onClick={()=>setSurveyType(type)} className="btn btn-secondary min-h-11 capitalize">{type}</button>)}</div>
+  </div>
+  return <FieldDataCollector projectId={projectId} projectName={projectName} surveyType={surveyType} roadSurvey={roadSurvey} />
 }
