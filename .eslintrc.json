@@ -202,6 +202,7 @@
         "eslint-plugin-metardu/**/*.js",
         "eslint-plugin-metardu/**/*.cjs",
         "data/**/*.cjs",
+        "public/survey-push.js",
         "jest.chatgpt.config.cjs",
         "jest.config.js",
         "next.config.js",
