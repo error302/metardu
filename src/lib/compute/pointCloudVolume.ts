@@ -63,11 +63,7 @@ export function gridMethodVolume(
   }
 
   // Compute the bounding box of both surfaces combined
-  const allPoints = [...surface1, ...surface2]
-  const minE = Math.min(...allPoints.map(p => p.easting))
-  const maxE = Math.max(...allPoints.map(p => p.easting))
-  const minN = Math.min(...allPoints.map(p => p.northing))
-  const maxN = Math.max(...allPoints.map(p => p.northing))
+  const { minE, maxE, minN, maxN } = getBounds([surface1, surface2])
 
   const width = maxE - minE
   const height = maxN - minN
@@ -259,7 +255,7 @@ export function tinToTinVolume(
   // point density.
 
   // Estimate point density
-  const bounds = getBounds([...surface1, ...surface2])
+  const bounds = getBounds([surface1, surface2])
   const area = (bounds.maxE - bounds.minE) * (bounds.maxN - bounds.minN)
   const density = (surface1.length + surface2.length) / area
 
@@ -275,13 +271,24 @@ export function tinToTinVolume(
   }
 }
 
-function getBounds(points: Point3D[]) {
-  return {
-    minE: Math.min(...points.map(p => p.easting)),
-    maxE: Math.max(...points.map(p => p.easting)),
-    minN: Math.min(...points.map(p => p.northing)),
-    maxN: Math.max(...points.map(p => p.northing)),
+function getBounds(surfaces: Point3D[][]) {
+  let minE = Infinity;
+  let maxE = -Infinity;
+  let minN = Infinity;
+  let maxN = -Infinity;
+
+  for (let i = 0; i < surfaces.length; i++) {
+    const surface = surfaces[i];
+    for (let j = 0; j < surface.length; j++) {
+      const p = surface[j];
+      if (p.easting < minE) minE = p.easting;
+      if (p.easting > maxE) maxE = p.easting;
+      if (p.northing < minN) minN = p.northing;
+      if (p.northing > maxN) maxN = p.northing;
+    }
   }
+
+  return { minE, maxE, minN, maxN };
 }
 
 // ─── Stockpile Volume (single surface + base plane) ─────────────────────────
