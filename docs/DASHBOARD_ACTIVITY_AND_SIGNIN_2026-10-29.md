@@ -1,5 +1,7 @@
 # Dashboard activity and sign-in review — 29 October 2026
 
+Current status: the combined application was deployed as 305d2b01 on 30 October. See [current release acceptance](RELEASE_ACCEPTANCE_2026-10-30.md) for revision-bound evidence, retained incidents and remaining physical/provider gates. Earlier checkpoint observations below are historical.
+
 ## Production baseline reconciled
 
 Read-only verification against the restricted production runtime and migration ledger found 128 applied migrations, zero pending/mutated/ghost entries, and every original 119 checksum unchanged. The earlier nine-pending update preceded the completed 1e6ecb613d1335a0d2bc4edbc57f1b474c2f348d promotion. No SQL is added or altered by this change.

@@ -1,5 +1,7 @@
 # Project scheduling and phone reminders — 29 October 2026
 
+Current status: the combined application was deployed as 305d2b01 on 30 October. See [current release acceptance](RELEASE_ACCEPTANCE_2026-10-30.md) for revision-bound evidence, retained incidents and remaining physical/provider gates. Earlier checkpoint observations below are historical.
+
 ## Release boundary
 
 The implementation in this checkpoint has not yet been promoted. Production was verified healthy on revision 1e6ecb613d1335a0d2bc4edbc57f1b474c2f348d with 128 applied migrations and no pending migrations before this change. The original nine workflow migrations are already applied; all historical hashes remain unchanged.

@@ -1,5 +1,7 @@
 # PWA installation and phone acceptance — 29 October 2026
 
+Current status: the combined application was deployed as 305d2b01 on 30 October. See [current release acceptance](RELEASE_ACCEPTANCE_2026-10-30.md) for revision-bound evidence, retained incidents and remaining physical/provider gates. Earlier checkpoint observations below are historical.
+
 This extends the dashboard/activity checkpoint d1417c47. No application image has been built or promoted for that checkpoint; its successful source admission is retained and the combined revision must pass its own checks before one planned promotion.
 
 ## Defects corrected
