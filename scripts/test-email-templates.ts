@@ -54,7 +54,7 @@ const cases = [
       passwordResetEmail.render({
         to: 'john@metardu.com',
         name: 'John',
-        resetToken: 'abc123def456',
+        resetToken: 'dummy_token_abc123def456',
         expiresAt: FUTURE,
       }),
     expectSubject: 'Reset your METARDU password',
