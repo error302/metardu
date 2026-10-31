@@ -13,6 +13,7 @@ import {
   formatScalarWithCI,
   scalarCI,
 } from '@/lib/survey/covariancePropagation'
+import { sanitizeHtml } from '@/lib/security/sanitize'
 
 interface DeedPlanGeneratorProps {
   projectId: string
@@ -786,7 +787,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
           <div className="bg-white rounded-lg p-4 border overflow-auto">
             <div
               className="mx-auto"
-              dangerouslySetInnerHTML={{ __html: output.svg }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(output.svg) }}
             />
           </div>
 
