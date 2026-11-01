@@ -15,8 +15,9 @@ export function buildSurfaceRevisionDrawing(source: SurfaceDrawingSource) {
     easting: point.x, northing: point.y, elevation: point.z, code: point.code ?? '' }))
   const span = Math.max(1, Math.max(...points.map(point => point.easting)) - Math.min(...points.map(point => point.easting)),
     Math.max(...points.map(point => point.northing)) - Math.min(...points.map(point => point.northing)))
+  // Canonical observation identity order is not evidence of feature connectivity.
   const drawing = buildTopoEntities(points, { scale: 1000, includeSpotHeights: true, includeTitleBlock: true,
-    includeLabels: true, includeLegend: true, gridTickInterval: Math.max(1, span / 10) }, { projectName: source.name,
+    includeLabels: true, includeLegend: true, gridTickInterval: Math.max(1, span / 10) }, { projectName: source.name, featureLineMode: 'explicit-only',
     reference: { horizontalCrs: source.crs, verticalDatum: source.verticalDatum }, contours: source.contours })
   const width = drawing.extents.maxX - drawing.extents.minX
   const text = (label: string, row: number) => drawing.entities.push({ kind: 'text', layer: 'ANNOTATIONS',

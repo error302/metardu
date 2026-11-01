@@ -56,3 +56,19 @@ it('shows a recoverable activation failure without reloading after a timeout', a
     expect(reloadCurrentDocument).not.toHaveBeenCalled()
   } finally { Reflect.deleteProperty(navigator, 'serviceWorker') }
 })
+
+it('lets a surveyor reopen a dismissed update from phone reminder settings without activating it', async()=>{
+ const worker=Object.assign(new EventTarget(),{state:'installed',postMessage:jest.fn()})
+ const registration=Object.assign(new EventTarget(),{waiting:worker,installing:null})
+ const container=Object.assign(new EventTarget(),{controller:{},getRegistration:jest.fn().mockResolvedValue(registration),ready:Promise.resolve(registration)})
+ Object.defineProperty(navigator,'serviceWorker',{configurable:true,value:container})
+ try{
+  await act(async()=>{render(<AppUpdateBanner/>)})
+  fireEvent.click(screen.getByRole('button',{name:'Dismiss update banner'}))
+  expect(screen.queryByRole('button',{name:'Reload when ready'})).not.toBeInTheDocument()
+  act(()=>{window.dispatchEvent(new Event('metardu:review-app-update'))})
+  expect(screen.getByRole('button',{name:'Reload when ready'})).toBeInTheDocument()
+  expect(worker.postMessage).not.toHaveBeenCalled()
+  expect(reloadCurrentDocument).not.toHaveBeenCalled()
+ }finally{Reflect.deleteProperty(navigator,'serviceWorker')}
+})

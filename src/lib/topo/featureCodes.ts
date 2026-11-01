@@ -1155,13 +1155,13 @@ export function getAllGroups(): FeatureCodeGroup[] {
  * @returns       Array of `LayerMappingResult`, one per unique layer.
  */
 export function mapPointsToLayers(
-  points: SurveyPointWithCode[]
+  points: SurveyPointWithCode[],
+  options: { joinSourceSequence?: boolean } = {},
 ): LayerMappingResult[] {
   // Bucket points by their resolved layer name
   const bucketMap = new Map<string, {
     def: FeatureCodeDef;
     points: LayerMappingResult['points'];
-    codedPoints: SurveyPointWithCode[];   // keep originals for polyline joining
   }>();
 
   // Fallback definition for unknown codes
@@ -1186,7 +1186,7 @@ export function mapPointsToLayers(
 
     let bucket = bucketMap.get(layerName);
     if (!bucket) {
-      bucket = { def, points: [], codedPoints: [] };
+      bucket = { def, points: [] };
       bucketMap.set(layerName, bucket);
     }
 
@@ -1196,16 +1196,15 @@ export function mapPointsToLayers(
       z: pt.elevation,
       label: def.pointLabel ? (pt.pointNumber ?? `${code}`) : undefined,
     });
-    bucket.codedPoints.push(pt);
   }
 
   // Build results
   const results: LayerMappingResult[] = [];
 
   bucketMap.forEach((bucket, layerName) => {
-    const { def, points: layerPoints, codedPoints } = bucket;
-    const polylines = def.joinLines
-      ? joinFeatureLines(codedPoints, def.code)
+    const { def, points: layerPoints } = bucket;
+    const polylines = def.joinLines && options.joinSourceSequence !== false
+      ? joinFeatureLines(points, def.code)
       : [];
 
     results.push({

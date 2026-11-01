@@ -12,16 +12,16 @@ const response = (result: Awaited<ReturnType<typeof executeSurfaceExport>>, body
   'X-Metardu-Request': body.requestId, 'X-Metardu-Request-Hash': result.requestHash, 'X-Metardu-Replayed': String(result.replayed),
   'X-Metardu-Download': `/api/storage?path=${encodeURIComponent(result.storagePath)}`,
 } })
-async function authorized(body: SurfaceExportRequest, userId: string, recoverOnly: boolean) {
+async function authorized(body: SurfaceExportRequest, userId: string, recoverOnly: boolean, authenticatedEmail?: string) {
   const access = await requireProjectOwnership(body.projectId, userId)
   if (!access.ok) {
     if (!access.error) throw new Error('Project ownership check failed without a response.')
     return access.error
   }
-  return response(await executeSurfaceExport(body, userId, recoverOnly), body)
+  return response(await executeSurfaceExport(body, userId, recoverOnly, authenticatedEmail), body)
 }
-export const POST = apiHandler({ auth: true, schema: surfaceExportRequestSchema, rateLimit: { max: 10, windowMs: 60000 } }, async (_req, ctx) => authorized(ctx.body as SurfaceExportRequest, ctx.userId, false))
+export const POST = apiHandler({ auth: true, schema: surfaceExportRequestSchema, rateLimit: { max: 10, windowMs: 60000 } }, async (_req, ctx) => authorized(ctx.body as SurfaceExportRequest, ctx.userId, false, ctx.session?.user?.email ?? undefined))
 export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 60000 } }, async (req, ctx) => {
   const body = surfaceExportRequestSchema.parse(Object.fromEntries(req.nextUrl.searchParams))
-  return authorized(body, ctx.userId, true)
+  return authorized(body, ctx.userId, true, ctx.session?.user?.email ?? undefined)
 })

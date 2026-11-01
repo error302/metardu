@@ -51,6 +51,8 @@ export interface TopoEntitySettings {
 }
 
 export interface TopoEntityOptions {
+  /** Only source-sequenced observations can imply consecutive coded linework. */
+  featureLineMode?: 'source-sequence' | 'explicit-only'
   projectName?: string
   reference?: { horizontalCrs: string; verticalDatum: string | null }
   /** Pre-generated contours to draw (from generateContours). */
@@ -107,7 +109,7 @@ export function buildTopoEntities(
   const entities: DrawingEntity[] = []
 
   // ─── Layers ──────────────────────────────────────────────────────────────
-  const layerResults = mapPointsToLayers(points)
+  const layerResults = mapPointsToLayers(points, { joinSourceSequence: options.featureLineMode !== 'explicit-only' })
   const layerMap = new Map<string, DrawingLayerInfo>()
 
   for (const [name, colorHex, lt] of STANDARD_ANNOTATION_LAYERS) {

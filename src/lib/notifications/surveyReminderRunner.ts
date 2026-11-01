@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto'
+import { reminderFailureCode } from './reminderDiagnostics'
 import type { PoolClient } from 'pg'
 import { db } from '@/lib/db'
 import { logger } from '@/lib/logger'
@@ -176,9 +177,10 @@ export function startSurveyReminderRunner() {
     try {
       await runSurveyReminderBatch()
       if(!state.lastRunAt)logger.info('METARDU survey reminder runner completed its first cycle')
+      else if(state.lastError)logger.info('METARDU survey reminder runner recovered after a failed cycle',{previousFailure:state.lastError})
       state.lastRunAt=new Date().toISOString();state.lastError=null
     }
-    catch { state.lastError='REMINDER_RUN_FAILED';logger.error('METARDU survey reminder runner failed; details suppressed') }
+    catch(error) { state.lastError=reminderFailureCode(error);logger.error('METARDU survey reminder runner failed; details suppressed',{failureCode:state.lastError}) }
     finally { state.busy=false }
   }
   state.timer=setInterval(()=>{void tick()},60000)

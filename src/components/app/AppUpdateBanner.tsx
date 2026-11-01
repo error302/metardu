@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { reloadCurrentDocument } from '@/lib/app/documentRecovery'
-import { requestServiceWorkerActivation, watchServiceWorkerUpdates } from '@/lib/app/serviceWorkerUpdates'
+import { APP_UPDATE_REVIEW_EVENT, requestServiceWorkerActivation, watchServiceWorkerUpdates } from '@/lib/app/serviceWorkerUpdates'
 
 export function AppUpdateBanner() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
@@ -18,7 +18,9 @@ export function AppUpdateBanner() {
       setDismissed(false)
       setFailure(null)
     })
-    return () => { stop(); pending.current?.abort() }
+    const review = () => setDismissed(false)
+    window.addEventListener(APP_UPDATE_REVIEW_EVENT, review)
+    return () => { stop(); pending.current?.abort(); window.removeEventListener(APP_UPDATE_REVIEW_EVENT, review) }
   }, [])
 
   const update = async () => {
@@ -40,7 +42,7 @@ export function AppUpdateBanner() {
 
   if (!waitingWorker || dismissed) return null
   return (
-    <div role="status" className="relative bg-[var(--accent)] text-black text-center text-sm font-semibold py-2.5 px-4 flex flex-wrap items-center justify-center gap-3">
+    <div id="metardu-app-update" role="status" className="scroll-mt-20 relative bg-[var(--accent)] text-black text-center text-sm font-semibold py-2.5 px-4 flex flex-wrap items-center justify-center gap-3">
       <span>A new version is ready. Save your work in all open METARDU tabs before reloading.</span>
       <button onClick={update} disabled={updating} className="bg-black text-[var(--accent)] px-3 py-2 rounded font-semibold text-sm disabled:opacity-60">
         {updating ? 'Preparing update…' : 'Reload when ready'}

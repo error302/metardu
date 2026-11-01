@@ -108,3 +108,20 @@ test('3D breakline uses the DXF 3D POLYLINE flag, with vertex flags kept separat
   expect(tags.slice(start,end)).toContainEqual([70,'8'])
   expect(tags.filter(([code,value])=>code===70&&value==='32')).toHaveLength(3)
 })
+
+
+test('separate source feature runs are never joined after layer bucketing', () => {
+  const source = [
+    {code:'BLD',easting:500000,northing:9850000,elevation:10},
+    {code:'BLD',easting:500010,northing:9850000,elevation:10},
+    {code:'SH',easting:500015,northing:9850005,elevation:10},
+    {code:'BLD',easting:500020,northing:9850000,elevation:10},
+    {code:'BLD',easting:500030,northing:9850000,elevation:10},
+  ]
+  const drawing = buildTopoEntities(source, settings)
+  const lines = drawing.entities.filter(entity => entity.kind === 'polyline' && entity.layer === 'STRUCT-BUILDING')
+  expect(lines).toEqual([
+    expect.objectContaining({pts:[[500000,9850000],[500010,9850000]]}),
+    expect.objectContaining({pts:[[500020,9850000],[500030,9850000]]}),
+  ])
+})

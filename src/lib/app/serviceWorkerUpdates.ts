@@ -1,3 +1,5 @@
+export const APP_UPDATE_REVIEW_EVENT = 'metardu:review-app-update'
+
 /** Observe existing and late registrations without claiming or refreshing a workspace. */
 export function watchServiceWorkerUpdates(
   container: ServiceWorkerContainer,

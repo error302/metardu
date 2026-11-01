@@ -35,7 +35,7 @@ async function retainedExport(body: SurfaceExportRequest, userId: string, payloa
     revision: row.revision, replayed: true, requestHash: payloadHash }
 }
 
-export async function executeSurfaceExport(body: SurfaceExportRequest, userId: string, recoverOnly = false): Promise<ExportPacket> {
+export async function executeSurfaceExport(body: SurfaceExportRequest, userId: string, recoverOnly = false, authenticatedEmail?: string): Promise<ExportPacket> {
   if (body.expectedUserId !== userId) throw new AuthorizationError('Sign in as the account that prepared this export request.')
   const payloadHash = hashSurfaceValue(surfaceExportPayload(body))
   let newStoragePath: string | null = null
@@ -48,7 +48,7 @@ export async function executeSurfaceExport(body: SurfaceExportRequest, userId: s
       // A retained owner download does not create another paid artifact.
       if (recovered) return recovered
       if (recoverOnly) throw new NotFoundError('No committed export was found for this request.')
-      const feature = await checkFeatureAccess(userId, 'dxf_export')
+      const feature = await checkFeatureAccess(userId, 'dxf_export', authenticatedEmail)
       if (!feature.allowed) throw new AppError('DXF export requires an active Pro plan or higher.', 403, 'SURFACE_EXPORT_PLAN_REQUIRED', { requestOutcome: 'rejected', requestId: body.requestId, payloadHash })
       const source = await loadSurfaceRevision(body.projectId, body.surfaceRevisionId, client)
       const drawing = buildSurfaceRevisionDrawing(source), bytes = Buffer.from(entitiesToDxfString(drawing.entities, drawing.layers), 'utf8')
@@ -66,7 +66,7 @@ export async function executeSurfaceExport(body: SurfaceExportRequest, userId: s
         || acknowledged.storage_path !== storagePath || acknowledged.sha256 !== contentHash || Number(acknowledged.size_bytes) !== bytes.length) throw new Error('The stored export was not recorded consistently.')
       const registered = await registerDeliverable({ projectId: body.projectId, documentType: 'dxf', content: bytes, storagePath,
         sourceRevision: body.surfaceRevisionId, projectCrs: source.crs, title: `${source.name} R${source.revision} — computed draft`,
-        generator: 'surface-revision-dxf', generatorVersion: '1.0', userId,
+        generator: 'surface-revision-dxf', generatorVersion: '1.1', userId,
         manifest: { request: { id: body.requestId, userId, projectId: body.projectId, payloadHash },
           surface_id: source.surfaceId, surface_revision_id: body.surfaceRevisionId, surface_revision: source.revision,
           input_hash: source.inputHash, output_integrity: source.outputIntegrity, reference_hash: source.snapshot.referenceHash,

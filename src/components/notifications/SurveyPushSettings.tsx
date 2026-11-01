@@ -1,16 +1,19 @@
 'use client'
-import { useEffect,useState } from 'react'
+import { useEffect,useRef,useState } from 'react'
 import Link from 'next/link'
 import { BellRing } from 'lucide-react'
+import { APP_UPDATE_REVIEW_EVENT } from '@/lib/app/serviceWorkerUpdates'
 import { apiGet,apiPost } from '@/lib/api/client'
 import { usePWAInstall } from '@/components/app/PWAInstallProvider'
 import { pushConfigSchema,pushDeviceSchema,type PushConfig } from '@/lib/notifications/pushContracts'
-import { supportsSurveyPush,pushWorkerReady,subscriptionHash,enableSurveyPush,disableSurveyPush,readySurveyWorker } from '@/lib/notifications/pushClient'
+import { supportsSurveyPush,pushWorkerReady,subscriptionHash,enableSurveyPush,disableSurveyPush,readySurveyWorker,checkSurveyWorkerUpdate } from '@/lib/notifications/pushClient'
 
 export function SurveyPushSettings() {
   const {ios,installed}=usePWAInstall()
   const [config,setConfig]=useState<PushConfig|null>(null),[ready,setReady]=useState(false)
   const [enabled,setEnabled]=useState(false),[supported,setSupported]=useState(false),[busy,setBusy]=useState(false)
+  const updateCheck=useRef<AbortController|null>(null)
+  const [checking,setChecking]=useState(false),[updateAvailable,setUpdateAvailable]=useState(false)
   const [error,setError]=useState(''),[permission,setPermission]=useState<NotificationPermission>('default')
   useEffect(()=>{
     let active=true
@@ -28,7 +31,7 @@ export function SurveyPushSettings() {
         if(!support)return
         const registration=value.available?await readySurveyWorker():await navigator.serviceWorker.getRegistration('/')
         if(!registration||!active)return
-        const capable=await pushWorkerReady(registration)
+        const capable=await pushWorkerReady(registration,{signal:controller.signal})
         if(!active)return
         setReady(capable)
         const subscription=await registration.pushManager.getSubscription()
@@ -38,7 +41,7 @@ export function SurveyPushSettings() {
       } catch {if(active)setError('Phone reminder settings could not be loaded. Refresh this page to try again.')}
     }
     void load()
-    return()=>{active=false;controller.abort();window.removeEventListener('focus',focus)}
+    return()=>{active=false;controller.abort();window.removeEventListener('focus',focus);updateCheck.current?.abort()}
   },[])
   const toggle=async()=>{
     if(busy)return
@@ -53,6 +56,19 @@ export function SurveyPushSettings() {
     }catch(err){setError(err instanceof Error?err.message:'Could not change phone reminders.')}
     finally{setBusy(false)}
   }
+  const reviewUpdate=()=>window.dispatchEvent(new Event(APP_UPDATE_REVIEW_EVENT))
+  const checkUpdate=async()=>{
+    if(updateCheck.current)return
+    const controller=new AbortController();updateCheck.current=controller
+    setChecking(true);setError('');setUpdateAvailable(false)
+    try{
+      const result=await checkSurveyWorkerUpdate({signal:controller.signal})
+      if(controller.signal.aborted)return
+      if(result==='ready')setReady(true)
+      else{setUpdateAvailable(true);reviewUpdate()}
+    }catch(err){if(!controller.signal.aborted)setError(err instanceof Error?err.message:'App update could not be checked. Try again when connected.')}
+    finally{if(!controller.signal.aborted)setChecking(false);updateCheck.current=null}
+  }
   const installFirst=ios&&!installed
   const button=<button type="button" disabled={busy} onClick={toggle} className="btn btn-secondary mt-3 min-h-11 disabled:opacity-60">{busy?'Updating…':enabled?'Disable on this device':'Enable phone reminders'}</button>
   return <section aria-labelledby="survey-phone-reminders" className="card p-5">
@@ -63,7 +79,7 @@ export function SurveyPushSettings() {
       !config?(!error&&<p role="status" className="mt-3 text-sm text-[var(--text-secondary)]">Checking phone reminder availability…</p>):
       !config.available?<p className="mt-3 text-sm text-[var(--text-secondary)]">Phone delivery is not configured on this installation. Your scheduled jobs stay saved.</p>:
       !supported?<p className="mt-3 text-sm text-[var(--text-secondary)]">This browser does not support phone push. Use the installed app in a supported phone browser.</p>:
-      !ready?<p className="mt-3 text-sm text-[var(--text-secondary)]">Save your work, then use “Reload when ready” to activate the app update before enabling reminders.</p>:
+      !ready?<div className="mt-3 text-sm text-[var(--text-secondary)]"><p>Check for the app update needed for phone reminders. Checking keeps your work open and does not reload any tab.</p><button type="button" onClick={()=>{void checkUpdate()}} disabled={checking} className="btn btn-secondary mt-3 min-h-11 disabled:opacity-60">{checking?'Checking app update…':'Check for app update'}</button>{updateAvailable&&<p role="status" className="mt-3">An app update is ready. Save your work in all open METARDU tabs, then <a href="#metardu-app-update" onClick={reviewUpdate} className="text-[var(--accent)] underline underline-offset-4">Review app update</a> and choose “Reload when ready”.</p>}</div>:
       permission==='denied'?<p className="mt-3 text-sm text-[var(--text-secondary)]">Notifications are blocked for METARDU on this device. Allow them in your browser or phone notification settings before enabling reminders.</p>:button}
       {config?.runner.lastError&&<p role="status" className="mt-3 text-sm text-[var(--text-secondary)]">The reminder service needs attention. Jobs remain saved; phone delivery is not confirmed.</p>}
       {error&&<p role="alert" className="mt-3 text-sm text-[var(--text-primary)]">{error}</p>}

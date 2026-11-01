@@ -222,6 +222,7 @@ export default function NavBar() {
 
   // Helper to determine the logical parent path for back button fallback
   const getParentPath = (path: string) => {
+    if (path === '/project/new') return '/projects'
     if (path.startsWith('/mobile/')) return '/dashboard'
     if (path.startsWith('/tools/')) return '/tools'
     if (path.startsWith('/fieldbook/')) return '/fieldbook'
@@ -237,6 +238,7 @@ export default function NavBar() {
 
   // Helper to handle back click
   const handleBack = (e: React.MouseEvent) => {
+    if (pathname === '/project/new') return
     if (window.history.length > 1) {
       e.preventDefault()
       router.back()
@@ -246,6 +248,7 @@ export default function NavBar() {
   // Resolve dynamic sub-page titles using searchablePages definitions
   const pageTitle = useMemo(() => {
     if (pathname === '/offline') return 'Connection help'
+    if (pathname === '/project/new') return 'New project'
     const matchedPage = searchablePages.find(p => p.href === pathname)
     if (matchedPage) return t(matchedPage.labelKey)
 

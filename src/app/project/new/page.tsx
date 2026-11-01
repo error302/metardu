@@ -1,6 +1,8 @@
 'use client';
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useSession } from 'next-auth/react'
+import { z } from 'zod'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { BoundarySelectorMap } from '@/components/project/BoundarySelectorMap'
@@ -9,25 +11,58 @@ import { useCountry, ALL_COUNTRIES } from '@/lib/country'
 import type { SurveyingCountry } from '@/lib/country'
 import { SURVEY_TYPE_LABELS, SurveyType } from '@/types/project'
 import type { ProjectType } from '@/types/scheme'
-import { Landmark, Route, Mountain } from 'lucide-react'
+import { Landmark, Route, Mountain, MapPinned, ChevronDown } from 'lucide-react'
 import { createProjectSchema } from '@/lib/validation/projectCreation'
 import { siteReconnaissanceDrawing } from '@/lib/validation/mapDrawing'
 import { markOnboardingStepComplete } from '@/components/shared/OnboardingChecklist'
 
+const recentClientsSchema = z.object({ data: z.array(z.object({ client_name: z.string().nullable().optional() })).max(50) })
+
 export default function NewProjectPage() {
+  const { data: session } = useSession()
   const { country: defaultCountry, setCountry: setContextCountry } = useCountry()
   const router = useRouter()
 
   const [name, setName] = useState('')
   const [location, setLocation] = useState('')
-  const [selectedCountry, setSelectedCountry] = useState<SurveyingCountry>(defaultCountry)
+  const [countryOverride, setSelectedCountry] = useState<SurveyingCountry | null>(null)
+  const selectedCountry = countryOverride ?? defaultCountry
   const [datum, setDatum] = useState('')
   const [utmZone, setUtmZone] = useState('')
   const [hemisphere, setHemisphere] = useState<'N' | 'S' | ''>('')
   const [zoneSuggestion, setZoneSuggestion] = useState('')
   const [surveyType, setSurveyType] = useState<SurveyType>('topographic')
   const [clientName, setClientName] = useState('')
-  const [surveyorName, setSurveyorName] = useState('')
+  const [surveyorName, setSurveyorName] = useState<string | null>(null)
+  const effectiveSurveyorName = surveyorName ?? session?.user?.name ?? ''
+  const [recentClients, setRecentClients] = useState<string[]>([])
+  const [clientsStatus, setClientsStatus] = useState<'idle' | 'loading' | 'loaded' | 'failed'>('idle')
+  const clientsRequest = useRef<AbortController | null>(null)
+  const [showSketch, setShowSketch] = useState(false)
+  useEffect(() => () => clientsRequest.current?.abort(), [])
+
+  const loadPreviousClients = async () => {
+    if (clientsStatus === 'loading' || clientsStatus === 'loaded') return
+    clientsRequest.current?.abort()
+    const request = new AbortController()
+    clientsRequest.current = request
+    setClientsStatus('loading')
+    try {
+      const response = await fetch('/api/projects?limit=50', { cache: 'no-store', credentials: 'same-origin', signal: request.signal })
+      if (!response.ok) throw new Error('Previous clients unavailable')
+      const parsed = recentClientsSchema.parse(await response.json())
+      if (request.signal.aborted) return
+      const names = new Map<string, string>()
+      for (const project of parsed.data) {
+        const client = project.client_name?.trim()
+        if (client && !names.has(client.toLocaleLowerCase())) names.set(client.toLocaleLowerCase(), client)
+      }
+      setRecentClients([...names.values()])
+      setClientsStatus('loaded')
+    } catch {
+      if (!request.signal.aborted) setClientsStatus('failed')
+    }
+  }
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
   const [detecting, setDetecting] = useState(false)
@@ -75,7 +110,7 @@ export default function NewProjectPage() {
         hemisphere: datum ? hemisphere || null : null,
         project_type: projectType,
         client_name: clientName || undefined,
-        surveyor_name: surveyorName || undefined,
+        surveyor_name: effectiveSurveyorName || undefined,
         country: selectedCountry,
         datum: datum || null,
         boundary_data: siteReconnaissanceDrawing(polygonCoordinates, estimatedArea),
@@ -151,7 +186,7 @@ export default function NewProjectPage() {
 
         {/* Breadcrumb */}
         <div className="flex items-center gap-2 text-sm text-[var(--text-muted)] mb-6">
-          <Link href="/dashboard" className="hover:text-[var(--accent)] transition-colors">Dashboard</Link>
+          <Link href="/projects" className="hover:text-[var(--accent)] transition-colors">Projects</Link>
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
           </svg>
@@ -164,7 +199,7 @@ export default function NewProjectPage() {
 
           {/* 1-Click Survey Type Presets */}
           <div className="mt-4 p-4 bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-xl">
-            <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">1-Click Survey Presets</span>
+            <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider block mb-2">Project templates</span>
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
               <button
                 type="button"
@@ -176,7 +211,7 @@ export default function NewProjectPage() {
                 className="px-3 py-2 text-xs font-medium bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg hover:bg-cyan-500/20 text-left transition"
               >
                 <Landmark className="w-3.5 h-3.5 inline mr-1 -mt-0.5" /> <strong>Cadastral Subdivision</strong>
-                <span className="block text-[10px] opacity-70 mt-0.5">Cap 299, Beacon tables, Mutation export</span>
+                <span className="block text-[10px] opacity-70 mt-0.5">Parcel layout, areas and review</span>
               </button>
 
               <button
@@ -189,7 +224,7 @@ export default function NewProjectPage() {
                 className="px-3 py-2 text-xs font-medium bg-amber-500/10 text-amber-400 border border-amber-500/30 rounded-lg hover:bg-amber-500/20 text-left transition"
               >
 <Route className="w-3.5 h-3.5 inline mr-1 -mt-0.5" /> <strong>Road Engineering</strong>
-                <span className="block text-[10px] opacity-70 mt-0.5">RDM 1.3 Curves, Cross-sections, Chainage</span>
+                <span className="block text-[10px] opacity-70 mt-0.5">Alignment, profiles and sections</span>
               </button>
 
               <button
@@ -263,26 +298,6 @@ export default function NewProjectPage() {
             <input id="project-name" type="text" value={name} onChange={e => setName(e.target.value)}
               className={inputClass} required
               placeholder={projectType === 'scheme' ? 'e.g., Mwavumbo Ward Cadastral Subdivision' : 'e.g., Karen Estate Boundary Survey'} />
-          </div>
-
-          {/* Interactive Boundary Selector */}
-          <div>
-            <div className={labelClass}>Project Boundary Map</div>
-            <BoundarySelectorMap
-              className="w-full h-64 mb-2"
-              onBoundaryChange={(coords, area, center) => {
-                setPolygonCoordinates(coords)
-                setEstimatedArea(area)
-                // Auto-detect UTM zone from drawn center
-                const { zone, hemisphere: hem } = getUTMZoneFromLatLng(center[1], center[0])
-                setZoneSuggestion(`The location suggests UTM ${zone}${hem}; this does not establish the survey datum or control.`)
-              }}
-            />
-            {estimatedArea && (
-              <p className="text-xs text-green-600 dark:text-green-400">
-                Site sketch estimate: {(estimatedArea / 10000).toFixed(4)} Hectares ({(estimatedArea / 4046.86).toFixed(4)} Acres). This map drawing is unverified reconnaissance, not a measured parcel boundary.
-              </p>
-            )}
           </div>
 
           {/* Location */}
@@ -402,18 +417,40 @@ export default function NewProjectPage() {
             <div>
               <label htmlFor="client-name" className={labelClass}>Client Name</label>
               <input id="client-name" type="text" value={clientName} onChange={e => setClientName(e.target.value)}
-                className={inputClass} placeholder="e.g., Kilifi County Government" />
+                className={inputClass} placeholder="Choose a previous client or enter a new name" list="recent-project-clients" autoComplete="off" onFocus={() => { void loadPreviousClients() }} />
+              <datalist id="recent-project-clients">{recentClients.map(client => <option key={client} value={client}>{client}</option>)}</datalist>
+              <p className="mt-1.5 text-xs text-[var(--text-muted)]" role="status">{clientsStatus === 'loading' ? 'Loading previous clients…' : clientsStatus === 'failed' ? 'Previous clients are unavailable. You can still enter a client name.' : 'Suggestions come from your 50 most recent projects.'}</p>
             </div>
             <div>
               <label htmlFor="surveyor-name" className={labelClass}>Surveyor Name</label>
-              <input id="surveyor-name" type="text" value={surveyorName} onChange={e => setSurveyorName(e.target.value)}
+              <input id="surveyor-name" type="text" value={effectiveSurveyorName} onChange={e => setSurveyorName(e.target.value)}
                 className={inputClass} placeholder="Your name or company" />
+              <p className="mt-1.5 text-xs text-[var(--text-muted)]">Filled from your account. Edit it to assign another surveyor.</p>
             </div>
           </div>
 
+          <section className="rounded-lg border border-[var(--border-color)] p-4">
+            <button type="button" aria-expanded={showSketch} aria-controls="site-sketch-panel" onClick={() => setShowSketch(value => !value)} className="flex w-full items-center gap-2 text-left text-sm font-medium text-[var(--text-primary)]">
+              <MapPinned className="h-4 w-4" aria-hidden="true" /> Site sketch (optional)
+              <ChevronDown className={showSketch ? 'ml-auto h-4 w-4 rotate-180' : 'ml-auto h-4 w-4'} aria-hidden="true" />
+            </button>
+            <p className="mt-2 text-xs text-[var(--text-muted)]">Add an approximate site outline if useful. You can create the project and import measured points without drawing one.</p>
+            <div id="site-sketch-panel" hidden={!showSketch}>
+              {showSketch && <div className="mt-4">
+                <BoundarySelectorMap className="w-full h-64 mb-2" onBoundaryChange={(coords, area, center) => {
+                  setPolygonCoordinates(coords)
+                  setEstimatedArea(area)
+                  const { zone, hemisphere: hem } = getUTMZoneFromLatLng(center[1], center[0])
+                  setZoneSuggestion('The location suggests UTM ' + zone + hem + '; this does not establish the survey datum or control.')
+                }} />
+                {estimatedArea != null && <p className="text-xs text-[var(--text-secondary)]">Site sketch estimate: {(estimatedArea / 10000).toFixed(4)} hectares ({(estimatedArea / 4046.86).toFixed(4)} acres). This is unverified reconnaissance, not a measured parcel boundary.</p>}
+              </div>}
+            </div>
+          </section>
+
           {/* Actions */}
           <div className="flex items-center gap-3 pt-4 border-t border-[var(--border-color)]">
-            <Link href="/dashboard"
+            <Link href="/projects"
               className="px-5 py-2.5 text-sm text-[var(--text-secondary)] border border-[var(--border-color)] rounded-lg hover:border-[var(--border-hover)] transition-colors">
               Cancel
             </Link>
