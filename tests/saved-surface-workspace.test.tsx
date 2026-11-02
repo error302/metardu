@@ -64,12 +64,12 @@ test('restoring a historical revision previews its retained source instead of cu
   const preview = await screen.findByTestId('preview')
   expect(preview).toHaveTextContent('500000')
   expect(preview).not.toHaveTextContent('500100')
-  expect(screen.getByRole('button', { name: /Export registered/ })).toBeEnabled()
+  expect(screen.getByRole('button', { name: /Download draft DXF/ })).toBeEnabled()
 })
 test('DXF sends only the exact selected revision, and a denied paid export is visible', async () => {
   render(<Page />); await loaded()
   fireEvent.change(screen.getByRole('combobox', { name: 'Saved revision' }), { target: { value: REVISION } })
-  fireEvent.click(await screen.findByRole('button', { name: /Export registered/ }))
+  fireEvent.click(await screen.findByRole('button', { name: /Download draft DXF/ }))
   expect(await screen.findByRole('alert')).toHaveTextContent('requires a paid plan')
   const request = fetchMock.mock.calls.find(([url]) => url === '/api/topo/export/dxf')
   expect(JSON.parse(String(request?.[1]?.body)) as unknown).toEqual({ projectId, surfaceRevisionId: REVISION, expectedUserId: OWNER, requestId: expect.any(String) as unknown })
@@ -189,4 +189,29 @@ test('late saved-revision responses cannot cross a project switch', async () => 
   projectId = '44444444-4444-4444-8444-444444444444'; view.rerender(<Page />)
   await act(async () => { pending.resolve?.(reply({ data: original })); await promise })
   await loaded(); expect(screen.queryByTestId('preview')).not.toBeInTheDocument()
+})
+
+
+test('the selected retained result has an explicit download area and collapsed evidence',async()=>{
+ render(<Page/>);await loaded()
+ fireEvent.change(screen.getByRole('combobox',{name:'Saved revision'}),{target:{value:REVISION}})
+ await screen.findByTestId('preview')
+ expect(screen.getByRole('region',{name:'Download results'})).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:/Download draft DXF/})).toBeEnabled()
+ expect(screen.getByText('Revision evidence')).toBeVisible()
+})
+
+test('an unreadable download response keeps the exact request available for recovery',async()=>{
+ const original=fetchMock.getMockImplementation()
+ fetchMock.mockImplementation((url:string,options?:RequestInit)=>{
+  if(url==='/api/topo/export/dxf')return Promise.resolve({ok:false,json:async()=>{throw new SyntaxError('Unexpected token < in HTML')}})
+  if(!original)throw new Error('Missing fixture')
+  return original(url,options)
+ })
+ render(<Page/>);await loaded()
+ fireEvent.change(screen.getByRole('combobox',{name:'Saved revision'}),{target:{value:REVISION}})
+ fireEvent.click(await screen.findByRole('button',{name:/Download draft DXF/}))
+ expect(await screen.findByRole('alert')).toHaveTextContent('unreadable result')
+ expect(screen.getByRole('region',{name:'Pending request recovery'})).toBeInTheDocument()
+ expect(screen.getByRole('button',{name:/Download draft DXF/})).toBeDisabled()
 })

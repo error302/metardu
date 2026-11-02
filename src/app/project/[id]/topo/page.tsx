@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { useSession } from 'next-auth/react'
 import dynamic from 'next/dynamic'
+import { Download } from 'lucide-react'
 import { z } from 'zod'
 import { readProjectDrawingSource } from '@/lib/topo/drawingSource'
 import { buildSurfaceRevisionDrawing } from '@/lib/topo/surfaceDrawing'
@@ -17,7 +18,7 @@ import { TerrainDefinitionEditor } from '@/components/topo/TerrainDefinitionEdit
 
 const Canvas = dynamic(() => import('@/components/drawing/TopoEntityCanvas').then(module => module.TopoEntityCanvas), { ssr: false })
 const historySchema = z.object({ data: z.object({ revisions: z.array(z.object({ revision_id: z.string().guid(), name: z.string(), revision: z.number().int().positive() })), historyLimited: z.boolean() }) })
-const savedSchema = z.object({ data: z.object({ projectId: z.string().guid(), revisionId: z.string().guid(), revision: z.number().int().positive(), name: z.string(), crs: z.string(), verticalDatum: z.string(), inputHash: z.string(), fieldVerified: z.literal(false),
+const savedSchema = z.object({ data: z.object({ projectId: z.string().guid(), revisionId: z.string().guid(), revision: z.number().int().positive(), name: z.string(), crs: z.string(), verticalDatum: z.string(), inputHash: z.string(), fieldVerified: z.literal(false), parameters: z.object({ interval: z.number().finite().positive().optional() }).passthrough().optional(),
   contours: z.array(z.object({ elevation: z.number().finite(), isIndex: z.boolean(), coordinates: z.array(z.array(z.tuple([z.number().finite(), z.number().finite()]))) })),
   snapshot: z.object({ observations: z.array(z.object({ id: z.string().guid(), pointName: z.string().nullable(), x: z.number().finite(), y: z.number().finite(), z: z.number().finite(), code: z.string().nullable() })),
     terrainDomain: terrainDomainSchema.nullable().optional(), breaklines: z.array(surfaceBreakline).optional() }),
@@ -25,8 +26,12 @@ const savedSchema = z.object({ data: z.object({ projectId: z.string().guid(), re
 }) })
 type Source = ReturnType<typeof readProjectDrawingSource>
 type Saved = z.infer<typeof savedSchema>['data']
+async function decodeJson(response: Response): Promise<unknown> {
+  try { return await response.json() as unknown }
+  catch { throw new Error('The connection returned an unreadable result. If a request is waiting, check its saved result before retrying.') }
+}
 async function read(response: Response): Promise<unknown> {
-  const value: unknown = await response.json()
+  const value = await decodeJson(response)
   if (!response.ok) throw new Error(value && typeof value === 'object' && 'error' in value && typeof value.error === 'string' ? value.error : 'Request failed. Reload and try again.')
   return value
 }
@@ -120,7 +125,7 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       : new URLSearchParams({ ...command.body })
     const response = await fetch(lookupOnly ? `${path}?${query}` : path, lookupOnly ? { cache: 'no-store' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command.body) })
     if (!response.ok) {
-      const value: unknown = await response.json()
+      const value = await decodeJson(response)
       const rejection = z.object({ details: z.object({ requestOutcome: z.literal('rejected'), requestId: z.string(), payloadHash: z.string() }) }).safeParse(value)
       if (!lookupOnly && rejection.success && rejection.data.details.requestId === command.body.requestId && rejection.data.details.payloadHash === expectedHash) {
         await acknowledgePending(command)
@@ -129,7 +134,7 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       throw new Error(value && typeof value === 'object' && 'error' in value && typeof value.error === 'string' ? value.error : 'The request was not acknowledged. Recover the retained device request before starting another.')
     }
     if (command.kind === 'surface') {
-      const ack = z.object({ data: z.object({ revisionId: z.string().guid(), requestId: z.string(), requestHash: z.string() }) }).parse(await response.json()).data
+      const ack = z.object({ data: z.object({ revisionId: z.string().guid(), requestId: z.string(), requestHash: z.string() }) }).parse(await decodeJson(response)).data
       if (ack.requestId !== command.body.requestId || ack.requestHash !== expectedHash) throw new Error('The saved acknowledgement does not match this device request.')
       await loadRevision(ack.revisionId, ticket)
     } else {
@@ -141,7 +146,8 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       if (contentHash !== response.headers.get('X-Metardu-Content-SHA256')) throw new Error('The downloaded bytes do not match the registered file hash.')
       if (operation.current !== ticket) return
       const url = URL.createObjectURL(blob), anchor = document.createElement('a')
-      anchor.href = url; anchor.download = 'retained-surface.dxf'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+      const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]
+      anchor.href = url; anchor.download = filename && /^[A-Za-z0-9._-]+\.dxf$/.test(filename) ? filename : 'retained-surface.dxf'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
       const retainedUrl = response.headers.get('X-Metardu-Download') ?? ''
       if (retainedUrl.startsWith('/api/storage?path=')) setDownloadUrl(retainedUrl)
       setReceipt(`Draft DXF retained in the document register, revision ${response.headers.get('X-Metardu-Deliverable-Revision')}. Download requested.`)
@@ -222,10 +228,32 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       <label>Choose an exact saved revision<select aria-label="Saved revision" className="block border rounded p-2 max-w-full bg-[var(--bg-secondary)]" value={saved?.revisionId ?? ''} disabled={busy} onChange={event => void choose(event.target.value)}><option value="">Select a revision</option>{history.revisions.map(revision => <option key={revision.revision_id} value={revision.revision_id}>{revision.name} R{revision.revision} · {revision.revision_id}</option>)}</select></label>
       {history.historyLimited && <p>Showing the latest 200 saved revisions. Older records remain retained.</p>}
       {busy && <p role="status">Working… wait for the saved-record acknowledgement.</p>}
-      {saved && preview && <><p>{saved.name} R{saved.revision} · {saved.snapshot.observations.length} retained observations · {saved.contours.length} contour levels</p><p>{saved.crs} · {saved.verticalDatum} · metres</p><p className="text-sm break-all">Input SHA-256: {saved.inputHash}</p><p className="text-sm">Computed draft. Professional review, receiving-CAD checks and field acceptance remain required.</p><Canvas {...preview} /><button className="border rounded p-2" disabled={busy || !!pending || !!deviceError} onClick={() => void exportDxf()}>Export registered draft DXF (Pro)</button></>}
+      {saved && preview && <div className="min-w-0 space-y-4">
+        <div className="space-y-2">
+          <h3 className="text-lg font-semibold">{saved.name} R{saved.revision}</h3>
+          <p className="text-sm text-[var(--text-secondary)]">{saved.snapshot.observations.length} retained observations · {saved.contours.length} contour levels · metres</p>
+          <p className="break-words text-sm">{saved.crs} · {saved.verticalDatum}</p>
+          <p className="text-sm text-[var(--text-secondary)]">{preview.layout.paper} · nominal scale 1:{preview.layout.nominalScale}. Check the final plot scale in your receiving CAD application.</p>
+          <details className="rounded-lg border border-[var(--border-color)] p-3 text-sm">
+            <summary className="cursor-pointer font-medium">Revision evidence</summary>
+            <p className="mt-3 break-all">Surface revision: {saved.revisionId}</p>
+            <p className="mt-2 break-all">Input SHA-256: {saved.inputHash}</p>
+            <p className="mt-2">Computed draft. Professional review, receiving-CAD checks and field acceptance remain required.</p>
+          </details>
+          {(preview.layout.omittedPointLabels > 0 || preview.layout.omittedContourLabels > 0) && <p role="status" className="text-sm">To avoid crowding, {preview.layout.omittedPointLabels} point labels and {preview.layout.omittedContourLabels} contour labels could not be placed. All source coordinates and contour geometry remain in the DXF. Review dense areas before issuing this draft.</p>}
+        </div>
+        <Canvas {...preview} />
+      </div>}
       {saved?.domain&&<p className="text-sm">Reviewed footprint: {saved.domain.area.toFixed(3)} m² · {saved.domain.derivedVertexCount} derived clip vertices. Original support observations: {saved.domain.supportCounts.inside} inside, {saved.domain.supportCounts.outside} outside, {saved.domain.supportCounts.exclusion} inside exclusions.</p>}
-      {receipt && <p role="status">{receipt}</p>}
-      {downloadUrl && <a href={downloadUrl} className="underline">Download the retained file again</a>}
+      {((saved && preview) || downloadUrl || receipt) && <section aria-label="Download results" className="space-y-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 sm:p-5">
+        <h3 className="font-semibold">Download results</h3>
+        <p className="max-w-prose text-sm text-[var(--text-secondary)]">The DXF contains the selected saved revision, measured point coordinates, retained breaklines, contour elevations and this draft plan layout. A new export is recorded in the project document register.</p>
+        <div className="flex flex-wrap items-center gap-3">
+          {saved && preview && <button type="button" className="btn btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50 sm:w-auto" disabled={busy || !!pending || !!deviceError} onClick={() => void exportDxf()}><Download className="h-4 w-4" aria-hidden="true" />Download draft DXF (Pro+)</button>}
+          {downloadUrl && <a href={downloadUrl} download className="btn btn-secondary inline-flex min-h-11 w-full items-center justify-center gap-2 sm:w-auto"><Download className="h-4 w-4" aria-hidden="true" />Download saved DXF again</a>}
+        </div>
+        {receipt && <p role="status" className="break-words text-sm">{receipt}</p>}
+      </section>}
     </section>
   </main>
 }

@@ -66,12 +66,12 @@ export async function executeSurfaceExport(body: SurfaceExportRequest, userId: s
         || acknowledged.storage_path !== storagePath || acknowledged.sha256 !== contentHash || Number(acknowledged.size_bytes) !== bytes.length) throw new Error('The stored export was not recorded consistently.')
       const registered = await registerDeliverable({ projectId: body.projectId, documentType: 'dxf', content: bytes, storagePath,
         sourceRevision: body.surfaceRevisionId, projectCrs: source.crs, title: `${source.name} R${source.revision} — computed draft`,
-        generator: 'surface-revision-dxf', generatorVersion: '1.1', userId,
+        generator: 'surface-revision-dxf', generatorVersion: '1.2', userId,
         manifest: { request: { id: body.requestId, userId, projectId: body.projectId, payloadHash },
           surface_id: source.surfaceId, surface_revision_id: body.surfaceRevisionId, surface_revision: source.revision,
           input_hash: source.inputHash, output_integrity: source.outputIntegrity, reference_hash: source.snapshot.referenceHash,
           horizontal_crs: source.crs, vertical_datum: source.verticalDatum, units: 'metres', point_count: source.snapshot.observations.length,
-          contour_count: source.contours.length, field_verified: false, professional_approval: false },
+          contour_count: source.contours.length, plan_layout: drawing.layout, field_verified: false, professional_approval: false },
       }, client)
       return { bytes, filename, storagePath, contentHash, deliverableId: registered.deliverable.id, revision: registered.revision.revision, replayed: false, requestHash: payloadHash }
     })
