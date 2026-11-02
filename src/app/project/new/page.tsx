@@ -39,6 +39,7 @@ export default function NewProjectPage() {
   const [clientsStatus, setClientsStatus] = useState<'idle' | 'loading' | 'loaded' | 'failed'>('idle')
   const clientsRequest = useRef<AbortController | null>(null)
   const [showSketch, setShowSketch] = useState(false)
+  const [sketchOpened, setSketchOpened] = useState(false)
   useEffect(() => () => clientsRequest.current?.abort(), [])
 
   const loadPreviousClients = async () => {
@@ -430,13 +431,13 @@ export default function NewProjectPage() {
           </div>
 
           <section className="rounded-lg border border-[var(--border-color)] p-4">
-            <button type="button" aria-expanded={showSketch} aria-controls="site-sketch-panel" onClick={() => setShowSketch(value => !value)} className="flex w-full items-center gap-2 text-left text-sm font-medium text-[var(--text-primary)]">
+            <button type="button" aria-expanded={showSketch} aria-controls="site-sketch-panel" onClick={() => { setSketchOpened(true); setShowSketch(value => !value) }} className="flex w-full items-center gap-2 text-left text-sm font-medium text-[var(--text-primary)]">
               <MapPinned className="h-4 w-4" aria-hidden="true" /> Site sketch (optional)
               <ChevronDown className={showSketch ? 'ml-auto h-4 w-4 rotate-180' : 'ml-auto h-4 w-4'} aria-hidden="true" />
             </button>
             <p className="mt-2 text-xs text-[var(--text-muted)]">Add an approximate site outline if useful. You can create the project and import measured points without drawing one.</p>
             <div id="site-sketch-panel" hidden={!showSketch}>
-              {showSketch && <div className="mt-4">
+              {sketchOpened && <div className="mt-4">
                 <BoundarySelectorMap className="w-full h-64 mb-2" onBoundaryChange={(coords, area, center) => {
                   setPolygonCoordinates(coords)
                   setEstimatedArea(area)

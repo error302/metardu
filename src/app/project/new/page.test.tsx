@@ -11,10 +11,13 @@ jest.mock('@/lib/country', () => ({
   ALL_COUNTRIES: [{ id: 'kenya', name: 'Kenya', flag: '' }, { id: 'uae', name: 'UAE', flag: '' }],
 }))
 jest.mock('@/components/shared/OnboardingChecklist', () => ({ markOnboardingStepComplete: jest.fn() }))
-jest.mock('@/components/project/BoundarySelectorMap', () => ({
-  BoundarySelectorMap: ({ onBoundaryChange }: { onBoundaryChange: (coordinates: number[][], area: number, center: [number, number]) => void }) =>
-    <button type="button" onClick={() => onBoundaryChange([[3, 1], [3.01, 1], [3, 1.01], [3, 1]], 100, [3, 1])}>Draw synthetic location sketch</button>,
-}))
+jest.mock('@/components/project/BoundarySelectorMap', () => {
+  const React = jest.requireActual<typeof import('react')>('react')
+  return { BoundarySelectorMap: function StatefulSketch({ onBoundaryChange }: { onBoundaryChange: (coordinates: number[][], area: number, center: [number, number]) => void }) {
+    const [drawn, setDrawn] = React.useState(false)
+    return <div><button type="button" onClick={() => { setDrawn(true); onBoundaryChange([[3, 1], [3.01, 1], [3, 1.01], [3, 1]], 100, [3, 1]) }}>Draw synthetic location sketch</button>{drawn && <span>Visible retained sketch outline</span>}</div>
+  } }
+})
 
 describe('new project reference choices', () => {
   const originalFetch = global.fetch
@@ -121,4 +124,17 @@ test('loads the saved jurisdiction without replacing a user choice or inferring 
  expect(screen.getByLabelText('Horizontal reference')).toHaveValue('')
  expect(screen.getByLabelText('UTM Zone (1–60)')).toHaveDisplayValue('')
  mockDefaultCountry='kenya'
+})
+
+
+test('retains the visible sketch when its optional panel is collapsed and reopened',()=>{
+ render(<NewProjectPage />)
+ const toggle=screen.getByRole('button',{name:'Site sketch (optional)'})
+ fireEvent.click(toggle)
+ fireEvent.click(screen.getByRole('button',{name:'Draw synthetic location sketch'}))
+ expect(screen.getByText('Visible retained sketch outline')).toBeVisible()
+ fireEvent.click(toggle)
+ fireEvent.click(toggle)
+ expect(screen.getByText('Visible retained sketch outline')).toBeVisible()
+ expect(screen.getByText(/Site sketch estimate:/)).toBeVisible()
 })
