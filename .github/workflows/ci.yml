@@ -378,7 +378,8 @@ jobs:
 
   e2e:
     name: "E2E Tests (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
-    runs-on: ubuntu-latest
+    # Playwright 1.59 does not support the ubuntu-26.04 runner selected by latest.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         # postgis/postgis (not plain postgres): migration 000_canonical_schema.sql
@@ -637,7 +638,8 @@ jobs:
     # them would make them auth-failed and fail the gate every run. Wire a
     # DB-backed job for them if/when a service container is added.
     name: Axe-core WCAG Sweep
-    runs-on: ubuntu-latest
+    # Playwright 1.59 does not support the ubuntu-26.04 runner selected by latest.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
