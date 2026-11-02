@@ -8,7 +8,8 @@ import { encode } from 'next-auth/jwt'
  * page was always redirected to /login before it could render. Producing the
  * cookie with next-auth's own `encode` (same AUTH_SECRET the server uses)
  * keeps middleware, server components and /api/auth/session in agreement
- * without needing a real database.
+ * against the seeded CI user and its version 1 session contract. Missing or
+ * stale versions still fail the normal server revocation check.
  */
 async function mockAuthSession(page: import('@playwright/test').Page) {
   const secret = process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET
@@ -19,11 +20,12 @@ async function mockAuthSession(page: import('@playwright/test').Page) {
     secret,
     maxAge: 60 * 60, // 1 hour
     token: {
-      sub: 'test-user-id',
+      sub: '00000000-0000-0000-0000-000000000001',
       id: '00000000-0000-0000-0000-000000000001',
       name: 'Test Surveyor',
       email: 'test@metardu.test',
       role: 'surveyor',
+      sessionVersion: 1,
       picture: null,
       jti: 'e2e-session',
     },

@@ -25,6 +25,7 @@ if (!DATABASE_URL) {
 
 const E2E_USER_ID = '00000000-0000-0000-0000-000000000001'
 const E2E_EMAIL = 'test@metardu.test'
+const E2E_SESSION_VERSION = 1
 
 // E2E_SEED_GUARD (2026-08-12): `--verify` checks the seeded row actually
 // landed and exits non-zero otherwise — wired into CI as a fast-fail step
@@ -38,17 +39,19 @@ await client.connect()
 try {
   if (VERIFY_ONLY) {
     const res = await client.query(
-      'SELECT id, email FROM users WHERE id = $1 AND email = $2',
+      `SELECT u.id, u.email, u.session_version, COALESCE(sp.is_suspended, FALSE) AS is_suspended
+         FROM users u LEFT JOIN surveyor_profiles sp ON sp.user_id = u.id
+        WHERE u.id = $1 AND u.email = $2`,
       [E2E_USER_ID, E2E_EMAIL],
     )
-    if ((res.rowCount ?? 0) !== 1) {
+    if ((res.rowCount ?? 0) !== 1 || Number(res.rows[0]?.session_version) !== E2E_SESSION_VERSION || res.rows[0]?.is_suspended !== false) {
       console.error(
-        `[seed-e2e-user] VERIFY FAILED — E2E seed user row missing ` +
+        `[seed-e2e-user] VERIFY FAILED — E2E seed user missing, suspended or session version differs from the fresh fixture ` +
           `(users.id=${E2E_USER_ID}, email=${E2E_EMAIL}). Without it the ` +
           `minted-session specs (project-crud, fieldbook) hit the "invalid ` +
           `input syntax for type uuid" error and the shard hangs until the ` +
-          `job timeout. Run without --verify to (re)seed, or fix ` +
-          `scripts/seed-e2e-user.mjs.`,
+          `job timeout. Use a fresh isolated CI database or inspect the fixture. ` +
+          `Do not reset a revoked account to make its cookie pass.`,
       )
       process.exitCode = 1
     } else {
@@ -63,9 +66,9 @@ try {
     // 2/4 with "invalid input syntax for type uuid". Static check — no DB.
     for (const specFile of ['e2e/project-crud.spec.ts', 'e2e/fieldbook.spec.ts']) {
       const spec = readFileSync(specFile, 'utf8')
-      if (!spec.includes(E2E_USER_ID)) {
+      if (!spec.includes(E2E_USER_ID) || !/sessionVersion:\s*1\b/.test(spec)) {
         console.error(
-          `[seed-e2e-user] VERIFY FAILED — ${specFile} does not embed the seeded id ${E2E_USER_ID}. Id drift between seed and minted-session specs would re-introduce the shard-2/4 hang. Align scripts/seed-e2e-user.mjs with the spec cookie ids.`,
+          `[seed-e2e-user] VERIFY FAILED — ${specFile} does not embed the seeded id ${E2E_USER_ID} and fresh session version ${E2E_SESSION_VERSION}. Session drift between seed and minted-session specs would re-introduce the shard-2/4 hang. Align scripts/seed-e2e-user.mjs with the spec cookie ids.`,
         )
         process.exitCode = 1
       }
