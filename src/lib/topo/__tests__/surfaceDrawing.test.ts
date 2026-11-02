@@ -1,3 +1,4 @@
+import type {DrawingEntity} from '@/lib/drawing/topoEntities'
 import {buildBreaklineTIN} from '../breaklineTIN'
 import {generateTINContours} from '../tinContours'
 import {buildSurfaceRevisionDrawing} from '../surfaceDrawing'
@@ -36,7 +37,7 @@ const intersects=(a:ReturnType<typeof bounds>,b:ReturnType<typeof bounds>)=>a.mi
 
 test('the 42-point plan keeps its title, reference, provenance and point labels separate',()=>{
  const drawing=buildSurfaceRevisionDrawing(planSource)
- const text=drawing.entities.filter(entity=>entity.kind==='text')
+ const text=drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')
  for(let index=0;index<text.length;index++)for(let other=index+1;other<text.length;other++)expect({first:text[index].text,second:text[other].text,overlap:intersects(bounds(text[index]),bounds(text[other]))}).toMatchObject({overlap:false})
  expect(text.some(entity=>entity.text.includes('0.5 m'))).toBe(true)
  expect(drawing).toHaveProperty('layout.omittedPointLabels',0)
@@ -45,16 +46,16 @@ test('the 42-point plan keeps its title, reference, provenance and point labels 
 
 test('the complete map includes every annotation inside the sheet frame',()=>{
  const drawing=buildSurfaceRevisionDrawing(planSource)
- for(const text of drawing.entities.filter(entity=>entity.kind==='text')){const area=bounds(text);expect(area.minX).toBeGreaterThanOrEqual(drawing.extents.minX);expect(area.maxX).toBeLessThanOrEqual(drawing.extents.maxX);expect(area.minY).toBeGreaterThanOrEqual(drawing.extents.minY);expect(area.maxY).toBeLessThanOrEqual(drawing.extents.maxY)}
+ for(const text of drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')){const area=bounds(text);expect(area.minX).toBeGreaterThanOrEqual(drawing.extents.minX);expect(area.maxX).toBeLessThanOrEqual(drawing.extents.maxX);expect(area.minY).toBeGreaterThanOrEqual(drawing.extents.minY);expect(area.maxY).toBeLessThanOrEqual(drawing.extents.maxY)}
  const surveyBounds={minX:500000,maxX:500100,minY:9850000,maxY:9850080}
- for(const text of drawing.entities.filter(entity=>entity.kind==='text'&&entity.layer==='LEGEND'))expect(intersects(bounds(text),surveyBounds)).toBe(false)
+ for(const text of drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text'&&entity.layer==='LEGEND'))expect(intersects(bounds(text),surveyBounds)).toBe(false)
 })
 
 
 test('four retained contour levels stay labelled without covering the point annotations',()=>{
  const contours=[100.5,101,101.5,102].map((elevation,index)=>({elevation,isIndex:false,coordinates:[Array.from({length:81},(_,n):[number,number]=>[500021+index*20,9850000+n])]}))
  const drawing=buildSurfaceRevisionDrawing({...planSource,contours})
- const text=drawing.entities.filter(entity=>entity.kind==='text')
+ const text=drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')
  for(let index=0;index<text.length;index++)for(let other=index+1;other<text.length;other++)expect(intersects(bounds(text[index]),bounds(text[other]))).toBe(false)
  expect(drawing.layout.omittedPointLabels).toBe(0)
  expect(drawing.layout.omittedContourLabels).toBe(0)
@@ -65,7 +66,7 @@ test('four retained contour levels stay labelled without covering the point anno
 test('long recorded titles and references wrap within the sheet without losing source labels',()=>{
  const drawing=buildSurfaceRevisionDrawing({...planSource,projectId:'11111111-1111-4111-8111-111111111111',name:'Synthetic project description '.repeat(5),verticalDatum:'Synthetic local benchmark 100.000 m; no field control. '.repeat(3)})
  expect(drawing.layout.omittedPointLabels).toBe(0)
- const text=drawing.entities.filter(entity=>entity.kind==='text')
+ const text=drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')
  for(let index=0;index<text.length;index++){const area=bounds(text[index]);expect(area.minX).toBeGreaterThanOrEqual(drawing.extents.minX);expect(area.maxX).toBeLessThanOrEqual(drawing.extents.maxX);expect(area.minY).toBeGreaterThanOrEqual(drawing.extents.minY);expect(area.maxY).toBeLessThanOrEqual(drawing.extents.maxY);for(let other=index+1;other<text.length;other++)expect(intersects(area,bounds(text[other]))).toBe(false)}
  expect(text.some(entity=>entity.text.includes('11111111-1111-4111-8111-111111111111'))).toBe(true)
 })
@@ -79,6 +80,6 @@ test('the demonstration TIN contours and all 42 actual synthetic heights fit the
  expect(contours.map(contour=>contour.elevation)).toEqual([100.5,101,101.5,102])
  expect(drawing.layout.omittedPointLabels).toBe(0)
  expect(drawing.layout.omittedContourLabels).toBe(0)
- const text=drawing.entities.filter(entity=>entity.kind==='text')
+ const text=drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')
  for(let index=0;index<text.length;index++)for(let other=index+1;other<text.length;other++)expect({first:text[index].text,second:text[other].text,overlap:intersects(bounds(text[index]),bounds(text[other]))}).toMatchObject({overlap:false})
 })
