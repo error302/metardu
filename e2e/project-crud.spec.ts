@@ -94,15 +94,14 @@ test.describe('Project CRUD — Create Project', () => {
     await expect(submitBtn).toBeVisible({ timeout: 8000 })
   })
 
-  test('new project form shows breadcrumb navigation', async ({ page }) => {
+  test('new project breadcrumb opens the project register', async ({ page }) => {
     await page.goto('/project/new', { waitUntil: 'domcontentloaded' })
-    await page.waitForTimeout(2000)
-
-    // Breadcrumb should link back to dashboard. Scope to <main>: the global
-    // navbar also contains a /dashboard link whose desktop variant is
-    // display:none on mobile, so an unscoped .first() can resolve to a
-    // hidden element now that the top navbar renders on all app routes.
-    await expect(page.locator('main a[href="/dashboard"]').first()).toBeVisible({ timeout: 8000 })
+    const projects = page.locator('main').getByRole('link', { name: 'Projects', exact: true })
+    await expect(projects).toHaveAttribute('href', '/projects')
+    await projects.click()
+    await expect(page).toHaveURL(/\/projects$/)
+    await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: 'Projects could not be loaded' })).toHaveCount(0)
   })
 })
 
@@ -111,11 +110,11 @@ test.describe('Project CRUD — View Project List', () => {
     await mockAuthSession(page)
   })
 
-  test('projects route redirects to dashboard', async ({ page }) => {
-    // /projects redirects to /dashboard (see projects/page.tsx)
+  test('projects route loads the owner project register', async ({ page }) => {
     await page.goto('/projects', { waitUntil: 'domcontentloaded' })
-    // Should either redirect to dashboard or show dashboard content
-    await page.waitForTimeout(2000)
+    await expect(page).toHaveURL(/\/projects$/)
+    await expect(page.getByRole('heading', { name: 'Projects', exact: true })).toBeVisible()
+    await expect(page.getByRole('alert').filter({ hasText: 'Projects could not be loaded' })).toHaveCount(0)
   })
 
   test('dashboard page loads (project list)', async ({ page }) => {
