@@ -9,7 +9,7 @@ import { surfaceRequestSchema, surfaceRequestPayload, surfaceExportRequestSchema
 let projectId = '11111111-1111-4111-8111-111111111111'
 jest.mock('next/navigation', () => ({ useParams: () => ({ id: projectId }) }))
 jest.mock('next-auth/react', () => ({ useSession: jest.fn() }))
-jest.mock('next/dynamic', () => () => function Canvas({ entities }: { entities: DrawingEntity[] }) { return <div data-testid="preview">{JSON.stringify(entities.filter(entity => entity.kind === 'point'))}</div> })
+jest.mock('next/dynamic', () => () => function Canvas({ entities, initialPaperView }: { entities: DrawingEntity[]; initialPaperView?: boolean }) { return <div data-testid="preview" data-paper-view={String(initialPaperView)}>{JSON.stringify(entities.filter(entity => entity.kind === 'point'))}</div> })
 const REVISION = '22222222-2222-4222-8222-222222222222'
 const OWNER = '99999999-9999-4999-8999-999999999999'
 const CRS = 'EPSG:21037'
@@ -62,6 +62,8 @@ test('restoring a historical revision previews its retained source instead of cu
   render(<Page />); await loaded()
   fireEvent.change(screen.getByRole('combobox', { name: 'Saved revision' }), { target: { value: REVISION } })
   const preview = await screen.findByTestId('preview')
+  expect(preview).toHaveAttribute('data-paper-view', 'true')
+  expect(screen.getByLabelText('Terrain interpretation')).toHaveTextContent('not a surveyed site or property boundary')
   expect(preview).toHaveTextContent('500000')
   expect(preview).not.toHaveTextContent('500100')
   expect(screen.getByRole('button', { name: /Download draft DXF/ })).toBeEnabled()

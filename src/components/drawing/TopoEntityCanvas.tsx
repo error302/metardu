@@ -10,6 +10,8 @@ import Konva from 'konva'
 import { ZoomIn, ZoomOut, Maximize2 } from 'lucide-react'
 import type { DrawingEntity, DrawingLayerInfo, Extents } from '@/lib/drawing/topoEntities'
 
+const PAPER_LAYER_COLORS: Record<string, string> = { CONTOURS: '#97704a', CONTOUR_I: '#70411e', GRID: '#d7dde2', PLAN_LEADERS: '#78828a', SURVEY_BREAKLINES_3D: '#1c6778', TERRAIN_EXCLUSIONS: '#a13636' }
+
 interface TopoEntityCanvasProps {
   entities: DrawingEntity[]
   layers: DrawingLayerInfo[]
@@ -18,6 +20,7 @@ interface TopoEntityCanvasProps {
   height?: number
   /** Layer names to hide. */
   hiddenLayers?: Set<string>
+  initialPaperView?: boolean
   emptyMessage?: string
 }
 
@@ -28,11 +31,16 @@ export function TopoEntityCanvas({
   width = 900,
   height = 560,
   hiddenLayers,
+  initialPaperView = false,
   emptyMessage = 'Import points to see the drawing preview',
 }: TopoEntityCanvasProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const view = useRef<{ stage: Konva.Stage; scene: Konva.Group; fit: { scale: number; x: number; y: number } } | null>(null)
   const [zoom, setZoom] = useState(1)
+  const [paperView, setPaperView] = useState(initialPaperView)
+  const [showPointLabels, setShowPointLabels] = useState(true)
+  const [showGrid, setShowGrid] = useState(true)
+  const [showLeaders, setShowLeaders] = useState(true)
   const changeZoom = (requested: number) => {
     const current = view.current
     if (!current) return
@@ -61,7 +69,7 @@ export function TopoEntityCanvas({
     observer.observe(container)
     return () => observer.disconnect()
   }, [])
-  const canvasWidth = Math.max(1, Math.min(width, availableWidth ?? width))
+  const canvasWidth = Math.max(1, initialPaperView ? (availableWidth ?? width) : Math.min(width, availableWidth ?? width))
   const layerColorMap = useMemo(() => {
     const m = new Map<string, string>()
     for (const l of layers) m.set(l.name, l.colorHex)
@@ -71,7 +79,7 @@ export function TopoEntityCanvas({
   useEffect(() => {
     if (!containerRef.current) return
     const width = canvasWidth
-    containerRef.current.querySelector('.konva-container')?.remove()
+    containerRef.current.querySelector('.konvajs-content')?.remove()
 
     const stage = new Konva.Stage({ container: containerRef.current, width, height })
     const layer = new Konva.Layer()
@@ -121,8 +129,8 @@ export function TopoEntityCanvas({
     const textScale = scale
 
     for (const e of entities) {
-      if (hiddenLayers?.has(e.layer)) continue
-      const color = layerColorMap.get(e.layer) ?? '#d4d4d8'
+      if (hiddenLayers?.has(e.layer) || (!showPointLabels && e.layer === 'POINT_LABELS') || (!showLeaders && e.layer === 'PLAN_LEADERS') || (!showGrid && e.layer === 'GRID')) continue
+      const color = paperView ? (PAPER_LAYER_COLORS[e.layer] ?? '#25313d') : (layerColorMap.get(e.layer) ?? '#d4d4d8')
       const targetContainer = (e.layer === 'CONTOURS' || e.layer === 'CONTOUR_I' || e.layer === 'GRID')
         ? clippedGroup
         : scene
@@ -140,7 +148,7 @@ export function TopoEntityCanvas({
           for (const [en, nn] of e.pts) flat.push(toX(en), toY(nn))
           targetContainer.add(new Konva.Line({
             points: flat,
-            stroke: color, strokeWidth: 1.1,
+            stroke: color, strokeWidth: e.layer === 'CONTOUR_I' ? 1.8 : e.layer === 'CONTOURS' ? 0.75 : 1.1,
             closed: e.kind === 'polyline' && !!e.closed, listening: false,
           }))
           break
@@ -171,19 +179,26 @@ export function TopoEntityCanvas({
     setZoom(1)
     layer.draw()
     return () => { if (view.current?.stage === stage) view.current = null; stage.destroy() }
-  }, [entities, layers, extents, layerColorMap, hiddenLayers, canvasWidth, height, emptyMessage])
+  }, [entities, layers, extents, layerColorMap, hiddenLayers, canvasWidth, height, emptyMessage, paperView, showPointLabels, showGrid, showLeaders])
 
   return (
     <div className="w-full min-w-0 overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-800 px-3 py-2 text-sm text-zinc-300">
         <p>Zoom to inspect labels. Drag to pan.</p>
+        <div className="flex flex-wrap items-center gap-3" role="group" aria-label="Map presentation">
+          <label className="inline-flex min-h-11 items-center gap-2"><input type="checkbox" checked={paperView} onChange={event => setPaperView(event.target.checked)} />Paper view</label>
+          <label className="inline-flex min-h-11 items-center gap-2"><input type="checkbox" checked={showPointLabels} onChange={event => setShowPointLabels(event.target.checked)} />Point labels</label>
+          <label className="inline-flex min-h-11 items-center gap-2"><input type="checkbox" checked={showLeaders} onChange={event => setShowLeaders(event.target.checked)} />Leader lines</label>
+          <label className="inline-flex min-h-11 items-center gap-2"><input type="checkbox" checked={showGrid} onChange={event => setShowGrid(event.target.checked)} />Coordinate grid</label>
+        </div>
         <div role="group" aria-label="Drawing view" className="flex items-center gap-1">
           <button type="button" aria-label="Zoom out drawing" disabled={zoom === 1} onClick={() => changeZoom(zoom / 1.5)} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-zinc-700 hover:bg-zinc-800 disabled:opacity-40"><ZoomOut className="h-4 w-4" aria-hidden="true" /></button>
           <button type="button" aria-label="Zoom in drawing" disabled={zoom === 8} onClick={() => changeZoom(zoom * 1.5)} className="flex min-h-11 min-w-11 items-center justify-center rounded border border-zinc-700 hover:bg-zinc-800 disabled:opacity-40"><ZoomIn className="h-4 w-4" aria-hidden="true" /></button>
           <button type="button" onClick={() => changeZoom(1)} className="inline-flex min-h-11 items-center gap-2 rounded border border-zinc-700 px-3 hover:bg-zinc-800"><Maximize2 className="h-4 w-4" aria-hidden="true" />Fit drawing</button>
         </div>
       </div>
-      <div ref={containerRef} className="[&>.konva-container]:mx-auto" role="img" aria-label="Topographic drawing preview, including draft and reference annotations" style={{ width: '100%', height, touchAction: zoom > 1 ? 'none' : 'pan-y' }} />
+      <p className="px-3 py-2 text-xs text-zinc-400">View controls affect this preview. Downloads retain the complete saved drawing and its reference annotations.</p>
+      <div ref={containerRef} className={paperView ? "bg-white [&>.konvajs-content]:mx-auto" : "bg-zinc-950 [&>.konvajs-content]:mx-auto"} role="img" aria-label="Topographic drawing preview, including draft and reference annotations" style={{ width: '100%', height, touchAction: zoom > 1 ? 'none' : 'pan-y' }} />
     </div>
   )
 }

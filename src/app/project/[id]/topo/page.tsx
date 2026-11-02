@@ -194,6 +194,12 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
     } catch (failure) { if (operation.current === ticket) setError(failure instanceof Error ? failure.message : 'Export failed. No download was acknowledged.') }
     finally { if (operation.current === ticket) setBusy(false) }
   }
+  const terrainRange = useMemo(() => {
+    if (!saved?.snapshot.observations.length) return null
+    let min = Infinity, max = -Infinity
+    for (const point of saved.snapshot.observations) { min = Math.min(min, point.z); max = Math.max(max, point.z) }
+    return { min, max, relief: max - min }
+  }, [saved])
   const preview = useMemo(() => saved ? buildSurfaceRevisionDrawing(saved) : null, [saved])
 
   return <main className="space-y-6 p-4 max-w-6xl mx-auto">
@@ -220,10 +226,11 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       <div className="flex flex-wrap gap-4 items-end">
         <label>Surface name<input className="block border rounded p-2 bg-transparent" value={name} maxLength={150} disabled={busy} onChange={event => setName(event.target.value)} /></label>
         <label>Contour interval (m)<select className="block border rounded p-2 bg-[var(--bg-secondary)]" value={interval} disabled={busy} onChange={event => setInterval(Number(event.target.value))}>{[0.25, 0.5, 1, 2, 5, 10].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
-        <label>Maximum vertex spacing (m)<select className="block border rounded p-2 bg-[var(--bg-secondary)]" value={spacing} disabled={busy} onChange={event => setSpacing(Number(event.target.value))}>{[0.5, 1, 2, 5].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
+        <label>Maximum contour segment length (m)<select className="block border rounded p-2 bg-[var(--bg-secondary)]" value={spacing} disabled={busy} onChange={event => setSpacing(Number(event.target.value))}>{[0.5, 1, 2, 5].map(value => <option key={value} value={value}>{value}</option>)}</select></label>
         <button className="border rounded p-2 disabled:opacity-50" disabled={busy || !!pending || !!deviceError || !!definition.issue || !source || !reviewed || selected.size < 3 || !name.trim()} onClick={() => void compute()}>Compute new draft revision</button>
       </div>
     </section>
+    <p className="text-sm text-[var(--text-secondary)]">Contour interval controls elevation steps. Maximum contour segment length adds vertices along the same straight TIN lines; it does not smooth the terrain or improve survey accuracy.</p>
     <section className="space-y-3"><h2 className="font-semibold">Saved revision review</h2>
       <label>Choose an exact saved revision<select aria-label="Saved revision" className="block border rounded p-2 max-w-full bg-[var(--bg-secondary)]" value={saved?.revisionId ?? ''} disabled={busy} onChange={event => void choose(event.target.value)}><option value="">Select a revision</option>{history.revisions.map(revision => <option key={revision.revision_id} value={revision.revision_id}>{revision.name} R{revision.revision} · {revision.revision_id}</option>)}</select></label>
       {history.historyLimited && <p>Showing the latest 200 saved revisions. Older records remain retained.</p>}
@@ -242,7 +249,13 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
           </details>
           {(preview.layout.omittedPointLabels > 0 || preview.layout.omittedContourLabels > 0) && <p role="status" className="text-sm">To avoid crowding, {preview.layout.omittedPointLabels} point labels and {preview.layout.omittedContourLabels} contour labels could not be placed. All source coordinates and contour geometry remain in the DXF. Review dense areas before issuing this draft.</p>}
         </div>
-        <Canvas {...preview} />
+        {terrainRange && <div className="space-y-2 rounded-lg border border-[var(--border-color)] p-3 text-sm" aria-label="Terrain interpretation">
+          <p>Observed heights {terrainRange.min.toFixed(3)}–{terrainRange.max.toFixed(3)} m · relief {terrainRange.relief.toFixed(3)} m · saved contour interval {saved.parameters?.interval ?? 'not recorded'} m.</p>
+          <p>{saved.snapshot.terrainDomain ? 'Contours use the reviewed terrain boundary and exclusions.' : 'Contours end at the observation hull. This hull is not a surveyed site or property boundary.'}</p>
+          <p>Brown lines show contours; heavier lines show index contours. Reviewed breaklines are blue. Point labels can be hidden to inspect the landform.</p>
+          <p>Survey accuracy and issue approval must be established from control, field checks and the agreed survey specification; contour spacing alone does not establish accuracy.</p>
+        </div>}
+        <Canvas {...preview} initialPaperView />
       </div>}
       {saved?.domain&&<p className="text-sm">Reviewed footprint: {saved.domain.area.toFixed(3)} m² · {saved.domain.derivedVertexCount} derived clip vertices. Original support observations: {saved.domain.supportCounts.inside} inside, {saved.domain.supportCounts.outside} outside, {saved.domain.supportCounts.exclusion} inside exclusions.</p>}
       {((saved && preview) || downloadUrl || receipt) && <section aria-label="Download results" className="space-y-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 sm:p-5">
