@@ -18,6 +18,10 @@ The user confirmed that the old Oracle VM was removed because it could not accom
 
 All public network observations here are from this host. Independent external monitoring is still required to separate host egress problems from failures experienced by other customers.
 
+## Missed scheduled backup observation (4 November Nairobi)
+
+The runtime verifier reported no completed backup within 36 hours. The backup container remains running with crond as PID 9 and a daily 02:00 UTC schedule (05:00 Nairobi). Its latest logged success was the manual pre-promotion archive at 09:15:05 UTC on 2 November; no subsequent start or success is present in the inspected log. Windows System event 506 records entry into Modern Standby at 01:30:56 UTC on 3 November, with no 507 exit in the checked period through 02:30 UTC. Thus the scheduled time fell inside the recorded standby interval. This evidence indicates a missed schedule; it does not establish that an attempted backup failed. A future successful scheduled run, archive checks, offsite copy and restore rehearsal remain separate gates. No cron, service, power or archive changes were made during this inspection.
+
 ## Read-only diagnostic
 
 Run from the checkout with Node 22:
