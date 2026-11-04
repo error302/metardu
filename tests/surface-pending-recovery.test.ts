@@ -41,3 +41,15 @@ test('corrupt or wrong-scope records are preserved and refused', async () => {
   expect(() => readPending(OWNER, PROJECT, storage)).toThrow('recovery record')
   expect(values.get(key)).toBe('{bad')
 })
+
+test('PDF recovery retains its format and cannot be replaced by a DXF request',async()=>{
+ const request={projectId:PROJECT,surfaceRevisionId:OTHER,requestId:FIRST,expectedUserId:OWNER,format:'pdf' as const}
+ const pending=await preparePending(OWNER,PROJECT,'pdf',request,storage,lock)
+ expect(readPending(OWNER,PROJECT,storage)).toEqual(pending)
+ await expect(preparePending(OWNER,PROJECT,'dxf',{projectId:PROJECT,surfaceRevisionId:OTHER,requestId:SECOND,expectedUserId:OWNER},storage,lock)).rejects.toThrow('unconfirmed')
+ expect(readPending(OWNER,PROJECT,storage)).toEqual(pending)
+})
+test('PDF request is rejected when its format does not match its recovery kind',async()=>{
+ await expect(preparePending(OWNER,PROJECT,'pdf',{projectId:PROJECT,surfaceRevisionId:OTHER,requestId:FIRST,expectedUserId:OWNER},storage,lock)).rejects.toThrow('format')
+ expect(values.size).toBe(0)
+})

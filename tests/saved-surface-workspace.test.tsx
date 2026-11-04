@@ -217,3 +217,19 @@ test('an unreadable download response keeps the exact request available for reco
  expect(screen.getByRole('region',{name:'Pending request recovery'})).toBeInTheDocument()
  expect(screen.getByRole('button',{name:/Download draft DXF/})).toBeDisabled()
 })
+
+test('an unreadable PDF response retains its request and blocks a competing export',async()=>{
+ const original=fetchMock.getMockImplementation()
+ fetchMock.mockImplementation((url:string,options?:RequestInit)=>{
+  if(url==='/api/topo/export/pdf')return Promise.resolve({ok:false,json:async()=>{throw new SyntaxError('Unreadable')}})
+  if(!original)throw new Error('Missing fixture')
+  return original(url,options)
+ })
+ render(<Page/>);await loaded()
+ fireEvent.change(screen.getByRole('combobox',{name:'Saved revision'}),{target:{value:REVISION}})
+ fireEvent.click(await screen.findByRole('button',{name:/Download draft PDF/}))
+ expect(await screen.findByRole('alert')).toHaveTextContent('unreadable result')
+ expect(screen.getByRole('region',{name:'Pending request recovery'})).toHaveTextContent('Draft PDF')
+ expect(screen.getByRole('button',{name:/Download draft DXF/})).toBeDisabled()
+ expect(screen.getByRole('button',{name:/Download draft PDF/})).toBeDisabled()
+})

@@ -60,6 +60,7 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
   const [reload, setReload] = useState(0)
   const [receipt, setReceipt] = useState('')
   const [downloadUrl, setDownloadUrl] = useState('')
+  const [downloadFormat, setDownloadFormat] = useState<'DXF'|'PDF'>('DXF')
   const [pending, setPending] = useState<PendingSurfaceRequest | null>(null)
   const [deviceError, setDeviceError] = useState('')
   const operation = useRef(0)
@@ -120,9 +121,9 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
   async function sendPending(command: PendingSurfaceRequest, ticket: number, lookupOnly = false) {
     const expectedHash = await sha256Hex(canonicalJson(command.kind === 'surface' ? surfaceRequestPayload(command.body) : surfaceExportPayload(command.body)))
     if (operation.current !== ticket) return
-    const path = command.kind === 'surface' ? `/api/project/${projectId}/surfaces` : '/api/topo/export/dxf'
+    const path = command.kind === 'surface' ? `/api/project/${projectId}/surfaces` : command.kind==='pdf'?'/api/topo/export/pdf':'/api/topo/export/dxf'
     const query = command.kind === 'surface' ? new URLSearchParams({ requestId: command.body.requestId, requestHash: expectedHash })
-      : new URLSearchParams({ ...command.body })
+      : new URLSearchParams(Object.entries(command.body).filter((entry):entry is [string,string]=>typeof entry[1]==='string'))
     const response = await fetch(lookupOnly ? `${path}?${query}` : path, lookupOnly ? { cache: 'no-store' } : { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(command.body) })
     if (!response.ok) {
       const value = await decodeJson(response)
@@ -147,10 +148,11 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       if (operation.current !== ticket) return
       const url = URL.createObjectURL(blob), anchor = document.createElement('a')
       const filename = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1]
-      anchor.href = url; anchor.download = filename && /^[A-Za-z0-9._-]+\.dxf$/.test(filename) ? filename : 'retained-surface.dxf'; anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+      anchor.href = url; anchor.download = filename && new RegExp('^[A-Za-z0-9._-]+\\.'+(command.kind==='pdf'?'pdf':'dxf')+'$').test(filename) ? filename : 'retained-surface.'+(command.kind==='pdf'?'pdf':'dxf'); anchor.click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
       const retainedUrl = response.headers.get('X-Metardu-Download') ?? ''
       if (retainedUrl.startsWith('/api/storage?path=')) setDownloadUrl(retainedUrl)
-      setReceipt(`Draft DXF retained in the document register, revision ${response.headers.get('X-Metardu-Deliverable-Revision')}. Download requested.`)
+      setDownloadFormat(command.kind==='pdf'?'PDF':'DXF')
+      setReceipt(`Draft ${command.kind==='pdf'?'PDF':'DXF'} retained in the document register, revision ${response.headers.get('X-Metardu-Deliverable-Revision')}. Download requested.`)
     }
     await acknowledgePending(command)
     if (operation.current === ticket) { setPending(readPending(ownerId, projectId)); setReviewed(false) }
@@ -182,12 +184,12 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
     } catch (failure) { if (operation.current === ticket) { setReviewed(false); setError(`${failure instanceof Error ? failure.message : 'The computation was not acknowledged.'} Use request recovery before starting another computation.`) } }
     finally { if (operation.current === ticket) setBusy(false) }
   }
-  async function exportDxf() {
+  async function exportDrawing(format: 'dxf' | 'pdf') {
     if (!saved || busy || pending || deviceError) return
     const ticket = ++operation.current, revisionId = saved.revisionId
     setBusy(true); setError(''); setReceipt('')
     try {
-      const command = await preparePending(ownerId, projectId, 'dxf', surfaceExportRequestSchema.parse({ projectId, surfaceRevisionId: revisionId, expectedUserId: ownerId, requestId: crypto.randomUUID() }))
+      const command = await preparePending(ownerId, projectId, format, surfaceExportRequestSchema.parse({ ...(format==='pdf'?{format:'pdf'}:{}), projectId, surfaceRevisionId: revisionId, expectedUserId: ownerId, requestId: crypto.randomUUID() }))
       if (operation.current !== ticket) return
       setPending(command)
       await sendPending(command, ticket)
@@ -207,7 +209,7 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
     {error && <p role="alert" className="text-red-500">{error}</p>}
     {deviceError && <p role="alert">{deviceError}</p>}
     {pending && <section aria-label="Pending request recovery" className="border rounded p-4 space-y-2"><h2 className="font-semibold">Request awaiting confirmation</h2>
-      <p className="break-all">{pending.kind === 'surface' ? 'Surface computation' : 'Draft DXF'} · {pending.body.requestId}</p>
+      <p className="break-all">{pending.kind === 'surface' ? 'Surface computation' : pending.kind==='pdf'?'Draft PDF':'Draft DXF'} · {pending.body.requestId}</p>
       <p>Retained on this device for this account and project. Checking reads saved work; retrying sends the same original request and reuses any committed result.</p>
       <div className="flex gap-3 flex-wrap"><button disabled={busy} className="border rounded p-2" onClick={() => void recover(true)}>Check saved result</button><button disabled={busy} className="border rounded p-2" onClick={() => void recover(false)}>Retry original request</button></div></section>}
     <button disabled={busy} onClick={() => setReload(value => value + 1)} className="border rounded px-3 py-2">Reload observations and saved revisions</button>
@@ -215,7 +217,7 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
       {sourceError && <p role="alert">{sourceError}</p>}
       {source && <><p>{source.reference.code} · Height reference: {source.reference.verticalDatum} · metres</p>
         <p className="text-sm">Select measured ground observations. Unknown heights stay visible and cannot enter this surface. Without an explicit boundary, the surface uses the observation hull. Added boundary heights are derived from the retained TIN, never recorded as new measurements.</p>
-        <div className="max-h-72 overflow-auto"><table className="w-full text-sm"><thead><tr><th>Select</th><th>Point</th><th>Easting</th><th>Northing</th><th>Height</th><th>Code</th></tr></thead><tbody>{source.points.map(point => <tr key={point.id}>
+        <div role="region" aria-label="Ground observations, scroll horizontally for coordinates" tabIndex={0} className="max-h-72 max-w-full overflow-auto"><table className="w-full text-sm"><thead><tr><th>Select</th><th>Point</th><th>Easting</th><th>Northing</th><th>Height</th><th>Code</th></tr></thead><tbody>{source.points.map(point => <tr key={point.id}>
           <td><input type="checkbox" aria-label={`Ground point ${point.pointNumber}`} disabled={busy || point.elevation === undefined} checked={selected.has(point.id)} onChange={event => { setReviewed(false); setTerrainDraft(current=>({...current,reviewed:false})); setSelected(previous => { const next = new Set(previous); if (event.target.checked) next.add(point.id); else next.delete(point.id); return next }) }} /></td>
           <td>{point.pointNumber}</td><td>{point.easting}</td><td>{point.northing}</td><td>{point.elevation ?? 'Unknown'}</td><td>{point.code}</td></tr>)}</tbody></table></div>
         <label className="flex gap-2"><input type="checkbox" checked={reviewed} disabled={busy} onChange={event => setReviewed(event.target.checked)} />I reviewed these {selected.size} observations as the ground source for this draft.</label>
@@ -255,15 +257,16 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
           <p>Brown lines show contours; heavier lines show index contours. Reviewed breaklines are blue. Point labels can be hidden to inspect the landform.</p>
           <p>Survey accuracy and issue approval must be established from control, field checks and the agreed survey specification; contour spacing alone does not establish accuracy.</p>
         </div>}
-        <Canvas {...preview} initialPaperView />
+        <Canvas {...preview} surveyFrame={preview.layout.mapFrame} initialPaperView />
       </div>}
       {saved?.domain&&<p className="text-sm">Reviewed footprint: {saved.domain.area.toFixed(3)} m² · {saved.domain.derivedVertexCount} derived clip vertices. Original support observations: {saved.domain.supportCounts.inside} inside, {saved.domain.supportCounts.outside} outside, {saved.domain.supportCounts.exclusion} inside exclusions.</p>}
       {((saved && preview) || downloadUrl || receipt) && <section aria-label="Download results" className="space-y-3 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 sm:p-5">
         <h3 className="font-semibold">Download results</h3>
-        <p className="max-w-prose text-sm text-[var(--text-secondary)]">The DXF contains the selected saved revision, measured point coordinates, retained breaklines, contour elevations and this draft plan layout. A new export is recorded in the project document register.</p>
+        <p className="max-w-prose text-sm text-[var(--text-secondary)]">The PDF and DXF contain the selected saved revision, measured point coordinates, retained breaklines, contour elevations and this draft plan layout. Each export is retained in the project document register. Print the PDF at 100% actual size to preserve its stated scale.</p>
         <div className="flex flex-wrap items-center gap-3">
-          {saved && preview && <button type="button" className="btn btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50 sm:w-auto" disabled={busy || !!pending || !!deviceError} onClick={() => void exportDxf()}><Download className="h-4 w-4" aria-hidden="true" />Download draft DXF (Pro+)</button>}
-          {downloadUrl && <a href={downloadUrl} download className="btn btn-secondary inline-flex min-h-11 w-full items-center justify-center gap-2 sm:w-auto"><Download className="h-4 w-4" aria-hidden="true" />Download saved DXF again</a>}
+          {saved && preview && <button type="button" className="btn btn-primary inline-flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50 sm:w-auto" disabled={busy || !!pending || !!deviceError} onClick={() => void exportDrawing('dxf')}><Download className="h-4 w-4" aria-hidden="true" />Download draft DXF (Pro+)</button>}
+          {saved && preview && <button type="button" className="btn btn-secondary inline-flex min-h-11 w-full items-center justify-center gap-2 disabled:opacity-50 sm:w-auto" disabled={busy || !!pending || !!deviceError} onClick={() => void exportDrawing('pdf')}><Download className="h-4 w-4" aria-hidden="true" />Download draft PDF (Pro+)</button>}
+          {downloadUrl && <a href={downloadUrl} download className="btn btn-secondary inline-flex min-h-11 w-full items-center justify-center gap-2 sm:w-auto"><Download className="h-4 w-4" aria-hidden="true" />Download saved {downloadFormat} again</a>}
         </div>
         {receipt && <p role="status" className="break-words text-sm">{receipt}</p>}
       </section>}

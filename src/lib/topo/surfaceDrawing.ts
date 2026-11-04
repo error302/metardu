@@ -86,6 +86,7 @@ export function buildSurfaceRevisionDrawing(source:SurfaceDrawingSource) {
   const metadata=[`Surface: ${source.name} | R${source.revision}`,`CRS: ${source.crs} | Horizontal and height units: metres`,
     `Height reference: ${source.verticalDatum}`,`${points.length} retained observations | ${source.contours.length} contour levels | Interval: ${intervalText}`,
     ...(source.projectId?[`Project ID: ${source.projectId}`]:[]),`Surface revision: ${source.revisionId}`,`Input SHA-256: ${source.inputHash}`,
+    'Survey date: not recorded in this surface | Review: pending',
     'COMPUTED DRAFT | Independent survey review and field acceptance required.']
   if(source.domain)metadata.push(`Terrain mask area: ${source.domain.area.toFixed(3)} m2 | ${source.domain.derivedVertexCount} derived clip vertices`)
   const reportIndex=metadata.length,contourPathCount=source.contours.reduce((total,contour)=>total+contour.coordinates.length,0)

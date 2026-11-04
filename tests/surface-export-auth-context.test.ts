@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import {NextRequest,NextResponse} from 'next/server'
 import {POST,GET} from '@/app/api/topo/export/dxf/route'
+import {POST as PDF_POST,GET as PDF_GET} from '@/app/api/topo/export/pdf/route'
 import {requireProjectOwnership} from '@/lib/auth/ownership'
 import {executeSurfaceExport} from '@/lib/topo/surfaceExport'
 import {surfaceExportRequestSchema} from '@/lib/topo/surfaceRequest'
@@ -29,4 +30,20 @@ test('project ownership denial is retained before any export policy or generatio
 })
 test('the real request schema rejects client-supplied entitlement identities',()=>{
  expect(surfaceExportRequestSchema.safeParse(context.body).success).toBe(false)
+})
+
+test('PDF export confirms ownership and returns revision-bound private download headers',async()=>{
+ const pdf={...body,format:'pdf' as const};jest.mocked(executeSurfaceExport).mockResolvedValue({bytes:Buffer.from('%PDF-1.7'),filename:'surface.pdf',storagePath:'synthetic',contentHash:'c'.repeat(64),deliverableId:'deliverable',revision:2,replayed:false,requestHash:'d'.repeat(64)})
+ const response=await PDF_POST(new NextRequest('http://127.0.0.1/api/topo/export/pdf',{method:'POST'}),{...context,body:pdf} as never)
+ expect(requireProjectOwnership).toHaveBeenCalledWith(body.projectId,userId)
+ expect(executeSurfaceExport).toHaveBeenCalledWith(pdf,userId,false,email)
+ expect(response.headers.get('content-type')).toBe('application/pdf')
+ expect(response.headers.get('x-metardu-surface-revision')).toBe(body.surfaceRevisionId)
+ expect(response.headers.get('x-metardu-content-sha256')).toBe('c'.repeat(64))
+ expect(response.headers.get('cache-control')).toBe('private, no-store')
+})
+test('PDF recovery rejects an unspecified format and retains authenticated identity',async()=>{
+ const pdf={...body,format:'pdf'};await PDF_GET(new NextRequest('http://127.0.0.1/api/topo/export/pdf?'+new URLSearchParams(pdf)),context as never)
+ expect(executeSurfaceExport).toHaveBeenCalledWith(pdf,userId,true,email)
+ await expect(PDF_GET(new NextRequest('http://127.0.0.1/api/topo/export/pdf?'+new URLSearchParams(body)),context as never)).rejects.toThrow()
 })

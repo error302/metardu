@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, DragEvent } from 'react'
+import { useState, useCallback, useRef, DragEvent, type ReactNode } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   InstrumentListing, ListingType, InstrumentCategory, Currency, Condition,
@@ -12,6 +12,13 @@ import {
 import { compressImage, isImageFile, MAX_IMAGES, base64Bytes } from '@/lib/marketplace/imageUtils'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { getPlanPrice } from '@/lib/subscription/catalog'
+import * as Dialog from '@radix-ui/react-dialog'
+import { Search, MapPin, ArrowUpRight, SlidersHorizontal, ScanLine } from 'lucide-react'
+import styles from './marketplace.module.css'
+
+function MarketplaceDialog({ title, onClose, children, drawer = false }: { title: string; onClose: () => void; children: ReactNode; drawer?: boolean }) {
+  return <Dialog.Root open onOpenChange={open => { if (!open) onClose() }}><Dialog.Portal><Dialog.Overlay className={styles.overlay} /><Dialog.Content aria-describedby={undefined} className={drawer ? styles.drawer : styles.dialog}><Dialog.Title asChild><span className="sr-only">{title}</span></Dialog.Title>{children}</Dialog.Content></Dialog.Portal></Dialog.Root>
+}
 
 interface MarketplaceInquiry {
   id: string
@@ -125,7 +132,7 @@ function ImagePicker({
               <button
                 aria-label={`Remove photo ${i + 1}`}
                 onClick={() => remove(i)}
-                className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                className="absolute inset-0 bg-black/60 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 focus-visible:opacity-100 transition-opacity flex items-center justify-center"
                 title="Remove photo"
               >
                 <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -196,14 +203,6 @@ function ImageGallery({ images }: { images: string[] }) {
   const [active, setActive] = useState(0)
   const [lightbox, setLightbox] = useState(false)
 
-  // Close the lightbox on Escape (document-level, works regardless of focus)
-  useEffect(() => {
-    if (!lightbox) return
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setLightbox(false) }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [lightbox])
-
   if (images.length === 0) {
     return (
       <div className="h-52 bg-[var(--bg-secondary)] rounded-xl border border-[var(--border-color)] flex items-center justify-center">
@@ -223,7 +222,7 @@ function ImageGallery({ images }: { images: string[] }) {
         tabIndex={0}
         aria-label="Open image in full screen"
         onClick={() => setLightbox(true)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setLightbox(true) } }}
+        onKeyDown={(e) => { if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); setLightbox(true) } }}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={images[active]} alt="Listing preview" className="w-full h-full object-contain" loading="lazy" decoding="async" />
@@ -232,21 +231,21 @@ function ImageGallery({ images }: { images: string[] }) {
             <button
               aria-label="Previous image"
               onClick={e => { e.stopPropagation(); setActive(a => (a - 1 + images.length) % images.length) }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
+              className="absolute left-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
             </button>
             <button
               aria-label="Next image"
               onClick={e => { e.stopPropagation(); setActive(a => (a + 1) % images.length) }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
+              className="absolute right-2 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-black/60 flex items-center justify-center text-white hover:bg-black/80"
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
             </button>
             <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex gap-1">
               {images.map((_, i) => (
                 <button key={`${_}-${i}`} aria-label={`Show image ${i + 1}`} onClick={e => { e.stopPropagation(); setActive(i) }}
-                  className={`w-1.5 h-1.5 rounded-full transition-colors ${i === active ? 'bg-white' : 'bg-white/40'}`} />
+                  className={`w-6 h-6 border-8 border-transparent rounded-full bg-clip-content transition-colors ${i === active ? 'bg-white' : 'bg-white/40'}`} />
               ))}
             </div>
           </>
@@ -258,9 +257,9 @@ function ImageGallery({ images }: { images: string[] }) {
 
       {/* Thumbnails */}
       {images.length > 1 && (
-        <div className="flex gap-2 mt-2">
+        <div className="flex gap-2 mt-2 overflow-x-auto">
           {images.map((src, i) => (
-            <button key={`${src}-${i}`} onClick={() => setActive(i)}
+            <button key={`${src}-${i}`} aria-label={`Show photo ${i + 1}`} aria-pressed={i === active} onClick={() => setActive(i)}
               className={`w-14 h-14 rounded-lg overflow-hidden border-2 flex-shrink-0 transition-colors ${
                 i === active ? 'border-[var(--accent)]' : 'border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_50%,transparent)]'
               }`}>
@@ -272,31 +271,27 @@ function ImageGallery({ images }: { images: string[] }) {
       )}
 
       {/* Lightbox */}
-      {lightbox && (
-        <div className="fixed inset-0 z-[100] bg-black/95 flex items-center justify-center"
-          role="dialog"
-          aria-modal="true"
-          aria-label="Listing image">
-          <button type="button" aria-label="Close lightbox" tabIndex={-1} className="absolute inset-0 cursor-pointer border-0 p-0" onClick={() => setLightbox(false)} />
-          <button aria-label="Close lightbox" onClick={() => setLightbox(false)} className="absolute top-4 right-4 text-white/60 hover:text-white p-2">
+      <Dialog.Root open={lightbox} onOpenChange={setLightbox}>
+        <Dialog.Portal><Dialog.Overlay className="fixed inset-0 z-[100] bg-black/95" /><Dialog.Content aria-describedby={undefined} className="fixed inset-0 z-[101] flex items-center justify-center"><Dialog.Title className="sr-only">Listing image</Dialog.Title>
+          <button aria-label="Close lightbox" onClick={() => setLightbox(false)} className="absolute top-4 right-4 min-h-11 min-w-11 flex items-center justify-center text-white/60 hover:text-white p-2">
             <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
           </button>
           {images.length > 1 && (
             <>
               <button aria-label="Previous image" onClick={e => { e.stopPropagation(); setActive(a => (a - 1 + images.length) % images.length) }}
-                className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
               </button>
               <button aria-label="Next image" onClick={e => { e.stopPropagation(); setActive(a => (a + 1) % images.length) }}
-                className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
+                className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white">
                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
               </button>
             </>
           )}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={images[active]} alt="" className="max-h-[90vh] max-w-[90vw] object-contain rounded-lg" loading="lazy" decoding="async" />
-        </div>
-      )}
+        </Dialog.Content></Dialog.Portal>
+      </Dialog.Root>
     </>
   )
 }
@@ -307,8 +302,7 @@ function ImageGallery({ images }: { images: string[] }) {
 
 function UpgradeToPost({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-md p-8 text-center">
+    <MarketplaceDialog title={'Posting requires Pro'} onClose={onClose}>
         <div className="w-14 h-14 rounded-xl bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)] flex items-center justify-center mx-auto mb-5">
           <svg className="w-7 h-7 text-[var(--accent)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 21v-7.5a.75.75 0 01.75-.75h3a.75.75 0 01.75.75V21m-4.5 0H2.36m11.14 0H18m0 0h3.64m-1.39 0V9.349m-16.5 11.65V9.35m0 0a3.001 3.001 0 003.75-.615A2.993 2.993 0 009.75 9.75c.896 0 1.7-.393 2.25-1.016a2.993 2.993 0 002.25 1.016c.896 0 1.7-.393 2.25-1.016a3.001 3.001 0 003.75.614m-16.5 0a3.004 3.004 0 01-.621-4.72L4.318 3.44A1.5 1.5 0 015.378 3h13.243a1.5 1.5 0 011.06.44l1.19 1.189a3 3 0 01-.621 4.72m-13.5 8.65h3.75a.75.75 0 00.75-.75V13.5a.75.75 0 00-.75-.75H6.75a.75.75 0 00-.75.75v3.75c0 .415.336.75.75.75z" />
@@ -345,8 +339,7 @@ function UpgradeToPost({ onClose }: { onClose: () => void }) {
           </a>
         </div>
         <p className="text-xs text-[var(--text-muted)] mt-3">Pro is KSh {getPlanPrice('pro', 'KES').toLocaleString('en-KE')}/month in Kenya. Check the available method and final amount before payment.</p>
-      </div>
-    </div>
+    </MarketplaceDialog>
   )
 }
 
@@ -406,13 +399,12 @@ function PostModal({ onSave, onClose }: { onSave: (l: InstrumentListing) => void
 
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4">
-      <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl w-full max-w-xl max-h-[92vh] flex flex-col">
+    <MarketplaceDialog title={'Post a listing'} onClose={onClose}>
 
         {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
           <h2 className="font-semibold text-[var(--text-primary)]">Post a listing</h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xl p-1">×</button>
+          <button aria-label="Close" onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] text-xl min-h-11 min-w-11">×</button>
         </div>
 
         <div className="overflow-y-auto p-6 space-y-5">
@@ -433,7 +425,7 @@ function PostModal({ onSave, onClose }: { onSave: (l: InstrumentListing) => void
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4">
             <div>
               <label htmlFor="listing-category" className="block text-xs text-[var(--text-muted)] mb-1">Category *</label>
               <select id="listing-category" value={form.category} onChange={e => f('category', e.target.value as InstrumentCategory)} className="input w-full">
@@ -509,7 +501,7 @@ function PostModal({ onSave, onClose }: { onSave: (l: InstrumentListing) => void
             onChange={imgs => f('images', imgs)}
           />
 
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-4">
             <div>
               <label htmlFor="listing-location" className="block text-xs text-[var(--text-muted)] mb-1">Location (town) *</label>
               <input id="listing-location" value={form.location} onChange={e => f('location', e.target.value)}
@@ -540,8 +532,7 @@ function PostModal({ onSave, onClose }: { onSave: (l: InstrumentListing) => void
             {createMutation.isPending ? 'Saving…' : form.type === 'wanted' ? 'Post wanted ad' : 'Post listing'}
           </button>
         </div>
-      </div>
-    </div>
+    </MarketplaceDialog>
   )
 }
 
@@ -573,13 +564,6 @@ function ListingDetail({ listing, onClose }: {
     onError: (e: Error) => setIqErr(e.message)
   })
 
-  // Close the detail drawer on Escape (document-level, works regardless of focus)
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    document.addEventListener('keydown', onKey)
-    return () => document.removeEventListener('keydown', onKey)
-  }, [onClose])
-
   const catLabel  = CATEGORIES.find((c) => c.id === listing.category)?.label  ?? listing.category
   const condLabel = CONDITIONS.find((c) => c.id === listing.condition)?.label ?? listing.condition
 
@@ -597,21 +581,15 @@ function ListingDetail({ listing, onClose }: {
   }
 
   return (
-    <div className="fixed inset-0 z-40 flex">
-      <button type="button" aria-label="Close dialog" tabIndex={-1} className="flex-1 cursor-pointer border-0 p-0" onClick={onClose} />
-      <div
-        className="w-full max-w-md bg-[var(--bg-card)] border-l border-[var(--border-color)] h-full overflow-y-auto shadow-2xl"
-        role="dialog"
-        aria-modal="true"
-        aria-label={listing.title}
-      >
+    <MarketplaceDialog title={listing.title} onClose={onClose} drawer>
+
         {/* Sticky header */}
         <div className="flex items-center justify-between px-5 py-4 border-b border-[var(--border-color)] sticky top-0 bg-[var(--bg-card)] z-10">
           <div className="min-w-0">
-            <h2 className="font-semibold text-[var(--text-primary)] leading-snug text-sm truncate">{listing.title}</h2>
+            <h2 className="font-semibold text-[var(--text-primary)] leading-snug text-sm break-words">{listing.title}</h2>
             <p className="text-xs text-[var(--text-muted)] mt-0.5">{catLabel} · {listing.location}, {listing.country}</p>
           </div>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 ml-3 flex-shrink-0">×</button>
+          <button aria-label="Close" onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] min-h-11 min-w-11 ml-3 flex-shrink-0">×</button>
         </div>
 
         <div className="p-5 space-y-5">
@@ -735,8 +713,7 @@ function ListingDetail({ listing, onClose }: {
             </div>
           )}
         </div>
-      </div>
-    </div>
+    </MarketplaceDialog>
   )
 }
 
@@ -748,68 +725,23 @@ function ListingCard({ listing, onClick }: { listing: InstrumentListing; onClick
   const cover     = listing.images[0]
 
   return (
-    <div role="button" tabIndex={0} onClick={onClick}
-      onKeyDown={(e) => { if (e.key === 'Enter') onClick() }}
-      className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-xl overflow-hidden hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-colors cursor-pointer group">
-
-      {/* Cover photo or placeholder */}
-      <div className="h-44 bg-[var(--bg-secondary)] overflow-hidden relative flex-shrink-0">
+    <button type="button" onClick={onClick} className={styles.card} aria-label={'View ' + listing.title}>
+      <div className={styles.cover}>
         {cover ? (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={cover} alt={listing.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" loading="lazy" decoding="async" />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <svg className="w-10 h-10 text-[var(--border-color)]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-            </svg>
-          </div>
-        )}
-        {/* Photo count badge */}
-        {listing.images.length > 1 && (
-          <div className="absolute bottom-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded-full flex items-center gap-1">
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909M3.75 21h16.5M16.5 3.75h.008v.008h-.008V3.75z" /></svg>
-            {listing.images.length}
-          </div>
-        )}
-        {/* Type badge overlay */}
-        <div className={`absolute top-2 left-2 text-[10px] px-2 py-0.5 rounded-full border font-medium ${typeBadge(listing.type)}`}>
-          {typeLabel(listing.type)}
-        </div>
+          <img src={cover} alt={listing.title} loading="lazy" decoding="async" />
+        ) : <div className={styles.noPhoto}><ScanLine size={42} strokeWidth={1.2} aria-hidden="true" /><span>{catLabel}</span><small>Photo not supplied</small></div>}
+        <span className={styles.typeBadge}>{typeLabel(listing.type)}</span>
+        {listing.images.length > 1 && <span className={styles.photoCount}>{listing.images.length} photos</span>}
       </div>
-
-      <div className="p-4">
-        <div className="flex items-start gap-2 mb-2">
-          <h3 className="font-semibold text-[var(--text-primary)] leading-snug group-hover:text-[var(--accent)] transition-colors text-sm flex-1">
-            {listing.title}
-          </h3>
-          <span className={`text-[10px] px-1.5 py-0.5 rounded border flex-shrink-0 ${condBadge(listing.condition)}`}>
-            {condLabel}
-          </span>
-        </div>
-
-        <p className="text-xs text-[var(--text-muted)] mb-3">
-          {catLabel} · {listing.location}, {listing.country}
-        </p>
-
-        {listing.description && (
-          <p className="text-xs text-[var(--text-secondary)] line-clamp-2 mb-3 leading-relaxed">
-            {listing.description}
-          </p>
-        )}
-
-        <div className="flex items-center justify-between pt-3 border-t border-[var(--border-color)]">
-          <span className="text-base font-bold text-[var(--accent)]">
-            {fmtPrice(listing.price, listing.currency, listing.type === 'rent' ? listing.rentPeriod : undefined)}
-          </span>
-          <div className="text-right">
-            <div className="flex items-center gap-1 justify-end">
-              <p className="text-xs text-[var(--text-muted)]">{listing.sellerName}</p>
-            </div>
-            <p className="text-[10px] text-[var(--text-muted)]">{relTime(listing.postedAt)}</p>
-          </div>
-        </div>
+      <div className={styles.cardBody}>
+        <div className={styles.cardCategory}><span>{catLabel}</span><span className={condBadge(listing.condition)}>{condLabel}</span></div>
+        <h2>{listing.title}</h2>
+        <p className={styles.location}><MapPin size={14} aria-hidden="true" />{listing.location}, {listing.country}</p>
+        <p className={styles.price}>{fmtPrice(listing.price, listing.currency, listing.type === 'rent' ? listing.rentPeriod : undefined)}</p>
+        <div className={styles.cardFoot}><span>{listing.sellerName}<small>{relTime(listing.postedAt)}</small></span><span className={styles.viewDetails}>View details<ArrowUpRight size={17} aria-hidden="true" /></span></div>
       </div>
-    </div>
+    </button>
   )
 }
 
@@ -859,22 +791,22 @@ export default function MarketplacePage() {
   const hasFilters = Boolean(filterType || filterCat || filterCountry || search.trim())
 
   return (
-    <div className="min-h-screen bg-[var(--bg-primary)]">
-      <div className="max-w-6xl mx-auto px-4 py-8">
+    <div className={styles.page}>
+      <div className={styles.container}>
 
         {/* Header */}
-        <div className="mb-8 border-b border-[var(--border-color)] pb-7">
-          <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">Survey equipment / peer listings</p>
+        <div className={styles.header}>
+          <p className="mb-3 font-mono text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--accent)]">The equipment exchange</p>
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
             <div>
-              <h1 className="text-3xl font-semibold tracking-tight text-[var(--text-primary)] sm:text-4xl">Equipment marketplace</h1>
+              <h1 className={styles.heading}>The right tools.<br />For your next site.</h1>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--text-secondary)]">
-                Find instruments for sale or rent, or post what your crew needs. Listings come from their posters; confirm identity, ownership, condition, and calibration before arranging a transaction.
+                Buy, rent or find survey equipment. Compare instruments, see the details and talk directly with the poster.
               </p>
             </div>
             <button
               onClick={() => isPro ? setShowPost(true) : setShowUpgrade(true)}
-              className="btn btn-primary flex-shrink-0 flex items-center justify-center gap-2 self-start"
+              className="btn btn-primary min-h-12 w-full sm:w-auto flex-shrink-0 flex items-center justify-center gap-2 self-start"
             >
               {!isPro && !subLoading && (
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -887,7 +819,7 @@ export default function MarketplacePage() {
         </div>
 
         {/* Type tabs */}
-        <div className="flex gap-2 mb-5 flex-wrap">
+        <div className={styles.types}>
           {([
             { key: '',       label: 'All',        count: allListings.length },
             { key: 'sale',   label: 'For sale',   count: counts.sale },
@@ -897,7 +829,7 @@ export default function MarketplacePage() {
           ] as const).map(({ key, label, count }) => (
             <button key={key} onClick={() => setFilterType(key)}
               aria-pressed={filterType === key}
-              className={`px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+              className={`min-h-11 px-4 py-2 rounded-lg text-sm font-medium transition-colors border ${
                 filterType === key
                   ? 'bg-[var(--accent)] text-black border-[var(--accent)]'
                   : 'bg-[var(--bg-secondary)] text-[var(--text-muted)] border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_40%,transparent)]'
@@ -907,26 +839,14 @@ export default function MarketplacePage() {
           ))}
         </div>
 
-        {/* Filters */}
-        <div className="flex flex-wrap gap-2 mb-6">
-          <input value={search} onChange={e => setSearch(e.target.value)}
-            aria-label="Search by brand, model, location…"
-            placeholder="Search instruments, brands, models, or towns"
-            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg px-3 py-2 text-sm flex-1 min-w-48 focus:outline-none focus:border-[var(--accent)]" />
-          <select value={filterCat} onChange={e => setFilterCat(e.target.value as InstrumentCategory)}
-            aria-label="Filter by category"
-            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg px-3 py-2 text-sm">
-            <option value="">All categories</option>
-            {CATEGORIES.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-          <select value={filterCountry} onChange={e => setFilterCountry(e.target.value)}
-            aria-label="Filter by country"
-            className="bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-secondary)] rounded-lg px-3 py-2 text-sm">
-            <option value="">All countries</option>
-            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
-        </div>
-
+        <section aria-label="Find equipment" className={styles.filters}>
+          <label className={styles.search}><Search size={20} aria-hidden="true" /><input value={search} onChange={e=>setSearch(e.target.value)} aria-label="Search by brand, model, location…" placeholder="Search equipment, brand or town" /></label>
+          <div className={styles.filterFields}>
+            <label><span>Equipment</span><select value={filterCat} onChange={e=>setFilterCat(e.target.value as InstrumentCategory)} aria-label="Filter by category"><option value="">All categories</option>{CATEGORIES.map(c=><option key={c.id} value={c.id}>{c.label}</option>)}</select></label>
+            <label><span>Location</span><select value={filterCountry} onChange={e=>setFilterCountry(e.target.value)} aria-label="Filter by country"><option value="">All countries</option>{COUNTRIES.map(c=><option key={c} value={c}>{c}</option>)}</select></label>
+          </div>
+        </section>
+        <div className={styles.resultsBar}><p role="status">{listingsPending?'Finding equipment…':listingsError?'Equipment unavailable':listings.length+(listings.length===1?' listing':' listings')+(hasFilters?' found':' to explore')}</p>{hasFilters&&<button type="button" onClick={()=>{setFilterType('');setFilterCat('');setFilterCountry('');setSearch('')}}><SlidersHorizontal size={15} aria-hidden="true" />Clear filters</button>}</div>
         {/* Loading, error, and empty states describe different outcomes. */}
         {listingsPending && (
           <div aria-label="Loading listings" className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -974,7 +894,7 @@ export default function MarketplacePage() {
 
         {/* Grid */}
         {!listingsPending && !listingsError && listings.length > 0 && (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className={styles.grid}>
             {listings.map((l) => (
               <ListingCard key={l.id} listing={l} onClick={() => setActive(l)} />
             ))}

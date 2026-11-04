@@ -25,7 +25,7 @@ export const surfaceRequestSchema = z.object({
   interval: z.number().finite().min(0.001).max(1000000).refine(value => Math.abs(value * 1000 - Math.round(value * 1000)) < 1e-6, 'Contour interval must be a multiple of 0.001 m.').prefault(1),
   resolution: z.number().finite().positive().prefault(1),
 }).strict()
-export const surfaceExportRequestSchema = z.object({ projectId: requestUuid, surfaceRevisionId: requestUuid, requestId: requestUuid, expectedUserId: requestUuid }).strict()
+export const surfaceExportRequestSchema = z.object({ projectId: requestUuid, surfaceRevisionId: requestUuid, requestId: requestUuid, expectedUserId: requestUuid, format: z.literal('pdf').optional() }).strict()
 export const retainedRequestSchema = z.object({ id: requestUuid, userId: requestUuid, payloadHash: requestHash }).strict()
 export type SurfaceRequest = z.infer<typeof surfaceRequestSchema>
 export type SurfaceExportRequest = z.infer<typeof surfaceExportRequestSchema>
@@ -36,7 +36,7 @@ export function surfaceRequestPayload(body: SurfaceRequest) {
   return { ...value, pointIds: [...body.pointIds].sort() }
 }
 export function surfaceExportPayload(body: SurfaceExportRequest) {
-  return { projectId: body.projectId, surfaceRevisionId: body.surfaceRevisionId, expectedUserId: body.expectedUserId }
+  return { projectId: body.projectId, surfaceRevisionId: body.surfaceRevisionId, expectedUserId: body.expectedUserId, ...(body.format ? {format:body.format} : {}) }
 }
 export interface ReviewedSurfacePoint {
   id: string; pointName: string | null; x: number; y: number; z: number; code: string | null

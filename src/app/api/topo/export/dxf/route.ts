@@ -1,27 +1,10 @@
-import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { surfaceExportRequestSchema, type SurfaceExportRequest } from '@/lib/topo/surfaceRequest'
-import { executeSurfaceExport } from '@/lib/topo/surfaceExport'
-import { requireProjectOwnership } from '@/lib/auth/ownership'
+import {authorizedSurfaceExport} from '@/lib/topo/surfaceExportHttp'
 
 export const dynamic = 'force-dynamic'
-const response = (result: Awaited<ReturnType<typeof executeSurfaceExport>>, body: SurfaceExportRequest) => new NextResponse(new Uint8Array(result.bytes), { headers: {
-  'Content-Type': 'application/dxf', 'Content-Disposition': `attachment; filename="${result.filename}"`, 'Cache-Control': 'private, no-store',
-  'X-Metardu-Deliverable': result.deliverableId, 'X-Metardu-Deliverable-Revision': String(result.revision),
-  'X-Metardu-Surface-Revision': body.surfaceRevisionId, 'X-Metardu-Content-SHA256': result.contentHash,
-  'X-Metardu-Request': body.requestId, 'X-Metardu-Request-Hash': result.requestHash, 'X-Metardu-Replayed': String(result.replayed),
-  'X-Metardu-Download': `/api/storage?path=${encodeURIComponent(result.storagePath)}`,
-} })
-async function authorized(body: SurfaceExportRequest, userId: string, recoverOnly: boolean, authenticatedEmail?: string) {
-  const access = await requireProjectOwnership(body.projectId, userId)
-  if (!access.ok) {
-    if (!access.error) throw new Error('Project ownership check failed without a response.')
-    return access.error
-  }
-  return response(await executeSurfaceExport(body, userId, recoverOnly, authenticatedEmail), body)
-}
-export const POST = apiHandler({ auth: true, schema: surfaceExportRequestSchema, rateLimit: { max: 10, windowMs: 60000 } }, async (_req, ctx) => authorized(ctx.body as SurfaceExportRequest, ctx.userId, false, ctx.session?.user?.email ?? undefined))
+export const POST = apiHandler({ auth: true, schema: surfaceExportRequestSchema.refine(body=>!body.format,'Use the PDF export route for PDF requests.'), rateLimit: { max: 10, windowMs: 60000 } }, async (_req, ctx) => authorizedSurfaceExport(ctx.body as SurfaceExportRequest, ctx.userId, false, ctx.session?.user?.email ?? undefined))
 export const GET = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 60000 } }, async (req, ctx) => {
-  const body = surfaceExportRequestSchema.parse(Object.fromEntries(req.nextUrl.searchParams))
-  return authorized(body, ctx.userId, true, ctx.session?.user?.email ?? undefined)
+  const body = surfaceExportRequestSchema.refine(body=>!body.format).parse(Object.fromEntries(req.nextUrl.searchParams))
+  return authorizedSurfaceExport(body, ctx.userId, true, ctx.session?.user?.email ?? undefined)
 })

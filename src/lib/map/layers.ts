@@ -269,9 +269,9 @@ export async function createBeaconLayer(
     const f = new Feature({ geometry: new Point(coord3857), label });
     f.setStyle(new Style({
       image: new CircleStyle({
-        radius: 6,
-        stroke: new Stroke({ color: '#1B3A5C', width: 2 }),
-        fill: new Fill({ color: '#FFFFFF' }),
+        radius: 7,
+        stroke: new Stroke({ color: '#FFFFFF', width: 2.5 }),
+        fill: new Fill({ color: '#9A481F' }),
       }),
       text: new Text({
         text: label,
@@ -286,7 +286,7 @@ export async function createBeaconLayer(
   });
 
   const source = new VectorSource({ features });
-  return new VectorLayer({ source, zIndex: 3 });
+  return new VectorLayer({ source, zIndex: 20 });
 }
 
 // ─── Reviewed GNSS reference layer (compatibility export name) ────────────

@@ -170,7 +170,8 @@ export async function createProjectPointsLayer(
   // Style function: control points = sienna filled circle, topo = small dot
   const layer = new VectorLayer({
     source,
-    style: (feature: FeatureLike) => {
+    declutter: true,
+    style: (feature: FeatureLike, resolution: number) => {
       const isControl = feature.get('isControl') === true
       const code = feature.get('code') as string | null
       const name = feature.get('pointName') as string | null
@@ -180,6 +181,7 @@ export async function createProjectPointsLayer(
         return new Style({
           image: new CircleStyle({
             radius: Math.min(18, 8 + Math.log2(clusterCount) * 1.6),
+            declutterMode: 'none',
             fill: new Fill({ color: '#6F8D7A' }),
             stroke: new Stroke({ color: '#E8E4DE', width: 2 }),
           }),
@@ -197,6 +199,7 @@ export async function createProjectPointsLayer(
         return new Style({
           image: new CircleStyle({
             radius: 7,
+            declutterMode: 'none',
             fill: new Fill({ color: '#D17B47' }),
             stroke: new Stroke({ color: '#E8E4DE', width: 2.5 }),
           }),
@@ -210,8 +213,8 @@ export async function createProjectPointsLayer(
         })
       }
 
-      // Topo point: small dot, color by code
-      let dotColor = '#A89E92' // default muted
+      // Topo point: visible observation marker; labels appear at site scale.
+      let dotColor = '#9A481F' // contrast on light and dark basemaps
       if (code) {
         const uc = code.toUpperCase()
         if (uc.includes('BLD') || uc.includes('BUILD')) dotColor = '#8FA67E' // sage = buildings
@@ -223,10 +226,18 @@ export async function createProjectPointsLayer(
 
       return new Style({
         image: new CircleStyle({
-          radius: 4,
+          radius: 5.5,
+          declutterMode: 'none',
           fill: new Fill({ color: dotColor }),
-          stroke: new Stroke({ color: '#1A1816', width: 1 }),
+          stroke: new Stroke({ color: '#FFFFFF', width: 2 }),
         }),
+        text: name && resolution <= 1 ? new Text({
+          text: name,
+          font: '11px "JetBrains Mono", monospace',
+          fill: new Fill({ color: '#1A1816' }),
+          stroke: new Stroke({ color: '#FFFFFF', width: 3 }),
+          offsetY: -13,
+        }) : undefined,
       })
     },
     zIndex: 25, // above basemap (0), below draw (50) and measure (45)
@@ -422,7 +433,7 @@ export async function createProjectPointsLayer(
       8,
     )
     if (fitExtent.every(Number.isFinite)) {
-      map.getView().fit(fitExtent, { padding: [72, 72, 72, 72], maxZoom: 18, duration: 0 })
+      map.getView().fit(fitExtent, { padding: [72, 72, 72, 72], maxZoom: 22, duration: 0 })
     }
   }
 

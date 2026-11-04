@@ -47,6 +47,15 @@ export function generateTINContours(tin: TIN, options: TINContourOptions): Conto
   if (!Number.isInteger(indexInterval) || indexInterval < 1) throw new RangeError('Index contour interval must be a positive integer.')
   if (maxVertexSpacing !== undefined && (!Number.isFinite(maxVertexSpacing) || maxVertexSpacing <= 0)) throw new RangeError('Contour vertex spacing must be finite and positive.')
   if (!tin.points.length || tin.points.length > 10000 || !tin.triangles.length || tin.triangles.length > 20000 || tin.points.some(p => ![p.x, p.y, p.z].every(Number.isFinite))) throw new RangeError('Contours require a finite non-collinear TIN within the vertex/triangle limit.')
+  // Validate the mesh before early exits for flat or contour-free surfaces.
+  // Otherwise malformed connectivity could be reported as a valid empty result.
+  for (const triangle of tin.triangles) {
+    const ids = [triangle.a, triangle.b, triangle.c]
+    if (ids.some(id => !Number.isInteger(id) || !tin.points[id]) || new Set(ids).size !== 3) throw new RangeError('TIN contains an invalid triangle index.')
+    const [a, b, c] = ids.map(id => tin.points[id])
+    const twiceArea = (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x)
+    if (!Number.isFinite(twiceArea) || twiceArea === 0) throw new RangeError('TIN contains a degenerate or invalid triangle.')
+  }
   const elevations = tin.points.map(p => p.z)
   const minZ = Math.min(...elevations), maxZ = Math.max(...elevations)
   if (minZ === maxZ) return []
@@ -83,7 +92,6 @@ export function generateTINContours(tin: TIN, options: TINContourOptions): Conto
     }
     for (const triangle of tin.triangles) {
       const ids = [triangle.a, triangle.b, triangle.c]
-      if (ids.some(id => !Number.isInteger(id) || !tin.points[id])) throw new RangeError('TIN contains an invalid triangle index.')
       if (ids.every(id => side(tin.points[id].z, elevation) === 0)) continue
       const hits = new Set<string>()
       for (let i = 0; i < 3; i++) {
