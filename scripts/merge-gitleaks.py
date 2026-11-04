@@ -69,10 +69,13 @@ regexes = [
   '\\$\\{[A-Z][A-Z_0-9]+:\\?[^}]*\\}',
   '\\bDUMMY[A-Z0-9_]*\\b',
   '\\b(sk|pk|rk)_(test|dummy|example)_[A-Za-z0-9]{4,}\\b',
+  'abc123def456',
+  'clarke1880_modified',
 ]
 '''
 
 merged = default.rstrip() + "\n" + our_allowlist
+OUT = ".gitleaks.toml"
 with open(OUT, "w") as f:
     f.write(merged)
 
