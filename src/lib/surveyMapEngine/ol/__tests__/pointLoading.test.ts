@@ -116,7 +116,7 @@ test('loads the declared extent, then fetches only points in the current viewpor
   )
   expect(fetchMock.mock.calls[1]?.[1]?.signal).toBeInstanceOf(AbortSignal)
   expect(fetchMock.mock.calls.map(([url]) => url)).not.toContain('/api/project/project-1/points')
-  expect(view.fit).toHaveBeenCalledWith([90, 190, 310, 410], expect.objectContaining({ maxZoom: 18 }))
+  expect(view.fit).toHaveBeenCalledWith([90, 190, 310, 410], expect.objectContaining({ maxZoom: 22 }))
   expect(result.pointCount).toBe(4)
   expect(result.controlPointCount).toBe(1)
   expect(result.projectCrs).toBe('EPSG:3857')
@@ -127,6 +127,24 @@ test('loads the declared extent, then fetches only points in the current viewpor
   expect(cluster.properties).not.toHaveProperty('easting')
   expect(cluster.properties).not.toHaveProperty('northing')
   expect(cluster.properties).not.toHaveProperty('pointId')
+
+  const styledLayer = result.pointsLayer as unknown as { options: {
+    declutter: boolean
+    style: (feature: { get(key: string): unknown }, resolution: number) => {
+      options: { image: { options: { declutterMode: string } }; text?: { options: { text: string } } }
+    }
+  } }
+  expect(styledLayer.options.declutter).toBe(true)
+  for (const properties of [
+    { isControl: true, pointName: 'BM01', clusterCount: 1 },
+    { isControl: false, pointName: '3 topo points', clusterCount: 3 },
+    { isControl: false, pointName: 'P1', clusterCount: 1 },
+  ]) {
+    const values: Record<string, unknown> = properties
+    const style = styledLayer.options.style({ get: key => values[key] }, 0.2)
+    // Labels may declutter, but every observation/aggregate symbol stays visible.
+    expect(style.options.image.options.declutterMode).toBe('none')
+  }
 
   result.cleanup()
   expect(map.un).toHaveBeenCalledWith('moveend', expect.any(Function))
