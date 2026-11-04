@@ -93,3 +93,14 @@ The actual retained synthetic PDF c5181a6c559ccf244c1e12ba1eecfcda1ad653aa279a92
 Final complete source scan: `npm run lint` finished with exit 0 after all source changes above: 3,415 files, zero ESLint errors, zero warnings and zero accessibility findings. All 71 release-contract tests and the security invariant gate passed. Final source admission and exact-SHA CI remain required before promotion; no production image was built or replaced for this checkpoint.
 
 The ordinary pre-push gate for 81a1447506cf7f2033205469d4b62908f2c8f39c correctly blocked publication: one existing loader test still required the superseded zoom-18 cap (315 related tests passed). The test was updated to the intentional zoom-22 site fit and strengthened to require visible control, cluster and singleton symbols under label decluttering. All four loader tests, focused lint and the test TypeScript project passed afterward. This is a test correction, not a deployed failure; the first blocked push was not bypassed.
+
+
+## Exact CI contract correction
+
+The pushed f06837787e0da56469b558fe115af335bb68aea3 workflow CI 41751303554 completed with 16 successful jobs and one failed Jest job (126316762309). Its sole failure was the retained-export source contract expecting executeSurfaceExport directly in the DXF route after both retained formats moved behind authorizedSurfaceExport. The failure was reproduced locally: 11 tests passed and that assertion failed. The original failed receipt remains historical; it is not a deployed application defect.
+
+The contract now traces both authenticated DXF/PDF creation and recovery routes through the shared ownership handler to the awaited exporter, while retaining transaction, register, source-revision and no-warning assertions. No production implementation, registration rule or coverage threshold was changed. The corrected contract plus authenticated export-context and PDF recovery suites passed all 22 tests. The read-only production verifier also passed, with one healthy application container, required supports and the scheduled 2026-11-04 02:00:02Z backup observation. Scheduled archive evidence does not establish offsite or restore acceptance.
+
+Fresh exact-source admission and all CI jobs are still required before a candidate build or promotion. Production remains b172cbc7595670e0057a4c9eb7ff4374945871d9; the PDF/mobile increment has not been promoted. The 09:31Z public/origin sample passed the exact deployed revision, but one passing sample after the 08:31Z public failures does not establish sustained or independent external recovery.
+
+Before the correction commit, all three TypeScript projects and focused ESLint passed with exit 0. The tracked allowlist is the contract test and this evidence record only.

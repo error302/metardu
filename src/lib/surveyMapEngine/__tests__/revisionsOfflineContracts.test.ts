@@ -69,6 +69,8 @@ describe('every export path registers its deliverable (blueprint §15)', () => {
   const schemeRoute = read('src/lib/scheme/exportRoute.ts')
   const surfaceExport = read('src/lib/topo/surfaceExport.ts')
   const topoDxf = read('src/app/api/topo/export/dxf/route.ts')
+  const topoPdf = read('src/app/api/topo/export/pdf/route.ts')
+  const surfaceHttp = read('src/lib/topo/surfaceExportHttp.ts')
   const topoShp = read('src/app/api/topo/export/shapefile/route.ts')
 
   test('the deed plan is registered instead of being an orphan PDF', () => {
@@ -86,7 +88,21 @@ describe('every export path registers its deliverable (blueprint §15)', () => {
     expect(schemeExport).toMatch(/await appendSchemeExportJournal\(/)
     expect(schemeExport).toMatch(/db\.transaction/)
     expect(schemeRoute).not.toMatch(/X-Metardu-Register-Warning/)
-    expect(topoDxf).toMatch(/executeSurfaceExport/)
+    // Both retained formats share the ownership gate and registered exporter.
+    for (const route of [topoDxf, topoPdf]) {
+      expect(route).toMatch(/import\s*\{\s*authorizedSurfaceExport\s*\}\s*from ['"]@\/lib\/topo\/surfaceExportHttp['"]/)
+      expect(route).toMatch(/export const POST\s*=\s*apiHandler\(\{\s*auth:\s*true/)
+      expect(route).toMatch(/export const GET\s*=\s*apiHandler\(\{\s*auth:\s*true/)
+      expect(route).toMatch(/authorizedSurfaceExport\(ctx\.body as SurfaceExportRequest,\s*ctx\.userId,\s*false/)
+      expect(route).toMatch(/authorizedSurfaceExport\((?:body|schema\.parse\(Object\.fromEntries\(req\.nextUrl\.searchParams\)\)),\s*ctx\.userId,\s*true/)
+      expect(route).not.toMatch(/X-Metardu-Register-Warning/)
+    }
+    expect(surfaceHttp).toMatch(/await requireProjectOwnership\(body\.projectId, userId\)/)
+    expect(surfaceHttp).toMatch(/if \(!access\.ok\)/)
+    expect(surfaceHttp).toMatch(/return access\.error/)
+    expect(surfaceHttp).toMatch(/response\(await executeSurfaceExport\(body, userId, recoverOnly, authenticatedEmail\), body\)/)
+    expect(surfaceHttp).not.toMatch(/X-Metardu-Register-Warning/)
+    expect(surfaceExport).toMatch(/db\.transaction/)
     expect(surfaceExport).toMatch(/registerDeliverable\(\{/)
     expect(surfaceExport).toMatch(/sourceRevision: body\.surfaceRevisionId/)
     expect(topoShp).toMatch(/registerDeliverable\(\{/)
