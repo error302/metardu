@@ -43,7 +43,7 @@ import type { PlanId } from '@/lib/subscription/catalog'
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 const mockGetClient = db.getClient as jest.MockedFunction<typeof db.getClient>
 
-const SECRET = 'test-webhook-secret-3f2a'
+const SECRET = 'dummy_test-webhook-secret-3f2a'
 const CLAIM_USER = '22222222-2222-2222-2222-222222222222'
 
 /** Canonical customer-confirmation SMS shape (from smsParser.test.ts). */

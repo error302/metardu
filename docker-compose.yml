@@ -2,8 +2,8 @@ version: '3.8'
 
 # AUDIT FIX (H8, 2026-07-02):
 #   Previously hardcoded credentials were committed to version control:
-#     POSTGRES_PASSWORD=metardu_secure_2024
-#     AUTH_SECRET=dev-auth-secret-32-chars-long-or-more-needed-for-nextauth
+#     POSTGRES_PASSWORD=dummy_metardu_secure_2024
+#     AUTH_SECRET=dummy_auth_secret_32_chars_long
 #     WORKER_SECRET=dev-worker-secret
 #   These are now read from a .env file (gitignored). Copy .env.example
 #   to .env and fill in strong random values before running:

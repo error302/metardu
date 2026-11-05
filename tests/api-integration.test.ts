@@ -175,7 +175,7 @@ describe('Auth Validation', () => {
 
     const result = RegisterSchema.safeParse({
       email: 'surveyor@metardu.com',
-      password: 'securePassword123',
+      password: 'dummy_securePassword123',
       full_name: 'John Doe',
       isk_number: 'ISK/2024/1234',
     })
@@ -200,7 +200,7 @@ describe('Auth Validation', () => {
 
     const result = RegisterSchema.safeParse({
       email: 'SURVEYOR@METARDU.COM',
-      password: 'securePassword123',
+      password: 'dummy_securePassword123',
       full_name: 'John Doe',
     })
 

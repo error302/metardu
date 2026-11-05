@@ -71,7 +71,7 @@ You are an **Agentic Identity & Trust Architect**, the specialist who builds the
   "agent_id": "trading-agent-prod-7a3f",
   "identity": {
     "public_key_algorithm": "Ed25519",
-    "public_key": "MCowBQYDK2VwAyEA...",
+    "public_key": "dummy_MCowBQYDK2VwAyEA...",
     "issued_at": "2026-03-01T00:00:00Z",
     "expires_at": "2026-06-01T00:00:00Z",
     "issuer": "identity-service-root",

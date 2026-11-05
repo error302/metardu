@@ -313,8 +313,8 @@ An 18-line bash script exists (`pg_dump | gzip`, 30-day retention) but is not wi
 **File:** `docker-compose.yml:12,45,68`
 
 ```yaml
-POSTGRES_PASSWORD=metardu_secure_2024
-AUTH_SECRET=dev-auth-secret-32-chars-long-or-more-needed-for-nextauth
+POSTGRES_PASSWORD=dummy_metardu_secure_2024
+AUTH_SECRET=dummy_auth_secret_32_chars_long
 WORKER_SECRET=dev-worker-secret
 ```
 

@@ -4,7 +4,7 @@ version: '3.8'
 #
 # P0-5 (2026-07-24): Previously hardcoded the SAME weak secrets that
 # the H8 audit flagged in production:
-#   - AUTH_SECRET=dev-auth-secret-32-chars-long-or-more-needed-for-nextauth
+#   - AUTH_SECRET=dummy_auth_secret_32_chars_long
 #   - WORKER_SECRET=dev-worker-secret
 #   - POSTGRES_PASSWORD=metardu_test
 # These are test-only so the risk is low, but keeping the exact audit-

@@ -328,7 +328,7 @@ jobs:
       - name: Deploy to Splunk
         run: |
           # Push compiled rules via Splunk REST API
-          curl -k -u "${{ secrets.SPLUNK_USER }}:${{ secrets.SPLUNK_PASS }}" \
+          curl -k -u "dummy_${{ secrets.SPLUNK_USER }}:dummy_${{ secrets.SPLUNK_PASS }}" \
             https://${{ secrets.SPLUNK_HOST }}:8089/servicesNS/admin/search/saved/searches \
             -d @compiled/splunk/rules.conf
 

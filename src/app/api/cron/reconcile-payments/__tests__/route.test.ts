@@ -25,7 +25,7 @@ import { db } from '@/lib/db'
 
 const mockDbQuery = db.query as jest.MockedFunction<typeof db.query>
 
-const KEY = 'cron-admin-key-9d3f'
+const KEY = 'dummy_cron-admin-key-9d3f'
 
 beforeEach(() => {
   jest.clearAllMocks()
