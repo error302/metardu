@@ -40,6 +40,7 @@
  *   }
  */
 
+import { readMonitoringEpoch } from './deformationInput'
 import { type ReferenceFrame } from '@/lib/geo/epochManager'
 import { propagateToEpochRigorous } from '@/lib/geo/epochManagerRigorous'
 
@@ -99,6 +100,7 @@ export interface DeformationVector {
     criticalValue: number
     passed: boolean
     interpretation: string
+    assessedDimensions?: Array<'horizontal' | 'vertical'>
   }
 }
 
@@ -201,6 +203,20 @@ export interface TimeSeriesAnalysis {
   interpretation: string
 }
 
+function validateMonitoringUncertainty(observation: MonumentObservation): void {
+  for (const field of ['sigmaE', 'sigmaN', 'sigmaH'] as const) {
+    const sigma = observation[field]
+    if (sigma !== undefined && (!Number.isFinite(sigma) || sigma <= 0 || !Number.isFinite(sigma ** 2) || sigma ** 2 === 0)) {
+      throw new Error('Monitoring standard deviation must be finite and positive for ' + observation.monumentId + '.')
+    }
+  }
+  if (observation.sigmaEN !== undefined && (!Number.isFinite(observation.sigmaEN)
+    || observation.sigmaE === undefined || observation.sigmaN === undefined
+    || Math.abs(observation.sigmaEN) >= observation.sigmaE * observation.sigmaN)) {
+    throw new Error('Monitoring horizontal covariance must define a positive-definite uncertainty matrix for ' + observation.monumentId + '.')
+  }
+}
+
 // ─── Main: Compare Two Epochs ───────────────────────────────────────────────
 
 /**
@@ -226,9 +242,9 @@ export function compareEpochs(
   toleranceArg: DeformationTolerance = {},
   confidenceLevelArg: number = 0.95,
 ): DeformationReport {
-  const isOptionsObject = typeof baselineOrOptions === 'object' && 'baseline' in baselineOrOptions && 'current' in baselineOrOptions
-  const baseline = isOptionsObject ? (baselineOrOptions as { baseline: EpochSet }).baseline : (baselineOrOptions as EpochSet)
-  const current = isOptionsObject ? (baselineOrOptions as { current: EpochSet }).current : (currentArg as EpochSet)
+  const isOptionsObject = typeof baselineOrOptions === 'object' && baselineOrOptions !== null && 'baseline' in baselineOrOptions && 'current' in baselineOrOptions
+  const baseline = readMonitoringEpoch(isOptionsObject ? (baselineOrOptions as { baseline: EpochSet }).baseline : baselineOrOptions)
+  const current = readMonitoringEpoch(isOptionsObject ? (baselineOrOptions as { current: EpochSet }).current : currentArg)
   const tolerance = isOptionsObject ? (baselineOrOptions as { tolerance?: DeformationTolerance }).tolerance ?? {} : toleranceArg
   const confidenceLevel = isOptionsObject ? (baselineOrOptions as { confidenceLevel?: number }).confidenceLevel ?? 0.95 : confidenceLevelArg
 
@@ -243,6 +259,9 @@ export function compareEpochs(
   if (!Number.isFinite(confidenceLevel) || confidenceLevel <= 0 || confidenceLevel >= 1) {
     throw new Error('Confidence level must be between 0 and 1.')
   }
+  if (confidenceLevel !== 0.95 && confidenceLevel !== 0.99) {
+    throw new Error('This comparison supports 95% or 99% component-test confidence only.')
+  }
   const commonEpoch = Math.max(baseline.epoch, current.epoch)
 
   // Build lookup maps
@@ -252,6 +271,7 @@ export function compareEpochs(
     if (!id || ![m.latitude, m.longitude, m.height, m.epoch].every(Number.isFinite)) {
       throw new Error(`Invalid baseline observation for monument ${m?.monumentId || '(unnamed)'}`)
     }
+    validateMonitoringUncertainty(m)
     if (baselineMap.has(id)) throw new Error(`Duplicate baseline monument ${id}`)
     baselineMap.set(id, { ...m, monumentId: id })
   }
@@ -262,6 +282,7 @@ export function compareEpochs(
     if (!id || ![m.latitude, m.longitude, m.height, m.epoch].every(Number.isFinite)) {
       throw new Error(`Invalid current observation for monument ${m?.monumentId || '(unnamed)'}`)
     }
+    validateMonitoringUncertainty(m)
     if (currentMap.has(id)) throw new Error(`Duplicate current monument ${id}`)
     currentMap.set(id, { ...m, monumentId: id })
   }
@@ -274,6 +295,7 @@ export function compareEpochs(
   const vectors: DeformationVector[] = []
   const alerts: DeformationAlert[] = []
   const stable: string[] = []
+  const incompleteUncertainty: string[] = []
 
   for (const id of commonIds) {
     const baseMon = baselineMap.get(id)
@@ -282,7 +304,9 @@ export function compareEpochs(
       throw new Error(`Missing monitoring epoch for point ${id}`)
     }
 
-    // Propagate both to the common epoch (remove tectonic drift)
+    if (baseMon.frame !== currMon.frame) throw new Error('Monitoring epochs need the same verified reference frame; align the source coordinates before comparison.')
+
+    // Propagate both to the common epoch using the existing Somali plate model.
     // Use the RIGOROUS Rodrigues' rotation formula (no linearization error)
     // — critical for dam monitoring where sub-mm precision is needed.
     const baseProp = propagateToEpochRigorous(
@@ -330,6 +354,7 @@ export function compareEpochs(
       baseMon.sigmaE !== undefined && currMon.sigmaE !== undefined &&
       baseMon.sigmaN !== undefined && currMon.sigmaN !== undefined
     const hasVerticalSigmas = baseMon.sigmaH !== undefined && currMon.sigmaH !== undefined
+    if (!hasHorizontalSigmas || !hasVerticalSigmas) incompleteUncertainty.push(id)
 
     if (hasHorizontalSigmas || hasVerticalSigmas) {
       let isSigH = false
@@ -345,9 +370,15 @@ export function compareEpochs(
         const sigmaN_comb = Math.sqrt((baseMon.sigmaN as number) ** 2 + (currMon.sigmaN as number) ** 2)
 
         if (sigmaE_comb > 0 && sigmaN_comb > 0) {
-          // Mahalanobis distance T_H = sqrt((dE/sE)^2 + (dN/sN)^2)
-          testStatH = Math.sqrt((deltaE / sigmaE_comb) ** 2 + (deltaN / sigmaN_comb) ** 2)
-          critValH = confidenceLevel >= 0.99 ? 3.03 : 2.45
+          // Epoch errors are assumed independent; include the supplied within-epoch E-N covariances.
+          const varianceE = sigmaE_comb ** 2, varianceN = sigmaN_comb ** 2
+          const covariance = (baseMon.sigmaEN ?? 0) + (currMon.sigmaEN ?? 0)
+          const determinant = varianceE * varianceN - covariance ** 2
+          if (!Number.isFinite(determinant) || determinant <= 0) throw new Error('Combined monitoring covariance is singular.')
+          testStatH = Math.sqrt(Math.max(0, (varianceN * deltaE ** 2 - 2 * covariance * deltaE * deltaN + varianceE * deltaN ** 2) / determinant))
+          // Chi-square with two degrees of freedom: CDF inverse is -2 ln(1-p).
+          // NIST EDA 1.3.6.7.4, df=2: 95%=5.991, 99%=9.210 before square root.
+          critValH = Math.sqrt(-2 * Math.log(1 - confidenceLevel))
           isSigH = testStatH > critValH
         }
       }
@@ -355,25 +386,27 @@ export function compareEpochs(
       // 1D Vertical Significance Test (Standard Normal Z-score)
       if (hasVerticalSigmas) {
         const sigmaH_comb = Math.sqrt((baseMon.sigmaH as number) ** 2 + (currMon.sigmaH as number) ** 2)
+        if (!Number.isFinite(sigmaH_comb) || sigmaH_comb <= 0) throw new Error('Combined vertical uncertainty is not finite and positive.')
         if (sigmaH_comb > 0) {
           testStatV = Math.abs(deltaH) / sigmaH_comb
-          critValV = confidenceLevel >= 0.99 ? 2.576 : 1.96
+          critValV = confidenceLevel === 0.99 ? 2.5758293035489004 : 1.959963984540054
           isSigV = testStatV > critValV
         }
       }
 
       isSignificant = isSigH || isSigV
-      const primaryTestStat = Math.max(testStatH, testStatV)
-      const primaryCritVal = isSigV && !isSigH ? critValV : critValH
+      const primaryIsHorizontal = critValH > 0 && (critValV === 0 || testStatH / critValH >= testStatV / critValV)
+      const primaryTestStat = primaryIsHorizontal ? testStatH : testStatV
+      const primaryCritVal = primaryIsHorizontal ? critValH : critValV
 
       let interpretation = ''
       if (isSignificant) {
-        interpretation = `Movement is statistically significant at ${(confidenceLevel * 100).toFixed(0)}% confidence ` +
+        interpretation = `A tested component is statistically significant at ${(confidenceLevel * 100).toFixed(0)}% component-test confidence ` +
           `(${isSigH ? `horizontal test stat ${testStatH.toFixed(2)} > ${critValH.toFixed(2)}` : ''}` +
           `${isSigH && isSigV ? ', ' : ''}` +
-          `${isSigV ? `vertical test stat ${testStatV.toFixed(2)} > ${critValV.toFixed(2)}` : ''}). Real movement detected.`
+          `${isSigV ? `vertical test stat ${testStatV.toFixed(2)} > ${critValV.toFixed(2)}` : ''}). Review the observation and reference/control evidence.`
       } else {
-        interpretation = `Movement is NOT statistically significant at ${(confidenceLevel * 100).toFixed(0)}% confidence ` +
+        interpretation = `No tested component is statistically significant at ${(confidenceLevel * 100).toFixed(0)}% component-test confidence ` +
           `(test stat ${primaryTestStat.toFixed(2)} ≤ ${primaryCritVal.toFixed(2)}). Measurement noise cannot be ruled out.`
       }
 
@@ -382,6 +415,7 @@ export function compareEpochs(
         criticalValue: primaryCritVal,
         passed: !isSignificant,
         interpretation,
+        assessedDimensions: [...(hasHorizontalSigmas ? ['horizontal' as const] : []), ...(hasVerticalSigmas ? ['vertical' as const] : [])],
       }
     }
 
@@ -424,10 +458,15 @@ export function compareEpochs(
         magnitudeMm: magMm,
         direction: directionStr,
       })
-    } else {
+    } else if (hasHorizontalSigmas && hasVerticalSigmas) {
       stable.push(id)
     }
   }
+
+  const coverageNotes: string[] = []
+  if (missingIds.length) coverageNotes.push('Missing baseline monuments: ' + missingIds.join(', ') + '.')
+  if (newIds.length) coverageNotes.push('No baseline for new monuments: ' + newIds.join(', ') + '.')
+  if (incompleteUncertainty.length) coverageNotes.push('Incomplete horizontal/vertical uncertainty: ' + incompleteUncertainty.join(', ') + '.')
 
   // Overall verdict
   let verdict: 'STABLE' | 'DEFORMING' | 'INCONCLUSIVE'
@@ -436,9 +475,12 @@ export function compareEpochs(
   if (vectors.length === 0) {
     verdict = 'INCONCLUSIVE'
     summary = 'No common monuments between epochs. Cannot compare.'
+  } else if (alerts.length === 0 && coverageNotes.length) {
+    verdict = 'INCONCLUSIVE'
+    summary = 'The available readings do not establish a complete monitoring comparison.'
   } else if (alerts.length === 0) {
     verdict = 'STABLE'
-    summary = `All ${stable.length} monuments stable within tolerance (±${tolH * 1000}mm H / ±${tolV * 1000}mm V) between ${baseline.label} and ${current.label}.`
+    summary = `All ${stable.length} compared monuments have measured changes within the supplied tolerance (±${tolH * 1000}mm H / ±${tolV * 1000}mm V) between ${baseline.label} and ${current.label}.`
   } else {
     verdict = 'DEFORMING'
     const criticalCount = alerts.filter(a => a.severity === 'critical').length
@@ -446,6 +488,8 @@ export function compareEpochs(
       (criticalCount > 0 ? ` ${criticalCount} CRITICAL.` : '') +
       ` Affected: ${alerts.map(a => a.monumentId).join(', ')}.`
   }
+
+  summary += (coverageNotes.length ? ' ' + coverageNotes.join(' ') : '') + ' This is not a determination of structural safety.'
 
   return {
     vectors,
