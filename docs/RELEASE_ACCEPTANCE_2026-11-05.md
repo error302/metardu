@@ -1,3 +1,5 @@
+Current deployed application: 7290f5c4234b2cd94e3c5dfb399c34d074fdd444, image sha256:20a3f3c2df436a84a05da161618ee867bdf850238373cda2aa28e95f80824c55. The earlier bb27634c evidence below is retained history; the latest promotion addendum records its replacement.
+
 # Web release runtime acceptance - 5 November 2026
 
 Application bb27634c0adf6528c312d001fa45fcbf39a18245 was promoted once to the existing metardu-app stack at approximately 08:12 UTC (11:12 Nairobi). Exact OCI image: sha256:5033ff094b91dcb283efd98363f80118ff51017e7801447c60d550f08bc26798. The subsequent 9d2429a82980523b07bad307a2e98cceead7f3a3 commit changes release tooling/tests/evidence only and is not the deployed application identity.
@@ -35,3 +37,17 @@ Evidence: .cache/release-verify/unified-release/bb27634c0adf6528c312d001fa45fcbf
 Computer Use recovered. The deployed Enterprise synthetic 42-point R1 PDF was generated and downloaded once through the app; its 21,030 bytes match the registered hash. The observation timeout occurred after the download, so no duplicate was created. A2 whitespace failed presentation review. A source-only compact-footer/centred A3 preview at unchanged scale is documented in TOPOGRAPHIC_PLAN_LAYOUT_2026-11-05.md; it does not change this release identity or replace the registered PDF. Recovery replay and remaining authenticated mobile acceptance are still open.
 
 The 9d2429a8 CI run was cancelled by the documentation push, not a test failure. Exact documentation-only c1b18eebbf3ddb95c893aa8b60b0e5a3cc990619 passed CI41994350745 all 17 jobs, CodeQL41994350743 and gitleaks41994350718. Neither follow-up changes the deployed application SHA.
+
+## Latest promotion: retained plan layout 7290f5c4
+
+One planned candidate build and one promotion completed on 5 November 2026 (20:52 Nairobi). Exact application CI42021015485 passed all 17 jobs; CodeQL42021015429 and gitleaks42021015486 passed. Pinned source admission passed all three TypeScript projects, 76 release contracts, 40 related tests and 3,417-file whole lint with zero errors, warnings or a11y findings. The isolated rehearsal passed the 129-entry registry, runtime/RLS contracts and the actual prior-image rollback verifier; no pending SQL existed.
+
+Public and origin health identify exact 7290f5c4, required anonymous entry routes passed, and all five public PWA assets match deployed byte hashes. Worker parity and deployed native PDF constructors, pixels and PNG checks passed. Required supporting service identities/start times/mounts were preserved; the existing migration service was aligned to the exact application image and completed with exit zero. Only persisted METARDU_BUILD_SHA changed. Original-record fingerprints were independently checked again after migration-service alignment.
+
+All 106 immediately pre-promotion archive hashes and all 28 upload-file hashes are unchanged. The fresh checkpoint db_20261105_175234.sql.gz/uploads_20261105_175234.tar.gz passed complete gzip, SQL-header and tar reads; 108 archives are now retained. This is a manual promotion checkpoint, not scheduled-run, offsite-copy or restore proof. Existing missed-schedule and availability incident evidence remains retained.
+
+New exports now use the compact footer and centred recorded-scale layout. The source preview of the exact retained synthetic 42-point R1 fitted A3 at 1:500 with all labels; it remains source evidence. A newly registered deployed A3 export/browser acceptance is pending. The original registered A2 PDF and its hash-checked recovery bytes were not replaced or regenerated. Receiving-CAD, calibrated-print, independent-surveyor and field acceptance remain separate.
+
+The approved 25-second Desktop walkthrough and exact revised caption were subsequently uploaded and published once from @itsdosho at https://x.com/itsdosho/status/2118405747184648656. Native Chrome UI verified the published caption, account, permalink and embedded 25-second video playback. The prior URL-detection/upload blockers are resolved; no subscription was purchased and no older four-image draft was published by this action. Desktop source and pairing evidence remain separate from this Web release. Collaboration source audit identified disconnected client/server paths and missing inbound chat; two-user acceptance is not yet established.
+
+Consolidated runtime evidence: .cache/release-verify/unified-release/7290f5c4234b2cd94e3c5dfb399c34d074fdd444/release-verified.json. The broader production-readiness goal remains active.
