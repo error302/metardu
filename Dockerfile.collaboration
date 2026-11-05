@@ -1,18 +1,18 @@
 # Dockerfile.collaboration — WebSocket collaboration server
 #
 # Lightweight dedicated image for the realtime collaboration server.
-# Only needs `ws` at runtime — NOT the full app dependency tree (canvas,
-# postgres, etc.), so we install just ws and compile the one TypeScript
-# file. Keeps the image ~120MB vs ~1.5GB for the full app.
+# Only needs `ws` and the shared Zod protocol at runtime — NOT the full app dependency tree (canvas,
+# postgres, etc.), so we install only those dependencies and compile the entry
+# file without installing the full application dependency tree.
 
 # ── Builder: compile the TS module ─────────────────────────────────────────
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Install ONLY ws (the WebSocket library the server imports). Avoids pulling
+# Install the transport and pinned protocol validator. Avoid pulling
 # in canvas/better-sqlite3/puppeteer which would need native build toolchain.
-RUN npm init -y && npm install ws@^8.21.0 --no-audit --no-fund
+RUN npm init -y && npm install ws@^8.21.0 zod@4.6.7 --no-audit --no-fund
 
 # Pull the typescript compiler + node types from npm without installing full deps.
 # NOTE: @types/node is pinned to ~20.19.x to MATCH the workspace's own
@@ -35,12 +35,14 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# ws is the only runtime dep
-RUN npm init -y && npm install ws@^8.21.0 --no-audit --no-fund
+# Match the transport and shared protocol dependencies in the builder.
+RUN npm init -y && npm install ws@^8.21.0 zod@4.6.7 --no-audit --no-fund
 
 # Copy compiled JS (tsc flattens to outDir root since all inputs share src/lib/realtime)
 COPY --from=builder /app/dist/collabEntry.js ./collabEntry.js
 COPY --from=builder /app/dist/collaborationServer.js ./collaborationServer.js
+COPY --from=builder /app/dist/collaborationProtocol.js ./collaborationProtocol.js
+COPY --from=builder /app/dist/roomTicket.js ./roomTicket.js
 
 # Non-root user
 RUN addgroup --system --gid 1001 collab && \

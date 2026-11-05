@@ -32,7 +32,9 @@ interface CollaborationPanelProps {
   collaborators: Collaborator[]
   isConnected: boolean
   messages: ChatMessage[]
-  onSend: (message: string) => void
+  onSend: (message: string) => boolean
+  canChat?: boolean
+  connectionStatus?: string
   conflictWarnings?: string[]
 }
 
@@ -41,10 +43,13 @@ export function CollaborationPanel({
   isConnected,
   messages,
   onSend,
+  canChat = true,
+  connectionStatus,
   conflictWarnings = [],
 }: CollaborationPanelProps) {
   const [expanded, setExpanded] = useState(true)
   const [input, setInput] = useState('')
+  const [sendFailed, setSendFailed] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   // Auto-scroll to bottom on new message
@@ -53,10 +58,10 @@ export function CollaborationPanel({
   }, [messages])
 
   const handleSend = useCallback(() => {
-    if (!input.trim()) return
-    onSend(input.trim())
-    setInput('')
-  }, [input, onSend])
+    if (!input.trim() || !isConnected || !canChat) return
+    if (onSend(input.trim())) { setInput(''); setSendFailed(false) }
+    else setSendFailed(true)
+  }, [input, onSend, isConnected, canChat])
 
   const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === 'Enter' && !e.shiftKey) {
@@ -70,6 +75,7 @@ export function CollaborationPanel({
       {/* Header */}
       <button
         onClick={() => setExpanded(!expanded)}
+        aria-expanded={expanded}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] transition-colors"
       >
         <div className="flex items-center gap-2">
@@ -81,7 +87,7 @@ export function CollaborationPanel({
             <p className="text-[10px] text-gray-500">
               {isConnected
                 ? `${collaborators.length + 1} online`
-                : 'Disconnected'}
+                : (connectionStatus || 'Disconnected')}
             </p>
           </div>
         </div>
@@ -105,8 +111,11 @@ export function CollaborationPanel({
             </div>
           )}
 
+          <p className="px-3 pt-3 text-xs text-[var(--text-secondary)]">Room messages are transient. Record review decisions against the saved survey revision.</p>
+          {isConnected && !canChat && <p className="px-3 pt-2 text-xs">Read-only project access.</p>}
+          {sendFailed && <p role="alert" className="px-3 pt-2 text-xs">Message was not sent. Your text is retained; reconnect and try again.</p>}
           {/* Chat messages */}
-          <div className="max-h-[200px] overflow-y-auto p-3 space-y-2">
+          <div role="log" aria-label="Project room messages" className="max-h-[240px] overflow-y-auto p-3 space-y-2">
             {messages.length === 0 ? (
               <div className="text-center py-4">
                 <MessageSquare className="w-6 h-6 text-gray-600 mx-auto mb-1" />
@@ -141,15 +150,16 @@ export function CollaborationPanel({
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={handleKeyPress}
-              placeholder={isConnected ? 'Type a message...' : 'Disconnected'}
-              disabled={!isConnected}
-              className="flex-1 h-8 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none disabled:opacity-50"
+              placeholder={!isConnected ? 'Disconnected' : !canChat ? 'Read-only project access' : 'Type a message...'}
+              maxLength={2000}
+              disabled={!isConnected || !canChat}
+              className="flex-1 min-w-0 min-h-11 px-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-xs text-[var(--text-primary)] placeholder-gray-600 focus:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] focus:outline-none disabled:opacity-50"
             />
             <button
               onClick={handleSend}
-              disabled={!isConnected || !input.trim()}
+              disabled={!isConnected || !canChat || !input.trim()}
               aria-label="Send message"
-              className="w-8 h-8 flex items-center justify-center rounded-lg bg-[var(--accent)] text-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-dim)]"
+              className="w-11 h-11 shrink-0 flex items-center justify-center rounded-lg bg-[var(--accent)] text-black disabled:opacity-40 disabled:cursor-not-allowed hover:bg-[var(--accent-dim)]"
             >
               <Send className="w-3.5 h-3.5" />
             </button>

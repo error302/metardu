@@ -104,41 +104,26 @@ export default function ProjectWorkspaceClient({ project, workflow, boundaryData
   const [overviewOpen, setOverviewOpen] = useState(false);
 
   // Collaboration state
-  const [chatMessages, setChatMessages] = useState<Array<{
-    id: string; userId: string; userName: string; message: string; timestamp: number;
-  }>>([]);
 
   const userId = (session?.user as { id?: string })?.id || '';
-  const userName = (session?.user as { name?: string })?.name || 'Surveyor';
+  const [remoteRevision, setRemoteRevision] = useState(0);
+  const handleRecordsChanged = useCallback(() => { setRemoteRevision(value => value + 1); router.refresh(); }, [router]);
 
   const {
     collaborators,
     isConnected,
     sendChat,
     conflictWarnings,
+    chatMessages,
+    status: collaborationStatus,
+    canChat,
   } = useCollaboration({
     projectId: project.id,
     userId,
-    userName,
+    onRecordsChanged: handleRecordsChanged,
   });
 
-  // Handle incoming chat messages
-  useEffect(() => {
-    // The hook calls onChat callback — we set it via a ref pattern
-    // For simplicity, we handle chat through the messages state
-  }, []);
-
-  const handleSendChat = useCallback((message: string) => {
-    const newMsg = {
-      id: crypto.randomUUID(),
-      userId,
-      userName,
-      message,
-      timestamp: Date.now(),
-    };
-    setChatMessages(prev => [...prev, newMsg]);
-    sendChat(message);
-  }, [userId, userName, sendChat]);
+  // Only server-acknowledged room messages enter the visible chat history.
 
   // Fetch workflow status from API on mount
   useEffect(() => {
@@ -179,7 +164,7 @@ export default function ProjectWorkspaceClient({ project, workflow, boundaryData
     }
     fetchStatus();
     return () => { cancelled = true; };
-  }, [project.id, project.name, project.surveyType, currentStep, maxUnlocked, boundaryData]);
+  }, [project.id, project.name, project.surveyType, currentStep, maxUnlocked, boundaryData, remoteRevision]);
 
   const workflowStatus = useMemo(() => {
     if (!workflowData) return null;
@@ -450,7 +435,9 @@ export default function ProjectWorkspaceClient({ project, workflow, boundaryData
           collaborators={collaborators}
           isConnected={isConnected}
           messages={chatMessages}
-          onSend={handleSendChat}
+          onSend={sendChat}
+          canChat={canChat}
+          connectionStatus={collaborationStatus}
           conflictWarnings={conflictWarnings}
         />
       </div>
