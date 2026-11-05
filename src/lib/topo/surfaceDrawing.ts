@@ -99,7 +99,8 @@ export function buildSurfaceRevisionDrawing(source:SurfaceDrawingSource) {
   const h=nominalScale*0.0025,panelWidth=34*h,gap=2*h
   const width=mapFrame.maxX-mapFrame.minX+gap+panelWidth
   const columns=Math.max(8,Math.floor((width-4*h)/h))
-  const footerLines=metadata.flatMap(value=>wrap(value,columns)),footerHeight=(footerLines.length*1.6+6)*h
+  // Last baseline needs its bottom margin, not another full line advance.
+  const footerLines=metadata.flatMap(value=>wrap(value,columns)),footerHeight=(Math.max(0,footerLines.length-1)*1.6+6)*h
   const legendHeight=(32+legendRows.reduce((rows,row)=>rows+wrap(row.text,25).length*1.5+1,0))*h
   const height=Math.max(mapFrame.maxY-mapFrame.minY,legendHeight)+gap+footerHeight
   const paper=[{name:'A4 landscape',width:277,height:190},{name:'A3 landscape',width:400,height:277},{name:'A2 landscape',width:574,height:400},{name:'A1 landscape',width:821,height:574},{name:'A0 landscape',width:1169,height:821}]

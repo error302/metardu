@@ -8,7 +8,7 @@ const COLORS: Record<string,string> = { CONTOURS:'#97704a',CONTOUR_I:'#70411e',G
 export async function renderSurfaceDrawingPdf(drawing: ReturnType<typeof buildSurfaceRevisionDrawing>): Promise<Buffer> {
   const paper=PAPER[drawing.layout.paper], scale=drawing.layout.nominalScale
   if(!paper || !Number.isFinite(scale) || scale<=0)throw new Error('The saved drawing has no valid print scale or paper size.')
-  const factor=1000/scale*PT_PER_MM,margin=10*PT_PER_MM
+  const factor=1000/scale*PT_PER_MM
   const {extents}=drawing
   if(!Object.values(extents).every(Number.isFinite) || extents.maxX<=extents.minX || extents.maxY<=extents.minY || (extents.maxX-extents.minX)*factor>(paper[0]-20)*PT_PER_MM+1e-6 || (extents.maxY-extents.minY)*factor>(paper[1]-20)*PT_PER_MM+1e-6)throw new Error('The complete saved plan does not fit the selected paper at its recorded scale.')
   const within = (e:number,n:number) => Number.isFinite(e) && Number.isFinite(n) && e>=extents.minX-1e-8 && e<=extents.maxX+1e-8 && n>=extents.minY-1e-8 && n<=extents.maxY+1e-8
@@ -29,7 +29,10 @@ export async function renderSurfaceDrawingPdf(drawing: ReturnType<typeof buildSu
     const code=char.codePointAt(0)
     if (code === undefined || !embedded.hasGlyphForCodePoint(code)) throw new Error('A recorded plan label contains characters unsupported by the PDF font. Use a compatible font before exporting; the saved source is unchanged.')
   }
-  const x=(e:number)=>margin+(e-extents.minX)*factor,y=(n:number)=>margin+(extents.maxY-n)*factor
+  // Balance unused sheet space without changing recorded scale or model coordinates.
+  const left=(paper[0]*PT_PER_MM-(extents.maxX-extents.minX)*factor)/2
+  const top=(paper[1]*PT_PER_MM-(extents.maxY-extents.minY)*factor)/2
+  const x=(e:number)=>left+(e-extents.minX)*factor,y=(n:number)=>top+(extents.maxY-n)*factor
   for(const entity of drawing.entities){
     const color=COLORS[entity.layer]??'#25313d'
     doc.save().strokeColor(color).fillColor(color).lineWidth((entity.layer==='CONTOUR_I'?.35:entity.layer==='CONTOURS'?.15:entity.layer==='GRID'?.08:.18)*PT_PER_MM)

@@ -29,3 +29,9 @@ This increment deploys retained registered draft PDF recovery, point display/sma
 Desktop native synthetic DXF/PDF evidence and the unpublished X draft belong to a separate Desktop checkout/task. Automatic Desktop-Web pairing and a Desktop release are not claimed. Retain legacy parcel containment, independent-surveyor/field, receiving-CAD/calibrated-print, provider, physical Android/iPhone install and closed-app reminder, offsite/key recovery, security-deferral and signing-rotation gates. Rate limiting remains in-process for the single app container. Oracle was removed as a target and was not contacted.
 
 Evidence: .cache/release-verify/unified-release/bb27634c0adf6528c312d001fa45fcbf39a18245/release-verified.json and its linked immutable attempt, source, promotion, migration alignment, preservation and native/PWA receipts. The broader production-readiness goal remains active.
+
+## Subsequent evidence - actual PDF download and follow-up CI
+
+Computer Use recovered. The deployed Enterprise synthetic 42-point R1 PDF was generated and downloaded once through the app; its 21,030 bytes match the registered hash. The observation timeout occurred after the download, so no duplicate was created. A2 whitespace failed presentation review. A source-only compact-footer/centred A3 preview at unchanged scale is documented in TOPOGRAPHIC_PLAN_LAYOUT_2026-11-05.md; it does not change this release identity or replace the registered PDF. Recovery replay and remaining authenticated mobile acceptance are still open.
+
+The 9d2429a8 CI run was cancelled by the documentation push, not a test failure. Exact documentation-only c1b18eebbf3ddb95c893aa8b60b0e5a3cc990619 passed CI41994350745 all 17 jobs, CodeQL41994350743 and gitleaks41994350718. Neither follow-up changes the deployed application SHA.

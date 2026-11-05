@@ -39,3 +39,20 @@ test('refuses an entity outside the saved sheet rather than silently clipping it
  const input=drawing();input.entities.push({kind:'point',layer:'GROUND',e:input.extents.maxX+10,n:input.extents.maxY})
  await expect(renderSurfaceDrawingPdf(input)).rejects.toThrow(/outside the sheet/)
 })
+
+
+test('centres the complete retained plan on its recorded sheet without changing scale',async()=>{
+ const input=drawing();input.layout.nominalScale=1000;input.layout.paper='A2 landscape'
+ input.extents={minX:100,minY:200,maxX:110,maxY:220}
+ input.entities=[{kind:'line',layer:'BORDER',x1:100,y1:200,x2:110,y2:220}]
+ const bytes=await renderSurfaceDrawingPdf(input),binary=bytes.toString('latin1')
+ const streams=[...binary.matchAll(/stream\r?\n([\s\S]*?)\r?\nendstream/g)].flatMap(match=>{try{return [inflateSync(Buffer.from(match[1],'latin1')).toString('latin1')]}catch{return []}})
+ const line=streams.join('\n').match(/([\d.]+)\s+([\d.]+)\s+m\s+([\d.]+)\s+([\d.]+)\s+l/)
+ if(!line)throw new Error('Retained plan line was not found in the PDF')
+ // A 10 m x 20 m extent at 1:1000 is exactly 10 x 20 mm.
+ // Centred on 594 x 420 mm A2: x 292..302 mm, screen y 220..200 mm.
+ expect(Number(line[1])).toBeCloseTo(292*72/25.4,3)
+ expect(Number(line[2])).toBeCloseTo(220*72/25.4,3)
+ expect(Number(line[3])).toBeCloseTo(302*72/25.4,3)
+ expect(Number(line[4])).toBeCloseTo(200*72/25.4,3)
+})

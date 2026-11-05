@@ -83,3 +83,17 @@ test('the demonstration TIN contours and all 42 actual synthetic heights fit the
  const text=drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')
  for(let index=0;index<text.length;index++)for(let other=index+1;other<text.length;other++)expect({first:text[index].text,second:text[other].text,overlap:intersects(bounds(text[index]),bounds(text[other]))}).toMatchObject({overlap:false})
 })
+
+
+test('a fully referenced 42-point site fits A3 at 1:500 without reserving an unused footer line',()=>{
+ const drawing=buildSurfaceRevisionDrawing({...planSource,projectId:'242f3a64-f1cf-4b7f-96a0-70e86aa5b616',revisionId:'408583cf-7da5-4653-8fd6-bb056ab7ce27',verticalDatum:'Synthetic local benchmark 100.000 m; no field control'})
+ expect(drawing.layout.nominalScale).toBe(500)
+ expect(drawing.layout.paper).toBe('A3 landscape')
+ expect(drawing.layout.annotationHeight/500*1000).toBe(2.5)
+ expect(drawing.layout.placedPointLabels).toBe(42)
+ const annotations=drawing.entities.filter((entity):entity is Extract<DrawingEntity,{kind:'text'}>=>entity.kind==='text')
+ for(const annotation of annotations){const box=bounds(annotation);expect(box.minY).toBeGreaterThanOrEqual(drawing.extents.minY);expect(box.maxY).toBeLessThanOrEqual(drawing.extents.maxY)}
+ expect(annotations.some(entity=>entity.text.includes('a'.repeat(64)))).toBe(true)
+ const footer=annotations.filter(entity=>entity.layer==='TITLE_BLOCK')
+ expect(Math.min(...footer.map(entity=>entity.n))-drawing.extents.minY).toBeGreaterThanOrEqual(2*drawing.layout.annotationHeight-1e-6)
+})
