@@ -18,3 +18,8 @@ All 76 release contracts passed (including the five new retry/lock regressions),
 ## Scheduled-backup observation
 
 The latest retained completed backup remains the verified Nov4 02:00:02Z run. Cron is running and the installed schedule remains daily 02:00 UTC; no Nov5 start or completion was found in its log. Windows Power-Troubleshooter event 1 records sleep from Nov5 01:29:04.5329263Z through 07:05:02.5202268Z, covering the scheduled backup time (04:29 to 10:05 Nairobi, schedule 05:00). This establishes another missed schedule during host sleep, rather than a logged backup execution failure. A manual checkpoint cannot be called scheduled success. No power setting, cron, connector or supporting service was changed. Before promotion, require a fresh fully verified database/uploads pair with prior archives preserved; offsite and restored recovery remain separate evidence.
+
+
+## Terminal result
+
+The same-SHA retry passed as image sha256:5033ff094b91dcb283efd98363f80118ff51017e7801447c60d550f08bc26798; the exclusive build lock was released and the first failed log digest remained unchanged. One promotion then succeeded, with 129 unchanged hashes, 22 original-record table fingerprints retained, and required running supports/uploads preserved. The migration service is image-aligned exited zero. Independent post-promotion checks verified the fresh checkpoint and all 104 immediately pre-promotion archive hashes. Runtime/native/PWA acceptance and still-open authenticated browser/availability/professional gates are recorded in RELEASE_ACCEPTANCE_2026-11-05.md. The tool-only implementation was committed and pushed as 9d2429a82980523b07bad307a2e98cceead7f3a3; it does not change deployed application identity.
