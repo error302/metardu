@@ -8,7 +8,7 @@ export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surve
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
-  assert.ok(['plan','rehearse','build','promote','status'].includes(action),'Unknown release action.')
+  assert.ok(['plan','rehearse','build','retry-build','promote','status'].includes(action),'Unknown release action.')
   assert.match(revision,/^[a-f0-9]{40}$/,'Use a full immutable commit SHA, not HEAD or a branch.')
   const directory=path.resolve(root,'.cache/release-verify',argv[2]==='--unified'?'unified-release':'survey-release')
   return {action,revision,directory:argv[2]==='--unified'?path.join(directory,revision):directory}
@@ -114,4 +114,26 @@ export function deployedAppRevision(app,image) {
   const runtimeRevision=entries[0]?.slice('METARDU_BUILD_SHA='.length)??''
   assert.ok(runtimeRevision===''||runtimeRevision==='unknown'||runtimeRevision===revision,'Runtime and image release identities disagree.')
   return {revision,imageId:image.Id,source:'org.opencontainers.image.revision',runtimeRevision}
+}
+
+// A failed candidate is retried explicitly, without resetting its receipt to planned.
+export function assertCandidateBuildAdmission(receipt,revision,{retry=false,priorProcessesAbsent=false}={}) {
+  assert.equal(receipt.revision,revision,'Candidate evidence belongs to a different revision.')
+  const attempts=receipt.buildAttempts??[]
+  assert.ok(Array.isArray(attempts),'Build attempt history is required.')
+  if(!retry) {
+    assert.equal(receipt.status,'planned','Use explicit retry-build for a failed candidate.')
+    assert.equal(attempts.length,0,'Initial build cannot erase earlier attempts.')
+  } else {
+    assert.equal(receipt.status,'build-failed','Only a terminal failed candidate can be retried.')
+    assert.ok(attempts.length>0,'A retry requires retained failed attempts.')
+    for(const attempt of attempts) {
+      assert.equal(attempt.status,'failed','Every prior build must be terminal and failed.')
+      for(const key of ['builderPid','archivePid'])assert.ok(Number.isSafeInteger(attempt[key])&&attempt[key]>0,'Prior process identity must be known.')
+      assert.ok(typeof attempt.log==='string'&&attempt.log.length>0,'Retain each failed build log.')
+      assert.ok(typeof attempt.reason==='string'&&attempt.reason.length>0,'Retain each failed build reason.')
+    }
+    assert.equal(priorProcessesAbsent,true,'Verify that every recorded build process is absent before retrying.')
+  }
+  return attempts.length+1
 }

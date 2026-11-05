@@ -1,0 +1,20 @@
+# Retained failed candidate retry - 5 November 2026
+
+The application target remains bb27634c0adf6528c312d001fa45fcbf39a18245; production remains b172cbc7595670e0057a4c9eb7ff4374945871d9 until an exact promotion receipt proves replacement. The first candidate attempt failed before application build/startup because Docker Hub token retrieval timed out. Its terminal receipt and build-1.log remain intact. Both recorded child PIDs were absent when inspected. The exact official token endpoint subsequently returned HTTP 200 with response/token content suppressed; this is host reachability evidence, not proof the Docker daemon will complete a build.
+
+The release runner now supports explicit `retry-build <full SHA> --unified`. It never resets a failed receipt to planned. Every old attempt must be failed with retained log/reason and known child identities, and every recorded child must be absent. The old logs are bound by SHA-256 in the next attempt's admission evidence. Reusable candidate construction is exclusive through an owned lock; live or stale locks block rather than being removed automatically. Exceptions release only the lock token created by the current command.
+
+A retry reuses normal exact-source admission, rehearsal/rollback proof, free-space reserve, environment continuity and rollback image validation. It additionally reads the current deployed OCI identity and production ledger and compares the complete pinned registry and original applied ledger to the plan. The build still streams `git archive` of the exact application SHA; local tool changes are not substituted into application source. Admission records the runner hash. No application container is started by building, and no service, migration, customer record or upload is changed during admission.
+
+The new regression covers explicit command/state separation, missing/running/successful/malformed histories, revision mismatch, history preservation, concurrent build refusal, stale-lock refusal and lock release on failure. CI and pinned-source verification include it. Source-tool checks are separate from the existing application's exact CI, candidate success and production acceptance. No blanket cleanup or database-archive restore is authorized by retry.
+
+Initial red: missing assertCandidateBuildAdmission export. Green: 27 focused release/recovery tests passed, including five retry tests; scoped ESLint passed without warnings. Exact application GitHub CI41809733033, CodeQL41809733136 and gitleaks41809732870 were read again and remain successful on bb27634c. Candidate retry and resulting acceptance are recorded separately below when actually performed.
+
+
+## Retry admission and current execution
+
+All 76 release contracts passed (including the five new retry/lock regressions), release-tool TypeScript exited zero, scoped ESLint exited zero with max-warnings zero, and git diff --check passed. One explicit retry started at 07:56:35Z using the same reusable candidate tag and desktop-linux builder. Admission re-read the exact production b172 OCI identity and all 129 applied hashes. The original build-1.log SHA-256 is 5d1d19db0feab46a4d55ac3052e22a6835e43690186d22b89844b2a8bc76f707; build-2.log is separate. At this checkpoint the retry is running, not promoted.
+
+## Scheduled-backup observation
+
+The latest retained completed backup remains the verified Nov4 02:00:02Z run. Cron is running and the installed schedule remains daily 02:00 UTC; no Nov5 start or completion was found in its log. Windows Power-Troubleshooter event 1 records sleep from Nov5 01:29:04.5329263Z through 07:05:02.5202268Z, covering the scheduled backup time (04:29 to 10:05 Nairobi, schedule 05:00). This establishes another missed schedule during host sleep, rather than a logged backup execution failure. A manual checkpoint cannot be called scheduled success. No power setting, cron, connector or supporting service was changed. Before promotion, require a fresh fully verified database/uploads pair with prior archives preserved; offsite and restored recovery remain separate evidence.

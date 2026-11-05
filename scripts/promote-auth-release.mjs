@@ -11,12 +11,13 @@ import {readScheduleSchemaContract,assertScheduleSchemaContract} from './schedul
 import {SCHEDULE_UPGRADE_VERSION} from './schedule-upgrade-contract.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof } from './release-plan.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
 import { readFieldObservationContract, assertFieldObservationContract, FIELD_OBSERVATION_VERSION } from './field-observation-contract.mjs'
 import { snapshotExistingRows } from './release-row-snapshot.mjs'
+import { withExclusiveCandidateBuild } from './release-build-lock.mjs'
 
 const legacy = process.argv.length === 3
 const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
@@ -134,8 +135,30 @@ function rollbackRegistry(receipt,files,applied){
   for(const file of selected)writeFileSync(join(target,file.path.split('/').at(-1)),file.content)
   return {directory:target,versions:selected.map(file=>file.version),strictVerification:true,originalHashesPreserved:true}
 }
-async function build() {
-  const receipt=load();assert.equal(receipt.status,'planned')
+function priorBuildProcessesAbsent(receipt) {
+  for(const attempt of receipt.buildAttempts??[])for(const key of ['builderPid','archivePid']) {
+    const pid=attempt[key]
+    assert.ok(Number.isSafeInteger(pid)&&pid>0,'Prior process identity must be known.')
+    try {process.kill(pid,0);return false}
+    catch(error) {if(error.code!=='ESRCH')throw new Error('Unable to prove prior build process is absent.')}
+  }
+  return true
+}
+async function build(retry=false) {
+  await withExclusiveCandidateBuild(resolve('.cache/release-verify/candidate-build.lock'),()=>buildCandidate(retry))
+}
+async function buildCandidate(retry) {
+  const receipt=load()
+  assertCandidateBuildAdmission(receipt,revision,{retry,priorProcessesAbsent:retry&&priorBuildProcessesAbsent(receipt)})
+  let retryAdmission
+  if(retry) {
+    const retainedLogs=(receipt.buildAttempts??[]).map((attempt,index)=>{
+      const expected=join(directory,`build-${index+1}.log`)
+      assert.equal(resolve(attempt.log),resolve(expected),'Prior log must stay in this exact release directory.')
+      return {log:expected,sha256:createHash('sha256').update(readFileSync(expected)).digest('hex')}
+    })
+    retryAdmission={checkedAt:new Date().toISOString(),priorProcessesAbsent:true,retainedLogs,runnerSha256:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex')}
+  }
   assert.equal(receipt.rehearsal?.passed,true,'Pending SQL must first succeed on the existing synthetic database')
   if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'source-checks.json'),'utf8'));assert.equal(proof.revision,revision);assert.equal(proof.status,'passed');receipt.sourceChecks=proof.checks}
   if(!legacy)assert.equal(receipt.rehearsal.rollbackVerifier?.passed,true,'The current image startup verifier must accept the pinned forward registry in the existing synthetic database.')
@@ -144,7 +167,20 @@ async function build() {
     assert.equal(receipt.rehearsal.applied,receipt.migrationBefore.length,'A no-SQL release must match the complete applied registry in both plan and rehearsal.')
     receipt.syntheticUpgrade={notRequired:true,reason:'No pending SQL; full applied registry matched production and synthetic rehearsal.'}
   }
-  const before=inspect();assert.equal(before.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
+  const before=inspect();validateContainers(before)
+  assert.equal(before.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
+  if(retry) {
+    const app=before.find(c=>c.Name==='/metardu-app')
+    const identity=deployedAppRevision(app,JSON.parse(docker(['image','inspect',app.Image]))[0])
+    assert.equal(identity.revision,receipt.priorRevision,'Production identity changed after the failed build.')
+    const files=sourceMigrations(),applied=await withAdmin(before,ledger)
+    assert.deepEqual(files.map(file=>({version:file.version,checksum:file.checksum})),receipt.sourceRegistry,'Pinned source registry differs from planned evidence.')
+    assert.deepEqual(applied,receipt.migrationBefore,'Production migration ledger changed after the failed build.')
+    assert.deepEqual(assertSurveyReleaseDrift(files,applied).missing,receipt.pending)
+    retryAdmission.productionImage=app.Image
+    retryAdmission.productionRevision=identity.revision
+    retryAdmission.applied=applied.length
+  }
   assertBuildSpace(hostFreeBytes())
   const priorTag=JSON.parse(docker(['image','inspect',rollbackTag]))[0].Id
   if(priorTag!==receipt.rollbackImage){
@@ -165,7 +201,7 @@ async function build() {
   const logPath=join(directory,`build-${(receipt.buildAttempts?.length??0)+1}.log`),log=createWriteStream(logPath,{flags:'wx'})
   const builder=spawn('docker',args,{windowsHide:true,stdio:['pipe','pipe','pipe']})
   builder.stdout.pipe(log,{end:false});builder.stderr.pipe(log,{end:false})
-  const attempt={startedAt:new Date().toISOString(),builderPid:builder.pid,archivePid:archive.pid,log:logPath,status:'running'}
+  const attempt={startedAt:new Date().toISOString(),builderPid:builder.pid,archivePid:archive.pid,log:logPath,status:'running',...(retryAdmission?{retryAdmission}:{})}
   receipt.buildAttempts=[...(receipt.buildAttempts??[]),attempt];receipt.status='building';save(receipt)
   let spaceFailure=false
   const monitor=setInterval(()=>{try{assertBuildSpace(hostFreeBytes())}catch{spaceFailure=true;builder.kill('SIGTERM');archive.kill('SIGTERM')}},5000)
@@ -321,7 +357,8 @@ try {
   if(action==='plan') await plan()
   else if(action==='rehearse') await rehearse()
   else if(action==='build') await build()
+  else if(action==='retry-build') await build(true)
   else if(action==='promote') await migrateAndPromote()
   else if(action==='status') console.log(JSON.stringify(load(),null,2))
-  else throw new Error('Use plan, rehearse, build, or promote')
+  else throw new Error('Use plan, rehearse, build, retry-build, or promote')
 }catch(error){console.error(error instanceof assert.AssertionError ? `Release guard failed: ${error.message.split('\n')[0]}` : error.message);process.exitCode=1}
