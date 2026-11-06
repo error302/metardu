@@ -87,7 +87,7 @@ async function ensureRuntimeRole(adminPool, appRole, appPassword, database) {
   await adminPool.query(`GRANT CONNECT ON DATABASE ${quoteIdentifier(database)} TO ${identifier}`)
 }
 
-async function grantRuntimePrivileges(adminPool, migrationUser, appRole, database) {
+export async function grantRuntimePrivileges(adminPool, migrationUser, appRole, database) {
   const migrationIdentifier = quoteIdentifier(migrationUser)
   const appIdentifier = quoteIdentifier(appRole)
   const databaseIdentifier = quoteIdentifier(database)
@@ -113,6 +113,14 @@ async function grantRuntimePrivileges(adminPool, migrationUser, appRole, databas
   await adminPool.query(
     `REVOKE INSERT, UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.schema_migrations FROM ${appIdentifier}`,
   )
+
+  // Additive review evidence is insert-only, including after the broad compatibility grant above.
+  const reviewTable = await adminPool.query("SELECT to_regclass('public.surface_source_reviews') AS relation")
+  if (reviewTable.rows[0]?.relation) {
+    await adminPool.query(
+      `REVOKE UPDATE, DELETE, TRUNCATE, REFERENCES, TRIGGER ON TABLE public.surface_source_reviews FROM ${appIdentifier}`,
+    )
+  }
 
   // Keep future migration-created tables usable without making the runtime
   // login an owner or granting it schema/role administration.

@@ -15,6 +15,7 @@ import { surfaceRequestSchema, surfaceExportRequestSchema, surfaceRequestPayload
 import { preparePending, readPending, acknowledgePending, type PendingSurfaceRequest } from '@/lib/topo/surfacePending'
 import { emptyTerrainDefinition, readTerrainDefinition } from '@/lib/topo/terrainDefinitionDraft'
 import { TerrainDefinitionEditor } from '@/components/topo/TerrainDefinitionEditor'
+import { SurfaceReviewPanel } from '@/components/topo/SurfaceReviewPanel'
 
 const Canvas = dynamic(() => import('@/components/drawing/TopoEntityCanvas').then(module => module.TopoEntityCanvas), { ssr: false })
 const historySchema = z.object({ data: z.object({ revisions: z.array(z.object({ revision_id: z.string().guid(), name: z.string(), revision: z.number().int().positive() })), historyLimited: z.boolean() }) })
@@ -271,5 +272,6 @@ function SurfaceWorkspace({ projectId, ownerId }: { projectId: string; ownerId: 
         {receipt && <p role="status" className="break-words text-sm">{receipt}</p>}
       </section>}
     </section>
+    {saved && <SurfaceReviewPanel projectId={projectId} sourceRevisionId={saved.revisionId} expectedSourceHash={saved.inputHash} userId={ownerId} />}
   </main>
 }

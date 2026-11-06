@@ -7,7 +7,7 @@ export type PendingSurfaceRequest = { version: 1; ownerId: string; projectId: st
 const common = { version: z.literal(1), ownerId: requestUuid, projectId: requestUuid, createdAt: z.string().datetime() }
 const pendingSchema = z.discriminatedUnion('kind', [z.object({ ...common, kind: z.literal('surface'), body: surfaceRequestSchema }).strict(), z.object({ ...common, kind: z.enum(['dxf','pdf']), body: surfaceExportRequestSchema }).strict()])
 const key = (ownerId: string, projectId: string) => `metardu:surface-request:v1:${requestUuid.parse(ownerId)}:${requestUuid.parse(projectId)}`
-const browserLock: PendingLock = async (name, work) => {
+export const browserPendingLock: PendingLock = async (name, work) => {
   if (typeof navigator === 'undefined' || !navigator.locks?.request) throw new Error('A browser session lock is unavailable. No recoverable request was sent; use a browser that supports Web Locks.')
   return navigator.locks.request(name, work)
 }
@@ -23,7 +23,7 @@ export function readPending(ownerId: string, projectId: string, storage: Pending
 function payload(pending: PendingSurfaceRequest) {
   return canonicalJson(pending.kind === 'surface' ? surfaceRequestPayload(pending.body) : surfaceExportPayload(pending.body))
 }
-export async function preparePending(ownerId: string, projectId: string, kind: 'surface' | 'dxf' | 'pdf', body: SurfaceRequest | SurfaceExportRequest, storage: PendingStorage = window.localStorage, lock: PendingLock = browserLock): Promise<PendingSurfaceRequest> {
+export async function preparePending(ownerId: string, projectId: string, kind: 'surface' | 'dxf' | 'pdf', body: SurfaceRequest | SurfaceExportRequest, storage: PendingStorage = window.localStorage, lock: PendingLock = browserPendingLock): Promise<PendingSurfaceRequest> {
   const name = key(ownerId, projectId)
   return lock(name, () => {
     const pending = pendingSchema.parse({ version: 1, ownerId, projectId, kind, body, createdAt: new Date().toISOString() })
@@ -40,7 +40,7 @@ export async function preparePending(ownerId: string, projectId: string, kind: '
     return retained
   })
 }
-export async function acknowledgePending(pending: PendingSurfaceRequest, storage: PendingStorage = window.localStorage, lock: PendingLock = browserLock): Promise<boolean> {
+export async function acknowledgePending(pending: PendingSurfaceRequest, storage: PendingStorage = window.localStorage, lock: PendingLock = browserPendingLock): Promise<boolean> {
   const name = key(pending.ownerId, pending.projectId)
   return lock(name, () => {
     const current = readPending(pending.ownerId, pending.projectId, storage)
