@@ -29,3 +29,22 @@ describe('monitoring input boundary',()=>{
     expect(deformationComparisonSchema.safeParse({...request,baseline:{...epoch,monuments:[{...point,sigmaEN:0.000002}]}}).success).toBe(false)
   })
 })
+
+
+describe('recorded monument identifier compatibility',()=>{
+  it('normalizes safe numeric identifiers and trims strings without changing source input',()=>{
+    const numeric={...point,monumentId:101}
+    const parsed=readMonitoringEpoch({...epoch,monuments:[numeric,{...point,monumentId:' DM-02 '},{...point,monumentId:'00101'}]})
+    expect(parsed.monuments.map(value=>value.monumentId)).toEqual(['101','DM-02','00101'])
+    expect(numeric.monumentId).toBe(101)
+  })
+  it('detects collisions after numeric and whitespace normalization',()=>{
+    expect(()=>readMonitoringEpoch({...epoch,monuments:[{...point,monumentId:101},{...point,monumentId:' 101 '}]})).toThrow(/only once/i)
+  })
+  it.each([NaN,Infinity,Number.MAX_SAFE_INTEGER+1,0.5,true,{},[],null,''])('rejects unsafe or ambiguous identifiers %p',monumentId=>{
+    expect(()=>readMonitoringEpoch({...epoch,monuments:[{...point,monumentId}]})).toThrow(/monitoring/i)
+  })
+  it('does not coerce coordinate strings while normalizing an identifier',()=>{
+    expect(()=>readMonitoringEpoch({...epoch,monuments:[{...point,monumentId:101,latitude:'-1'}]})).toThrow(/monitoring/i)
+  })
+})

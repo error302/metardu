@@ -3,7 +3,8 @@ import type {EpochSet} from './deformationMonitoring'
 
 const sigma=z.number().finite().positive()
 const monument=z.object({
-  monumentId:z.string().trim().min(1).max(150),
+  // Instrument station numbers may be numeric; normalize only lossless integer identifiers.
+  monumentId:z.preprocess(value=>typeof value==='number'&&Number.isSafeInteger(value)?String(value):value,z.string().trim().min(1).max(150)),
   latitude:z.number().finite().min(-90).max(90),longitude:z.number().finite().min(-180).max(180),
   height:z.number().finite(),epoch:z.number().finite(),
   frame:z.enum(['ITRF2014','ITRF2008','ITRF2020','WGS84_G1762','WGS84_G1674','WGS84_G1150']),
