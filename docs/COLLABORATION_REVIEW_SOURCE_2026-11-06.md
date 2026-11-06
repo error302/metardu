@@ -41,3 +41,7 @@ The node-environment test run emitted the existing experimental localStorage war
 6. Preserve release, independent-surveyor/field, receiving-CAD/calibrated-print, provider, security-deferral/signing, offsite/key recovery and physical mobile installation/reminder gates. Dam structural/impoundment safety and full lifecycle support are not established by this internal review feature.
 
 No new build, production migration, deployment, support restart, account/billing change or social publication was performed for this checkpoint.
+
+## Normal push regression and workspace contract
+
+The first normal push of c2371fc1 stopped on three saved-workspace tests (59 passed, three failed). The existing catch-all fetch fixture returned a surface revision list to the new review-history endpoint, so its strict validator correctly refused it and the review alert reached the assertions before the simulated export error. No push, gate bypass or implementation weakening occurred. The fixture now provides the actual role/source/hash/review-history contract for that endpoint. An integration assertion also verifies that loading the saved-source review and typing notes performs no implicit review write. The combined rerun passed **63 tests in six suites**, including the original denied-export and unreadable DXF/PDF recovery cases.

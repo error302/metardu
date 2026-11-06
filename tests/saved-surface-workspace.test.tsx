@@ -30,6 +30,7 @@ beforeEach(() => {
   fetchMock.mockReset().mockImplementation(async (url: string, options?: RequestInit) => {
     if (url.includes('points?')) return reply({ data: observations, meta: { project_id: projectId } })
     if (url.includes('point-imports')) return reply({ data: { referenceSystem: reference, referenceHash: 'a'.repeat(64) } })
+    if (url.includes('/surface-reviews?')) return reply({data:{role:'owner',source:{revisionId:REVISION,inputHash:saved().inputHash,referenceHash:'a'.repeat(64),outputHash:'c'.repeat(64),current:true},reviews:[],historyLimited:false}})
     if (url.includes('contourRevision=')) return reply({ data: saved() })
     if (options?.method === 'POST' && url.includes('/surfaces')) {
       const body = surfaceRequestSchema.parse(JSON.parse(String(options.body)))
@@ -232,4 +233,17 @@ test('an unreadable PDF response retains its request and blocks a competing expo
  expect(screen.getByRole('region',{name:'Pending request recovery'})).toHaveTextContent('Draft PDF')
  expect(screen.getByRole('button',{name:/Download draft DXF/})).toBeDisabled()
  expect(screen.getByRole('button',{name:/Download draft PDF/})).toBeDisabled()
+})
+
+test('saved-source office review loads its own authenticated read contract without implicit writes',async()=>{
+  render(<Page/>);await loaded()
+  fireEvent.change(screen.getByRole('combobox',{name:'Saved revision'}),{target:{value:REVISION}})
+  const panel=await screen.findByRole('region',{name:'Saved source review'})
+  expect(panel).toHaveTextContent('Office review')
+  const notes=await screen.findByRole('textbox',{name:'Review notes / corrections to request'})
+  await waitFor(()=>expect(notes).toBeEnabled())
+  expect(fetchMock.mock.calls.some(([url])=>url===`/api/project/${projectId}/surface-reviews?sourceRevisionId=${REVISION}`)).toBe(true)
+  fireEvent.change(notes,{target:{value:'Office notes remain unsent until explicitly recorded.'}})
+  expect(fetchMock.mock.calls.filter(([url,options])=>url.includes('/surface-reviews')&&options?.method==='POST')).toHaveLength(0)
+  expect(screen.queryByRole('alert')).not.toBeInTheDocument()
 })
