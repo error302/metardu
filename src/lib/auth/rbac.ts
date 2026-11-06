@@ -63,6 +63,11 @@ export const SYSTEM_ADMIN_ROLES: Role[] = [ROLES.SUPER_ADMIN, ROLES.ORG_ADMIN]
 /** Default role for new users */
 export const DEFAULT_ROLE: Role = ROLES.SURVEYOR
 
+/** Database strings do not become authority merely because they were cast to Role. */
+function isStoredRole(value: unknown): value is Role {
+  return typeof value === 'string' && ROLE_HIERARCHY.some(role => role === value)
+}
+
 // ---------------------------------------------------------------------------
 // Role-check helpers
 // ---------------------------------------------------------------------------
@@ -257,7 +262,8 @@ export async function getOrgRole(
        WHERE user_id = $1 AND organization_id = $2 AND is_active = TRUE`,
       [userId, organizationId],
     )
-    return (rows[0]?.role as Role) ?? null
+    const role = rows[0]?.role
+    return isStoredRole(role) ? role : null
   } catch {
     // organization_members table may not exist yet (pre-migration 028)
     return null
@@ -284,7 +290,8 @@ export async function canAccessProject(
   userId: string,
   projectId: string,
 ): Promise<Role | 'owner' | null> {
-  // 1. Check if user is the project owner
+  if (!userId || !projectId) return null
+  // Read through request-scoped project RLS; organization role, not creator identity, controls firm work.
   const { rows: projectRows } = await db.query<{ user_id: string; organization_id: string | null }>(
     `SELECT user_id, organization_id FROM projects WHERE id = $1`,
     [projectId],
@@ -292,20 +299,18 @@ export async function canAccessProject(
   if (projectRows.length === 0) return null
 
   const project = projectRows[0]
+  if (!project.user_id) return null
+  // No creator or legacy-membership fallback may outlive removal/demotion from a firm.
+  if (project.organization_id) return getOrgRole(userId, project.organization_id)
   if (project.user_id === userId) return 'owner'
-
-  // 2. Check org membership if the project belongs to an org
-  if (project.organization_id) {
-    const orgRole = await getOrgRole(userId, project.organization_id)
-    if (orgRole) return orgRole
-  }
 
   // 3. Check project_members table (legacy per-project membership)
   const { rows: memberRows } = await db.query<{ role: string }>(
     `SELECT role FROM project_members WHERE user_id = $1 AND project_id = $2`,
     [userId, projectId],
   )
-  return (memberRows[0]?.role as Role) ?? null
+  const role = memberRows[0]?.role
+  return isStoredRole(role) ? role : null
 }
 
 /**

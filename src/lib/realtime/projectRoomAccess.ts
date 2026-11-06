@@ -7,8 +7,9 @@ export async function resolveProjectRoomAccess(userId: string,projectId: string)
   if (!userId || !projectId) return null
   const access = await requireProjectReadAccess(projectId,userId)
   if (!access.ok || !access.projectUserId) return null
-  if (access.projectUserId === userId) return 'owner'
   const parsed = roomRoleSchema.safeParse(await canAccessProject(userId,projectId))
-  // The owner role is established only by the recorded parent, never a membership string.
-  return parsed.success && parsed.data !== 'owner' ? parsed.data : null
+  // Canonical RBAC resolves firm role first; creator identity cannot retain firm write access.
+  if (!parsed.success) return null
+  if (parsed.data === 'owner' && access.projectUserId !== userId) return null
+  return parsed.data
 }

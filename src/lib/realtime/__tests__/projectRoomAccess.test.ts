@@ -11,8 +11,9 @@ beforeEach(()=>{jest.resetAllMocks()})
 describe('project room access uses authoritative access and known roles',()=>{
   test('owner access comes from the recorded project owner',async()=>{
     read.mockResolvedValue({ok:true,projectUserId:'owner'})
+    role.mockResolvedValue('owner')
     expect(await resolveProjectRoomAccess('owner','project')).toBe('owner')
-    expect(role).not.toHaveBeenCalled()
+    expect(role).toHaveBeenCalledWith('owner','project')
   })
   test('a member is resolved through canonical RBAC',async()=>{
     read.mockResolvedValue({ok:true,projectUserId:'owner'})
@@ -44,4 +45,11 @@ describe('project room access uses authoritative access and known roles',()=>{
     expect(await resolveProjectRoomAccess('','project')).toBeNull()
     expect(read).not.toHaveBeenCalled()
   })
+})
+
+
+test.each(['viewer',null] as const)('recorded firm creator follows current canonical role %p',async currentRole=>{
+  read.mockResolvedValue({ok:true,projectUserId:'creator'})
+  role.mockResolvedValue(currentRole)
+  expect(await resolveProjectRoomAccess('creator','firm-project')).toBe(currentRole)
 })
