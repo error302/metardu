@@ -13,9 +13,12 @@ import { db, setCurrentRlsServiceRole, setCurrentTillClaimCode } from '@/lib/db'
 import { setAuthenticatedDatabaseContext, resolveAuthenticatedOrganization } from '@/lib/auth/requestContext'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
+import {canAccessProject} from '@/lib/auth/rbac'
 
 // from() returns QueryBuilder which defaults to Record<string, unknown> for type safety.
 export interface DbClient {
+  /** Canonical project role resolved under this client's captured authenticated RLS scope. */
+  projectRole(projectId:string):ReturnType<typeof canAccessProject>
   from(table: string): QueryBuilder
   auth: {
     getUser(): Promise<{ data: { user: { id?: unknown; email?: unknown; name?: unknown } | null }; error: { message: string } | null }>
@@ -56,6 +59,10 @@ export async function createClient(): Promise<DbClient> {
   }
 
   return {
+    async projectRole(projectId:string){
+      if(!userId)return null
+      return inSessionScope(()=>canAccessProject(userId,projectId),organizationId)
+    },
     from(table: string): QueryBuilder {
       return new QueryBuilder(executor, table)
     },

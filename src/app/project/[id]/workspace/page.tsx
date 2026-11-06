@@ -3,7 +3,7 @@ import type { SurveyType } from '@/types/project'
 import { getWorkflow } from '@/lib/workflows/workflowRegistry'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
 import ProjectWorkspaceClient, { type ProjectBoundaryData } from '../ProjectWorkspaceClient'
-import { getAuthUser, isPlatformAdmin as checkIsAdmin } from '@/lib/auth/session'
+import { getAuthUser } from '@/lib/auth/session'
 import { createClient } from '@/lib/api-client/server'
 
 interface Props {
@@ -29,21 +29,17 @@ export default async function ProjectWorkspacePage({ params: paramsPromise, sear
   const user = await getAuthUser()
   if (!user) redirect('/login')
 
-  const userIsAdmin = await checkIsAdmin()
   const dbClient = await createClient()
+  if (!await dbClient.projectRole(params.id)) redirect('/dashboard')
 
-  let query = dbClient
+  const query = dbClient
     .from('projects')
-    .select('id, name, survey_type, project_type, location, datum, utm_zone, hemisphere, workflow_step, workflow_max_unlocked, boundary_data')
+    .select('id, user_id, name, survey_type, project_type, location, datum, utm_zone, hemisphere, workflow_step, workflow_max_unlocked, boundary_data')
     .eq('id', params.id)
-
-  if (!userIsAdmin) {
-    query = query.eq('user_id', user.id)
-  }
 
   const { data: project, error } = await query.single()
 
-  if (error || !project) redirect('/dashboard')
+  if (error || !project || !project.user_id) redirect('/dashboard')
 
   // Phase 25: Redirect scheme projects to scheme workspace
   if (project.project_type === 'scheme') {

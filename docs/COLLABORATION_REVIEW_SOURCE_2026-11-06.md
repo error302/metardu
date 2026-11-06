@@ -45,3 +45,11 @@ No new build, production migration, deployment, support restart, account/billing
 ## Normal push regression and workspace contract
 
 The first normal push of c2371fc1 stopped on three saved-workspace tests (59 passed, three failed). The existing catch-all fetch fixture returned a surface revision list to the new review-history endpoint, so its strict validator correctly refused it and the review alert reached the assertions before the simulated export error. No push, gate bypass or implementation weakening occurred. The fixture now provides the actual role/source/hash/review-history contract for that endpoint. An integration assertion also verifies that loading the saved-source review and typing notes performs no implicit review write. The combined rerun passed **63 tests in six suites**, including the original denied-export and unreadable DXF/PDF recovery cases.
+
+## Shared workspace admission
+
+A separate source follow-up removes the workspace page's creator-only filter. The server database client exposes canonical projectRole(projectId) under its existing captured-session AsyncResource/RLS scope: the actor is the captured authenticated session, organization scope is resolved by the existing policy, and inherited service-role/Till capabilities are cleared. Callers cannot supply another actor identity. Anonymous clients return no role, and a removed membership is not replaced by ownership or administrator fallback.
+
+The workspace page admits a recognized role before reading project contents, then still rejects missing/unassigned parents and keeps the existing scheme/reference handling. Surveyors, project managers and viewers may reach their authorized shared workspace; this read admission does not grant write/generation permissions or demonstrate the full viewer UI behavior.
+
+Regression-first run: seven failed/two passed, reproducing the creator-only filter and missing captured-session role method. After implementation, **27 tests passed in five suites**, including room admission, owner-context and scheme routing regressions. All three TypeScript projects and focused lint passed. No production role, membership, SQL, permission, support or account was changed. Live two-browser acceptance remains open.
