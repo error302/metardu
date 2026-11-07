@@ -22,7 +22,7 @@ concurrency:
 jobs:
   typecheck:
     name: TypeScript Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -42,7 +42,7 @@ jobs:
   # never depends on public mirrors being up.
   python-worker:
     name: Python Worker (GNSS SPP engine)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -57,7 +57,7 @@ jobs:
 
   lint:
     name: ESLint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # Two full eslint passes run here (a11y-audit + warning-ratchet) on top of
     # the changed-files gate — 15 min gives both comfortable headroom.
     timeout-minutes: 15
@@ -144,7 +144,7 @@ jobs:
     # runs inside the ESLint job (with --write-audit); this job is the
     # earliest, independent verdict.
     name: Lint Ratchet (fail-fast)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -164,7 +164,7 @@ jobs:
     # db.query/client.query, plus the whole-repo shared-schema drift check.
     # Pure git-diff + static scan — zero npm dependencies (no npm ci), so it
     # stays seconds-fast even as an isolated job.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -178,7 +178,7 @@ jobs:
 
   build:
     name: Production Build
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     # Block PRs that fail to build — this is the gate that catches
     # Server Component / styled-jsx / RSC violations before deploy.
@@ -219,7 +219,7 @@ jobs:
 
   i18n:
     name: i18n Integrity Check
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -233,7 +233,7 @@ jobs:
 
   test:
     name: Jest Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -258,7 +258,7 @@ jobs:
 
   e2e:
     name: "E2E Tests (shard ${{ matrix.shard }}/${{ strategy.job-total }})"
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     services:
       postgres:
         # postgis/postgis (not plain postgres): migration 000_canonical_schema.sql
@@ -406,7 +406,7 @@ jobs:
     # Synthetic status check — branch protection should require THIS job, not
     # individual e2e shards (whose names change with matrix.shard counts).
     name: E2E Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [e2e]
     if: always()
     steps:
@@ -421,7 +421,7 @@ jobs:
 
   mobile-build-check:
     name: Mobile Build Verification
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     needs: [typecheck]
     steps:
@@ -445,7 +445,7 @@ jobs:
 
   security:
     name: Security Audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 3
     steps:
       - uses: actions/checkout@v4
@@ -469,7 +469,7 @@ jobs:
     # them would make them auth-failed and fail the gate every run. Wire a
     # DB-backed job for them if/when a service container is added.
     name: Axe-core WCAG Sweep
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
