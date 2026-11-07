@@ -14,7 +14,7 @@ on:
 jobs:
   reconcile:
     name: Reconcile stale M-Pesa payments
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     env:
       APP_URL: ${{ vars.PROD_APP_URL || 'https://metardu.space' }}

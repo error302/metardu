@@ -23,7 +23,7 @@ on:
 jobs:
   rollback:
     name: Rollback production to previous commit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     environment: production
 
