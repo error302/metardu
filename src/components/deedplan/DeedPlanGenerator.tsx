@@ -5,6 +5,7 @@ import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Print
 import { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
 import { generateDeedPlan } from '@/lib/compute/deedPlanApi'
 import { saveDeedPlan } from '@/lib/api-client/deedPlans'
+import { sanitizeHtml } from '@/lib/security/sanitize'
 import { printDeedPlan } from '@/lib/print/deedPlanPrint'
 import { trackDeedGenerate, trackDeedDownload } from '@/lib/analytics/events'
 import {
@@ -784,9 +785,10 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
 
           {/* SVG Preview */}
           <div className="bg-white rounded-lg p-4 border overflow-auto">
+            {/* Security: Sanitize dynamically generated SVG to prevent DOM-based XSS */}
             <div
               className="mx-auto"
-              dangerouslySetInnerHTML={{ __html: output.svg }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(output.svg) }}
             />
           </div>
 
