@@ -18,6 +18,10 @@ import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPA
 import { readFieldObservationContract, assertFieldObservationContract, FIELD_OBSERVATION_VERSION } from './field-observation-contract.mjs'
 import { snapshotExistingRows } from './release-row-snapshot.mjs'
 import { withExclusiveCandidateBuild } from './release-build-lock.mjs'
+import { assertRuntimeMigrationContainer } from './runtime-artifact.mjs'
+import { COLLABORATION_UPGRADE_VERSIONS } from './collaboration-upgrade-contract.mjs'
+import { buildCollaborationCandidate, checkRoomRoute, collaborationCandidateTag, collaborationConfiguration, collaborationRollbackTag } from './collaboration-release.mjs'
+import { snapshotCollaborationRows, collaborationPolicies, seedCollaborationUpgrade, checkCollaborationRuntime } from './check-collaboration-upgrade.mjs'
 
 const legacy = process.argv.length === 3
 const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
@@ -47,8 +51,8 @@ const describe = c => ({name:c.Name.slice(1),id:c.Id,image:c.Image,startedAt:c.S
 const save = receipt => writeFileSync(receiptPath,JSON.stringify(receipt,null,2)+'\n')
 const load = () => { const receipt=JSON.parse(readFileSync(receiptPath,'utf8'));assert.equal(receipt.revision,revision,'The receipt belongs to a different pinned source revision.');return receipt }
 const inspect = () => JSON.parse(docker(['inspect',...names]))
-function stageMigrations(files) {
-  const staging=join(directory,'migration-source')
+function stageMigrations(files, name='migration-source') {
+  const staging=join(directory,name)
   for(const file of files){const destination=join(staging,file.path);mkdirSync(resolve(destination,'..'),{recursive:true});writeFileSync(destination,file.content)}
   for(const name of ['migrate-unified.mjs','verify-migrations.mjs','provision-runtime-db-role.mjs']){mkdirSync(join(staging,'scripts'),{recursive:true});writeFileSync(join(staging,'scripts',name),git(['show',`${revision}:scripts/${name}`],{rawOutput:true}))}
   return staging
@@ -85,7 +89,14 @@ function validateContainers(before) {
   const applications=docker(['ps','-a','--format','{{json .}}']).split('\n').map(line=>line.trim()).filter(Boolean).map(line=>JSON.parse(line)).filter(c=>c.Labels?.includes('com.docker.compose.service=metardu-app'))
   assert.equal(applications.length,1,'Exactly one application container is required')
 }
-function composeConfig() {return JSON.parse(docker(['compose','-f','docker-compose.yml','config','--format','json']))}
+function composeConfig() {
+  if (!legacy) assert.equal(git(['diff','--name-only',revision,'--','docker-compose.yml']),'','Compose source must match the pinned release.')
+  return JSON.parse(docker(['compose','-f','docker-compose.yml','config','--format','json']))
+}
+function assertCollaborationPlan(receipt) {
+  assert.equal(Boolean(receipt.collaboration),receipt.pending.some(version=>COLLABORATION_UPGRADE_VERSIONS.includes(version)),
+    'A collaboration schema upgrade requires its coordinated service plan.')
+}
 function assertEnvironment(before, config) {
   const old=envOf(before.find(c=>c.Name==='/metardu-app')), next=config.services['metardu-app'].environment
   return assertSurveyPushEnvironment(old,next)
@@ -122,6 +133,11 @@ async function plan() {
     result.compatibility.importContract=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{allowPendingObservationExtension:drift.missing.includes(OBSERVATION_COMPATIBILITY_VERSION)}))
     result.compatibility.fieldContract=await withAdmin(before,async client=>assertFieldObservationContract(await readFieldObservationContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{pending:drift.missing.includes(FIELD_OBSERVATION_VERSION)}))
     result.compatibility.scheduleContract=await withAdmin(before,async client=>assertScheduleSchemaContract(await readScheduleSchemaContract(client,envOf(before.find(c=>c.Name==='/metardu-app')).DB_USER),{pending:drift.missing.includes(SCHEDULE_UPGRADE_VERSION)}))
+    if (drift.missing.some(version=>COLLABORATION_UPGRADE_VERSIONS.includes(version))) {
+      const collab=before.find(c=>c.Name==='/metardu-collaboration')
+      result.collaboration={...collaborationConfiguration(envOf(app),envOf(collab),config.services['metardu-collaboration'].environment),
+        previousImage:collab.Image,previousContainer:collab.Id}
+    }
     result.hostFreeBytes=hostFreeBytes()
   }
   save(result)
@@ -149,6 +165,7 @@ async function build(retry=false) {
 }
 async function buildCandidate(retry) {
   const receipt=load()
+  assertCollaborationPlan(receipt)
   assertCandidateBuildAdmission(receipt,revision,{retry,priorProcessesAbsent:retry&&priorBuildProcessesAbsent(receipt)})
   let retryAdmission
   if(retry) {
@@ -194,6 +211,17 @@ async function buildCandidate(retry) {
   docker(['image','tag',receipt.rollbackImage,rollbackTag])
   assert.equal(docker(['image','inspect',rollbackTag,'--format','{{.Id}}']),receipt.rollbackImage)
   const config=composeConfig();assert.deepEqual(assertEnvironment(before,config),receipt.pushEnvironment,'Reviewed push setup changed after planning')
+  if (receipt.collaboration) {
+    const app=before.find(c=>c.Name==='/metardu-app'), collab=before.find(c=>c.Name==='/metardu-collaboration')
+    assert.equal(collab.Image,receipt.collaboration.previousImage)
+    assert.equal(collab.Id,receipt.collaboration.previousContainer)
+    assert.deepEqual(collaborationConfiguration(envOf(app),envOf(collab),config.services['metardu-collaboration'].environment),
+      {origin:receipt.collaboration.origin,protocolVersion:receipt.collaboration.protocolVersion})
+    assertBuildSpace(hostFreeBytes())
+    receipt.collaboration.candidateImage=buildCollaborationCandidate({revision,docker})
+    save(receipt)
+    assertBuildSpace(hostFreeBytes())
+  }
   const args=['build','--builder','desktop-linux','--progress=plain','--tag',candidateTag,'--label',`org.opencontainers.image.revision=${revision}`,
     '--build-arg',`NEXT_PUBLIC_APP_URL=${config.services['metardu-app'].environment.NEXT_PUBLIC_APP_URL}`,
     '--build-arg',`NEXT_PUBLIC_PAYPAL_CLIENT_ID=${config.services['metardu-app'].build.args.NEXT_PUBLIC_PAYPAL_CLIENT_ID||''}`,'-']
@@ -228,7 +256,8 @@ async function verifyRehearsedSchema(receipt,client,runtimeRole) {
 }
 
 async function rehearseIsolatedBaseline(receipt,owned,settings) {
-  assert.equal(receipt.pending.length,0,'Isolated baseline rehearsal is for no-SQL releases only.')
+  const upgrading = receipt.pending.length > 0
+  if (upgrading) assert.deepEqual(receipt.pending,COLLABORATION_UPGRADE_VERSIONS,'This isolated upgrade expects exactly the two collaboration migrations.')
   assert.equal(owned.Config.Labels['metardu.purpose'],'schema-rehearsal')
   const identity=pinnedRehearsalIdentity(revision)
   const controlAddress=new URL(settings.adminUrl)
@@ -239,7 +268,18 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
   const runtime=new URL(admin);runtime.username=identity.runtimeRole;runtime.password=randomBytes(32).toString('hex')
   const files=sourceMigrations()
   assert.deepEqual(files.map(file=>({version:file.version,checksum:file.checksum})),receipt.sourceRegistry)
-  assert.ok(computeDrift(files,receipt.migrationBefore).ok)
+  const baseline = compatibleRollbackRegistry(files,receipt.migrationBefore)
+  assert.deepEqual(computeDrift(files,receipt.migrationBefore).missing,receipt.pending)
+  if (upgrading) {
+    assert.equal(baseline.length,129)
+    assert.equal(files.length,131)
+  }
+  const proof = upgrading ? {revision,status:'checking',sourceBaseline:baseline.length,targetLedgerCount:files.length,pending:receipt.pending,
+    sourceRegistry:receipt.sourceRegistry,customerDataCopied:false,productionMutated:false,newContainer:false,checks:[],cleanup:{}} : null
+  const check = name => {
+    proof.checks.push({name,passed:true})
+    console.log('PASS '+name)
+  }
   let created=false,client
   await control.connect()
   const readMarker=async database=>(await control.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=$1",[database])).rows[0]?.marker
@@ -247,25 +287,64 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
     assert.equal(await readMarker('metardu_runtime_verify'),'METARDU synthetic beacon verification only 2026-10-08')
     assert.equal((await control.query('SELECT 1 FROM pg_database WHERE datname=$1',[identity.database])).rowCount,0,'Inspect any existing rehearsal artifact before reuse.')
     assert.equal((await control.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[identity.runtimeRole])).rowCount,0)
-    receipt.rehearsal={database:identity.database,customerDataCopied:false,existingContainer:true,isolatedBaseline:true,pending:[],passed:false}
+    receipt.rehearsal={database:identity.database,customerDataCopied:false,existingContainer:true,isolatedBaseline:true,pending:receipt.pending,passed:false}
     save(receipt)
     await control.query(`CREATE DATABASE "${identity.database}" TEMPLATE template0`);created=true
     await control.query(`COMMENT ON DATABASE "${identity.database}" IS '${identity.marker}'`)
     assert.equal(await readMarker(identity.database),identity.marker)
-    const staging=stageMigrations(files)
-    const result=runProvisionedMigrations(staging,admin.href,runtime.href)
-    if(result.error||result.status!==0){
-      receipt.rehearsal.failedAt=(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'
-      receipt.rehearsal.errorCode=(result.stderr||'').match(/code: ['"]([A-Z0-9]+)['"]/)?.[1]||null
-      throw new Error(`Isolated synthetic migration bootstrap failed at ${receipt.rehearsal.failedAt}.`)
+    const provision = (stage, phase) => {
+      const result = runProvisionedMigrations(stage,admin.href,runtime.href)
+      if (result.error || result.status!==0) {
+        receipt.rehearsal.failedAt=(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'
+        receipt.rehearsal.errorCode=(result.stderr||'').match(/code: ['"]([A-Z0-9]+)['"]/)?.[1]||null
+        throw new Error('Isolated '+phase+' failed at '+receipt.rehearsal.failedAt+'.')
+      }
     }
+    const staging=stageMigrations(files)
+    provision(upgrading ? stageMigrations(baseline,'migration-baseline') : staging,'baseline')
     client=new pg.Client({connectionString:admin.href,connectionTimeoutMillis:5000});await client.connect()
-    const after=await ledger(client)
-    assert.deepEqual(after,receipt.migrationBefore,'The isolated registry must exactly match production before promotion.')
+    const before=await ledger(client)
+    if (upgrading) {
+      assert.equal(before.length,129)
+      assert.ok(computeDrift(baseline,before).ok)
+      check('baseline')
+      const fixture = await seedCollaborationUpgrade(client)
+      const original = await snapshotExistingRows(client)
+      const originalCollaboration = await snapshotCollaborationRows(client)
+      const originalPolicies = await collaborationPolicies(client)
+      await client.query('BEGIN')
+      try {
+        await client.query('ALTER TABLE public.survey_points DISABLE ROW LEVEL SECURITY')
+        const sharedRead = files.find(file=>file.version===COLLABORATION_UPGRADE_VERSIONS[1])
+        await assert.rejects(() => client.query(sharedRead.content.split(/^--\s*DOWN:/m)[0]), /must already have RLS enabled/)
+      } finally { await client.query('ROLLBACK') }
+      assert.deepEqual(await ledger(client),before)
+      check('unsafe-shared-schema-rejected')
+      provision(staging,'forward upgrade')
+      const after=await ledger(client)
+      assert.ok(computeDrift(files,after).ok)
+      assert.equal(after.length,131)
+      assert.deepEqual(after.filter(row=>before.some(old=>old.version===row.version)),before)
+      check('forward')
+      assert.deepEqual((await snapshotExistingRows(client,original.catalog)).rows,original.rows)
+      assert.deepEqual(await snapshotCollaborationRows(client),originalCollaboration)
+      const newPolicies = new Set(['survey_points_shared_project_read','fieldbook_shared_project_read'])
+      const policies = await collaborationPolicies(client)
+      assert.deepEqual(policies.filter(row=>!newPolicies.has(row.policyname)),originalPolicies)
+      assert.equal(policies.filter(row=>newPolicies.has(row.policyname)&&row.cmd==='SELECT').length,2)
+      check('original-rows-and-policies')
+      provision(staging,'idempotent rerun')
+      assert.deepEqual(await ledger(client),after)
+      check('idempotent')
+      await checkCollaborationRuntime(runtime.href,fixture,check)
+    } else {
+      assert.deepEqual(before,receipt.migrationBefore,'The isolated registry must exactly match production before promotion.')
+    }
     await verifyRehearsedSchema(receipt,client,identity.runtimeRole)
     receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
       registry:join(staging,'src/lib/db/migrations'),revision,runtimeUrl:runtime.href,isolatedBaseline:true})
-    receipt.rehearsal.applied=after.length
+    receipt.rehearsal.applied=(await ledger(client)).length
+    if (upgrading) check('previous-image-startup')
   }finally{
     try{
       if(client)await client.end()
@@ -274,8 +353,17 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
         await control.query(`DROP DATABASE "${identity.database}"`)
         await control.query(`DROP ROLE IF EXISTS "${identity.runtimeRole}"`)
         if(receipt.rehearsal)receipt.rehearsal.isolatedFixtureRemoved=true
+        if (proof) {
+          proof.cleanup.syntheticDatabaseRemoved=await readMarker(identity.database)===undefined
+          proof.cleanup.syntheticRoleRemoved=(await control.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[identity.runtimeRole])).rowCount===0
+        }
       }
     }finally{await control.end();if(receipt.rehearsal)save(receipt)}
+  }
+  if (proof) {
+    proof.status='passed'
+    assertSyntheticUpgradeProof(proof,revision,{pending:receipt.pending,sourceRegistry:receipt.sourceRegistry})
+    writeFileSync(join(directory,'upgrade-checks.json'),JSON.stringify(proof,null,2)+'\n',{flag:'wx'})
   }
   receipt.rehearsal.passed=true;save(receipt);console.log(JSON.stringify(receipt.rehearsal))
 }
@@ -286,7 +374,7 @@ async function rehearse() {
   assert.equal(owned.Id,'ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0')
   assert.deepEqual(owned.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'55433'}])
   const settings=rehearsalDatabaseConfig()
-  if(process.env.METARDU_REHEARSE_PINNED_BASELINE==='1'){
+  if(process.env.METARDU_REHEARSE_PINNED_BASELINE==='1'||receipt.pending.some(version=>COLLABORATION_UPGRADE_VERSIONS.includes(version))){
     assert.equal(process.argv[4],'--unified','An isolated baseline requires the unified release namespace.')
     await rehearseIsolatedBaseline(receipt,owned,settings);return
   }
@@ -318,6 +406,7 @@ async function rehearse() {
 }
 async function migrateAndPromote() {
   const receipt=load();assert.equal(receipt.status,'built')
+  assertCollaborationPlan(receipt)
   const before=inspect();validateContainers(before)
   const app=before.find(c=>c.Name==='/metardu-app'),oldEnv=envOf(app)
   assert.equal(app.Image,receipt.rollbackImage)
@@ -338,7 +427,29 @@ async function migrateAndPromote() {
   assert.ok(Object.values(jobs).every(value=>value===0),'Wait for active jobs before maintenance')
   const staging=stageMigrations(files)
   const override=join(directory,'promotion.override.yml')
-  writeFileSync(override,JSON.stringify({services:{'metardu-app':forwardPromotionService(candidateTag,revision,app)}},null,2))
+  const services={'metardu-app':forwardPromotionService(candidateTag,revision,app)}
+  const collaboration=receipt.collaboration
+  const previousCollaboration=before.find(c=>c.Name==='/metardu-collaboration')
+  let collaborationReplacementAttempted=false
+  let migrationServiceReplacementAttempted=false
+  const recreateMigrationService = overridePath => docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',overridePath,
+    'up','--no-deps','--no-build','--pull','never','--force-recreate','--exit-code-from','metardu-db-migrate','metardu-db-migrate'],{timeout:120000})
+  const currentMigrationService = () => JSON.parse(docker(['inspect','metardu-db-migrate']))[0]
+  if (collaboration) {
+    assert.equal(previousCollaboration.Id,collaboration.previousContainer)
+    assert.equal(previousCollaboration.Image,collaboration.previousImage)
+    assert.equal(previousCollaboration.Config.Image,'metardu-metardu-collaboration')
+    assert.equal(docker(['image','inspect',collaborationCandidateTag,'--format','{{.Id}}']),collaboration.candidateImage)
+    assert.deepEqual(collaborationConfiguration(oldEnv,envOf(previousCollaboration),composeConfig().services['metardu-collaboration'].environment),
+      {origin:collaboration.origin,protocolVersion:collaboration.protocolVersion})
+    const existing=spawnSync('docker',['image','inspect',collaborationRollbackTag,'--format','{{.Id}}'],{encoding:'utf8',windowsHide:true,timeout:30000})
+    assert.ok(existing.status!==0||existing.stdout.trim()===collaboration.previousImage,'Preserve the previous collaboration rollback image first.')
+    docker(['image','tag',collaboration.previousImage,collaborationRollbackTag])
+    assertRuntimeMigrationContainer(app,currentMigrationService())
+    services['metardu-collaboration']={image:collaborationCandidateTag}
+    services['metardu-db-migrate']={image:candidateTag}
+  }
+  writeFileSync(override,JSON.stringify({services},null,2))
   receipt.status='maintenance';save(receipt)
   docker(['stop','--timeout','20','metardu-app'],{timeout:40_000})
   try {
@@ -352,7 +463,10 @@ async function migrateAndPromote() {
     receipt.checkpoint={database:backup.match(/Database backup: (\/backups\/db_[0-9_]+\.sql\.gz)/)?.[1],uploads:backup.match(/Uploads backup: (\/backups\/uploads_[0-9_]+\.tar\.gz)/)?.[1]}
     assert.ok(receipt.checkpoint.database&&receipt.checkpoint.uploads);save(receipt)
     console.log('Fresh database and upload checkpoint verified; existing archives preserved.')
-    receipt.existingRecordsBefore=await withAdmin(before,client=>snapshotExistingRows(client));save(receipt)
+    receipt.existingRecordsBefore=await withAdmin(before,client=>snapshotExistingRows(client))
+    const collaborationRowsBefore=collaboration ? await withAdmin(before,snapshotCollaborationRows) : null
+    const collaborationPoliciesBefore=collaboration ? await withAdmin(before,collaborationPolicies) : null
+    save(receipt)
     const config=databaseConfig(before)
     const address=new URL('postgresql://localhost');address.hostname=config.host;address.port=String(config.port);address.username=config.user;address.password=config.password;address.pathname='/'+config.database
     const runtimeAddress=new URL(address);runtimeAddress.username=oldEnv.DB_USER;runtimeAddress.password=oldEnv.DB_PASSWORD
@@ -366,6 +480,14 @@ async function migrateAndPromote() {
     const recordsAfter=await withAdmin(before,client=>snapshotExistingRows(client,receipt.existingRecordsBefore.catalog))
     assert.deepEqual(recordsAfter.rows,receipt.existingRecordsBefore.rows,'Original recorded values must survive migration unchanged')
     receipt.existingRecordsPreserved=true
+    if (collaboration) {
+      assert.deepEqual(await withAdmin(before,snapshotCollaborationRows),collaborationRowsBefore)
+      const newPolicies=new Set(['survey_points_shared_project_read','fieldbook_shared_project_read'])
+      const policies=await withAdmin(before,collaborationPolicies)
+      assert.deepEqual(policies.filter(row=>!newPolicies.has(row.policyname)),collaborationPoliciesBefore)
+      assert.equal(policies.filter(row=>newPolicies.has(row.policyname)&&row.cmd==='SELECT').length,2)
+      collaboration.originalRecordsAndPoliciesPreserved=true
+    }
     receipt.importContractAfter=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER)))
     receipt.fieldContractAfter=await withAdmin(before,async client=>assertFieldObservationContract(await readFieldObservationContract(client,oldEnv.DB_USER)))
     receipt.scheduleContractAfter=await withAdmin(before,async client=>assertScheduleSchemaContract(await readScheduleSchemaContract(client,oldEnv.DB_USER)))
@@ -382,16 +504,51 @@ async function migrateAndPromote() {
     }
     receipt.migrationAfter=afterLedger;receipt.status='migrated';save(receipt)
     console.log(`Production migrations verified: ${afterLedger.length} entries; historical hashes unchanged.`)
+    if (collaboration) {
+      collaborationReplacementAttempted=true
+      docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',override,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','60','metardu-collaboration'],{timeout:90000})
+      const room=JSON.parse(docker(['exec','metardu-collaboration','wget','-qO-','http://127.0.0.1:3001/health']))
+      assert.equal(room.status,'healthy')
+      assert.equal(room.protocolVersion,collaboration.protocolVersion)
+    }
     docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',override,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','120','metardu-app'],{timeout:150_000})
     const after=inspect(),updated=after.find(c=>c.Name==='/metardu-app')
     assert.equal(updated.Image,receipt.candidateImage);assert.equal(updated.State.Health.Status,'healthy')
-    for(const prior of before){const kept=after.find(c=>c.Name===prior.Name);assert.deepEqual(mounts(kept),mounts(prior));if(prior.Name!=='/metardu-app'){assert.equal(kept.Id,prior.Id);assert.equal(kept.State.StartedAt,prior.State.StartedAt)}}
+    for (const prior of before) {
+      const kept=after.find(c=>c.Name===prior.Name)
+      assert.deepEqual(mounts(kept),mounts(prior))
+      if (collaboration && prior.Name==='/metardu-collaboration') {
+        assert.equal(kept.Image,collaboration.candidateImage)
+        assert.equal(kept.State.Health.Status,'healthy')
+        assert.equal(Object.values(kept.NetworkSettings.Ports).some(Boolean),false,'Room backend must remain private.')
+      } else if (prior.Name!=='/metardu-app') {
+        assert.equal(kept.Id,prior.Id)
+        assert.equal(kept.State.StartedAt,prior.State.StartedAt)
+      }
+    }
+    if (collaboration) {
+      const publicSocket=collaboration.origin.replace(/^https:/,'wss:')
+      collaboration.routes={
+        origin:await checkRoomRoute('ws://127.0.0.1:3000',collaboration.origin),
+        public:await checkRoomRoute(publicSocket,collaboration.origin),
+      }
+    }
     assert.equal(envOf(updated).METARDU_BUILD_SHA,revision)
     const appClient=new pg.Client({...databaseConfig(before),user:oldEnv.DB_USER,password:oldEnv.DB_PASSWORD});await appClient.connect()
     try{assert.equal(runtimeDatabaseRoleFailure((await appClient.query(RUNTIME_ROLE_QUERY)).rows[0]),null)}finally{await appClient.end()}
+    if (collaboration) {
+      migrationServiceReplacementAttempted=true
+      recreateMigrationService(override)
+      const migration=currentMigrationService()
+      assertRuntimeMigrationContainer(updated,migration)
+      assert.deepEqual(await withAdmin(before,ledger),afterLedger)
+      assert.deepEqual(await withAdmin(before,snapshotCollaborationRows),collaborationRowsBefore)
+      receipt.migrationService={image:migration.Image,exitCode:migration.State.ExitCode,ledgerPreserved:true}
+      docker(['image','tag',collaboration.candidateImage,previousCollaboration.Config.Image])
+    }
     docker(['image','tag',receipt.candidateImage,'metardu-metardu-app:latest'])
     receipt.after=after.map(describe);receipt.status='promoted';save(receipt)
-    console.log(JSON.stringify({status:receipt.status,revision,image:updated.Image,migrations:afterLedger.length,requiredServicesPreserved:true,uploadsPreserved:true}))
+    console.log(JSON.stringify({status:receipt.status,revision,image:updated.Image,migrations:afterLedger.length,requiredServicesPreserved:true,collaborationPromoted:Boolean(collaboration),uploadsPreserved:true}))
   }catch(error){
     receipt.status='failed';receipt.failure=error.message
     if(error.commandFailure)receipt.commandFailure=error.commandFailure
@@ -407,9 +564,36 @@ async function migrateAndPromote() {
       const rollbackOverride=join(directory,'rollback.override.yml')
       writeFileSync(rollbackOverride,JSON.stringify({services:{'metardu-app':rollbackService(rollbackTag,receipt.priorRevision,receipt.rollbackRegistry.directory)}},null,2))
       docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',rollbackOverride,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','120','metardu-app'],{timeout:150_000})
+      if (collaborationReplacementAttempted) {
+        const collabRollback=join(directory,'collaboration-rollback.override.yml')
+        writeFileSync(collabRollback,JSON.stringify({services:{'metardu-collaboration':{image:collaborationRollbackTag,
+          environment:{COLLAB_ALLOWED_ORIGINS:envOf(previousCollaboration).COLLAB_ALLOWED_ORIGINS??null}}}},null,2))
+        docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',collabRollback,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','60','metardu-collaboration'],{timeout:90000})
+        docker(['image','tag',collaboration.previousImage,previousCollaboration.Config.Image])
+      }
       const restored=inspect();assert.equal(restored.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
+      if (migrationServiceReplacementAttempted) {
+        // The older provisioner predates append-only review grants. Verify the
+        // forward schema with its real runtime verifier and make no grants.
+        const migrationRollback=join(directory,'migration-rollback.override.yml')
+        const service=rollbackService(rollbackTag,receipt.priorRevision,receipt.rollbackRegistry.directory)
+        const verify="const u=new URL('postgresql://localhost');u.hostname=process.env.APP_DB_HOST;u.port=process.env.APP_DB_PORT;u.pathname='/'+process.env.APP_DB_NAME;u.username=process.env.APP_DB_USER;u.password=process.env.APP_DB_PASSWORD;const r=require('node:child_process').spawnSync(process.execPath,['/app/verify-migrations.mjs'],{stdio:'inherit',env:{...process.env,DATABASE_URL:u.href}});process.exit(r.status??1)"
+        writeFileSync(migrationRollback,JSON.stringify({services:{'metardu-db-migrate':{...service,command:['-e',verify]}}},null,2))
+        recreateMigrationService(migrationRollback)
+        assertRuntimeMigrationContainer(restored.find(c=>c.Name==='/metardu-app'),currentMigrationService())
+      }
       assert.equal(restored.find(c=>c.Name==='/metardu-app').State.Health.Status,'healthy')
-      for(const prior of before.filter(c=>c.Name!=='/metardu-app')){const kept=restored.find(c=>c.Name===prior.Name);assert.equal(kept.Id,prior.Id);assert.equal(kept.State.StartedAt,prior.State.StartedAt);assert.deepEqual(mounts(kept),mounts(prior))}
+      for (const prior of before.filter(c=>c.Name!=='/metardu-app')) {
+        const kept=restored.find(c=>c.Name===prior.Name)
+        assert.deepEqual(mounts(kept),mounts(prior))
+        if (collaborationReplacementAttempted && prior.Name==='/metardu-collaboration') {
+          assert.equal(kept.Image,prior.Image)
+          assert.equal(kept.State.Health.Status,'healthy')
+        } else {
+          assert.equal(kept.Id,prior.Id)
+          assert.equal(kept.State.StartedAt,prior.State.StartedAt)
+        }
+      }
       receipt.status='rolled-back';receipt.rollbackHealthy=true;save(receipt)
     }catch(rollbackError){receipt.status='maintenance-failure';receipt.rollbackFailure=rollbackError.message;save(receipt)}
     throw error

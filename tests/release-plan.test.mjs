@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import path from 'node:path'
 import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,deployedAppRevision,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
 import {pinnedRehearsalIdentity} from '../scripts/rehearsal-database.mjs'
+import { COLLABORATION_UPGRADE_CHECKS, COLLABORATION_UPGRADE_VERSIONS } from '../scripts/collaboration-upgrade-contract.mjs'
 
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
 
@@ -129,4 +130,23 @@ test('conflicting, missing, malformed or foreign deployed identities block relea
     ({app})=>app.Config.Env.push('METARDU_BUILD_SHA='+sha),
   ]
   for(const mutate of mutations){const fixture=deployedIdentity();mutate(fixture);assert.throws(()=>deployedAppRevision(fixture.app,fixture.image))}
+})
+
+
+test('collaboration admission requires the full exact 129-to-131 forward proof',()=>{
+  const pending=COLLABORATION_UPGRADE_VERSIONS
+  const sourceRegistry=Array.from({length:129},(_,i)=>({version:i+'_original',checksum:'a'.repeat(64)}))
+    .concat(pending.map(version=>({version,checksum:'b'.repeat(64)})))
+  const proof={revision:sha,status:'passed',sourceBaseline:129,targetLedgerCount:131,pending,sourceRegistry,
+    customerDataCopied:false,newContainer:false,productionMutated:false,
+    cleanup:{syntheticDatabaseRemoved:true,syntheticRoleRemoved:true},
+    checks:COLLABORATION_UPGRADE_CHECKS.map(name=>({name,passed:true}))}
+  const expected={pending,sourceRegistry}
+  assertSyntheticUpgradeProof(proof,sha,expected)
+  for(const changed of [{sourceBaseline:128},{targetLedgerCount:130},{productionMutated:true},
+    {sourceRegistry:sourceRegistry.slice(1)},{cleanup:{syntheticDatabaseRemoved:true}},
+    {checks:proof.checks.slice(1)},{checks:proof.checks.concat(proof.checks[0])}]) {
+    assert.throws(()=>assertSyntheticUpgradeProof({...proof,...changed},sha,expected))
+  }
+  assert.throws(()=>assertSyntheticUpgradeProof(proof,sha,{...expected,pending:pending.slice(1)}))
 })

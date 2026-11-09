@@ -54,6 +54,15 @@ const nextConfig = {
   // Preserve the owned loopback origin during auth redirects. Next's default
   // normalizer rewrites 127.0.0.1 to localhost, which separates cookies/drawings.
   skipMiddlewareUrlNormalize: true,
+  ...(process.env.NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN === '1' && process.env.MOBILE_BUILD !== 'true' ? {
+    async rewrites() {
+      return { beforeFiles: [{
+        source: '/ws/collaboration',
+        has: [{ type: 'header', key: 'upgrade', value: 'websocket' }],
+        destination: 'http://metardu-collaboration:3001/ws/collaboration',
+      }] }
+    },
+  } : {}),
   // Standalone output — smaller deploy, lower RAM
   // Use 'export' for Capacitor mobile builds (set MOBILE_BUILD=true)
   output: process.env.MOBILE_BUILD === 'true' ? 'export' : 'standalone',

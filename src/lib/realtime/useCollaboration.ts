@@ -25,7 +25,10 @@ export function useCollaboration({projectId,userId,onChat,onRecordsChanged}:Prop
     if(!projectId||!userId)return
     let active=true
     const seenMessages=new Set<string>()
-    const client=createAuthenticatedRoomClient({projectId,userId,endpoint:process.env.NEXT_PUBLIC_WS_URL,
+    const endpoint = process.env.NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN === '1'
+      ? (window.location.protocol === 'https:' ? 'wss://' : 'ws://') + window.location.host + '/ws/collaboration'
+      : process.env.NEXT_PUBLIC_WS_URL
+    const client=createAuthenticatedRoomClient({projectId,userId,endpoint,
       onReady:message=>{if(active)setState(s=>({...s,isConnected:true,canChat:roomPermissions(message.role)?.canChat??false,status:message.role==='viewer'?'Connected · read-only':'Connected'}));if(active)callbacks.current.onRecordsChanged?.()},
       onPresence:collaborators=>{if(active)setState(s=>({...s,collaborators}))},
       onDisconnected:status=>{if(active)setState(s=>({...s,isConnected:false,canChat:false,collaborators:[],status}))},

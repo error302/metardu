@@ -3,8 +3,9 @@ import path from 'node:path'
 import {computeDrift} from './verify-migrations.mjs'
 import {SCHEDULE_UPGRADE_VERSION,assertScheduleUpgradeProof} from './schedule-upgrade-contract.mjs'
 import {WORKFLOW_UPGRADE_VERSIONS,assertWorkflowUpgradeProof} from './workflow-upgrade-contract.mjs'
+import {COLLABORATION_UPGRADE_VERSIONS,assertCollaborationUpgradeProof} from './collaboration-upgrade-contract.mjs'
 
-export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles','125_surface_source_reviews','126_shared_workspace_read_grants',...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
+export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles',...COLLABORATION_UPGRADE_VERSIONS,...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
@@ -77,7 +78,9 @@ export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
 export function assertSyntheticUpgradeProof(proof,revision,expected) {
   assert.equal(proof.revision,revision)
   assert.equal(proof.status,'passed')
-  assert.ok([112,115,117,118,119,128].includes(proof.sourceBaseline))
+  assert.ok([112,115,117,118,119,128,129].includes(proof.sourceBaseline))
+  if(expected?.pending?.some(version=>COLLABORATION_UPGRADE_VERSIONS.includes(version)))assert.equal(proof.sourceBaseline,129,'Collaboration requires its own 129-to-131 rehearsal.')
+  if(proof.sourceBaseline===129)assertCollaborationUpgradeProof(proof,expected)
   if(expected?.pending?.some(version=>WORKFLOW_UPGRADE_VERSIONS.includes(version)))assert.equal(proof.sourceBaseline,119,'Older rehearsal evidence cannot admit the workflow upgrade.')
   if(expected?.pending?.includes(SCHEDULE_UPGRADE_VERSION))assert.equal(proof.sourceBaseline,128,'Scheduling requires its own 128-to-129 rehearsal.')
   if(proof.sourceBaseline===128)assertScheduleUpgradeProof(proof,expected)

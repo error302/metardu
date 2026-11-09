@@ -254,6 +254,7 @@ services:
       - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET must be set in .env}
       - NODE_ENV=production
       - PORT=3001
+      - COLLAB_ALLOWED_ORIGINS=${COLLAB_ALLOWED_ORIGINS:-${NEXT_PUBLIC_APP_URL:-https://metardu.space}}
       - REDIS_URL=redis://metardu-redis:6379
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]

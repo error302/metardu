@@ -305,6 +305,6 @@ export const config = {
   // /api/public/metrics — the H-13 metrics leak) received the LEAST header
   // protection. They now run through the normal middleware pipeline.
   matcher: [
-    '/((?!_next/static|_next/image|favicon.ico|manifest.json|manifest.webmanifest|sw.js|robots.txt|sitemap.xml|api/webhooks/.*|api/public/health.*|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|manifest.json|manifest.webmanifest|sw.js|robots.txt|sitemap.xml|api/webhooks/.*|api/public/health.*|ws/collaboration$|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|css|js|woff|woff2|ttf|eot)$).*)',
   ],
 }
