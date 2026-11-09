@@ -11,7 +11,7 @@ import {readScheduleSchemaContract,assertScheduleSchemaContract} from './schedul
 import {SCHEDULE_UPGRADE_VERSION} from './schedule-upgrade-contract.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig, pinnedRehearsalIdentity } from './rehearsal-database.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission } from './release-plan.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, assertCompleteRehearsalLedger, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
@@ -349,7 +349,9 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
       check('idempotent')
       await checkCollaborationRuntime(runtime.href,fixture,check)
     } else {
-      assert.deepEqual(before,receipt.migrationBefore,'The isolated registry must exactly match production before promotion.')
+      assertCompleteRehearsalLedger(files, receipt.migrationBefore)
+      assertCompleteRehearsalLedger(files, before)
+      receipt.rehearsal.checksumDifferences = before.filter((row, index) => row.checksum !== receipt.migrationBefore[index].checksum).map(row => row.version)
     }
     await verifyRehearsedSchema(receipt,client,identity.runtimeRole)
     receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],

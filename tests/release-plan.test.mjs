@@ -1,8 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
-import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,deployedAppRevision,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
+import {pinnedReleaseArguments,compatibleRollbackRegistry,assertCompleteRehearsalLedger,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,deployedAppRevision,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
 import {pinnedRehearsalIdentity} from '../scripts/rehearsal-database.mjs'
+import {migrationChecksums} from '../scripts/verify-migrations.mjs'
 import { COLLABORATION_UPGRADE_CHECKS, COLLABORATION_UPGRADE_VERSIONS } from '../scripts/collaboration-upgrade-contract.mjs'
 
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
@@ -28,6 +29,19 @@ test('rollback validates every applied migration and includes only reviewed comp
   assert.equal(compatibleRollbackRegistry(source,[{version:'107_existing',checksum:'old'},{version:'108_pipeline_asbuilt_history',checksum:'new'}]).length,2)
   for(const ledger of [[],[{version:'unknown',checksum:'x'}],[{version:'107_existing',checksum:'changed'}],[{version:'107_existing',checksum:'old'},{version:'107_existing',checksum:'old'}]])assert.throws(()=>compatibleRollbackRegistry(source,ledger))
 })
+test('complete rehearsals accept only checked equivalent line endings for historical hashes', () => {
+  const sql = 'SELECT 1;\nSELECT 2;\n'
+  const file = { version: '001_existing', path: 'src/lib/db/migrations/001_existing.sql', ...migrationChecksums(Buffer.from(sql)) }
+  const legacy = migrationChecksums(Buffer.from(sql.replaceAll('\n', '\r\n'))).checksum
+  assert.notEqual(legacy, file.checksum)
+  for (const checksum of [file.checksum, legacy]) assertCompleteRehearsalLedger([file], [{ version: file.version, checksum }])
+  for (const checksum of [null, 'a'.repeat(64)]) assert.throws(() => assertCompleteRehearsalLedger([file], [{ version: file.version, checksum }]))
+  const next = { ...file, version: '002_existing', path: 'src/lib/db/migrations/002_existing.sql' }
+  const row = { version: file.version, checksum: file.checksum }
+  assert.throws(() => assertCompleteRehearsalLedger([file, next], [row]))
+  assert.throws(() => assertCompleteRehearsalLedger([file, next], [row, row]))
+})
+
 test('a newly discovered migration cannot silently enter the reviewed release',()=>{
   assert.deepEqual(assertSurveyReleaseDrift(source,[{version:'107_existing',checksum:'old'}]).missing,['108_pipeline_asbuilt_history'])
   assert.throws(()=>assertSurveyReleaseDrift([...source,{version:'111_unreviewed',path:'src/lib/db/migrations/111_unreviewed.sql',checksum:'x'}],[{version:'107_existing',checksum:'old'}]))

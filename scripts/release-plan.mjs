@@ -28,6 +28,16 @@ export function compatibleRollbackRegistry(source,ledger) {
   return files
 }
 
+// A fresh rehearsal writes canonical hashes. Production may retain approved
+// LF/CRLF hashes of the same SQL. Check both complete ledgers against the
+// pinned registry and leave their stored hashes intact.
+export function assertCompleteRehearsalLedger(source, ledger) {
+  assert.ok(ledger.every(row => /^[a-f0-9]{64}$/.test(row.checksum ?? '')),
+    'Every migration requires a recorded SHA-256 checksum.')
+  assert.equal(compatibleRollbackRegistry(source, ledger).length, source.length,
+    'The rehearsal requires every pinned migration.')
+}
+
 export function assertSurveyReleaseDrift(source,ledger) {
   const drift=computeDrift(source,ledger)
   compatibleRollbackRegistry(source,ledger)
