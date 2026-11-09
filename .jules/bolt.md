@@ -1,3 +1,0 @@
-## 2024-05-24 - Math.min/max Call Stack Exceeded on Arrays
-**Learning:** Using `Math.min(...array)` or `Math.max(...array)` on large arrays (like point clouds) triggers a `Maximum call stack size exceeded` error in V8 engines because the spread operator passes array elements as individual arguments. This is an O(4n) anti-pattern and a severe bottleneck in data-heavy computations like `gridMethodVolume`.
-**Action:** Always compute bounds using a `for` loop (or `reduce`) instead of spread when dealing with datasets of unknown or potentially large size in computationally intense modules like `src/lib/compute/pointCloudVolume.ts`.
