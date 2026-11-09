@@ -492,8 +492,10 @@ async function migrateAndPromote() {
     const existing=spawnSync('docker',['image','inspect',collaborationRollbackTag,'--format','{{.Id}}'],{encoding:'utf8',windowsHide:true,timeout:30000})
     assert.ok(existing.status!==0||existing.stdout.trim()===collaboration.previousImage,'Preserve the previous collaboration rollback image first.')
     docker(['image','tag',collaboration.previousImage,collaborationRollbackTag])
-    assertRuntimeMigrationContainer(app,currentMigrationService())
     services['metardu-collaboration']={image:collaborationCandidateTag}
+  }
+  if (!legacy) {
+    assertRuntimeMigrationContainer(app,currentMigrationService())
     services['metardu-db-migrate']={image:candidateTag}
   }
   writeFileSync(override,JSON.stringify({services},null,2))
@@ -585,14 +587,16 @@ async function migrateAndPromote() {
     assert.equal(envOf(updated).METARDU_BUILD_SHA,revision)
     const appClient=new pg.Client({...databaseConfig(before),user:oldEnv.DB_USER,password:oldEnv.DB_PASSWORD});await appClient.connect()
     try{assert.equal(runtimeDatabaseRoleFailure((await appClient.query(RUNTIME_ROLE_QUERY)).rows[0]),null)}finally{await appClient.end()}
-    if (collaboration) {
+    if (!legacy) {
       migrationServiceReplacementAttempted=true
       recreateMigrationService(override)
       const migration=currentMigrationService()
       assertRuntimeMigrationContainer(updated,migration)
       assert.deepEqual(await withAdmin(before,ledger),afterLedger)
-      assert.deepEqual(await withAdmin(before,snapshotCollaborationRows),collaborationRowsBefore)
       receipt.migrationService={image:migration.Image,exitCode:migration.State.ExitCode,ledgerPreserved:true}
+    }
+    if (collaboration) {
+      assert.deepEqual(await withAdmin(before,snapshotCollaborationRows),collaborationRowsBefore)
       docker(['image','tag',collaboration.candidateImage,'metardu-metardu-collaboration'])
     }
     docker(['image','tag',receipt.candidateImage,'metardu-metardu-app:latest'])
