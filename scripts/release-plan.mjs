@@ -9,7 +9,7 @@ export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surve
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv
-  assert.ok(['plan','rehearse','build','retry-build','promote','status'].includes(action),'Unknown release action.')
+  assert.ok(['plan','rehearse','build','retry-build','promote','resume','status'].includes(action),'Unknown release action.')
   assert.match(revision,/^[a-f0-9]{40}$/,'Use a full immutable commit SHA, not HEAD or a branch.')
   const directory=path.resolve(root,'.cache/release-verify',argv[2]==='--unified'?'unified-release':'survey-release')
   return {action,revision,directory:argv[2]==='--unified'?path.join(directory,revision):directory}

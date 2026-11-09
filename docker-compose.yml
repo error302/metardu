@@ -257,7 +257,7 @@ services:
       - COLLAB_ALLOWED_ORIGINS=${COLLAB_ALLOWED_ORIGINS:-${NEXT_PUBLIC_APP_URL:-https://metardu.space}}
       - REDIS_URL=redis://metardu-redis:6379
     healthcheck:
-      test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:3001/health"]
       interval: 15s
       timeout: 5s
       retries: 3

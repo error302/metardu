@@ -5,6 +5,16 @@ import WebSocket from 'ws'
 
 export const collaborationCandidateTag = 'metardu-metardu-collaboration:candidate'
 export const collaborationRollbackTag = 'metardu-metardu-collaboration:rollback-current'
+export const collaborationHealthProbe = ['CMD','wget','-qO-','http://127.0.0.1:3001/health']
+
+export function assertHealthProbeOnlyChange(original, current) {
+  const before=original.replaceAll('\r\n','\n')
+  const legacyProbe='["CMD", "wget", "-qO-", "http://localhost:3001/health"]'
+  const correctedProbe=legacyProbe.replace('localhost','127.0.0.1')
+  assert.equal(before.split(legacyProbe).length,2,'Expected exactly one reviewed collaboration probe.')
+  assert.ok(current.replaceAll('\r\n','\n')===before.replace(legacyProbe,correctedProbe),
+    'A recovery may change only the collaboration health probe.')
+}
 
 export function collaborationConfiguration(appEnvironment, running, compose) {
   const origin = new URL(appEnvironment.NEXT_PUBLIC_APP_URL).origin

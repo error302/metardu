@@ -20,9 +20,10 @@ import { snapshotExistingRows } from './release-row-snapshot.mjs'
 import { withExclusiveCandidateBuild } from './release-build-lock.mjs'
 import { assertRuntimeMigrationContainer } from './runtime-artifact.mjs'
 import { COLLABORATION_UPGRADE_VERSIONS } from './collaboration-upgrade-contract.mjs'
-import { buildCollaborationCandidate, checkRoomRoute, collaborationCandidateTag, collaborationConfiguration, collaborationRollbackTag } from './collaboration-release.mjs'
+import { assertHealthProbeOnlyChange, buildCollaborationCandidate, checkRoomRoute, collaborationCandidateTag, collaborationConfiguration, collaborationHealthProbe, collaborationRollbackTag } from './collaboration-release.mjs'
 import { snapshotCollaborationRows, collaborationPolicies, seedCollaborationUpgrade, checkCollaborationRuntime } from './check-collaboration-upgrade.mjs'
 
+const resuming = process.argv[2]==='resume'
 const legacy = process.argv.length === 3
 const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b',directory:resolve('.cache/release-verify/auth-release') }
   : pinnedReleaseArguments(process.argv.slice(2),process.cwd())
@@ -90,7 +91,17 @@ function validateContainers(before) {
   assert.equal(applications.length,1,'Exactly one application container is required')
 }
 function composeConfig() {
-  if (!legacy) assert.equal(git(['diff','--name-only',revision,'--','docker-compose.yml']),'','Compose source must match the pinned release.')
+  if (resuming) {
+    const head=git(['rev-parse','HEAD'])
+    assert.equal(head,git(['rev-parse','@{u}']),'The operational correction must be committed and pushed.')
+    const allowed=new Set(['docker-compose.yml','scripts/promote-auth-release.mjs','scripts/release-plan.mjs','scripts/collaboration-release.mjs','tests/collaboration-release.test.mjs'])
+    const changed=git(['diff','--name-only',revision,head]).split('\n').filter(Boolean)
+    assert.ok(changed.includes('docker-compose.yml')&&changed.every(file=>allowed.has(file)),'Application source changed since the candidate was built.')
+    assert.equal(git(['diff','--name-only',head,'--',...allowed]),'','Use the committed operational correction.')
+    assertHealthProbeOnlyChange(git(['show',revision+':docker-compose.yml'],{rawOutput:true}),readFileSync('docker-compose.yml','utf8'))
+  } else if (!legacy) {
+    assert.equal(git(['diff','--name-only',revision,'--','docker-compose.yml']),'','Compose source must match the pinned release.')
+  }
   return JSON.parse(docker(['compose','-f','docker-compose.yml','config','--format','json']))
 }
 function assertCollaborationPlan(receipt) {
@@ -405,8 +416,26 @@ async function rehearse() {
   }finally{await client.end()}
 }
 async function migrateAndPromote() {
-  const receipt=load();assert.equal(receipt.status,'built')
+  const receipt=load()
+  assert.equal(receipt.status,resuming?'maintenance-failure':'built')
   assertCollaborationPlan(receipt)
+  if (resuming) {
+    assert.ok(receipt.collaboration&&receipt.existingRecordsPreserved&&receipt.collaboration.originalRecordsAndPoliciesPreserved)
+    assert.equal(receipt.migrationAfter.length,131)
+    const appRecovery=JSON.parse(readFileSync(join(directory,'emergency-app-rollback.json'),'utf8'))
+    assert.equal(appRecovery.status,'healthy')
+    assert.equal(appRecovery.image,receipt.rollbackImage)
+    assert.equal(appRecovery.revision,receipt.priorRevision)
+    assert.equal(appRecovery.migrationCount,131)
+    const roomRecovery=JSON.parse(readFileSync(join(directory,'collaboration-ipv4-recovery.json'),'utf8'))
+    assert.equal(roomRecovery.status,'healthy')
+    assert.equal(roomRecovery.image,receipt.collaboration.candidateImage)
+    assert.equal(roomRecovery.revision,revision)
+    assert.equal(receipt.buildAttempts.at(-1).status,'passed')
+    receipt.firstCutover={failure:receipt.failure,automaticRollbackFailure:receipt.rollbackFailure,
+      checkpoint:receipt.checkpoint,appRecovery,roomRecovery}
+    receipt.operationalRevision=git(['rev-parse','HEAD'])
+  }
   const before=inspect();validateContainers(before)
   const app=before.find(c=>c.Name==='/metardu-app'),oldEnv=envOf(app)
   assert.equal(app.Image,receipt.rollbackImage)
@@ -416,7 +445,7 @@ async function migrateAndPromote() {
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
   if(!legacy)assertSurveyReleaseDrift(files,applied)
-  assert.deepEqual(applied,receipt.migrationBefore)
+  assert.deepEqual(applied,resuming?receipt.migrationAfter:receipt.migrationBefore)
   receipt.importContractBefore=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER),{allowPendingObservationExtension:receipt.pending.includes(OBSERVATION_COMPATIBILITY_VERSION)}))
   receipt.fieldContractBefore=await withAdmin(before,async client=>assertFieldObservationContract(await readFieldObservationContract(client,oldEnv.DB_USER),{pending:receipt.pending.includes(FIELD_OBSERVATION_VERSION)}))
   receipt.scheduleContractBefore=await withAdmin(before,async client=>assertScheduleSchemaContract(await readScheduleSchemaContract(client,oldEnv.DB_USER),{pending:receipt.pending.includes(SCHEDULE_UPGRADE_VERSION)}))
@@ -436,9 +465,18 @@ async function migrateAndPromote() {
     'up','--no-deps','--no-build','--pull','never','--force-recreate','--exit-code-from','metardu-db-migrate','metardu-db-migrate'],{timeout:120000})
   const currentMigrationService = () => JSON.parse(docker(['inspect','metardu-db-migrate']))[0]
   if (collaboration) {
-    assert.equal(previousCollaboration.Id,collaboration.previousContainer)
-    assert.equal(previousCollaboration.Image,collaboration.previousImage)
-    assert.equal(previousCollaboration.Config.Image,'metardu-metardu-collaboration')
+    if (resuming) {
+      assert.equal(app.Id,receipt.firstCutover.roomRecovery.app)
+      assert.equal(previousCollaboration.Id,receipt.firstCutover.roomRecovery.room)
+      assert.equal(previousCollaboration.Image,collaboration.candidateImage)
+      assert.equal(previousCollaboration.State.Health.Status,'healthy')
+      assert.deepEqual(previousCollaboration.Config.Healthcheck.Test,collaborationHealthProbe)
+      assert.equal(docker(['image','inspect',collaborationRollbackTag,'--format','{{.Id}}']),collaboration.previousImage)
+    } else {
+      assert.equal(previousCollaboration.Id,collaboration.previousContainer)
+      assert.equal(previousCollaboration.Image,collaboration.previousImage)
+      assert.equal(previousCollaboration.Config.Image,'metardu-metardu-collaboration')
+    }
     assert.equal(docker(['image','inspect',collaborationCandidateTag,'--format','{{.Id}}']),collaboration.candidateImage)
     assert.deepEqual(collaborationConfiguration(oldEnv,envOf(previousCollaboration),composeConfig().services['metardu-collaboration'].environment),
       {origin:collaboration.origin,protocolVersion:collaboration.protocolVersion})
@@ -467,13 +505,15 @@ async function migrateAndPromote() {
     const collaborationRowsBefore=collaboration ? await withAdmin(before,snapshotCollaborationRows) : null
     const collaborationPoliciesBefore=collaboration ? await withAdmin(before,collaborationPolicies) : null
     save(receipt)
-    const config=databaseConfig(before)
-    const address=new URL('postgresql://localhost');address.hostname=config.host;address.port=String(config.port);address.username=config.user;address.password=config.password;address.pathname='/'+config.database
-    const runtimeAddress=new URL(address);runtimeAddress.username=oldEnv.DB_USER;runtimeAddress.password=oldEnv.DB_PASSWORD
-    const result=legacy?runMigrations(staging,address.toString()):runProvisionedMigrations(staging,address.href,runtimeAddress.href)
-    receipt.migrationExit=result.status
-    receipt.migrationSummary=(result.stdout||'').split('\n').filter(line=>/Applying:|Applied |All migrations|up to date|pending|successfully/i.test(line));save(receipt)
-    if(result.error||result.status!==0) throw new Error(`Migration runner failed at ${(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'}; database diagnostic payload suppressed`)
+    if (!resuming) {
+      const config=databaseConfig(before)
+      const address=new URL('postgresql://localhost');address.hostname=config.host;address.port=String(config.port);address.username=config.user;address.password=config.password;address.pathname='/'+config.database
+      const runtimeAddress=new URL(address);runtimeAddress.username=oldEnv.DB_USER;runtimeAddress.password=oldEnv.DB_PASSWORD
+      const result=legacy?runMigrations(staging,address.toString()):runProvisionedMigrations(staging,address.href,runtimeAddress.href)
+      receipt.migrationExit=result.status
+      receipt.migrationSummary=(result.stdout||'').split('\n').filter(line=>/Applying:|Applied |All migrations|up to date|pending|successfully/i.test(line));save(receipt)
+      if(result.error||result.status!==0) throw new Error('Migration runner failed; inspect the bounded migration summary.')
+    }
     const afterLedger=await withAdmin(before,ledger)
     assert.ok(computeDrift(files,afterLedger).ok)
     assert.ok(applied.every(row=>afterLedger.some(next=>next.version===row.version&&next.checksum===row.checksum)))
@@ -484,7 +524,7 @@ async function migrateAndPromote() {
       assert.deepEqual(await withAdmin(before,snapshotCollaborationRows),collaborationRowsBefore)
       const newPolicies=new Set(['survey_points_shared_project_read','fieldbook_shared_project_read'])
       const policies=await withAdmin(before,collaborationPolicies)
-      assert.deepEqual(policies.filter(row=>!newPolicies.has(row.policyname)),collaborationPoliciesBefore)
+      assert.deepEqual(resuming?policies:policies.filter(row=>!newPolicies.has(row.policyname)),collaborationPoliciesBefore)
       assert.equal(policies.filter(row=>newPolicies.has(row.policyname)&&row.cmd==='SELECT').length,2)
       collaboration.originalRecordsAndPoliciesPreserved=true
     }
@@ -504,7 +544,7 @@ async function migrateAndPromote() {
     }
     receipt.migrationAfter=afterLedger;receipt.status='migrated';save(receipt)
     console.log(`Production migrations verified: ${afterLedger.length} entries; historical hashes unchanged.`)
-    if (collaboration) {
+    if (collaboration && !resuming) {
       collaborationReplacementAttempted=true
       docker(['compose','-p',receipt.project,'-f','docker-compose.yml','-f',override,'up','-d','--no-deps','--no-build','--pull','never','--force-recreate','--wait','--wait-timeout','60','metardu-collaboration'],{timeout:90000})
       const room=JSON.parse(docker(['exec','metardu-collaboration','wget','-qO-','http://127.0.0.1:3001/health']))
@@ -544,10 +584,10 @@ async function migrateAndPromote() {
       assert.deepEqual(await withAdmin(before,ledger),afterLedger)
       assert.deepEqual(await withAdmin(before,snapshotCollaborationRows),collaborationRowsBefore)
       receipt.migrationService={image:migration.Image,exitCode:migration.State.ExitCode,ledgerPreserved:true}
-      docker(['image','tag',collaboration.candidateImage,previousCollaboration.Config.Image])
+      docker(['image','tag',collaboration.candidateImage,'metardu-metardu-collaboration'])
     }
     docker(['image','tag',receipt.candidateImage,'metardu-metardu-app:latest'])
-    receipt.after=after.map(describe);receipt.status='promoted';save(receipt)
+    receipt.after=after.map(describe);receipt.status='promoted';if(resuming){delete receipt.failure;delete receipt.rollbackFailure};save(receipt)
     console.log(JSON.stringify({status:receipt.status,revision,image:updated.Image,migrations:afterLedger.length,requiredServicesPreserved:true,collaborationPromoted:Boolean(collaboration),uploadsPreserved:true}))
   }catch(error){
     receipt.status='failed';receipt.failure=error.message
@@ -605,7 +645,7 @@ try {
   else if(action==='rehearse') await rehearse()
   else if(action==='build') await build()
   else if(action==='retry-build') await build(true)
-  else if(action==='promote') await migrateAndPromote()
+  else if(action==='promote'||action==='resume') await migrateAndPromote()
   else if(action==='status') console.log(JSON.stringify(load(),null,2))
-  else throw new Error('Use plan, rehearse, build, retry-build, or promote')
+  else throw new Error('Use plan, rehearse, build, retry-build, promote, or resume')
 }catch(error){console.error(error instanceof assert.AssertionError ? `Release guard failed: ${error.message.split('\n')[0]}` : error.message);process.exitCode=1}

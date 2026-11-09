@@ -4,7 +4,7 @@ import { createRequire } from 'node:module'
 import test from 'node:test'
 import { parse } from 'node:url'
 import { WebSocketServer } from 'ws'
-import { collaborationConfiguration, checkRoomRoute } from '../scripts/collaboration-release.mjs'
+import { assertHealthProbeOnlyChange, collaborationConfiguration, checkRoomRoute } from '../scripts/collaboration-release.mjs'
 import { proxyRequest } from 'next/dist/server/lib/router-utils/proxy-request.js'
 
 const origin='https://metardu.space'
@@ -69,5 +69,15 @@ test('Next WebSocket proxy preserves origin, project query, and credential subpr
     room.close()
     await close(front)
     await close(backend)
+  }
+})
+
+
+test('a built candidate may resume only with the exact IPv4 health probe correction',()=>{
+  const before='healthcheck:\n  test: ["CMD", "wget", "-qO-", "http://localhost:3001/health"]\n'
+  const after=before.replace('localhost','127.0.0.1')
+  assertHealthProbeOnlyChange(before,after)
+  for(const unsafe of [before,after+'extra: true\n',after.replace('3001','3010')]){
+    assert.throws(()=>assertHealthProbeOnlyChange(before,unsafe))
   }
 })
