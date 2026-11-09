@@ -417,7 +417,12 @@ async function rehearse() {
 }
 async function migrateAndPromote() {
   const receipt=load()
-  assert.equal(receipt.status,resuming?'maintenance-failure':'built')
+  if (resuming) {
+    assert.ok(receipt.status==='maintenance-failure'||(receipt.status==='rolled-back'&&receipt.firstCutover&&receipt.rollbackHealthy===true),
+      'Resume requires a recorded cutover failure and verified recovery.')
+  } else {
+    assert.equal(receipt.status,'built')
+  }
   assertCollaborationPlan(receipt)
   if (resuming) {
     assert.ok(receipt.collaboration&&receipt.existingRecordsPreserved&&receipt.collaboration.originalRecordsAndPoliciesPreserved)
@@ -432,9 +437,11 @@ async function migrateAndPromote() {
     assert.equal(roomRecovery.image,receipt.collaboration.candidateImage)
     assert.equal(roomRecovery.revision,revision)
     assert.equal(receipt.buildAttempts.at(-1).status,'passed')
-    receipt.firstCutover={failure:receipt.failure,automaticRollbackFailure:receipt.rollbackFailure,
+    receipt.firstCutover??={failure:receipt.failure,automaticRollbackFailure:receipt.rollbackFailure,
       checkpoint:receipt.checkpoint,appRecovery,roomRecovery}
     receipt.operationalRevision=git(['rev-parse','HEAD'])
+    receipt.resumeAttempts=[...(receipt.resumeAttempts??[]),{startedAt:new Date().toISOString(),
+      priorStatus:receipt.status,priorFailure:receipt.failure,operationalRevision:receipt.operationalRevision}]
   }
   const before=inspect();validateContainers(before)
   const app=before.find(c=>c.Name==='/metardu-app'),oldEnv=envOf(app)
@@ -466,7 +473,7 @@ async function migrateAndPromote() {
   const currentMigrationService = () => JSON.parse(docker(['inspect','metardu-db-migrate']))[0]
   if (collaboration) {
     if (resuming) {
-      assert.equal(app.Id,receipt.firstCutover.roomRecovery.app)
+      assert.equal(app.State.Health.Status,'healthy')
       assert.equal(previousCollaboration.Id,receipt.firstCutover.roomRecovery.room)
       assert.equal(previousCollaboration.Image,collaboration.candidateImage)
       assert.equal(previousCollaboration.State.Health.Status,'healthy')
@@ -493,7 +500,7 @@ async function migrateAndPromote() {
   try {
     const priorLogs=spawnSync('docker',['logs','--timestamps','metardu-app'],{encoding:'utf8',windowsHide:true,timeout:30_000,maxBuffer:16*1024*1024})
     assert.equal(priorLogs.status,0,'Preserve the previous application logs before replacement')
-    const logArchive=`/backups/app-before-auth-${revision.slice(0,8)}.log`
+    const logArchive='/backups/app-before-auth-'+revision.slice(0,8)+(resuming?'-resume-'+receipt.resumeAttempts.length:'')+'.log'
     docker(['exec','-i','metardu-backup','bash','-c',`set -o noclobber; umask 077; cat > ${logArchive}`],{input:priorLogs.stdout+priorLogs.stderr})
     receipt.previousApplicationLogArchive=logArchive;save(receipt)
     const backup=docker(['exec','-e','BACKUP_RETENTION=36500','metardu-backup','/app/scripts/backup.sh'],{timeout:120_000})
