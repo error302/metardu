@@ -72,7 +72,7 @@ test('opacity adjusts all basemaps without fading survey drawings', () => {
       setFeatureName: jest.fn(), setGpsTracking: jest.fn(), setGpsPos: jest.fn(),
       setStakeoutTarget: jest.fn(), setStakeoutActive: jest.fn(), setStakeoutState: jest.fn(),
       setShowAnnotations: jest.fn(), setSaveMsg: jest.fn(), projectId: null, currentSurveyCrs: null,
-      pushHistory: jest.fn(), clearHistory: jest.fn(), toggleGPS: jest.fn(),
+      pushHistory: jest.fn(), toggleGPS: jest.fn(),
     })
     return null
   }

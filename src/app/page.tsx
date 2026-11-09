@@ -84,42 +84,37 @@ function HeroSection() {
     <section aria-labelledby="landing-title" className={styles.hero}>
       <div className={styles.heroGrid}>
         <div className={styles.heroCopy}>
-          <p className={styles.eyebrow}>Survey work, field to finish</p>
           <h1 id="landing-title" className={styles.heroTitle}>
-            Keep the evidence.<em>Move the work forward.</em>
+            Field evidence in.{' '}<span className={styles.heroAccent}>Checked drawings out.</span>
           </h1>
           <p className={styles.heroLead}>
-            Keep field evidence, computations, maps, and draft outputs together in one survey project.
+            Keep observations, traverse and levelling computations, maps, and draft outputs together in one survey project, from control to checked deliverable.
           </p>
           <div className={styles.heroActions}>
-            <Link href="/register" className={styles.primaryAction}>
+            <Link href="/register" prefetch={false} className={styles.primaryAction}>
               Create an account <span aria-hidden>↗</span>
             </Link>
-            <Link href="/install" className={styles.secondaryAction}>
+            <Link href="/install" prefetch={false} className={styles.secondaryAction}>
               Install the app <span aria-hidden>↗</span>
             </Link>
           </div>
-          <p className={styles.heroNote}><Link href="/demo" className="underline underline-offset-4">Try the interactive sample</Link> with synthetic data before signing in.</p>
+          <p className={styles.heroNote}><Link href="/demo" prefetch={false} className="underline underline-offset-4">Try the interactive sample</Link> with synthetic data before signing in.</p>
         </div>
 
         <figure className={styles.heroPhoto}>
           <div className={styles.heroPhotoFrame}>
             <Image
-              src="/landing/hero-survey.webp"
-              alt="A total station set up beneath a bridge for a topographic survey."
+              src="/landing/product-map.webp"
+              alt="The METARDU survey map workspace showing the survey toolbar, coordinate search, and East Africa map view."
               fill
               priority
-              sizes="(max-width: 900px) 100vw, 48vw"
+              fetchPriority="high"
+              sizes="(max-width: 600px) calc(100vw - 2rem), (max-width: 808px) calc(100vw - 3rem), (max-width: 900px) 760px, (max-width: 1368px) 44vw, 580px"
               className={styles.heroPhotoImage}
             />
-            <span className={styles.photoLabel}>Reference fieldwork / total station</span>
           </div>
           <figcaption className={styles.photoCredit}>
-            Reference bridge survey photograph by{' '}
-            <a href="https://commons.wikimedia.org/wiki/File:Topographic_survey_of_a_bridge.jpg" target="_blank" rel="noreferrer">FedericaGaspari</a>
-            {' · '}
-            <a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noreferrer">CC BY-SA 4.0</a>
-            {' · resized for display'}
+            Actual METARDU interface. Map tiles © OpenStreetMap contributors.
           </figcaption>
         </figure>
       </div>
@@ -145,7 +140,7 @@ function WorkflowSection() {
               </li>
             ))}
           </ol>
-          <Link href="/field" className={styles.workflowLink}>Explore field workflows <span aria-hidden>↗</span></Link>
+          <Link href="/field" prefetch={false} className={styles.workflowLink}>Explore field workflows <span aria-hidden>↗</span></Link>
         </div>
 
         <figure className={styles.workflowPhoto}>
@@ -154,7 +149,8 @@ function WorkflowSection() {
               src="/landing/field-levelling.webp"
               alt="A digital level on a tripod while a field technician holds a levelling staff in open ground."
               fill
-              sizes="(max-width: 900px) 100vw, 42vw"
+              loading="lazy"
+              sizes="(max-width: 600px) calc(100vw - 2rem), (max-width: 900px) 46vw, (max-width: 1368px) 42vw, 548px"
               className={styles.workflowPhotoImage}
             />
           </div>

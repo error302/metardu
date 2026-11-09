@@ -17,6 +17,9 @@ import {
   type SnapType,
 } from '@/lib/surveyMapEngine/ol/snapping'
 
+const DEFAULT_SNAP_TYPES = new Set<SnapType>(['drawn', 'parcels', 'beacons'])
+const DEFAULT_AVAILABLE_SNAP_TYPES = new Set<SnapType>(['drawn'])
+
 interface SnappingOptionsProps {
   open: boolean
   onClose: () => void
@@ -40,8 +43,8 @@ export function SnappingOptions({
   onModeChange,
   tolerance = 10,
   onToleranceChange,
-  snapTypes = new Set(['drawn', 'parcels', 'beacons']),
-  availableSnapTypes = new Set(['drawn'] as SnapType[]),
+  snapTypes = DEFAULT_SNAP_TYPES,
+  availableSnapTypes = DEFAULT_AVAILABLE_SNAP_TYPES,
   onSnapTypeToggle,
 }: SnappingOptionsProps) {
   const [localMode, setLocalMode] = useState(mode)
@@ -75,9 +78,9 @@ export function SnappingOptions({
   if (!open) return null
 
   return (
-    <div className="absolute top-[340px] right-3 z-30 w-72 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
+    <div role="region" aria-label="Snapping settings" className="map-side-panel z-50 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06]">
+      <div className="flex shrink-0 items-center justify-between px-4 py-2 border-b border-[var(--border-color)]/[0.06]">
         <div className="flex items-center gap-2">
           <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${enabled ? 'bg-[color-mix(in_srgb,var(--success)_10%,transparent)]' : 'bg-[color-mix(in_srgb,var(--bg-tertiary)_10%,transparent)]'}`}>
             <Magnet className={`w-4 h-4 ${enabled ? 'text-[var(--success)]' : 'text-[var(--text-muted)]'}`} />
@@ -90,14 +93,16 @@ export function SnappingOptions({
           </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06]"
+          aria-label="Close snapping settings"
+          className="min-w-11 min-h-11 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06]"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
-      <div className="p-4 space-y-4">
+      <div className="map-side-panel-body p-4 space-y-4">
         {/* Enable toggle */}
         <button
           onClick={onToggleEnabled}

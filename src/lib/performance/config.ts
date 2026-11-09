@@ -60,6 +60,7 @@ export const PERFORMANCE_BUDGETS = {
   FCP: 1800, // First Contentful Paint (ms)
   LCP: 2500, // Largest Contentful Paint (ms)
   FID: 100, // First Input Delay (ms)
+  INP: 200, // Interaction to Next Paint (ms)
   CLS: 0.1, // Cumulative Layout Shift
   TTFB: 600, // Time to First Byte (ms)
 

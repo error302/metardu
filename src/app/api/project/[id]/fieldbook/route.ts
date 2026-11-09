@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
+import {canAccessProject} from '@/lib/auth/rbac'
 import { z } from 'zod'
 import { fieldBookRevision } from '@/lib/survey/fieldBookRevision'
 import { ConflictError } from '@/lib/api/errors'
@@ -46,12 +47,7 @@ async function readReference(projectId: string, project: ProjectControlRow) {
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (req, ctx) => {
   const { id } = ctx.params
 
-  // IDOR protection — verify project ownership
-  const ownership = await requireProjectOwnership(id, ctx.userId)
-  if (!ownership.ok) {
-  if (!ownership.error) throw new Error('Ownership check failed without an error response')
-  return ownership.error
-}
+  if(!await canAccessProject(ctx.userId,id))return NextResponse.json({error:'Project read access is required.'},{status:403})
 
   const { rows } = await db.query<ProjectFieldbookEntryRow>(
     `SELECT * FROM project_fieldbook_entries
@@ -65,7 +61,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
   if (!project) return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   const control = startingControlFromBoundary(project.boundary_data)
   const reference = await readReference(id, project)
-  return NextResponse.json({ data: rows, startPoint: control, projectCrs: reference.source === 'declared' ? reference.code : null, revision: fieldBookRevision(rows, control) })
+  return NextResponse.json({ data: rows, startPoint: control, projectCrs: reference.source === 'declared' ? reference.code : null, revision: fieldBookRevision(rows, control) },{headers:{'Cache-Control':'private, no-store'}})
 })
 
 const saveSchema = z.object({
@@ -78,6 +74,8 @@ export const PUT = apiHandler({auth:true,rateLimit:{max:180,windowMs:60000}},asy
   const parsed=saveSchema.safeParse(ctx.body)
   if(!parsed.success) return NextResponse.json({error:'Invalid field-book rows or control coordinates.'},{status:400})
   const {id}=ctx.params
+  const role=await canAccessProject(ctx.userId,id)
+  if(!role||role==='viewer')return NextResponse.json({error:'An editing project role is required.'},{status:403})
   const ownership=await requireProjectOwnership(id,ctx.userId)
   if(!ownership.ok) return ownership.error ?? NextResponse.json({error:'Project owner required'},{status:403})
   const revision = await db.transaction(async client=>{

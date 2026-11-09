@@ -39,6 +39,10 @@ export interface IdentifiedFeature {
   northing?: number
   beaconNumber?: string
   beaconType?: string
+  elevation?: number | null
+  horizontalCrs?: string
+  code?: string
+  description?: string
   beacons?: Array<{
     beaconNumber: string
     easting: number
@@ -78,9 +82,10 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo, on
     const text = feature.parcelNumber
       ? `${feature.parcelNumber} | ${feature.ownerName || 'Unknown'} | ${feature.areaHa?.toFixed(4) || 0} ha`
       : `${feature.beaconNumber || 'Feature'} | E:${feature.easting?.toFixed(3)} N:${feature.northing?.toFixed(3)}`
-    navigator.clipboard.writeText(text)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    void navigator.clipboard?.writeText(text).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }).catch(() => setCopied(false))
   }, [feature])
 
   if (!feature) return null
@@ -90,9 +95,9 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo, on
   const StatusIcon = statusCfg?.icon
 
   return (
-    <div className="absolute top-[280px] right-3 z-30 w-80 max-h-[calc(100%-320px)] bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
+    <div role="region" aria-label="Identify feature" className="map-side-panel z-[45] bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-2xl border border-[var(--border-color)]/[0.08] rounded-2xl shadow-2xl overflow-hidden flex flex-col animate-in fade-in slide-in-from-right-2 duration-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border-color)]/[0.06] bg-gradient-to-r from-[#D17B47]/5 to-transparent">
+      <div className="flex shrink-0 items-center justify-between px-4 py-2 border-b border-[var(--border-color)]/[0.06] bg-gradient-to-r from-[#D17B47]/5 to-transparent">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-lg bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] flex items-center justify-center">
             <TypeIcon className="w-4 h-4 text-[var(--accent)]" />
@@ -103,15 +108,17 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo, on
           </div>
         </div>
         <button
+          type="button"
           onClick={onClose}
-          className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06] transition-colors"
+          aria-label="Close feature details"
+          className="min-w-11 min-h-11 flex items-center justify-center rounded-lg text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:bg-[var(--bg-card)]/[0.06] transition-colors"
         >
           <X className="w-4 h-4" />
         </button>
       </div>
 
       {/* Content */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="map-side-panel-body p-4 space-y-4">
         {/* Title + status */}
         <div className="flex items-center gap-3">
           <div className="flex-1">
@@ -216,6 +223,13 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo, on
           </div>
         )}
 
+        {feature.type === 'point' && <dl className="space-y-2 text-sm">
+          <div><dt className="text-xs text-[var(--text-secondary)]">Project grid</dt><dd>{feature.horizontalCrs ?? 'Reference unavailable'}</dd></div>
+          <div><dt className="text-xs text-[var(--text-secondary)]">Recorded height</dt><dd className="font-mono tabular-nums">{feature.elevation == null ? 'Unknown' : `${feature.elevation.toFixed(3)} m`}</dd></div>
+          {feature.code && <div><dt className="text-xs text-[var(--text-secondary)]">Feature code</dt><dd className="break-words">{feature.code}</dd></div>}
+          {feature.description && <div><dt className="text-xs text-[var(--text-secondary)]">Field remarks</dt><dd className="whitespace-pre-wrap break-words">{feature.description}</dd></div>}
+        </dl>}
+
         {/* Beacons list */}
         {feature.beacons && feature.beacons.length > 0 && (
           <div className="space-y-1.5">
@@ -270,7 +284,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo, on
       )}
 
       {/* Standard Actions */}
-      <div className="p-3 flex items-center gap-1.5">
+      <div className="p-2 flex shrink-0 items-center gap-1.5">
         <button
           onClick={handleCopy}
           className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.08] transition-colors"
@@ -278,7 +292,7 @@ export function IdentifyPanel({ feature, onClose, onEdit, onDelete, onZoomTo, on
           {copied ? <CheckCircle2 className="w-3.5 h-3.5 text-[var(--success)]" /> : <Copy className="w-3.5 h-3.5" />}
           {copied ? 'Copied' : 'Copy'}
         </button>
-        {onZoomTo && (
+        {onZoomTo && feature.centroidE != null && feature.centroidN != null && (
           <button
             onClick={() => onZoomTo(feature)}
             className="flex-1 flex items-center justify-center gap-1 h-8 rounded-lg bg-[var(--bg-card)]/[0.04] border border-[var(--border-color)]/[0.06] text-xs text-[var(--text-secondary)] hover:bg-[var(--bg-card)]/[0.08] transition-colors"

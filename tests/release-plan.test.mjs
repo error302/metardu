@@ -2,7 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
 import {pinnedReleaseArguments,compatibleRollbackRegistry,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,deployedAppRevision,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
+import {pinnedRehearsalIdentity} from '../scripts/rehearsal-database.mjs'
+
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
+
+test('isolated rehearsal identity uses only the complete pinned revision',()=>{
+  const identity=pinnedRehearsalIdentity(sha)
+  assert.equal(identity.database,'metardu_release_'+sha)
+  assert.equal(identity.runtimeRole,'metardu_release_app_'+sha)
+  assert.ok(identity.database.length<=63&&identity.runtimeRole.length<=63)
+  assert.match(identity.marker,new RegExp(sha+'$'))
+  for(const unsafe of ['HEAD',sha.slice(0,8),sha+';'])assert.throws(()=>pinnedRehearsalIdentity(unsafe))
+})
 const source=[{version:'107_existing',path:'src/lib/db/migrations/107_existing.sql',checksum:'old',equivalentChecksums:[]},{version:'108_pipeline_asbuilt_history',path:'src/lib/db/migrations/108_pipeline_asbuilt_history.sql',checksum:'new',equivalentChecksums:[]}]
 test('release commands require a pinned commit and stay in one reusable namespace',()=>{
   assert.equal(pinnedReleaseArguments(['build',sha],process.cwd()).revision,sha)

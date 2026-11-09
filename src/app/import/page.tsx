@@ -1,20 +1,20 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from 'react'
 import Link from 'next/link'
 import {z} from 'zod'
 import { createClient } from '@/lib/api-client/client'
 import { importTotalStation } from '@/lib/import/totalStation/unifiedImport'
 import type { TotalStationFormat } from '@/lib/import/totalStation/detectFormat'
 import { MAX_POINT_IMPORT_BYTES, MAX_POINT_IMPORT_ROWS, preparePointImport, type PointImportRequest } from '@/lib/import/pointImport'
-import { validatePointImportReceipt, type PointImportReceipt } from '@/lib/import/pointImportClient'
+import { validatePointImportReceipt } from '@/lib/import/pointImportClient'
+import { initialPointImportSubmission, pointImportSubmissionReducer } from '@/lib/import/pointImportSubmission'
 import { resolveDeclaredStageReference } from '@/lib/workspaces/stageReference'
 
 interface Project { id:string; name:string }
 interface Source { name:string; text:string; size:number; hash:string }
 interface Capture { id:string; source_file_name:string; source_file_hash:string; point_count:number; created_at:string }
 interface Context { projectId:string; referenceSystem:unknown; referenceHash:string; history:Capture[] }
-interface Pending { projectId:string; projectName:string; body:PointImportRequest }
 const formats:Record<TotalStationFormat,string>={unknown:'Detect from file',csv:'Coordinate CSV',gsi:'Leica GSI',jobxml:'Trimble JobXML',landxml:'LandXML',trimble_dc:'Trimble DC',carlson_rw5:'Carlson RW5 / RAW',topcon:'Topcon GTS',sokkia:'Sokkia SDR',south:'South coordinate export'}
 const inputClass='mt-2 min-h-12 w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-primary)] px-3 py-2 text-base text-[var(--text-primary)] disabled:opacity-60'
 const buttonClass='inline-flex min-h-12 items-center justify-center rounded-md border border-[var(--border-color)] px-4 py-2 text-sm font-medium disabled:opacity-50'
@@ -24,6 +24,7 @@ const displayNumber=(value:number|undefined)=>value===undefined?'Unknown':Number
 const units=[['metres','Metres'],['internationalFoot','International feet'],['USSurveyFoot','US survey feet']] as const
 const contextSchema=z.object({data:z.object({referenceSystem:z.unknown().optional(),referenceHash:z.string().regex(/^[a-f0-9]{64}$/),history:z.array(z.object({id:z.string().guid(),source_file_name:z.string(),source_file_hash:z.string(),point_count:z.number().int().nonnegative(),created_at:z.string()}))})})
 const responseError=(value:unknown,fallback:string)=>{const parsed=z.object({error:z.string()}).safeParse(value);return parsed.success?parsed.data.error:fallback}
+const rejectedImportStatuses = new Set([400, 401, 403, 404, 409, 413, 429])
 
 export default function ImportPage() {
   const client=useMemo(()=>createClient(),[])
@@ -35,9 +36,13 @@ export default function ImportPage() {
   const [sourceCrs,setSourceCrs]=useState(''),[coordinateUnit,setCoordinateUnit]=useState<PointImportRequest['coordinateUnit']>('metres'),[heightUnit,setHeightUnit]=useState<PointImportRequest['heightUnit']>('metres')
   const [confirmTransformation,setConfirmTransformation]=useState(false),[confirmVerticalDatum,setConfirmVerticalDatum]=useState(false),[confirmWarnings,setConfirmWarnings]=useState(false)
   const [selected,setSelected]=useState<number[]>([]),[page,setPage]=useState(0)
-  const [pending,setPending]=useState<Pending|null>(null),[busy,setBusy]=useState(false),[submitError,setSubmitError]=useState(''),[receipt,setReceipt]=useState<(PointImportReceipt&{projectId:string;projectName:string})|null>(null)
-  const fileGeneration=useRef(0),pendingRef=useRef<Pending|null>(null),sending=useRef(false)
-  const locked=!!pending||!!receipt
+  const [submission, dispatchSubmission] = useReducer(pointImportSubmissionReducer, initialPointImportSubmission)
+  const fileGeneration = useRef(0), sending = useRef(false)
+  const busy = submission.status === 'submitting'
+  const pending = busy || submission.status === 'unconfirmed' ? submission.capture : null
+  const receipt = submission.status === 'saved' ? submission.receipt : null
+  const submitError = submission.status === 'editing' || submission.status === 'unconfirmed' ? submission.error : ''
+  const locked = submission.status !== 'editing'
 
   const loadProjects=useCallback(async(offset=0)=>{
     setLoadingProjects(true);setProjectError('')
@@ -48,6 +53,8 @@ export default function ImportPage() {
       const result=await client.from('projects').select('id,name').eq('user_id',session.data.session.user.id).order('created_at',{ascending:false}).range(offset,offset+49)
       if(result.error)throw new Error(result.error.message)
       const rows=(result.data??[]) as Project[]
+      const requestedProject=new URLSearchParams(window.location.search).get('projectId')
+      if(!offset&&rows.some(row=>row.id===requestedProject))setProjectId(current=>current||requestedProject||'')
       setProjects(previous=>offset?[...previous,...rows.filter(row=>!previous.some(item=>item.id===row.id))]:rows);setMoreProjects(rows.length===50)
     } catch(error) {setProjectError(error instanceof Error?error.message:'Could not load projects.')}
     finally {setLoadingProjects(false)}
@@ -94,9 +101,10 @@ export default function ImportPage() {
     try{preparePointImport(draft,reference);return ''}catch(error){return error instanceof Error?error.message:'Review the import settings.'}
   },[draft,reference])
   async function readFile(file:File) {
-    if(locked||reading)return
-    const generation=++fileGeneration.current
-    setReading(true);setFileError('');setSource(null);setSubmitError('')
+    if (locked || reading || sending.current) return
+    const generation = ++fileGeneration.current
+    setReading(true);setFileError('');setSource(null)
+    dispatchSubmission({ type: 'reset' })
     try {
       if(!file.size||file.size>MAX_POINT_IMPORT_BYTES)throw new Error('Choose a non-empty text export up to 2 MiB. Split larger jobs in the controller export; no records will be truncated.')
       const bytes=await file.arrayBuffer(),text=new TextDecoder('utf-8',{fatal:true,ignoreBOM:true}).decode(bytes)
@@ -108,36 +116,58 @@ export default function ImportPage() {
     } finally {if(generation===fileGeneration.current)setReading(false)}
   }
   async function commit() {
-    if(sending.current)return
-    const capture=pendingRef.current??(draft&&!validation?{projectId,projectName:projects.find(project=>project.id===projectId)?.name??'Project',body:{...draft,requestId:crypto.randomUUID()}}:null)
-    if(!capture)return
-    sending.current=true;pendingRef.current=capture;setPending(capture);setBusy(true);setSubmitError('')
-    const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),90000)
+    if (sending.current || reading || (submission.status !== 'editing' && submission.status !== 'unconfirmed')) return
+    const capture = submission.status === 'unconfirmed'
+      ? submission.capture
+      : draft && !validation
+        ? { projectId, projectName: projects.find(project => project.id === projectId)?.name ?? 'Project', body: { ...draft, requestId: crypto.randomUUID() } }
+        : null
+    if (!capture) return
+
+    sending.current = true
+    dispatchSubmission(submission.status === 'unconfirmed' ? { type: 'retry' } : { type: 'start', capture })
+    const { requestId } = capture.body
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 90000)
     try {
-      const response=await fetch(`/api/project/${capture.projectId}/point-imports`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(capture.body),signal:controller.signal}),body:unknown=await response.json()
-      if(!response.ok) {
-        if([400,401,403,404,409,413,429].includes(response.status)){pendingRef.current=null;setPending(null)}
-        throw new Error(responseError(body,'The server could not confirm the import.'))
+      const response = await fetch(`/api/project/${capture.projectId}/point-imports`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(capture.body), signal: controller.signal,
+      })
+      const body: unknown = await response.json()
+      if (!response.ok) {
+        dispatchSubmission({
+          type: 'failed', requestId,
+          outcome: rejectedImportStatuses.has(response.status) ? 'rejected' : 'unconfirmed',
+          error: responseError(body, 'The server could not confirm the import.'),
+        })
+        return
       }
-      const parsedBody=z.object({data:z.unknown().optional()}).safeParse(body)
-      const saved=validatePointImportReceipt(parsedBody.success?parsedBody.data.data:undefined,capture.body)
-      setReceipt({...saved,projectId:capture.projectId,projectName:capture.projectName});pendingRef.current=null;setPending(null)
-      void readContext(capture.projectId).then(setContext).catch(()=>setContextError('Saved successfully; recent capture history could not refresh. Reload before downloading.'))
-    } catch(error) {setSubmitError(error instanceof Error&&error.name!=='AbortError'?error.message:'The connection timed out before a receipt arrived.')}
-    finally {clearTimeout(timer);sending.current=false;setBusy(false)}
+      const parsedBody = z.object({ data: z.unknown().optional() }).safeParse(body)
+      const saved = validatePointImportReceipt(parsedBody.success ? parsedBody.data.data : undefined, capture.body)
+      dispatchSubmission({ type: 'confirmed', receipt: saved })
+      void readContext(capture.projectId).then(setContext).catch(() => setContextError('Saved successfully; recent capture history could not refresh. Reload before downloading.'))
+    } catch (error) {
+      dispatchSubmission({
+        type: 'failed', requestId, outcome: 'unconfirmed',
+        error: error instanceof Error && error.name !== 'AbortError' ? error.message : 'The connection timed out before a receipt arrived.',
+      })
+    } finally {
+      clearTimeout(timer)
+      sending.current = false
+    }
   }
   const total=parsed?.rawPoints.length??0,visible=parsed?.rawPoints.slice(page*100,page*100+100)??[]
-  return <div className="mx-auto max-w-6xl px-4 py-8 pb-32 sm:px-6 sm:py-12">
+  return <div data-import-submission={submission.status} className="mx-auto max-w-6xl px-4 py-8 pb-32 sm:px-6 sm:py-12">
     <header className="mb-8 border-b border-[var(--border-color)] pb-6">
       <Link href="/fieldbook" className="inline-flex min-h-11 items-center text-sm text-[var(--text-secondary)]">← Fieldbook</Link>
       <p className="mt-3 font-mono text-xs tracking-wider text-[var(--accent)]">FIELD DATA / COORDINATE IMPORT</p>
       <h1 className="mt-2 font-display text-3xl tracking-tight sm:text-4xl">Bring your points into the project</h1>
-      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Review the file, declare its reference and save a traceable capture. Missing heights stay unknown. Existing points are never overwritten by this import.</p>
+      <p className="mt-3 max-w-2xl text-sm leading-6 text-[var(--text-secondary)]">Review the end-of-day controller export, declare its reference and save it to the project. The original file is kept. Unknown heights stay blank, and existing points are never overwritten.</p>
     </header>
     {receipt&&<section role="status" className="mb-6 rounded-lg border border-[var(--accent)] bg-[var(--bg-secondary)] p-5 sm:p-7">
       <p className="font-mono text-xs text-[var(--accent)]">DATABASE RECEIPT CONFIRMED</p><h2 className="mt-2 font-display text-2xl">{receipt.imported} points {receipt.replayed?'already saved':'saved'} to {receipt.projectName}</h2>
       <p className="mt-2 text-sm text-[var(--text-secondary)]">{receipt.replayed?'Your retry returned the original capture; no duplicate points were added.':'The original file, reference declaration and selected records were retained together.'} Imported data still needs survey QA before delivery.</p>
-      <p className="mt-3 break-all font-mono text-xs">Capture {receipt.batchId}</p><div className="mt-5 flex flex-wrap gap-3"><Link className={buttonClass} href={`/project/${receipt.projectId}`}>Open project →</Link><button className={buttonClass} onClick={()=>{setReceipt(null);setSource(null);setSubmitError('');setFileError('')}}>Import another file</button></div>
+      <p className="mt-3 break-all font-mono text-xs">Capture {receipt.batchId}</p><div className="mt-5 flex flex-wrap gap-3"><Link className={buttonClass} href={`/project/${receipt.projectId}`}>Open project →</Link><button className={buttonClass} onClick={()=>{dispatchSubmission({ type: 'reset' });setSource(null);setFileError('')}}>Import another file</button></div>
     </section>}
     <div className="grid gap-6 lg:grid-cols-2">
       <section aria-labelledby="source-heading" className="min-w-0 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5 sm:p-6">
@@ -182,7 +212,7 @@ export default function ImportPage() {
       {preview.prepared&&<div className="mt-5 rounded-md bg-[var(--bg-secondary)] p-4"><p className="text-sm font-medium">Destination preview · {preview.prepared.projectCrs} · metres</p><p className="mt-2 break-words font-mono text-xs">{preview.prepared.points[0]?.pointName}: E {preview.prepared.points[0]?.easting.toFixed(3)} / N {preview.prepared.points[0]?.northing.toFixed(3)} / H {preview.prepared.points[0]?.elevation===null?'Unknown':preview.prepared.points[0]?.elevation?.toFixed(3)}</p></div>}
       {!!preview.prepared?.warnings.length&&<details open className="mt-4 rounded-md border border-[var(--border-color)] p-4"><summary className="cursor-pointer text-sm font-medium">{preview.prepared.warnings.length} review notice(s)</summary><ul className="mt-3 list-disc space-y-2 pl-5 text-xs leading-5">{preview.prepared.warnings.slice(0,30).map((warning,index)=><li key={index}>{warning}</li>)}</ul>{preview.prepared.warnings.length>30&&<p className="mt-2 text-xs">Further per-point notices are retained in the capture.</p>}</details>}
       <label className="mt-4 flex min-h-12 items-start gap-3 text-sm leading-5"><input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[var(--accent)]" disabled={locked} checked={confirmWarnings} onChange={event=>setConfirmWarnings(event.target.checked)}/><span>I reviewed the parser notices and any excluded records. Only selected coordinate records will be imported; the full original file will be retained.</span></label>
-      {!receipt&&<p className="mt-4 text-sm text-[var(--text-secondary)]" role="status">{validation||'Ready to commit the selected points and original source in one transaction.'}</p>}
+      {!receipt&&<p className="mt-4 text-sm text-[var(--text-secondary)]" role="status">{busy ? 'Waiting for the database receipt…' : pending ? 'The save outcome is unconfirmed. Retry this capture to check the same request.' : validation || 'Ready to commit the selected points and original source in one transaction.'}</p>}
       {submitError&&<p role="alert" className="mt-4 text-sm text-[var(--error)]">{submitError}</p>}
       {pending&&!receipt&&<p className="mt-3 text-sm leading-6">This capture is locked while its outcome is checked. Retry checks the same request and cannot create another copy. <Link className="underline" href={`/project/${pending.projectId}`}>Review the project register</Link> before starting other imports.</p>}
       {!receipt&&<button className="mt-5 inline-flex min-h-12 w-full items-center justify-center rounded-md bg-[var(--accent)] px-6 py-3 font-medium text-[var(--bg-primary)] disabled:opacity-50 sm:w-auto" disabled={busy||reading||(!pending&&!!validation)} onClick={()=>void commit()}>{busy?'Saving & checking receipt…':pending?'Retry / check this capture':`Save ${selected.length.toLocaleString()} selected points`}</button>}

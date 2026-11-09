@@ -41,7 +41,7 @@ export const FieldObservationList = memo(function FieldObservationList({
   const sorted = [...measurements].sort((a, b) => b.timestamp - a.timestamp)
 
   return (
-    <div className="overflow-y-auto max-h-[calc(100vh-20rem)]">
+    <div className="overflow-y-auto max-h-[max(10rem,calc(100dvh-20rem))]">
       <div className="px-4 py-2 border-b border-[var(--border-color)] bg-[var(--bg-secondary)]">
         <span className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider">
           {measurements.length} Measurement{measurements.length !== 1 ? 's' : ''}
@@ -63,14 +63,20 @@ function ObservationRow({
   measurement: FieldMeasurement
   onDelete?: (id: string) => void
 }) {
-  const time = new Date(measurement.timestamp).toLocaleTimeString('en-KE', {
+  const observedAt = new Date(measurement.timestamp)
+  const recordedAt = Number.isFinite(observedAt.getTime()) ? observedAt.toISOString() : undefined
+  const time = recordedAt ? observedAt.toLocaleTimeString('en-KE', {
     hour: '2-digit',
     minute: '2-digit',
     second: '2-digit',
-  })
+  }) : 'Time unrecorded'
 
   const isGNSS = measurement.instrumentType === 'gnss_rover'||measurement.instrumentType==='gnss_static'
-  const geographicOnly=measurement.easting==null&&measurement.northing==null&&measurement.latitude!=null&&measurement.longitude!=null
+  const hasGrid = measurement.easting != null && measurement.northing != null
+  const hasGeographic = measurement.latitude != null && measurement.longitude != null
+  const visibleNotes = measurement.notes?.split(';').map(note => note.trim())
+    .filter(note => note && !/^(?:METARDU_POINT_ID|INSTRUMENT_READING_ID|INSTRUMENT_SOURCE|INSTRUMENT_POINT_NAME)=/.test(note))
+    .join(' · ')
 
   return (
     <div className="flex items-start gap-3 px-4 py-2.5 hover:bg-[var(--bg-secondary)] transition-colors">
@@ -85,43 +91,21 @@ function ObservationRow({
 
       {/* Main content */}
       <div className="flex-1 min-w-0">
-        <div className="flex items-baseline justify-between gap-2">
-          <span className="font-mono font-bold text-sm text-[var(--text-primary)]">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-2 gap-y-1">
+          <span className="min-w-0 break-all font-mono font-bold text-sm text-[var(--text-primary)]">
             {measurement.pointId}
           </span>
-          <span className="text-xs text-[var(--text-muted)] font-mono">{time}</span>
+          <time dateTime={recordedAt} className="text-xs text-[var(--text-muted)] font-mono">{time}</time>
         </div>
 
-        {/* Coordinates */}
-        <div className="mt-0.5 text-xs font-mono text-[var(--text-secondary)]">
-          {isGNSS||geographicOnly ? (
-            <>
-              {measurement.latitude?.toFixed(7)}, {measurement.longitude?.toFixed(7)}
-              {measurement.fixQuality && (
-                <span className={`ml-2 px-1 rounded text-[10px] ${
-                  measurement.fixQuality === 'fixed'
-                    ? 'bg-[color-mix(in_srgb,var(--success)_20%,transparent)] text-[var(--success)]'
-                    : 'bg-[color-mix(in_srgb,var(--warning)_20%,transparent)] text-[var(--warning)]'
-                }`}>
-                  {measurement.fixQuality.toUpperCase()}
-                </span>
-              )}
-            </>
-          ) : (
-            <>
-              E: {measurement.easting?.toFixed(3)}, N: {measurement.northing?.toFixed(3)}
-              {measurement.elevation != null && (
-                <span className="ml-2 text-[var(--text-muted)]">
-                  Z: {measurement.elevation.toFixed(3)}
-                </span>
-              )}
-            </>
-          )}
+        <div className="mt-1 space-y-1 text-xs text-[var(--text-secondary)]">
+          {measurement.stationFrom && <p className="break-words">Station: {measurement.stationFrom}</p>}
+          {hasGrid && <p className="font-mono tabular-nums">E {measurement.easting?.toFixed(3)} · N {measurement.northing?.toFixed(3)} m <span className="font-sans">({measurement.horizontalCrs ?? 'grid CRS unrecorded'})</span></p>}
+          {hasGeographic && <p className="font-mono tabular-nums">Lat {measurement.latitude?.toFixed(7)} · Lon {measurement.longitude?.toFixed(7)} <span className="font-sans">({measurement.geographicCrs ?? 'geographic CRS unrecorded'})</span></p>}
+          {measurement.elevation != null && <p className="font-mono tabular-nums">Recorded H {measurement.elevation.toFixed(3)} m</p>}
+          {measurement.fixQuality && <p>Fix: {measurement.fixQuality.toUpperCase()}</p>}
+          {measurement.instrumentType === null && <p>Instrument type unrecorded</p>}
         </div>
-        <p className="mt-0.5 text-xs text-[var(--text-muted)]">
-          {geographicOnly||isGNSS?measurement.geographicCrs??'Geographic CRS not recorded':measurement.horizontalCrs??'Grid CRS not recorded'}
-          {measurement.instrumentType===null?' · Instrument not recorded':''}
-        </p>
 
         {/* Measurement details */}
         {!isGNSS && measurement.slopeDistance != null && (
@@ -145,16 +129,11 @@ function ObservationRow({
           <div className="mt-0.5 text-xs text-[var(--text-muted)] font-mono">
             SAT {measurement.satellites} sats
             {measurement.hdop != null && ` · HDOP ${measurement.hdop.toFixed(1)}`}
-            {measurement.elevation != null && ` · H ${measurement.elevation.toFixed(2)}m`}
           </div>
         )}
 
         {/* Notes */}
-        {measurement.notes && (
-          <div className="mt-0.5 text-xs text-[var(--text-muted)] italic">
-            {measurement.notes}
-          </div>
-        )}
+        {visibleNotes && <p className="mt-1 break-words text-xs text-[var(--text-secondary)]">{visibleNotes}</p>}
       </div>
 
       {/* Delete */}

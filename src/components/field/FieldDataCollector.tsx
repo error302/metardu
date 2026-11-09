@@ -24,7 +24,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { Settings, Target, List, Cloud, ChevronRight, X, Camera, Volume2, VolumeX, Check } from 'lucide-react'
+import { Settings, Target, List, Cloud, ChevronRight, X, Volume2, VolumeX, Check } from 'lucide-react'
 import { FieldConnectionBar } from './FieldConnectionBar'
 import { FieldMeasureButton } from './FieldMeasureButton'
 import { FieldObservationList } from './FieldObservationList'
@@ -603,26 +603,22 @@ export function FieldDataCollector({
               stationSetup={!!sessionState.setup}
               pointIdPrefix={pointIdPrefix}
               nextPointNumber={nextPointNumber}
+              featureCode={activeFeatureCode}
             />
 
             {/* Smart Feature Coding for non-road survey profiles */}
             {!roadSurvey && <div className="mt-8 w-full max-w-md">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-[var(--text-secondary)]">{roadSurvey ? 'Road point code' : 'Feature Code'}</span>
-                <button 
-                  className="flex items-center gap-2 px-3 py-1.5 bg-[var(--bg-secondary)] rounded-full hover:bg-[var(--bg-tertiary)] transition-colors border border-[var(--border-color)] text-xs font-medium text-[var(--text-primary)] shadow-sm"
-                  title="Attach Photo"
-                >
-                  <Camera className="w-4 h-4 text-[var(--accent)]" />
-                  <span>Photo</span>
-                </button>
+                <span className="text-sm font-semibold text-[var(--text-secondary)]">Choose feature code</span>
               </div>
               <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full">
-                {(roadSurvey ? roadFieldPlan?.featureCodes ?? [] : ['FENCE_START', 'FENCE_LINE', 'FENCE_END', 'TREE', 'WALL', 'BLDG', 'ROAD_EDGE']).map(code => (
+                {['FENCE_START', 'FENCE_LINE', 'FENCE_END', 'TREE', 'WALL', 'BLDG', 'ROAD_EDGE'].map(code => (
                   <button
                     key={code}
-                    onClick={() => setActiveFeatureCode(code === activeFeatureCode ? (roadSurvey ? code : '') : code)}
-                    className={`shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-colors ${
+                    type="button"
+                    aria-pressed={activeFeatureCode === code}
+                    onClick={() => setActiveFeatureCode(code === activeFeatureCode ? '' : code)}
+                    className={`min-h-11 shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-colors ${
                       activeFeatureCode === code
                         ? 'bg-[var(--accent)] text-black border-[var(--accent)] shadow-md'
                         : isSunlightMode 

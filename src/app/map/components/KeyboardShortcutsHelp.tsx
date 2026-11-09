@@ -10,8 +10,10 @@ import React, { memo, useState, useEffect, useCallback } from 'react'
 import { X, Keyboard } from 'lucide-react'
 
 const SHORTCUTS = [
-  { keys: 'Ctrl+Z', description: 'Undo' },
-  { keys: 'Ctrl+Y / Ctrl+Shift+Z', description: 'Redo' },
+  { keys: '1–4 / 6', description: 'Open a map tool group' },
+  { keys: '5', description: 'Open layer settings' },
+  { keys: 'Ctrl+Z', description: 'Undo last vertex or sketch edit' },
+  { keys: 'Ctrl+Y / Ctrl+Shift+Z', description: 'Redo vertex or sketch edit' },
   { keys: 'Delete / Backspace', description: 'Delete selected feature' },
   { keys: 'Escape', description: 'Cancel current tool' },
   { keys: 'Alt+Drag', description: 'Rotate map' },
@@ -24,6 +26,9 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     // Don't trigger when typing in input fields
     if (
+      e.defaultPrevented || e.isComposing ||
+      (e.target as HTMLElement | null)?.closest?.('[role="dialog"], [contenteditable="true"]') ||
+      e.target instanceof HTMLSelectElement ||
       e.target instanceof HTMLInputElement ||
       e.target instanceof HTMLTextAreaElement
     ) {
@@ -45,11 +50,11 @@ export const KeyboardShortcutsHelp = memo(function KeyboardShortcutsHelp() {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center p-2 bg-black/50 backdrop-blur-sm"
       onClick={() => setVisible(false)}
     >
       <div
-        className="bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl p-5 min-w-[320px] max-w-[420px]"
+        className="bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] border border-[var(--border-color)]/[0.08] rounded-xl shadow-2xl backdrop-blur-xl p-4 w-full max-w-[420px] max-h-full overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}

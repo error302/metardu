@@ -19,7 +19,7 @@ export const MapOverlays = memo(function MapOverlays() {
     stakeoutActive,
     stakeoutTarget,
     stakeoutInfo,
-    toggleStakeout,
+    deactivateStakeout,
     toggleGPS,
     isMobile,
   } = useMapContext()
@@ -44,12 +44,12 @@ export const MapOverlays = memo(function MapOverlays() {
         const info = stakeoutInfo()
         return (
           <div
-            className="absolute z-[1000] bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-4 py-3 shadow-2xl"
+            className="absolute z-30 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-4 py-3 shadow-2xl"
             style={{ bottom: 'calc(var(--map-bottom-clearance) + 60px)', right: '68px', width: isMobile ? '180px' : '220px' }}
           >
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-[var(--accent)] uppercase tracking-[0.15em] font-bold">Stakeout</span>
-              <button onClick={toggleStakeout} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Stop</button>
+              <span className="text-[10px] text-[var(--accent)] uppercase tracking-[0.15em] font-bold">Device GPS navigation</span>
+              <button onClick={deactivateStakeout} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Stop</button>
             </div>
             <div className="text-[10px] text-[var(--text-muted)] mb-1">Target</div>
             <div className="text-[11px] text-[var(--text-primary)] font-mono mb-2">E: {stakeoutTarget.e.toFixed(1)} N: {stakeoutTarget.n.toFixed(1)}</div>

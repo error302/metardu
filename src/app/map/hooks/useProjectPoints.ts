@@ -26,22 +26,33 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
   const [projectCrs, setProjectCrs] = useState<string | null>(null)
   const [projectCrsProjectId, setProjectCrsProjectId] = useState<string | null>(null)
   const [showProjectPoints, setShowProjectPoints] = useState(true)
+  const showProjectPointsRef = useRef(showProjectPoints)
+  showProjectPointsRef.current = showProjectPoints
   const loadedProjectIdRef = useRef<string | null>(null)
   const currentProjectIdRef = useRef(schemeProjectId)
   currentProjectIdRef.current = schemeProjectId
   const requestIdRef = useRef(0)
+  const pointFitRef = useRef<{ projectId: string; fit: () => boolean } | null>(null)
+
+  const fitProjectPoints = useCallback(() => {
+    const current = pointFitRef.current
+    return current?.projectId === schemeProjectId ? current.fit() : false
+  }, [schemeProjectId])
   const projectPointsCleanupRef = useRef<(() => void) | null>(null)
   const projectPointsLayerRef = useRef<import('ol/layer/Vector').default | null>(null)
 
-  const loadProjectPoints = useCallback(async () => {
+  const loadProjectPoints = useCallback(async (fitOnLoad = false) => {
     if (!schemeProjectId || !mapInstance.current) return
 
     const requestId = ++requestIdRef.current
     setProjectPointsLoading(true)
     setProjectPointsError(null)
-    setProjectCrs(null)
-    setProjectPointsCount(0)
-    setShowProjectPoints(true)
+    const sameProject = loadedProjectIdRef.current === schemeProjectId
+    if (!sameProject) {
+      setProjectCrs(null)
+      setProjectPointsCount(0)
+      setShowProjectPoints(true)
+    }
     try {
       // Clean up existing points layer
       if (projectPointsCleanupRef.current) {
@@ -51,6 +62,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
       }
 
       const result = await createProjectPointsLayer(schemeProjectId, mapInstance.current, {
+        fitOnLoad,
         onViewportStatus: (status) => {
           if (requestId !== requestIdRef.current || currentProjectIdRef.current !== schemeProjectId) return
           setProjectPointsCount(status.pointCount)
@@ -61,8 +73,10 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
         result.cleanup()
         return
       }
+      pointFitRef.current = { projectId: schemeProjectId, fit: result.fitToPoints }
       projectPointsCleanupRef.current = result.cleanup
       projectPointsLayerRef.current = result.pointsLayer
+      result.pointsLayer.setVisible(sameProject ? showProjectPointsRef.current : true)
       loadedProjectIdRef.current = schemeProjectId
       setProjectCrs(result.projectCrs)
       setProjectCrsProjectId(schemeProjectId)
@@ -105,7 +119,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
       return
     }
     if (mapReady && loadedProjectIdRef.current !== schemeProjectId) {
-      void loadProjectPoints()
+      void loadProjectPoints(true)
     }
   }, [schemeProjectId, mapReady, loadProjectPoints])
 
@@ -131,6 +145,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
     projectCrs: projectCrsProjectId === schemeProjectId ? projectCrs : null,
     showProjectPoints,
     loadProjectPoints,
+    fitProjectPoints,
     toggleProjectPointsVisibility,
   }
 }

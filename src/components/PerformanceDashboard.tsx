@@ -6,20 +6,28 @@
 
 
 import { useState, useEffect } from 'react'
-import { performanceMonitor } from '@/lib/performance/monitor'
+import { performanceMonitor, type PerformanceReport } from '@/lib/performance/monitor'
 import { PERFORMANCE_BUDGETS } from '@/lib/performance/config'
 import { logger } from '@/lib/logger'
 
-interface PerformanceReport {
-  webVitals?: {
-    FCP?: number
-    LCP?: number
-    FID?: number
-    CLS?: number
-    TTFB?: number
-  }
-  customMetrics?: Record<string, number>
-  errors?: { message: string; timestamp: number }[]
+function NavigationBreakdown() {
+  const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
+  if (!navigation || navigation.requestStart <= 0 || navigation.responseStart < navigation.requestStart) return null
+
+  const dns = Math.max(0, navigation.domainLookupEnd - navigation.domainLookupStart)
+  const connection = Math.max(0, navigation.connectEnd - navigation.connectStart)
+  const wait = navigation.responseStart - navigation.requestStart
+  const other = Math.max(0, navigation.requestStart - navigation.startTime - dns - connection)
+  const phases = [['DNS', dns], ['Connection and TLS', connection], ['Request to first byte', wait], ['Other before request', other]] as const
+
+  return (
+    <div className="mt-4 border-t border-gray-700 pt-4">
+      <h3 className="font-medium">First-byte timing</h3>
+      <dl className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-300 md:grid-cols-4">
+        {phases.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular-nums">{Math.round(value)} ms</dd></div>)}
+      </dl>
+    </div>
+  )
 }
 
 export default function PerformanceDashboard() {
@@ -63,7 +71,7 @@ export default function PerformanceDashboard() {
     return 'text-red-500'
   }
 
-  const score = performanceMonitor.getScore()
+  const score = report ? performanceMonitor.getScore(report) : null
 
   return (
     <div className="min-h-screen bg-gray-900 text-white p-8">
@@ -75,10 +83,10 @@ export default function PerformanceDashboard() {
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-xl font-semibold mb-2">Performance Score</h2>
-              <p className="text-gray-400">Based on Web Vitals and custom metrics</p>
+              <p className="text-gray-400">Based on this browser document's load, interactions and errors. Reload for a fresh sample.</p>
             </div>
-            <div className={`text-5xl font-bold ${getScoreColor(score)}`}>
-              {score}
+            <div className={`text-5xl font-bold ${score === null ? 'text-gray-400' : getScoreColor(score)}`}>
+              {score ?? 'Pending'}
             </div>
           </div>
         </div>
@@ -88,9 +96,9 @@ export default function PerformanceDashboard() {
           <div className="bg-gray-800 rounded-xl p-6 mb-6">
             <h2 className="text-xl font-semibold mb-4">Web Vitals</h2>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {Object.entries(report.webVitals).map(([name, value]) => {
+              {Object.entries(report.webVitals).filter(([name]) => name !== 'FID' || report.webVitals.INP === undefined).map(([name, value]) => {
                 const budget = PERFORMANCE_BUDGETS[name as keyof typeof PERFORMANCE_BUDGETS]
-                const isGood = budget && (value as number) < budget
+                const isGood = budget && (value as number) <= budget
                 return (
                   <div key={name} className="bg-gray-700 rounded-lg p-4">
                     <p className="text-sm text-gray-400 uppercase">{name}</p>
@@ -104,6 +112,7 @@ export default function PerformanceDashboard() {
                 )
               })}
             </div>
+            <NavigationBreakdown />
           </div>
         )}
 
@@ -152,7 +161,10 @@ export default function PerformanceDashboard() {
               {isOptimizing ? 'Running...' : 'Run Full Optimization'}
             </button>
             <button
-              onClick={() => performanceMonitor.clearStats()}
+              onClick={() => {
+                performanceMonitor.clearStats()
+                loadStats()
+              }}
               className="px-6 py-3 bg-gray-700 rounded-lg font-semibold"
             >
               Clear Stats

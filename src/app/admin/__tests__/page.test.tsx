@@ -21,6 +21,16 @@ const fixture: DashboardData = {
 }
 beforeEach(() => { window.location.hash = ''; mockGet.mockReset().mockResolvedValue(fixture); mockPost.mockReset().mockResolvedValue({ id: 'a1' }); mockPatch.mockReset().mockResolvedValue({ verified: true }) })
 
+it('opens System directly without fetching business data and loads it when Overview is selected', async () => {
+  window.location.hash = '#system'
+  render(<AdminDashboardPage />)
+  expect(await screen.findByRole('heading', { name: 'Platform operations' })).toBeInTheDocument()
+  expect(mockGet).not.toHaveBeenCalled()
+  fireEvent.click(screen.getByRole('link', { name: 'Overview' }))
+  expect(await screen.findByText('14 labelled test accounts excluded')).toBeInTheDocument()
+  expect(mockGet).toHaveBeenCalledTimes(1)
+})
+
 it('shows customer and test counts distinctly, with separate payment currencies', async () => {
   render(<AdminDashboardPage />)
   expect(await screen.findByRole('heading', { name: 'Owner’s workspace' })).toBeInTheDocument()

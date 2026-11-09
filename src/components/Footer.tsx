@@ -35,7 +35,7 @@ export default function Footer() {
           <div dangerouslySetInnerHTML={{ __html: contactMarkup }} />
         </div>
         <nav aria-label="Footer navigation">
-          <p className="mb-3 text-xs font-mono uppercase tracking-widest text-[#d59669]">Explore METARDU</p>
+          <p className="mb-3 text-sm font-semibold text-[#d59669]">Explore METARDU</p>
           <ul className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">{navigation.map(link => <li key={link.href}><Link href={link.href} prefetch={false} className={linkStyle}>{link.label}</Link></li>)}</ul>
           <div className="mt-5 flex gap-6"><a className={linkStyle} href="https://x.com/itsdosho" target="_blank" rel="noopener noreferrer">X / Twitter ↗</a><a className={linkStyle} href="https://github.com/error302" target="_blank" rel="noopener noreferrer">GitHub ↗</a></div>
         </nav>

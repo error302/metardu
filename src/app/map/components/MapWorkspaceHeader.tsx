@@ -7,9 +7,7 @@ import { MapCoordSearch } from './MapCoordSearch'
 import { ProjectionSwitcher } from '@/components/map/ProjectionSwitcher'
 import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 
-export const MapWorkspaceHeader = memo(function MapWorkspaceHeader({
-  layersOpen, onToggleLayers,
-}: { layersOpen?: boolean; onToggleLayers?: () => void } = {}) {
+export const MapWorkspaceHeader = memo(function MapWorkspaceHeader() {
   const { mouseCoord, currentSurveyCrs, schemeProjectId } = useMapContext()
   return (
     <header className="map-workspace-header" aria-label="Map workspace">
@@ -23,16 +21,13 @@ export const MapWorkspaceHeader = memo(function MapWorkspaceHeader({
         </div>
       </div>
       <ProjectionSwitcher compact />
-      {onToggleLayers && (
-        <button type="button" className="map-header-layers" onClick={onToggleLayers} aria-expanded={layersOpen} aria-controls="map-panel-layers">
-          <Layers className="h-4 w-4" aria-hidden="true" /> Layers
-        </button>
-      )}
     </header>
   )
 })
 
-export const MapBasemapBar = memo(function MapBasemapBar() {
+export const MapBasemapBar = memo(function MapBasemapBar({
+  layersOpen, onToggleLayers,
+}: { layersOpen: boolean; onToggleLayers: () => void }) {
   const { toggleBasemap } = useMapContext()
   const visibleBasemap = useVisibleBasemap()
   return (
@@ -42,6 +37,11 @@ export const MapBasemapBar = memo(function MapBasemapBar() {
       ] as const).map(([mode, label]) => (
         <button type="button" key={mode} onClick={() => toggleBasemap(mode)} aria-pressed={visibleBasemap === mode}>{label}</button>
       ))}
+      <button type="button" className="map-layer-settings" onClick={onToggleLayers}
+        aria-expanded={layersOpen} aria-controls={layersOpen ? 'map-tools-layers' : undefined}
+        aria-keyshortcuts="5">
+        <Layers className="h-4 w-4" aria-hidden="true" /> Layers
+      </button>
     </div>
   )
 })

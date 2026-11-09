@@ -4,7 +4,7 @@ import {computeDrift} from './verify-migrations.mjs'
 import {SCHEDULE_UPGRADE_VERSION,assertScheduleUpgradeProof} from './schedule-upgrade-contract.mjs'
 import {WORKFLOW_UPGRADE_VERSIONS,assertWorkflowUpgradeProof} from './workflow-upgrade-contract.mjs'
 
-export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles',...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
+export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles','125_surface_source_reviews','126_shared_workspace_read_grants',...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv

@@ -154,6 +154,7 @@ const pointSchema = z.object({
   elevation: z.number().finite().min(-10000).max(100000).nullable().prefault(null),
   code: z.string().trim().max(20).optional(), description: z.string().trim().max(4000).optional(),
   isControl: z.boolean().prefault(false),
+  expectedReference: z.object({ horizontalCrs: z.string(), verticalDatum: z.string().nullable() }).strict().optional(),
 }).strict()
 export const POST = apiHandler(
   { auth: true, schema: pointSchema, rateLimit: { max: 60, windowMs: 60000 } },
@@ -172,6 +173,10 @@ export const POST = apiHandler(
       const referenceRow = (await client.query<Record<string, unknown>>('SELECT * FROM project_reference_systems WHERE project_id=$1 FOR SHARE', [id])).rows[0]
       const reference = resolveStageReference(referenceRow, {})
       if (!reference.code || reference.source !== 'declared') throw new AppError('Declare the project reference before registering coordinates', 400, 'POINT_REFERENCE')
+      if (body.expectedReference && (body.expectedReference.horizontalCrs !== reference.code ||
+          (body.elevation !== null && body.expectedReference.verticalDatum !== reference.verticalDatum))) {
+        throw new AppError('The project reference changed. Reopen point entry and check the coordinates before saving.', 409, 'POINT_REFERENCE_CHANGED')
+      }
       if (body.elevation !== null && !reference.verticalDatum) throw new AppError('Declare a vertical datum before registering a height', 400, 'POINT_REFERENCE')
       const info = resolveEpsg(reference.code), range = validateCoordinateRange(body.easting, body.northing, reference.code)
       if (!range.valid) throw new AppError(range.errors.join('; '), 400, 'POINT_REFERENCE')

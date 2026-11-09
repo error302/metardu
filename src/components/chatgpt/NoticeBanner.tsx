@@ -53,7 +53,7 @@ export function ChatGPTNoticeBanner() {
         <p className="min-w-0 flex-1 text-sm leading-6">
           <strong>Optional ChatGPT connection.</strong>{' '}
           <span className="hidden sm:inline">Review the information shared and the notice period before linking an account. </span>
-          <Link href="/docs/chatgpt-notice" className="text-[var(--accent)] underline">
+          <Link href="/docs/chatgpt-notice" prefetch={false} className="text-[var(--accent)] underline">
             Read the data-sharing notice
           </Link>
         </p>

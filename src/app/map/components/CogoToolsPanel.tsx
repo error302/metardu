@@ -131,7 +131,7 @@ function RadiationPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
   }, [easting, northing, bearing, distance, bearingFormat])
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" onChange={() => { setResult(null); setError('') }}>
       <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Compute a new point from a known station, bearing (WCB), and distance.
       </div>
@@ -196,7 +196,7 @@ function BearingIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, lab
   }, [eA, nA, brgA, eB, nB, brgB, bearingFormat])
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" onChange={() => { setResult(null); setError('') }}>
       <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Intersect two rays defined by station + bearing (WCB). Returns the intersection point.
       </div>
@@ -265,7 +265,7 @@ function DistanceIntersectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, la
   const selected = result ? result[selectedIdx] : null
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" onChange={() => { setResult(null); setError('') }}>
       <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Intersect two circles (trilateration). Returns two possible points — select the correct one.
       </div>
@@ -351,7 +351,7 @@ function ResectionPanel({ onAddPoint }: { onAddPoint: (p: Point2D, label: string
   }, [e1, n1, e2, n2, e3, n3, a12, a23, bearingFormat])
 
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-2.5" onChange={() => { setResult(null); setError('') }}>
       <div className="text-[10px] text-[var(--text-secondary)] leading-relaxed">
         Tienstra three-point resection. Angles measured at unknown station between rays to control points.
       </div>
@@ -425,6 +425,7 @@ function CogoToolsPanelInner() {
 
       // COGO values are in the selected project's survey grid.
       const coord3857 = transform([point.easting, point.northing], currentSurveyCrs, SRID_3857)
+      if (!coord3857.every(Number.isFinite)) throw new Error('Invalid projected coordinate')
 
       const feature = new Feature({
         geometry: new Point(coord3857),
@@ -460,6 +461,7 @@ function CogoToolsPanelInner() {
       map.getView().animate({ center: coord3857, zoom: 17, duration: 500 })
     } catch (err) {
       logger.error('[CogoToolsPanel] Failed to add point to map:', { error: err })
+      setSaveMsg('Could not plot the result. Verify the coordinates and survey grid.')
     }
   }, [mapInstance, currentSurveyCrs, setSaveMsg])
 
@@ -516,9 +518,12 @@ function CogoToolsPanelInner() {
             </select>
           </label>
           {/* Changing notation clears inputs/results so old values cannot be reinterpreted. */}
-          <BearingFormatContext.Provider value={bearingFormat} key={bearingFormat}>
+          <p className="px-3 pt-2 text-xs text-[var(--text-secondary)]">
+            {currentSurveyCrs ? 'Working grid: ' + currentSurveyCrs : 'Choose a survey grid to plot results.'} Plotted COGO results are map previews.
+          </p>
+          <BearingFormatContext.Provider value={bearingFormat} key={bearingFormat + ':' + (currentSurveyCrs ?? '')}>
           {/* ── Tab content ── */}
-          <div className="px-3 py-2.5 max-h-[60vh] overflow-y-auto">
+          <div className="px-3 py-2.5">
             {activeTab === 'radiation' && <RadiationPanel onAddPoint={handleAddPoint} />}
             {activeTab === 'bearing-int' && <BearingIntersectionPanel onAddPoint={handleAddPoint} />}
             {activeTab === 'distance-int' && <DistanceIntersectionPanel onAddPoint={handleAddPoint} />}

@@ -213,7 +213,7 @@ function LoginForm() {
       <div className="absolute inset-0 -z-10 bg-[var(--bg-primary)]" aria-hidden="true">
         {/* Pre-loaded topographic PNG — optimized with next/image */}
         <Image
-          src="/images/signin-topo.jpg"
+          src="/images/signin-topo.webp"
           alt=""
           onLoad={() => setImageLoaded(true)}
           fill

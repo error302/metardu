@@ -2,12 +2,12 @@
 import { NextRequest, type NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { requireProjectOwnership, requireProjectReadAccess } from '@/lib/auth/ownership'
-import { GET } from '@/app/api/project/[id]/points/route'
+import { GET, POST } from '@/app/api/project/[id]/points/route'
 
 jest.mock('@/lib/apiHandler', () => ({
   apiHandler: (_options: unknown, handler: unknown) => handler,
 }))
-jest.mock('@/lib/db', () => ({ db: { query: jest.fn() } }))
+jest.mock('@/lib/db', () => ({ db: { query: jest.fn(), transaction: jest.fn() } }))
 jest.mock('@/lib/auth/ownership', () => ({
   requireProjectOwnership: jest.fn(),
   requireProjectReadAccess: jest.fn(),
@@ -59,4 +59,18 @@ test('returns a missing declaration as null instead of consulting legacy CRS def
     expect.not.stringContaining('FROM projects'),
     ['project-1'],
   )
+})
+
+test.each([
+  { horizontalCrs: 'EPSG:' + 21037, verticalDatum: 'Current benchmark' },
+  { horizontalCrs: 'EPSG:' + 32737, verticalDatum: 'Superseded benchmark' },
+])('rejects a reference change before any point write (%o)', async expectedReference => {
+  const query = jest.fn()
+    .mockResolvedValueOnce({ rows: [{ user_id: 'alice' }] })
+    .mockResolvedValueOnce({ rows: [{ horizontal_crs: 'EPSG:' + 32737, horizontal_name: 'Synthetic grid', datum_name: 'WGS84', units: 'metres', zone: 37, hemisphere: 'S', distance_mode: 'grid', coordinate_precision: 3, vertical_datum: 'Current benchmark' }] })
+  jest.mocked(db.transaction).mockImplementation(operation => operation({ query } as never))
+  const request = new NextRequest('http://localhost/api/project/project-1/points', { method: 'POST' })
+  const body = { pointName: 'CREW-A-024', easting: 500000, northing: 9850000, elevation: 0, expectedReference }
+  await expect(POST(request, { params: { id: 'project-1' }, userId: 'alice', body } as never)).rejects.toMatchObject({ code: 'POINT_REFERENCE_CHANGED' })
+  expect(query).toHaveBeenCalledTimes(2)
 })

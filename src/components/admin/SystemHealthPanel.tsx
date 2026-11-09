@@ -5,11 +5,12 @@ import {
   Cpu, RefreshCw, ChevronDown, ChevronUp,
   AlertTriangle,
 } from 'lucide-react'
-import {
-  UptimeChart,
-  ResponseTimeChart,
-  ErrorRateChart,
-} from '@/components/admin/charts/AdminCharts'
+import dynamic from 'next/dynamic'
+
+const chartLoading = () => <div className="min-h-[160px]" aria-busy="true" />
+const UptimeChart = dynamic(() => import('./charts/AdminCharts').then(module => module.UptimeChart), { loading: chartLoading })
+const ResponseTimeChart = dynamic(() => import('./charts/AdminCharts').then(module => module.ResponseTimeChart), { loading: chartLoading })
+const ErrorRateChart = dynamic(() => import('./charts/AdminCharts').then(module => module.ErrorRateChart), { loading: chartLoading })
 
 // ---------------------------------------------------------------------------
 // Types

@@ -168,9 +168,10 @@ export interface MapContextValue {
   toggleAnnotations: () => void
   toggleBasemap: (mode: BasemapMode) => void
   toggleGPS: () => void
-  toggleStakeout: () => void
+  startStakeout: (target: { easting: number; northing: number }) => Promise<void>
   toggleOsmBuildings: () => void
   deleteSelected: () => void
+  sketchHistory: boolean
   undo: () => void
   redo: () => void
   fitToKenya: () => void

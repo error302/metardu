@@ -38,7 +38,7 @@ import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapRightDock } from '@/app/map/components/MapRightDock'
 import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
-import { MapWorkspaceHeader, MapBasemapBar } from '@/app/map/components/MapWorkspaceHeader'
+import { MapWorkspaceHeader } from '@/app/map/components/MapWorkspaceHeader'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
 import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
@@ -297,14 +297,14 @@ function MapWorkspace() {
     pushHistory: () => {},
   }), [])
 
-  const { pushHistory, undo, redo, canUndo, canRedo, clearHistory } = useMapHistory(ctx)
+  const { pushHistory, undo: undoCompleted, redo: redoCompleted, canUndo: canUndoCompleted, canRedo: canRedoCompleted, clearHistory } = useMapHistory(ctx)
 
   // ── Basemaps hook ──
   const { createBasemaps, toggleBasemap: toggleBasemapHook } = useMapBasemaps()
 
   // Project points API returns the saved project CRS even when there are no
   // points, so the map never infers survey mathematics from its display view.
-  const { projectPointsError, projectCrs } = useProjectPoints({ schemeProjectId, mapInstance, mapReady })
+  const { projectPointsError, projectCrs, loadProjectPoints, fitProjectPoints } = useProjectPoints({ schemeProjectId, mapInstance, mapReady })
   const currentSurveyCrs = useMemo(() => resolveMapSurveyCrs({
     projectId: schemeProjectId,
     declaredProjectCrs: projectCrs,
@@ -458,6 +458,28 @@ function MapWorkspace() {
       setTimeout(() => setSaveMsg(''), 5000)
     },
     onIdentify: (feature) => {
+      const pointType: unknown = feature?.get('pointType')
+      if (feature && pointType === 'survey') {
+        const id: unknown = feature.get('pointId')
+        const pointName: unknown = feature.get('pointName')
+        const easting: unknown = feature.get('easting'), northing: unknown = feature.get('northing')
+        const elevation: unknown = feature.get('elevation'), horizontalCrs: unknown = feature.get('horizontalCrs')
+        const code: unknown = feature.get('code'), description: unknown = feature.get('description')
+        const selection = selectInteractionRef.current?.getFeatures()
+        selection?.clear()
+        setSelectedFeature(null)
+        setSelectedFeatures([])
+        setIdentifiedFeature(typeof id === 'string' && typeof pointName === 'string' &&
+          typeof easting === 'number' && Number.isFinite(easting) && typeof northing === 'number' && Number.isFinite(northing)
+          ? { id, type: 'point', beaconNumber: pointName, easting, northing,
+              horizontalCrs: typeof horizontalCrs === 'string' ? horizontalCrs : undefined,
+              elevation: typeof elevation === 'number' && Number.isFinite(elevation) ? elevation : null,
+              code: typeof code === 'string' ? code : undefined,
+              description: typeof description === 'string' ? description : undefined }
+          : null)
+        return
+      }
+      setIdentifiedFeature(null)
       setSelectedFeature(feature)
       setSelectedFeatures(feature ? [feature] : [])
       const name = (feature?.get?.('pointName') || feature?.get?.('parcelNumber') || feature?.get?.('name')) as string | undefined
@@ -479,7 +501,6 @@ function MapWorkspace() {
     setShowAnnotations,
     setSaveMsg,
     pushHistory,
-    clearHistory,
     popupRef,
     toggleGPS: () => toggleGPSRef.current(), // wired via ref to real toggleGPS
   })
@@ -529,6 +550,17 @@ function MapWorkspace() {
     }
   }, [schemeProjectId])
 
+  const { sketchHistory, undoSketch, redoSketch } = interactions
+  const undo = useCallback(() => { if (!undoSketch()) void undoCompleted() }, [undoSketch, undoCompleted])
+  const redo = useCallback(() => { if (!redoSketch()) void redoCompleted() }, [redoSketch, redoCompleted])
+  const inSketchHistory = sketchHistory.canUndo || sketchHistory.canRedo
+  const canUndo = inSketchHistory ? sketchHistory.canUndo : canUndoCompleted
+  const canRedo = inSketchHistory ? sketchHistory.canRedo : canRedoCompleted
+  const onFitProject = useCallback(() => {
+    if (!fitProjectPoints()) setSaveMsg('No project points are available to fit. Check the point register or map connection.')
+  }, [fitProjectPoints])
+  const onPointSaved = useCallback(() => { void loadProjectPoints() }, [loadProjectPoints])
+
   // ── Keyboard shortcuts ──
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
@@ -538,7 +570,7 @@ function MapWorkspace() {
       // briefly retarget events and cause accidental Delete mishits.
       const target = e.target as HTMLElement | null
       if (
-        e.isComposing ||
+        e.defaultPrevented || e.isComposing || target?.closest?.('[role="dialog"]') ||
         target instanceof HTMLInputElement ||
         target instanceof HTMLTextAreaElement ||
         target instanceof HTMLSelectElement ||
@@ -547,10 +579,11 @@ function MapWorkspace() {
         return
       }
 
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      const key = e.key.toLowerCase()
+      if ((e.ctrlKey || e.metaKey) && key === 'z' && !e.shiftKey) {
         e.preventDefault()
         undo()
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      } else if ((e.ctrlKey || e.metaKey) && (key === 'y' || (key === 'z' && e.shiftKey))) {
         e.preventDefault()
         redo()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -649,6 +682,11 @@ function MapWorkspace() {
     cancelTraverseParcel: handleCancelTraverseParcel,
   } = useTraverseParcelPreview({ schemeProjectId, mapInstance, schemeLoaded, setSaveMsg })
 
+
+  const deactivateStakeout = interactions.deactivateStakeout
+  useEffect(() => {
+    if (!stakeoutActive && stakeoutTarget) void deactivateStakeout()
+  }, [stakeoutActive, stakeoutTarget, deactivateStakeout])
 
   // ── Update stakeout overlay on each GPS position change ──
   useEffect(() => {
@@ -754,8 +792,9 @@ function MapWorkspace() {
     toggleAnnotations: interactions.toggleAnnotations,
     toggleBasemap,
     toggleGPS,
-    toggleStakeout: interactions.toggleStakeout,
+    startStakeout: interactions.activateStakeout,
     deleteSelected: interactions.deleteSelected,
+    sketchHistory: inSketchHistory,
     undo,
     redo,
     fitToKenya: interactions.fitToKenya,
@@ -795,7 +834,7 @@ function MapWorkspace() {
     gpsPosInSurveyCrs,
     unlinkedSurveyCrs, currentSurveyCrs, setSaveMsg, applyOneShotTool, showSheetLayout, isPrinting,
     paperSize, orientation, offlineMapExtent,
-    hasFeature, canUndo, canRedo,
+    hasFeature, canUndo, canRedo, inSketchHistory,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
     setOrientation, setPaperSize,
     setVertexEditingEnabled, setSnapEnabled, setSnapTolerance, setShowSheetLayout,
@@ -820,7 +859,7 @@ function MapWorkspace() {
       <div
         id="metardu-global-map"
         className="map-workspace h-[calc(100dvh-9rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
-        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': toolsExpanded ? '54px' : '0px' } as React.CSSProperties}
+        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': toolsExpanded ? '98px' : '0px' } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
       >
@@ -834,10 +873,9 @@ function MapWorkspace() {
               <MapOverlays />
 
               <MapWorkspaceHeader />
-              <MapBasemapBar />
 
               {/* ── Unified Tool Dock (matching UX on desktop & mobile) ── */}
-              <MapToolDock expanded={toolsExpanded} onExpandedChange={setToolsExpanded} />
+              <MapToolDock expanded={toolsExpanded} onExpandedChange={setToolsExpanded} onPointSaved={onPointSaved} onFitProject={onFitProject} />
               {schemeProjectId && <MapDrawingStatus drawing={projectDrawing} />}
               {!schemeProjectId&&browserDrawingError&&<div role="alert" className="absolute z-20 left-3 bottom-24 max-w-[min(90vw,28rem)] rounded-lg bg-[var(--bg-secondary)] border border-[var(--error)] p-3 text-sm">
                 <p>{browserDrawingError}</p>
@@ -878,7 +916,7 @@ function MapWorkspace() {
                 feature={identifiedFeature}
                 onClose={() => setIdentifiedFeature(null)}
                 onZoomTo={(feature) => {
-                  if (feature.centroidE && feature.centroidN) {
+                  if (feature.centroidE != null && feature.centroidN != null) {
                     mapInstance.current?.getView().animate({
                       center: [feature.centroidE, feature.centroidN],
                       zoom: 18,

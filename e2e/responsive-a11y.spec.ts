@@ -20,7 +20,7 @@ test.describe('Responsive Design — Mobile', () => {
 
   test('landing page hero text is readable on mobile', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence.\s*Move the work forward./)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Field evidence in.\s*Checked drawings out./)
     await expectNoHorizontalOverflow(page)
   })
 
@@ -63,7 +63,7 @@ test.describe('Responsive Design — Tablet', () => {
 
   test('landing page renders correctly on tablet', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence.\s*Move the work forward./)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Field evidence in.\s*Checked drawings out./)
     await expectNoHorizontalOverflow(page)
     await expect(page.getByRole('heading', { name: 'Bring in observations', exact: true })).toBeVisible()
   })
@@ -81,7 +81,7 @@ test.describe('Responsive Design — Desktop', () => {
 
   test('landing page full layout on desktop', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence.\s*Move the work forward./)
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Field evidence in.\s*Checked drawings out./)
     await expectNoHorizontalOverflow(page)
     await expect(page.getByRole('heading', { name: 'Bring in observations', exact: true })).toBeVisible()
     await expectCurrentPricing(page)

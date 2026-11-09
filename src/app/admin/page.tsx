@@ -14,9 +14,10 @@ import { getPlan, PLAN_CATALOG, type PlanId } from '@/lib/subscription/catalog'
 import { apiGet, apiPost, apiPatch, ApiError } from '@/lib/api/client'
 import dynamic from 'next/dynamic'
 import { OwnerOverview, SubscriptionReview } from '@/components/admin/OwnerOverview'
-import FeedbackInbox from '@/components/admin/FeedbackInbox'
 import { dashboardResponseSchema, type DashboardData } from '@/lib/admin/dashboardContract'
 import SystemHealthPanel from '@/components/admin/SystemHealthPanel'
+
+const FeedbackInbox = dynamic(() => import('@/components/admin/FeedbackInbox'))
 
 const PerformanceDashboard = dynamic(
   () => import('@/components/PerformanceDashboard').then(m => m.default || m),
@@ -90,7 +91,8 @@ export default function AdminDashboardPage() {
   const [data, setData] = useState<DashboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
-  const [section, setSection] = useState('overview')
+  const [section, setSection] = useState<string | null>(null)
+  const [diagnosticsOpen, setDiagnosticsOpen] = useState(false)
   const [broadcastReviewed, setBroadcastReviewed] = useState(false)
   const [overrideReviewed, setOverrideReviewed] = useState(false)
   useEffect(() => {
@@ -154,10 +156,14 @@ export default function AdminDashboardPage() {
       router.push('/login')
       return
     }
-    if (sessionStatus === 'authenticated') {
-      fetchDashboard()
+  }, [sessionStatus, router])
+
+  const needsDashboard = section !== null && section !== 'system'
+  useEffect(() => {
+    if (sessionStatus === 'authenticated' && needsDashboard && !data) {
+      void fetchDashboard()
     }
-  }, [sessionStatus, fetchDashboard, router])
+  }, [sessionStatus, needsDashboard, data, fetchDashboard])
 
   const handleBroadcast = async () => {
     if (!announcementTitle.trim() || !announcementBody.trim() || !broadcastReviewed) return
@@ -238,7 +244,7 @@ export default function AdminDashboardPage() {
   }
 
   // Loading state
-  if (sessionStatus === 'loading' || (loading && !data)) {
+  if (sessionStatus === 'loading' || section === null || (needsDashboard && loading && !data)) {
     return (
       <div className="space-y-6" aria-busy="true" aria-label="Loading admin dashboard">
         <div className="flex flex-col gap-4 border-b border-[var(--border-color)] pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -253,7 +259,7 @@ export default function AdminDashboardPage() {
   }
 
   // Error state
-  if (error && !data) {
+  if (needsDashboard && error && !data) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="card p-8 max-w-md w-full mx-4 text-center">
@@ -270,6 +276,51 @@ export default function AdminDashboardPage() {
     )
   }
 
+  if (sessionStatus !== 'authenticated') return null
+
+  const workspaceHeader = <>
+      <header className="admin-page-heading">
+        <div><p className="admin-eyebrow">The business behind the fieldwork</p><h1>Owner’s workspace</h1><p className="admin-description">A clear view of your customers, payments and the work that needs you.</p></div>
+        {section !== 'system' && data && <div className="flex flex-wrap items-center gap-3"><span className="admin-caption">Updated {formatUpdatedAt(data.generatedAt)}</span><button onClick={fetchDashboard} className="btn btn-secondary" disabled={loading} aria-label={loading ? 'Refreshing business dashboard' : 'Refresh business dashboard'}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />} Refresh</button></div>}
+      </header>
+      <nav aria-label="Business workspace sections" className="admin-section-nav">{[
+        ['overview', 'Overview', null],
+        ['customers', 'Customers', data && data.iskPendingCount > 0 ? data.iskPendingCount : null],
+        ['billing', 'Billing', data && data.operations.pendingClaims > 0 ? data.operations.pendingClaims : null],
+        ['communications', 'Communications', null],
+        ['feedback', 'Feedback', data && data.operations.openFeedback > 0 ? data.operations.openFeedback : null],
+        ['system', 'System', null],
+      ].map(([id, label, badge]) => (
+        <a key={id} href={`#${id}`} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id as string)}>
+          {label}
+          {badge !== null && <span aria-hidden="true">{badge}</span>}
+        </a>
+      ))}</nav>
+  </>
+
+  if (section === 'system') {
+    return (
+      <div className="space-y-6">
+        {workspaceHeader}
+        <div id="system" className="space-y-5">
+          <div className="admin-section-heading">
+            <div>
+              <h2>Platform operations</h2>
+              <p className="admin-caption">Process and database diagnostics. These readings do not establish field accuracy or backup recoverability.</p>
+            </div>
+            <Link className="admin-text-link" href="/audit-logs">Open audit trail &rarr;</Link>
+          </div>
+          <SystemHealthPanel />
+          <details className="admin-panel" open={diagnosticsOpen} onToggle={event => setDiagnosticsOpen(event.currentTarget.open)}>
+            <summary className="cursor-pointer font-medium">Browser performance diagnostics</summary>
+            {diagnosticsOpen && <div className="mt-5"><PerformanceDashboard /></div>}
+          </details>
+          <div className="admin-note">Backups, migrations and production promotion stay in the controlled deployment workflow. This dashboard does not run Docker cleanup or database migrations.</div>
+        </div>
+      </div>
+    )
+  }
+
   if (!data) return null
 
   const userRole = (session?.user as { role?: string })?.role ?? ''
@@ -278,23 +329,7 @@ export default function AdminDashboardPage() {
 
   return (
     <div className="space-y-6">
-      <header className="admin-page-heading">
-        <div><p className="admin-eyebrow">The business behind the fieldwork</p><h1>Owner’s workspace</h1><p className="admin-description">A clear view of your customers, payments and the work that needs you.</p></div>
-        <div className="flex flex-wrap items-center gap-3"><span className="admin-caption">Updated {formatUpdatedAt(data.generatedAt)}</span><button onClick={fetchDashboard} className="btn btn-secondary" disabled={loading} aria-label={loading ? 'Refreshing business dashboard' : 'Refresh business dashboard'}>{loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Activity className="h-4 w-4" />} Refresh</button></div>
-      </header>
-      <nav aria-label="Business workspace sections" className="admin-section-nav">{[
-        ['overview', 'Overview', null],
-        ['customers', 'Customers', data.iskPendingCount > 0 ? data.iskPendingCount : null],
-        ['billing', 'Billing', data.operations.pendingClaims > 0 ? data.operations.pendingClaims : null],
-        ['communications', 'Communications', null],
-        ['feedback', 'Feedback', data.operations.openFeedback > 0 ? data.operations.openFeedback : null],
-        ['system', 'System', null],
-      ].map(([id, label, badge]) => (
-        <a key={id} href={`#${id}`} aria-current={section === id ? 'page' : undefined} onClick={() => setSection(id as string)}>
-          {label}
-          {badge !== null && <span aria-hidden="true">{badge}</span>}
-        </a>
-      ))}</nav>
+      {workspaceHeader}
       {error && <div className="admin-error" role="alert">{error} <button onClick={fetchDashboard} className="underline ml-2">Retry</button></div>}
       {section === 'overview' && <OwnerOverview data={data} />}
       {section === 'customers' && <div className="space-y-5"><div className="admin-section-heading"><div><h2>Customer accounts & verification</h2><p className="admin-caption">Recent customers exclude explicitly labelled verification fixtures. All accounts remain in the directory.</p></div><Link href="/admin/users" className="btn btn-primary">Manage customers <ArrowUpRight className="h-4 w-4" /></Link></div><div className="admin-split">{/* Recent Signups */}
@@ -551,7 +586,6 @@ export default function AdminDashboardPage() {
         </div><div className="admin-note mt-4">Marketing reminders use the existing opt-in scheduler and unsubscribe rules. Publishing an announcement does not trigger a marketing send.</div></div><section className="admin-panel"><div className="admin-section-heading"><div><p className="admin-eyebrow">Published in the app</p><h2>Announcement history</h2></div></div>{data.operations.announcements.length ? data.operations.announcements.map(item => <article className="border-b border-[var(--border-color)] py-4 last:border-0" key={item.id}><p className="admin-caption">{item.target} · {formatDate(item.createdAt)}</p><h3 className="mt-2 font-medium">{item.title}</h3><p className="mt-2 whitespace-pre-wrap break-words text-sm text-[var(--text-secondary)]">{item.body}</p></article>) : <div className="admin-empty"><h3>No announcements published yet.</h3><p>Keep notices short and relevant to the selected audience.</p></div>}</section></div>}
 
       {section === 'feedback' && <FeedbackInbox items={data.operations.feedback} onUpdated={fetchDashboard} />}
-      {section === 'system' && <div id="system" className="space-y-5"><div className="admin-section-heading"><div><h2>Platform operations</h2><p className="admin-caption">Process and database diagnostics. These readings do not establish field accuracy or backup recoverability.</p></div><Link className="admin-text-link" href="/audit-logs">Open audit trail →</Link></div><SystemHealthPanel /><details className="admin-panel"><summary className="cursor-pointer font-medium">Browser performance diagnostics</summary><div className="mt-5"><PerformanceDashboard /></div></details><div className="admin-note">Backups, migrations and production promotion stay in the controlled deployment workflow. This dashboard does not run Docker cleanup or database migrations.</div></div>}
     </div>
   )
 }

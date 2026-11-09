@@ -11,6 +11,7 @@ import type { Map } from 'ol'
 import type { FeatureLike } from 'ol/Feature'
 
 export interface ProjectPointsLayerResult {
+  fitToPoints: () => boolean
   pointsLayer: import('ol/layer/Vector').default
   pointsSource: import('ol/source/Vector').default
   cleanup: () => void
@@ -125,7 +126,7 @@ export function zoomToSurveyPointCluster(map: Map, rawExtent: unknown): boolean 
 export async function createProjectPointsLayer(
   projectId: string,
   map: Map,
-  options: { onViewportStatus?: (status: ProjectPointsViewportStatus) => void } = {},
+  options: { onViewportStatus?: (status: ProjectPointsViewportStatus) => void; fitOnLoad?: boolean } = {},
 ): Promise<ProjectPointsLayerResult> {
   // Fetch only the project extent/CRS first. Point records are requested for
   // the current map viewport below so a large field book is never sent whole.
@@ -361,6 +362,7 @@ export async function createProjectPointsLayer(
             properties.clusterExtent = clusterExtent
           } else {
             properties.pointId = pt.id
+            properties.horizontalCrs = projCode
             properties.easting = sourceCoordinate[0]
             properties.northing = sourceCoordinate[1]
             properties.elevation = pt.elevation == null ? null : Number(pt.elevation)
@@ -418,11 +420,13 @@ export async function createProjectPointsLayer(
   map.on('moveend', onViewportChange)
   map.on('change:size', onViewportChange)
 
-  const rawExtent = Array.isArray(extentPayload.extent) && extentPayload.extent.length === 4
-    ? extentPayload.extent.map(Number)
-    : null
-  if (Number(extentPayload.total) > 0 && rawExtent?.every(Number.isFinite)) {
-    const [minE, minN, maxE, maxN] = rawExtent as [number, number, number, number]
+  const fitToPoints = () => {
+    if (disposed) return false
+    const rawExtent = Array.isArray(extentPayload.extent) && extentPayload.extent.length === 4
+      ? extentPayload.extent.map(Number)
+      : null
+    if (!(Number(extentPayload.total) > 0) || !rawExtent?.every(Number.isFinite)) return false
+    const [minE, minN, maxE, maxN] = rawExtent
     const units = proj.get(projCode)?.getUnits()
     const padE = Math.max(Math.abs(maxE - minE) * 0.05, units === 'degrees' ? 0.0001 : 1)
     const padN = Math.max(Math.abs(maxN - minN) * 0.05, units === 'degrees' ? 0.0001 : 1)
@@ -432,16 +436,19 @@ export async function createProjectPointsLayer(
       'EPSG:3857',
       8,
     )
-    if (fitExtent.every(Number.isFinite)) {
-      map.getView().fit(fitExtent, { padding: [72, 72, 72, 72], maxZoom: 22, duration: 0 })
-    }
+    if (!fitExtent.every(Number.isFinite)) return false
+    map.getView().fit(fitExtent, { padding: [72, 72, 72, 72], maxZoom: 22, duration: 0 })
+    return true
   }
+
+  if (options.fitOnLoad !== false) fitToPoints()
 
   // `fit` emits moveend asynchronously in some browsers, so load immediately
   // as well; the request token prevents duplicate/stale responses from winning.
   await updateViewport()
 
   return {
+    fitToPoints,
     pointsLayer: layer,
     pointsSource: source,
     cleanup: () => {

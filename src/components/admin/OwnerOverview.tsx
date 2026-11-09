@@ -4,7 +4,11 @@ import Link from 'next/link'
 import { ArrowUpRight, CheckCircle2, CreditCard, FolderKanban, MessageSquare, ShieldCheck, Users } from 'lucide-react'
 import type { DashboardData } from '@/lib/admin/dashboardContract'
 import { formatPaymentAmount } from '@/lib/admin/paymentCurrency'
-import { RevenueLineChart } from './charts/AdminCharts'
+import dynamic from 'next/dynamic'
+
+const RevenueLineChart = dynamic(() => import('./charts/AdminCharts').then(module => module.RevenueLineChart), {
+  loading: () => <div className="min-h-[240px]" aria-busy="true" />,
+})
 
 export function OwnerOverview({ data }: { data: DashboardData }) {
   const ops = data.operations

@@ -77,7 +77,7 @@ export function reportWebVital(metric: WebVitalMetric): void {
   }
 
   // Also store in the performance monitor for the in-app dashboard
-  performanceMonitor.record(name, value, { rating: rating ?? 'unknown' })
+  performanceMonitor.record(name, value, { rating: rating ?? 'unknown', source: 'web-vitals' })
 }
 
 // ─── Survey-Specific Custom Metrics ────────────────────────────────────

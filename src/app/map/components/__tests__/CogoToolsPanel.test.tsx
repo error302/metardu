@@ -29,3 +29,15 @@ it('rejects partial coordinate text instead of silently using the numeric prefix
   expect(screen.getByText('Invalid station coordinates')).toBeInTheDocument()
   expect(screen.queryByText('Computed Point')).not.toBeInTheDocument()
 })
+
+it('requires a fresh computation before plotting after an input changes', () => {
+  render(<CogoToolsPanel />)
+  fireEvent.change(screen.getByLabelText('E'), { target: { value: '1000' } })
+  fireEvent.change(screen.getByLabelText('N'), { target: { value: '2000' } })
+  fireEvent.change(screen.getByLabelText('Brg'), { target: { value: '90' } })
+  fireEvent.change(screen.getByLabelText('Dist'), { target: { value: '100' } })
+  fireEvent.click(screen.getByRole('button', { name: /^Compute$/ }))
+  expect(screen.getByText('Computed Point')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Dist'), { target: { value: '200' } })
+  expect(screen.queryByText('Computed Point')).not.toBeInTheDocument()
+})

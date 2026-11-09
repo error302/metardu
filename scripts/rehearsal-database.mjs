@@ -1,5 +1,11 @@
 // Mutating rehearsal scripts accept only explicit loopback test databases.
 // Never fall back to DATABASE_URL, DB_*, .env, or deployment credentials.
+
+export function pinnedRehearsalIdentity(revision) {
+  if(!/^[a-f0-9]{40}$/.test(revision))throw new Error('A full source revision is required for isolated rehearsal.')
+  return {database:`metardu_release_${revision}`,runtimeRole:`metardu_release_app_${revision}`,
+    marker:`METARDU synthetic pinned release only ${revision}`}
+}
 export function rehearsalDatabaseConfig() {
   const adminUrl = process.env.TEST_ADMIN_DATABASE_URL
     || 'postgresql://release_verify:local_release_verify_only@127.0.0.1:55433/metardu_release_rehearsal'

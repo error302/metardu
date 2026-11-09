@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { FieldMeasureButton } from '../FieldMeasureButton'
 import { useInstrumentStore } from '@/stores/instrumentStore'
 
@@ -49,5 +49,25 @@ describe('FieldMeasureButton point sequence', () => {
     view.rerender(<FieldMeasureButton {...props} nextPointNumber={8} />)
 
     expect(screen.getByLabelText('Measure point RD2')).toBeInTheDocument()
+  })
+
+  it('stores the exact crew ID, retains zero padding, and reports the stored ID', async () => {
+    const onCapture = jest.fn().mockResolvedValue(true)
+    render(<FieldMeasureButton onCapture={onCapture} stationSetup featureCode="KERB" />)
+    fireEvent.change(screen.getByLabelText('Point ID'), { target: { value: 'CREW-A-024' } })
+    expect(screen.getByText('KERB')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Measure point CREW-A-024' }))
+    await waitFor(() => expect(screen.getByLabelText('Point ID')).toHaveValue('CREW-A-025'))
+    expect(onCapture).toHaveBeenCalledTimes(1)
+    expect(onCapture).toHaveBeenCalledWith('CREW-A-024')
+    expect(screen.getByRole('status')).toHaveTextContent('CREW-A-024 stored on this device')
+  })
+
+  it('blocks malformed identifiers that could corrupt the retained reading metadata', () => {
+    const onCapture = jest.fn()
+    render(<FieldMeasureButton onCapture={onCapture} stationSetup />)
+    fireEvent.change(screen.getByLabelText('Point ID'), { target: { value: 'P1;FIELD=' } })
+    expect(screen.getByRole('button', { name: 'Measure point P1;FIELD=' })).toBeDisabled()
+    expect(onCapture).not.toHaveBeenCalled()
   })
 })

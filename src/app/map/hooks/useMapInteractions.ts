@@ -9,7 +9,7 @@
  * bearing/distance computation, and proximity color-coding.
  */
 
-import { useCallback, useRef, useEffect } from 'react'
+import { useCallback, useRef, useEffect, useState } from 'react'
 import type { DrawMode, MeasureMode } from '@/app/map/mapTypes'
 import type { MapExtent } from '@/app/map/MapReactContext'
 import type Map from 'ol/Map'
@@ -44,7 +44,6 @@ import {
   updateTargetProximityStyle,
   createStakeoutAudioAlert,
   stopStakeoutAudio,
-  computeStakeoutState,
   type StakeoutTarget,
   type StakeoutState,
   type StakeoutPosition,
@@ -53,6 +52,7 @@ import { logger } from '@/lib/logger'
 import { measureMapGridDrawing } from '@/lib/mapDrawing/metrics'
 import { encodeMapDrawing } from '@/lib/mapDrawing/codec'
 import { zoomToSurveyPointCluster } from '@/lib/surveyMapEngine/ol/pointLoading'
+import { attachSketchHistory, emptySketchHistory } from '@/app/map/utils/sketchHistory'
 
 interface UseMapInteractionsParams {
   mapInstance: React.MutableRefObject<Map | null>
@@ -102,7 +102,6 @@ interface UseMapInteractionsParams {
   /** Called when a feature is identified by single-click */
   onIdentify?: (feature: Feature | null) => void
   pushHistory: () => void
-  clearHistory: () => void
   popupRef: React.MutableRefObject<HTMLDivElement | null>
   toggleGPS: () => void
 }
@@ -111,6 +110,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   // The caller supplies the working projection explicitly. Project LandXML
   // export resolves the authoritative declaration separately below.
   const epsg = p.currentSurveyCrs
+  const stakeoutScope = useRef({ projectId: p.projectId, epsg })
+  stakeoutScope.current = { projectId: p.projectId, epsg }
 
   // ── SINGLE-CLICK IDENTIFY: click any feature → show its attributes ──
   useEffect(() => {
@@ -134,7 +135,13 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         const feature = features[0] as Feature
         if (onIdentify) onIdentify(feature)
 
-        const isSurveyCluster = feature.get('pointType') === 'survey-cluster'
+        const pointType: unknown = feature.get('pointType')
+        if (pointType === 'survey') {
+          // The React side panel presents the exact stored point attributes.
+          if (p.popupRef.current) p.popupRef.current.className = 'hidden'
+          return
+        }
+        const isSurveyCluster = pointType === 'survey-cluster'
         if (isSurveyCluster) {
           // The cluster geometry is a display centroid only. Zoom to the
           // represented cell to request finer groups; never use it as a
@@ -197,6 +204,19 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   const stakeoutDirectionLayerRef = useRef<VectorLayer | null>(null)
   const stakeoutCleanupDone = useRef(false)
 
+  const [sketchHistory, setSketchHistory] = useState(emptySketchHistory)
+  const activeSketch = useRef<ReturnType<typeof attachSketchHistory> | null>(null)
+  const removeDrawInteraction = useCallback(() => {
+    activeSketch.current?.reset()
+    activeSketch.current = null
+    const draw = p.drawInteractionRef.current
+    if (!draw) return
+    p.mapInstance.current?.removeInteraction(draw)
+    p.drawInteractionRef.current = null
+  }, [p.mapInstance, p.drawInteractionRef])
+  const undoSketch = useCallback(() => activeSketch.current?.undo() ?? false, [])
+  const redoSketch = useCallback(() => activeSketch.current?.redo() ?? false, [])
+
   // ── DRAW ──
   const toggleDraw = useCallback(async (mode: DrawMode) => {
     if (!p.mapInstance.current) return
@@ -223,10 +243,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       p.setEditMode(false)
     }
 
-    if (p.drawInteractionRef.current) {
-      p.mapInstance.current.removeInteraction(p.drawInteractionRef.current)
-      p.drawInteractionRef.current = null
-    }
+    removeDrawInteraction()
 
     if (mode === 'none' || mode === p.drawMode) {
       p.setDrawMode('none')
@@ -252,6 +269,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         image: new CircleStyle({ radius: 6, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
       }),
     })
+
+    if (geomType === 'LineString' || geomType === 'Polygon') {
+      activeSketch.current = attachSketchHistory(draw, setSketchHistory)
+    }
 
     draw.on('drawend', (e: DrawEvent) => {
       // Compute live area/perimeter for the drawn feature — measured in the
@@ -279,15 +300,16 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
           }
         }
       }
-      setTimeout(() => p.selectInteractionRef.current?.getFeatures()?.clear(), 100)
-      setTimeout(p.pushHistory, 150)
+      p.selectInteractionRef.current?.getFeatures()?.clear()
+      // OpenLayers emits drawend immediately before inserting the completed feature.
+      source.once('addfeature', p.pushHistory)
     })
 
     p.mapInstance.current.addInteraction(draw)
     p.drawInteractionRef.current = draw
     p.setDrawMode(mode)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg])
+  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction])
 
   // ── EDIT / MODIFY ──
   const toggleEdit = useCallback(async () => {
@@ -307,10 +329,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       return
     }
 
-    if (p.drawInteractionRef.current) {
-      p.mapInstance.current.removeInteraction(p.drawInteractionRef.current)
-      p.drawInteractionRef.current = null
-    }
+    removeDrawInteraction()
     p.setDrawMode('none')
     if (p.measureMode !== 'none') {
       if (p.measureInteractionRef.current) {
@@ -328,7 +347,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
     const modify = new Modify({ source })
     modify.on('modifyend', (_event: ModifyEvent) => {
-      setTimeout(p.pushHistory, 100)
+      p.pushHistory()
 
       if (p.projectId) p.setSaveMsg('Vertices edited locally. Use Save drawing to write a checked project version; the local draft is retained.')
 
@@ -337,7 +356,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.modifyInteractionRef.current = modify
     p.setEditMode(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg])
+  }, [p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction])
 
   // ── DELETE SELECTED ──
   const deleteSelected = useCallback(() => {
@@ -366,10 +385,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     const { default: Stroke } = await import('ol/style/Stroke')
     const { default: CircleStyle } = await import('ol/style/Circle')
 
-    if (p.drawInteractionRef.current) {
-      p.mapInstance.current.removeInteraction(p.drawInteractionRef.current)
-      p.drawInteractionRef.current = null
-    }
+    removeDrawInteraction()
     p.setDrawMode('none')
     if (p.editMode) {
       if (p.modifyInteractionRef.current) {
@@ -601,21 +617,20 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   }, [hasFeature, drawSourceRef, projectId, setSaveMsg])
 
   // ── CLEAR DRAWN ──
+  const { drawSourceRef: clearSourceRef, measureSourceRef: clearMeasureRef,
+    selectInteractionRef: clearSelectionRef, popupRef: clearPopupRef, mapInstance: clearMapRef,
+    setFeatureCount: setClearCount, setSelectedFeature: setClearSelection, pushHistory: recordClear } = p
   const clearDrawn = useCallback(() => {
-    const setFeatureCount = p.setFeatureCount
-    const setSelectedFeature = p.setSelectedFeature
-    const clearHistory = p.clearHistory
-    if (p.drawSourceRef.current) {
-      p.drawSourceRef.current.clear()
-      setFeatureCount(0)
-    }
-    if (p.measureSourceRef.current) p.measureSourceRef.current.clear()
-    setSelectedFeature(null)
-    if (p.popupRef.current && p.mapInstance.current) {
-      p.mapInstance.current.getOverlays().forEach((o) => o.setPosition(undefined))
-    }
-    clearHistory()
-  }, [p.drawSourceRef, p.setFeatureCount, p.measureSourceRef, p.setSelectedFeature, p.popupRef, p.mapInstance, p.clearHistory])
+    const source = clearSourceRef.current
+    if (!source?.getFeatures().length) return
+    source.clear()
+    setClearCount(0)
+    clearMeasureRef.current?.clear()
+    clearSelectionRef.current?.getFeatures().clear()
+    setClearSelection(null)
+    if (clearPopupRef.current) clearMapRef.current?.getOverlays().forEach(overlay => overlay.setPosition(undefined))
+    recordClear()
+  }, [clearSourceRef, clearMeasureRef, clearSelectionRef, clearPopupRef, clearMapRef, setClearCount, setClearSelection, recordClear])
 
   // ── GPS ──
   const toggleGPSInternal = useCallback(() => {
@@ -642,19 +657,26 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   // ── STAKEOUT: Activate with full overlay ──
   const activateStakeout = useCallback(async (target: StakeoutTarget) => {
     const hasFeature = p.hasFeature
-    if (!hasFeature('gps_stakeout')) return
-    if (!p.mapInstance.current) return
-    if (!epsg) {
-      p.setSaveMsg('Declare the project CRS before starting stakeout.')
-      return
-    }
+    if (!hasFeature('gps_stakeout')) throw new Error('Device GPS navigation requires a Pro plan.')
+    const map = p.mapInstance.current
+    if (!map || !epsg) throw new Error('Choose a survey grid before starting navigation.')
+    if (!Number.isFinite(target.easting) || !Number.isFinite(target.northing)) throw new Error('Enter a valid grid coordinate.')
+    const validation = validateCoordinateRange(target.easting, target.northing, epsg)
+    if (!validation.valid) throw new Error(validation.errors[0] || 'Target lies outside the selected survey grid.')
+    const projectId = p.projectId
 
     // Deactivate any existing stakeout first
     await deactivateStakeout()
 
     try {
+      const { transform } = await import('ol/proj')
+      const targetCoord = transform([target.easting, target.northing], epsg, map.getView().getProjection())
+      if (!targetCoord.every(Number.isFinite)) throw new Error('Invalid projected target')
+
       const { overlay, targetSource, targetLayer, directionSource, directionLayer } =
         await createStakeoutOverlay(target, epsg)
+
+      if (p.mapInstance.current !== map || stakeoutScope.current.epsg !== epsg || stakeoutScope.current.projectId !== projectId) return
 
       // Store refs
       stakeoutOverlayRef.current = overlay
@@ -672,46 +694,17 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       p.setStakeoutTarget({ e: target.easting, n: target.northing })
       p.setStakeoutActive(true)
 
-      // Initialize stakeoutState immediately so the panel shows live data
-      // without waiting for the first GPS position update.
-      // If we have a GPS position, compute initial distance/bearing.
-      // Without a fix, leave measurements unknown.
-      if (p.gpsPos) {
-        const { transform } = await import('ol/proj')
-        const [gpsE, gpsN] = transform(
-          [p.gpsPos.lon, p.gpsPos.lat],
-          'EPSG:4326',
-          epsg
-        ) as [number, number]
-        const initialPos: StakeoutPosition = {
-          easting: gpsE,
-          northing: gpsN,
-          accuracy: p.gpsPos.accuracy,
-        }
-        const targetPt: StakeoutTarget = {
-          easting: target.easting,
-          northing: target.northing,
-        }
-        const initialState = computeStakeoutState(initialPos, targetPt)
-        p.setStakeoutState(initialState)
-      } else {
-        p.setStakeoutState(null)
-      }
-
       stakeoutCleanupDone.current = false
-
-      // Enable GPS if not already tracking
+      p.setStakeoutState(null)
       if (!p.gpsTracking) p.toggleGPS()
-
-      // Zoom to target
-      const { transform } = await import('ol/proj')
-      const targetCoord = transform([target.easting, target.northing], epsg, 'EPSG:3857')
-      p.mapInstance.current.getView().animate({ center: targetCoord, zoom: 18, duration: 800 })
+      map.getView().animate({ center: targetCoord, zoom: 18, duration: 800 })
     } catch (err) {
+      await deactivateStakeout()
       logger.error('[activateStakeout] Failed:', { error: err })
+      throw new Error('Could not start navigation. Check the grid and target coordinate.')
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.hasFeature, p.gpsTracking, p.toggleGPS, p.gpsPos, p.setSaveMsg, epsg])
+  }, [p.hasFeature, p.gpsTracking, p.toggleGPS, p.projectId, epsg])
 
   // ── STAKEOUT: Deactivate and clean up ──
   const deactivateStakeout = useCallback(async () => {
@@ -759,6 +752,13 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   }, [p.mapInstance, p.setStakeoutTarget, p.setStakeoutActive, p.setStakeoutState])
 
   // ── STAKEOUT: Update on GPS position change ──
+  // A target belongs to the project/grid and GPS session that started it.
+  useEffect(() => {
+    return () => {
+      if (stakeoutOverlayRef.current) void deactivateStakeout()
+    }
+  }, [p.projectId, epsg, deactivateStakeout])
+
   const updateStakeoutOnGPS = useCallback(async () => {
     if (!epsg || !p.stakeoutActive || !p.stakeoutTarget || !p.gpsPos) return
     if (!stakeoutDirectionSourceRef.current) return
@@ -806,45 +806,6 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       createStakeoutAudioAlert(state.distance)
     } catch { /* skip update */ }
   }, [p.stakeoutActive, p.stakeoutTarget, p.gpsPos, p.setStakeoutState, epsg])
-
-  // ── STAKEOUT: Legacy toggle (for backward compat) ──
-  const toggleStakeout = useCallback(() => {
-    // LINT FIX (2026-08-30): destructure once so exhaustive-deps can track
-    // individual fields (listing `p.x` in deps while also reading `p.y`
-    // chains like p.mapInstance.current made the rule demand the whole `p`).
-    const { hasFeature, setSaveMsg } = p
-    // FIX (2026-08-30): previously returned silently when the plan gate
-    // failed — the button appeared dead. Surface a visible message instead.
-    if (!hasFeature('gps_stakeout')) {
-      if (setSaveMsg) {
-        setSaveMsg('GPS Stakeout requires a Pro plan — upgrade in Pricing to enable it')
-        setTimeout(() => setSaveMsg(''), 4000)
-      }
-      return
-    }
-    // FIX (2026-08-30): starting stakeout now auto-enables GPS tracking so
-    // the HUD/direction line actually receives position updates. Previously
-    // the panel sat on "Waiting for GPS position..." if GPS wasn't on.
-    if (!p.gpsTracking) {
-      p.toggleGPS()
-    }
-    if (!p.stakeoutTarget) {
-      if (!epsg) {
-        setSaveMsg('Declare the project CRS before starting stakeout.')
-        return
-      }
-      if (!p.mapInstance.current) return
-      const center = p.mapInstance.current.getView().getCenter()
-      if (center) {
-        import('ol/proj').then(({ transform }) => {
-          const [e, n] = transform(center, 'EPSG:3857', epsg)
-          activateStakeout({ easting: e, northing: n })
-        })
-      }
-    } else {
-      deactivateStakeout()
-    }
-  }, [p, activateStakeout, deactivateStakeout, epsg])
 
   // ── STAKEOUT INFO (uses pre-transformed UTM position — no require()) ──
   const stakeoutInfo = useCallback(() => {
@@ -1135,6 +1096,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   }, [p.mapInstance])
 
   return {
+    sketchHistory,
+    undoSketch,
+    redoSketch,
     toggleDraw,
     toggleEdit,
     deleteSelected,
@@ -1142,7 +1106,6 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     exportFeatures,
     clearDrawn,
     toggleGPS: toggleGPSInternal,
-    toggleStakeout,
     stakeoutInfo,
     activateStakeout,
     deactivateStakeout,

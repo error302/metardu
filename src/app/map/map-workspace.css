@@ -120,8 +120,7 @@
   display: none;
 }
 
-.map-grid-switcher,
-.map-header-layers {
+.map-grid-switcher {
   display: flex;
   align-items: center;
   justify-content: center;
@@ -146,8 +145,12 @@
   border-color: var(--accent);
 }
 
-.map-header-layers {
-  display: none;
+.map-basemap-bar .map-layer-settings {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-left: 1px solid var(--border-color);
 }
 
 /* ── Floating Basemap Selector ── */
@@ -214,14 +217,39 @@
   border-color: var(--accent);
 }
 
-.map-workspace .map-mobile-tool-bar {
+.map-workspace .map-tools-dock {
   position: absolute;
-  left: 0;
-  right: 0;
-  bottom: 0;
+  inset: auto 0 0;
   z-index: 35;
+  background: var(--bg-secondary);
+}
+
+.map-sketch-history {
+  display: flex;
+  justify-content: flex-start;
+  padding-inline: 8px;
+}
+
+.map-sketch-history button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 44px;
+  padding-inline: 10px;
+  color: var(--text-primary);
+  font-size: 12px;
+}
+
+.map-sketch-history button:disabled {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.map-workspace .map-mobile-tool-bar {
   display: grid;
-  grid-template-columns: repeat(7, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(44px, 1fr));
+  overflow-x: auto;
   align-items: center;
   gap: 0;
   padding: 4px;
@@ -247,11 +275,10 @@
 .map-workspace .map-mobile-tool-panel {
   position: absolute;
   left: 8px;
-  bottom: calc(var(--map-bottom-clearance) + 56px);
+  bottom: max(56px, calc(var(--map-bottom-clearance) + 8px));
   width: 380px;
-  max-width: calc(100vw - 24px);
-  height: fit-content;
-  max-height: max(80px, calc(100% - var(--map-bottom-clearance) - 190px));
+  max-width: calc(100% - 16px);
+  max-height: calc(100% - var(--map-bottom-clearance) - 132px);
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.12);
@@ -267,6 +294,32 @@
 .map-mobile-tool-panel > .map-mobile-panel-body {
   min-height: 0;
   overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.map-side-panel {
+  position: absolute;
+  right: 8px;
+  bottom: calc(var(--map-bottom-clearance) + 56px);
+  width: min(22rem, calc(100% - 16px));
+  max-height: calc(100% - var(--map-bottom-clearance) - 132px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.map-side-panel-body {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (max-height: 600px) {
+  .map-workspace .map-mobile-tool-panel,
+  .map-side-panel {
+    bottom: calc(var(--map-bottom-clearance) + 4px);
+    max-height: calc(100% - var(--map-bottom-clearance) - 8px);
+  }
 }
 
 /* ── Navigation Dock (Right: Zoom, N, GPS, Print) ── */
@@ -279,6 +332,13 @@
   flex-direction: column;
   align-items: flex-end;
   gap: 4px;
+  max-height: calc(100% - var(--map-bottom-clearance) - 84px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.map-navigation-dock > * {
+  flex-shrink: 0;
 }
 
 .map-zoom-buttons {
@@ -441,7 +501,7 @@
 /* Keep field controls stable over moving tiles and while their panels scroll.
    Opaque surfaces avoid backdrop compositing trails and preserve text contrast. */
 .map-workspace :is(
-  .map-search-input, .map-grid-switcher, .map-header-layers, .map-basemap-bar,
+  .map-search-input, .map-grid-switcher, .map-basemap-bar,
   .map-mobile-tools-toggle, .map-mobile-tool-bar, .map-mobile-tool-panel,
   .map-zoom-buttons, .map-pan-lock, .map-gesture-lock, .map-gps-toggle,
   .map-print-button, .map-status-strip, .ol-scale-line
@@ -478,8 +538,9 @@
     padding: 6px 10px;
     font-size: 10px;
   }
-  .map-navigation-dock > div {
-    gap: 4px;
+  .map-navigation-dock button {
+    min-width: 44px;
+    min-height: 44px;
   }
   .map-status-strip {
     min-height: 48px;

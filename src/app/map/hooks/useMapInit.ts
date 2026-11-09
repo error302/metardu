@@ -799,7 +799,10 @@ export function useMapInit(params: UseMapInitParams) {
         // Store cleanup refs in dedicated ref (not on map object)
         cleanupRef.current = { geolocation, dragAndDrop } as unknown as MapCleanupRefs
 
-        if (!cancelled) setMapReady(true)
+        if (!cancelled) {
+          pushHistory()
+          setMapReady(true)
+        }
       } catch (err: unknown) {
         logger.error('Map initialization failed:', { error: err })
         if (!cancelled) setInitError(err instanceof Error ? (err as Error).message : 'Map failed to load')

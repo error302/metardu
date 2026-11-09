@@ -4,13 +4,13 @@ import assert from 'node:assert/strict'
 import { spawnSync, spawn } from 'node:child_process'
 import { mkdirSync, readFileSync, writeFileSync, existsSync, createWriteStream, statfsSync } from 'node:fs'
 import { resolve, join } from 'node:path'
-import { createHash } from 'node:crypto'
+import { createHash, randomBytes } from 'node:crypto'
 import pg from 'pg'
 import {assertSurveyPushEnvironment} from './survey-push-environment.mjs'
 import {readScheduleSchemaContract,assertScheduleSchemaContract} from './schedule-schema-contract.mjs'
 import {SCHEDULE_UPGRADE_VERSION} from './schedule-upgrade-contract.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
-import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
+import { rehearsalDatabaseConfig, pinnedRehearsalIdentity } from './rehearsal-database.mjs'
 import { pinnedReleaseArguments, assertSurveyReleaseDrift, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
@@ -217,16 +217,84 @@ async function buildCandidate(retry) {
   attempt.status='passed';receipt.status='built';save(receipt)
   console.log(JSON.stringify({status:receipt.status,image:receipt.candidateImage,revision}))
 }
+async function verifyRehearsedSchema(receipt,client,runtimeRole) {
+  receipt.rehearsal.importContract=assertImportSchemaContract(await readImportSchemaContract(client,runtimeRole))
+  receipt.rehearsal.fieldContract=assertFieldObservationContract(await readFieldObservationContract(client,runtimeRole))
+  receipt.rehearsal.scheduleContract=assertScheduleSchemaContract(await readScheduleSchemaContract(client,runtimeRole))
+  await client.query('SELECT capture_snapshot,client_reading_id FROM verticality_readings WHERE false')
+  const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE (conrelid='public.setout_observations'::regclass AND conname='setout_capture_snapshot_shape') OR (conrelid='public.verticality_readings'::regclass AND conname='verticality_capture_snapshot_shape') ORDER BY conname")
+  assert.equal(constraints.rows.length,2);assert.ok(constraints.rows.every(row=>row.convalidated))
+  receipt.rehearsal.constraints=constraints.rows
+}
+
+async function rehearseIsolatedBaseline(receipt,owned,settings) {
+  assert.equal(receipt.pending.length,0,'Isolated baseline rehearsal is for no-SQL releases only.')
+  assert.equal(owned.Config.Labels['metardu.purpose'],'schema-rehearsal')
+  const identity=pinnedRehearsalIdentity(revision)
+  const controlAddress=new URL(settings.adminUrl)
+  assert.equal(controlAddress.hostname,'127.0.0.1');assert.equal(controlAddress.port,'55433')
+  controlAddress.pathname='/metardu_runtime_verify'
+  const control=new pg.Client({connectionString:controlAddress.href,connectionTimeoutMillis:5000})
+  const admin=new URL(controlAddress);admin.pathname=`/${identity.database}`
+  const runtime=new URL(admin);runtime.username=identity.runtimeRole;runtime.password=randomBytes(32).toString('hex')
+  const files=sourceMigrations()
+  assert.deepEqual(files.map(file=>({version:file.version,checksum:file.checksum})),receipt.sourceRegistry)
+  assert.ok(computeDrift(files,receipt.migrationBefore).ok)
+  let created=false,client
+  await control.connect()
+  const readMarker=async database=>(await control.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=$1",[database])).rows[0]?.marker
+  try {
+    assert.equal(await readMarker('metardu_runtime_verify'),'METARDU synthetic beacon verification only 2026-10-08')
+    assert.equal((await control.query('SELECT 1 FROM pg_database WHERE datname=$1',[identity.database])).rowCount,0,'Inspect any existing rehearsal artifact before reuse.')
+    assert.equal((await control.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[identity.runtimeRole])).rowCount,0)
+    receipt.rehearsal={database:identity.database,customerDataCopied:false,existingContainer:true,isolatedBaseline:true,pending:[],passed:false}
+    save(receipt)
+    await control.query(`CREATE DATABASE "${identity.database}" TEMPLATE template0`);created=true
+    await control.query(`COMMENT ON DATABASE "${identity.database}" IS '${identity.marker}'`)
+    assert.equal(await readMarker(identity.database),identity.marker)
+    const staging=stageMigrations(files)
+    const result=runProvisionedMigrations(staging,admin.href,runtime.href)
+    if(result.error||result.status!==0){
+      receipt.rehearsal.failedAt=(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'
+      receipt.rehearsal.errorCode=(result.stderr||'').match(/code: ['"]([A-Z0-9]+)['"]/)?.[1]||null
+      throw new Error(`Isolated synthetic migration bootstrap failed at ${receipt.rehearsal.failedAt}.`)
+    }
+    client=new pg.Client({connectionString:admin.href,connectionTimeoutMillis:5000});await client.connect()
+    const after=await ledger(client)
+    assert.deepEqual(after,receipt.migrationBefore,'The isolated registry must exactly match production before promotion.')
+    await verifyRehearsedSchema(receipt,client,identity.runtimeRole)
+    receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
+      registry:join(staging,'src/lib/db/migrations'),revision,runtimeUrl:runtime.href,isolatedBaseline:true})
+    receipt.rehearsal.applied=after.length
+  }finally{
+    try{
+      if(client)await client.end()
+      if(created){
+        assert.equal(await readMarker(identity.database),identity.marker,'Refusing to remove a fixture without its exact marker.')
+        await control.query(`DROP DATABASE "${identity.database}"`)
+        await control.query(`DROP ROLE IF EXISTS "${identity.runtimeRole}"`)
+        if(receipt.rehearsal)receipt.rehearsal.isolatedFixtureRemoved=true
+      }
+    }finally{await control.end();if(receipt.rehearsal)save(receipt)}
+  }
+  receipt.rehearsal.passed=true;save(receipt);console.log(JSON.stringify(receipt.rehearsal))
+}
+
 async function rehearse() {
   const receipt=load();assert.equal(receipt.status,'planned')
   const owned=JSON.parse(docker(['inspect','metardu-schema-rehearsal-20261008']))[0]
   assert.equal(owned.Id,'ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0')
   assert.deepEqual(owned.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'55433'}])
-  const address=new URL(rehearsalDatabaseConfig().adminUrl)
+  const settings=rehearsalDatabaseConfig()
+  if(process.env.METARDU_REHEARSE_PINNED_BASELINE==='1'){
+    assert.equal(process.argv[4],'--unified','An isolated baseline requires the unified release namespace.')
+    await rehearseIsolatedBaseline(receipt,owned,settings);return
+  }
+  const address=new URL(settings.adminUrl)
   assert.equal(address.port,'55433')
   address.pathname='/metardu_runtime_verify'
   const url=address.toString()
-  const runtimeAddress=new URL(rehearsalDatabaseConfig().runtimeUrl);runtimeAddress.pathname=address.pathname
+  const runtimeAddress=new URL(settings.runtimeUrl);runtimeAddress.pathname=address.pathname
   const client=new pg.Client({connectionString:url,connectionTimeoutMillis:5000});await client.connect()
   const files=sourceMigrations()
   try {
@@ -241,15 +309,10 @@ async function rehearse() {
       save(receipt);throw new Error(`Synthetic migration rehearsal failed: ${receipt.rehearsal.failedAt}`)
     }
     const after=await ledger(client);assert.ok(computeDrift(files,after).ok)
-    receipt.rehearsal.importContract=assertImportSchemaContract(await readImportSchemaContract(client,rehearsalDatabaseConfig().runtimeRole))
-    receipt.rehearsal.fieldContract=assertFieldObservationContract(await readFieldObservationContract(client,rehearsalDatabaseConfig().runtimeRole))
-    receipt.rehearsal.scheduleContract=assertScheduleSchemaContract(await readScheduleSchemaContract(client,rehearsalDatabaseConfig().runtimeRole))
-    await client.query('SELECT capture_snapshot,client_reading_id FROM verticality_readings WHERE false')
-    const constraints=await client.query("SELECT conname,convalidated FROM pg_constraint WHERE (conrelid='public.setout_observations'::regclass AND conname='setout_capture_snapshot_shape') OR (conrelid='public.verticality_readings'::regclass AND conname='verticality_capture_snapshot_shape') ORDER BY conname")
-    assert.equal(constraints.rows.length,2);assert.ok(constraints.rows.every(row=>row.convalidated))
+    await verifyRehearsedSchema(receipt,client,settings.runtimeRole)
     if(!legacy)receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
       registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:runtimeAddress.href})
-    receipt.rehearsal.passed=true;receipt.rehearsal.applied=after.length;receipt.rehearsal.constraints=constraints.rows;save(receipt)
+    receipt.rehearsal.passed=true;receipt.rehearsal.applied=after.length;save(receipt)
     console.log(JSON.stringify(receipt.rehearsal))
   }finally{await client.end()}
 }

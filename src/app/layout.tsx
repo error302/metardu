@@ -117,9 +117,8 @@ export default function RootLayout({
         <meta name="msapplication-tap-highlight" content="no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="color-scheme" content="dark light" />
-        <link rel="icon" href="/metardu-icon.png" type="image/png" />
+        <link rel="icon" href="/metardu-icon.webp" type="image/webp" sizes="128x128" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
-        <link rel="shortcut icon" href="/metardu-icon.png" />
         {/* Shared body font is local; other families load only when used. */}
         <link rel="preload" href="/fonts/19f9c92546aa300c.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
       </head>

@@ -113,21 +113,27 @@ export default function AppShell({ children }: { children: ReactNode }) {
   // here, and mounting it triggers registerProjections() → dynamic import of
   // proj4 + ol/proj/proj4 → ~46 OpenLayers chunks (~600 KB) on a marketing page.
   if (marketing) {
+    const isHome = pathname === '/'
+    const content = (
+      <>
+        <NavBar />
+        <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
+          {isHome && <ChatGPTNoticeBanner />}
+          {children}
+        </main>
+        <Footer />
+        <NotificationToast />
+      </>
+    )
+
     return (
       <>
         <SkipToContent />
         <OfflineIndicator />
         <LanguageProvider>
           <CountryProvider>
-            <SubscriptionProvider>
-              <NavBar />
-              <main id="main-content" className="min-h-screen max-w-full overflow-x-hidden">
-                {pathname === '/' && <ChatGPTNoticeBanner />}
-                {children}
-              </main>
-              <Footer />
-              <NotificationToast />
-            </SubscriptionProvider>
+            {/* The home page renders static pricing. NavBar already resolves the session. */}
+            {isHome ? content : <SubscriptionProvider>{content}</SubscriptionProvider>}
           </CountryProvider>
         </LanguageProvider>
       </>

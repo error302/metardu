@@ -3,6 +3,7 @@
  * Track and report performance metrics
  */
 import { logger } from '@/lib/logger'
+import { PERFORMANCE_BUDGETS } from './config'
 
 interface PerformanceMetric {
   name: string
@@ -11,7 +12,7 @@ interface PerformanceMetric {
   tags?: Record<string, string>
 }
 
-interface PerformanceReport {
+export interface PerformanceReport {
   webVitals: WebVitalsReport
   customMetrics: Record<string, number>
   errors: ErrorReport[]
@@ -21,9 +22,13 @@ interface WebVitalsReport {
   FCP?: number // First Contentful Paint
   LCP?: number // Largest Contentful Paint
   FID?: number // First Input Delay
+  INP?: number // Interaction to Next Paint
   CLS?: number // Cumulative Layout Shift
   TTFB?: number // Time to First Byte
 }
+
+const LOAD_VITALS = ['FCP', 'LCP', 'CLS', 'TTFB'] as const
+const VITAL_NAMES: ReadonlySet<string> = new Set([...LOAD_VITALS, 'FID', 'INP'])
 
 interface ErrorReport {
   message: string
@@ -45,54 +50,41 @@ class PerformanceMonitor {
   }
 
   private initWebVitals(): void {
-    // Listen for web vitals
-    if ('PerformanceObserver' in window) {
-      // LCP
-      const lcpObserver = new PerformanceObserver((list) => {
+    if (typeof PerformanceObserver === 'undefined') return
+    const supported = PerformanceObserver.supportedEntryTypes ?? []
+
+    // Provide live readings until Next.js reports the finalized vitals.
+    if (supported.includes('largest-contentful-paint')) {
+      const observer = new PerformanceObserver(list => {
         const entries = list.getEntries()
         const lastEntry = entries[entries.length - 1]
-        this.record('LCP', lastEntry.startTime)
+        if (lastEntry) this.record('LCP', lastEntry.startTime)
       })
-      lcpObserver.observe({ entryTypes: ['largest-contentful-paint'] })
-
-      // FID
-      const fidObserver = new PerformanceObserver((list) => {
-        const firstEntry = list.getEntries()[0]
-        if (firstEntry) {
-          this.record('FID', (firstEntry as PerformanceEventTiming).processingStart - firstEntry.startTime)
-        }
-      })
-      fidObserver.observe({ entryTypes: ['first-input'] })
-
-      // CLS
-      let clsValue = 0
-      const clsObserver = new PerformanceObserver((list) => {
-        for (const entry of list.getEntries()) {
-          const clsEntry = entry as { hadRecentInput?: boolean; value?: number }
-          if (!clsEntry.hadRecentInput) {
-            clsValue += clsEntry.value ?? 0
-          }
-        }
-        this.record('CLS', clsValue)
-      })
-      clsObserver.observe({ entryTypes: ['layout-shift'] })
+      observer.observe({ type: 'largest-contentful-paint', buffered: true })
     }
 
-    // FCP from timing API
-    window.addEventListener('load', () => {
-      setTimeout(() => {
-        const perfData = performance.getEntriesByName('first-contentful-paint')[0] as PerformanceEntry
-        if (perfData) {
-          this.record('FCP', perfData.startTime)
+    if (supported.includes('layout-shift')) {
+      this.record('CLS', 0)
+      let sessionStart = -Infinity
+      let lastShift = -Infinity
+      let sessionValue = 0
+      let largestSession = 0
+      const observer = new PerformanceObserver(list => {
+        for (const entry of list.getEntries()) {
+          const shift = entry as PerformanceEntry & { hadRecentInput: boolean; value: number }
+          if (shift.hadRecentInput) continue
+          if (shift.startTime - lastShift >= 1000 || shift.startTime - sessionStart >= 5000) {
+            sessionStart = shift.startTime
+            sessionValue = 0
+          }
+          lastShift = shift.startTime
+          sessionValue += shift.value
+          largestSession = Math.max(largestSession, sessionValue)
         }
-
-        // TTFB
-        const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming
-        if (navigation) {
-          this.record('TTFB', navigation.responseStart - navigation.startTime)
-        }
-      }, 0)
-    })
+        this.record('CLS', largestSession)
+      })
+      observer.observe({ type: 'layout-shift', buffered: true })
+    }
   }
 
   private initErrorTracking(): void {
@@ -175,17 +167,23 @@ class PerformanceMonitor {
     const webVitals: WebVitalsReport = {}
     const customMetrics: Record<string, number> = {}
 
-    // Group metrics by name and get average
-    const grouped = this.groupByName(this.metrics)
-    
-    for (const [name, values] of Object.entries(grouped)) {
-      const avg = values.reduce((a, b) => a + b, 0) / values.length
-      
-      if (['FCP', 'LCP', 'FID', 'CLS', 'TTFB'].includes(name)) {
-        webVitals[name as keyof WebVitalsReport] = avg
-      } else {
-        customMetrics[name] = avg
+    const customSamples: PerformanceMetric[] = []
+    const finalized = new Set<string>()
+    for (const metric of this.metrics) {
+      if (!VITAL_NAMES.has(metric.name)) {
+        customSamples.push(metric)
+        continue
       }
+      if (metric.tags?.source === 'web-vitals') {
+        finalized.add(metric.name)
+      } else if (finalized.has(metric.name)) {
+        continue
+      }
+      webVitals[metric.name as keyof WebVitalsReport] = metric.value
+    }
+
+    for (const [name, values] of Object.entries(this.groupByName(customSamples))) {
+      customMetrics[name] = values.reduce((a, b) => a + b, 0) / values.length
     }
 
     return {
@@ -245,22 +243,20 @@ class PerformanceMonitor {
     }
   }
 
-  // Get performance score
-  getScore(): number {
-    const report = this.getReport()
+  getScore(report = this.getReport()): number | null {
+    const { webVitals } = report
+    const responsiveness = webVitals.INP === undefined ? 'FID' : 'INP'
+    const required = [...LOAD_VITALS, responsiveness] as const
+    if (required.some(name => webVitals[name] === undefined)) return null
+
     let score = 100
-
-    // Deduct for poor web vitals
-    if (report.webVitals.LCP && report.webVitals.LCP > 2500) score -= 20
-    if (report.webVitals.FID && report.webVitals.FID > 100) score -= 20
-    if (report.webVitals.CLS && report.webVitals.CLS > 0.1) score -= 20
-    if (report.webVitals.FCP && report.webVitals.FCP > 1800) score -= 10
-    if (report.webVitals.TTFB && report.webVitals.TTFB > 600) score -= 10
-
-    // Deduct for errors
-    score -= Math.min(20, this.errors.length * 2)
-
-    return Math.max(0, score)
+    for (const name of required) {
+      const value = webVitals[name]
+      if (value !== undefined && value > PERFORMANCE_BUDGETS[name]) {
+        score -= name === 'FCP' || name === 'TTFB' ? 10 : 20
+      }
+    }
+    return Math.max(0, score - Math.min(20, report.errors.length * 2))
   }
 
   // Clear all collected stats

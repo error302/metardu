@@ -1,5 +1,3 @@
-'use client'
-
 import Link from 'next/link'
 import { PLAN_CATALOG } from '@/lib/subscription/catalog'
 
@@ -96,7 +94,7 @@ export function PricingSection() {
                 <h3 className="text-lg font-bold text-[var(--text-primary)] mb-1">{plan.tier}</h3>
                 <p className="text-sm text-[var(--text-primary)] mb-4">{plan.description}</p>
                 <div className="flex items-baseline gap-1 mb-2">
-                  <span className="text-4xl font-bold text-[var(--text-primary)]">
+                  <span className="text-4xl font-bold tabular-nums text-[var(--text-primary)]">
                     KSh {price.toLocaleString('en-KE')}
                   </span>
                   <span className="text-[var(--text-primary)] text-sm">{periodLabel}</span>
@@ -120,6 +118,7 @@ export function PricingSection() {
 
                 <Link
                   href={plan.href}
+                  prefetch={false}
                   className={`block text-center py-3.5 min-h-[44px] rounded-xl font-semibold text-sm transition-all no-underline focus-visible:outline-2 focus-visible:outline-[var(--accent)] ${
                     plan.highlighted
                       ? 'bg-[var(--accent)] text-black hover:bg-[var(--accent-dim)]'

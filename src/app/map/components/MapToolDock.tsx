@@ -10,9 +10,9 @@ import {
   X,
   MapPin, PenTool, Hexagon, Circle,
   Undo2, Redo2, Trash2, Edit3,
-  Navigation, Search,
-  Ruler, Satellite, Globe, Mountain, Moon, Building2,
-  FileOutput, Printer,
+  Navigation,
+  Ruler, Globe, Building2,
+  Printer,
   Eye, MapPinned,
   Scissors, GitMerge, RefreshCw, Magnet, Info,
   FolderOpen, Link2,
@@ -26,6 +26,9 @@ import { InstantClosureFeedback } from '@/app/map/components/InstantClosureFeedb
 import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { VertexEditToolbarContext } from '@/components/map/VertexEditToolbar'
 import { SchemeLayerPanel } from './SchemeLayerPanel'
+import { ManualPointEntry } from './ManualPointEntry'
+import { MapBasemapBar } from './MapWorkspaceHeader'
+import { MapCoordSearch } from './MapCoordSearch'
 import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
 import { useSearchParams } from 'next/navigation'
@@ -47,12 +50,13 @@ interface CategoryDef {
   accent: string
 }
 
+const LAYERS_CATEGORY: CategoryDef = { id: 'layers', icon: Layers, label: 'Layers', shortcut: '5', accent: '#D17B47' }
+
 const CATEGORIES: CategoryDef[] = [
   { id: 'recon',   icon: Binoculars,  label: 'Recon',   shortcut: '1', accent: '#D17B47' },
   { id: 'capture', icon: Crosshair,   label: 'Capture', shortcut: '2', accent: '#D17B47' },
   { id: 'compute', icon: Calculator,  label: 'Compute', shortcut: '3', accent: '#D17B47' },
   { id: 'setout',  icon: Target,      label: 'Set Out', shortcut: '4', accent: '#D17B47' },
-  { id: 'layers',  icon: Layers,      label: 'Layers',  shortcut: '5', accent: '#D17B47' },
   { id: 'export',  icon: Download,    label: 'Export',  shortcut: '6', accent: '#D17B47' },
 ]
 
@@ -60,17 +64,12 @@ const CATEGORIES: CategoryDef[] = [
 // Shared primitives
 // ---------------------------------------------------------------------------
 
-function SectionLabel({ children, hint }: { children: React.ReactNode; hint?: string }) {
+function SectionLabel({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between px-1 pt-3 pb-1.5 first:pt-1">
       <span className="text-[10px] uppercase tracking-[0.15em] text-[var(--text-muted)] font-semibold">
         {children}
       </span>
-      {hint && (
-        <kbd className="px-1 py-0.5 rounded bg-white/[0.03] border border-white/[0.06] text-[8px] text-[var(--text-muted)] font-mono">
-          {hint}
-        </kbd>
-      )}
     </div>
   )
 }
@@ -87,12 +86,13 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled,
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
       aria-pressed={pressed}
       title={shortcut ? `${label} (${shortcut})` : label}
       className={`
-        flex items-center gap-2.5 w-full px-3 py-2 rounded-lg transition-all duration-150 text-xs font-medium
+        flex items-center gap-2.5 w-full min-h-11 px-3 py-2 rounded-lg transition-all duration-150 text-xs font-medium
         ${disabled
           ? 'opacity-30 cursor-not-allowed text-[var(--text-muted)] border border-transparent'
           : danger && isActive
@@ -113,18 +113,18 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled,
   )
 }
 
-function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
+function ToolBtn({ label, icon, isActive, onClick }: {
   label: string
   icon: React.ReactNode
   isActive: boolean
   onClick: () => void
-  shortcut?: string
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
         aria-pressed={isActive}
-      title={shortcut ? `${label} (${shortcut})` : label}
+      title={label}
       className={`
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150
         w-full min-h-[50px] shrink-0 relative
@@ -135,11 +135,6 @@ function ToolBtn({ label, icon, isActive, onClick, shortcut }: {
     >
       <span className="w-5 h-5">{icon}</span>
       <span className="text-[9px] leading-tight font-medium">{label}</span>
-      {shortcut && (
-        <span className="absolute top-0.5 right-1 text-[7px] text-[var(--text-muted)] font-mono opacity-40">
-          {shortcut}
-        </span>
-      )}
     </button>
   )
 }
@@ -199,54 +194,41 @@ function extractPolygonVertices(feature: import('ol/Feature').default | null, vi
 // Panel content components
 // ---------------------------------------------------------------------------
 
-export const ReconContent = memo(function ReconContent() {
-  const { handleCoordSearch, fitToKenya, fitToDrawn, gpsTracking, toggleGPS, featureCount } = useMapContext()
-  const [searchInput, setSearchInput] = useState('')
-
-  const handleSearch = useCallback(async () => {
-    if (!searchInput.trim()) return
-    await handleCoordSearch(searchInput)
-    setSearchInput('')
-  }, [searchInput, handleCoordSearch])
+export const ReconContent = memo(function ReconContent({ onFitProject }: { onFitProject: () => void }) {
+  const { fitToKenya, fitToDrawn, gpsTracking, gpsPos, toggleGPS, featureCount, schemeProjectId, currentSurveyCrs } = useMapContext()
 
   return (
     <div className="space-y-0.5">
-      <SectionLabel hint="⌘F">Search</SectionLabel>
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-[var(--text-muted)]" />
-        <input
-          type="text"
-          value={searchInput}
-          onChange={(e) => setSearchInput(e.target.value)}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSearch() }}
-          aria-label="Coord, MGRS, beacon, or parcel"
-          placeholder="Coord, MGRS, beacon, parcel…"
-          className="w-full h-8 bg-white/[0.03] border border-white/[0.07] rounded-lg pl-8 pr-3 text-[11px] text-[var(--text-primary)] placeholder-[var(--text-muted)] focus:outline-none focus:border-[#3B82F6]/50 transition-colors"
-        />
-      </div>
+      <SectionLabel>Search</SectionLabel>
+      <MapCoordSearch />
+      <p className="px-1 pt-1 text-xs text-[var(--text-secondary)]">Enter latitude, longitude or an E/N pair in the selected survey grid. Beacon and parcel search checks features loaded on this map.</p>
 
-      <SectionLabel hint="⌘⇧F">Fit View</SectionLabel>
-      <ActionBtn label="Fit to Kenya" icon={<Globe className="w-4 h-4" />} isActive={false} onClick={fitToKenya} shortcut="⌘⇧K" />
-      <ActionBtn label="Fit to Project" icon={<MapPinned className="w-4 h-4" />} isActive={false} onClick={fitToDrawn} shortcut="⌘⇧P" disabled={featureCount === 0} />
+      <SectionLabel>Fit View</SectionLabel>
+      <ActionBtn label="Fit to Kenya" icon={<Globe className="w-4 h-4" />} isActive={false} onClick={fitToKenya} />
+      {schemeProjectId && <ActionBtn label="Fit to project points" icon={<MapPinned className="w-4 h-4" />} isActive={false} onClick={onFitProject} disabled={!currentSurveyCrs} />}
+      <ActionBtn label="Fit to sketches" icon={<PenTool className="w-4 h-4" />} isActive={false} onClick={fitToDrawn} disabled={featureCount === 0} />
 
-      <SectionLabel hint="G">GPS</SectionLabel>
+      <SectionLabel>GPS</SectionLabel>
       <ActionBtn
-        label={gpsTracking ? 'GPS Active' : 'Enable GPS'}
+        label={gpsTracking ? 'Stop device GPS' : 'Locate with device GPS'}
         icon={<Navigation className="w-4 h-4" />}
         isActive={gpsTracking}
+        pressed={gpsTracking}
         onClick={toggleGPS}
-        shortcut="G"
       />
+      {gpsTracking && <p role="status" className="px-1 text-xs text-[var(--text-secondary)]">
+        {gpsPos ? 'Device location active. Use a survey receiver for measured observations.' : 'Waiting for a device location. Check browser location permissions.'}
+      </p>}
 
-      <SectionLabel hint="B">Bookmarks</SectionLabel>
+      <SectionLabel>Bookmarks</SectionLabel>
       <BookmarkPanel />
     </div>
   )
 })
 
-export const CaptureContent = memo(function CaptureContent() {
+export const CaptureContent = memo(function CaptureContent({ onPointSaved }: { onPointSaved: () => void }) {
   const ctx = useMapContext()
-  const { selectedFeature, currentSurveyCrs } = ctx
+  const { selectedFeature, currentSurveyCrs, schemeProjectId } = ctx
   const viewCrs = ctx.mapInstance.current?.getView().getProjection().getCode() ?? null
   const geometryRevision = selectedFeature?.getGeometry()?.getRevision() ?? 0
   const polygonVertices: SurveyPoint[] = useMemo(() => {
@@ -256,18 +238,30 @@ export const CaptureContent = memo(function CaptureContent() {
 
   return (
     <div className="space-y-0.5">
-      <SectionLabel hint="D">Draw</SectionLabel>
+      <SectionLabel>Project points</SectionLabel>
+      <div className="grid gap-2">
+        {schemeProjectId ? <ManualPointEntry projectId={schemeProjectId} onSaved={onPointSaved} /> : <p className="px-1 text-xs text-[var(--text-secondary)]">Open the survey map from a project to key in points to its register.</p>}
+        <Link href={schemeProjectId ? `/field/collect?projectId=${encodeURIComponent(schemeProjectId)}` : '/field/collect'} prefetch={false} className="btn btn-secondary min-h-11">Measure with instrument</Link>
+        <Link href={schemeProjectId ? `/import?projectId=${encodeURIComponent(schemeProjectId)}` : '/import'} prefetch={false} className="btn btn-secondary min-h-11">Import controller file</Link>
+      </div>
+      <SectionLabel>Map sketch</SectionLabel>
+      <p className="px-1 pb-1 text-xs text-[var(--text-secondary)]">Sketches stay in the drawing. Use Project points for field records.</p>
+      {ctx.drawMode !== 'none' && <p role="status" className="px-1 pb-1 text-xs text-[var(--text-secondary)]">
+        {ctx.drawMode === 'Point' ? 'Tap the map to place a sketch point.'
+          : ctx.drawMode === 'Circle' ? 'Tap a center, then tap the edge.'
+          : 'Tap to add vertices. Double-tap or double-click to finish.'}
+      </p>}
       <div className="grid grid-cols-3 gap-1.5">
-        <ToolBtn label="Point"   icon={<MapPin className="w-5 h-5" />}  isActive={ctx.drawMode === 'Point'}      onClick={() => ctx.toggleDraw('Point')}      shortcut="1" />
-        <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => ctx.toggleDraw('LineString')} shortcut="2" />
-        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => ctx.toggleDraw('Polygon')}    shortcut="3" />
-        <ToolBtn label="Circle"  icon={<Circle className="w-5 h-5" />}  isActive={ctx.drawMode === 'Circle'}     onClick={() => ctx.toggleDraw('Circle')}     shortcut="4" />
+        <ToolBtn label="Sketch point"   icon={<MapPin className="w-5 h-5" />}  isActive={ctx.drawMode === 'Point'}      onClick={() => ctx.toggleDraw('Point')}      />
+        <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => ctx.toggleDraw('LineString')} />
+        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => ctx.toggleDraw('Polygon')}    />
+        <ToolBtn label="Circle"  icon={<Circle className="w-5 h-5" />}  isActive={ctx.drawMode === 'Circle'}     onClick={() => ctx.toggleDraw('Circle')}     />
       </div>
 
-      <SectionLabel hint="M">Measure</SectionLabel>
+      <SectionLabel>Measure</SectionLabel>
       <div className="grid grid-cols-2 gap-1.5">
-        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />}  isActive={ctx.measureMode === 'distance'} onClick={() => ctx.toggleMeasure(ctx.measureMode === 'distance' ? 'none' : 'distance')} shortcut="MD" />
-        <ToolBtn label="Area"     icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'}     onClick={() => ctx.toggleMeasure(ctx.measureMode === 'area' ? 'none' : 'area')}         shortcut="MA" />
+        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />}  isActive={ctx.measureMode === 'distance'} onClick={() => ctx.toggleMeasure(ctx.measureMode === 'distance' ? 'none' : 'distance')} />
+        <ToolBtn label="Area"     icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'}     onClick={() => ctx.toggleMeasure(ctx.measureMode === 'area' ? 'none' : 'area')}         />
       </div>
       {ctx.measureResult && (
         <div className="mt-1 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
@@ -276,38 +270,29 @@ export const CaptureContent = memo(function CaptureContent() {
         </div>
       )}
 
-      <SectionLabel hint="A">Annotations</SectionLabel>
+      <SectionLabel>Annotations</SectionLabel>
       <ActionBtn
         label={ctx.showAnnotations ? 'Annotations On' : 'Bearing Annotations'}
         icon={<Eye className="w-4 h-4" />}
         isActive={ctx.showAnnotations}
         onClick={ctx.toggleAnnotations}
-        shortcut="A"
       />
 
-      <SectionLabel hint="E">Edit</SectionLabel>
-      <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} shortcut="V" />
+      <SectionLabel>Edit</SectionLabel>
+      <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} />
       <details className="py-2 text-xs text-[var(--text-secondary)]">
         <summary className="cursor-pointer py-2">Precision vertex controls</summary>
         <VertexEditToolbarContext />
       </details>
-      <div className="flex gap-1.5">
-        <button onClick={ctx.undo} disabled={!ctx.canUndo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-[var(--text-secondary)] hover:bg-white/[0.04] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-          <Undo2 className="w-3.5 h-3.5" /> Undo
-        </button>
-        <button onClick={ctx.redo} disabled={!ctx.canRedo} className="flex-1 flex items-center justify-center gap-1.5 px-2 py-1.5 rounded-lg border border-white/[0.06] text-xs font-medium text-[var(--text-secondary)] hover:bg-white/[0.04] disabled:opacity-30 disabled:cursor-not-allowed transition-all">
-          <Redo2 className="w-3.5 h-3.5" /> Redo
-        </button>
-      </div>
-      <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} danger shortcut="Del" />
+      <ActionBtn label="Delete Selected" icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={ctx.deleteSelected} disabled={!ctx.selectedFeature} danger shortcut="Del" />
 
-      <SectionLabel hint="X">Advanced</SectionLabel>
+      <SectionLabel>Advanced</SectionLabel>
       <div className="grid grid-cols-3 gap-1">
-        <ToolBtn label="Split"   icon={<Scissors className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'split'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'split'   ? null : 'split')}   shortcut="S" />
-        <ToolBtn label="Merge"   icon={<GitMerge className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'merge'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'merge'   ? null : 'merge')}   shortcut="M" />
-        <ToolBtn label="Reshape" icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'reshape'} onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'reshape' ? null : 'reshape')} shortcut="R" />
-        <ToolBtn label="Rotate"  icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'rotate'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'rotate'  ? null : 'rotate')}  shortcut="O" />
-        <ToolBtn label="Offset"  icon={<Ruler className="w-4 h-4" />}     isActive={ctx.activeDigitizingTool === 'offset'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'offset'  ? null : 'offset')}  shortcut="F" />
+        <ToolBtn label="Split"   icon={<Scissors className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'split'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'split'   ? null : 'split')}   />
+        <ToolBtn label="Merge"   icon={<GitMerge className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'merge'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'merge'   ? null : 'merge')}   />
+        <ToolBtn label="Reshape" icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'reshape'} onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'reshape' ? null : 'reshape')} />
+        <ToolBtn label="Rotate"  icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'rotate'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'rotate'  ? null : 'rotate')}  />
+        <ToolBtn label="Offset"  icon={<Ruler className="w-4 h-4" />}     isActive={ctx.activeDigitizingTool === 'offset'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'offset'  ? null : 'offset')}  />
       </div>
 
       {ctx.activeDigitizingTool === 'offset' && (
@@ -358,11 +343,11 @@ export const CaptureContent = memo(function CaptureContent() {
       )}
 
       <ActionBtn
-        label={ctx.snappingEnabled ? 'Snapping On' : 'Snapping Off'}
+        label="Snapping settings"
         icon={<Magnet className="w-4 h-4" />}
-        isActive={ctx.snappingEnabled}
-        onClick={() => { ctx.setSnappingEnabled(!ctx.snappingEnabled); ctx.setShowSnappingOptions(!ctx.snappingEnabled) }}
-        shortcut="N"
+        isActive={ctx.showSnappingOptions}
+        pressed={ctx.showSnappingOptions}
+        onClick={() => ctx.setShowSnappingOptions(!ctx.showSnappingOptions)}
       />
 
       {ctx.selectedFeature && (
@@ -384,7 +369,7 @@ export const CaptureContent = memo(function CaptureContent() {
       )}
       {polygonVertices.length >= 3 && (
         <>
-          <SectionLabel hint="T">Topology Check</SectionLabel>
+          <SectionLabel>Topology Check</SectionLabel>
           <TopologyGuardrail vertices={polygonVertices} epsg={ctx.currentSurveyCrs} compact />
         </>
       )}
@@ -396,12 +381,12 @@ export const ComputeContent = memo(function ComputeContent() {
   const { schemeProjectId } = useMapContext()
   return (
     <div className="space-y-0.5">
-      <SectionLabel hint="C">COGO Computation</SectionLabel>
+      <SectionLabel>COGO Computation</SectionLabel>
       <CogoToolsPanel />
-      <SectionLabel hint="T">Traverse Readout</SectionLabel>
+      <SectionLabel>Traverse Readout</SectionLabel>
       <CogoInfoPanel />
       <InstantClosureFeedback />
-      <SectionLabel hint="P">Parcel Boundary Review</SectionLabel>
+      <SectionLabel>Parcel Boundary Review</SectionLabel>
       {schemeProjectId ? (
         <div className="space-y-2 px-1 text-xs">
           <p>Choose a parcel in its block register, then review its retained coordinates and boundary order.</p>
@@ -415,38 +400,73 @@ export const ComputeContent = memo(function ComputeContent() {
 })
 
 export const SetOutContent = memo(function SetOutContent() {
-  const { gpsTracking, toggleGPS, stakeoutActive, toggleStakeout, exportFeatures } = useMapContext()
+  const { gpsTracking, toggleGPS, stakeoutActive, startStakeout, deactivateStakeout, currentSurveyCrs, schemeProjectId, hasFeature } = useMapContext()
+  const [target, setTarget] = useState({ easting: '', northing: '' })
+  const [starting, setStarting] = useState(false)
+  const [error, setError] = useState('')
+  const canNavigate = hasFeature('gps_stakeout')
+
+  async function submitTarget(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    if (!currentSurveyCrs || !canNavigate || starting || stakeoutActive) return
+    const values = [target.easting, target.northing].map(value => value.trim())
+    const [easting, northing] = values.map(Number)
+    if (!values.every(value => /^[+-]?(?:\d+(?:\.\d*)?|\.\d+)$/.test(value)) || !Number.isFinite(easting) || !Number.isFinite(northing)) {
+      setError('Enter numeric easting and northing in the displayed survey grid.')
+      return
+    }
+    setError('')
+    setStarting(true)
+    try {
+      await startStakeout({ easting, northing })
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not start navigation.')
+    } finally {
+      setStarting(false)
+    }
+  }
 
   return (
     <div className="space-y-0.5">
-      <SectionLabel hint="S">GPS Stakeout</SectionLabel>
-      <ActionBtn
-        label={stakeoutActive ? 'Stakeout Active' : 'Start Stakeout'}
-        icon={<Target className="w-4 h-4" />}
-        isActive={stakeoutActive}
-        onClick={toggleStakeout}
-        shortcut="S"
-      />
+      <SectionLabel>Project setout</SectionLabel>
+      {schemeProjectId
+        ? <Link href={'/field/setout?projectId=' + encodeURIComponent(schemeProjectId)} prefetch={false} className="btn btn-secondary min-h-11">Open field setout register</Link>
+        : <p className="px-1 text-xs text-[var(--text-secondary)]">Open the map from a project to use its setout register.</p>}
+
+      <SectionLabel>Device GPS navigation</SectionLabel>
+      <p className="px-1 pb-2 text-xs text-[var(--text-secondary)]">Navigate to a known grid coordinate. Verify position and tolerances with a survey instrument.</p>
+      {stakeoutActive ? (
+        <ActionBtn label="End navigation" icon={<Target className="h-4 w-4" />} isActive onClick={deactivateStakeout} />
+      ) : (
+        <form onSubmit={submitTarget} className="space-y-2">
+          <fieldset disabled={!canNavigate || !currentSurveyCrs || starting} className="grid grid-cols-2 gap-2 disabled:opacity-50">
+            <legend className="mb-2 text-xs text-[var(--text-secondary)]">{currentSurveyCrs ?? 'Choose a survey grid first'}</legend>
+            {(['easting', 'northing'] as const).map(axis => (
+              <label key={axis} className="min-w-0 text-xs capitalize text-[var(--text-secondary)]">
+                {axis}
+                <input required inputMode="decimal" value={target[axis]} onChange={event => {
+                  setTarget(previous => ({ ...previous, [axis]: event.target.value }))
+                  setError('')
+                }} className="mt-1 min-h-11 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-2 tabular-nums text-[var(--text-primary)]" />
+              </label>
+            ))}
+            <button type="submit" className="btn btn-secondary col-span-2 min-h-11">{starting ? 'Starting…' : 'Navigate to target'}</button>
+          </fieldset>
+          {!canNavigate && <p className="px-1 text-xs text-[var(--text-secondary)]">Device GPS navigation requires a Pro plan.</p>}
+          {error && <p role="alert" className="px-1 text-xs text-[var(--error)]">{error}</p>}
+        </form>
+      )}
       <StakeoutPanel />
 
-      <SectionLabel hint="G">GPS Track</SectionLabel>
+      <SectionLabel>GPS Track</SectionLabel>
       <ActionBtn
         label={gpsTracking ? 'GPS Active' : 'Enable GPS'}
         icon={<Navigation className="w-4 h-4" />}
         isActive={gpsTracking}
         onClick={toggleGPS}
-        shortcut="G"
       />
       <GpsTrackPanel />
 
-      <SectionLabel>Drawing Handoff</SectionLabel>
-      <ActionBtn
-        label="Export map drawing (LandXML)"
-        icon={<FileOutput className="w-4 h-4" />}
-        isActive={false}
-        onClick={() => exportFeatures('LandXML')}
-        shortcut="⌘⇧E"
-      />
     </div>
   )
 })
@@ -525,23 +545,12 @@ export const LayersContent = memo(function LayersContent() {
     }
   }, [mapInstance, activeCachedSourceId, basemap, toggleBasemap])
 
-  const selectStandardBasemap = useCallback((mode: 'osm' | 'satellite' | 'dark' | 'terrain') => {
-    toggleBasemap(mode)
-  }, [toggleBasemap])
-
   return (
     <div className="space-y-0.5">
       <div className="map-layer-tabs" role="group" aria-label="Layer groups">
         {(['base', 'survey', 'reference'] as const).map(group => <button type="button" key={group} aria-pressed={section === group} onClick={() => setSection(group)}>{group.charAt(0).toUpperCase() + group.slice(1)}</button>)}
       </div>
       <div hidden={section !== 'base'}>
-      <div className="space-y-1" role="group" aria-label="Base layers">
-        <ActionBtn label="OpenStreetMap" icon={<Globe className="w-4 h-4" />} isActive={visibleBasemap === 'osm'} pressed={visibleBasemap === 'osm'} onClick={() => selectStandardBasemap('osm')} />
-        <ActionBtn label="Satellite · Esri" icon={<Satellite className="w-4 h-4" />} isActive={visibleBasemap === 'satellite'} pressed={visibleBasemap === 'satellite'} onClick={() => selectStandardBasemap('satellite')} />
-        <ActionBtn label="Terrain · Esri" icon={<Mountain className="w-4 h-4" />} isActive={visibleBasemap === 'terrain'} pressed={visibleBasemap === 'terrain'} onClick={() => selectStandardBasemap('terrain')} />
-        <ActionBtn label="Dark · OpenStreetMap" icon={<Moon className="w-4 h-4" />} isActive={visibleBasemap === 'dark'} pressed={visibleBasemap === 'dark'} onClick={() => selectStandardBasemap('dark')} />
-      </div>
-
       <SectionLabel>Downloaded Basemaps</SectionLabel>
       <div className="space-y-1">
         <button
@@ -587,7 +596,7 @@ export const LayersContent = memo(function LayersContent() {
       </div>
 
       <SectionLabel>Offline</SectionLabel>
-      <ActionBtn label="Download Tiles" icon={<Download className="w-4 h-4" />} isActive={false} onClick={() => setOfflineDialogOpen(true)} shortcut="⌘O" />
+      <ActionBtn label="Download Tiles" icon={<Download className="w-4 h-4" />} isActive={false} onClick={() => setOfflineDialogOpen(true)} />
       </div>
       <div hidden={section !== 'survey'}>
         <p className="mb-3 text-xs text-[var(--text-secondary)]">{featureCount} drawn feature{featureCount === 1 ? '' : 's'}. Import GeoJSON, KML or WKT by dropping a file onto the map.</p>
@@ -612,16 +621,16 @@ export const ExportContent = memo(function ExportContent() {
 
   return (
     <div className="space-y-0.5">
-      <SectionLabel hint="⌘S">Save to Project</SectionLabel>
+      <SectionLabel>Save to Project</SectionLabel>
       {projectId ? (
-        <ActionBtn label="Save to Project" icon={<FolderOpen className="w-4 h-4" />} isActive={false} onClick={saveToProject} shortcut="⌘S" />
+        <ActionBtn label="Save to Project" icon={<FolderOpen className="w-4 h-4" />} isActive={false} onClick={saveToProject} />
       ) : (
         <div className="p-2.5 rounded-lg bg-amber-500/10 border border-amber-500/20 text-[10px] text-amber-400">
           Open from a project to enable saving. <a href="/dashboard" className="underline text-[var(--accent)]">Go to dashboard →</a>
         </div>
       )}
 
-      <SectionLabel hint="⌘E">Export Format</SectionLabel>
+      <SectionLabel>Export Format</SectionLabel>
       <div className="grid grid-cols-3 gap-1 mt-1">
         {(['GeoJSON','KML','DXF','WKT'] as const).map(fmt => (
           <button key={fmt} onClick={() => exportFeatures(fmt)} className="px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-white/[0.04] hover:text-[var(--text-primary)] transition-all">{fmt}</button>
@@ -629,13 +638,13 @@ export const ExportContent = memo(function ExportContent() {
         <button onClick={() => exportFeatures('LandXML')} className="col-span-2 px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-white/[0.04] hover:text-[var(--text-primary)] transition-all">LandXML</button>
       </div>
 
-      <SectionLabel hint="⌘P">Print / PDF</SectionLabel>
-      <ActionBtn label={isPrinting ? 'Generating…' : 'Print / PDF'} icon={<Printer className="w-4 h-4" />} isActive={isPrinting} onClick={() => printMap()} shortcut="⌘P" />
+      <SectionLabel>Print / PDF</SectionLabel>
+      <ActionBtn label={isPrinting ? 'Generating…' : 'Print / PDF'} icon={<Printer className="w-4 h-4" />} isActive={isPrinting} onClick={() => printMap()} />
 
       {featureCount > 0 && (
         <>
           <SectionLabel>Clear</SectionLabel>
-          <ActionBtn label={`Clear All (${featureCount})`} icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={clearDrawn} danger shortcut="⌘⇧⌫" />
+          <ActionBtn label={`Clear All (${featureCount})`} icon={<Trash2 className="w-4 h-4" />} isActive={false} onClick={clearDrawn} danger />
         </>
       )}
     </div>
@@ -658,25 +667,19 @@ const MetarduWatermark = memo(function MetarduWatermark() {
 // Main: MapToolDock
 // ---------------------------------------------------------------------------
 
-export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpandedChange }: { expanded?: boolean; onExpandedChange?: (expanded: boolean) => void }) {
-  const [openPanels, setOpenPanels] = useState<Set<DockCategory>>(new Set())
+export const MapToolDock = memo(function MapToolDock({
+  expanded = true, onExpandedChange, onPointSaved, onFitProject,
+}: { expanded?: boolean; onExpandedChange?: (expanded: boolean) => void; onPointSaved: () => void; onFitProject: () => void }) {
+  const [openPanel, setOpenPanel] = useState<DockCategory | null>(null)
   const {
-    drawMode, editMode, measureMode, gpsTracking, stakeoutActive,
-    hasTraverse, showAnnotations,
+    drawMode, editMode, measureMode, gpsTracking, stakeoutActive, schemeProjectId, currentSurveyCrs,
+    hasTraverse, showAnnotations, undo, redo, canUndo, canRedo, sketchHistory,
   } = useMapContext()
 
   const togglePanel = useCallback((cat: DockCategory) => {
-    onExpandedChange?.(true)
-    setOpenPanels(prev => (prev.has(cat) ? new Set() : new Set([cat])))
+    if (cat !== 'layers') onExpandedChange?.(true)
+    setOpenPanel(previous => previous === cat ? null : cat)
   }, [onExpandedChange])
-
-  const closePanel = useCallback((cat: DockCategory) => {
-    setOpenPanels(prev => {
-      const next = new Set(prev)
-      next.delete(cat)
-      return next
-    })
-  }, [])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -685,17 +688,16 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
       '4': 'setout', '5': 'layers', '6': 'export',
     }
     function handleKey(e: KeyboardEvent) {
-      if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement)?.isContentEditable) return
+      if (e.defaultPrevented || (e.target as HTMLElement | null)?.closest?.('[role="dialog"]') || e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLSelectElement || e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement || (e.target as HTMLElement)?.isContentEditable) return
       const cat = keyMap[e.key]
       if (cat) { e.preventDefault(); togglePanel(cat) }
-      if (e.key === 'Escape' && openPanels.size > 0) setOpenPanels(new Set())
+      if (e.key === 'Escape') setOpenPanel(null)
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [togglePanel, openPanels])
+  }, [togglePanel])
 
   const isActive = (cat: DockCategory) => {
-    if (openPanels.has(cat)) return true
     switch (cat) {
       case 'recon':   return gpsTracking
       case 'capture': return drawMode !== 'none' || editMode || measureMode !== 'none' || showAnnotations
@@ -707,10 +709,10 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
 
   const renderPanelContent = (cat: DockCategory) => {
     switch (cat) {
-      case 'recon':   return <ReconContent />
-      case 'capture': return <CaptureContent />
+      case 'recon':   return <ReconContent onFitProject={onFitProject} />
+      case 'capture': return <CaptureContent onPointSaved={onPointSaved} />
       case 'compute': return <ComputeContent />
-      case 'setout':  return <SetOutContent />
+      case 'setout':  return <SetOutContent key={(schemeProjectId ?? '') + ':' + (currentSurveyCrs ?? '')} />
       case 'layers':  return <LayersContent />
       case 'export':  return <ExportContent />
     }
@@ -719,6 +721,7 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
   return (
     <>
       <MetarduWatermark />
+      <MapBasemapBar layersOpen={openPanel === 'layers'} onToggleLayers={() => togglePanel('layers')} />
 
       {!expanded && <button
         type="button"
@@ -726,7 +729,7 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
         aria-expanded={expanded}
         aria-controls="map-mobile-tool-groups"
         onClick={() => {
-          setOpenPanels(new Set())
+          setOpenPanel(null)
           onExpandedChange?.(!expanded)
         }}
       >
@@ -735,9 +738,9 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
       </button>}
 
       {/* Active panel — styled gracefully on both mobile & desktop */}
-      {expanded && openPanels.size > 0 && (() => {
-        const cat = [...openPanels][openPanels.size - 1]
-        const catDef = CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
+      {openPanel && (expanded || openPanel === 'layers') && (() => {
+        const cat = openPanel
+        const catDef = cat === 'layers' ? LAYERS_CATEGORY : CATEGORIES.find(c => c.id === cat) ?? CATEGORIES[0]
         return (
           <div
             id={`map-tools-${cat}`}
@@ -758,8 +761,8 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
                 <ProjectBadge />
               </div>
               <button
-                onClick={() => closePanel(cat)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/[0.06]"
+                onClick={() => setOpenPanel(null)}
+                className="min-h-11 min-w-11 shrink-0 flex items-center justify-center rounded-lg text-[var(--text-muted)] hover:text-[var(--text-primary)] hover:bg-white/[0.06]"
                 aria-label="Close panel"
               >
                 <X className="w-3.5 h-3.5" />
@@ -774,16 +777,28 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
 
       {/* Horizontal tool bar / dock */}
       {expanded && (
-        <div id="map-mobile-tool-groups" className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
+        <div id="map-mobile-tool-groups" className="map-tools-dock">
+          <div className="map-sketch-history" role="group" aria-label="Sketch history">
+            <button type="button" onClick={undo} disabled={!canUndo}
+              title={sketchHistory ? 'Undo last vertex (Ctrl+Z)' : 'Undo sketch edit (Ctrl+Z)'}>
+              <Undo2 className="h-4 w-4" aria-hidden="true" /> {sketchHistory ? 'Undo vertex' : 'Undo'}
+            </button>
+            <button type="button" onClick={redo} disabled={!canRedo}
+              title={sketchHistory ? 'Redo vertex (Ctrl+Shift+Z)' : 'Redo sketch edit (Ctrl+Shift+Z)'}>
+              <Redo2 className="h-4 w-4" aria-hidden="true" /> {sketchHistory ? 'Redo vertex' : 'Redo'}
+            </button>
+          </div>
+          <div className="map-mobile-tool-bar" role="toolbar" aria-label="Map tools">
           {CATEGORIES.map(cat => {
             const Icon = cat.icon
-            const open = openPanels.has(cat.id)
+            const open = openPanel === cat.id
             const active = isActive(cat.id)
             return (
               <button
                 key={cat.id}
                 onClick={() => togglePanel(cat.id)}
                 aria-label={cat.label}
+                aria-keyshortcuts={cat.shortcut}
                 aria-expanded={open}
                 aria-controls={open ? `map-tools-${cat.id}` : undefined}
                 title={`${cat.label} (${cat.shortcut})`}
@@ -799,10 +814,11 @@ export const MapToolDock = memo(function MapToolDock({ expanded = true, onExpand
               </button>
             )
           })}
-          <button type="button" aria-label="Hide map tools" onClick={() => { setOpenPanels(new Set()); onExpandedChange?.(false) }} className="flex flex-col items-center justify-center gap-0.5 text-[var(--text-secondary)]">
+          <button type="button" aria-label="Hide map tools" onClick={() => { setOpenPanel(null); onExpandedChange?.(false) }} className="flex flex-col items-center justify-center gap-0.5 text-[var(--text-secondary)]">
             <X className="w-4 h-4" aria-hidden="true" />
             <span className="text-[10px]">Hide</span>
           </button>
+          </div>
         </div>
       )}
     </>

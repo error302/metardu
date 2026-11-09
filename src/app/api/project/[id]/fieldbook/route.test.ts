@@ -3,10 +3,12 @@ import { NextRequest } from 'next/server'
 import { GET, PUT } from './route'
 import { db } from '@/lib/db'
 import { requireProjectOwnership } from '@/lib/auth/ownership'
+import {canAccessProject} from '@/lib/auth/rbac'
 import { fieldBookRevision } from '@/lib/survey/fieldBookRevision'
 
 jest.mock('@/lib/db', () => ({ db: { query: jest.fn(), transaction: jest.fn() } }))
 jest.mock('@/lib/auth/ownership', () => ({ requireProjectOwnership: jest.fn() }))
+jest.mock('@/lib/auth/rbac',()=>({canAccessProject:jest.fn()}))
 // Exercise the route's data transaction independently of session transport.
 jest.mock('@/lib/apiHandler', () => ({ apiHandler: (_options: unknown, handler: (req: NextRequest, context: unknown) => unknown) =>
   async (req: NextRequest) => handler(req, { params: { id: 'project' }, userId: 'owner', body: req.method === 'PUT' ? await req.json() as unknown : {} }),
@@ -36,6 +38,7 @@ function transactionQuery() {
 
 beforeEach(() => {
   jest.clearAllMocks()
+  jest.mocked(canAccessProject).mockResolvedValue('owner')
   jest.mocked(requireProjectOwnership).mockResolvedValue({ ok: true, projectUserId: 'owner' })
 })
 
@@ -107,4 +110,25 @@ it.each([
   const query = transactionQuery()
   await expect(PUT(request(undefined, { startPoint }), { params: Promise.resolve({ id: 'project' }) })).rejects.toMatchObject({ statusCode: 409 })
   expect(query.mock.calls.every(([sql]) => String(sql).startsWith('SELECT'))).toBe(true)
+})
+
+it.each(['viewer','surveyor','project_manager'] as const)('a recognized shared reader (%s) may inspect the same saved field book',async(role)=>{
+ jest.mocked(canAccessProject).mockResolvedValue(role)
+ jest.mocked(requireProjectOwnership).mockResolvedValue({ok:false,error:new Response(null,{status:403}) as never})
+ mockQuery.mockImplementation(async(sql)=>({rows:sql.includes('FROM projects')?[project]:sql.includes('FROM project_reference_systems')?[reference]:original}) as never)
+ const result=await GET(new NextRequest('http://localhost/api/project/project/fieldbook'),{params:Promise.resolve({id:'project'})})
+ expect(result.status).toBe(200)
+ expect(await result.json()).toMatchObject({data:original,revision:fieldBookRevision(original,control)})
+ expect(requireProjectOwnership).not.toHaveBeenCalled()
+ expect(result.headers.get('Cache-Control')).toBe('private, no-store')
+})
+it('a removed reader is denied before field-book contents or reference reads',async()=>{
+ jest.mocked(canAccessProject).mockResolvedValue(null)
+ const result=await GET(new NextRequest('http://localhost/api/project/project/fieldbook'),{params:Promise.resolve({id:'project'})})
+ expect(result.status).toBe(403);expect(mockQuery).not.toHaveBeenCalled()
+})
+it('a viewer recorded as creator cannot enter the mutable draft transaction',async()=>{
+ jest.mocked(canAccessProject).mockResolvedValue('viewer')
+ expect((await PUT(request(),{params:Promise.resolve({id:'project'})})).status).toBe(403)
+ expect(mockTransaction).not.toHaveBeenCalled()
 })

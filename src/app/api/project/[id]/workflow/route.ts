@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import {canAccessProject} from '@/lib/auth/rbac'
 import {
   getWorkflowStatus,
   advanceWorkflow,
@@ -37,13 +38,15 @@ interface QcRow {
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
   const { id } = ctx.params
 
+  if(!await canAccessProject(ctx.userId,id))return NextResponse.json({error:'Project read access is required.'},{status:403})
+
   // Fetch project data
   const { rows } = await db.query<ProjectRow>(
     `SELECT p.id, p.name, p.survey_type, p.location, p.utm_zone, p.hemisphere,
             p.workflow_step, p.workflow_max_unlocked, p.boundary_data
      FROM projects p
-     WHERE p.id = $1 AND p.user_id = $2`,
-    [id, ctx.userId]
+     WHERE p.id = $1`,
+    [id]
   )
 
   if (rows.length === 0) {
@@ -108,7 +111,7 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 
   const status = getWorkflowStatus(workflowData)
 
-  return NextResponse.json({ data: status, projectData: workflowData })
+  return NextResponse.json({ data: status, projectData: workflowData },{headers:{'Cache-Control':'private, no-store'}})
 })
 
 /**
@@ -119,6 +122,8 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
 export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 60000 } }, async (_req, ctx) => {
   const { id } = ctx.params
   const body = ctx.body as { acknowledgeTolerance?: boolean } | undefined
+  const role=await canAccessProject(ctx.userId,id)
+  if(!role||role==='viewer')return NextResponse.json({error:'An editing project role is required.'},{status:403})
 
   // Fetch project data
   const { rows } = await db.query<ProjectRow>(

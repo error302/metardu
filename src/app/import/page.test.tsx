@@ -71,3 +71,44 @@ test('selection changes once per click, unknown heights remain visible, and miss
   expect(screen.getByRole('button',{name:'Save 1 selected points'})).toBeDisabled()
   expect(screen.queryByText('DATABASE RECEIPT CONFIRMED')).not.toBeInTheDocument()
 })
+
+
+test('a retry rejection cannot resolve an earlier unconfirmed save', async () => {
+  const bodies: PointImportRequest[] = []
+  global.fetch = jest.fn(async (_url, options) => {
+    if (options?.method !== 'POST') return context()
+    const body = JSON.parse(options.body as string) as PointImportRequest
+    bodies.push(body)
+    if (bodies.length === 1) throw new Error('Lost connection after submission')
+    if (bodies.length === 2) return response({ error: 'Try again later' }, 429)
+    return response({ data: {
+      requestId: body.requestId, batchId: body.requestId, sourceFileHash: body.sourceFileHash, inputHash: 'b'.repeat(64), imported: 2,
+      pointIds: ['22222222-2222-4222-8222-222222222222', '33333333-3333-4333-8333-333333333333'], replayed: true, fieldVerified: false,
+    } })
+  })
+  render(<ImportPage />)
+  await ready()
+  fireEvent.click(screen.getByRole('button', { name: 'Save 2 selected points' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('Lost connection')
+  fireEvent.click(screen.getByRole('button', { name: 'Retry / check this capture' }))
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Try again later'))
+  expect(screen.getByLabelText('Destination project')).toBeDisabled()
+  expect(screen.queryByText('DATABASE RECEIPT CONFIRMED')).not.toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Retry / check this capture' }))
+  expect(await screen.findByText('DATABASE RECEIPT CONFIRMED')).toBeInTheDocument()
+  expect(bodies).toHaveLength(3)
+  expect(bodies[1]).toEqual(bodies[0])
+  expect(bodies[2]).toEqual(bodies[0])
+})
+
+test('a clear first-attempt rejection returns the reviewed file to editing', async () => {
+  global.fetch = jest.fn(async (_url, options) => options?.method === 'POST'
+    ? response({ error: 'The project reference changed' }, 409)
+    : context())
+  render(<ImportPage />)
+  await ready()
+  fireEvent.click(screen.getByRole('button', { name: 'Save 2 selected points' }))
+  expect(await screen.findByRole('alert')).toHaveTextContent('The project reference changed')
+  expect(screen.getByLabelText('Destination project')).toBeEnabled()
+  expect(screen.getByRole('button', { name: 'Save 2 selected points' })).toBeEnabled()
+})

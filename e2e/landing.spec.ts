@@ -22,8 +22,8 @@ test.describe('Landing page', () => {
     await page.goto('/')
 
     await expect(page).toHaveTitle(/METARDU/)
-    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Keep the evidence\.\s*Move the work forward\./)
-    await expect(page.getByText(/Keep field evidence, computations, maps, and draft outputs together/)).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveText(/Field evidence in\.\s*Checked drawings out\./)
+    await expect(page.getByText(/Keep observations, traverse and levelling computations, maps, and draft outputs together/)).toBeVisible()
     await expect(page.getByRole('link', { name: 'Try the interactive sample' })).toHaveAttribute('href', '/demo')
     await expect(page.getByRole('link', { name: 'Create an account' })).toHaveAttribute('href', '/register')
     await expect(page.locator('main a[href="/dashboard"]')).toHaveCount(0)
@@ -33,10 +33,9 @@ test.describe('Landing page', () => {
   test('shows real reference photography with visible source and license credits', async ({ page }) => {
     await page.goto('/')
 
-    await expect(page.getByRole('img', { name: /total station set up beneath a bridge/i })).toBeVisible()
+    await expect(page.getByRole('img', { name: /METARDU survey map workspace/i })).toBeVisible()
     await expect(page.getByRole('img', { name: /digital level on a tripod/i })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'FedericaGaspari' })).toHaveAttribute('href', /commons\.wikimedia\.org/)
-    await expect(page.getByRole('link', { name: 'CC BY-SA 4.0' })).toHaveAttribute('href', 'https://creativecommons.org/licenses/by-sa/4.0/')
+    await expect(page.getByRole('link', { name: 'FedericaGaspari' })).toHaveCount(0)
     await expect(page.getByRole('link', { name: 'Cvstr / HR Surveyors' })).toHaveAttribute('href', /commons\.wikimedia\.org/)
     await expect(page.getByText(/RTK FIX: EXCELLENT|Class A Passed|1:52,400/)).toHaveCount(0)
   })
