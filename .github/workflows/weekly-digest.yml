@@ -14,7 +14,7 @@ on:
 jobs:
   send-digests:
     name: Send weekly digests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
     env:
       APP_URL: ${{ vars.PROD_APP_URL || 'https://metardu.space' }}
