@@ -16,6 +16,10 @@ export function generateCADDocumentDXF(document: CADDocument): string {
   drawing.header('PDMODE', [[70, 35]])
   drawing.header('PDSIZE', [[40, 1]])
   for (const [name, color] of [['BOUNDARY', 1], ['BEACONS', 3], ['LABELS', 2], ['ANNOTATIONS', 7], ['TITLE_BLOCK', 7], ['CARTOGRAPHY', 7]] as const) drawing.addLayer(name, color, 'CONTINUOUS')
+  for (const [name, pattern] of [['DASHED', [0.8, -0.5]], ['DOTTED', [0, -0.4]], ['CENTER', [1.2, -0.4, 0.2, -0.4]]] as const) {
+    drawing.addLineType('DRAFT_' + name, name, [...pattern])
+    drawing.addLayer('DRAFT_' + name, 7, 'DRAFT_' + name)
+  }
   const world = (x: number, y: number) => cadCanvasToProject(x, y, doc.originEasting, doc.originNorthing, doc.height, doc.metersPerPixel)
   const line = (layer: string, x1: number, y1: number, x2: number, y2: number) => { drawing.setActiveLayer(layer).drawLine(x1, y1, x2, y2) }
   const text = (layer: string, x: number, y: number, value: string, height = 1, angle = 0) => {
@@ -41,10 +45,14 @@ export function generateCADDocumentDXF(document: CADDocument): string {
   for (const annotation of doc.annotations) {
     const a = world(annotation.x, annotation.y)
     if (annotation.type === 'text' && annotation.text) text('ANNOTATIONS', a.easting, a.northing, annotation.text, (annotation.fontSize ?? 10) * doc.metersPerPixel)
-    else if (annotation.type === 'line') {
-      if (annotation.x2 === undefined || annotation.y2 === undefined) throw new RangeError('A line annotation needs both endpoints before export.')
+    else if (annotation.type !== 'text') {
+      if (annotation.x2 === undefined || annotation.y2 === undefined) throw new RangeError('Draft geometry needs both points before export.')
       const b = world(annotation.x2, annotation.y2)
-      line('ANNOTATIONS', a.easting, a.northing, b.easting, b.northing)
+      const style = annotation.lineStyle ?? 'solid'
+      const layer = style === 'solid' ? 'ANNOTATIONS' : 'DRAFT_' + style.toUpperCase()
+      if (annotation.type === 'rectangle') drawing.setActiveLayer(layer).drawRect(a.easting, a.northing, b.easting, b.northing)
+      else if (annotation.type === 'circle') drawing.setActiveLayer(layer).drawCircle(a.easting, a.northing, Math.hypot(b.easting - a.easting, b.northing - a.northing))
+      else line(layer, a.easting, a.northing, b.easting, b.northing)
     }
   }
   const arrow = doc.northArrow; const rotation = arrow.rotation * Math.PI / 180

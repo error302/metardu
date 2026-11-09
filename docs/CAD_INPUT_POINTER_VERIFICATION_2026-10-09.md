@@ -81,3 +81,16 @@ No customer data, provider OAuth or public ChatGPT listing was changed.
 The subsequent [reference and raster calibration pass](CAD_REFERENCE_CALIBRATION_VERIFICATION_2026-10-09.md)
 adds an explicit reference form and repairs the drawing/control scale mismatch.
 Its verification and remaining limits are recorded separately from this snapshot.
+
+
+## 10 November 2026 follow-up
+
+Source baseline is `5194fc29e0498582142719e6a44ee73891a1d36f` with the CAD, map and diagnostics work in the shared checkout. Browser checks used the existing synthetic preview at `127.0.0.1:3021`. Production observations below came from read-only admin diagnostics.
+
+- A wheel up/down pair returned the CAD viewBox to its initial dimensions and position within floating-point tolerance. The document scroll remained zero. Dragging by 90/65 screen pixels moved the camera on both axes. Arrow Up and Arrow Left each moved the view by 40 screen pixels.
+- A dashed rectangle and its offset copy rendered as two outlines. The document still showed 15 survey points and 16 edges. A synthetic PNG rotated 90 degrees around its center and Fit image brought it into view. Undo removed the five temporary editing steps.
+- Fit selected sketch zoomed the Survey Map to the selected synthetic outline. Its scale bar changed from 50 m to 10 m.
+- Fresh live admin samples scored 100 and 90 using the dashboard's FID fallback. TTFB was 567 ms and 1,486 ms. Request-to-first-byte time was 565 ms and 1,460 ms. Time before the request was 2 ms and 26 ms outside the DNS and connection buckets. The supplied 60 sample reported 4,141 ms in that pre-request bucket. The variation leaves sustained 98+ performance open.
+- ezdxf 1.4.5 read the synthetic DXF and found two closed dashed rectangles, a centerline circle with a 2.5 m radius, two retained control points and one retained survey edge. Its audit reported zero errors and zero repairs.
+- The focused CAD, map and performance run passed 101 tests across 11 suites. Application, test and tool TypeScript checks and scoped lint passed.
+- The first Docker inventory check hit an access error. The authorized read-only retry passed application, PostgreSQL and Redis health, required services, one application container, and the completed migrator on the application image. The reported backup completion was 9 November at 17:03:42 UTC. Restore validation, source promotion, physical touch testing, receiving-CAD validation and professional field acceptance remain open.

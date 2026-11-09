@@ -1,4 +1,5 @@
 'use client'
+
 /**
  * useMapInit — Core map initialization hook
  *
@@ -19,6 +20,8 @@
  * - Tile cache size set to 2048 for better caching
  */
 
+import { readSketchPointDetails, updateSketchPointDetails, type SketchPointEditor } from '@/app/map/utils/sketchPointDetails'
+import { applySketchStrokeOpacity, createSketchStyle, type SketchAppearance } from '@/app/map/utils/sketchAppearance'
 import { useEffect, useRef } from 'react'
 import { logger } from '@/lib/logger'
 import type { MapCleanupRefs } from '@/lib/map/olTypes'
@@ -48,6 +51,7 @@ interface UseMapInitParams {
   mouseCoordThrottleRef: React.MutableRefObject<number>
   searchParams: URLSearchParams
   pushHistory: () => void
+  sketchAppearanceRef: { readonly current: SketchAppearance }
   drawSourceRef: React.MutableRefObject<import('ol/source/Vector').default | null>
   drawLayerRef: React.MutableRefObject<import('ol/layer/Vector').default | null>
   measureSourceRef: React.MutableRefObject<import('ol/source/Vector').default | null>
@@ -57,7 +61,7 @@ interface UseMapInitParams {
   cleanupRef: React.MutableRefObject<MapCleanupRefs | null>
   popupRef: React.MutableRefObject<HTMLDivElement | null>
   createBasemaps: (olModules: BasemapModules) => Record<string, import('ol/layer/Tile').default>
-  onPopupRender: (popupElement: HTMLDivElement, data: { coordinate?: import('ol/coordinate').Coordinate; projectName?: string; stationName?: string; geometryType?: string; projectId?: string; onDelete?: () => void }, hidePopup: () => void) => void
+  onPopupRender: (popupElement: HTMLDivElement, data: { coordinate?: import('ol/coordinate').Coordinate; projectName?: string; stationName?: string; geometryType?: string; projectId?: string; onDelete?: () => void; pointEditor?: SketchPointEditor }, hidePopup: () => void) => void
   /** T1.5 FIX (2026-07-09): UTM EPSG for mouse position coordinate display */
   currentSurveyCrs: string | null
   onBrowserDrawingRestored: (error:string|null) => void
@@ -74,7 +78,7 @@ export function useMapInit(params: UseMapInitParams) {
     setMouseCoord, setFeatureCount, setImportMsg,
     setSelectedFeature, setSelectedFeatures, setFeatureName, mouseCoordThrottleRef,
     searchParams, pushHistory,
-    drawSourceRef, drawLayerRef, measureSourceRef, measureLayerRef,
+    drawSourceRef, drawLayerRef, measureSourceRef, measureLayerRef, sketchAppearanceRef,
     selectInteractionRef, mapInstance, cleanupRef, popupRef,
     createBasemaps, onPopupRender,
   } = params
@@ -217,6 +221,7 @@ export function useMapInit(params: UseMapInitParams) {
         // Dynamic import of enhanced styles (SoK-compliant, zoom-aware)
         const { getStyleForFeature } = await import('@/lib/map/enhancedStyles')
 
+        const sketchStyle = createSketchStyle(sketchAppearanceRef)
         const drawLayer = new VectorLayer({
           updateWhileAnimating: true,
           renderBuffer: 4,
@@ -226,14 +231,10 @@ export function useMapInit(params: UseMapInitParams) {
             // For drawn features, use the enhanced SoK style
             const geomType = feature.getGeometry()?.getType()
             if (geomType === 'Polygon') {
-              return getStyleForFeature(feature as InstanceType<typeof Feature>, resolution)
+              const polygonStyle = getStyleForFeature(feature as InstanceType<typeof Feature>, resolution)
+              return applySketchStrokeOpacity(polygonStyle, sketchAppearanceRef.current.lineOpacity)
             }
-            // Default style for points/lines being drawn
-            return new Style({
-              fill: new Fill({ color: 'rgba(209, 123, 71, 0.15)' }),
-              stroke: new Stroke({ color: '#D17B47', width: 2.5 }),
-              image: new CircleStyle({ radius: 7, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
-            })
+            return sketchStyle(feature)
           },
           zIndex: 50,
         })
@@ -523,12 +524,16 @@ export function useMapInit(params: UseMapInitParams) {
         }
 
         // ── Select interaction ──
+        const selectedSketchStyle = createSketchStyle(sketchAppearanceRef, 'selected')
+        const selectedProjectStyle = new Style({
+          fill: new Fill({ color: 'rgba(209, 123, 71,0.3)' }),
+          stroke: new Stroke({ color: '#D17B47', width: 3 }),
+          image: new CircleStyle({ radius: 10, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
+        })
         const select = new Select({
-          style: new Style({
-            fill: new Fill({ color: 'rgba(209, 123, 71,0.3)' }),
-            stroke: new Stroke({ color: '#D17B47', width: 3 }),
-            image: new CircleStyle({ radius: 10, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 3 }) }),
-          }),
+          style: feature => feature instanceof Feature && drawSource.hasFeature(feature)
+            ? selectedSketchStyle(feature)
+            : selectedProjectStyle,
           hitTolerance: 5,
           layers: [clusterLayer, drawLayer],
         })
@@ -562,12 +567,20 @@ export function useMapInit(params: UseMapInitParams) {
 
             setFeatureName(stationName || projectName || geomType)
 
-            const isDrawnFeature = drawSource.getFeatures().includes(feature)
+            const isDrawnFeature = drawSource.hasFeature(feature)
+            const pointDetails = isDrawnFeature && geomType === 'Point' ? readSketchPointDetails(feature) : null
             onPopupRender(popupElement, {
               coordinate: coord,
               projectName: projectName || undefined,
               stationName: stationName || undefined,
               geometryType: geomType,
+              pointEditor: pointDetails ? {
+                values: pointDetails,
+                save: values => {
+                  if (!drawSource.hasFeature(feature)) throw new Error('Select the point again to edit its current details.')
+                  if (updateSketchPointDetails(feature, values)) pushHistory()
+                },
+              } : undefined,
               projectId: projectId || undefined,
               // Only locally drawn geometry can be removed here. Project
               // markers are managed by their project workflow, not this source.

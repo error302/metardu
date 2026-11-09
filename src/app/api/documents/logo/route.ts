@@ -18,6 +18,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '@/lib/auth';
+import { setAuthenticatedDatabaseContext } from '@/lib/auth/requestContext';
 import { db } from '@/lib/db';
 import { getSubscription } from '@/lib/subscription/subscriptionEngine';
 import type { PlanId } from '@/lib/subscription/catalog';
@@ -52,6 +53,7 @@ export async function GET() {
       return NextResponse.json({ error: 'User ID not found' }, { status: 400 });
     }
 
+    setAuthenticatedDatabaseContext(userId);
     const { rows } = await db.query<CompanyLogoRow>(
       'SELECT id, filename, mime_type, file_size, width_px, height_px, created_at FROM company_logos WHERE user_id = $1',
       [userId]
@@ -93,7 +95,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'User ID not found' }, { status: 400 });
     }
 
-    // Check subscription plan
+    // Check subscription plan under the signed-in owner's RLS scope.
+    setAuthenticatedDatabaseContext(userId);
     const subscription = await getSubscription(userId, email);
     const plan: PlanId = subscription?.plan ?? 'free';
     if (!isPaidPlan(plan)) {
@@ -131,6 +134,7 @@ export async function POST(request: NextRequest) {
     const logoData = Buffer.from(arrayBuffer);
 
     // Upsert the logo (one logo per user)
+    setAuthenticatedDatabaseContext(userId);
     await db.query<never>(
       `INSERT INTO company_logos (user_id, filename, mime_type, file_size, logo_data, updated_at)
        VALUES ($1, $2, $3, $4, $5, NOW())
@@ -167,6 +171,7 @@ export async function DELETE() {
       return NextResponse.json({ error: 'User ID not found' }, { status: 400 });
     }
 
+    setAuthenticatedDatabaseContext(userId);
     const result = await db.query<never>(
       'DELETE FROM company_logos WHERE user_id = $1',
       [userId]

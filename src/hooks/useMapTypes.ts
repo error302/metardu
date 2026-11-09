@@ -78,6 +78,7 @@ export interface MapContext {
   setMeasureResult: Dispatch<SetStateAction<string>>
   setFeatureCount: Dispatch<SetStateAction<number>>
   setSelectedFeature: Dispatch<SetStateAction<import('ol/Feature').default | null>>
+  setSelectedFeatures?: (features: import('ol/Feature').default[]) => void
   setFeatureName: Dispatch<SetStateAction<string>>
 
   // ── History hook callback ──

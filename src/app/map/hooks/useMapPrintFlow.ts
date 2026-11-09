@@ -10,36 +10,40 @@ export interface UseMapPrintFlowParams {
   attributionTargetRef: React.RefObject<HTMLDivElement | null>
   drawSourceRef: React.RefObject<import('ol/source/Vector').default | null>
   currentSurveyCrs: string | null
+  useCompanyLogo?: boolean
   onError: (message: string) => void
 }
 
-export function useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceRef, currentSurveyCrs, onError }: UseMapPrintFlowParams) {
+export function useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceRef, currentSurveyCrs, useCompanyLogo, onError }: UseMapPrintFlowParams) {
   const [showSheetLayout, setShowSheetLayout] = useState(false)
   const [printPlanGeometry, setPrintPlanGeometry] = useState<PlanGeometry | null>(null)
   const [isPrinting, setIsPrinting] = useState(false)
   const pending = useRef(false)
-  const handlePrintMap = useCallback(async (options?: Partial<PrintOptions>) => {
+  const exportCurrentMap = useCallback(async (format: 'png' | 'pdf', options?: Partial<PrintOptions>) => {
     if (pending.current || !mapInstance.current) return
     const map = mapInstance.current
     pending.current = true; setIsPrinting(true); setShowSheetLayout(false)
     try {
-      const { captureMapViewport, mapViewportPdf } = await import('@/lib/surveyMapEngine/io/mapViewportPrint')
+      const { captureMapViewport, mapViewportPdf, mapViewportPng } = await import('@/lib/surveyMapEngine/io/mapViewportPrint')
       const raster = await captureMapViewport(map)
       const attribution = attributionTargetRef.current
       const links = attribution ? [...attribution.querySelectorAll<HTMLAnchorElement>('a[href]')].map(link => link.href) : []
       const creditList = attribution?.querySelector('ul') ?? attribution
       const credits = [creditList?.textContent?.trim() ?? '', ...new Set(links)].filter(Boolean).join(' · ')
       if (!credits) throw new Error('Map source credits are not ready. Wait for the map, then print again.')
-      const pdf = await mapViewportPdf({ raster, surveyCrs: currentSurveyCrs, credits, capturedAt: new Date().toISOString(), rotation: map.getView().getRotation() }, options)
-      const url = URL.createObjectURL(pdf)
-      const link = document.createElement('a'); link.href = url; link.download = 'metardu-current-map.pdf'
+      const frame = { raster, surveyCrs: currentSurveyCrs, credits, capturedAt: new Date().toISOString(), rotation: map.getView().getRotation(), useCompanyLogo }
+      const output = format === 'png' ? await mapViewportPng(frame) : await mapViewportPdf(frame, options)
+      const url = URL.createObjectURL(output)
+      const link = document.createElement('a'); link.href = url; link.download = 'metardu-current-map.' + format
       document.body.append(link); link.click(); link.remove()
       setTimeout(() => URL.revokeObjectURL(url), 60000)
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Could not prepare the current map.'
       onError(`Error: ${message}`)
     } finally { pending.current = false; setIsPrinting(false) }
-  }, [mapInstance, attributionTargetRef, currentSurveyCrs, onError])
+  }, [mapInstance, attributionTargetRef, currentSurveyCrs, useCompanyLogo, onError])
+  const handlePrintMap = useCallback((options?: Partial<PrintOptions>) => exportCurrentMap('pdf', options), [exportCurrentMap])
+  const captureMap = useCallback(() => exportCurrentMap('png'), [exportCurrentMap])
 
   const openSheetLayout = useCallback(async () => {
     await loadSheetLayout()
@@ -55,5 +59,5 @@ export function useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceR
     toggleSheetLayout: () => { if (showSheetLayout) setShowSheetLayout(false); else void openSheetLayout().catch(() => onError('Error: Could not prepare survey sheet.')) },
     print: handlePrintMap,
   }
-  return { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi, isPrinting }
+  return { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, captureMap, printApi, isPrinting }
 }

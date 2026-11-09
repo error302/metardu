@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { cadLineStyles } from './cadDraftGeometry'
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 
 const finiteCoordinate = z.number().finite().min(-1_000_000_000).max(1_000_000_000)
@@ -36,7 +37,8 @@ export const cadDocumentSchema = z.object({
   })).max(20_000),
   annotations: z.array(z.object({
     id: z.string().min(1).max(128),
-    type: z.enum(['text', 'line']),
+    type: z.enum(['text', 'line', 'rectangle', 'circle']),
+    lineStyle: z.enum(cadLineStyles).optional(),
     x: z.number().finite(),
     y: z.number().finite(),
     text: z.string().max(2_000).optional(),
@@ -85,7 +87,16 @@ export const cadDocumentSchema = z.object({
   originEasting: finiteCoordinate.optional(),
   originNorthing: finiteCoordinate.optional(),
   coordinateReferenceSystem: z.string().trim().min(1).max(64).optional(),
+  starterSheet: z.enum(['sample-lot', 'bomet-scheme']).optional(),
 }).superRefine((document, context) => {
+  for (const [index, shape] of document.annotations.entries()) {
+    if (shape.type !== 'rectangle' && shape.type !== 'circle') continue
+    const dx = (shape.x2 ?? shape.x) - shape.x
+    const dy = (shape.y2 ?? shape.y) - shape.y
+    if (shape.x2 === undefined || shape.y2 === undefined || (shape.type === 'rectangle' ? !dx || !dy : !Math.hypot(dx, dy))) {
+      context.addIssue({ code: z.ZodIssueCode.custom, path: ['annotations', index], message: 'Draft shape has no size.' })
+    }
+  }
   const beaconIds = new Set<string>()
   for (const beacon of document.beacons) {
     if (beaconIds.has(beacon.id)) {

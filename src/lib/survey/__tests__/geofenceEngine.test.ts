@@ -2,6 +2,7 @@ import {
   pointInPolygon,
   distanceToPolygonBoundary,
   evaluateZoneStatus,
+  parseGeofenceBoundary,
   GeofenceZone,
   HazardZone,
 } from '../geofenceEngine'
@@ -44,4 +45,22 @@ describe('geofenceEngine', () => {
     // Point inside hazard circle
     expect(evaluateZoneStatus({ easting: 52, northing: 51 }, zone, hazards).status).toBe('HAZARD_PROXIMITY')
   })
+
+  it('treats exact edges consistently and withholds definite crossings when accuracy overlaps', () => {
+    const zone = { boundary, bufferDistance: 10 }
+    expect(evaluateZoneStatus({ easting: 100, northing: 50 }, zone).status).toBe('BOUNDARY_WARNING')
+    expect(evaluateZoneStatus({ easting: 104, northing: 50 }, zone, [], 5).status).toBe('POSITION_UNCERTAIN')
+    expect(evaluateZoneStatus({ easting: 104, northing: 50 }, zone, [], 3).status).toBe('OUTSIDE_BREACH')
+    expect(evaluateZoneStatus({ easting: 12, northing: 50 }, zone, [], 3).status).toBe('BOUNDARY_WARNING')
+    const hazards = [{ center: { easting: 50, northing: 50 }, radius: 10, type: 'Pit' }]
+    expect(evaluateZoneStatus({ easting: 62, northing: 50 }, zone, hazards, 3)).toMatchObject({ status: 'POSITION_UNCERTAIN', hazard: 'Pit' })
+    expect(evaluateZoneStatus({ easting: 50, northing: 50 }, zone, hazards, 3)).toMatchObject({ status: 'HAZARD_PROXIMITY', hazard: 'Pit' })
+  })
+
+  it('accepts an optional closing vertex and rejects malformed or crossing boundaries', () => {
+    expect(parseGeofenceBoundary('0,0\n100 0\n100,100\n0,100\n0,0')).toEqual(boundary)
+    expect(() => parseGeofenceBoundary('0,0\n100x,0\n100,100')).toThrow('Line 2')
+    expect(() => parseGeofenceBoundary('0,0\n100,100\n100,0\n0,100')).toThrow('cannot cross itself')
+  })
+
 })

@@ -17,6 +17,7 @@
  */
 
 import React, { useState, useRef, useCallback, useMemo, useEffect } from 'react'
+import dynamic from 'next/dynamic'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu'
@@ -27,8 +28,6 @@ import {
   Maximize2, Eye, EyeOff, Check, FolderOpen,
   Compass, Scaling
 } from 'lucide-react'
-import { generateCADDocumentDXF } from './cadDxfExport'
-import { SubdivisionPlanModal } from './SubdivisionPlanModal'
 import { cadCanvasToProject, projectToCadCanvas } from '@/lib/cad/projectCadDocument'
 import { parseCadDocument, parseCadGridCoordinate } from '@/lib/cad/cadDocumentValidation'
 import { calibrateCadScale, hasCadReferenceFrame, cadReferenceErrorMessage } from '@/lib/cad/cadReferenceFrame'
@@ -40,8 +39,20 @@ import { measureCadCanvasSegment } from '@/lib/cadGeometry'
 import { useCadTopology } from '@/lib/cad/useCadTopology'
 import type { CadTopologyInput } from '@/lib/cad/cadTopologyProtocol'
 import { CadMeasurementsPanel } from './CadMeasurementsPanel'
-import {cadViewport,fitCadGeometry,zoomCadAt,CAD_MIN_ZOOM,CAD_MAX_ZOOM} from '@/lib/cad/cadViewport'
+import { cadViewport, fitCadGeometry } from '@/lib/cad/cadViewport'
+import { useCadCamera } from './useCadCamera'
+import { CadCopyControls, CadDraftShape, CadLineStyleControl, CadRasterRotation } from './CadDraftControls'
+import { cadDraftBoundsPoints, copyCadDraftShape, makeCadDraftShape, type CadLineStyle } from '@/lib/cad/cadDraftGeometry'
+import { cadRasterCorners } from '@/lib/cad/cadDrawingBounds'
 import workspaceStyles from './CadWorkspace.module.css'
+
+const SubdivisionPlanModal = dynamic(() => import('./SubdivisionPlanModal').then(module => module.SubdivisionPlanModal))
+
+const draftTools = { 'draft-line': 'line', rectangle: 'rectangle', circle: 'circle' } as const
+function draftToolShape(tool: Tool) {
+  if (tool === 'draft-line' || tool === 'rectangle' || tool === 'circle') return draftTools[tool]
+  return null
+}
 
 // ─── Types ─────────────────────────────────────────────────────────────────
 
@@ -70,7 +81,8 @@ export interface CADBoundary {
 
 export interface CADAnnotation {
   id: string
-  type: 'text' | 'line'
+  type: 'text' | 'line' | 'rectangle' | 'circle'
+  lineStyle?: CadLineStyle
   x: number
   y: number
   text?: string
@@ -126,6 +138,7 @@ export interface CADDocument {
   scaleBar: CADScaleBar
   titleBlock: CADTitleBlock
   backgroundImage?: CADBackgroundImage | null
+  starterSheet?: 'sample-lot' | 'bomet-scheme'
   width: number
   height: number
   metersPerPixel?: number // Real-world scale (e.g. 0.1 means 10px = 1m)
@@ -139,6 +152,9 @@ export type Tool =
   | 'select'
   | 'pan'
   | 'line'
+  | 'draft-line'
+  | 'rectangle'
+  | 'circle'
   | 'beacon'
   | 'annotate-text'
   | 'measure'
@@ -158,11 +174,13 @@ export interface CADEditorProps {
   projectName?: string
   projectId?: string
   isStandalone?: boolean
+  sheetActions?: React.ReactNode
   onSave?: (doc: CADDocument) => void
   onExportSVG?: (svg: string) => void
   onExportPDF?: () => void
   onExportDXF?: () => void
   onAttachToProject?: () => void
+  onOpenDocument?: (doc: CADDocument) => void
 }
 
 function getProjectCoordinates(doc: CADDocument, x: number, y: number) {
@@ -260,11 +278,13 @@ export default function CADEditor({
   initialDocument,
   projectName,
   isStandalone = false,
+  sheetActions,
   onSave,
   onExportSVG,
   onExportPDF,
   onExportDXF,
   onAttachToProject,
+  onOpenDocument,
 }: CADEditorProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const viewportRef=useRef<HTMLDivElement>(null)
@@ -304,20 +324,14 @@ export default function CADEditor({
   const propertiesId = React.useId()
 
   // Viewport transforms
-  const [zoom, setZoom] = useState(1)
-  const [pan, setPan] = useState({ x: 0, y: 0 })
-  const [viewportSize,setViewportSize]=useState({width:initialDocument.width,height:initialDocument.height})
-  useEffect(()=>{
-    const element=viewportRef.current
-    if(!element||typeof ResizeObserver==='undefined')return
-    const update=()=>{const rect=element.getBoundingClientRect();if(rect.width>0&&rect.height>0)setViewportSize({width:rect.width,height:rect.height})}
-    update();const observer=new ResizeObserver(update);observer.observe(element)
-    return()=>observer.disconnect()
-  },[])
+  const isCameraDragActive = useCallback(() => dragRef.current !== null, [])
+  const { zoom, pan, viewportSize, current: viewRef, setView, panTo, panBy, zoomBy } =
+    useCadCamera(viewportRef, initialDocument, isCameraDragActive)
   const camera=cadViewport(viewportSize,doc,zoom,pan)
   const gridStep=10**Math.ceil(Math.log10(24/camera.scale))
 
   // Interactive line drawing state
+  const [draftLineStyle, setDraftLineStyle] = useState<CadLineStyle>('solid')
   const [activeLineStart, setActiveLineStart] = useState<{ id?: string; x: number; y: number } | null>(null)
   const [mousePos, setMousePos] = useState<{ x: number; y: number }>({ x: 0, y: 0 })
   const [snappedBeacon, setSnappedBeacon] = useState<CADBeacon | null>(null)
@@ -393,24 +407,25 @@ export default function CADEditor({
     dragRef.current = null
     docRef.current = gesture.document
     setDoc(gesture.document); setHistory(gesture.history); setHistoryIdx(gesture.historyIdx)
-    setPan(gesture.pan); setTool(gesture.tool); setSelected(gesture.selected)
+    setView({ ...viewRef.current, pan: gesture.pan }); setTool(gesture.tool); setSelected(gesture.selected)
     setActiveLineStart(gesture.lineStart); setMeasureStart(gesture.measureStart); setMeasureResult(gesture.measureResult)
     setCalibrationPoints(gesture.calibrationPoints); setCalibrationDialogOpen(gesture.calibrationDialogOpen)
     setSnappedBeacon(null)
     releasePointer(gesture.pointerId)
-  }, [releasePointer])
+  }, [releasePointer, setView, viewRef])
 
   const beginPointerGesture = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
     if (event.isPrimary === false || pointerGesture.current || (event.button !== 0 && event.button !== 1)) {
       event.preventDefault(); event.stopPropagation(); return
     }
     pointerGesture.current = {
-      pointerId: event.pointerId, document: docRef.current, history, historyIdx, pan, tool, selected,
+      pointerId: event.pointerId, document: docRef.current, history, historyIdx, pan: viewRef.current.pan, tool, selected,
       lineStart: activeLineStart, measureStart, measureResult, calibrationPoints, calibrationDialogOpen,
     }
     event.preventDefault()
+    event.currentTarget.focus({ preventScroll: true })
     try { event.currentTarget.setPointerCapture(event.pointerId) } catch { /* Capture is unavailable for a synthetic pointer. */ }
-  }, [history, historyIdx, pan, tool, selected, activeLineStart, measureStart, measureResult, calibrationPoints, calibrationDialogOpen])
+  }, [history, historyIdx, viewRef, tool, selected, activeLineStart, measureStart, measureResult, calibrationPoints, calibrationDialogOpen])
 
   const handlePointerCancel = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
     if (pointerGesture.current?.pointerId === event.pointerId) cancelPointerGesture()
@@ -614,25 +629,58 @@ export default function CADEditor({
 
   const zoomExtents = useCallback(() => {
     const currentDoc = docRef.current
-    const camera=fitCadGeometry(viewportSize,currentDoc,[...currentDoc.beacons,...currentDoc.annotations.flatMap(annotation=>annotation.type==='line'&&annotation.x2!==undefined&&annotation.y2!==undefined?[annotation,{x:annotation.x2,y:annotation.y2}]:[annotation])])
-    setZoom(camera.zoom);setPan(camera.pan)
-    setCmdLog('Command: ZOOM EXTENTS > View focused on survey boundaries')
-  }, [viewportSize])
+    const points = [...currentDoc.beacons, ...currentDoc.annotations.flatMap(cadDraftBoundsPoints)]
+    const bounds = points.length || !currentDoc.backgroundImage?.visible ? points : cadRasterCorners(currentDoc.backgroundImage)
+    setView(fitCadGeometry(viewportSize, currentDoc, bounds))
+    setCmdLog('Command: ZOOM EXTENTS > Fit drawing')
+  }, [setView, viewportSize])
 
-  // ─── Mouse Wheel Zoom with Focal Point Pinning ───────────────────────────
+  const fitImage = useCallback(() => {
+    const current = docRef.current
+    if (current.backgroundImage?.visible) setView(fitCadGeometry(viewportSize, current, cadRasterCorners(current.backgroundImage)))
+    else setCoordinateError('Show the attached image to fit it in the view.')
+  }, [setView, viewportSize])
 
-  const handleWheel = useCallback((e: React.WheelEvent<HTMLDivElement>) => {
-    e.preventDefault()
-    const zoomFactor = e.deltaY < 0 ? 1.15 : 0.87
-    // Snapshot event geometry before scheduling state updates. React clears
-    // currentTarget after the handler returns, so reading it inside a state
-    // updater can throw when the updater runs later.
-    const container = e.currentTarget.getBoundingClientRect()
-    const next=zoomCadAt(zoom,pan,zoom*zoomFactor,{x:e.clientX-container.left,y:e.clientY-container.top},viewportSize)
-    setZoom(next.zoom);setPan(next.pan)
-  }, [zoom,pan,viewportSize])
+  const rotateImage = useCallback((angle: number) => {
+    const current = docRef.current
+    const image = current.backgroundImage
+    if (!image || image.locked || !Number.isFinite(angle)) return
+    const rotation = ((angle % 360) + 540) % 360 - 180
+    if (image.rotation === rotation) return
+    setCoordinateError('')
+    pushHistory({ ...current, backgroundImage: { ...image, rotation } })
+    setCmdLog('Command: IMAGE > Rotated the raster. Recheck alignment to survey control.')
+  }, [pushHistory])
 
-  // ─── Command Line (AutoCAD CLI) ──────────────────────────────────────────
+  const duplicateDraft = useCallback((eastOrRight: number, northOrDown: number) => {
+    const current = docRef.current
+    let source: CADAnnotation | undefined
+    if (selected?.type === 'annotation') source = current.annotations.find(annotation => annotation.id === selected.id)
+    if (selected?.type === 'boundary') {
+      const edge = current.boundaries.find(boundary => boundary.id === selected.id)
+      const from = current.beacons.find(point => point.id === edge?.fromId)
+      const to = current.beacons.find(point => point.id === edge?.toId)
+      if (edge && from && to) {
+        const lineStyle = edge.type === 'water' ? 'dashed' : edge.type === 'fence' ? 'dotted' : 'solid'
+        source = { id: edge.id, type: 'line', x: from.x, y: from.y, x2: to.x, y2: to.y, lineStyle }
+      }
+    }
+    if (!source) return
+    try {
+      const referenced = hasCadReferenceFrame(current)
+      const offset = referenced
+        ? { x: eastOrRight / current.metersPerPixel, y: -northOrDown / current.metersPerPixel }
+        : { x: eastOrRight, y: northOrDown }
+      const copy = copyCadDraftShape(source, offset, crypto.randomUUID())
+      if (current.annotations.length >= 20_000) throw new RangeError('The drawing has reached its draft geometry limit.')
+      pushHistory({ ...current, annotations: [...current.annotations, copy] })
+      setSelected({ type: 'annotation', id: copy.id })
+      setCoordinateError('')
+      setCmdLog('Command: COPY > Added an offset draft copy.')
+    } catch (error) {
+      setCoordinateError(error instanceof Error ? error.message : 'Could not copy the selected geometry.')
+    }
+  }, [pushHistory, selected])
 
   const handleCommandSubmit = useCallback((e: React.FormEvent) => {
     e.preventDefault()
@@ -684,6 +732,12 @@ export default function CADEditor({
       setTool('line')
       setActiveLineStart(null)
       setCmdLog('Command: LINE > Click start beacon or canvas point')
+    } else if (upper === 'DRAFT' || upper === 'RECT' || upper === 'CIRCLE') {
+      const next = upper === 'RECT' ? 'rectangle' : upper === 'CIRCLE' ? 'circle' : 'draft-line'
+      setTool(next)
+      setActiveLineStart(null)
+      setSelected(null)
+      setCmdLog('Command: DRAFT > Choose the first point on the canvas')
     } else if (upper === 'B' || upper === 'BEACON' || upper === 'PT') {
       setTool('beacon')
       setCmdLog('Command: BEACON > Click canvas or type "PT <Easting> <Northing> [Label]"')
@@ -784,13 +838,19 @@ export default function CADEditor({
 
   const handleCanvasPointerMove = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     if (e.isPrimary === false || (pointerGesture.current && pointerGesture.current.pointerId !== e.pointerId)) return
+    const drag = dragRef.current
+    if (drag?.type === 'pan') {
+      panTo({ x: drag.origX + e.clientX - drag.startX, y: drag.origY + e.clientY - drag.startY })
+      return
+    }
+    if (tool === 'pan' || isSpacePressed) return
     const coords = clientToSvgCoords(e.clientX, e.clientY)
     const snap = getSnapCoords(coords.x, coords.y)
     let { x, y } = snap
     const { beacon } = snap
 
     // Orthogonal constraint (90°) when drawing lines
-    if (tool === 'line' && activeLineStart && (orthoSnap || e.shiftKey) && !beacon) {
+    if ((tool === 'line' || tool === 'draft-line') && activeLineStart && (orthoSnap || e.shiftKey) && !beacon) {
       const dx = x - activeLineStart.x
       const dy = y - activeLineStart.y
       if (Math.abs(dx) > Math.abs(dy)) {
@@ -803,17 +863,9 @@ export default function CADEditor({
     setMousePos({ x, y })
     setSnappedBeacon(beacon)
 
-    // Handle viewport pan
-    if (dragRef.current && dragRef.current.type === 'pan') {
-      const dx = (e.clientX - dragRef.current.startX)
-      const dy = (e.clientY - dragRef.current.startY)
-      setPan({ x: dragRef.current.origX + dx, y: dragRef.current.origY + dy })
-      return
-    }
-
       // Handle entity dragging in exact SVG coordinates
-      if (dragRef.current && dragRef.current.type !== 'pan') {
-        const d = dragRef.current
+      if (drag) {
+        const d = drag
         let dx = (e.clientX - d.startX) / zoom
         let dy = (e.clientY - d.startY) / zoom
         if (d.origMouseSvgX !== undefined && d.origMouseSvgY !== undefined) {
@@ -849,7 +901,7 @@ export default function CADEditor({
             })
           } else if (d.type === 'annotation') {
             next.annotations = prev.annotations.map(a => a.id === d.id ? { ...a, x: newX, y: newY,
-              ...(a.type === 'line' && d.origX2 !== undefined && d.origY2 !== undefined ? { x2: d.origX2 + dx, y2: d.origY2 + dy } : {}),
+              ...(a.type !== 'text' && d.origX2 !== undefined && d.origY2 !== undefined ? { x2: d.origX2 + dx, y2: d.origY2 + dy } : {}),
             } : a)
           } else if (d.type === 'north') {
             next.northArrow = { ...prev.northArrow, x: newX, y: newY }
@@ -861,18 +913,49 @@ export default function CADEditor({
           docRef.current = next
           setDoc(next)
       }
-  }, [clientToSvgCoords, getSnapCoords, zoom, tool, activeLineStart, orthoSnap])
+  }, [clientToSvgCoords, getSnapCoords, zoom, tool, activeLineStart, orthoSnap, panTo, isSpacePressed])
 
   const handleCanvasPointerDown = useCallback((e: React.PointerEvent<SVGSVGElement>) => {
     // Middle click, Pan tool, or Spacebar held
     if (tool === 'pan' || isSpacePressed || e.button === 1) {
       e.preventDefault()
-      dragRef.current = { type: 'pan', id: '', startX: e.clientX, startY: e.clientY, origX: pan.x, origY: pan.y }
+      const origin = viewRef.current.pan
+      dragRef.current = { type: 'pan', id: '', startX: e.clientX, startY: e.clientY, origX: origin.x, origY: origin.y }
       return
     }
 
     const coords = clientToSvgCoords(e.clientX, e.clientY)
     const { x, y, beacon } = getSnapCoords(coords.x, coords.y)
+
+    const draftType = draftToolShape(tool)
+    if (draftType) {
+      if (!activeLineStart) {
+        setActiveLineStart({ x, y })
+        setMousePos({ x, y })
+        setCoordinateError('')
+        setCmdLog('Command: DRAFT > Choose the second point')
+        return
+      }
+      const end = { x, y }
+      if (tool === 'draft-line' && (orthoSnap || e.shiftKey) && !beacon) {
+        if (Math.abs(x - activeLineStart.x) > Math.abs(y - activeLineStart.y)) end.y = activeLineStart.y
+        else end.x = activeLineStart.x
+      }
+      try {
+        const current = docRef.current
+        if (current.annotations.length >= 20_000) throw new RangeError('The drawing has reached its draft geometry limit.')
+        const shape = makeCadDraftShape(draftType, activeLineStart, end, draftLineStyle, crypto.randomUUID())
+        pushHistory({ ...current, annotations: [...current.annotations, shape] })
+        setActiveLineStart(null)
+        setTool('select')
+        setSelected({ type: 'annotation', id: shape.id })
+        setCoordinateError('')
+        setCmdLog('Command: DRAFT > Added ' + draftType)
+      } catch (error) {
+        setCoordinateError(error instanceof Error ? error.message : 'Could not create draft geometry.')
+      }
+      return
+    }
 
     // 1. Line Tool Click (Atomic Beacon + Boundary Creation)
     if (tool === 'line') {
@@ -1006,18 +1089,22 @@ export default function CADEditor({
     if (tool === 'select' && !isSpacePressed && e.button === 0) {
       setSelected(null)
     }
-  }, [tool, isSpacePressed, pan, clientToSvgCoords, getSnapCoords, activeLineStart, plantBeacon, pushHistory, doc, measureStart, calibrationPoints])
+  }, [tool, isSpacePressed, viewRef, clientToSvgCoords, getSnapCoords, activeLineStart, plantBeacon, pushHistory, doc, measureStart, calibrationPoints, draftLineStyle, orthoSnap])
 
   const handleCanvasPointerUp = useCallback((event: React.PointerEvent<SVGSVGElement>) => {
     const gesture = pointerGesture.current
     if (!gesture || gesture.pointerId !== event.pointerId) return
     pointerGesture.current = null
-    if (dragRef.current && dragRef.current.type !== 'pan' && docRef.current !== gesture.document) {
-      pushHistory(docRef.current)
-    }
+    const drag = dragRef.current
+    if (drag?.type === 'pan') {
+      setView({ ...viewRef.current, pan: {
+        x: drag.origX + event.clientX - drag.startX,
+        y: drag.origY + event.clientY - drag.startY,
+      } })
+    } else if (drag && docRef.current !== gesture.document) pushHistory(docRef.current)
     dragRef.current = null
     releasePointer(event.pointerId)
-  }, [pushHistory, releasePointer])
+  }, [pushHistory, releasePointer, setView, viewRef])
 
   // ─── Calibration Math ────────────────────────────────────────────────────
   const applyScaleCalibration = useCallback(() => {
@@ -1083,10 +1170,11 @@ export default function CADEditor({
   }, [doc, pushHistory])
 
   // ─── Export & File IO ────────────────────────────────────────────────────
-  const exportDXF = useCallback(() => {
+  const exportDXF = useCallback(async () => {
     setExportError('')
     let dxfString: string
     try {
+      const { generateCADDocumentDXF } = await import('./cadDxfExport')
       dxfString = generateCADDocumentDXF(doc)
     } catch (error) {
       setExportError(cadReferenceErrorMessage(error))
@@ -1167,10 +1255,11 @@ export default function CADEditor({
         const parsed = parseCadDocument(JSON.parse(reader.result) as unknown)
         if (!parsed) throw new Error('The document has invalid fields or point references.')
         pushHistory(parsed)
+        onOpenDocument?.(parsed)
         setCoordinateError('')
         setSelected(null); setActiveLineStart(null); setMeasureStart(null); setMeasureResult(null)
         setCalibrationPoints([]); setCalibrationDialogOpen(false)
-        setZoom(1); setPan({ x: 0, y: 0 })
+        setView({ zoom: 1, pan: { x: 0, y: 0 } })
         setCmdLog(`Command: OPEN FILE > Loaded "${file.name}"`)
       } catch {
         setFileError('Invalid CAD document. Check its fields and boundary point references; the current drawing has been retained.')
@@ -1184,7 +1273,7 @@ export default function CADEditor({
       setFileError('The CAD file could not be read. The current drawing has been retained; retry the file.')
     }
     reader.readAsText(file)
-  }, [pushHistory, cancelPointerGesture])
+  }, [pushHistory, cancelPointerGesture, setView, onOpenDocument])
 
   const geometryInput=useMemo<CadTopologyInput>(()=>({width:doc.width,height:doc.height,metersPerPixel:doc.metersPerPixel,originEasting:doc.originEasting,originNorthing:doc.originNorthing,coordinateReferenceSystem:doc.coordinateReferenceSystem,
     beacons:doc.beacons,boundaries:doc.boundaries,
@@ -1195,6 +1284,7 @@ export default function CADEditor({
     return doc.boundaries.map(edge=>({...edge,...(measurements.get(edge.id)??{bearing:'—',bearingDeg:undefined,distance:topology.loading?'Checking…':'Unchecked',distanceM:undefined})}))
   },[doc.boundaries,topology.result,topology.loading])
 
+  const beaconsById = useMemo(() => new Map(doc.beacons.map(beacon => [beacon.id, beacon])), [doc.beacons])
   const selectedBeacon = selected?.type === 'beacon' ? doc.beacons.find(b => b.id === selected.id) : null
   const selectedBoundary = selected?.type === 'boundary' ? visibleBoundaries.find(b => b.id === selected.id) : null
   const selectedAnnotation = selected?.type === 'annotation' ? doc.annotations.find(a => a.id === selected.id) : null
@@ -1228,7 +1318,7 @@ export default function CADEditor({
 
       {/* ── Top Header Toolbar ── */}
       {toolsCollapsed&&<div className="flex min-h-11 shrink-0 items-center justify-between border-b border-[var(--border-color)] px-3"><span className="text-xs text-[var(--text-secondary)]">Drawing controls hidden</span><button className="min-h-11 text-xs text-[var(--accent)]" aria-expanded="false" aria-controls="cad-editor-tools" onClick={()=>setToolsCollapsed(false)}>Show drawing tools</button></div>}
-      <div id="cad-editor-tools" className={`${toolsCollapsed?'hidden':'flex'} items-center justify-between px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] shrink-0 gap-2 flex-wrap`}>
+      <div id="cad-editor-tools" hidden={toolsCollapsed} className={`${toolsCollapsed?'hidden':'flex'} items-center justify-between px-3 py-2 bg-[var(--bg-secondary)] border-b border-[var(--border-color)] shrink-0 gap-2 flex-wrap`}>
         {/* Left: Mode Badge & Title */}
         <div className="flex items-center gap-2">
           {isStandalone ? (
@@ -1241,6 +1331,7 @@ export default function CADEditor({
               {projectName || 'Project Workspace'}
             </span>
           )}
+          {sheetActions}
           <span className="text-xs font-semibold text-gray-300 hidden sm:inline">
             {doc.titleBlock.lrNumber ? `LR ${doc.titleBlock.lrNumber}` : 'Canvas'}
           </span>
@@ -1250,6 +1341,18 @@ export default function CADEditor({
         <div role="group" aria-label="CAD tools" className="order-last flex w-full min-w-0 gap-1 overflow-x-auto overscroll-x-contain rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] p-1 lg:order-none lg:w-auto [&>button]:shrink-0">
           <ToolButton active={tool === 'select'} onClick={() => { setTool('select'); setActiveLineStart(null) }} icon={MousePointer2} label="Select (Esc)" />
           <ToolButton active={tool === 'pan'} onClick={() => setTool('pan')} icon={Move} label="Pan View" />
+          <select aria-label="Draft geometry tool" value={draftToolShape(tool) ? tool : ''} className="min-h-11 rounded-lg border border-gray-800 bg-gray-900 px-2 text-xs"
+            onChange={event => {
+              const next = event.currentTarget.value
+              if (next === 'draft-line' || next === 'rectangle' || next === 'circle') {
+                setTool(next); setActiveLineStart(null); setSelected(null); setCoordinateError('')
+              }
+            }}>
+            <option value="">Draft geometry</option>
+            <option value="draft-line">Draft line</option>
+            <option value="rectangle">Rectangle</option>
+            <option value="circle">Circle</option>
+          </select>
           <ToolButton active={tool === 'line'} onClick={() => { setTool('line'); setActiveLineStart(null) }} icon={PenTool} label="Draw Boundary (L)" />
           <ToolButton active={tool === 'beacon'} onClick={() => setTool('beacon')} icon={MapPin} label="Plant Beacon (B)" />
           <ToolButton active={tool === 'annotate-text'} onClick={() => setTool('annotate-text')} icon={Type} label="Add Text (T)" />
@@ -1292,13 +1395,6 @@ export default function CADEditor({
           </div>
 
           <div className="w-px h-5 bg-gray-800 mx-1 hidden sm:block" />
-
-          <div className="flex items-center bg-gray-950 rounded border border-gray-800 px-1">
-            <button aria-label="Zoom out" onClick={() => setZoom(z => Math.max(CAD_MIN_ZOOM, z - 0.1))} className="min-h-11 min-w-11 p-1 hover:text-white text-gray-400"><Minus className="w-4 h-4" /></button>
-            <span aria-label="Drawing zoom" className="text-[10px] font-mono px-1.5 tabular-nums">{Math.round(zoom * 100)}%</span>
-            <button aria-label="Zoom in" onClick={() => setZoom(z => Math.min(CAD_MAX_ZOOM, z + 0.1))} className="min-h-11 min-w-11 p-1 hover:text-white text-gray-400"><Plus className="w-4 h-4" /></button>
-            <button aria-label="Fit drawing" onClick={zoomExtents} className="min-h-11 min-w-11 p-1 hover:text-white text-gray-400" title="Zoom Extents (ZE)"><Maximize2 className="w-4 h-4" /></button>
-          </div>
 
           {/* Save / Export buttons */}
           {onSave && !isStandalone && (
@@ -1353,12 +1449,12 @@ export default function CADEditor({
             className="min-h-11 rounded-lg border border-gray-700 px-3 text-xs text-gray-200">
             Properties
           </button>
-          <button type="button" aria-expanded="true" aria-controls="cad-editor-tools" onClick={()=>setToolsCollapsed(true)} className="min-h-11 rounded-lg px-3 text-xs text-[var(--text-secondary)]">Hide drawing tools</button>
+          <button type="button" aria-expanded="true" aria-controls="cad-editor-tools" onClick={() => { setPropertiesOpen(false); setToolsCollapsed(true) }} className="min-h-11 rounded-lg px-3 text-xs text-[var(--text-secondary)]">Hide drawing tools</button>
         </div>
       </div>
 
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-1 border-b border-gray-800 bg-gray-950 px-3 py-2 text-[11px] leading-5">
-        <span className="text-gray-300"><span className="font-medium text-[var(--accent)]">{({select:'Select & edit',pan:'Pan drawing',line:'Connect boundaries',beacon:'Place beacon','annotate-text':'Add annotation',measure:'Measure distance',calibrate:'Calibrate image'})[tool]}</span> · {doc.beacons.length} points / {doc.boundaries.length} edges</span>
+        <span className="text-gray-300"><span className="font-medium text-[var(--accent)]">{({select:'Select & edit',pan:'Pan drawing',line:'Connect boundaries','draft-line':'Draft line',rectangle:'Draw rectangle',circle:'Draw circle',beacon:'Place beacon','annotate-text':'Add annotation',measure:'Measure distance',calibrate:'Calibrate image'})[tool]}</span> · {doc.beacons.length} points / {doc.boundaries.length} edges</span>
         <span className={hasCadReferenceFrame(doc)?'text-gray-400':'text-amber-300'}>{hasCadReferenceFrame(doc)?`${doc.coordinateReferenceSystem} · grid metres`:'Drawing reference not set'} · Draft, requires survey QA</span>
       </div>
 
@@ -1372,19 +1468,26 @@ export default function CADEditor({
         {/* SVG Drawing Canvas */}
         <div
           ref={viewportRef}
-          className="flex-1 min-w-0 overflow-hidden bg-[var(--bg-primary)] relative flex items-center justify-center"
-          onWheel={handleWheel}
+          className="flex-1 min-w-0 overflow-hidden overscroll-contain bg-[var(--bg-primary)] relative flex items-center justify-center"
         >
           <svg
             ref={svgRef}
             aria-label="CAD drawing canvas"
+            tabIndex={0}
+            onKeyDown={event => {
+              const steps: Record<string, [number, number]> = {
+                ArrowLeft: [40, 0], ArrowRight: [-40, 0], ArrowUp: [0, 40], ArrowDown: [0, -40],
+              }
+              const step = steps[event.key]
+              if (step) { event.preventDefault(); panBy(...step) }
+            }}
             width="100%"
             height="100%"
             viewBox={`${camera.x} ${camera.y} ${camera.width} ${camera.height}`}
             preserveAspectRatio="none"
             style={{
               touchAction: 'none',
-              cursor: (tool === 'pan' || isSpacePressed) ? 'grab' : tool === 'line' || tool === 'beacon' || tool === 'measure' || tool === 'calibrate' ? 'crosshair' : 'default',
+              cursor: (tool === 'pan' || isSpacePressed) ? 'grab' : tool === 'line' || draftToolShape(tool) || tool === 'beacon' || tool === 'measure' || tool === 'calibrate' ? 'crosshair' : 'default',
             }}
             className={`${workspaceStyles.scene} w-full h-full`}
             onPointerDownCapture={beginPointerGesture}
@@ -1458,8 +1561,8 @@ export default function CADEditor({
 
             {/* ── Boundaries (Lines) ── */}
             {visibleBoundaries.map(b => {
-              const from = doc.beacons.find(bn => bn.id === b.fromId)
-              const to = doc.beacons.find(bn => bn.id === b.toId)
+              const from = beaconsById.get(b.fromId)
+              const to = beaconsById.get(b.toId)
               if (!from || !to) return null
               const isSelected = selected?.type === 'boundary' && selected.id === b.id
 
@@ -1558,6 +1661,13 @@ export default function CADEditor({
             )}
 
             {/* ── Active Measure Preview ── */}
+            {draftToolShape(tool) && activeLineStart && (
+              <g data-cad-editor-only="draft-preview" transform={`translate(${activeLineStart.x}, ${activeLineStart.y})`}>
+                <CadDraftShape shape={{ id: 'preview', type: draftToolShape(tool) ?? 'line',
+                  x: activeLineStart.x, y: activeLineStart.y, x2: mousePos.x, y2: mousePos.y, lineStyle: draftLineStyle }} selected />
+              </g>
+            )}
+
             {tool === 'measure' && measureStart && (
               <g data-cad-editor-only="measure-preview">
                 <line
@@ -1664,7 +1774,7 @@ export default function CADEditor({
                   }}
                   className="cursor-move"
                 >
-                  {isSelected && (
+                  {isSelected && a.type === 'text' && (
                     <rect
                       data-cad-editor-only="selection"
                       x={-3}
@@ -1678,9 +1788,7 @@ export default function CADEditor({
                       rx={2}
                     />
                   )}
-                  {a.type === 'line' ? (
-                    <line x1={0} y1={0} x2={(a.x2 ?? a.x) - a.x} y2={(a.y2 ?? a.y) - a.y} stroke={a.color || '#1e293b'} strokeWidth={1.5} />
-                  ) : <text
+                  {a.type !== 'text' ? <CadDraftShape shape={a} selected={isSelected} /> : <text
                     fontSize={a.fontSize || 10}
                     fontFamily="sans-serif"
                     fontWeight="500"
@@ -1775,8 +1883,15 @@ export default function CADEditor({
               <text x={142} y={61} fontSize={7} fontFamily="monospace" fill="#334155">SHEET: {doc.titleBlock.sheet}</text>
             </g>
           </svg>
+          <div role="group" aria-label="Drawing view controls" className="absolute right-2 top-2 flex items-center rounded-lg border border-gray-800 bg-gray-950 px-1 shadow">
+            <ToolButton active={tool === 'pan'} onClick={() => setTool(tool === 'pan' ? 'select' : 'pan')} icon={Move} label="Pan drawing" />
+            <button type="button" aria-label="Zoom out" onClick={() => zoomBy(1 / 1.1)} className="flex min-h-11 min-w-11 items-center justify-center text-gray-400 hover:text-white"><Minus className="w-4 h-4" /></button>
+            <span aria-label="Drawing zoom" className="px-1 font-mono text-[10px] tabular-nums">{Math.round(zoom * 100)}%</span>
+            <button type="button" aria-label="Zoom in" onClick={() => zoomBy(1.1)} className="flex min-h-11 min-w-11 items-center justify-center text-gray-400 hover:text-white"><Plus className="w-4 h-4" /></button>
+            <button type="button" aria-label="Fit drawing" title="Zoom Extents (ZE)" onClick={zoomExtents} className="flex min-h-11 min-w-11 items-center justify-center text-gray-400 hover:text-white"><Maximize2 className="w-4 h-4" /></button>
+          </div>
 
-          <p className="pointer-events-none absolute bottom-2 left-3 rounded bg-[var(--bg-primary)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)]">Continuous canvas · Pan tool / Space + drag · Zoom + / −</p>
+          <p className="pointer-events-none absolute bottom-2 left-3 rounded bg-[var(--bg-primary)] px-2 py-1 font-mono text-[10px] text-[var(--text-secondary)]">Pan tool / Space + drag · Arrow keys · Wheel zoom</p>
 
           {/* Measure Result Banner */}
           {measureResult && (
@@ -1804,6 +1919,7 @@ export default function CADEditor({
             setCalibrationPoints([]); setTool('select')
             setCmdLog('Command: REFERENCE > Declared grid applied; supplied coordinates preserved.')
           }} />
+          {draftToolShape(tool) && <CadLineStyleControl value={draftLineStyle} onChange={setDraftLineStyle} />}
           {doc.backgroundImage && (
             <div className="p-2.5 rounded-lg bg-gray-950 border border-gray-800 space-y-2">
               <div className="flex items-center justify-between font-semibold text-gray-300">
@@ -1859,6 +1975,8 @@ export default function CADEditor({
                   className="w-full accent-cyan-500"
                 />
               </div>
+
+              <CadRasterRotation image={doc.backgroundImage} onRotate={rotateImage} onFit={fitImage} onError={setCoordinateError} />
 
               <div className="flex gap-1.5">
                 <Button
@@ -1994,13 +2112,14 @@ export default function CADEditor({
                   <option value="water">Riparian / Water</option>
                 </select>
               </div>
+              <CadCopyControls key={selectedBoundary.id} referenced={hasCadReferenceFrame(doc)} onCopy={duplicateDraft} onError={setCoordinateError} />
               <Button size="sm" variant="destructive" onClick={deleteSelected} className="w-full text-xs h-7">
                 Delete Boundary
               </Button>
             </div>
           )}
 
-          {selectedAnnotation && (
+          {selectedAnnotation?.type === 'text' && (
             <div className="p-2.5 rounded-lg bg-gray-950 border border-gray-800 space-y-2">
               <span className="font-semibold text-gray-300 block">Text Annotation</span>
               <Input
@@ -2018,6 +2137,18 @@ export default function CADEditor({
               <Button size="sm" variant="destructive" onClick={deleteSelected} className="w-full text-xs h-7">
                 Delete Text
               </Button>
+            </div>
+          )}
+
+          {selectedAnnotation && selectedAnnotation.type !== 'text' && (
+            <div className="space-y-2 rounded-lg border border-gray-800 bg-gray-950 p-2.5">
+              <p className="text-xs font-semibold capitalize">Draft {selectedAnnotation.type}</p>
+              <CadLineStyleControl value={selectedAnnotation.lineStyle ?? 'solid'} onChange={lineStyle => {
+                const current = docRef.current
+                pushHistory({ ...current, annotations: current.annotations.map(shape => shape.id === selectedAnnotation.id ? { ...shape, lineStyle } : shape) })
+              }} />
+              <CadCopyControls key={selectedAnnotation.id} referenced={hasCadReferenceFrame(doc)} onCopy={duplicateDraft} onError={setCoordinateError} />
+              <Button size="sm" variant="destructive" onClick={deleteSelected} className="min-h-10 w-full text-xs">Delete draft shape</Button>
             </div>
           )}
 
@@ -2220,11 +2351,11 @@ export default function CADEditor({
       )}
 
       {/* Official County Subdivision / Amalgamation Scheme Plan Modal */}
-      <SubdivisionPlanModal
+      {showSubdivisionPlanModal && <SubdivisionPlanModal
         isOpen={showSubdivisionPlanModal}
         onClose={() => setShowSubdivisionPlanModal(false)}
         cadDoc={doc}
-      />
+      />}
     </div>
   )
 }

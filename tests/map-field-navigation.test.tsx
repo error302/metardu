@@ -4,6 +4,12 @@ import { createRoot, Root } from 'react-dom/client'
 import Map from 'ol/Map'
 import Collection from 'ol/Collection'
 import VectorLayer from 'ol/layer/Vector'
+import CircleStyle from 'ol/style/Circle'
+import RegularShape from 'ol/style/RegularShape'
+import Feature from 'ol/Feature'
+import Point from 'ol/geom/Point'
+import { readSketchPointDetails, updateSketchPointDetails } from '@/app/map/utils/sketchPointDetails'
+import { createSketchStyle, defaultSketchAppearance } from '@/app/map/utils/sketchAppearance'
 import type { MapContextValue } from '@/app/map/MapReactContext'
 import TileLayer from 'ol/layer/Tile'
 import OSM from 'ol/source/OSM'
@@ -60,6 +66,7 @@ test('opacity adjusts all basemaps without fading survey drawings', () => {
   function Harness() {
     interactions = useMapInteractions({
       mapInstance: { current: map }, drawLayerRef: { current: drawing },
+      sketchAppearanceRef: { current: defaultSketchAppearance },
       drawSourceRef: { current: null }, drawInteractionRef: { current: null },
       selectInteractionRef: { current: null }, modifyInteractionRef: { current: null },
       measureInteractionRef: { current: null }, measureSourceRef: { current: null },
@@ -81,6 +88,53 @@ test('opacity adjusts all basemaps without fading survey drawings', () => {
   requiredValue(interactions).handleOpacityChange(0.5, setOpacity)
   expect(setOpacity).toHaveBeenCalledWith(0.5)
   expect(layers.map(layer => layer.getOpacity())).toEqual([0.5, 0.5, 0.5, 0.5, 1])
+})
+
+test.each(['drawn', 'draft', 'selected'] as const)('sketch appearance updates the line and dot together (%s)', variant => {
+  const appearance = { current: defaultSketchAppearance }
+  const getStyle = createSketchStyle(appearance, variant)
+  const output = getStyle()
+  const style = Array.isArray(output) ? output[0] : output
+  expect(style.getStroke()?.getColor()).toEqual([209, 123, 71, 1])
+  expect((style.getImage() as CircleStyle).getRadius()).toBe(7)
+
+  appearance.current = { ...defaultSketchAppearance, lineOpacity: 40, pointSize: 20 }
+  expect(getStyle()).toBe(style)
+  expect(style.getStroke()?.getColor()).toEqual([209, 123, 71, 0.4])
+  expect((style.getImage() as CircleStyle).getRadius()).toBe(10)
+})
+
+test('line pointer changes shape without changing the stored sketch point symbol', () => {
+  const appearance = { current: defaultSketchAppearance }
+  const pointer = createSketchStyle(appearance, 'draft', true)
+  const point = createSketchStyle(appearance)
+  const getImage = (style: ReturnType<typeof pointer>) => Array.isArray(style) ? style[0].getImage() : style.getImage()
+  expect(getImage(pointer())).toBeInstanceOf(CircleStyle)
+  appearance.current = { ...defaultSketchAppearance, linePointerShape: 'square' }
+  expect((getImage(pointer()) as RegularShape).getAngle()).toBe(Math.PI / 4)
+  appearance.current = { ...defaultSketchAppearance, linePointerShape: 'diamond' }
+  expect((getImage(pointer()) as RegularShape).getAngle()).toBe(0)
+  appearance.current = { ...defaultSketchAppearance, linePointerShape: 'crosshair' }
+  expect((getImage(pointer()) as RegularShape).getRadius2()).toBeCloseTo(1.54)
+  expect(getImage(point())).toBeInstanceOf(CircleStyle)
+})
+
+test('sketch point details keep the point coordinate and unrelated properties', () => {
+  const geometry = new Point([10, 20])
+  const feature = new Feature({ geometry, pointName: 'Imported point', source: 'field file' })
+  expect(readSketchPointDetails(feature).name).toBe('Imported point')
+  feature.set('elevation', '101.42')
+  expect(updateSketchPointDetails(feature, { ...readSketchPointDetails(feature), name: 'Renamed point' })).toBe(true)
+  expect(feature.get('elevation')).toBe('101.42')
+  expect(updateSketchPointDetails(feature, readSketchPointDetails(feature))).toBe(false)
+  const details = { name: 'Culvert 12', code: 'CULV', description: 'Inlet', elevation: '101.42' }
+  expect(() => updateSketchPointDetails(feature, { ...details, elevation: '1e100' })).toThrow('finite decimal')
+  updateSketchPointDetails(feature, details)
+  expect(readSketchPointDetails(feature)).toEqual(details)
+  expect(feature.get('source')).toBe('field file')
+  expect(feature.getGeometry()?.getCoordinates()).toEqual([10, 20])
+  const style = createSketchStyle({ current: defaultSketchAppearance })(feature)
+  expect(Array.isArray(style) && style[1].getText()?.getText()).toBe('Culvert 12')
 })
 
 test('unknown accuracy stays unknown and the navigation panel remains cancellable near target', () => {

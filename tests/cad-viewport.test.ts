@@ -1,4 +1,4 @@
-import {cadViewport,fitCadGeometry,zoomCadAt} from '@/lib/cad/cadViewport'
+import {cadViewport,fitCadGeometry,zoomCadAt,cadWheelDeltaPixels,cadWheelZoom} from '@/lib/cad/cadViewport'
 
 test('camera fills the physical viewport without moving model coordinates or clipping to a paper rectangle',()=>{
   const view=cadViewport({width:400,height:800},{width:1122,height:794},1,{x:0,y:0})
@@ -19,4 +19,14 @@ test('fit includes geometry beyond the old page and respects a narrow phone view
   const viewport={width:390,height:500},sheet={width:1122,height:794},points=[{x:-1000,y:-2000},{x:3000,y:4000}]
   const camera=fitCadGeometry(viewport,sheet,points),view=cadViewport(viewport,sheet,camera.zoom,camera.pan)
   for(const point of points){expect(point.x).toBeGreaterThan(view.x);expect(point.x).toBeLessThan(view.x+view.width);expect(point.y).toBeGreaterThan(view.y);expect(point.y).toBeLessThan(view.y+view.height)}
+})
+
+test('wheel magnitude is normalized and capped per animation frame', () => {
+  expect(cadWheelDeltaPixels(3, 1, 800)).toBe(48)
+  expect(cadWheelDeltaPixels(-1, 2, 800)).toBe(-800)
+  expect(cadWheelDeltaPixels(5, 0, 800)).toBe(5)
+  expect(cadWheelDeltaPixels(Infinity, 0, 800)).toBe(0)
+  expect(cadWheelZoom(1, -1)).toBeLessThan(1.01)
+  expect(cadWheelZoom(1, -800)).toBe(cadWheelZoom(1, -80))
+  expect(cadWheelZoom(cadWheelZoom(1, -48), 48)).toBeCloseTo(1, 12)
 })

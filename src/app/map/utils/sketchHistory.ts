@@ -4,7 +4,7 @@ import type Draw from 'ol/interaction/Draw'
 
 export const emptySketchHistory = { canUndo: false, canRedo: false }
 
-function committedVertices(geometry: LineString | Polygon): Coordinate[] {
+export function committedVertices(geometry: LineString | Polygon): Coordinate[] {
   // The live line ends with the cursor. A live polygon ring also closes at its first vertex.
   if (geometry.getType() !== 'Polygon') return (geometry as LineString).getCoordinates().slice(0, -1)
   const ring = (geometry as Polygon).getCoordinates()[0] ?? []

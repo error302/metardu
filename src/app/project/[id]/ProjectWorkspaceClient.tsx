@@ -263,7 +263,7 @@ export default function ProjectWorkspaceClient({ project, workflow, boundaryData
     <div className="min-h-screen bg-[var(--bg-primary)]">
       <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-4">
         <div className="max-w-5xl mx-auto">
-          <div className="flex items-center justify-between mb-1">
+          <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
             <div className="flex items-center gap-3">
               <div>
                 <h1 className="text-lg font-bold text-[var(--text-primary)]">{project.name}</h1>
@@ -283,6 +283,13 @@ export default function ProjectWorkspaceClient({ project, workflow, boundaryData
                 </svg>
                 CAD Canvas
               </button>
+
+              <Link
+                href={`/tools/geofence?projectId=${encodeURIComponent(project.id)}`}
+                className="flex min-h-9 items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-[var(--border-color)] text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]"
+              >
+                Site geofence
+              </Link>
 
               {/* Workflow overview toggle button */}
               <button

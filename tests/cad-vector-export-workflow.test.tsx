@@ -1,6 +1,7 @@
 /* eslint-disable no-restricted-syntax -- Explicit synthetic CRS fixtures, never production defaults. */
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import CADEditor from '@/components/cad-editor/CADEditor'
+import { requiredValue } from '@/test-utils/requiredValue'
 import { exportDrawing } from './fixtures/cad-export-document'
 import Papa from 'papaparse'
 
@@ -30,6 +31,22 @@ test('the editor displays saved line annotations instead of dropping their geome
   expect(line).not.toBeNull()
   expect(line).toHaveAttribute('x2', '100')
   expect(line).toHaveAttribute('y2', '0')
+})
+
+test('a cadastral line can be copied at an exact grid offset as separate draft geometry', () => {
+  const original = exportDrawing()
+  const save = jest.fn()
+  render(<CADEditor initialDocument={original} onSave={save} />)
+  fireEvent.click(requiredValue(canvas().querySelector('[data-cad-boundary-label="ab"]')))
+  fireEvent.click(screen.getByRole('button', { name: /^Properties$/ }))
+  fireEvent.change(screen.getByRole('textbox', { name: 'East offset (m)' }), { target: { value: '12.5' } })
+  fireEvent.change(screen.getByRole('textbox', { name: 'North offset (m)' }), { target: { value: '25' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Copy as draft geometry' }))
+  fireEvent.click(screen.getByRole('button', { name: 'Save to Project' }))
+  expect(save).toHaveBeenCalledWith(expect.objectContaining({
+    beacons: original.beacons, boundaries: original.boundaries,
+    annotations: [...original.annotations, expect.objectContaining({ type: 'line', x: 125, y: 50, x2: 325, y2: 50 })],
+  }))
 })
 
 test('beacon labels clear an incident horizontal boundary rather than crossing its stroke', () => {
@@ -92,7 +109,7 @@ test('DXF export exposes reference errors and does not download inconsistent con
   render(<CADEditor initialDocument={doc} />)
   fireEvent.keyDown(screen.getByRole('button', { name: 'Export' }), { key: 'ArrowDown' })
   fireEvent.click(await screen.findByRole('menuitem', { name: 'AutoCAD DXF (.dxf)' }))
-  expect(screen.getByRole('alert',{name:'Export error'})).toHaveTextContent(/reference|align/i)
+  expect(await screen.findByRole('alert',{name:'Export error'})).toHaveTextContent(/reference|align/i)
   expect(URL.createObjectURL).not.toHaveBeenCalled()
 })
 

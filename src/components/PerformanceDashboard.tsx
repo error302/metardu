@@ -14,15 +14,20 @@ function NavigationBreakdown() {
   const navigation = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined
   if (!navigation || navigation.requestStart <= 0 || navigation.responseStart < navigation.requestStart) return null
 
+  const redirects = Math.max(0, navigation.redirectEnd - navigation.redirectStart)
+  const worker = navigation.workerStart > 0 ? Math.max(0, navigation.fetchStart - navigation.workerStart) : 0
   const dns = Math.max(0, navigation.domainLookupEnd - navigation.domainLookupStart)
   const connection = Math.max(0, navigation.connectEnd - navigation.connectStart)
   const wait = navigation.responseStart - navigation.requestStart
-  const other = Math.max(0, navigation.requestStart - navigation.startTime - dns - connection)
-  const phases = [['DNS', dns], ['Connection and TLS', connection], ['Request to first byte', wait], ['Other before request', other]] as const
+  const other = Math.max(0, navigation.requestStart - navigation.startTime - redirects - worker - dns - connection)
+  const phases = [['Redirects', redirects], ['Service worker startup', worker], ['DNS', dns],
+    ['Connection and TLS', connection], ['Other before request', other], ['Request to first byte', wait]] as const
+  const measuredPath = new URL(navigation.name, window.location.origin).pathname
 
   return (
     <div className="mt-4 border-t border-gray-700 pt-4">
       <h3 className="font-medium">First-byte timing</h3>
+      <p className="mt-1 text-sm text-gray-300">Measured document <code>{measuredPath}</code> ({navigation.type}).</p>
       <dl className="mt-2 grid grid-cols-2 gap-2 text-sm text-gray-300 md:grid-cols-4">
         {phases.map(([label, value]) => <div key={label}><dt>{label}</dt><dd className="tabular-nums">{Math.round(value)} ms</dd></div>)}
       </dl>
@@ -32,7 +37,6 @@ function NavigationBreakdown() {
 
 export default function PerformanceDashboard() {
   const [report, setReport] = useState<PerformanceReport | null>(null)
-  const [dbStats, setDbStats] = useState<Record<string, { avg: number; count: number }>>({})
   const [isOptimizing, setIsOptimizing] = useState(false)
   const [optimizationResult, setOptimizationResult] = useState<Record<string, unknown> | null>(null)
 
@@ -44,22 +48,22 @@ export default function PerformanceDashboard() {
 
   const loadStats = () => {
     setReport(performanceMonitor.getReport())
-    // In real implementation, fetch from server
-    setDbStats({})
   }
 
-  const runOptimization = async () => {
+  const analyzeQueries = async () => {
     setIsOptimizing(true)
     try {
       const res = await fetch('/api/admin/optimize', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'full_optimization' }),
+        body: JSON.stringify({ action: 'analyze_queries' }),
       })
+      if (!res.ok) throw new Error('Query diagnostics were unavailable.')
       const result = (await res.json()) as Record<string, unknown>
       setOptimizationResult(result)
     } catch (error) {
-      logger.error('Optimization failed:', { error: error })
+      setOptimizationResult({ error: 'Query diagnostics were unavailable.' })
+      logger.error('Query diagnostics failed:', { error })
     } finally {
       setIsOptimizing(false)
     }
@@ -131,34 +135,16 @@ export default function PerformanceDashboard() {
           </div>
         )}
 
-        {/* Database Stats */}
-        {Object.keys(dbStats).length > 0 && (
-          <div className="bg-gray-800 rounded-xl p-6 mb-6">
-            <h2 className="text-xl font-semibold mb-4">Database Performance</h2>
-            <div className="space-y-2">
-              {Object.entries(dbStats).map(([query, stats]) => (
-                <div key={query} className="flex justify-between items-center py-2 border-b border-gray-700">
-                  <span className="text-gray-300 font-mono text-sm">{query}</span>
-                  <div className="text-right">
-                    <span className="font-mono text-blue-400">{stats.avg.toFixed(2)}ms</span>
-                    <span className="text-gray-500 text-sm ml-2">({stats.count} queries)</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Optimization Actions */}
+        {/* Diagnostics */}
         <div className="bg-gray-800 rounded-xl p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Optimization Actions</h2>
+          <h2 className="text-xl font-semibold mb-4">Diagnostics</h2>
           <div className="flex gap-4">
             <button
-              onClick={runOptimization}
+              onClick={analyzeQueries}
               disabled={isOptimizing}
               className="px-6 py-3 bg-blue-600 rounded-lg font-semibold disabled:opacity-50"
             >
-              {isOptimizing ? 'Running...' : 'Run Full Optimization'}
+              {isOptimizing ? 'Checking…' : 'Analyze query stats'}
             </button>
             <button
               onClick={() => {
@@ -173,7 +159,7 @@ export default function PerformanceDashboard() {
 
           {optimizationResult && (
             <div className="mt-4 p-4 bg-gray-700 rounded-lg">
-              <h3 className="font-semibold mb-2">Optimization Result</h3>
+              <h3 className="font-semibold mb-2">Query diagnostic result</h3>
               <pre className="text-sm text-green-400 overflow-auto">
                 {JSON.stringify(optimizationResult, null, 2)}
               </pre>

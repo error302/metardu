@@ -163,6 +163,8 @@ export interface MapContextValue {
 
   // ── Actions ──
   toggleDraw: (mode: DrawMode) => void
+  canFinishPath: boolean
+  finishPath: () => void
   toggleEdit: () => void
   toggleMeasure: (mode: MeasureMode) => void
   toggleAnnotations: () => void
@@ -172,10 +174,13 @@ export interface MapContextValue {
   toggleOsmBuildings: () => void
   deleteSelected: () => void
   sketchHistory: boolean
+  sketchAppearance: import('@/app/map/utils/sketchAppearance').SketchAppearance
+  setSketchAppearance: (value: import('@/app/map/utils/sketchAppearance').SketchAppearance) => void
   undo: () => void
   redo: () => void
   fitToKenya: () => void
   fitToDrawn: () => void
+  fitSelectedSketch: () => void
   saveToProject: () => void
   exportFeatures: (format: 'GeoJSON' | 'KML' | 'WKT' | 'DXF' | 'LandXML') => void
   clearDrawn: () => void
@@ -202,6 +207,9 @@ export interface MapContextValue {
 
   // ── Print actions (Tier 1) ──
   printMap: (overrides?: Partial<PrintOptions>) => Promise<void>
+  captureMap: () => Promise<void>
+  preferCompanyLogo: boolean
+  setPreferCompanyLogo: (value: boolean) => void
 
   // ── Offline tile actions ──
   toggleOfflineDialog: (open: boolean) => Promise<void>

@@ -402,3 +402,41 @@ test('moving an unreferenced layout preserves supplied point coordinates rather 
     expect(doc.coordinateReferenceSystem).toBeUndefined()
   })
 })
+
+test('collapses the sheet actions and protects the local draft from template replacement', async () => {
+  await gridDrawing()
+  const before = readDraft()
+  fireEvent.click(screen.getByRole('button', { name: 'Hide drawing tools' }))
+  expect(screen.queryByRole('button', { name: 'Sheets' })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Fit drawing' })).toBeVisible()
+  fireEvent.click(screen.getByRole('button', { name: 'Show drawing tools' }))
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Sheets' }), { key: 'ArrowDown' })
+  const confirm = jest.spyOn(window, 'confirm').mockReturnValue(false)
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Bomet Scheme' }))
+  expect(confirm).toHaveBeenCalledTimes(1)
+  expect(readDraft()).toEqual(before)
+})
+
+
+test('hides the active sample shortcut without changing the draft and shows it on CAD reimport', async () => {
+  await gridDrawing()
+  jest.spyOn(window, 'confirm').mockReturnValue(true)
+  fireEvent.keyDown(screen.getByRole('button', { name: 'Sheets' }), { key: 'ArrowDown' })
+  fireEvent.click(await screen.findByRole('menuitem', { name: 'Bomet Scheme' }))
+  const hide = await screen.findByRole('button', { name: 'Hide Bomet Scheme shortcut' })
+  const sample = readDraft()
+  expect(sample.starterSheet).toBe('bomet-scheme')
+  fireEvent.click(hide)
+  expect(screen.queryByRole('button', { name: 'Hide Bomet Scheme shortcut' })).not.toBeInTheDocument()
+  expect(readDraft()).toEqual(sample)
+  cleanup()
+  render(<StandaloneCADEditorPage />)
+  await screen.findByRole('button', { name: 'Sheets' })
+  expect(screen.queryByRole('button', { name: 'Hide Bomet Scheme shortcut' })).not.toBeInTheDocument()
+
+  fireEvent.change(screen.getByLabelText('Open CAD file'), {
+    target: { files: [new File([JSON.stringify(sample)], 'bomet.metardu-cad')] },
+  })
+  expect(await screen.findByRole('button', { name: 'Hide Bomet Scheme shortcut' })).toBeVisible()
+  expect(readDraft()).toEqual(sample)
+})

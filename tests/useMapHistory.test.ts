@@ -20,6 +20,7 @@ import VectorSource from 'ol/source/Vector'
 import Feature from 'ol/Feature'
 import Point from 'ol/geom/Point'
 import LineString from 'ol/geom/LineString'
+import Polygon from 'ol/geom/Polygon'
 import Circle from 'ol/geom/Circle'
 import { decodeMapDrawing,encodeMapDrawing } from '../src/lib/mapDrawing/codec'
 import type { MapFeatureCollection } from '../src/lib/mapDrawing/wire'
@@ -85,6 +86,79 @@ function renderHistory(ctx: MapContext) {
 }
 
 describe('useMapHistory', () => {
+  it('undoes and redoes a finished line one vertex at a time without changing earlier features', async () => {
+    const source = new VectorSource<Feature>({ features: [new Feature(new Point([10, 10]))] })
+    const { ctx } = makeCtx(source)
+    const popup = document.createElement('div')
+    popup.append(document.createElement('button'))
+    ctx.popupRef.current = popup
+    const h = renderHistory(ctx)
+    const vertices = [[0, 0], [1, 0], [2, 1], [3, 1]]
+    const line = new Feature(new LineString(vertices))
+    const drawnLine = () => source.getFeatures().find(feature => feature.getGeometry()?.getType() === 'LineString')
+      ?.getGeometry() as LineString | undefined
+    try {
+      act(() => h.api().pushHistory())
+      source.addFeature(line)
+      act(() => h.api().pushHistory(line))
+      for (const count of [3, 2, 0]) {
+        await act(async () => { await h.api().undo() })
+        expect(drawnLine()?.getCoordinates() ?? []).toEqual(vertices.slice(0, count))
+        expect(source.getFeatures().filter(feature => feature.getGeometry()?.getType() === 'Point')).toHaveLength(1)
+      }
+      expect(popup.className).toBe('hidden')
+      expect(popup.childElementCount).toBe(0)
+      for (const count of [2, 3, 4]) {
+        await act(async () => { await h.api().redo() })
+        expect(drawnLine()?.getCoordinates()).toEqual(vertices.slice(0, count))
+      }
+      expect(h.api().canRedo).toBe(false)
+    } finally {
+      await h.unmount()
+    }
+  })
+
+  it('recloses a shortened polygon and drops later vertices when a new edit branches history', async () => {
+    const source = new VectorSource()
+    const h = renderHistory(makeCtx(source).ctx)
+    const a = [0, 0], b = [1, 0], c = [1, 1], d = [0, 1]
+    const polygon = new Feature(new Polygon([[a, b, c, d, a]]))
+    const ring = () => (source.getFeatures().find(feature => feature.getGeometry()?.getType() === 'Polygon')?.getGeometry() as Polygon).getCoordinates()[0]
+    try {
+      act(() => h.api().pushHistory())
+      source.addFeature(polygon)
+      act(() => h.api().pushHistory(polygon))
+      await act(async () => { await h.api().undo() })
+      expect(ring()).toEqual([a, b, c, a])
+      source.addFeature(new Feature(new Point([4, 4])))
+      act(() => h.api().pushHistory())
+      expect(h.api().canRedo).toBe(false)
+      await act(async () => { await h.api().undo() })
+      expect(ring()).toEqual([a, b, c, a])
+      expect(source.getFeatures()).toHaveLength(1)
+    } finally {
+      await h.unmount()
+    }
+  })
+
+  it('skips a shortened polygon ring whose vertices are collinear', async () => {
+    const source = new VectorSource()
+    const h = renderHistory(makeCtx(source).ctx)
+    const vertices = [[0, 0], [1, 0], [2, 0], [2, 1], [0, 0]]
+    const polygon = new Feature(new Polygon([vertices]))
+    try {
+      act(() => h.api().pushHistory())
+      source.addFeature(polygon)
+      act(() => h.api().pushHistory(polygon))
+      await act(async () => { await h.api().undo() })
+      expect(source.getFeatures()).toHaveLength(0)
+      await act(async () => { await h.api().redo() })
+      expect((source.getFeatures()[0].getGeometry() as Polygon).getCoordinates()).toEqual([vertices])
+    } finally {
+      await h.unmount()
+    }
+  })
+
   it('undo retains mixed collections, duplicate source IDs and nested metadata',async()=>{
     const original:MapFeatureCollection={type:'FeatureCollection',features:[
       {type:'Feature',id:0,properties:{geometry:{retained:true}},geometry:{type:'GeometryCollection',geometries:[{type:'MultiPoint',coordinates:[[30,-2],[30.001,-2.001]]},{type:'MultiLineString',coordinates:[[[30,-2],[30.002,-2.001]]]}]}},

@@ -5,15 +5,10 @@ import { z } from 'zod'
 import dynamic from 'next/dynamic'
 import Link from 'next/link'
 import {
-  Breadcrumb,
-  BreadcrumbItem,
-  BreadcrumbLink,
-  BreadcrumbList,
-  BreadcrumbPage,
-  BreadcrumbSeparator,
-} from '@/components/ui/breadcrumb'
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu'
 import { Button } from '@/components/ui/button'
-import { Loader2, Plus, FileText, Check, FolderOpen, X, Building } from 'lucide-react'
+import { Loader2, ChevronDown, Check, FolderOpen, X } from 'lucide-react'
 import type { CADDocument } from '@/components/cad-editor/CADEditor'
 import { deriveBoundaryMeasurements } from '@/lib/cadGeometry'
 import { parseCadDocument } from '@/lib/cad/cadDocumentValidation'
@@ -92,6 +87,7 @@ function createSampleCadastralDoc(): CADDocument {
 
   return {
     ...base,
+    starterSheet: 'sample-lot',
     beacons,
     boundaries,
     metersPerPixel: 1,
@@ -163,6 +159,7 @@ function createSampleBometSubdivisionDoc(): CADDocument {
 
   return {
     ...base,
+    starterSheet: 'bomet-scheme',
     beacons,
     boundaries,
     annotations,
@@ -180,9 +177,22 @@ function createSampleBometSubdivisionDoc(): CADDocument {
   }
 }
 
+const starterSheetNames = { 'sample-lot': 'Sample Lot', 'bomet-scheme': 'Bomet Scheme' } as const
+type StarterSheet = keyof typeof starterSheetNames
+const hiddenStarterKey = 'metardu-standalone-cad-hidden-starter'
+
+function getStarterSheet(doc: CADDocument): StarterSheet | null {
+  if (doc.starterSheet) return doc.starterSheet
+  if (doc.titleBlock.lrNumber !== 'SAMPLE ONLY') return null
+  if (doc.titleBlock.projectName === 'ILLUSTRATIVE TRAINING PLAN') return 'sample-lot'
+  if (doc.titleBlock.projectName === 'ILLUSTRATIVE SUBDIVISION EXERCISE') return 'bomet-scheme'
+  return null
+}
+
 export default function StandaloneCADEditorPage() {
   const [doc, setDoc] = useState<CADDocument | null>(null)
   const [editorRevision, setEditorRevision] = useState(0)
+  const [hiddenStarter, setHiddenStarter] = useState<StarterSheet | null>(null)
   const [saveModalOpen, setSaveModalOpen] = useState(false)
   const [projects, setProjects] = useState<Array<{ id: string; name: string; lr_number?: string | null }>>([])
   const [selectedProjectId, setSelectedProjectId] = useState('')
@@ -196,6 +206,8 @@ export default function StandaloneCADEditorPage() {
   // Load from local storage or initialize blank
   useEffect(() => {
     try {
+      const hidden = localStorage.getItem(hiddenStarterKey)
+      if (hidden === 'sample-lot' || hidden === 'bomet-scheme') setHiddenStarter(hidden)
       const cached = localStorage.getItem('metardu-standalone-cad')
       if (cached) {
         const parsed = parseCadDocument(JSON.parse(cached))
@@ -222,15 +234,31 @@ export default function StandaloneCADEditorPage() {
     }
   }, [])
 
+  const setStarterVisibility = useCallback((hidden: StarterSheet | null) => {
+    setHiddenStarter(hidden)
+    try {
+      if (hidden) localStorage.setItem(hiddenStarterKey, hidden)
+      else localStorage.removeItem(hiddenStarterKey)
+    } catch {
+      // The choice still applies to the open workspace.
+    }
+  }, [])
+
+  const handleOpenDocument = useCallback((opened: CADDocument) => {
+    if (getStarterSheet(opened)) setStarterVisibility(null)
+  }, [setStarterVisibility])
+
   const selectTemplate = useCallback((nextDocument: CADDocument) => {
+    if (!window.confirm('Replace the current local CAD draft? Cancel to export it from the drawing first.')) return
+    handleOpenDocument(nextDocument)
     setDoc(nextDocument)
     setEditorRevision(revision => revision + 1)
     try {
       localStorage.setItem('metardu-standalone-cad', JSON.stringify(nextDocument))
     } catch {
-      // Keep the in-memory template available when storage is unavailable.
+      setDraftWarning('Local storage is unavailable or full. Your edits are in memory; download a CAD file before closing this page.')
     }
-  }, [])
+  }, [handleOpenDocument])
 
   // Fetch projects when save-to-project modal opens
   const openSaveToProjectModal = useCallback(async () => {
@@ -287,60 +315,45 @@ export default function StandaloneCADEditorPage() {
     )
   }
 
+  const activeStarter = getStarterSheet(doc)
+
   return (
     <div className={`${workspaceStyles.workspace} h-full min-h-0 flex flex-col bg-[var(--bg-primary)] text-[var(--text-primary)] overflow-hidden`}>
-      {/* Top Breadcrumbs & Starter Actions */}
-      <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 flex items-center justify-between gap-3 shrink-0 flex-wrap">
-        <Breadcrumb>
-          <BreadcrumbList>
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/dashboard" className="text-gray-400 hover:text-white">Dashboard</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbLink href="/tools" className="text-gray-400 hover:text-white">Tools</BreadcrumbLink>
-            </BreadcrumbItem>
-            <BreadcrumbSeparator />
-            <BreadcrumbItem>
-              <BreadcrumbPage className="text-cyan-400 font-semibold">CAD Canvas Editor</BreadcrumbPage>
-            </BreadcrumbItem>
-          </BreadcrumbList>
-        </Breadcrumb>
-
-        {/* Starter Templates */}
-        <div className="flex max-w-full items-center gap-1.5 overflow-x-auto [&>button]:min-h-11 [&>button]:shrink-0">
-          <button
-            onClick={() => selectTemplate(createDefaultCADDoc())}
-            className="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 flex items-center gap-1 transition-colors"
-            title="Start fresh blank A3 sheet"
-          >
-            <Plus className="w-3.5 h-3.5 text-cyan-400" /> Blank Sheet
-          </button>
-          <button
-            onClick={() => selectTemplate(createSampleCadastralDoc())}
-            className="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 flex items-center gap-1 transition-colors"
-            title="Load sample 5-beacon cadastral polygon"
-          >
-            <FileText className="w-3.5 h-3.5 text-amber-400" /> Sample Lot
-          </button>
-          <button
-            onClick={() => selectTemplate(createSampleBometSubdivisionDoc())}
-            className="px-2.5 py-1 rounded bg-gray-800 hover:bg-gray-700 text-xs font-medium text-gray-300 flex items-center gap-1 transition-colors"
-            title="Load Bomet County Subdivision Scheme Plan (Portions A, B, C with road reserves)"
-          >
-            <Building className="w-3.5 h-3.5 text-emerald-400" /> Bomet Scheme
-          </button>
-        </div>
-      </div>
-
       {/* Embedded CAD Canvas */}
       {draftWarning && <p role="status" className="shrink-0 px-4 py-2 text-xs text-amber-200 bg-amber-950">{draftWarning}</p>}
       <div className="flex-1 overflow-hidden relative">
         <CADEditor
           key={editorRevision}
           initialDocument={doc}
-          isStandalone={true}
+          isStandalone
+          sheetActions={
+            <>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button type="button" className="min-h-11 rounded-lg border border-gray-700 px-3 text-xs text-gray-200 inline-flex items-center gap-1.5">
+                  Sheets <ChevronDown aria-hidden="true" className="size-3.5" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="bg-gray-950 text-gray-100 border-gray-700">
+                <DropdownMenuItem onSelect={() => selectTemplate(createDefaultCADDoc())}>Blank Sheet</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => selectTemplate(createSampleCadastralDoc())}>Sample Lot</DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => selectTemplate(createSampleBometSubdivisionDoc())}>Bomet Scheme</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+            {activeStarter && activeStarter !== hiddenStarter && (
+              <div className="inline-flex items-center rounded-lg border border-gray-700 pl-2 text-xs text-gray-200">
+                <span>{starterSheetNames[activeStarter]}</span>
+                <button type="button" aria-label={'Hide ' + starterSheetNames[activeStarter] + ' shortcut'}
+                  className="inline-grid size-11 place-items-center text-gray-400 hover:text-white"
+                  onClick={() => setStarterVisibility(activeStarter)}>
+                  <X aria-hidden="true" className="size-4" />
+                </button>
+              </div>
+            )}
+            </>
+          }
           onSave={handleSaveDraft}
+          onOpenDocument={handleOpenDocument}
           onAttachToProject={openSaveToProjectModal}
         />
       </div>

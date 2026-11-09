@@ -1,5 +1,7 @@
 import Draw from 'ol/interaction/Draw'
 import Map from 'ol/Map'
+import MapBrowserEvent from 'ol/MapBrowserEvent'
+import MapPathDraw from '../utils/MapPathDraw'
 import View from 'ol/View'
 import VectorSource from 'ol/source/Vector'
 import type Feature from 'ol/Feature'
@@ -62,6 +64,57 @@ it.each(['LineString', 'Polygon'] as const)('restores the first %s vertex and cl
     expect(state()).toEqual({ canUndo: true, canRedo: false })
     draw.abortDrawing()
     expect(state()).toEqual(emptySketchHistory)
+  } finally {
+    map.dispose()
+  }
+})
+
+
+function tapPath(draw: MapPathDraw, map: Map, coordinate: number[], time: number, pointerType: 'touch' | 'mouse' = 'touch') {
+  const pixel = coordinate.map(value => value * 10)
+  for (const type of ['pointerdown', 'pointerup']) {
+    const pointer = new MouseEvent(type, { button: 0 }) as PointerEvent
+    Object.defineProperties(pointer, { pointerType: { value: pointerType }, timeStamp: { value: time } })
+    const event = new MapBrowserEvent(type, map, pointer, false, undefined, type === 'pointerdown' ? [pointer] : [])
+    event.pixel = pixel
+    event.coordinate = coordinate.slice()
+    draw.handleEvent(event)
+    if (type === 'pointerup') expect(event.defaultPrevented).toBe(true)
+  }
+}
+
+it.each(['touch', 'mouse'] as const)('closes an area with a %s double tap and rejects rapid separate vertices as completion', pointerType => {
+  const { map, source } = createSketch('Polygon')
+  const draw = new MapPathDraw({ source, type: 'Polygon' }, () => {})
+  map.addInteraction(draw)
+  try {
+    tapPath(draw, map, [0, 0], 100, pointerType)
+    tapPath(draw, map, [0, 0], 200, pointerType)
+    tapPath(draw, map, [20, 0], 300, pointerType)
+    tapPath(draw, map, [20, 20], 400, pointerType)
+    expect(source.getFeatures()).toHaveLength(0)
+    tapPath(draw, map, [20, 20], 500, pointerType)
+    expect(source.getFeatures()).toHaveLength(1)
+    expect((source.getFeatures()[0].getGeometry() as Polygon).getCoordinates())
+      .toEqual([[[0, 0], [20, 0], [20, 20], [0, 0]]])
+  } finally {
+    map.dispose()
+  }
+})
+
+it('can finish a line explicitly and leaves an incomplete line in draft', () => {
+  const { map, source } = createSketch('LineString')
+  const onReady = jest.fn()
+  const draw = new MapPathDraw({ source, type: 'LineString' }, onReady)
+  map.addInteraction(draw)
+  try {
+    tapPath(draw, map, [0, 0], 100)
+    expect(draw.finishIfReady()).toBe(false)
+    tapPath(draw, map, [20, 0], 500)
+    expect(onReady).toHaveBeenLastCalledWith(true)
+    expect(draw.finishIfReady()).toBe(true)
+    expect(onReady).toHaveBeenLastCalledWith(false)
+    expect((source.getFeatures()[0].getGeometry() as LineString).getCoordinates()).toEqual([[0, 0], [20, 0]])
   } finally {
     map.dispose()
   }

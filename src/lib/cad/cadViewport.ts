@@ -12,6 +12,20 @@ export function zoomCadAt(zoom:number,pan:Point,nextZoom:number,screen:Point,vie
   const next=Math.min(CAD_MAX_ZOOM,Math.max(CAD_MIN_ZOOM,nextZoom)),ratio=next/zoom
   return {zoom:next,pan:{x:pan.x*ratio-(screen.x-viewport.width/2)*(ratio-1),y:pan.y*ratio-(screen.y-viewport.height/2)*(ratio-1)}}
 }
+/** Wheel and trackpad devices may report pixels, text lines, or pages. */
+export function cadWheelDeltaPixels(delta: number, mode: number, viewportHeight: number) {
+  if (!Number.isFinite(delta)) return 0
+  if (mode === 1) return delta * 16
+  if (mode === 2) return delta * viewportHeight
+  return delta
+}
+
+/** Bound the zoom applied in one animation frame and keep it reversible. */
+export function cadWheelZoom(zoom: number, delta: number) {
+  const bounded = Math.max(-80, Math.min(80, delta))
+  return zoom * Math.exp(-bounded * 0.0016)
+}
+
 export function fitCadGeometry(viewport:Size,sheet:Size,points:readonly Point[]) {
   if(!points.length)return {zoom:1,pan:{x:0,y:0}}
   const xs=points.map(point=>point.x),ys=points.map(point=>point.y)

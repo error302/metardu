@@ -22,6 +22,7 @@ import type Polygon from 'ol/geom/Polygon'
 import type LineString from 'ol/geom/LineString'
 import type { MapBrowserEvent } from 'ol'
 import type { DrawEvent } from 'ol/interaction/Draw'
+import type MapPathDraw from '@/app/map/utils/MapPathDraw'
 import type { ModifyEvent } from 'ol/interaction/Modify'
 import type { FeatureLike } from 'ol/Feature'
 import { downloadDXF } from '@/lib/export/generateDXF'
@@ -52,13 +53,15 @@ import { logger } from '@/lib/logger'
 import { measureMapGridDrawing } from '@/lib/mapDrawing/metrics'
 import { encodeMapDrawing } from '@/lib/mapDrawing/codec'
 import { zoomToSurveyPointCluster } from '@/lib/surveyMapEngine/ol/pointLoading'
+import { createSketchStyle, type SketchAppearance } from '@/app/map/utils/sketchAppearance'
 import { attachSketchHistory, emptySketchHistory } from '@/app/map/utils/sketchHistory'
 
 interface UseMapInteractionsParams {
   mapInstance: React.MutableRefObject<Map | null>
   drawSourceRef: React.MutableRefObject<VectorSource | null>
   drawLayerRef: React.MutableRefObject<VectorLayer | null>
-  drawInteractionRef: React.MutableRefObject<RealInteraction | null>
+  drawInteractionRef: React.MutableRefObject<import('ol/interaction/Draw').default | null>
+  sketchAppearanceRef: { readonly current: SketchAppearance }
   selectInteractionRef: React.MutableRefObject<Select | null>
   modifyInteractionRef: React.MutableRefObject<RealInteraction | null>
   measureInteractionRef: React.MutableRefObject<RealInteraction | null>
@@ -101,7 +104,7 @@ interface UseMapInteractionsParams {
   onDrawEnd?: (areaSqM: number, perimeterM: number, featureType: string) => void
   /** Called when a feature is identified by single-click */
   onIdentify?: (feature: Feature | null) => void
-  pushHistory: () => void
+  pushHistory: (completedSketch?: Feature) => void
   popupRef: React.MutableRefObject<HTMLDivElement | null>
   toggleGPS: () => void
 }
@@ -134,6 +137,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       if (features.length > 0) {
         const feature = features[0] as Feature
         if (onIdentify) onIdentify(feature)
+        if (feature.getGeometry()?.getType() === 'Point' && p.drawSourceRef.current?.hasFeature(feature)) return
 
         const pointType: unknown = feature.get('pointType')
         if (pointType === 'survey') {
@@ -194,7 +198,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
     map.on('singleclick', handleClick)
     return () => map.un('singleclick', handleClick)
-  }, [p.drawMode, p.measureMode, p.onIdentify, p.popupRef, p.mapInstance])
+  }, [p.drawMode, p.measureMode, p.onIdentify, p.popupRef, p.mapInstance, p.drawSourceRef])
 
   // ── Stakeout overlay refs (persist across renders) ──
   const stakeoutOverlayRef = useRef<import('ol/Overlay').default | null>(null)
@@ -206,38 +210,54 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   const [sketchHistory, setSketchHistory] = useState(emptySketchHistory)
   const activeSketch = useRef<ReturnType<typeof attachSketchHistory> | null>(null)
+  const activePath = useRef<MapPathDraw | null>(null)
+  const [canFinishPath, setCanFinishPath] = useState(false)
+  const toolRequest = useRef(0)
+  const finishPath = useCallback(() => { activePath.current?.finishIfReady() }, [])
   const removeDrawInteraction = useCallback(() => {
     activeSketch.current?.reset()
     activeSketch.current = null
     const draw = p.drawInteractionRef.current
     if (!draw) return
-    p.mapInstance.current?.removeInteraction(draw)
     p.drawInteractionRef.current = null
+    if (activePath.current === draw) {
+      activePath.current = null
+      setCanFinishPath(false)
+    }
+    p.mapInstance.current?.removeInteraction(draw)
   }, [p.mapInstance, p.drawInteractionRef])
+  const removeMeasureInteraction = useCallback(() => {
+    const draw = p.measureInteractionRef.current
+    if (!draw) return
+    p.measureInteractionRef.current = null
+    if (activePath.current === draw) {
+      activePath.current = null
+      setCanFinishPath(false)
+    }
+    p.mapInstance.current?.removeInteraction(draw)
+  }, [p.mapInstance, p.measureInteractionRef])
   const undoSketch = useCallback(() => activeSketch.current?.undo() ?? false, [])
   const redoSketch = useCallback(() => activeSketch.current?.redo() ?? false, [])
 
   // ── DRAW ──
   const toggleDraw = useCallback(async (mode: DrawMode) => {
-    if (!p.mapInstance.current) return
-    const { default: Draw } = await import('ol/interaction/Draw')
-    const { default: Style } = await import('ol/style/Style')
-    const { default: Fill } = await import('ol/style/Fill')
-    const { default: Stroke } = await import('ol/style/Stroke')
-    const { default: CircleStyle } = await import('ol/style/Circle')
+    const map = p.mapInstance.current
+    if (!map) return
+    const request = ++toolRequest.current
+    const [{ default: Draw }, { default: PathDraw }] = await Promise.all([
+      import('ol/interaction/Draw'), import('@/app/map/utils/MapPathDraw'),
+    ])
+    if (request !== toolRequest.current || p.mapInstance.current !== map) return
 
     if (p.measureMode !== 'none') {
-      if (p.measureInteractionRef.current) {
-        p.mapInstance.current.removeInteraction(p.measureInteractionRef.current)
-        p.measureInteractionRef.current = null
-      }
+      removeMeasureInteraction()
       if (p.measureSourceRef.current) p.measureSourceRef.current.clear()
       p.setMeasureMode('none')
       p.setMeasureResult('')
     }
     if (p.editMode) {
       if (p.modifyInteractionRef.current) {
-        p.mapInstance.current.removeInteraction(p.modifyInteractionRef.current)
+        map.removeInteraction(p.modifyInteractionRef.current)
         p.modifyInteractionRef.current = null
       }
       p.setEditMode(false)
@@ -260,18 +280,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (!source) return
 
     const geomType = mode as 'Point' | 'LineString' | 'Polygon' | 'Circle'
-    const draw = new Draw({
-      source,
-      type: geomType,
-      style: new Style({
-        fill: new Fill({ color: 'rgba(209, 123, 71,0.3)' }),
-        stroke: new Stroke({ color: '#D17B47', width: 2, lineDash: [8, 4] }),
-        image: new CircleStyle({ radius: 6, fill: new Fill({ color: '#D17B47' }), stroke: new Stroke({ color: '#fff', width: 2 }) }),
-      }),
-    })
-
-    if (geomType === 'LineString' || geomType === 'Polygon') {
-      activeSketch.current = attachSketchHistory(draw, setSketchHistory)
+    const style = createSketchStyle(p.sketchAppearanceRef, 'draft', geomType === 'LineString')
+    const path = geomType === 'LineString' || geomType === 'Polygon'
+      ? new PathDraw({ source, type: geomType, style }, setCanFinishPath)
+      : null
+    const draw = path ?? new Draw({ source, type: geomType, style })
+    if (path) {
+      activePath.current = path
+      activeSketch.current = attachSketchHistory(path, setSketchHistory)
     }
 
     draw.on('drawend', (e: DrawEvent) => {
@@ -302,22 +318,28 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       }
       p.selectInteractionRef.current?.getFeatures()?.clear()
       // OpenLayers emits drawend immediately before inserting the completed feature.
-      source.once('addfeature', p.pushHistory)
+      source.once('addfeature', () => p.pushHistory(e.feature))
+      if (path && p.drawInteractionRef.current === path) {
+        removeDrawInteraction()
+        p.setDrawMode('none')
+      }
     })
 
-    p.mapInstance.current.addInteraction(draw)
+    map.addInteraction(draw)
     p.drawInteractionRef.current = draw
     p.setDrawMode(mode)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction])
+  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction])
 
   // ── EDIT / MODIFY ──
   const toggleEdit = useCallback(async () => {
-    if (!p.mapInstance.current) return
+    const map = p.mapInstance.current
+    if (!map) return
+    const request = ++toolRequest.current
 
     if (p.editMode) {
       if (p.modifyInteractionRef.current) {
-        p.mapInstance.current.removeInteraction(p.modifyInteractionRef.current)
+        map.removeInteraction(p.modifyInteractionRef.current)
         p.modifyInteractionRef.current = null
       }
       p.setEditMode(false)
@@ -332,16 +354,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     removeDrawInteraction()
     p.setDrawMode('none')
     if (p.measureMode !== 'none') {
-      if (p.measureInteractionRef.current) {
-        p.mapInstance.current.removeInteraction(p.measureInteractionRef.current)
-        p.measureInteractionRef.current = null
-      }
+      removeMeasureInteraction()
       if (p.measureSourceRef.current) p.measureSourceRef.current.clear()
       p.setMeasureMode('none')
       p.setMeasureResult('')
     }
 
     const { default: Modify } = await import('ol/interaction/Modify')
+    if (request !== toolRequest.current || p.mapInstance.current !== map) return
     const source = p.drawSourceRef.current
     if (!source) return
 
@@ -352,11 +372,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       if (p.projectId) p.setSaveMsg('Vertices edited locally. Use Save drawing to write a checked project version; the local draft is retained.')
 
     })
-    p.mapInstance.current.addInteraction(modify)
+    map.addInteraction(modify)
     p.modifyInteractionRef.current = modify
     p.setEditMode(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction])
+  }, [p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction])
 
   // ── DELETE SELECTED ──
   const deleteSelected = useCallback(() => {
@@ -373,32 +393,31 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   // ── MEASURE ──
   const toggleMeasure = useCallback(async (mode: MeasureMode) => {
-    if (!p.mapInstance.current) return
+    const map = p.mapInstance.current
+    if (!map) return
+    const request = ++toolRequest.current
     const surveyCrs = epsg
     if (mode !== 'none' && mode !== p.measureMode && !surveyCrs) {
       p.setSaveMsg('Set the project CRS before calculating survey distances or areas.')
       return
     }
-    const { default: Draw } = await import('ol/interaction/Draw')
-    const { default: Style } = await import('ol/style/Style')
-    const { default: Fill } = await import('ol/style/Fill')
-    const { default: Stroke } = await import('ol/style/Stroke')
-    const { default: CircleStyle } = await import('ol/style/Circle')
+    const [{ default: PathDraw }, { default: Style }, { default: Fill }, { default: Stroke }, { default: CircleStyle }] = await Promise.all([
+      import('@/app/map/utils/MapPathDraw'), import('ol/style/Style'), import('ol/style/Fill'),
+      import('ol/style/Stroke'), import('ol/style/Circle'),
+    ])
+    if (request !== toolRequest.current || p.mapInstance.current !== map) return
 
     removeDrawInteraction()
     p.setDrawMode('none')
     if (p.editMode) {
       if (p.modifyInteractionRef.current) {
-        p.mapInstance.current.removeInteraction(p.modifyInteractionRef.current)
+        map.removeInteraction(p.modifyInteractionRef.current)
         p.modifyInteractionRef.current = null
       }
       p.setEditMode(false)
     }
 
-    if (p.measureInteractionRef.current) {
-      p.mapInstance.current.removeInteraction(p.measureInteractionRef.current)
-      p.measureInteractionRef.current = null
-    }
+    removeMeasureInteraction()
     if (p.measureSourceRef.current) p.measureSourceRef.current.clear()
     p.setMeasureResult('')
 
@@ -413,7 +432,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (!source) return
 
     const geomType = mode === 'distance' ? 'LineString' as const : 'Polygon' as const
-    const draw = new Draw({
+    const draw = new PathDraw({
       source,
       type: geomType,
       style: new Style({
@@ -421,14 +440,12 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         stroke: new Stroke({ color: '#60a5fa', width: 2, lineDash: [6, 4] }),
         image: new CircleStyle({ radius: 5, fill: new Fill({ color: '#60a5fa' }), stroke: new Stroke({ color: '#fff', width: 1.5 }) }),
       }),
-    })
-
-    draw.on('drawabort', () => {
-      p.setMeasureMode('none')
-      p.setMeasureResult('')
-    })
+    }, setCanFinishPath)
 
     draw.on('drawend', (evt: DrawEvent) => {
+      if (p.measureInteractionRef.current !== draw) return
+      removeMeasureInteraction()
+      p.setMeasureMode('none')
       const geom = evt.feature.getGeometry()
       if (!geom) return
       try {
@@ -455,14 +472,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       } catch (err) {
         p.setMeasureResult(`Measurement unavailable: ${err instanceof Error ? err.message : 'set the project CRS'}`)
       }
-      p.setMeasureMode('none')
     })
 
-    p.mapInstance.current.addInteraction(draw)
+    map.addInteraction(draw)
     p.measureInteractionRef.current = draw
+    activePath.current = draw
     p.setMeasureMode(mode)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.drawMode, p.editMode, p.measureMode, epsg, p.setSaveMsg])
+  }, [p.drawMode, p.editMode, p.measureMode, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction])
 
   // ── EXPORT ──
   const { hasFeature, drawSourceRef, projectId, setSaveMsg } = p
@@ -1097,6 +1114,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
   return {
     sketchHistory,
+    canFinishPath,
+    finishPath,
     undoSketch,
     redoSketch,
     toggleDraw,

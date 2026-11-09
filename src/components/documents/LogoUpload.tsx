@@ -16,7 +16,7 @@ import type { PlanId } from '@/lib/subscription/catalog';
 import SubscriptionBadge from '@/components/SubscriptionBadge';
 import { logger } from '@/lib/logger'
 
-interface LogoInfo {
+export interface LogoInfo {
   id: string;
   filename: string;
   mimeType: string;

@@ -1,4 +1,6 @@
 'use client'
+
+import { linePointerShapes } from '@/app/map/utils/sketchAppearance'
 /** Shared desktop/mobile tool groups with one scrollable context panel at a time. */
 
 import React, { memo, useState, useCallback, useEffect, useMemo } from 'react'
@@ -29,6 +31,7 @@ import { SchemeLayerPanel } from './SchemeLayerPanel'
 import { ManualPointEntry } from './ManualPointEntry'
 import { MapBasemapBar } from './MapWorkspaceHeader'
 import { MapCoordSearch } from './MapCoordSearch'
+import { MapCaptureBranding } from './MapCaptureBranding'
 import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
 import { useSearchParams } from 'next/navigation'
@@ -226,7 +229,9 @@ export const ReconContent = memo(function ReconContent({ onFitProject }: { onFit
   )
 })
 
-export const CaptureContent = memo(function CaptureContent({ onPointSaved }: { onPointSaved: () => void }) {
+export const CaptureContent = memo(function CaptureContent({
+  onPointSaved, onSketchStart,
+}: { onPointSaved: () => void; onSketchStart: () => void }) {
   const ctx = useMapContext()
   const { selectedFeature, currentSurveyCrs, schemeProjectId } = ctx
   const viewCrs = ctx.mapInstance.current?.getView().getProjection().getCode() ?? null
@@ -246,22 +251,17 @@ export const CaptureContent = memo(function CaptureContent({ onPointSaved }: { o
       </div>
       <SectionLabel>Map sketch</SectionLabel>
       <p className="px-1 pb-1 text-xs text-[var(--text-secondary)]">Sketches stay in the drawing. Use Project points for field records.</p>
-      {ctx.drawMode !== 'none' && <p role="status" className="px-1 pb-1 text-xs text-[var(--text-secondary)]">
-        {ctx.drawMode === 'Point' ? 'Tap the map to place a sketch point.'
-          : ctx.drawMode === 'Circle' ? 'Tap a center, then tap the edge.'
-          : 'Tap to add vertices. Double-tap or double-click to finish.'}
-      </p>}
       <div className="grid grid-cols-3 gap-1.5">
         <ToolBtn label="Sketch point"   icon={<MapPin className="w-5 h-5" />}  isActive={ctx.drawMode === 'Point'}      onClick={() => ctx.toggleDraw('Point')}      />
-        <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => ctx.toggleDraw('LineString')} />
-        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => ctx.toggleDraw('Polygon')}    />
+        <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => { ctx.toggleDraw('LineString'); onSketchStart() }} />
+        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => { ctx.toggleDraw('Polygon'); onSketchStart() }}    />
         <ToolBtn label="Circle"  icon={<Circle className="w-5 h-5" />}  isActive={ctx.drawMode === 'Circle'}     onClick={() => ctx.toggleDraw('Circle')}     />
       </div>
 
       <SectionLabel>Measure</SectionLabel>
       <div className="grid grid-cols-2 gap-1.5">
-        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />}  isActive={ctx.measureMode === 'distance'} onClick={() => ctx.toggleMeasure(ctx.measureMode === 'distance' ? 'none' : 'distance')} />
-        <ToolBtn label="Area"     icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'}     onClick={() => ctx.toggleMeasure(ctx.measureMode === 'area' ? 'none' : 'area')}         />
+        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />}  isActive={ctx.measureMode === 'distance'} onClick={() => { ctx.toggleMeasure('distance'); onSketchStart() }} />
+        <ToolBtn label="Area"     icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'}     onClick={() => { ctx.toggleMeasure('area'); onSketchStart() }}         />
       </div>
       {ctx.measureResult && (
         <div className="mt-1 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
@@ -350,6 +350,10 @@ export const CaptureContent = memo(function CaptureContent({ onPointSaved }: { o
         onClick={() => ctx.setShowSnappingOptions(!ctx.showSnappingOptions)}
       />
 
+      {ctx.selectedFeature && (
+        <ActionBtn label="Fit selected sketch" icon={<Crosshair className="h-4 w-4" />}
+          isActive={false} onClick={ctx.fitSelectedSketch} />
+      )}
       {ctx.selectedFeature && (
         <div className="mt-1 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06] space-y-1.5">
           <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.15em] font-semibold">Feature Name</span>
@@ -474,7 +478,7 @@ export const SetOutContent = memo(function SetOutContent() {
 export const LayersContent = memo(function LayersContent() {
   const {
     mapInstance, basemap, toggleBasemap, setOfflineDialogOpen,
-    layerOpacity, handleOpacityChange,
+    layerOpacity, handleOpacityChange, sketchAppearance, setSketchAppearance,
     showOsmBuildings, toggleOsmBuildings,
     hasProjectId, featureCount, currentSurveyCrs,
   } = useMapContext()
@@ -547,8 +551,13 @@ export const LayersContent = memo(function LayersContent() {
 
   return (
     <div className="space-y-0.5">
-      <div className="map-layer-tabs" role="group" aria-label="Layer groups">
-        {(['base', 'survey', 'reference'] as const).map(group => <button type="button" key={group} aria-pressed={section === group} onClick={() => setSection(group)}>{group.charAt(0).toUpperCase() + group.slice(1)}</button>)}
+      <div className="map-layer-tabs mb-2 flex flex-wrap gap-1" role="group" aria-label="Layer groups">
+        {(['base', 'survey', 'reference'] as const).map(group => (
+          <button type="button" key={group} aria-pressed={section === group} onClick={() => setSection(group)}
+            className="min-h-11 rounded-lg border border-transparent px-3 text-xs text-[var(--text-secondary)] aria-pressed:border-[var(--border-color)] aria-pressed:bg-white/[0.08] aria-pressed:text-[var(--text-primary)]">
+            {group.charAt(0).toUpperCase() + group.slice(1)}
+          </button>
+        ))}
       </div>
       <div hidden={section !== 'base'}>
       <SectionLabel>Downloaded Basemaps</SectionLabel>
@@ -599,6 +608,33 @@ export const LayersContent = memo(function LayersContent() {
       <ActionBtn label="Download Tiles" icon={<Download className="w-4 h-4" />} isActive={false} onClick={() => setOfflineDialogOpen(true)} />
       </div>
       <div hidden={section !== 'survey'}>
+        <SectionLabel>Sketch appearance</SectionLabel>
+        <div className="mb-3 space-y-2 px-1">
+          <label className="block text-xs text-[var(--text-secondary)]">
+            <span className="flex justify-between gap-2">Line opacity <span aria-hidden="true">{sketchAppearance.lineOpacity}%</span></span>
+            <input type="range" min={10} max={100} step={5} value={sketchAppearance.lineOpacity}
+              aria-label="Line opacity" aria-valuetext={sketchAppearance.lineOpacity + '%'}
+              onChange={event => setSketchAppearance({ ...sketchAppearance, lineOpacity: event.currentTarget.valueAsNumber })}
+              className="h-11 w-full accent-[#D17B47]" />
+          </label>
+          <label className="block text-xs text-[var(--text-secondary)]">
+            Line pointer shape
+            <select value={sketchAppearance.linePointerShape} className="input mt-1 min-h-11 w-full capitalize"
+              onChange={event => {
+                const shape = linePointerShapes.find(option => option === event.currentTarget.value)
+                if (shape) setSketchAppearance({ ...sketchAppearance, linePointerShape: shape })
+              }}>
+              {linePointerShapes.map(shape => <option key={shape} value={shape}>{shape.charAt(0).toUpperCase() + shape.slice(1)}</option>)}
+            </select>
+          </label>
+          <label className="block text-xs text-[var(--text-secondary)]">
+            <span className="flex justify-between gap-2">Sketch point size <span aria-hidden="true">{sketchAppearance.pointSize} px</span></span>
+            <input type="range" min={6} max={28} step={1} value={sketchAppearance.pointSize}
+              aria-label="Sketch point size" aria-valuetext={sketchAppearance.pointSize + ' pixels'}
+              onChange={event => setSketchAppearance({ ...sketchAppearance, pointSize: event.currentTarget.valueAsNumber })}
+              className="h-11 w-full accent-[#D17B47]" />
+          </label>
+        </div>
         <p className="mb-3 text-xs text-[var(--text-secondary)]">{featureCount} drawn feature{featureCount === 1 ? '' : 's'}. Import GeoJSON, KML or WKT by dropping a file onto the map.</p>
         {hasProjectId ? <SchemeLayerPanel /> : <p className="text-xs leading-relaxed text-[var(--text-muted)]">Open the map from a project to load its parcels, blocks and beacons. <a href="/projects" className="text-[var(--accent)] underline">Choose a project</a></p>}
       </div>
@@ -615,7 +651,7 @@ export const LayersContent = memo(function LayersContent() {
 })
 
 export const ExportContent = memo(function ExportContent() {
-  const { saveToProject, exportFeatures, clearDrawn, featureCount, printMap, isPrinting } = useMapContext()
+  const { saveToProject, exportFeatures, clearDrawn, featureCount, printMap, captureMap, isPrinting } = useMapContext()
   const searchParams = useSearchParams()
   const projectId = searchParams.get('projectId')
 
@@ -638,8 +674,12 @@ export const ExportContent = memo(function ExportContent() {
         <button onClick={() => exportFeatures('LandXML')} className="col-span-2 px-2 py-1.5 rounded-lg border border-white/[0.06] text-[10px] font-medium text-[var(--text-secondary)] hover:bg-white/[0.04] hover:text-[var(--text-primary)] transition-all">LandXML</button>
       </div>
 
-      <SectionLabel>Print / PDF</SectionLabel>
-      <ActionBtn label={isPrinting ? 'Generating…' : 'Print / PDF'} icon={<Printer className="w-4 h-4" />} isActive={isPrinting} onClick={() => printMap()} />
+      <SectionLabel>Current map</SectionLabel>
+      <ActionBtn label={isPrinting ? 'Preparing map…' : 'Capture map (PNG)'} icon={<Download className="w-4 h-4" />}
+        isActive={false} disabled={isPrinting} onClick={() => void captureMap()} />
+      <ActionBtn label="Print / PDF" icon={<Printer className="w-4 h-4" />}
+        isActive={false} disabled={isPrinting} onClick={() => void printMap()} />
+      <MapCaptureBranding />
 
       {featureCount > 0 && (
         <>
@@ -674,7 +714,12 @@ export const MapToolDock = memo(function MapToolDock({
   const {
     drawMode, editMode, measureMode, gpsTracking, stakeoutActive, schemeProjectId, currentSurveyCrs,
     hasTraverse, showAnnotations, undo, redo, canUndo, canRedo, sketchHistory,
+    canFinishPath, finishPath, toggleDraw, toggleMeasure, measureResult,
   } = useMapContext()
+  const finishLabel = measureMode === 'area' ? 'Finish area' : measureMode === 'distance' ? 'Finish distance'
+    : drawMode === 'LineString' ? 'Finish line' : drawMode === 'Polygon' ? 'Finish polygon' : null
+  const sketchActive = drawMode !== 'none' || measureMode !== 'none'
+  const closePanel = useCallback(() => setOpenPanel(null), [])
 
   const togglePanel = useCallback((cat: DockCategory) => {
     if (cat !== 'layers') onExpandedChange?.(true)
@@ -710,7 +755,7 @@ export const MapToolDock = memo(function MapToolDock({
   const renderPanelContent = (cat: DockCategory) => {
     switch (cat) {
       case 'recon':   return <ReconContent onFitProject={onFitProject} />
-      case 'capture': return <CaptureContent onPointSaved={onPointSaved} />
+      case 'capture': return <CaptureContent onPointSaved={onPointSaved} onSketchStart={closePanel} />
       case 'compute': return <ComputeContent />
       case 'setout':  return <SetOutContent key={(schemeProjectId ?? '') + ':' + (currentSurveyCrs ?? '')} />
       case 'layers':  return <LayersContent />
@@ -776,8 +821,25 @@ export const MapToolDock = memo(function MapToolDock({
       })()}
 
       {/* Horizontal tool bar / dock */}
-      {expanded && (
+      {(expanded || sketchActive || measureResult) && (
         <div id="map-mobile-tool-groups" className="map-tools-dock">
+          {sketchActive ? (
+            <div className="flex flex-wrap items-center gap-x-2 border-t border-[var(--border-color)] px-2" role="group" aria-label="Active sketch">
+              <p className="flex-1 text-xs text-[var(--text-secondary)]" role="status">
+                {measureMode === 'area' ? 'Double-tap the last vertex or the start to close the area.'
+                  : finishLabel ? 'Double-tap the last vertex to finish.'
+                  : drawMode === 'Point' ? 'Tap to place a point.' : 'Tap the centre, then the edge.'}
+              </p>
+              {finishLabel && <button type="button" className="btn btn-secondary min-h-11" disabled={!canFinishPath} onClick={finishPath}>{finishLabel}</button>}
+              <button type="button" className="btn btn-secondary min-h-11" onClick={() => {
+                if (measureMode !== 'none') toggleMeasure('none')
+                else toggleDraw('none')
+              }}>Cancel sketch</button>
+            </div>
+          ) : measureResult && openPanel !== 'capture' && (
+            <p role="status" className="border-t border-[var(--border-color)] px-3 py-2 text-xs font-mono">{measureResult}</p>
+          )}
+          {expanded && <>
           <div className="map-sketch-history" role="group" aria-label="Sketch history">
             <button type="button" onClick={undo} disabled={!canUndo}
               title={sketchHistory ? 'Undo last vertex (Ctrl+Z)' : 'Undo sketch edit (Ctrl+Z)'}>
@@ -819,6 +881,7 @@ export const MapToolDock = memo(function MapToolDock({
             <span className="text-[10px]">Hide</span>
           </button>
           </div>
+          </>}
         </div>
       )}
     </>

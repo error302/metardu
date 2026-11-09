@@ -8,6 +8,8 @@
 
 import React, { useEffect, useRef, useState, useCallback, useMemo } from 'react'
 import { logger } from '@/lib/logger'
+import { renderSketchPointEditor, type SketchPointEditor } from '@/app/map/utils/sketchPointDetails'
+import { defaultSketchAppearance } from '@/app/map/utils/sketchAppearance'
 import { useMapHistory } from '@/hooks/useMapHistory'
 import type { MapContext } from '@/hooks/useMapTypes'
 import MapErrorBoundary from '@/app/map/MapErrorBoundary'
@@ -84,12 +86,13 @@ function renderPopup(popupElement: HTMLDivElement, data: {
   geometryType?: string
   projectId?: string
   onDelete?: () => void
+  pointEditor?: SketchPointEditor
 }, hidePopup: () => void) {
   popupElement.replaceChildren()
   popupElement.className = ''
 
   const card = document.createElement('div')
-  card.className = 'bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[320px]'
+  card.className = 'bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl shadow-2xl backdrop-blur-xl p-4 min-w-[220px] max-w-[320px] max-h-[min(55dvh,440px)] overflow-y-auto'
 
   const header = document.createElement('div')
   header.className = 'flex items-start justify-between mb-2'
@@ -144,11 +147,20 @@ function renderPopup(popupElement: HTMLDivElement, data: {
   // FIX (2026-08-30): selection popup previously had no way to remove a wrong
   // point — Delete existed only via the tool dock / Del key (unavailable on
   // mobile). Add a delete action directly in the popup.
+  if (data.pointEditor) {
+    const details = document.createElement('details')
+    const summary = document.createElement('summary')
+    summary.className = 'mb-2 cursor-pointer py-2 text-sm font-medium'
+    summary.textContent = 'Edit point details'
+    details.append(summary, renderSketchPointEditor(data.pointEditor, hidePopup))
+    card.append(details)
+  }
+
   if (data.onDelete) {
     const deleteBtn = document.createElement('button')
     deleteBtn.type = 'button'
     deleteBtn.className = 'mt-3 w-full py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--error)_15%,transparent)] border border-[color-mix(in_srgb,var(--error)_40%,transparent)] text-[11px] font-medium text-[var(--error)] hover:bg-[color-mix(in_srgb,var(--error)_25%,transparent)] transition-colors'
-    deleteBtn.textContent = 'Remove point'
+    deleteBtn.textContent = data.geometryType === 'Point' ? 'Remove point' : 'Remove sketch'
     deleteBtn.addEventListener('click', () => {
       data.onDelete?.()
       hidePopup()
@@ -173,7 +185,8 @@ function MapWorkspace() {
   const router = useRouter()
   const isMobile = useIsMobile()
   const searchParams = useSearchParams()
-  const { hasFeature } = useSubscription()
+  const { hasFeature, plan, loading: subscriptionLoading } = useSubscription()
+  const [preferCompanyLogo, setPreferCompanyLogo] = useState(true)
 
   // ── Map refs ──
   const mapRef = useRef<HTMLDivElement>(null)
@@ -185,7 +198,7 @@ function MapWorkspace() {
   // ── OL layer/interaction refs ──
   const drawSourceRef = useRef<import('ol/source/Vector').default | null>(null)
   const drawLayerRef = useRef<import('ol/layer/Vector').default | null>(null)
-  const drawInteractionRef = useRef<import('ol/interaction').Interaction | null>(null)
+  const drawInteractionRef = useRef<import('ol/interaction/Draw').default | null>(null)
   const selectInteractionRef = useRef<import('ol/interaction/Select').default | null>(null)
   const modifyInteractionRef = useRef<import('ol/interaction').Interaction | null>(null)
   const measureInteractionRef = useRef<import('ol/interaction').Interaction | null>(null)
@@ -231,6 +244,13 @@ function MapWorkspace() {
   const [featureName, setFeatureName] = useState('')
   const [measureResult, setMeasureResult] = useState('')
   const [layerOpacity, setLayerOpacity] = useState(1)
+  const [sketchAppearance, setSketchAppearance] = useState(defaultSketchAppearance)
+  const sketchAppearanceRef = useRef(sketchAppearance)
+  useEffect(() => {
+    sketchAppearanceRef.current = sketchAppearance
+    drawLayerRef.current?.changed()
+    drawInteractionRef.current?.getOverlay().changed()
+  }, [sketchAppearance])
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number } | null>(null)
   const [stakeoutActive, setStakeoutActive] = useState(false)
   const [stakeoutState, setStakeoutState] = useState<StakeoutState | null>(null)
@@ -293,6 +313,7 @@ function MapWorkspace() {
     setMeasureResult,
     setFeatureCount,
     setSelectedFeature,
+    setSelectedFeatures,
     setFeatureName,
     pushHistory: () => {},
   }), [])
@@ -326,6 +347,7 @@ function MapWorkspace() {
     setFeatureName,
     mouseCoordThrottleRef,
     searchParams,
+    sketchAppearanceRef,
     pushHistory,
     drawSourceRef,
     drawLayerRef,
@@ -424,6 +446,7 @@ function MapWorkspace() {
 
   const interactions = useMapInteractions({
     mapInstance,
+    sketchAppearanceRef,
     drawSourceRef,
     drawLayerRef,
     drawInteractionRef,
@@ -556,6 +579,17 @@ function MapWorkspace() {
   const inSketchHistory = sketchHistory.canUndo || sketchHistory.canRedo
   const canUndo = inSketchHistory ? sketchHistory.canUndo : canUndoCompleted
   const canRedo = inSketchHistory ? sketchHistory.canRedo : canRedoCompleted
+  const fitSelectedSketch = useCallback(() => {
+    const geometry = selectedFeature?.getGeometry()
+    if (!geometry || !selectedFeature || !drawSourceRef.current?.hasFeature(selectedFeature)) {
+      setSaveMsg('Select a map sketch to fit it in view.')
+      return
+    }
+    const extent = geometry.getExtent()
+    if (!extent.every(Number.isFinite)) return
+    mapInstance.current?.getView().fit(extent, { padding: [72, 36, 72, 36], maxZoom: 20, duration: 260 })
+  }, [selectedFeature])
+
   const onFitProject = useCallback(() => {
     if (!fitProjectPoints()) setSaveMsg('No project points are available to fit. Check the point register or map connection.')
   }, [fitProjectPoints])
@@ -642,8 +676,8 @@ function MapWorkspace() {
   }, [interactions])
 
   // ── Print/sheet-layout flow (Phase 5: extracted to useMapPrintFlow) ──
-  const { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, printApi, isPrinting } =
-    useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceRef, currentSurveyCrs, onError: setSaveMsg })
+  const { showSheetLayout, setShowSheetLayout, printPlanGeometry, handlePrintMap, captureMap, printApi, isPrinting } =
+    useMapPrintFlow({ mapInstance, attributionTargetRef, drawSourceRef, currentSurveyCrs, useCompanyLogo: !subscriptionLoading && plan !== 'free' && preferCompanyLogo, onError: setSaveMsg })
 
   // ── Offline dialog toggle (async: resolves map extent when opening) ──
   const handleToggleOfflineDialog = useCallback(async (open: boolean) => {
@@ -787,6 +821,8 @@ function MapWorkspace() {
     setSnapTolerance,
     setShowSheetLayout,
     toggleDraw: interactions.toggleDraw,
+    canFinishPath: interactions.canFinishPath,
+    finishPath: interactions.finishPath,
     toggleEdit: interactions.toggleEdit,
     toggleMeasure: interactions.toggleMeasure,
     toggleAnnotations: interactions.toggleAnnotations,
@@ -795,10 +831,13 @@ function MapWorkspace() {
     startStakeout: interactions.activateStakeout,
     deleteSelected: interactions.deleteSelected,
     sketchHistory: inSketchHistory,
+    sketchAppearance,
+    setSketchAppearance,
     undo,
     redo,
     fitToKenya: interactions.fitToKenya,
     fitToDrawn: interactions.fitToDrawn,
+    fitSelectedSketch,
     saveToProject: interactions.saveToProject,
     exportFeatures: interactions.exportFeatures,
     clearDrawn: interactions.clearDrawn,
@@ -819,6 +858,9 @@ function MapWorkspace() {
     cancelTraverseParcel: handleCancelTraverseParcel,
     selectSurveyGrid: handleSurveyGridSelection,
     printMap: handlePrintMap,
+    captureMap,
+    preferCompanyLogo,
+    setPreferCompanyLogo,
     toggleOfflineDialog: handleToggleOfflineDialog,
   }), [
     mapInstance, popupRef, mapReady, initError, projectCount, basemap, drawMode,
@@ -834,7 +876,7 @@ function MapWorkspace() {
     gpsPosInSurveyCrs,
     unlinkedSurveyCrs, currentSurveyCrs, setSaveMsg, applyOneShotTool, showSheetLayout, isPrinting,
     paperSize, orientation, offlineMapExtent,
-    hasFeature, canUndo, canRedo, inSketchHistory,
+    hasFeature, canUndo, canRedo, inSketchHistory, sketchAppearance,
     setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
     setOrientation, setPaperSize,
     setVertexEditingEnabled, setSnapEnabled, setSnapTolerance, setShowSheetLayout,
@@ -844,7 +886,7 @@ function MapWorkspace() {
     toggleSchemeBeaconVisibility, zoomToScheme, removeScheme,
     handleCreateParcelFromTraverse, handleConfirmTraverseParcel,
     handleCancelTraverseParcel, handleSurveyGridSelection, handlePrintMap,
-    handleToggleOfflineDialog,
+    handleToggleOfflineDialog, captureMap, preferCompanyLogo, fitSelectedSketch,
     undo, redo,
   ])
 
