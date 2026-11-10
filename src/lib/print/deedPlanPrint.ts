@@ -46,7 +46,7 @@ function blank(value: string | number | undefined | null): string {
 
 interface ScaledPoint { x: number; y: number; id: string; markType: string; markStatus: string }
 
-function drawParcelSVG(points: BoundaryPoint[], legs: BoundaryLeg[], scale: number): string {
+function drawParcelSVG(points: BoundaryPoint[], legs: BoundaryLeg[]): string {
   if (points.length < 3) {
     return `<svg viewBox="0 0 600 500" xmlns="http://www.w3.org/2000/svg">
       <text x="300" y="250" text-anchor="middle" font-size="14" fill="#999">Add at least 3 boundary points</text>
@@ -198,7 +198,7 @@ function drawParcelSVG(points: BoundaryPoint[], legs: BoundaryLeg[], scale: numb
   <text x="${sbx}" y="${sby+14}" font-size="7" font-family="Arial, sans-serif" fill="#000">0</text>
   <text x="${(sbx + barPx/2).toFixed(1)}" y="${sby+14}" text-anchor="middle" font-size="7" font-family="Arial, sans-serif" fill="#000">${(niceDist/2).toFixed(niceDist < 1 ? 2 : 0)}</text>
   <text x="${(sbx + barPx).toFixed(1)}" y="${sby+14}" text-anchor="end" font-size="7" font-family="Arial, sans-serif" fill="#000">${niceDist >= 1000 ? (niceDist/1000)+'km' : niceDist+'m'}</text>
-  <text x="${sbx}" y="${sby-4}" font-size="7" font-family="Arial, sans-serif" fill="#555">Scale 1:${scale.toLocaleString()}</text>
+  <text x="${sbx}" y="${sby-4}" font-size="7" font-family="Arial, sans-serif" fill="#555">Fit to sheet</text>
 </g>`
 
   // Grid reference label (bottom right of drawing)
@@ -239,12 +239,11 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
   const areaSqm = computeArea(pts)
   const closure = computeClosureCheck(pts)
 
-  const planSvg = drawParcelSVG(pts, legs, input.scale)
+  const planSvg = drawParcelSVG(pts, legs)
 
-  const today = new Date().toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })
   const survDate = input.surveyDate
     ? new Date(input.surveyDate).toLocaleDateString('en-KE', { day: '2-digit', month: 'long', year: 'numeric' })
-    : today
+    : ''
 
   // ── Bearing & Distance schedule rows ───────────────────────────────────────
   const legRows = legs.map((l, i) => `
@@ -266,9 +265,6 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
   <td>${esc(p.markType.replace(/_/g, ' '))}</td>
   <td class="center">${esc(p.markStatus)}</td>
 </tr>`).join('')
-
-  // ── Closure status ─────────────────────────────────────────────────────────
-  const closureText  = closure.passes ? 'PASS' : 'FAIL'
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -469,7 +465,7 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
     <div class="plan-label">
       BOUNDARY IDENTIFICATION PLAN &nbsp;|&nbsp; ${blank(input.parcelNumber)} &nbsp;|&nbsp;
       ${blank(input.locality)}, ${blank(input.county)} &nbsp;|&nbsp;
-      Scale 1:${input.scale.toLocaleString()} &nbsp;|&nbsp; ${blank(input.datum)}
+      Draft for review · fit to sheet &nbsp;|&nbsp; ${blank(input.datum)}
     </div>
     <div class="plan-drawing">
       ${planSvg}
@@ -624,30 +620,22 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
     <div>
       <div class="closure-row">
         <span>Precision ratio:</span>
-        <span class="bold mono">${closure.precisionRatio}</span>
+        <span>Not verified from field observations</span>
       </div>
       <div class="closure-row">
         <span>Perimeter:</span>
         <span class="mono">${closure.perimeter.toFixed(3)} m</span>
-      </div>
-      <div class="closure-row">
-        <span>Closure check (min 1:5000 — Survey Act Cap 299):</span>
-        <span class="${closure.passes ? 'closure-pass' : 'closure-fail'}">${closureText}</span>
       </div>
     </div>
 
     <!-- Surveyor's Certificate -->
     <div class="cert-block">
       <div>
-        <div class="cert-title">Surveyor's Certificate — Survey Regulations 1994, Reg. 3(2)</div>
+        <div class="cert-title">Surveyor's Certificate — unsigned draft</div>
         <div class="cert-text">
-          I, ${input.surveyorName ? esc(input.surveyorName) : '______________________________'},
-          Licensed Surveyor No. ${input.iskNumber ? esc(input.iskNumber) : '____________'},
-          of ${input.firmName ? esc(input.firmName) : '______________________________'},
-          hereby certify that this plan was prepared by me and that the survey was carried out
-          in accordance with the Survey Act Cap 299 and Kenya Survey Regulations 1994.
-          The boundary marks were ${pts.some(p => p.markStatus === 'SET') ? 'set' : 'identified'}
-          on the ground on ${blank(survDate)}.
+          Prepared for review by ${blank(input.surveyorName)}, ${blank(input.firmName)}.
+          ISK membership number: ${blank(input.iskNumber)}. Survey licence: to be verified.
+          Review the original observations and boundary marks before signing.
         </div>
       </div>
       <div class="cert-sig-grid">

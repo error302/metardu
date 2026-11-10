@@ -1,5 +1,9 @@
 'use client';
 
+import { Suspense } from 'react';
+import { useSearchParams } from 'next/navigation';
+import Link from 'next/link';
+
 import {
   MapPin,
   Plus,
@@ -25,9 +29,19 @@ import { TemplatesModal } from './TemplatesModal';
 // ────────────────────────────────────────────────────────────────
 
 export default function RimEditorPage() {
-  const rim = useRimState();
+  return <Suspense fallback={<p className="p-6" role="status">Loading RIM registers…</p>}><RimProjectEntry /></Suspense>;
+}
+
+function RimProjectEntry() {
+  const projectId = useSearchParams().get('projectId') ?? '';
+  return <RimEditor key={projectId} projectId={projectId} />;
+}
+
+function RimEditor({ projectId }: { projectId: string }) {
+  const rim = useRimState(projectId);
   const {
     authChecked,
+    mutating,
     toast,
     setToast,
     selectedProjectId,
@@ -77,13 +91,11 @@ export default function RimEditorPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row flex-wrap sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text-primary)]">RIM Editor</h1>
+          <h1 className="text-2xl font-bold text-[var(--text-primary)]">RIM register</h1>
           <p className="text-sm text-[var(--text-muted)] mt-1">
-            Resurvey and Index Map — Kenya Cadastral Document System
+            Record parcels and beacons for a project and export the schedules as a draft PDF.
           </p>
-          <p className="text-xs text-[var(--text-muted)] mt-0.5">
-            Survey Act Cap 299 · Survey Regulations L.N. 168/1994
-          </p>
+          <Link href={projectId ? '/project/' + encodeURIComponent(projectId) + '/documents' : '/reports'} className="mt-2 inline-block text-sm text-[var(--accent)] underline">Back to documents</Link>
         </div>
         <div className="flex items-center gap-2">
           {selectedProjectId && (
@@ -93,7 +105,7 @@ export default function RimEditorPage() {
             </button>
           )}
           {selectedProjectId && (
-            <button onClick={handleCreateSection} className="btn btn-primary">
+            <button onClick={handleCreateSection} disabled={mutating} className="btn btn-primary">
               <Plus className="w-4 h-4" />
               New Section
             </button>
@@ -202,14 +214,14 @@ export default function RimEditorPage() {
             <EmptyState
               icon={<Gem className="w-6 h-6" />}
               title="No RIM sections yet"
-              description="Create a new blank section or start from one of 10 Kenya-specific templates to get started quickly."
+              description="Create a new blank section or start from a template with section details to get started quickly."
               action={
                 <div className="flex items-center gap-2">
                   <button onClick={handleOpenTemplates} className="btn btn-secondary">
                     <LayoutTemplate className="w-4 h-4" />
                     From Template
                   </button>
-                  <button onClick={handleCreateSection} className="btn btn-primary">
+                  <button onClick={handleCreateSection} disabled={mutating} className="btn btn-primary">
                     <Plus className="w-4 h-4" />
                     Blank Section
                   </button>

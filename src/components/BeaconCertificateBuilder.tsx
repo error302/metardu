@@ -25,6 +25,7 @@ const MONUMENT_TYPES: MonumentType[] = [
 ]
 
 const CONDITIONS: { value: BeaconCondition; label: string; color: string }[] = [
+  { value: 'UNRECORDED', label: 'Not recorded', color: 'text-gray-400' },
   { value: 'SET',       label: 'SET',       color: 'text-emerald-400' },
   { value: 'FOUND',     label: 'FOUND',     color: 'text-blue-400'    },
   { value: 'DISTURBED', label: 'DISTURBED', color: 'text-amber-400'   },
@@ -33,6 +34,7 @@ const CONDITIONS: { value: BeaconCondition; label: string; color: string }[] = [
 ]
 
 const CONDITION_BADGE: Record<BeaconCondition, string> = {
+  UNRECORDED: 'bg-gray-800 text-gray-400 border-gray-600',
   SET:       'bg-emerald-900/40 text-emerald-300 border-emerald-700',
   FOUND:     'bg-blue-900/40 text-blue-300 border-blue-700',
   DISTURBED: 'bg-amber-900/40 text-amber-300 border-amber-700',
@@ -48,7 +50,7 @@ function makeBeacon(): BeaconEntry {
     id:               String(_nextId++),
     name:             '',
     monumentType:     'Iron Pin',
-    condition:        'SET',
+    condition:        'UNRECORDED',
     easting:          '',
     northing:         '',
     elevation:        '',
@@ -61,8 +63,9 @@ function makeBeacon(): BeaconEntry {
 
 export default function BeaconCertificateBuilder() {
   const uid = useId()
-  const [beacons, setBeacons]       = useState<BeaconEntry[]>([makeBeacon(), makeBeacon(), makeBeacon()])
+  const [beacons, setBeacons]       = useState<BeaconEntry[]>(() => [makeBeacon()])
   const [expandedId, setExpandedId] = useState<string | null>(beacons[0]?.id ?? null)
+  const [coordinateReference, setCoordinateReference] = useState('')
   const [printMeta, setPrintMeta]   = useState<PrintMeta>(defaultPrintMeta)
   const [location, setLocation]     = useState({
     parcelRef:   '',
@@ -94,17 +97,20 @@ export default function BeaconCertificateBuilder() {
 
   // ── Print ──────────────────────────────────────────────────────────────
 
+  const completed = beacons.filter(beacon => beacon.name.trim() && beacon.easting.trim() && beacon.northing.trim()
+    && Number.isFinite(Number(beacon.easting)) && Number.isFinite(Number(beacon.northing))
+    && (!beacon.elevation.trim() || Number.isFinite(Number(beacon.elevation))))
+  const hasIncomplete = beacons.some(beacon => [beacon.name, beacon.easting, beacon.northing, beacon.elevation, beacon.description, beacon.adjacentFeatures].some(value => value.trim()) && !completed.includes(beacon))
+  const canExport = Boolean(coordinateReference.trim() && completed.length && !hasIncomplete)
   const handlePrint = () => {
-    printBeaconCertificate({ meta: printMeta, location, beacons })
+    if (canExport) printBeaconCertificate({ meta: printMeta, location, coordinateReference: coordinateReference.trim(), beacons: completed })
   }
 
-  // ── Stats ──────────────────────────────────────────────────────────────
-
   const stats = {
-    set:       beacons.filter(b => b.condition === 'SET').length,
-    found:     beacons.filter(b => b.condition === 'FOUND').length,
-    disturbed: beacons.filter(b => b.condition === 'DISTURBED').length,
-    destroyed: beacons.filter(b => b.condition === 'DESTROYED').length,
+    set: completed.filter(b => b.condition === 'SET').length,
+    found: completed.filter(b => b.condition === 'FOUND').length,
+    disturbed: completed.filter(b => b.condition === 'DISTURBED').length,
+    destroyed: completed.filter(b => b.condition === 'DESTROYED').length,
   }
 
   // ── Render ─────────────────────────────────────────────────────────────
@@ -116,7 +122,7 @@ export default function BeaconCertificateBuilder() {
       <div className="card">
         <div className="card-header">
           <span className="label">Location Particulars</span>
-          <span className="text-xs text-[var(--text-muted)] ml-2">Survey Regulations 1994, Reg. 20</span>
+
         </div>
         <div className="p-4 grid grid-cols-2 md:grid-cols-3 gap-3">
           {([
@@ -365,7 +371,7 @@ export default function BeaconCertificateBuilder() {
           <span className="label">Print Certificate</span>
         </div>
         <div className="p-4 space-y-4">
-          <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} />
+          <PrintMetaPanel meta={printMeta} onChange={setPrintMeta} description="Project, surveyor and instrument details for the draft" />
 
           {/* Preview of what's included */}
           <div className="p-4 bg-[color-mix(in_srgb,var(--bg-tertiary)_50%,transparent)] rounded border border-[var(--border-color)] text-xs space-y-1.5">
@@ -379,33 +385,34 @@ export default function BeaconCertificateBuilder() {
               <p> 6 standard notes (coordinate system, datum, definitions)</p>
               <p> Surveyor&apos;s Certificate — Survey Regulations 1994, Regulation 3(2)</p>
             </div>
-            <p className="text-[var(--text-muted)] font-mono mt-2">
-              Coordinate system: UTM Arc 1960 / Zone 37S (SRID 21037)
-            </p>
+            <label className="mt-3 block text-sm">Coordinate reference
+              <input className="input mt-1 w-full" value={coordinateReference} onChange={event => setCoordinateReference(event.target.value)} placeholder="Enter the EPSG code or local grid name" />
+            </label>
+            {!canExport && <p className="mt-2 text-xs text-[var(--text-secondary)]">Enter the coordinate reference and complete each started beacon record before exporting.</p>}
           </div>
 
           <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}
-              disabled={beacons.length === 0}
+              disabled={!canExport}
               className="flex-1 py-3 bg-[var(--accent)] hover:bg-[var(--accent-dim)] disabled:opacity-40 disabled:cursor-not-allowed text-black font-bold rounded text-sm transition-colors"
             >
-              Print Beacon Certificate — {beacons.length} beacon{beacons.length !== 1 ? 's' : ''}
+              Print draft certificate
             </button>
             <button
               onClick={() => {
-                if (beacons.length === 0) return
+                if (!canExport) return
                 const csv = toCSV(
-                  ['No', 'Beacon ID', 'Monument Type', 'Condition', 'Easting (m)', 'Northing (m)', 'RL (m)', 'Description', 'Adjacent Features'],
-                  beacons.map((b, i) => [
+                  ['No', 'Beacon ID', 'Monument Type', 'Condition', 'Easting (m)', 'Northing (m)', 'RL (m)', 'Description', 'Adjacent Features', 'Coordinate reference'],
+                  completed.map((b, i) => [
                     String(i + 1), b.name, b.monumentType, b.condition,
                     b.easting, b.northing, b.elevation,
-                    b.description, b.adjacentFeatures,
+                    b.description, b.adjacentFeatures, coordinateReference.trim(),
                   ]),
                 )
                 downloadCSV(csv, 'beacon-certificate-data')
               }}
-              disabled={beacons.length === 0}
+              disabled={!canExport}
               className="py-3 px-4 border border-[var(--border-color)] hover:bg-[var(--bg-tertiary)] disabled:opacity-40 disabled:cursor-not-allowed text-[var(--text-primary)] rounded text-sm transition-colors inline-flex items-center gap-2"
             >
               <Download className="w-4 h-4" /> CSV

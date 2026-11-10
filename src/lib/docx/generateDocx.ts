@@ -12,7 +12,12 @@ import {
   HeadingLevel,
   TableOfContents,
   AlignmentType,
+  Table,
+  TableCell,
+  TableRow,
+  WidthType,
 } from 'docx'
+import { readReportBlocks } from '@/lib/compute/reportExportBlocks'
 import type { SectionContent } from '@/types/surveyReport'
 import type { SurveyType } from '@/types/project'
 
@@ -45,7 +50,7 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
     ? inputSections || []
     : inputSections || []
 
-  const docSections: (Paragraph | TableOfContents)[] = []
+  const docSections: (Paragraph | Table | TableOfContents)[] = []
 
   // Title Page
   docSections.push(
@@ -66,7 +71,7 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
               }),
             ]
           : []),
-        new TextRun({ text: '\n\n\n', size: 24 }),
+        new TextRun({ text: 'Draft for review', size: 24, break: 1 }),
         ...(clientName
           ? [
               new TextRun({
@@ -158,8 +163,22 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
     )
 
     // Section content
-    const contentParagraphs = parseHtmlToParagraphs(section.content)
-    docSections.push(...contentParagraphs)
+    for (const block of readReportBlocks(section.content)) {
+      if (block.kind === 'text') {
+        docSections.push(new Paragraph({ text: block.text, spacing: { after: 120 } }))
+        continue
+      }
+      const columns = Math.max(...[...block.head, ...block.body].map(row => row.length))
+      docSections.push(new Table({
+        width: { size: 100, type: WidthType.PERCENTAGE },
+        rows: [...block.head, ...block.body].map((row, index) => new TableRow({
+          tableHeader: index < block.head.length,
+          children: Array.from({ length: columns }, (_, column) => new TableCell({
+            children: [new Paragraph({ children: [new TextRun({ text: row[column] ?? '', bold: index < block.head.length })] })],
+          })),
+        })),
+      }))
+    }
   }
 
   const doc = new Document({
@@ -174,63 +193,3 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
   const buffer = await Packer.toBuffer(doc)
   return buffer
 }
-
-function parseHtmlToParagraphs(html: string): Paragraph[] {
-  const paragraphs: Paragraph[] = []
-  if (!html) return paragraphs
-
-  const cleanHtml = html.replace(/\n/g, ' ').trim()
-  const rawParagraphs = cleanHtml.split(/<\/p>|<br\s*\/?>|\n\n/)
-
-  for (const para of rawParagraphs) {
-    const text = para
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .trim()
-
-    if (text) {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: text,
-              size: 22,
-            }),
-          ],
-          spacing: {
-            after: 200,
-          },
-        })
-      )
-    }
-  }
-
-  if (paragraphs.length === 0 && cleanHtml) {
-    const text = cleanHtml
-      .replace(/<[^>]*>/g, '')
-      .replace(/&nbsp;/g, ' ')
-      .replace(/&amp;/g, '&')
-      .trim()
-
-    if (text) {
-      paragraphs.push(
-        new Paragraph({
-          children: [
-            new TextRun({
-              text: text,
-              size: 22,
-            }),
-          ],
-        })
-      )
-    }
-  }
-
-  return paragraphs
-}
-
-export default generateDocx

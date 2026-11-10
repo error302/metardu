@@ -5,7 +5,7 @@ import { sanitizeHtml } from '@/lib/security/sanitize'
 import { usePrint, PrintButton, PrintHeader } from '@/hooks/usePrint'
 import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
 import { z } from 'zod'
-import { apiPost, ApiError } from '@/lib/api/client'
+import { apiGet, apiPost } from '@/lib/api/client'
 // import { PHASE13_DEMO_PROJECTS } from '@/lib/standards/rdm11'
 import type { 
   SurveyReportInput, 
@@ -15,7 +15,8 @@ import type {
   ReportSection,
   ReportCompletenessResult
 } from '@/types/surveyReport'
-import { logger } from '@/lib/logger'
+import Link from 'next/link'
+import { escapeDocumentHtml } from '@/lib/documents/escapeDocumentHtml'
 
 interface SurveyReportBuilderProps {
   projectId: string
@@ -48,9 +49,8 @@ const generateReportResponseSchema = z.object({
 }).passthrough()
 
 const saveReportResponseSchema = z.object({
-  id: z.string().optional(),
-  saved: z.boolean().optional(),
-  created: z.boolean().optional(),
+  id: z.string().uuid(),
+  saved: z.literal(true),
 }).passthrough()
 
 export default function SurveyReportBuilder({ projectId, existingReportId }: SurveyReportBuilderProps) {
@@ -59,126 +59,131 @@ export default function SurveyReportBuilder({ projectId, existingReportId }: Sur
   const [generatedSections, setGeneratedSections] = useState<SectionContent[]>([])
   const [completeness, setCompleteness] = useState<ReportCompletenessResult | null>(null)
   const [mode, setMode] = useState<'edit' | 'preview'>('edit')
-  const [isSaving, setIsSaving] = useState(false)
-  const [isGenerating, setIsGenerating] = useState(false)
+  const [operation, setOperation] = useState<'loading' | 'idle' | 'previewing' | 'saving' | 'exporting'>('loading')
+  const inFlight = useRef(false)
+  const editRevision = useRef(0)
+  const attemptedRevision = useRef(-1)
+  const idRef = useRef(existingReportId || '')
+  const [ready, setReady] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const busy = operation !== 'idle'
+  const isGenerating = operation === 'loading' || operation === 'previewing'
+  const isSaving = operation === 'saving' || operation === 'exporting'
   const [isDirty, setIsDirty] = useState(false)
-  const [reportId, setReportId] = useState(existingReportId || '')
   const [error, setError] = useState<string | null>(null)
   const [editingAutoSection, setEditingAutoSection] = useState<string | null>(null)
   const [autoSectionDraft, setAutoSectionDraft] = useState('')
   const { print, isPrinting, paperSize, setPaperSize, orientation, setOrientation } = usePrint({ title: 'Survey Report' })
 
-  const generateReport = useCallback(async (input: Partial<SurveyReportInput>) => {
-    setIsGenerating(true)
-    setError(null)
-    try {
-      const data = await apiPost(
-        '/api/survey-report/generate',
-        generateReportResponseSchema,
-        { projectId, input }
-      )
-      setReportInput(data.input as Partial<SurveyReportInput>)
-      setGeneratedSections(data.sections as unknown as SectionContent[])
-      setCompleteness(data.completeness as unknown as ReportCompletenessResult)
-      setIsDirty(false)
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else {
-        setError(err instanceof Error ? err.message : 'Generation failed')
-      }
-    } finally {
-      setIsGenerating(false)
+  const projectQuery = '/api/survey-report/save?projectId=' + encodeURIComponent(projectId)
+  const fetchDraft = useCallback(async (input: Partial<SurveyReportInput>) => {
+    const data = await apiPost('/api/survey-report/generate', generateReportResponseSchema, { projectId, input })
+    return {
+      input: data.input as Partial<SurveyReportInput>,
+      sections: data.sections as unknown as SectionContent[],
+      completeness: data.completeness as unknown as ReportCompletenessResult,
     }
   }, [projectId])
 
   const loadReport = useCallback(async () => {
-    if (existingReportId) {
-      try {
-        const { getSurveyReportById } = await import('@/lib/api-client/surveyReports')
-        const report = await getSurveyReportById(existingReportId)
-        if (report) {
-          setReportInput({
-            ...report,
-            projectId
-          } as SurveyReportInput)
-          setGeneratedSections(report.sections)
-          setReportId(existingReportId)
-          // Reconstruct completeness from saved data so auto-save works
-          const savedPercent = report.completeness || 0
-          setCompleteness({
-            overallPercent: savedPercent,
-            sectionsComplete: report.sections?.filter((s: SectionContent) => s.completeness >= 100).length || 0,
-            sectionsIncomplete: report.sections?.filter((s: SectionContent) => s.completeness < 100).map((s: SectionContent) => ({
-              section: s.section,
-              sectionNumber: s.sectionNumber,
-              missingFields: [],
-              completeness: s.completeness,
-            })) || [],
-            readyToFinalise: savedPercent >= 100,
-          })
-          return
-        }
-      } catch (err) {
-        logger.error('Failed to load report:', { error: err })
+    setOperation('loading')
+    setError(null)
+    try {
+      if (existingReportId) {
+        const data = await apiGet(projectQuery + '&reportId=' + encodeURIComponent(existingReportId), z.object({
+          report: z.object({ input_data: z.object({}).passthrough(), sections: z.array(z.object({}).passthrough()).min(1), completeness: z.number() }),
+        }), { ttlMs: 0 })
+        const sections = data.report.sections as unknown as SectionContent[]
+        setReportInput({ ...data.report.input_data, projectId } as SurveyReportInput)
+        setGeneratedSections(sections)
+        const percent = data.report.completeness
+        setCompleteness({ overallPercent: percent, sectionsComplete: sections.filter(s => s.completeness >= 100).length,
+          sectionsIncomplete: sections.filter(s => s.completeness < 100).map(s => ({ section: s.section,
+            sectionNumber: s.sectionNumber, missingFields: [], completeness: s.completeness })), readyToFinalise: percent >= 100 })
+        setSaved(true)
+      } else {
+        const data = await fetchDraft({ projectId })
+        setReportInput(data.input)
+        setGeneratedSections(data.sections)
+        setCompleteness(data.completeness)
       }
+      setReady(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Could not open this survey report.')
+    } finally {
+      setOperation('idle')
     }
-    // Only generate fresh report when creating new (no existingReportId)
-    await generateReport({ projectId } as SurveyReportInput)
-  }, [existingReportId, projectId, generateReport])
+  }, [existingReportId, projectId, projectQuery, fetchDraft])
 
-  useEffect(() => {
-    loadReport()
-  }, [loadReport])
+  useEffect(() => { void loadReport() }, [loadReport])
+
+  const prepare = useCallback(async (force = false) => {
+    if (!completeness) throw new Error('Open the report before continuing.')
+    if (!isDirty && !force) return { input: reportInput, sections: generatedSections, completeness }
+    const data = await fetchDraft(reportInput)
+    const manual = new Map(generatedSections.filter(section => section.manuallyEdited).map(section => [section.section, section]))
+    return { ...data, sections: data.sections.map(section => manual.get(section.section) ?? section) }
+  }, [completeness, isDirty, reportInput, generatedSections, fetchDraft])
+
+  const persist = useCallback(async () => {
+    const version = editRevision.current
+    attemptedRevision.current = version
+    const data = await prepare()
+    const result = await apiPost('/api/survey-report/save', saveReportResponseSchema, {
+      reportId: idRef.current || undefined, projectId, input: data.input, sections: data.sections, completeness: data.completeness.overallPercent,
+    })
+    idRef.current = result.id
+    if (version === editRevision.current) {
+      setReportInput(data.input)
+      setGeneratedSections(data.sections)
+      setCompleteness(data.completeness)
+      setIsDirty(false)
+      setSaved(true)
+    }
+    return result.id
+  }, [prepare, projectId])
 
   const saveReport = useCallback(async () => {
-    if (!completeness) return
-    
-    setIsSaving(true)
-    try {
-      const data = await apiPost(
-        '/api/survey-report/save',
-        saveReportResponseSchema,
-        {
-          reportId: reportId || undefined,
-          projectId,
-          input: reportInput,
-          sections: generatedSections,
-          completeness: completeness.overallPercent
-        }
-      )
-      if (data.id) {
-        setReportId(data.id)
-      }
-      setIsDirty(false)
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setError(err.message)
-      } else {
-        setError(err instanceof Error ? err.message : 'Save failed')
-      }
-    } finally {
-      setIsSaving(false)
-    }
-  }, [completeness, reportId, projectId, reportInput, generatedSections])
-
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+    if (inFlight.current || !ready) return
+    inFlight.current = true
+    setOperation('saving')
+    setError(null)
+    try { await persist() }
+    catch (err) { setError(err instanceof Error ? err.message : 'Save failed. Your edits are still open.') }
+    finally { inFlight.current = false; setOperation('idle') }
+  }, [persist, ready])
 
   useEffect(() => {
-    if (isDirty && reportInput.projectId && completeness) {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-      saveTimeoutRef.current = setTimeout(() => {
-        saveReport().catch(() => {})
-      }, 2000)
-    }
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    }
-  }, [reportInput, generatedSections, isDirty, saveReport, completeness])
+    if (!isDirty || busy || attemptedRevision.current === editRevision.current) return
+    const timer = setTimeout(() => { void saveReport() }, 2000)
+    return () => clearTimeout(timer)
+  }, [isDirty, busy, saveReport])
 
+  const markDirty = () => {
+    editRevision.current += 1
+    setIsDirty(true)
+    setSaved(false)
+  }
   const updateInput = (field: keyof SurveyReportInput, value: SurveyReportInput[keyof SurveyReportInput]) => {
     setReportInput(prev => ({ ...prev, [field]: value }))
-    setIsDirty(true)
+    markDirty()
+  }
+
+  const refreshPreview = async (showPreview: boolean) => {
+    if (inFlight.current || !ready) return
+    const version = editRevision.current
+    inFlight.current = true
+    setOperation('previewing')
+    setError(null)
+    try {
+      const data = await prepare(!showPreview)
+      if (version !== editRevision.current) return
+      setGeneratedSections(data.sections)
+      setCompleteness(data.completeness)
+      if (!showPreview) markDirty()
+      if (showPreview) setMode('preview')
+    } catch (err) { setError(err instanceof Error ? err.message : 'Preview could not be generated.') }
+    finally { inFlight.current = false; setOperation('idle') }
   }
 
   // Demo removed — function no longer needed
@@ -200,31 +205,31 @@ Name: ___________________________    ISK No: _______________
 Firm: ___________________________    Stamp: _______________`
 
   const exportReport = async (format: 'pdf' | 'docx') => {
-    if (!reportId) {
-      await saveReport()
-    }
-    
+    if (inFlight.current || !ready) return
+    inFlight.current = true
+    setOperation('exporting')
+    setError(null)
     try {
-      // ponytail: binary download bypasses typed client
+      const reportId = isDirty || !idRef.current ? await persist() : idRef.current
       const response = await fetch('/api/survey-report/export', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reportId: reportId || existingReportId, format })
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reportId, format }),
       })
-      
       if (!response.ok) {
-        throw new Error('Export failed')
+        const body = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(body?.error || 'Export failed')
       }
-      
-      const blob = await response.blob()
-      const url = URL.createObjectURL(blob)
+      const url = URL.createObjectURL(await response.blob())
       const a = document.createElement('a')
       a.href = url
-      a.download = `${reportInput.reportNumber || 'survey_report'}.${format}`
+      a.download = response.headers.get('Content-Disposition')?.match(/filename="([^"]+)"/)?.[1] || 'survey-report.' + format
       a.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Export failed')
+    } finally {
+      inFlight.current = false
+      setOperation('idle')
     }
   }
 
@@ -267,13 +272,13 @@ Firm: ___________________________    Stamp: _______________`
         if (!section) return
         const updated = generatedSections.map((s: SectionContent) =>
           s.section === activeSection
-            ? { ...s, content: autoSectionDraft.split('\n').filter((l: string) => l.trim()).map((l: string) => `<p>${l}</p>`).join('') }
+            ? { ...s, manuallyEdited: true, content: autoSectionDraft.split('\n').filter(l => l.trim()).map(l => '<p>' + escapeDocumentHtml(l) + '</p>').join('') }
             : s
         )
         setGeneratedSections(updated)
         setEditingAutoSection(null)
         setAutoSectionDraft('')
-        setIsDirty(true)
+        markDirty()
       }
 
       const cancelEditing = () => {
@@ -329,7 +334,7 @@ Firm: ___________________________    Stamp: _______________`
               </button>
             )}
             <button
-              onClick={() => generateReport(reportInput as SurveyReportInput)}
+              onClick={() => void refreshPreview(false)}
               disabled={isGenerating}
               className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-medium disabled:opacity-50"
             >
@@ -751,11 +756,12 @@ Firm: ___________________________    Stamp: _______________`
                 <label htmlFor="sr-datum" className="block text-sm font-medium mb-1">Datum</label>
                 <select
                   id="sr-datum"
-                  value={reportInput.datum || 'ARC1960'}
+                  value={reportInput.datum || ''}
                   onChange={e => updateInput('datum', e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
                 >
-                  <option value="ARC1960">ARC1960</option>
+                  <option value="">Choose datum</option>
+                <option value="ARC1960">ARC1960</option>
                   <option value="WGS84">WGS84</option>
                 </select>
               </div>
@@ -797,10 +803,11 @@ Firm: ___________________________    Stamp: _______________`
                 <label htmlFor="sr-survey-method" className="block text-sm font-medium mb-1">Survey Method</label>
                 <select
                   id="sr-survey-method"
-                  value={reportInput.surveyMethod || 'GNSS_RTK'}
+                  value={reportInput.surveyMethod || 'UNRECORDED'}
                   onChange={e => updateInput('surveyMethod', e.target.value)}
                   className="w-full px-3 py-2 bg-[var(--bg-tertiary)] border border-[var(--border-color)] rounded-lg text-sm"
                 >
+                  <option value="UNRECORDED">Not recorded</option>
                   <option value="TOTAL_STATION">Total Station</option>
                   <option value="GNSS_RTK">GNSS RTK</option>
                   <option value="LEVEL">Level</option>
@@ -992,7 +999,7 @@ Firm: ___________________________    Stamp: _______________`
     )
   }
 
-  if (isGenerating && !generatedSections.length) {
+  if (!ready && operation === 'loading') {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -1003,10 +1010,18 @@ Firm: ___________________________    Stamp: _______________`
     )
   }
 
+  if (!ready) return (
+    <div className="mx-auto max-w-2xl space-y-4 p-6">
+      <p role="alert">{error}</p>
+      <button className="btn btn-secondary" onClick={() => void loadReport()}>Retry</button>
+      <Link href="/reports" className="ml-4 underline">Documents</Link>
+    </div>
+  )
+
   return (
-    <div className="flex h-screen overflow-hidden">
+    <div className="flex flex-col gap-2 md:h-[calc(100dvh-6rem)] md:flex-row md:overflow-hidden">
       {/* Left Sidebar */}
-      <div className="w-72 border-r border-[var(--border-color)] bg-[var(--bg-card)] flex flex-col overflow-hidden">
+      <div className="w-full md:w-72 md:shrink-0 border-r border-[var(--border-color)] bg-[var(--bg-card)] flex flex-col overflow-hidden">
         <div className="p-4 border-b border-[var(--border-color)]">
           <h1 className="text-lg font-semibold">Survey Report</h1>
           <div className="flex gap-1 mt-3 bg-[var(--bg-tertiary)] p-1 rounded-lg">
@@ -1017,7 +1032,7 @@ Firm: ___________________________    Stamp: _______________`
               Edit
             </button>
             <button
-              onClick={() => setMode('preview')}
+              onClick={() => void refreshPreview(true)} disabled={busy}
               className={`flex-1 py-1.5 text-xs font-medium rounded ${mode === 'preview' ? 'bg-[var(--accent)] text-black' : 'text-[var(--text-muted)]'}`}
             >
               Preview
@@ -1025,7 +1040,7 @@ Firm: ___________________________    Stamp: _______________`
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-2">
+        <div className="max-h-48 flex-1 overflow-y-auto p-2 md:max-h-none">
           {SECTION_INFO.map((info: (typeof SECTION_INFO)[number]) => (
             <button
               key={info.section}
@@ -1064,26 +1079,20 @@ Firm: ___________________________    Stamp: _______________`
         <div className="p-4 border-t border-[var(--border-color)] space-y-2">
           <button
             onClick={saveReport}
-            disabled={isSaving}
+            disabled={busy}
             className="w-full px-4 py-2 bg-[var(--bg-tertiary)] hover:bg-[var(--border-hover)] border border-[var(--border-color)] rounded-lg text-sm font-medium disabled:opacity-50"
           >
             {isSaving ? 'Saving...' : 'Save Draft'}
           </button>
-          <button
-            onClick={saveReport}
-            disabled={!completeness?.readyToFinalise || isSaving}
-            className="w-full px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-dim)] text-black rounded-lg text-sm font-medium disabled:opacity-40 disabled:cursor-not-allowed"
-            title={!completeness?.readyToFinalise ? 'Complete all required sections to finalise' : ''}
-          >
-            Finalise Report
-          </button>
+          <p className="text-xs text-[var(--text-secondary)]" role="status">{saved ? 'Draft saved' : isDirty ? 'Unsaved edits' : 'Draft ready'}</p>
+          <Link href={'/project/' + encodeURIComponent(projectId) + '/documents'} className="text-xs underline">Project documents</Link>
         </div>
       </div>
 
       {/* Right Panel */}
-      <div className="flex-1 overflow-y-auto p-8 bg-[var(--bg-primary)]">
+      <div className="min-w-0 flex-1 overflow-y-auto p-4 md:p-8 bg-[var(--bg-primary)]">
         {error && (
-          <div className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+          <div role="alert" className="mb-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
             {error}
           </div>
         )}
@@ -1099,7 +1108,7 @@ Firm: ___________________________    Stamp: _______________`
           </div>
         ) : (
           <div>
-            <div className="sticky top-0 bg-[var(--bg-primary)] py-4 border-b border-[var(--border-color)] mb-6 flex gap-2 no-print print-hide">
+            <div className="sticky top-0 bg-[var(--bg-primary)] py-4 border-b border-[var(--border-color)] mb-6 flex flex-wrap gap-2 no-print print-hide">
               <PrintButton
                 print={print}
                 isPrinting={isPrinting}
@@ -1110,13 +1119,13 @@ Firm: ___________________________    Stamp: _______________`
                 printTitle="Survey Report"
               />
               <button
-                onClick={() => exportReport('pdf')}
+                disabled={busy} onClick={() => void exportReport('pdf')}
                 className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-medium"
               >
-                Download PDF
+                {operation === 'exporting' ? 'Preparing download…' : 'Download PDF'}
               </button>
               <button
-                onClick={() => exportReport('docx')}
+                disabled={busy} onClick={() => void exportReport('docx')}
                 className="px-4 py-2 bg-[var(--accent)] text-black rounded-lg text-sm font-medium"
               >
                 Download Word

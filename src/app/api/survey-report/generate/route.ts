@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { requireProjectOwnership } from '@/lib/auth/ownership'
+import { describeCrs } from '@/lib/spatial/projectCrs'
 import { generateAllSections } from '@/lib/compute/surveyReportSections'
 import { computeReportCompleteness } from '@/lib/compute/reportCompleteness'
 import { buildSubmissionNumber, normaliseRegistrationNo, validateSubmissionNumber } from '@/lib/submission/format'
@@ -24,7 +26,7 @@ interface ProjectRow {
 
 interface SurveyPointRow {
   id: string
-  name: string | null
+  point_name: string | null
   control_order: string | null
   easting: string | number
   northing: string | number
@@ -56,6 +58,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     return NextResponse.json({ error: 'Project ID required' }, { status: 400 })
   }
 
+  const access = await requireProjectOwnership(projectId, ctx.userId)
+  if (!access.ok) return access.error ?? NextResponse.json({ error: 'Project unavailable.' }, { status: 404 })
+
   const { rows: projectRows } = await db.query<ProjectRow>(
     'SELECT * FROM projects WHERE id = $1 LIMIT 1',
     [projectId]
@@ -67,19 +72,19 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const project = projectRows[0]
 
   const { rows: points } = await db.query<SurveyPointRow>(
-    'SELECT * FROM survey_points WHERE project_id = $1 AND is_control = true',
+    'SELECT * FROM survey_points WHERE project_id = $1 AND is_control = true AND deleted_at IS NULL AND easting IS NOT NULL AND northing IS NOT NULL',
     [projectId]
   )
 
   const controlPoints: ControlPoint[] = (points || []).map((p) => ({
-    id: p.name || p.id,
+    id: p.point_name || p.id,
     order: (p.control_order as 'PRIMARY' | 'SECONDARY' | 'TERTIARY') || 'TERTIARY',
     easting: Number(p.easting),
     northing: Number(p.northing),
-    elevation: Number(p.elevation || 0),
-    source: (p.source as 'GNSS' | 'TOTAL_STATION' | 'EXISTING') || 'GNSS',
+    elevation: p.elevation == null ? null : Number(p.elevation),
+    source: (p.source as 'GNSS' | 'TOTAL_STATION' | 'EXISTING') || 'UNRECORDED',
     description: p.description || '',
-    markType: p.mark_type || 'Concrete Beacon'
+    markType: p.mark_type || 'Unrecorded'
   }))
 
   const benchmarks = controlPoints.filter((cp) =>
@@ -94,14 +99,14 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
       [projectId]
     )
 
-    levellingRuns = (levelingRunsData || []).map((run) => ({
+    levellingRuns = (levelingRunsData || []).filter(run => run.from_bm && run.to_bm && run.distance != null && run.misclosure != null && run.allowable != null && run.passes != null).map((run) => ({
       runId: run.run_id || run.id,
       fromBM: run.from_bm || 'BM1',
       toBM: run.to_bm || 'BM2',
-      distance: Number(run.distance || 0),
-      misclosure: Number(run.misclosure || 0),
-      allowable: Number(run.allowable || 10),
-      passes: run.passes ?? true
+      distance: Number(run.distance),
+      misclosure: Number(run.misclosure),
+      allowable: Number(run.allowable),
+      passes: run.passes === true
     }))
   } catch {
     // Ignore missing table error
@@ -121,6 +126,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     // No traverse data yet
   }
 
+  const { rows: reference } = await db.query<{ horizontal_crs: string }>(
+    'SELECT horizontal_crs FROM project_reference_systems WHERE project_id=$1', [projectId])
+  const grid = reference[0] && describeCrs(reference[0].horizontal_crs)
   const registrationNo = normaliseRegistrationNo(
     input?.surveyorRegistrationNumber || project.surveyor_registration_number || ''
   )
@@ -156,23 +164,33 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     scopeItems: input?.scopeItems || [],
     equipment: input?.equipment || [],
     personnel: input?.personnel || [],
-    datum: input?.datum || 'ARC1960',
-    projection: input?.projection || `UTM Zone ${project.utm_zone || 37}${project.hemisphere || 'S'}`,
+    datum: input?.datum || (grid?.datum === 'WGS 84' ? 'WGS84' : grid?.datum === 'Arc 1960' ? 'ARC1960' : undefined),
+    projection: input?.projection || grid?.name || '',
     controlPoints: input?.controlPoints || controlPoints,
-    surveyMethod: input?.surveyMethod || 'GNSS_RTK',
+    surveyMethod: input?.surveyMethod || 'UNRECORDED',
     instrumentUsed: input?.instrumentUsed || '',
     traverseAccuracy: input?.traverseAccuracy || (traversePrecision ? `1:${Math.round(traversePrecision).toLocaleString()}` : undefined),
     levellingMisclosure: input?.levellingMisclosure || (levellingRuns.length > 0 ? `${levellingRuns[0].misclosure.toFixed(3)} mm` : undefined),
     levellingRuns: input?.levellingRuns || levellingRuns,
     conclusions: input?.conclusions || [],
-    recommendations: input?.recommendations || []
+    recommendations: input?.recommendations || [],
+    contractNumber: input?.contractNumber,
+    revisionDate: input?.revisionDate,
+    constituency: input?.constituency,
+    gnssMethod: input?.gnssMethod,
+    baseStationName: input?.baseStationName,
+    baseStationCoords: input?.baseStationCoords,
+    pointDensity: input?.pointDensity,
+    areaHectares: input?.areaHectares,
+    gnssBaselineRMS: input?.gnssBaselineRMS,
+    declarationStatement: input?.declarationStatement
   }
 
   const sections = generateAllSections(
     defaultInput,
-    controlPoints,
-    benchmarks,
-    levellingRuns,
+    defaultInput.controlPoints,
+    defaultInput.controlPoints === controlPoints ? benchmarks : defaultInput.controlPoints.filter(point => /benchmark|bm/i.test(point.markType)),
+    defaultInput.levellingRuns || [],
     traversePrecision
   )
 

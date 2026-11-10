@@ -14,7 +14,7 @@ const row = {
   report_title: 'Saved survey report', report_number: 'R-1', revision: 'Rev 2', status: 'draft',
   input_data: { clientName: 'Recorded client', reportTitle: 'Stale title' },
   sections: [{ sectionNumber: 1, section: 'INTRODUCTION', title: 'Recorded observations',
-    content: '<p>Recorded closure is 1:12345 from actual measurements.</p>' }],
+    content: '<p>Recorded closure is 1:12345 from actual measurements.</p><table><tr><th>Station</th><th>Easting</th></tr><tr><td>BM A</td><td>500000.125</td></tr></table>' }],
 }
 const context = { userId: 'owner', body: { reportId: 'report', format: 'docx' } }
 
@@ -36,6 +36,8 @@ test('exports the owner saved sections and canonical title through the server da
   expect(xml).toContain('Recorded closure is 1:12345')
   expect(xml).toContain('SAVED SURVEY REPORT')
   expect(xml).toContain('Recorded client')
+  expect(xml).toContain('<w:tbl>')
+  expect(xml).toContain('500000.125')
   expect(xml).not.toContain('1:5000')
   expect(response.headers.get('Content-Disposition')).toContain('R_1.docx')
 })

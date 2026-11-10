@@ -57,7 +57,7 @@ export function renderDeedPlanSVG(
   bearingSchedule: BoundaryLeg[],
   closureCheck: ClosureCheck
 ): string {
-  const { boundaryPoints, scale } = input
+  const { boundaryPoints } = input
 
   // ---- Coordinate projection ----
   const coords = boundaryPoints.map((p) => ({ x: p.easting, y: p.northing }))
@@ -95,7 +95,7 @@ export function renderDeedPlanSVG(
   const abuttals = buildAbuttals(input, boundaryPoints, toX, toY)
   const ptLabels = buildPointLabels(boundaryPoints, toX, toY)
   const northArrow = buildNorthArrow(DA_LEFT + DA_WIDTH - 52, effTop + 38)
-  const scaleBar = buildScaleBar(DA_LEFT + DA_WIDTH / 2 - 85, effTop + effH - 18, scale)
+  const scaleBar = buildScaleBar(DA_LEFT + DA_WIDTH / 2 - 85, effTop + effH - 18, plotScale)
   const locDiagram = buildLocationDiagram(DA_LEFT + DA_WIDTH - 108, effTop + effH - 95)
   const titleBlock = buildTitleBlock(input)
   const rightPanel = buildRightPanel(input, bearingSchedule, closureCheck, boundaryPoints)
@@ -160,8 +160,8 @@ export function renderDeedPlanSVG(
   ${scaleBar}
 
   <!-- ===================== 14. SCALE STATEMENT ===================== -->
-  <text x="${DA_LEFT + DA_WIDTH/2}" y="${effTop + effH - 6}" class="bt" text-anchor="middle" font-weight="bold">DRAWN TO SCALE 1:${scale}</text>
-  <text x="${DA_LEFT + DA_WIDTH/2}" y="${effTop + effH - 12}" class="st" text-anchor="middle">REPRESENTATIVE FRACTION 1:${scale}</text>
+  <text x="${DA_LEFT + DA_WIDTH/2}" y="${effTop + effH - 6}" class="bt" text-anchor="middle" font-weight="bold">FITTED DRAFT DIAGRAM</text>
+  <text x="${DA_LEFT + DA_WIDTH/2}" y="${effTop + effH - 12}" class="st" text-anchor="middle">USE GRID DISTANCES IN THE SCHEDULE</text>
 
   <!-- ===================== 13. LOCATION DIAGRAM ===================== -->
   ${locDiagram}
@@ -177,6 +177,7 @@ export function renderDeedPlanSVG(
   <!-- ===================== 12. RIGHT PANEL ===================== -->
   <rect x="${RP_X - 2}" y="${IB_Y + 2}" width="${RP_W + 2}" height="${VB_H - IB_Y*2 - 4}" fill="white" stroke="black" stroke-width="0.5"/>
   ${rightPanel}
+  <text x="18" y="30" font-size="11" font-weight="bold" fill="#9f3426">DRAFT FOR REVIEW</text>
 </svg>`
 }
 
@@ -228,17 +229,15 @@ function buildNorthArrow(cx: number, cy: number): string {
 // ============================================================
 // SCALE BAR (alternating black/white with RF notation)
 // ============================================================
-function buildScaleBar(cx: number, cy: number, nominalScale: number): string {
-  let divs: {label:string, m:number}[]
-  if (nominalScale <= 500) divs = [{label:'0',m:0},{label:'10m',m:10},{label:'20m',m:20},{label:'30m',m:30},{label:'40m',m:40},{label:'50m',m:50}]
-  else if (nominalScale <= 1000) divs = [{label:'0',m:0},{label:'20m',m:20},{label:'40m',m:40},{label:'60m',m:60},{label:'80m',m:80},{label:'100m',m:100}]
-  else if (nominalScale === 1250) divs = [{label:'0',m:0},{label:'25m',m:25},{label:'50m',m:50},{label:'75m',m:75},{label:'100m',m:100},{label:'125m',m:125}]
-  else if (nominalScale <= 2500) divs = [{label:'0',m:0},{label:'50m',m:50},{label:'100m',m:100},{label:'150m',m:150},{label:'200m',m:200},{label:'250m',m:250}]
-  else divs = [{label:'0',m:0},{label:'100m',m:100},{label:'200m',m:200},{label:'300m',m:300},{label:'400m',m:400},{label:'500m',m:500}]
-
-  const totalM = divs[divs.length-1].m
-  const totalPx = Math.min(170, totalM * 0.2)
-  const f = totalPx / totalM
+function buildScaleBar(cx: number, cy: number, plotScale: number): string {
+  const target = 140 / plotScale / 4
+  const magnitude = 10 ** Math.floor(Math.log10(target))
+  const interval = (target / magnitude >= 5 ? 5 : target / magnitude >= 2 ? 2 : 1) * magnitude
+  const divs = Array.from({ length: 5 }, (_, i) => ({
+    m: i * interval, label: i === 4 ? Number((i * interval).toPrecision(4)) + ' m' : String(Number((i * interval).toPrecision(4))),
+  }))
+  const totalPx = 4 * interval * plotScale
+  const f = plotScale
 
   let t = ''
   divs.forEach((d, i) => {
@@ -257,7 +256,7 @@ function buildScaleBar(cx: number, cy: number, nominalScale: number): string {
   <g>
     <rect x="${cx}" y="${cy-3}" width="${totalPx}" height="6" fill="none" stroke="black" stroke-width="0.5"/>
     ${t}
-    <text x="${cx+totalPx/2}" y="${cy-8}" font-size="4pt" text-anchor="middle" font-weight="bold" font-family="Arial">RF 1:${nominalScale}</text>
+    <text x="${cx+totalPx/2}" y="${cy-8}" font-size="4pt" text-anchor="middle" font-weight="bold" font-family="Arial">Grid distance</text>
   </g>`
 }
 
@@ -458,7 +457,7 @@ function buildRightPanel(
   s += row(le, y, 'Datum:', escapeXml(input.datum)); y += 9
   s += row(le, y, 'Projection:', escapeXml(input.projectionType)); y += 9
   s += row(le, y, 'Zone:', `UTM ${input.utmZone}${input.hemisphere}`); y += 9
-  s += row(le, y, 'Scale:', `1 : ${input.scale}`); y += 9
+  s += row(le, y, 'Requested scale:', `1 : ${input.scale}`); y += 9
   if (input.meanElevation !== undefined) {
     s += row(le, y, 'Mean Elev.:', `${input.meanElevation.toFixed(1)}m`); y += 9
   }

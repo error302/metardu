@@ -3,6 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { rimReportType } from '@/lib/rim/register'
 import type { SectionContent, SurveyReportInput } from '@/types/surveyReport'
 import { generatePdf } from '@/lib/pdf/generatePdf'
 import { generateDocx } from '@/lib/docx/generateDocx'
@@ -30,8 +31,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const { rows } = await db.query<SavedReportRow>(
     `SELECT sr.* FROM survey_reports sr
      JOIN projects p ON p.id = sr.project_id
-     WHERE sr.id = $1 AND p.user_id = $2 LIMIT 1`,
-    [reportId, ctx.userId]
+     WHERE sr.id = $1 AND p.user_id = $2 AND sr.user_id = $2 AND sr.report_type IS DISTINCT FROM $3 LIMIT 1`,
+    [reportId, ctx.userId, rimReportType]
   )
   const row = rows[0]
 
@@ -62,6 +63,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     return new NextResponse(Buffer.from(pdfBuffer), {
       headers: {
         'Content-Type': 'application/pdf',
+        'Cache-Control': 'private, no-store',
         'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'survey_report'}.pdf"`,
       }
     })
@@ -80,6 +82,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     return new NextResponse(Buffer.from(docxBuffer), {
       headers: {
         'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        'Cache-Control': 'private, no-store',
         'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'report'}.docx"`,
       }
     })

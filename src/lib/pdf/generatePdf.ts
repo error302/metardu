@@ -1,9 +1,6 @@
-/**
- * Server-side PDF generation using Puppeteer
- * Generates print-ready PDFs from survey report HTML
- */
-
-import puppeteer from 'puppeteer'
+import { jsPDF } from 'jspdf'
+import { autoTable } from 'jspdf-autotable'
+import { readReportBlocks } from '@/lib/compute/reportExportBlocks'
 import type { SectionContent } from '@/types/surveyReport'
 
 export interface PdfGenerationOptions {
@@ -13,232 +10,45 @@ export interface PdfGenerationOptions {
   orientation?: 'portrait' | 'landscape'
 }
 
-export async function generatePdf(options: PdfGenerationOptions): Promise<Buffer> {
-  const {
-    title,
-    sections,
-    paperSize = 'A4',
-    orientation = 'portrait',
-  } = options
-
-  const browser = await puppeteer.launch({
-    headless: true,
-    args: [
-      '--no-sandbox',
-      '--disable-setuid-sandbox',
-      '--disable-dev-shm-usage',
-      '--disable-gpu',
-    ],
-  })
-
-  try {
-    const page = await browser.newPage()
-    // Reports contain user-authored HTML. Keep rendering offline and inert.
-    await page.setJavaScriptEnabled(false)
-    await page.setRequestInterception(true)
-    let blockedResource = false
-    page.on('request', (request: { url: () => string; continue: () => Promise<void>; abort: () => Promise<void> }) => {
-      if (request.url().startsWith('data:') || request.url() === 'about:blank') {
-        void request.continue()
-      } else {
-        blockedResource = true
-        void request.abort()
-      }
-    })
-
-    // Generate HTML content
-    const html = generateReportHtml(title, sections, paperSize, orientation)
-
-    // Set HTML content
-    await page.setContent(html, {
-      waitUntil: 'load',
-    })
-    if (blockedResource) throw new Error('Report contains external resources. Embed images directly before exporting.')
-
-    // Wait for fonts and images to load
-    await page.evaluate(() => document.fonts.ready)
-
-  // Generate PDF
-  const pdfBuffer = await page.pdf({
-    format: paperSize.toLowerCase() as 'a4' | 'a3',
-    landscape: orientation === 'landscape',
-    printBackground: true,
-    margin: {
-      top: '10mm',
-      right: '10mm',
-      bottom: '10mm',
-      left: '10mm',
-    },
-    displayHeaderFooter: false,
-    preferCSSPageSize: false,
-  })
-
-    return Buffer.from(pdfBuffer)
-  } finally {
-    await browser.close()
+export async function generatePdf({ title, sections, paperSize = 'A4', orientation = 'portrait' }: PdfGenerationOptions): Promise<Buffer> {
+  const pdf = new jsPDF({ format: paperSize.toLowerCase(), orientation, unit: 'mm' })
+  const margin = 15, pageWidth = pdf.internal.pageSize.getWidth(), pageHeight = pdf.internal.pageSize.getHeight()
+  let y = margin
+  const write = (value: string, size = 11, bold = false) => {
+    pdf.setFont('helvetica', bold ? 'bold' : 'normal')
+    pdf.setFontSize(size)
+    const step = size * 0.47
+    const lines = pdf.splitTextToSize(value, pageWidth - 2 * margin) as string[]
+    for (const line of lines) {
+      if (y + step >= pageHeight - margin) { pdf.addPage(); y = margin }
+      pdf.text(line, margin, y)
+      y += step
+    }
+    y += 2
   }
-}
-
-function generateReportHtml(title: string, sections: SectionContent[], paperSize: 'A4' | 'A3', orientation: 'portrait' | 'landscape'): string {
-  return `
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${title}</title>
-  <style>
-    @page {
-      size: ${paperSize} ${orientation};
-      margin: 10mm;
-    }
-
-    * {
-      box-sizing: border-box;
-      -webkit-print-color-adjust: exact;
-      print-color-adjust: exact;
-    }
-
-    body {
-      font-family: 'Times New Roman', Times, serif;
-      font-size: 11pt;
-      line-height: 1.5;
-      color: #000;
-      background: #fff;
-      margin: 0;
-      padding: 0;
-    }
-
-    .section {
-      page-break-after: always;
-      margin-bottom: 20px;
-    }
-
-    .section:last-child {
-      page-break-after: avoid;
-    }
-
-    h1 {
-      font-size: 18pt;
-      text-align: center;
-      margin-bottom: 30px;
-      color: #1B3A5C;
-    }
-
-    h2 {
-      font-size: 14pt;
-      border-bottom: 2px solid #1B3A5C;
-      padding-bottom: 5px;
-      margin-top: 0;
-      margin-bottom: 15px;
-      color: #1B3A5C;
-    }
-
-    h3 {
-      font-size: 12pt;
-      margin-top: 15px;
-      margin-bottom: 10px;
-      color: #333;
-    }
-
-    table {
-      width: 100%;
-      border-collapse: collapse;
-      margin: 10px 0;
-      font-size: 10pt;
-    }
-
-    th, td {
-      border: 1px solid #333;
-      padding: 6px 8px;
-      text-align: left;
-      word-break: break-word;
-    }
-
-    th {
-      background: #f0f0f0;
-      font-weight: bold;
-      border: 1px solid #333;
-    }
-
-    thead {
-      display: table-header-group;
-    }
-
-    tr:nth-child(even) {
-      background: #fafafa;
-    }
-
-    p {
-      margin: 8px 0;
-    }
-
-    ul, ol {
-      margin: 10px 0;
-      padding-left: 25px;
-    }
-
-    li {
-      margin: 5px 0;
-    }
-
-    .title-page {
-      text-align: center;
-      padding: 40px 20px;
-    }
-
-    .title-page h1 {
-      font-size: 24pt;
-      margin-bottom: 40px;
-    }
-
-    .title-page .metadata {
-      margin: 20px 0;
-      font-size: 11pt;
-    }
-
-    .watermark {
-      position: fixed;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%) rotate(-45deg);
-      font-size: 80pt;
-      color: rgba(27, 58, 92, 0.05);
-      pointer-events: none;
-      z-index: 0;
-      white-space: nowrap;
-    }
-
-    .content-wrapper {
-      position: relative;
-      z-index: 1;
-    }
-  </style>
-</head>
-<body>
-  <div class="watermark">METARDU</div>
-  <div class="content-wrapper">
-    ${sections
-      .map((section) => {
-        const isTitlePage = section.sectionNumber === 1
-        return `
-    <div class="section ${isTitlePage ? 'title-page' : ''}">
-      ${
-        isTitlePage
-          ? section.content
-          : `
-      <h2>${section.sectionNumber}. ${section.title}</h2>
-      ${section.content}
-      `
+  pdf.setProperties({ title, creator: 'METARDU' })
+  write(title, 18, true)
+  for (const section of sections) {
+    if (y + 20 >= pageHeight - margin) { pdf.addPage(); y = margin }
+    if (section.section !== 'TITLE_PAGE') write(section.sectionNumber + '. ' + section.title, 13, true)
+    for (const block of readReportBlocks(section.content)) {
+      if (block.kind === 'text') write(block.text)
+      else {
+        autoTable(pdf, { startY: y, margin, head: block.head, body: block.body,
+          styles: { fontSize: 9, overflow: 'linebreak', cellPadding: 1.8 },
+          headStyles: { fillColor: [27, 58, 92] }, rowPageBreak: 'avoid', showHead: 'everyPage' })
+        const layout = pdf as jsPDF & { lastAutoTable?: { finalY: number } }
+        y = (layout.lastAutoTable?.finalY ?? y) + 5
       }
-    </div>
-      `
-      })
-      .join('')}
-  </div>
-</body>
-</html>
-  `
+    }
+    y += 4
+  }
+  for (let page = 1, count = pdf.getNumberOfPages(); page <= count; page++) {
+    pdf.setPage(page)
+    pdf.setFont('helvetica', 'normal')
+    pdf.setFontSize(8)
+    pdf.text('METARDU | Survey report draft', margin, pageHeight - 7)
+    pdf.text(page + ' / ' + count, pageWidth - margin, pageHeight - 7, { align: 'right' })
+  }
+  return Buffer.from(pdf.output('arraybuffer'))
 }
-
-export default generatePdf

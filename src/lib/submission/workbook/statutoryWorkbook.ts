@@ -302,7 +302,7 @@ function buildSheet3_TraverseComputation(wb: ExcelJS.Workbook, input: WorkbookIn
   })
 
   const totRow = ws.addRow([
-    'TOTALS', '', formatDistanceM(input.traverse.perimeterM),
+    'TOTALS', '', Number.isFinite(input.traverse.perimeterM) ? formatDistanceM(input.traverse.perimeterM) : 'UNVERIFIED',
     sumDepRaw.toFixed(4), sumLatRaw.toFixed(4),
     '', '',
     sumDepCorr.toFixed(4), sumLatCorr.toFixed(4),
@@ -314,7 +314,7 @@ function buildSheet3_TraverseComputation(wb: ExcelJS.Workbook, input: WorkbookIn
   lastRow(ws).getCell(1).font = STYLE.subFont
   ws.addRow([
     'Linear Misclosure:', `${measured(input.traverse.linearMisclosureM, 4)} m`,
-    'Perimeter:', `${formatDistanceM(input.traverse.perimeterM)} m`,
+    'Perimeter:', `${Number.isFinite(input.traverse.perimeterM) ? formatDistanceM(input.traverse.perimeterM) : 'UNVERIFIED'} m`,
     'Precision:', precision(input.traverse.precisionRatio),
     'Minimum:', `1:${input.traverse.precisionMinimum.toLocaleString()}`,
     'Result:', qaStatus(input.traverse.linearPassesQA),
@@ -431,8 +431,8 @@ function buildSheet6_AreaComputation(wb: ExcelJS.Workbook, input: WorkbookInput)
 
   ws.addRow([])
   ws.addRow(['2A =', `|${sumENextN.toFixed(3)} - ${sumNNextE.toFixed(3)}|`, '=', `${(Math.abs(sumENextN - sumNNextE)).toFixed(3)} m²`])
-  ws.addRow(['Area =', `${input.areaComputation.areaM2.toFixed(3)} m²`])
-  ws.addRow(['Area =', `${input.areaComputation.areaHa.toFixed(4)} Ha`])
+  ws.addRow(['Area =', `${measured(input.areaComputation.areaM2, 3)} m²`])
+  ws.addRow(['Area =', `${measured(input.areaComputation.areaHa, 4)} Ha`])
   ws.addRow(['Perimeter =', `${formatDistanceM(input.areaComputation.perimeterM)} m`])
 }
 

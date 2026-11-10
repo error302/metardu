@@ -34,6 +34,7 @@ export const defaultPrintMeta: PrintMeta = {
 }
 
 interface PrintMetaPanelProps {
+  description?: string
   meta: PrintMeta
   onChange: (meta: PrintMeta) => void
 }
@@ -60,7 +61,7 @@ const FIELDS: { key: keyof PrintMeta; label: string; placeholder?: string; type?
  * These details populate the standard document header required by:
  * Survey Regulations 1994 | RDM 1.1 (2025) Table 5.4 | SRVY2025-1
  */
-export function PrintMetaPanel({ meta, onChange }: PrintMetaPanelProps) {
+export function PrintMetaPanel({ meta, onChange, description = "Project, surveyor and instrument details" }: PrintMetaPanelProps) {
   const [open, setOpen] = useState(false)
 
   const set = (key: keyof PrintMeta, value: string) =>
@@ -78,7 +79,7 @@ export function PrintMetaPanel({ meta, onChange }: PrintMetaPanelProps) {
         <span className="flex items-center gap-2">
           <span className="text-sm font-medium flex items-center gap-1.5"><Clipboard className="w-4 h-4" /> Print Header</span>
           <span className="text-xs text-[var(--text-muted)]">
-            project · surveyor · instrument — required for official output
+            {description}
           </span>
         </span>
         <span className="flex items-center gap-2 shrink-0">

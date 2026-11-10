@@ -1,149 +1,84 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import DeedPlanGenerator from '@/components/deedplan/DeedPlanGenerator'
-import type { BoundaryPoint } from '@/types/deedPlan'
-import type { BeaconType, BeaconStatus } from '@/types/deedPlan'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { z } from 'zod'
+import DeedPlanGenerator from './DeedPlanGenerator'
+import { createClient } from '@/lib/api-client/client'
+import { resolveDocumentEvidence, type DocumentProject } from '@/lib/reports/documentEvidence'
+import { readReferenceResponse } from '@/lib/spatial/referenceDeclaration'
+import { describeCrs } from '@/lib/spatial/projectCrs'
+import type { BoundaryPoint, DeedPlanInput } from '@/types/deedPlan'
 
-/**
- * ProjectDeedPlan — wrapper that connects DeedPlanGenerator to a real project.
- *
- * Fetches the project's survey points from /api/project/[id]/points and
- * converts them to BoundaryPoint[] format for DeedPlanGenerator's initialPoints.
- *
- * This is the "missing wire" — previously the deed plan page used
- * projectId="new" with no project data. Now a surveyor can:
- * 1. Run traverse adjustment in their project
- * 2. Go to the deed plan step
- * 3. See their adjusted coordinates auto-populated
- *
- * Usage:
- *   <ProjectDeedPlan projectId="abc-123" />
- *   // or as a route: /deed-plan?project=abc-123
- */
+type Grid = Pick<DeedPlanInput, 'datum' | 'utmZone' | 'hemisphere'>
+type Source = { status: 'loading' } | { status: 'error'; message: string } |
+  { status: 'ready'; points: BoundaryPoint[]; grid: Grid; notice?: string }
 
-interface ProjectDeedPlanProps {
-  projectId: string
-}
+const bookSchema = z.object({ projectCrs: z.string(), revision: z.string().regex(/^[a-f0-9]{64}$/) })
 
-interface DeedPlanSurveyPoint {
-  id: string
-  point_name: string
-  easting: number
-  northing: number
-  elevation: number | null
-  code: string | null
-  description: string | null
-  is_control: boolean
-}
-
-// Default beacon type/status when converting survey points to boundary points
-const DEFAULT_MARK_TYPE: BeaconType = 'CONCRETE_BEACON'
-const DEFAULT_MARK_STATUS: BeaconStatus = 'SET'
-
-function surveyPointToBoundaryPoint(p: DeedPlanSurveyPoint): BoundaryPoint {
-  return {
-    id: p.point_name || p.id,
-    easting: p.easting,
-    northing: p.northing,
-    elevation: p.elevation ?? undefined,
-    markType: DEFAULT_MARK_TYPE,
-    markStatus: DEFAULT_MARK_STATUS,
-    description: p.description || p.code || undefined,
-  }
-}
-
-export default function ProjectDeedPlan({ projectId }: ProjectDeedPlanProps) {
-  const [points, setPoints] = useState<BoundaryPoint[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+export default function ProjectDeedPlan({ projectId }: { projectId: string }) {
+  const [source, setSource] = useState<Source>({ status: 'loading' })
+  const [attempt, retry] = useState(0)
+  const back = '/project/' + encodeURIComponent(projectId) + '/documents'
 
   useEffect(() => {
-    let cancelled = false
-
-    async function fetchPoints() {
+    let active = true
+    const controller = new AbortController()
+    const projectPath = '/api/project/' + encodeURIComponent(projectId)
+    async function load() {
+      setSource({ status: 'loading' })
       try {
-        setLoading(true)
-        setError(null)
-        const res = await fetch(`/api/project/${projectId}/points`)
-        if (!res.ok) {
-          throw new Error(`Failed to load project points (${res.status})`)
+        const [project, reference] = await Promise.all([
+          createClient().from('projects').select('id,name,boundary_data,area_sqm').eq('id', projectId).single(),
+          fetch(projectPath + '/reference-system', { signal: controller.signal, cache: 'no-store' }),
+        ])
+        if (!reference.ok || project.error || !project.data) throw new Error('The project documents could not be loaded.')
+        const { referenceSystem } = readReferenceResponse(await reference.json() as unknown)
+        const info = referenceSystem && describeCrs(referenceSystem.prs.horizontalCrs)
+        const datum = info?.datum === 'WGS 84' ? 'WGS84' : info?.datum === 'Arc 1960' ? 'ARC1960' : null
+        if (!datum || !info?.zone || !info.hemisphere) throw new Error('Declare a supported UTM project grid before drafting the deed plan.')
+        const grid: Grid = { datum, utmZone: info.zone, hemisphere: info.hemisphere }
+        const record = project.data as unknown as DocumentProject
+        const saved = record.boundary_data?.computation
+        let points: BoundaryPoint[] = []
+        let notice: string | undefined
+        if (saved?.source === 'recorded-grid-traverse') {
+          try {
+            const response = await fetch(projectPath + '/fieldbook', { signal: controller.signal, cache: 'no-store' })
+            const book = bookSchema.parse(await response.json() as unknown)
+            if (!response.ok || book.projectCrs !== info.code) throw new Error('The current field-book reference could not be verified.')
+            const evidence = resolveDocumentEvidence(record, [], { projectCrs: book.projectCrs, fieldBookRevision: book.revision })
+            points = evidence.boundaryPoints.map(point => ({ id: point.name, easting: point.easting,
+              northing: point.northing, elevation: point.elevation, markType: 'INDICATORY', markStatus: 'UNRECORDED' }))
+          } catch (error) {
+            notice = error instanceof Error ? error.message : 'The saved boundary could not be verified.'
+          }
         }
-        const json = await res.json() as { data?: DeedPlanSurveyPoint[] }
-        const surveyPoints: DeedPlanSurveyPoint[] = json.data || []
-        const boundaryPoints = surveyPoints.map(surveyPointToBoundaryPoint)
-        if (!cancelled) {
-          setPoints(boundaryPoints)
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load project points')
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false)
-        }
+        if (active) setSource({ status: 'ready', points, grid, notice })
+      } catch (error) {
+        if (active) setSource({ status: 'error', message: error instanceof Error ? error.message : 'Could not load project evidence.' })
       }
     }
+    void load()
+    return () => { active = false; controller.abort() }
+  }, [projectId, attempt])
 
-    if (projectId && projectId !== 'new') {
-      fetchPoints()
-    } else {
-      setLoading(false)
-    }
-
-    return () => {
-      cancelled = true
-    }
-  }, [projectId])
-
-  if (loading) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="font-mono text-xs text-[var(--text-muted)] tracking-[0.04em] uppercase">
-          Loading project coordinates...
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="max-w-7xl mx-auto px-4 py-12">
-        <div className="border border-[color-mix(in_srgb,var(--error)_30%,transparent)] bg-[color-mix(in_srgb,var(--error)_5%,transparent)] p-4 rounded-md">
-          <p className="font-mono text-xs text-[var(--error)] tracking-[0.04em] uppercase mb-2">
-            Could not load project points
-          </p>
-          <p className="text-sm text-[var(--text-secondary)] mb-4">{error}</p>
-          <p className="text-xs text-[var(--text-muted)]">
-            You can still create a deed plan manually — your project coordinates
-            will not be auto-populated.
-          </p>
-        </div>
-        <div className="mt-6">
-          <DeedPlanGenerator projectId={projectId} initialPoints={[]} />
-        </div>
-      </div>
-    )
-  }
+  if (source.status === 'loading') return <p className="p-6" role="status">Loading project grid and boundary…</p>
+  if (source.status === 'error') return <div className="mx-auto max-w-4xl space-y-3 p-5">
+    <p role="alert">{source.message}</p>
+    <button type="button" className="btn btn-secondary" onClick={() => retry(value => value + 1)}>Retry</button>
+    <Link className="ml-3 underline" href={back}>Project documents</Link>
+  </div>
 
   return (
-    <div>
-      {points.length > 0 && (
-        <div className="max-w-7xl mx-auto px-4 mb-4">
-          <div className="border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] bg-[color-mix(in_srgb,var(--accent)_5%,transparent)] p-3 rounded-md flex items-center gap-3">
-            <svg className="w-4 h-4 text-[var(--accent)] shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-xs text-[var(--text-secondary)]">
-              <span className="font-mono text-[var(--accent)]">{points.length} points</span>{' '}
-              auto-populated from project survey data. Adjust beacon types and statuses
-              below before generating the plan.
-            </p>
-          </div>
-        </div>
-      )}
-      <DeedPlanGenerator projectId={projectId} initialPoints={points} />
-    </div>
+    <>
+      <div className="mx-auto max-w-7xl space-y-1 px-4 text-sm">
+        <Link href={back} className="underline">Project documents</Link>
+        <p className="text-[var(--text-secondary)]">{source.notice || (source.points.length
+          ? 'Loaded the current field-book boundary in saved perimeter order. Review the coordinates and record any known beacon details.'
+          : 'Enter or import reviewed boundary coordinates in perimeter order. The project point register can include observations outside the boundary.')}</p>
+      </div>
+      <DeedPlanGenerator key={projectId} projectId={projectId} initialPoints={source.points} initialGrid={source.grid} />
+    </>
   )
 }

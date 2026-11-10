@@ -32,6 +32,10 @@ export function SectionEditor({ rim }: { rim: RimState }) {
     handleUpdateSection,
     handleGeneratePdf,
     pdfGenerating,
+    detailError,
+    mutating,
+    parcelsLoading,
+    beaconsLoading,
     handleDeleteSection,
     parcels,
     showAddParcel,
@@ -48,6 +52,15 @@ export function SectionEditor({ rim }: { rim: RimState }) {
   } = rim;
 
   if (!activeSection) return null;
+
+  if (parcelsLoading || beaconsLoading) return <p className="p-4" role="status">Loading saved parcels and beacons…</p>;
+
+  if (detailError && activeSection) return (
+    <div className="space-y-3 rounded-xl border border-[var(--border-color)] p-4">
+      <p role="alert">{detailError}</p>
+      <button type="button" className="btn btn-secondary" onClick={() => void rim.handleSelectSection(activeSection)}>Retry register</button>
+    </div>
+  );
 
   return (
     <div className="space-y-4">
@@ -76,7 +89,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
         <div className="flex items-center gap-2">
           <button
             onClick={handleGeneratePdf}
-            disabled={pdfGenerating}
+            disabled={pdfGenerating || mutating || sectionSaving || parcelsLoading || beaconsLoading || Boolean(detailError)}
             className="btn btn-secondary"
           >
             {pdfGenerating ? (
@@ -387,7 +400,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                 >
                   Cancel
                 </button>
-                <button onClick={handleAddParcel} className="btn btn-primary text-xs py-1.5 px-3">
+                <button onClick={handleAddParcel} disabled={mutating} className="btn btn-primary text-xs py-1.5 px-3">
                   Add Parcel
                 </button>
               </div>
@@ -565,7 +578,7 @@ export function SectionEditor({ rim }: { rim: RimState }) {
                 >
                   Cancel
                 </button>
-                <button onClick={handleAddBeacon} className="btn btn-primary text-xs py-1.5 px-3">
+                <button onClick={handleAddBeacon} disabled={mutating} className="btn btn-primary text-xs py-1.5 px-3">
                   Add Beacon
                 </button>
               </div>

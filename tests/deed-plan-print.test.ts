@@ -49,7 +49,9 @@ describe('Deed Plan Print Generation', () => {
   })
 
   test('has scale bar', () => {
-    expect(html).toContain('Scale 1:1,000')
+    expect(html).toContain('<!-- Scale bar -->')
+    expect(html).toContain('Draft for review · fit to sheet')
+    expect(html).not.toContain('Scale 1:1,000')
   })
 
   test('has DEED PLAN title', () => {
@@ -109,9 +111,11 @@ describe('Deed Plan Print Generation', () => {
     expect(html).toContain('Zone 37S')
   })
 
-  test('has closure check', () => {
+  test('does not pass field closure based on a closed drawing', () => {
     expect(html).toContain('Precision ratio')
     expect(html).toContain('Perimeter')
+    expect(html).toContain('Not verified from field observations')
+    expect(html).not.toContain('>PASS<')
   })
 
   test('has drawn by / checked by', () => {

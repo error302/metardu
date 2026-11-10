@@ -92,7 +92,7 @@ export type BeaconType =
   | 'FENCE_POST'       // Fence post at boundary
   | 'WALL_CORNER'      // Corner of permanent wall
 
-export type BeaconStatus = 'FOUND' | 'SET' | 'REFERENCED' | 'DESTROYED' | 'NOT_FOUND'
+export type BeaconStatus = 'UNRECORDED' | 'FOUND' | 'SET' | 'REFERENCED' | 'DESTROYED' | 'NOT_FOUND'
 
 export interface BeaconDefinition {
   type: BeaconType

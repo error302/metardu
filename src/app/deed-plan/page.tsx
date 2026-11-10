@@ -15,7 +15,7 @@ export default async function DeedPlanPage({ searchParams: searchParamsPromise }
     <div className="space-y-4">
       <div className="mx-auto max-w-7xl px-4 pt-4">
         <MobileDesktopNotice>
-          Deed plan drafting needs enough screen width to inspect bearings, distances, area, and the final plan before download. Use mobile for quick review, then finish official output on desktop.
+          A larger screen makes it easier to review bearings, distances, area and the draft plan before export.
         </MobileDesktopNotice>
       </div>
       <div className="mx-auto max-w-7xl px-4">

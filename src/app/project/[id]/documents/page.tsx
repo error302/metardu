@@ -26,6 +26,7 @@ import {
   distance,
 } from '@/lib/reports/surveyPlan/geometry'
 import Link from 'next/link'
+import { ProjectDocumentTools } from '@/components/documents/ProjectDocumentTools'
 import MobileDesktopNotice from '@/components/MobileDesktopNotice'
 import { useSubscription } from '@/lib/subscription/subscriptionContext'
 import { logger } from '@/lib/logger'
@@ -860,6 +861,7 @@ export default function DocumentsPage() {
         <ProfessionalDisclaimer />
 
         {/* Surveyor details */}
+        <ProjectDocumentTools key={params.id} projectId={params.id} />
         <SurveyorDetailsPanel details={surveyorDetails} onChange={setSurveyorDetails} saveState="idle" />
 
         {/* Document list */}

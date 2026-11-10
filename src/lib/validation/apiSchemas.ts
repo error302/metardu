@@ -617,6 +617,7 @@ export const MiningVolumeSchema = z.object({
 // ─── Statutory Workbook Schema ───────────────────────────────────────────────
 
 export const StatutoryWorkbookSchema = z.object({
+  projectId: z.string().uuid().optional(),
   projectName: z.string().max(200).optional(),
   lrNumber: z.string().max(50).optional(),
   parcelNumber: z.string().max(50).optional(),

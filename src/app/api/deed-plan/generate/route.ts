@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server'
 import { logger } from '@/lib/logger'
 import { apiHandler } from '@/lib/apiHandler'
 import { z } from 'zod'
+import { isSimplePolygonRing } from '@/lib/spatial/simplePolygon'
 import type { DeedPlanInput, DeedPlanOutput } from '@/types/deedPlan'
 import { computeBoundaryLegs, computeArea, computeClosureCheck } from '@/lib/compute/deedPlan'
 import { renderDeedPlanSVG } from '@/lib/compute/deedPlanRenderer'
@@ -27,7 +28,7 @@ const DeedPlanRequestSchema = z.object({
   area: z.number().optional(),
   registrationSection: z.string().optional(),
   county: z.string().optional(),
-  utmZone: z.number().optional(),
+  utmZone: z.number().int().min(1).max(60).optional(),
   hemisphere: z.enum(['N', 'S']).optional(),
   scale: z.preprocess(
     (v) => (typeof v === 'number' ? String(v) : v),
@@ -43,7 +44,7 @@ const DeedPlanRequestSchema = z.object({
   submissionNumber: z.string().optional(),
   sheetNumber: z.number().optional(),
   totalSheets: z.number().optional(),
-  boundaryPoints: z.array(BoundaryPointSchema).min(3, 'A deed plan requires at least 3 boundary points'),
+  boundaryPoints: z.array(BoundaryPointSchema).min(3, 'A deed plan requires at least 3 boundary points').max(500),
   abuttalNorth: z.string().optional(),
   abuttalSouth: z.string().optional(),
   abuttalEast: z.string().optional(),
@@ -139,6 +140,10 @@ export const POST = apiHandler(
       controlClass: raw.controlClass,
     }
 
+    if (!isSimplePolygonRing(input.boundaryPoints) || new Set(input.boundaryPoints.map(point => point.id)).size !== input.boundaryPoints.length) {
+      return NextResponse.json({ error: 'Enter distinct named boundary points in perimeter order. The boundary must enclose an area and cannot cross itself.' }, { status: 422 })
+    }
+
     const bearingSchedule = computeBoundaryLegs(input.boundaryPoints)
     const area = computeArea(input.boundaryPoints)
     const closureCheck = computeClosureCheck(input.boundaryPoints)
@@ -149,7 +154,7 @@ export const POST = apiHandler(
     const crossCheckIssues: string[] = []
 
     try {
-      const { crossCheckArea, crossCheckClosure } = await import('@/lib/engine/calculationCrossCheck')
+      const { crossCheckArea } = await import('@/lib/engine/calculationCrossCheck')
 
       // Convert boundary points to Point2D format for cross-checks
       const points2D = input.boundaryPoints.map(p => ({
@@ -163,23 +168,6 @@ export const POST = apiHandler(
         crossCheckIssues.push(`Area cross-check failed: ${areaCheck.message}`)
       }
 
-      // Closure cross-check: coordinate round-trip
-      if (points2D.length >= 2) {
-        const start = points2D[0]
-        const end = points2D[points2D.length - 1]
-        const linearError = Math.sqrt(
-          closureCheck.closingErrorE ** 2 + closureCheck.closingErrorN ** 2
-        )
-        const closureCheckResult = crossCheckClosure(
-          start.easting, start.northing,
-          end.easting, end.northing,
-          linearError, 0,
-          0.001
-        )
-        if (!closureCheckResult.passed) {
-          crossCheckIssues.push(`Closure cross-check failed: ${closureCheckResult.message}`)
-        }
-      }
     } catch {
       // Cross-check module not available — non-blocking but log
       logger.warn('[deed-plan] Cross-check module not available')
@@ -193,25 +181,9 @@ export const POST = apiHandler(
     // ── AUDIT FIX (2026-07-05): Run statutory gate ──
     let gateResult: StatutoryGateResult | null = null
     try {
-      const linearError = Math.sqrt(
-        closureCheck.closingErrorE ** 2 + closureCheck.closingErrorN ** 2
-      )
-      const precisionRatioNum = linearError > 0
-        ? Math.round(closureCheck.perimeter / linearError)
-        : 999999
-
       gateResult = runStatutoryGate({
         surveyType: 'cadastral',
-        surveyor: {
-          name: input.surveyorName || 'Unknown',
-          licenseNumber: input.iskNumber || 'N/A',
-        },
-        traverse: {
-          stationCount: input.boundaryPoints.length,
-          linearErrorM: linearError,
-          totalDistanceM: closureCheck.perimeter,
-          precisionRatio: precisionRatioNum,
-        },
+        surveyor: { name: input.surveyorName, licenseNumber: '' },
         parcels: [{
           vertices: input.boundaryPoints.map(p => ({
             easting: p.easting,

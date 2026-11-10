@@ -15,6 +15,7 @@
 // ============================================================
 
 import jsPDF from 'jspdf'
+import autoTable from 'jspdf-autotable'
 import type { RimSection, RimParcel, RimBeacon } from './db'
 
 // A3 Landscape dimensions in mm (420 × 297)
@@ -59,12 +60,12 @@ export function generateRimPdf(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(16)
   doc.setTextColor(0, 0, 0)
-  doc.text('REPUBLIC OF KENYA', PAGE_W / 2, y, { align: 'center' })
+  doc.text('METARDU | SURVEY DRAFT', PAGE_W / 2, y, { align: 'center' })
 
   y += 7
   doc.setFontSize(11)
   doc.setFont('helvetica', 'normal')
-  doc.text('Ministry of Lands and Physical Planning', PAGE_W / 2, y, { align: 'center' })
+  doc.text('Parcel register and beacon schedule | No map geometry', PAGE_W / 2, y, { align: 'center' })
 
   y += 7
   doc.setDrawColor(0)
@@ -75,7 +76,7 @@ export function generateRimPdf(
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(14)
   doc.setTextColor(...NAVY)
-  doc.text('RESURVEY AND INDEX MAP', PAGE_W / 2, y, { align: 'center' })
+  doc.text('RIM REGISTER', PAGE_W / 2, y, { align: 'center' })
 
   // Reset text colour
   doc.setTextColor(0, 0, 0)
@@ -133,7 +134,7 @@ export function generateRimPdf(
     // Column widths (total = innerW ≈ 386mm)
     const colW = [12, 80, 45, 70, 110, 25] // remainder fills last column
 
-    drawTable(doc, {
+    y = drawTable(doc, {
       head,
       body,
       startY: y,
@@ -144,9 +145,6 @@ export function generateRimPdf(
       highlightLastRow: true,
     })
 
-    // Get final Y position after table
-    const tableEnd = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY
-    y = tableEnd ? tableEnd + 6 : y + parcels.length * 7 + 10
   } else {
     doc.setFont('helvetica', 'italic')
     doc.setFontSize(9)
@@ -184,7 +182,7 @@ export function generateRimPdf(
 
     const colW = [12, 45, 55, 55, 35, 110, 50]
 
-    drawTable(doc, {
+    y = drawTable(doc, {
       head,
       body,
       startY: y,
@@ -200,8 +198,6 @@ export function generateRimPdf(
       },
     })
 
-    const tableEnd = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY
-    y = tableEnd ? tableEnd + 6 : y + beacons.length * 7 + 10
   } else {
     doc.setFont('helvetica', 'italic')
     doc.setFontSize(9)
@@ -337,96 +333,26 @@ interface TableOptions {
   }
 }
 
-function drawTable(doc: jsPDF, opts: TableOptions) {
+function drawTable(doc: jsPDF, opts: TableOptions): number {
   const { head, body, startY, columnWidths, fontSize, headerBg, alternateRowColor } = opts
-  const x = MARGIN + 4 // left edge of content
-  const rowH = 6.5
-  const headerH = 7
-  let currentY = startY
-
-  // ── Header row ────────────────────────────────────────────
-  doc.setFillColor(...headerBg)
-  doc.rect(x, currentY, columnWidths.reduce((a, b) => a + b, 0), headerH, 'F')
-
-  doc.setFont('helvetica', 'bold')
-  doc.setFontSize(fontSize)
-  doc.setTextColor(255, 255, 255)
-
-  let colX = x
-  head[0].forEach((cell, ci) => {
-    const w = columnWidths[ci] || 40
-    doc.text(cell, colX + 2, currentY + headerH - 2)
-    colX += w
-  })
-
-  doc.setTextColor(0, 0, 0)
-  currentY += headerH
-
-  // ── Body rows ─────────────────────────────────────────────
-  doc.setFont('helvetica', 'normal')
-  doc.setFontSize(fontSize)
-
-  body.forEach((row, ri) => {
-    const isLast = opts.highlightLastRow && ri === body.length - 1
-    const isAlternate = ri % 2 === 1
-
-    // Row background
-    if (isLast) {
-      doc.setFillColor(220, 230, 241)
-      doc.rect(x, currentY, columnWidths.reduce((a, b) => a + b, 0), rowH, 'F')
-      doc.setFont('helvetica', 'bold')
-    } else if (isAlternate) {
-      doc.setFillColor(...alternateRowColor)
-      doc.rect(x, currentY, columnWidths.reduce((a, b) => a + b, 0), rowH, 'F')
-    }
-
-    // Check for status highlight
-    const statusCol = opts.statusHighlight?.column
-    if (statusCol !== undefined && opts.statusHighlight) {
-      const cellVal = row[statusCol]
-      if (cellVal && opts.statusHighlight.values.includes(cellVal)) {
-        // Calculate position of the status column cell
-        let cellX = x
-        for (let c = 0; c < statusCol; c++) {
-          cellX += columnWidths[c] || 40
-        }
-        const cellW = columnWidths[statusCol] || 40
-        doc.setFillColor(...opts.statusHighlight.color)
-        doc.rect(cellX, currentY, cellW, rowH, 'F')
+  autoTable(doc, {
+    head, body, startY, margin: { left: MARGIN + 4, right: MARGIN + 4, top: MARGIN + 10, bottom: MARGIN + 14 },
+    showHead: 'everyPage',
+    rowPageBreak: 'avoid',
+    styles: { fontSize, overflow: 'linebreak', cellPadding: 2 },
+    headStyles: { fillColor: headerBg },
+    alternateRowStyles: { fillColor: alternateRowColor },
+    columnStyles: Object.fromEntries(columnWidths.map((cellWidth, index) => [index, { cellWidth }])),
+    didParseCell: ({ section, row, column, cell }) => {
+      if (section !== 'body') return
+      if (opts.highlightLastRow && row.index === body.length - 1) {
+        cell.styles.fontStyle = 'bold'
+        cell.styles.fillColor = [220, 230, 241]
       }
-    }
-
-    // Row text
-    colX = x
-    row.forEach((cell, ci) => {
-      const w = columnWidths[ci] || 40
-      const isFirstCol = ci === 0
-      const isNumericCol = ci === 2 || ci === 3 || ci === 5 // area, northing, beacons
-      doc.text(cell, colX + (isFirstCol ? 2 : 2), currentY + rowH - 2, {
-        align: isFirstCol || isNumericCol ? 'center' : 'left',
-      })
-      colX += w
-    })
-
-    // Row border
-    doc.setDrawColor(200)
-    doc.setLineWidth(0.15)
-    doc.line(x, currentY + rowH, x + columnWidths.reduce((a, b) => a + b, 0), currentY + rowH)
-
-    if (isLast) {
-      doc.setFont('helvetica', 'normal')
-    }
-
-    currentY += rowH
+      if (opts.statusHighlight?.column === column.index && opts.statusHighlight.values.includes(String(cell.raw))) {
+        cell.styles.fillColor = opts.statusHighlight.color
+      }
+    },
   })
-
-  // Outer table border
-  doc.setDrawColor(0)
-  doc.setLineWidth(0.3)
-  const tableH = headerH + body.length * rowH
-  const tableW = columnWidths.reduce((a, b) => a + b, 0)
-  doc.rect(x, startY, tableW, tableH)
-
-  // Store final Y for caller reference
-  ;(doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable = { finalY: currentY + 2 }
+  return ((doc as unknown as { lastAutoTable: { finalY: number } }).lastAutoTable.finalY) + 6
 }

@@ -1,15 +1,4 @@
-/**
- * METARDU — Beacon Certificate / Beacon Description Sheet
- *
- * Produces a Kenya Survey Regulations 1994-compliant beacon description
- * certificate listing all beacons set or found during a survey.
- *
- * References:
- *   Survey Regulations 1994, Reg. 20 (beacon descriptions)
- *   Survey Act Cap 299, s.22 (duty to describe beacons)
- *   Cadastral Survey Standards and Guidelines Manual (ISK/DoLS)
- */
-
+// Draft beacon description and coordinate schedule.
 import { buildPrintDocument, openPrint } from './buildPrintDocument'
 
 // ── Re-export shared meta type so callers have one source of truth ────────────
@@ -29,7 +18,7 @@ export interface BeaconCertMeta {
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-export type BeaconCondition = 'SET' | 'FOUND' | 'DISTURBED' | 'DESTROYED' | 'NOT_FOUND'
+export type BeaconCondition = 'UNRECORDED' | 'SET' | 'FOUND' | 'DISTURBED' | 'DESTROYED' | 'NOT_FOUND'
 
 export type MonumentType =
   | 'Iron Pin'
@@ -66,12 +55,14 @@ export interface BeaconCertificateInput {
     subLocation: string
     surveyJobNo: string        // DoLS job number
   }
+  coordinateReference?: string
   beacons: BeaconEntry[]
 }
 
 // ── Condition display ─────────────────────────────────────────────────────────
 
 const CONDITION_STYLE: Record<BeaconCondition, { label: string; color: string }> = {
+  UNRECORDED: { label: 'Not recorded', color: '#374151' },
   SET:       { label: 'SET',       color: '#14532d' },
   FOUND:     { label: 'FOUND',     color: '#1e3a5f' },
   DISTURBED: { label: 'DISTURBED', color: '#78350f' },
@@ -182,7 +173,7 @@ export function generateBeaconCertificate(input: BeaconCertificateInput): string
   </div>
 </div>
 
-<h2>Beacon Descriptions &mdash; Survey Regulations 1994, Reg. 20</h2>
+<h2>Beacon descriptions</h2>
 <table style="font-size:8.5pt;">
   <thead>
     <tr>
@@ -204,7 +195,7 @@ export function generateBeaconCertificate(input: BeaconCertificateInput): string
 <div class="summary-box" style="margin-top:12px;">
   <div style="font-size:8pt;font-weight:bold;margin-bottom:4px;letter-spacing:0.5px;text-transform:uppercase;">Notes</div>
   <div style="font-size:8pt;line-height:1.65;color:#333;">
-    1. Coordinates are in UTM (Arc 1960 / UTM Zone 37S, SRID 21037) unless otherwise stated.<br>
+    1. Coordinate reference: ${esc(input.coordinateReference || 'Unrecorded')}.<br>
     2. Reduced levels (RL) are relative to Mean Sea Level datum unless otherwise stated.<br>
     3. Monument types and conditions are recorded as observed in the field on the date of survey.<br>
     4. &ldquo;SET&rdquo; = new beacon placed during this survey. &ldquo;FOUND&rdquo; = existing beacon verified in-situ.<br>
@@ -224,7 +215,7 @@ export function generateBeaconCertificate(input: BeaconCertificateInput): string
     instrument:   meta.instrument,
     observer:     meta.observer,
     submissionNo: meta.submissionNo,
-    reference:    'Survey Regulations 1994, Reg. 20 &nbsp;|&nbsp; Survey Act Cap 299, s.22 &nbsp;|&nbsp; Cadastral Survey Standards Manual',
+    reference:    'Draft for professional review',
   })
 }
 

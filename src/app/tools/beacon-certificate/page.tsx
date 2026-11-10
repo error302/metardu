@@ -8,7 +8,7 @@ export default function BeaconCertificatePage() {
   const { t } = useLanguage()
   return (
     <div className="max-w-7xl mx-auto px-4 py-8">
-      <PageHeader title={t('tools.beaconCertificate')} subtitle={t('tools.beaconCertificateDesc')} reference="Survey Regulations 1994, Reg. 20  |  Survey Act Cap 299, s.22  |  Cadastral Survey Standards Manual" />
+      <PageHeader title={t('tools.beaconCertificate')} subtitle={t('tools.beaconCertificateDesc')} />
       <BeaconCertificateBuilder />
     </div>
   )

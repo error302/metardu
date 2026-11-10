@@ -31,6 +31,7 @@ function SurveyReportBuilderContent() {
 
   useEffect(() => {
     if (sessionStatus === 'loading') return
+    if (projectId) { setLoading(false); return }
     if (!session?.user) {
       setLoading(false)
       return
@@ -48,7 +49,7 @@ function SurveyReportBuilderContent() {
     }
 
     load()
-  }, [session, sessionStatus, dbClient])
+  }, [session, sessionStatus, dbClient, projectId])
 
   if (sessionStatus === 'loading' || loading) {
     return (
@@ -149,7 +150,7 @@ function SurveyReportBuilderContent() {
           Report assembly has long forms, tables, previews, and export checks. Use desktop before issuing final documents.
         </MobileDesktopNotice>
       </div>
-      <SurveyReportBuilder projectId={projectId} existingReportId={reportId} />
+      <SurveyReportBuilder key={projectId + ':' + (reportId || 'new')} projectId={projectId} existingReportId={reportId} />
     </div>
   )
 }

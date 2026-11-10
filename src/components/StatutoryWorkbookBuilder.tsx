@@ -178,7 +178,7 @@ const REGULATIONS: RegulationSection[] = [
 const ACT_FILTERS = ['All', 'Land Act', 'Survey Act', 'Survey Regulations', 'Registration Act'] as const
 type ActFilter = typeof ACT_FILTERS[number]
 
-export default function StatutoryWorkbookBuilder() {
+export default function StatutoryWorkbookBuilder({ projectId }: { projectId?: string } = {}) {
   const [form, setForm] = useState({
     projectName: '',
     lrNumber: '',
@@ -208,22 +208,34 @@ export default function StatutoryWorkbookBuilder() {
       const response = await fetch('/api/tools/statutory-workbook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(projectId ? { projectId } : form),
       })
-      if (!response.ok) throw new Error('Workbook generation failed')
+      if (!response.ok) {
+        const body = await response.json().catch(() => null) as { error?: string } | null
+        throw new Error(body?.error || 'Workbook generation failed')
+      }
       const blob = await response.blob()
       const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
       link.href = url
       link.download = `${form.referenceNumber || form.projectName || 'metardu'}-statutory-workbook.xlsx`.replace(/[^\w.-]+/g, '-')
       link.click()
-      URL.revokeObjectURL(url)
+      setTimeout(() => URL.revokeObjectURL(url), 1000)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Workbook generation failed')
     } finally {
       setBusy(false)
     }
   }
+
+  if (projectId) return (
+    <section className="max-w-xl space-y-4 rounded-xl border border-[var(--border-color)] p-5">
+      <h2 className="font-semibold">Project review workbook</h2>
+      <p className="text-sm text-[var(--text-secondary)]">Use saved project geometry and computation records to prepare a draft workbook for review.</p>
+      {error && <p role="alert">{error}</p>}
+      <button type="button" className="btn btn-primary min-h-11" disabled={busy} onClick={() => void downloadWorkbook()}>{busy ? 'Preparing workbook…' : 'Download project workbook'}</button>
+    </section>
+  )
 
   // ── Search/filter logic ──────────────────────────────────────────────────
   const filteredRegs = REGULATIONS.filter(r => {

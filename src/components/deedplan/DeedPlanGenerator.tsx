@@ -1,27 +1,22 @@
 'use client';
 
-import { useState, useMemo, useRef } from 'react'
-import { FileText, Download, Save, CheckCircle, AlertCircle, Plus, Trash2, Printer, Ruler, Upload } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { FileText, Download, Save, AlertCircle, Plus, Trash2, Printer, Upload } from 'lucide-react'
 import { DeedPlanInput, DeedPlanOutput, BoundaryPoint, BeaconType } from '@/types/deedPlan'
 import { generateDeedPlan } from '@/lib/compute/deedPlanApi'
+import { computeArea } from '@/lib/compute/deedPlan'
 import { saveDeedPlan } from '@/lib/api-client/deedPlans'
 import { printDeedPlan } from '@/lib/print/deedPlanPrint'
 import { trackDeedGenerate, trackDeedDownload } from '@/lib/analytics/events'
-import {
-  coordinate2D,
-  polygonArea2D,
-  formatScalarWithCI,
-  scalarCI,
-} from '@/lib/survey/covariancePropagation'
-
 interface DeedPlanGeneratorProps {
   projectId: string
   initialPoints?: BoundaryPoint[]
+  initialGrid?: Pick<DeedPlanInput, 'datum' | 'utmZone' | 'hemisphere'>
 }
 
 const SCALES = [250, 500, 1000, 1250, 2500, 5000, 10000] as const
 const MARK_TYPES: BeaconType[] = ['PSC', 'SSC', 'BM', 'MASONRY_NAIL', 'IRON_PIN', 'CONCRETE_BEACON', 'INDICATORY', 'RIVET', 'TBM']
-const MARK_STATUSES = ['FOUND', 'SET', 'REFERENCED', 'DESTROYED', 'NOT_FOUND'] as const
+const MARK_STATUSES = ['UNRECORDED', 'FOUND', 'SET', 'REFERENCED', 'DESTROYED', 'NOT_FOUND'] as const
 
 const FOUR_ACRE_SAMPLE: DeedPlanInput = {
   surveyNumber: 'RS087_2026_014_R00',
@@ -50,21 +45,21 @@ const FOUR_ACRE_SAMPLE: DeedPlanInput = {
   iskNumber: 'ISK-1402',
   firmName: 'METARDU Survey Consultants Ltd',
   firmAddress: 'Nairobi, Kenya',
-  surveyDate: new Date().toISOString().split('T')[0],
-  signatureDate: new Date().toISOString().split('T')[0],
+  surveyDate: '',
+  signatureDate: '',
   clientName: 'Kaputiei Holdings Ltd',
   titleDeedNumber: 'FR No. 583/83',
   drawnBy: 'SKM',
   checkedBy: 'METARDU QA',
 }
 
-export default function DeedPlanGenerator({ projectId, initialPoints = [] }: DeedPlanGeneratorProps) {
+export default function DeedPlanGenerator({ projectId, initialPoints = [], initialGrid }: DeedPlanGeneratorProps) {
   const [step, setStep] = useState<'input' | 'preview' | 'export'>('input')
   const [isGenerating, setIsGenerating] = useState(false)
   const [output, setOutput] = useState<DeedPlanOutput | null>(null)
   const [error, setError] = useState<string | null>(null)
 
-  const [input, setInput] = useState<DeedPlanInput>({
+  const [input, setInputState] = useState<DeedPlanInput>({
     surveyNumber: '',
     drawingNumber: '',
     parcelNumber: '',
@@ -87,47 +82,63 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
     firmName: '',
     firmAddress: '',
     surveyDate: new Date().toISOString().split('T')[0],
-    signatureDate: new Date().toISOString().split('T')[0]
+    signatureDate: new Date().toISOString().split('T')[0],
+    ...initialGrid,
   })
 
-  // Compute area with confidence interval from boundary points.
-  // Uses covariance propagation: assumes each boundary point has ~5mm std dev
-  // (typical for cadastral traverse). If the surveyor has LSA covariances,
-  // those would be wired in here from the network adjustment result.
-  const areaWithUncertainty = useMemo(() => {
-    if (input.boundaryPoints.length < 3) return null
-    // Default per-point accuracy: 5mm in E and N (typical for closed traverse)
-    // Future: wire in actual LSA covariances from the network adjustment
-    const sigmaPoint = 0.005
-    const vertices = input.boundaryPoints.map(p =>
-      coordinate2D(p.easting, p.northing, sigmaPoint, sigmaPoint, 0),
-    )
-    return polygonArea2D(vertices)
-  }, [input.boundaryPoints])
+  const inputRef = useRef(input)
+  const generating = useRef(false)
+  const saving = useRef(false)
+  const [saveState, setSaveState] = useState<'idle' | 'saving' | 'saved'>('idle')
+  const [referenceConfirmed, setReferenceConfirmed] = useState(Boolean(initialGrid))
+
+  function setInput(next: DeedPlanInput | ((previous: DeedPlanInput) => DeedPlanInput)) {
+    const value = typeof next === 'function' ? next(inputRef.current) : next
+    inputRef.current = value
+    setInputState(value)
+    setOutput(null)
+    setSaveState('idle')
+    setError(null)
+  }
 
   const handleGenerate = async () => {
+    if (generating.current) return
+    if (!referenceConfirmed) {
+      setError('Confirm the coordinate grid before generating the draft.')
+      return
+    }
+    const snapshot = input
+    generating.current = true
     setIsGenerating(true)
     setError(null)
     try {
-      const result = await generateDeedPlan(input)
-      trackDeedGenerate(input.scale)
+      const result = await generateDeedPlan(snapshot)
+      if (inputRef.current !== snapshot) return
+      trackDeedGenerate(snapshot.scale)
       setOutput(result)
       setStep('preview')
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to generate deed plan')
+      if (inputRef.current === snapshot) setError(err instanceof Error ? err.message : 'Failed to generate deed plan')
     } finally {
+      generating.current = false
       setIsGenerating(false)
     }
   }
 
   const handleSave = async () => {
-    if (!output) return
+    if (!output || projectId === 'new' || saving.current || saveState === 'saved') return
+    saving.current = true
+    setSaveState('saving')
+    setError(null)
     try {
-      await saveDeedPlan(projectId, input, output)
-      alert('Deed plan saved successfully!')
+      await saveDeedPlan(projectId, { ...input, area: computeArea(input.boundaryPoints) }, output)
+      if (inputRef.current === input) setSaveState('saved')
     } catch (err) {
-      alert(err instanceof Error ? err.message : 'Failed to save')
-    }
+      if (inputRef.current === input) {
+        setSaveState('idle')
+        setError(err instanceof Error ? err.message : 'Could not save the project draft.')
+      }
+    } finally { saving.current = false }
   }
 
   const handleDownloadSVG = () => {
@@ -142,83 +153,42 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
     URL.revokeObjectURL(url)
   }
 
-  const handleDownloadPNG = async () => {
+  const handleDownloadPNG = () => {
     if (!output) return
-    try {
-      // A1 at 300 DPI: 9933 x 7016 pixels — use 12x for high quality
-      const SCALE = 12
-      const svgW = 841
-      const svgH = 594
-      const imgW = svgW * SCALE
-      const imgH = svgH * SCALE
-
-      const svgBlob = new Blob([output.svg], { type: 'image/svg+xml;charset=utf-8' })
-      const url = URL.createObjectURL(svgBlob)
-
-      const img = new Image()
-      img.onload = () => {
+    setError(null)
+    const url = URL.createObjectURL(new Blob([output.svg], { type: 'image/svg+xml;charset=utf-8' }))
+    const img = new Image()
+    img.onload = () => {
+      try {
         const canvas = document.createElement('canvas')
-        canvas.width = imgW
-        canvas.height = imgH
+        canvas.width = 3200
+        canvas.height = Math.round(canvas.width * img.naturalHeight / img.naturalWidth)
         const ctx = canvas.getContext('2d')
-        if (!ctx) {
-          URL.revokeObjectURL(url)
-          alert('Canvas not supported in this browser')
-          return
-        }
-        // White background
+        if (!ctx) throw new Error('Canvas is unavailable. Download the SVG instead.')
         ctx.fillStyle = 'white'
-        ctx.fillRect(0, 0, imgW, imgH)
-        // Draw SVG preserving aspect ratio — center if dimensions differ
-        const svgAspect = svgW / svgH
-        const canvasAspect = imgW / imgH
-        let drawW, drawH, drawX, drawY
-        if (canvasAspect > svgAspect) {
-          // Canvas is wider — fit height
-          drawH = imgH
-          drawW = imgH * svgAspect
-          drawX = (imgW - drawW) / 2
-          drawY = 0
-        } else {
-          // Canvas is taller — fit width
-          drawW = imgW
-          drawH = imgW / svgAspect
-          drawX = 0
-          drawY = (imgH - drawH) / 2
-        }
-        ctx.drawImage(img, drawX, drawY, drawW, drawH)
-        URL.revokeObjectURL(url)
-
-        canvas.toBlob((blob) => {
-          if (!blob) {
-            alert('Failed to create PNG image')
-            return
-          }
-          const pngUrl = URL.createObjectURL(blob)
-          const a = document.createElement('a')
-          a.href = pngUrl
-          a.download = `${input.parcelNumber || 'deed-plan'}_A1_300dpi.png`
-          a.click()
-          URL.revokeObjectURL(pngUrl)
-        }, 'image/png', 1.0)
-      }
-      img.onerror = () => {
-        URL.revokeObjectURL(url)
-        alert('Failed to render SVG. Try downloading as SVG instead.')
-      }
-      img.src = url
-    } catch {
-      alert('PNG download failed. Try downloading as SVG instead.')
+        ctx.fillRect(0, 0, canvas.width, canvas.height)
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        canvas.toBlob(blob => {
+          if (!blob) { setError('PNG could not be created. Download the SVG instead.'); return }
+          const png = URL.createObjectURL(blob)
+          const link = document.createElement('a')
+          link.href = png
+          link.download = (input.parcelNumber || 'deed-plan') + '.png'
+          link.click()
+          setTimeout(() => URL.revokeObjectURL(png), 1000)
+        }, 'image/png')
+      } catch (error) {
+        setError(error instanceof Error ? error.message : 'PNG could not be created.')
+      } finally { URL.revokeObjectURL(url) }
     }
+    img.onerror = () => { URL.revokeObjectURL(url); setError('PNG could not be created. Download the SVG instead.') }
+    img.src = url
   }
 
   const handlePrintA3 = () => {
-    if (input.boundaryPoints.length < 3) {
-      setError('At least 3 boundary points are required to print a deed plan.')
-      return
-    }
-    setError(null)
-    printDeedPlan({ input })
+    if (!output) return
+    try { printDeedPlan({ input }) }
+    catch (error) { setError(error instanceof Error ? error.message : 'Print preview could not open.') }
   }
 
   const addBoundaryPoint = () => {
@@ -231,8 +201,8 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
           id: `P${index}`,
           easting: 0,
           northing: 0,
-          markType: 'CONCRETE_BEACON',
-          markStatus: 'SET',
+          markType: 'INDICATORY',
+          markStatus: 'UNRECORDED',
           description: '',
         },
       ],
@@ -256,9 +226,8 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
 
         for (const line of lines) {
           // Skip header if present
-          if (/^(point|id|pt|name|easting|northing)/i.test(line)) continue
-
           const parts = line.split(/[,\t\s]+/).filter(Boolean)
+          if (/^(point|point_name|id|pt|name)$/i.test(parts[0]) && /^(easting|e)$/i.test(parts[1])) continue
           if (parts.length >= 3) {
             const id = parts[0]
             const easting = parseFloat(parts[1])
@@ -268,8 +237,8 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                 id,
                 easting,
                 northing,
-                markType: (parts[3] as BeaconType) || 'CONCRETE_BEACON',
-                markStatus: 'FOUND',
+                markType: MARK_TYPES.includes(parts[3] as BeaconType) ? parts[3] as BeaconType : 'INDICATORY',
+                markStatus: 'UNRECORDED',
                 description: parts.slice(4).join(' ') || 'Imported field coordinate',
               })
             }
@@ -302,7 +271,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
 
   return (
     <div className="container mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-8">Deed Plan / Survey Plan (Form No. 4)</h1>
+      <h1 className="text-3xl font-bold mb-8">Draft a deed plan</h1>
 
       {/* Step Tabs */}
       <div className="flex gap-4 mb-6">
@@ -418,7 +387,8 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                 <select
                   id="dpg-datum"
                   value={input.datum}
-                  onChange={(e) => setInput({ ...input, datum: e.target.value as 'ARC1960' | 'WGS84' })}
+                  disabled={Boolean(initialGrid)}
+                  onChange={(e) => { setInput({ ...input, datum: e.target.value as 'ARC1960' | 'WGS84' }); setReferenceConfirmed(false) }}
                   className="input w-full text-sm"
                 >
                   <option value="WGS84">WGS84</option>
@@ -653,7 +623,7 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
                 </button>
                 <button
                   type="button"
-                  onClick={() => setInput(FOUR_ACRE_SAMPLE)}
+                  onClick={() => { setInput({ ...FOUR_ACRE_SAMPLE, ...initialGrid }); setReferenceConfirmed(false) }}
                   className="flex items-center gap-2 px-3 py-2 bg-[var(--bg-tertiary)] text-[var(--text-secondary)] border border-[var(--border-color)] rounded-lg hover:border-[var(--accent)] text-sm"
                 >
                   <FileText className="h-4 w-4" />
@@ -781,18 +751,26 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
             </div>
           </div>
 
+          <div className="lg:col-span-2 flex flex-wrap items-end gap-3">
+            <label className="text-sm">UTM zone
+              <input className="input ml-2 w-20" type="number" min={1} max={60} value={input.utmZone || ''} disabled={Boolean(initialGrid)}
+                onChange={event => { setInput({ ...input, utmZone: Number(event.target.value) }); setReferenceConfirmed(false) }} />
+            </label>
+            <label className="text-sm">Hemisphere
+              <select className="input ml-2" value={input.hemisphere} disabled={Boolean(initialGrid)}
+                onChange={event => { setInput({ ...input, hemisphere: event.target.value === 'N' ? 'N' : 'S' }); setReferenceConfirmed(false) }}>
+                <option value="N">North</option><option value="S">South</option>
+              </select>
+            </label>
+            {(!initialGrid || !referenceConfirmed) && <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={referenceConfirmed} onChange={event => { setReferenceConfirmed(event.target.checked); setOutput(null) }} />
+              I checked the coordinate grid
+            </label>}
+          </div>
           <div className="lg:col-span-2 flex justify-end gap-3">
             <button
-              onClick={handlePrintA3}
-              disabled={input.boundaryPoints.length < 3}
-              className="flex items-center gap-2 px-6 py-3 bg-[var(--bg-tertiary)] text-[var(--text-primary)] border border-[var(--border-color)] rounded-lg hover:border-[var(--accent)] disabled:opacity-50"
-            >
-              <Printer className="h-5 w-5" />
-              Print A3 Deed Plan
-            </button>
-            <button
               onClick={handleGenerate}
-              disabled={isGenerating}
+              disabled={isGenerating || !referenceConfirmed}
               className="flex items-center gap-2 px-6 py-3 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] disabled:opacity-50 font-bold"
             >
               {isGenerating ? (
@@ -811,50 +789,15 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
       {/* PREVIEW STEP */}
       {step === 'preview' && output && (
         <div className="space-y-6">
-          {/* Closure Check Badge */}
-          <div className={`flex items-center gap-4 p-4 rounded-lg border ${output.closureCheck.passes ? 'border-green-700/60 bg-green-950/30 text-green-300' : 'border-red-700/60 bg-red-950/30 text-red-300'}`}>
-            {output.closureCheck.passes ? (
-              <CheckCircle className="h-6 w-6 text-green-500" />
-            ) : (
-              <AlertCircle className="h-6 w-6 text-red-500" />
-            )}
-            <div>
-              <span className="font-semibold">Precision Ratio: {output.closureCheck.precisionRatio}</span>
-              <span className="ml-2 text-sm text-gray-600">
-                ({output.closureCheck.passes ? 'PASSES' : 'FAILS'} - minimum 1:5000 required)
-              </span>
-            </div>
-            <div className="ml-auto text-sm">
-              Perimeter: {output.closureCheck.perimeter.toFixed(2)}m
-            </div>
+          <div className="rounded-xl border border-[var(--border-color)] p-4 tabular-nums">
+            <p className="font-semibold">Draft geometry</p>
+            <p className="text-sm text-[var(--text-secondary)]">Perimeter {output.closureCheck.perimeter.toFixed(2)} m. Check the drawing and bearings against the source survey before issue.</p>
           </div>
-
-          {/* Area with Confidence Interval — for statutory submissions */}
-          {areaWithUncertainty && (
-            <div className="flex items-center gap-4 p-4 rounded-lg border border-blue-700/60 bg-blue-950/20">
-              <Ruler className="h-6 w-6 text-blue-400 shrink-0" />
-              <div className="flex-1">
-                <div className="font-semibold text-blue-200">
-                  Computed Area: {formatScalarWithCI(areaWithUncertainty, { unit: 'm²', decimals: 2 })}
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Confidence interval derived from boundary point uncertainties via covariance propagation (Var(A) = J·Σ·Jᵀ).
-                  Assumes 5mm per-point accuracy — replace with LSA covariances for sub-cm precision.
-                </div>
-              </div>
-              <div className="text-right text-xs">
-                <div className="text-gray-400">Std Dev</div>
-                <div className="font-mono text-blue-300">
-                  ±{scalarCI(areaWithUncertainty).stdDev.toFixed(4)} m²
-                </div>
-              </div>
-            </div>
-          )}
 
           {/* SVG Preview */}
           <div className="bg-white rounded-lg p-4 border overflow-auto">
             <div
-              className="mx-auto"
+              className="mx-auto [&>svg]:h-auto [&>svg]:w-full"
               dangerouslySetInnerHTML={{ __html: output.svg }}
             />
           </div>
@@ -879,14 +822,14 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] font-bold"
             >
               <Printer className="h-5 w-5" />
-              Print A3 Deed Plan
+              Print A3 draft
             </button>
             <button
               onClick={handleDownloadPNG}
               className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] font-bold"
             >
               <Download className="h-5 w-5" />
-              Download PNG (A1 300dpi)
+              Download PNG
             </button>
             <button
               onClick={handleDownloadSVG}
@@ -895,13 +838,14 @@ export default function DeedPlanGenerator({ projectId, initialPoints = [] }: Dee
               <Download className="h-5 w-5" />
               Download SVG
             </button>
-            <button
+            {projectId !== 'new' && <button
               onClick={handleSave}
+              disabled={saveState !== 'idle'}
               className="flex items-center justify-center gap-2 px-6 py-4 bg-[var(--accent)] text-black rounded-lg hover:bg-[var(--accent-dim)] font-bold"
             >
               <Save className="h-5 w-5" />
-              Save to Project
-            </button>
+              {saveState === 'saving' ? 'Saving…' : saveState === 'saved' ? 'Draft saved' : 'Save to project'}
+            </button>}
           </div>
 
           {/* Bearing Schedule */}

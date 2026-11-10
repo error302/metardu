@@ -259,8 +259,8 @@ export function generateControlSurvey(input: SurveyReportInput, controlPoints: C
     <h2>6. Control Survey</h2>
     
     <h3>6.1 Datum and Projection</h3>
-    <p>All coordinates are referenced to ${input.datum} on the ${input.projection} projection.</p>
-    <p style="font-style: italic; font-size: 9pt;">Source: Survey Act Cap 299 s.9 — national datum</p>
+    <p>Coordinate reference: ${input.datum || 'Unrecorded'} · ${input.projection || 'Unrecorded'}.</p>
+
   `
   
   if (input.gnssMethod) {
@@ -292,7 +292,7 @@ export function generateControlSurvey(input: SurveyReportInput, controlPoints: C
           <td style="border: 1px solid #000; padding: 5px;">${cp.order}</td>
           <td style="border: 1px solid #000; padding: 5px;">${cp.easting.toFixed(4)}</td>
           <td style="border: 1px solid #000; padding: 5px;">${cp.northing.toFixed(4)}</td>
-          <td style="border: 1px solid #000; padding: 5px;">${cp.elevation.toFixed(3)}</td>
+          <td style="border: 1px solid #000; padding: 5px;">${cp.elevation?.toFixed(3) ?? 'Unrecorded'}</td>
           <td style="border: 1px solid #000; padding: 5px;">${cp.markType}</td>
           <td style="border: 1px solid #000; padding: 5px;">${cp.source}</td>
         </tr>
@@ -319,6 +319,7 @@ function getControlAccuracyClass(points: ControlPoint[]): string {
 
 export function generateTopographicSurvey(input: SurveyReportInput): SectionContent {
   const methodLabels: Record<string, string> = {
+    UNRECORDED: 'Survey method not recorded',
     TOTAL_STATION: 'Total Station',
     GNSS_RTK: 'GNSS RTK',
     LEVEL: 'Digital Level',
@@ -463,7 +464,7 @@ export function generateCoordinateRegister(controlPoints: ControlPoint[]): Secti
         <td style="border: 1px solid #000; padding: 5px;">${cp.id}</td>
         <td style="border: 1px solid #000; padding: 5px;">${cp.easting.toFixed(4)}</td>
         <td style="border: 1px solid #000; padding: 5px;">${cp.northing.toFixed(4)}</td>
-        <td style="border: 1px solid #000; padding: 5px;">${cp.elevation.toFixed(3)}</td>
+        <td style="border: 1px solid #000; padding: 5px;">${cp.elevation?.toFixed(3) ?? 'Unrecorded'}</td>
         <td style="border: 1px solid #000; padding: 5px;">${cp.markType}</td>
         <td style="border: 1px solid #000; padding: 5px;">${cp.description}</td>
       </tr>
@@ -497,7 +498,7 @@ export function generateBenchmarkRegister(benchmarks: ControlPoint[]): SectionCo
       content += `
         <tr>
           <td style="border: 1px solid #000; padding: 5px;">${bm.id}</td>
-          <td style="border: 1px solid #000; padding: 5px;">${bm.elevation.toFixed(3)}</td>
+          <td style="border: 1px solid #000; padding: 5px;">${bm.elevation?.toFixed(3) ?? 'Unrecorded'}</td>
           <td style="border: 1px solid #000; padding: 5px;">${bm.description}</td>
           <td style="border: 1px solid #000; padding: 5px;">${bm.markType}</td>
           <td style="border: 1px solid #000; padding: 5px;">${bm.source}</td>
@@ -670,7 +671,7 @@ export function generateDeclaration(input: SurveyReportInput): SectionContent {
         </li>
         <li style="margin-bottom: 8px;">
           I hold a valid licence as a Registered Surveyor under the Survey Act (Cap. 299) of Kenya
-          and my licence number is ${input.surveyorIskNumber || '[ISK No.]'}.
+          and will provide my verified licence number when signing this declaration.
         </li>
       </ol>
       

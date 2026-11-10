@@ -1,5 +1,5 @@
 import { fetchSurveyorProfile } from '@/lib/survey/fetchSurveyorProfile';
-import type { RimSection, RimParcel, RimBeacon } from '@/lib/rim/db';
+import { rimReportType, type RimRegisterRow } from '@/lib/rim/register';
 import { uploadFile, getSignedUrl } from '@/lib/storage';
 import { db } from '@/lib/db';
 import { loadPreAdjustedFromDB } from '../generators/deedPlanGeometry';
@@ -159,6 +159,109 @@ interface GenerateDocumentResult {
   fileUrl: string;
 }
 
+export async function buildProjectReviewWorkbook(projectId: string): Promise<Buffer> {
+  const { generateStatutoryWorkbook } = await import('./workbook/statutoryWorkbook');
+  const { computeDeedPlanGeometry } = await import('../generators/deedPlanGeometry');
+  const [projectRes, surveyorProfile, preAdjusted] = await Promise.all([
+    db.query<ProjectDetailRow>(
+      'SELECT name, lr_number, plot_parcel_number AS parcel_number, county, registration_block AS division, registration_district AS district, locality, survey_type, NULL AS survey_subtype, survey_date, utm_zone, hemisphere, datum FROM projects WHERE id = $1',
+      [projectId]
+    ),
+    fetchSurveyorProfile(projectId),
+    loadPreAdjustedFromDB(projectId),
+  ]);
+  const proj = projectRes.rows[0];
+  const geom = await computeDeedPlanGeometry(projectId, {
+    preAdjustedCoordinates: preAdjusted?.stations,
+    preAdjustedClosure: preAdjusted?.closure,
+  });
+  const perimeterM = geom.bearingSchedule.reduce((s: number, l) => s + (parseFloat(l.distance) || 0), 0);
+  const adjustedStations = computeTraverseAdjustment(
+    geom.stations, geom.bearingSchedule, geom.misclosureMm, perimeterM
+  );
+  const precisionRatioNum = parsePrecisionRatio(geom.precisionRatio);
+
+  const rawSurveyType = proj?.survey_type || 'cadastral';
+  const validSurveyTypes = ['cadastral', 'engineering', 'topographic', 'leveling', 'control', 'mining', 'hydrographic', 'drone', 'gnss'] as const;
+  const safeSurveyType = (validSurveyTypes as readonly string[]).includes(rawSurveyType)
+    ? (rawSurveyType as typeof validSurveyTypes[number])
+    : 'cadastral';
+
+  return generateStatutoryWorkbook({
+    project: {
+      name: proj?.name || 'Cadastral Survey Project',
+      lrNumber: proj?.lr_number || 'N/A',
+      parcelNumber: proj?.parcel_number || 'N/A',
+      county: proj?.county || 'Not supplied',
+      division: proj?.division || 'Not supplied',
+      district: proj?.district || 'Not supplied',
+      locality: proj?.locality || 'N/A',
+      surveyType: safeSurveyType,
+      surveyDate: proj?.survey_date ? new Date(proj.survey_date).toISOString().slice(0, 10) : 'Not supplied',
+      scaleDenominator: NaN,
+    },
+    surveyor: {
+      name: surveyorProfile.surveyorName || 'Not supplied',
+      iskNumber: surveyorProfile.iskNumber || 'Not supplied',
+      firmName: surveyorProfile.firmName || 'Not supplied',
+    },
+    submission: {
+      referenceNumber: surveyorProfile.referenceNumber || `SUB-${projectId.slice(0, 8).toUpperCase()}`,
+      revision: 0,
+      status: 'DRAFT — UNVERIFIED',
+    },
+    fieldObservations: [],
+    derivedFromCoordinates: true,
+    traverse: {
+      method: 'bowditch',
+      stations: adjustedStations.map((st) => ({
+        label: st.label,
+        observedBearing: st.observedBearing,
+        observedDistance: st.observedDistance,
+        departureRaw: st.departureRaw,
+        latitudeRaw: st.latitudeRaw,
+        departureCorrected: st.departureRaw + st.departureCorrection,
+        latitudeCorrected: st.latitudeRaw + st.latitudeCorrection,
+        easting: st.adjustedEasting,
+        northing: st.adjustedNorthing,
+      })),
+      angularMisclosureSec: NaN,
+      angularToleranceSec: NaN,
+      angularPassesQA: null,
+      linearMisclosureM: geom.misclosureMm / 1000,
+      perimeterM,
+      precisionRatio: precisionRatioNum,
+      precisionMinimum: 5000,
+      linearPassesQA: geom.closureStatus === 'UNVERIFIED' ? null : geom.closureStatus === 'PASS',
+    },
+    adjustedStations: geom.stations.map((st) => ({
+      label: st.station,
+      easting: st.easting,
+      northing: st.northing,
+      elevation: st.elevation,
+    })),
+    levelling: null,
+    areaComputation: {
+      stations: geom.stations.map((st) => ({
+        label: st.station,
+        easting: st.easting,
+        northing: st.northing,
+      })),
+      areaM2: geom.areaM2 || 0,
+      areaHa: geom.areaHa || 0,
+      perimeterM,
+    },
+    legs: geom.bearingSchedule.map((leg) => ({
+      fromLabel: leg.from,
+      toLabel: leg.to,
+      bearing: parseDMSBearing(leg.bearing),
+      distance: parseFloat(leg.distance) || 0,
+    })),
+    cogoResults: null,
+  });
+
+}
+
 export async function generateDocument(
   input: GenerateDocumentInput
 ): Promise<GenerateDocumentResult> {
@@ -171,18 +274,9 @@ export async function generateDocument(
 
   switch (documentId) {
     case 'rim': {
-      const {generateRimPdf}=await import('../rim/rimPdfGenerator');
-      const sections=await db.query<RimSection>('SELECT * FROM rim_sections WHERE project_id=$1 ORDER BY updated_at DESC',[projectId]);
-      if(sections.rows.length!==1) throw new Error('Save one RIM section for this project in the RIM editor before generating its registry index map.');
-      const section=sections.rows[0];
-      const [parcels,beacons]=await Promise.all([
-        db.query<RimParcel>('SELECT * FROM rim_parcels WHERE rim_section_id=$1 ORDER BY parcel_number',[section.id]),
-        db.query<RimBeacon>('SELECT * FROM rim_beacons WHERE rim_section_id=$1 ORDER BY beacon_number',[section.id]),
-      ]);
-      if(!parcels.rows.length) throw new Error('The RIM section has no parcels. Complete it in the RIM editor first.');
-      buffer=Buffer.from(generateRimPdf(section,parcels.rows,beacons.rows));
-      fileName=`rim-${projectId}.pdf`;mimeType='application/pdf';
-      break;
+      const sections=await db.query<RimRegisterRow>('SELECT id,project_id,user_id,status,input_data,created_at,updated_at FROM survey_reports WHERE project_id=$1 AND report_type=$2 ORDER BY updated_at DESC LIMIT 2',[projectId,rimReportType]);
+      if(sections.rows.length!==1) throw new Error('Save one RIM section for this project in the RIM editor before preparing its register.');
+      throw new Error('The saved RIM register is a schedule. Use the scheme index map with reviewed parcel geometry for submission.');
     }
     case 'traverse-report': {
       const { generateTraverseReport } = await import('../generators/traverseReport');
@@ -311,106 +405,7 @@ export async function generateDocument(
       break;
     }
     case 'statutory-workbook': {
-      const { generateStatutoryWorkbook } = await import('./workbook/statutoryWorkbook');
-      const { computeDeedPlanGeometry } = await import('../generators/deedPlanGeometry');
-      const [projectRes, surveyorProfile, preAdjusted] = await Promise.all([
-        db.query<ProjectDetailRow>(
-          'SELECT name, lr_number, plot_parcel_number AS parcel_number, county, registration_block AS division, registration_district AS district, locality, survey_type, NULL AS survey_subtype, survey_date, utm_zone, hemisphere, datum FROM projects WHERE id = $1',
-          [projectId]
-        ),
-        fetchSurveyorProfile(projectId),
-        loadPreAdjustedFromDB(projectId),
-      ]);
-      const proj = projectRes.rows[0];
-      const geom = await computeDeedPlanGeometry(projectId, {
-        preAdjustedCoordinates: preAdjusted?.stations,
-        preAdjustedClosure: preAdjusted?.closure,
-      });
-      const perimeterM = geom.bearingSchedule.reduce((s: number, l) => s + (parseFloat(l.distance) || 0), 0);
-      const adjustedStations = computeTraverseAdjustment(
-        geom.stations, geom.bearingSchedule, geom.misclosureMm, perimeterM
-      );
-      const precisionRatioNum = parsePrecisionRatio(geom.precisionRatio);
-
-      const rawSurveyType = proj?.survey_type || 'cadastral';
-      const validSurveyTypes = ['cadastral', 'engineering', 'topographic', 'leveling', 'control', 'mining', 'hydrographic', 'drone', 'gnss'] as const;
-      const safeSurveyType = (validSurveyTypes as readonly string[]).includes(rawSurveyType)
-        ? (rawSurveyType as typeof validSurveyTypes[number])
-        : 'cadastral';
-
-      buffer = await generateStatutoryWorkbook({
-        project: {
-          name: proj?.name || 'Cadastral Survey Project',
-          lrNumber: proj?.lr_number || 'N/A',
-          parcelNumber: proj?.parcel_number || 'N/A',
-          county: proj?.county || 'Not supplied',
-          division: proj?.division || 'Not supplied',
-          district: proj?.district || 'Not supplied',
-          locality: proj?.locality || 'N/A',
-          surveyType: safeSurveyType,
-          surveyDate: proj?.survey_date ? new Date(proj.survey_date).toISOString().slice(0, 10) : 'Not supplied',
-          scaleDenominator: NaN,
-        },
-        surveyor: {
-          name: surveyorProfile.surveyorName || 'Not supplied',
-          iskNumber: surveyorProfile.iskNumber || 'Not supplied',
-          firmName: surveyorProfile.firmName || 'Not supplied',
-        },
-        submission: {
-          referenceNumber: surveyorProfile.referenceNumber || `SUB-${projectId.slice(0, 8).toUpperCase()}`,
-          revision: 0,
-          status: 'DRAFT — UNVERIFIED',
-        },
-        fieldObservations: [],
-        derivedFromCoordinates: true,
-        traverse: {
-          method: 'bowditch',
-          stations: adjustedStations.map((st) => ({
-            label: st.label,
-            observedBearing: st.observedBearing,
-            observedDistance: st.observedDistance,
-            departureRaw: st.departureRaw,
-            latitudeRaw: st.latitudeRaw,
-            departureCorrected: st.departureRaw + st.departureCorrection,
-            latitudeCorrected: st.latitudeRaw + st.latitudeCorrection,
-            easting: st.adjustedEasting,
-            northing: st.adjustedNorthing,
-          })),
-          angularMisclosureSec: NaN,
-          angularToleranceSec: NaN,
-          angularPassesQA: null,
-          linearMisclosureM: geom.misclosureMm / 1000,
-          perimeterM,
-          precisionRatio: precisionRatioNum,
-          precisionMinimum: 5000,
-          linearPassesQA: geom.closureStatus === 'UNVERIFIED' ? null : geom.closureStatus === 'PASS',
-        },
-        adjustedStations: geom.stations.map((st) => ({
-          label: st.station,
-          easting: st.easting,
-          northing: st.northing,
-          elevation: st.elevation,
-        })),
-        levelling: null,
-        areaComputation: {
-          stations: geom.stations.map((st) => ({
-            label: st.station,
-            easting: st.easting,
-            northing: st.northing,
-          })),
-          areaM2: geom.areaM2 || 0,
-          areaHa: geom.areaHa || 0,
-          perimeterM,
-        },
-        legs: geom.bearingSchedule.map((leg) => ({
-          fromLabel: leg.from,
-          toLabel: leg.to,
-          bearing: parseDMSBearing(leg.bearing),
-          distance: parseFloat(leg.distance) || 0,
-        })),
-        cogoResults: null,
-      });
-
+      buffer = await buildProjectReviewWorkbook(projectId);
       fileName = `statutory-workbook-${projectId}.xlsx`;
       mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
       break;

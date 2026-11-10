@@ -13,3 +13,15 @@
 ## Release and acceptance
 
 The initial read-only Docker check reported one application container, healthy application and required services, and a successful matching migration service. The backup job recorded completion at 9 November 2026 20:03 Nairobi. This is archive evidence. A fresh customer/offsite restore, physical touch and GNSS acceptance, independent surveyor approval, provider checks, security deferrals and the broader release gates require their own evidence.
+
+## Production promotion completed
+
+10 November 2026 around 02:08 Nairobi. The application is `65346fb7d59f391dde675ea231e1ed649d1c0d00` on `sha256:80fa2bcee1e5f8c5762609feba73c499cab966dd848f814121d1125acf8a6275`. The pinned archived source passed 223 related tests in 33 suites, 81 release contracts, all three TypeScript checks and whole-repository lint. The two release-runner fixes were verified separately at `ae2d1f3c42cd928efd77e0cd966cab0d4ad70731` and `8b25236ba5800db4dadde8614900bae427fce334`.
+
+The initial preflight stopped below the 8 GiB Windows reserve. Four inactive October webpack analysis caches were inspected and removed, raising physical free space from 4,051,861,504 to 10,752,872,448 bytes. The first image build was stopped by the same guard after packaging. Free space recovered when the process exited. The same-SHA retry reused retained layers on the existing builder, passed and preserved the first log's hash. The 6.02 MB chunk remains outside the PWA precache.
+
+The isolated no-SQL rehearsal first rejected 12 raw checksum differences. Both ledgers were subsequently verified against the pinned SQL using the existing LF/CRLF equivalence rules. The current rollback image passed its actual startup verifier on that synthetic database. The production ledger stayed at 131 entries with every stored checksum unchanged. Before and after fingerprints matched across 22 workflow tables. The fresh database and uploads checkpoint passed a full gzip and tar read. All 108 earlier archive hashes matched and 110 archives are now retained.
+
+Docker verified a single application, healthy supporting services, the completed migration service on the exact new image, and production HTTP, database and Redis health. The previous image remains tagged as `metardu-metardu-app:rollback-current`. The only persisted Compose environment byte change was the release ID. Origin and public HTTPS health both reported the new revision. The public Map, CAD and geofence routes returned HTTP 200. The interactive checks remain isolated-browser evidence.
+
+Receipts are in `.cache/release-verify/unified-release/65346fb7d59f391dde675ea231e1ed649d1c0d00/`, including `source-checks.json`, `rehearsal-attempt-1.json`, `promotion.json`, both build logs, `compose-release-identity.json` and `map-cad-runtime-acceptance.json`. Physical device and independent field acceptance, provider checks, security deferrals and customer/offsite restore remain open.
