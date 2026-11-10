@@ -51,3 +51,12 @@ test('does not invent sections when the saved report contains no content', async
   ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ ...row, sections: null }] })
   expect((await invokeMockApi(POST, context)).status).toBe(422)
 })
+
+test('keeps the saved report and explains a figure on the Word cover cannot be included', async () => {
+  ;(db.query as jest.Mock).mockResolvedValue({ rows: [{ ...row, sections: [
+    { ...row.sections[0], section: 'TITLE_PAGE', content: '<img src="https://example.invalid/private.png">' },
+  ] }] })
+  const response = await invokeMockApi(POST, context)
+  expect(response.status).toBe(422)
+  expect(await response.json()).toMatchObject({ error: expect.stringContaining('figures or attachments') })
+})

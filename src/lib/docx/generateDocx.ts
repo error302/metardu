@@ -50,6 +50,8 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
     ? inputSections || []
     : inputSections || []
 
+  // Validate the complete saved draft before the Word cover and index are laid out.
+  const composed = sections.map(section => ({ section, blocks: readReportBlocks(section.content) }))
   const docSections: (Paragraph | Table | TableOfContents)[] = []
 
   // Title Page
@@ -141,7 +143,7 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
   )
 
   // Add each section
-  for (const section of sections) {
+  for (const { section, blocks } of composed) {
     if (section.section === 'TITLE_PAGE' || section.section === 'TABLE_OF_CONTENTS') continue
 
     // Section heading
@@ -163,7 +165,7 @@ export async function generateDocx(options: DocxGenerationOptions): Promise<Buff
     )
 
     // Section content
-    for (const block of readReportBlocks(section.content)) {
+    for (const block of blocks) {
       if (block.kind === 'text') {
         docSections.push(new Paragraph({ text: block.text, spacing: { after: 120 } }))
         continue
