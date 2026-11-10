@@ -6,6 +6,7 @@ import { db } from '@/lib/db'
 import { rimReportType } from '@/lib/rim/register'
 import type { SectionContent, SurveyReportInput } from '@/types/surveyReport'
 import { generatePdf } from '@/lib/pdf/generatePdf'
+import { ReportExportUnsupportedError } from '@/lib/compute/reportExportBlocks'
 import { generateDocx } from '@/lib/docx/generateDocx'
 
 interface SavedReportRow {
@@ -52,41 +53,48 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     status: row.status,
   }
 
-  if (format === 'pdf') {
-    const pdfBuffer = await generatePdf({
-      title: report.reportTitle || 'Survey Report',
-      sections: report.sections,
-      paperSize: 'A4',
-      orientation: 'portrait',
-    })
+  try {
+    if (format === 'pdf') {
+      const pdfBuffer = await generatePdf({
+        title: report.reportTitle || 'Survey Report',
+        sections: report.sections,
+        paperSize: 'A4',
+        orientation: 'portrait',
+      })
 
-    return new NextResponse(Buffer.from(pdfBuffer), {
-      headers: {
-        'Content-Type': 'application/pdf',
-        'Cache-Control': 'private, no-store',
-        'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'survey_report'}.pdf"`,
-      }
-    })
-  } else if (format === 'docx') {
-    const docxBuffer = await generateDocx({
-      title: report.reportTitle || 'Survey Report',
-      reportNumber: report.reportNumber,
-      sections: report.sections,
-      clientName: report.clientName,
-      projectName: report.projectName,
-      projectLocation: report.projectLocation,
-      areaHectares: report.areaHectares,
-      useTemplate: false,
-    })
+      return new NextResponse(Buffer.from(pdfBuffer), {
+        headers: {
+          'Content-Type': 'application/pdf',
+          'Cache-Control': 'private, no-store',
+          'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'survey_report'}.pdf"`,
+        }
+      })
+    } else if (format === 'docx') {
+      const docxBuffer = await generateDocx({
+        title: report.reportTitle || 'Survey Report',
+        reportNumber: report.reportNumber,
+        sections: report.sections,
+        clientName: report.clientName,
+        projectName: report.projectName,
+        projectLocation: report.projectLocation,
+        areaHectares: report.areaHectares,
+        useTemplate: false,
+      })
 
-    return new NextResponse(Buffer.from(docxBuffer), {
-      headers: {
-        'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-        'Cache-Control': 'private, no-store',
-        'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'report'}.docx"`,
-      }
-    })
+      return new NextResponse(Buffer.from(docxBuffer), {
+        headers: {
+          'Content-Type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          'Cache-Control': 'private, no-store',
+          'Content-Disposition': `attachment; filename="${report.reportNumber?.replace(/[^a-z0-9]/gi, '_') || 'report'}.docx"`,
+        }
+      })
+    }
+
+    return NextResponse.json({ error: 'Unsupported format' }, { status: 400 })
+  } catch (error) {
+    if (error instanceof ReportExportUnsupportedError) {
+      return NextResponse.json({ error: error.message }, { status: 422, headers: { 'Cache-Control': 'private, no-store' } })
+    }
+    throw error
   }
-
-  return NextResponse.json({ error: 'Unsupported format' }, { status: 400 })
 })

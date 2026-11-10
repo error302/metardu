@@ -4,7 +4,7 @@
 
 | Tool | From Project → Documents | Standalone |
 | --- | --- | --- |
-| Survey Report | Start or reopen a saved report. Generate a preview, edit sections and save the current revision; PDF and Word use that saved revision. | Choose a project first. |
+| Survey Report | Start or reopen a saved report. Generate a preview, edit sections and save the current revision; PDF and Word use the saved text and tables. Drafts with embedded figures or attachments remain saved and the export explains the limitation. | Choose a project first. |
 | Deed Plan | Use the declared grid and a saved ordered boundary whose observation evidence is current. When that evidence is missing or stale, enter an independently checked boundary in order. | Enter ordered coordinates and explicitly confirm the datum, zone and hemisphere; preview, SVG, PNG and A3 draft print. |
 | RIM register | Create and reopen a section, add parcels and beacons, export the schedules as a draft PDF. | Choose a project first. For a scheme index map, use the scheme workflow; a register PDF is not a map. |
 | Beacon Certificate | Enter or transcribe checked beacon records in the manual tool. Project point linking remains a follow-up because a coordinate alone does not establish mark condition. | Enter the reference and complete named coordinate pairs; print an unsigned draft or download CSV. |

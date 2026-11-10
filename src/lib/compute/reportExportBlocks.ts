@@ -4,6 +4,13 @@
  */
 export type ReportBlock = { kind: 'text'; text: string } | { kind: 'table'; head: string[][]; body: string[][] }
 
+export class ReportExportUnsupportedError extends Error {
+  constructor() {
+    super('This draft contains figures or attachments that cannot be included in this export. Keep the saved draft and export a text-and-table copy.')
+    this.name = 'ReportExportUnsupportedError'
+  }
+}
+
 function plain(html: string): string {
   const entities: Record<string, string> = { nbsp: ' ', amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", ndash: '–', mdash: '—', deg: '°' }
   return html
@@ -19,7 +26,10 @@ function plain(html: string): string {
 
 export function readReportBlocks(html: string): ReportBlock[] {
   const blocks: ReportBlock[] = []
-  const inert = html.replace(/<!--[^]*?-->/g, '').replace(/<(script|style|iframe|object)\b[^>]*>[^]*?<\/\1\s*>/gi, '')
+  const inert = html.replace(/<!--[^]*?-->/g, '').replace(/<(script|style)\b[^>]*>[^]*?<\/\1\s*>/gi, '')
+  if (/<(?:img|image|svg|picture|canvas|iframe|object|embed|video|audio)\b/i.test(inert)) {
+    throw new ReportExportUnsupportedError()
+  }
   const addText = (part: string) => {
     for (const line of part.split(/<br\b[^>]*>|<\/(?:div|p|li|h[1-6]|section|blockquote)>/i)) {
       const text = plain(line)
