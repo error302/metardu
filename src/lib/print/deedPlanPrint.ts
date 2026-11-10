@@ -246,6 +246,8 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
     : ''
 
   // ── Bearing & Distance schedule rows ───────────────────────────────────────
+  const mainScheduleLimit = 8
+  const appendixPageSize = 28
   const legRows = legs.map((l, i) => `
 <tr>
   <td>${i + 1}</td>
@@ -253,7 +255,7 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
   <td class="bold">${esc(l.toPoint)}</td>
   <td class="mono">${l.bearing}</td>
   <td class="right mono">${l.distance.toFixed(3)}</td>
-</tr>`).join('')
+</tr>`)
 
   // ── Coordinate schedule rows ───────────────────────────────────────────────
   const coordRows = pts.map((p, i) => `
@@ -264,7 +266,50 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
   <td class="right mono">${p.northing.toFixed(3)}</td>
   <td>${esc(p.markType.replace(/_/g, ' '))}</td>
   <td class="center">${esc(p.markStatus)}</td>
-</tr>`).join('')
+</tr>`)
+
+  const schedules = (bearings: string, coordinates: string) => `
+    <!-- Bearing & Distance Schedule -->
+    <div class="schedule-section">
+      <div class="schedule-header">Bearing &amp; Distance Schedule</div>
+      <table>
+        <tr>
+          <th style="width:8%">No.</th>
+          <th style="width:12%">From</th>
+          <th style="width:12%">To</th>
+          <th style="width:42%">WCB Bearing</th>
+          <th style="width:26%" class="right">Distance (m)</th>
+        </tr>
+        ${bearings}
+      </table>
+    </div>
+
+    <!-- Coordinate Schedule -->
+    <div class="schedule-section">
+      <div class="schedule-header">Coordinate Schedule — ${blank(input.datum === 'ARC1960' ? 'Arc 1960' : input.datum)} / ${blank(input.projectionType)} ${input.utmZone}${input.hemisphere}</div>
+      <table>
+        <tr>
+          <th style="width:6%">No.</th>
+          <th style="width:10%">Stn</th>
+          <th style="width:22%" class="right">Easting (m)</th>
+          <th style="width:22%" class="right">Northing (m)</th>
+          <th style="width:24%">Monument</th>
+          <th style="width:16%" class="center">Status</th>
+        </tr>
+        ${coordinates}
+      </table>
+    </div>
+
+`
+  const appendix: string[] = []
+  for (let start = mainScheduleLimit; start < pts.length; start += appendixPageSize) {
+    const end = Math.min(start + appendixPageSize, pts.length)
+    appendix.push(`<section class="appendix">
+      <h2>Draft deed plan · Schedule continuation</h2>
+      <p>${blank(input.parcelNumber)} · Rows ${start + 1}–${end} of ${pts.length}</p>
+      <div class="appendix-schedules">${schedules(legRows.slice(start, end).join(''), coordRows.slice(start, end).join(''))}</div>
+    </section>`)
+  }
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -282,7 +327,15 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
 
   /* ── A3 landscape page ─── */
   @page { size: A3 landscape; margin: 6mm; }
-  @media print { body { margin: 0; } }
+  @media print {
+    body { margin: 0; }
+    .page { height: 281mm !important; }
+    .appendix { break-before: page; }
+    .appendix tr { break-inside: avoid; }
+  }
+  .appendix { padding: 5mm; }
+  .appendix h2 { margin-bottom: 2mm; }
+  .appendix-schedules { display: grid; grid-template-columns: 1fr 1fr; gap: 4mm; margin-top: 3mm; align-items: start; }
 
   /* ── Main two-column layout ─── */
   .page {
@@ -577,36 +630,8 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
       </div>
     </div>
 
-    <!-- Bearing & Distance Schedule -->
-    <div class="schedule-section">
-      <div class="schedule-header">Bearing &amp; Distance Schedule</div>
-      <table>
-        <tr>
-          <th style="width:8%">No.</th>
-          <th style="width:12%">From</th>
-          <th style="width:12%">To</th>
-          <th style="width:42%">WCB Bearing</th>
-          <th style="width:26%" class="right">Distance (m)</th>
-        </tr>
-        ${legRows || '<tr><td colspan="5" class="center" style="color:#999;font-style:italic;">No legs computed</td></tr>'}
-      </table>
-    </div>
-
-    <!-- Coordinate Schedule -->
-    <div class="schedule-section">
-      <div class="schedule-header">Coordinate Schedule — Arc 1960 / UTM 37S</div>
-      <table>
-        <tr>
-          <th style="width:6%">No.</th>
-          <th style="width:10%">Stn</th>
-          <th style="width:22%" class="right">Easting (m)</th>
-          <th style="width:22%" class="right">Northing (m)</th>
-          <th style="width:24%">Monument</th>
-          <th style="width:16%" class="center">Status</th>
-        </tr>
-        ${coordRows || '<tr><td colspan="6" class="center" style="color:#999;font-style:italic;">No points</td></tr>'}
-      </table>
-    </div>
+${schedules(legRows.slice(0, mainScheduleLimit).join(''), coordRows.slice(0, mainScheduleLimit).join(''))}
+${appendix.length ? '<p>Remaining rows are in the schedule continuation.</p>' : ''}
 
     <!-- Abuttals -->
     <div class="abuttals-grid">
@@ -660,6 +685,7 @@ export function generateDeedPlanPrint(inp: DeedPlanPrintInput): string {
 
   </div><!-- end info-panel -->
 </div><!-- end page -->
+${appendix.join('')}
 <script>
   window.addEventListener('load', () => {
     setTimeout(() => { window.focus(); window.print(); }, 600)

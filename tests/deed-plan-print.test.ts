@@ -118,6 +118,20 @@ describe('Deed Plan Print Generation', () => {
     expect(html).not.toContain('>PASS<')
   })
 
+  test('prints every bearing and coordinate on continuation sheets with the declared grid', () => {
+    const boundaryPoints = Array.from({ length: 39 }, (_, index) => {
+      const angle = (index / 39) * Math.PI * 2
+      return { ...INPUT.boundaryPoints[0], id: 'SHEET-' + (index + 1),
+        easting: 500000 + Math.cos(angle) * 200, northing: 1000 + Math.sin(angle) * 200 }
+    })
+    const longPlan = generateDeedPlanPrint({ input: { ...INPUT, datum: 'WGS84', utmZone: 36, hemisphere: 'N', boundaryPoints } })
+    expect(longPlan).toContain('Coordinate Schedule — WGS84 / UTM 36N')
+    expect(longPlan).not.toContain('Coordinate Schedule — Arc 1960 / UTM 37S')
+    expect(longPlan).toContain('Rows 9–36 of 39')
+    expect(longPlan).toContain('Rows 37–39 of 39')
+    expect(longPlan).toContain('SHEET-39</td>')
+  })
+
   test('has drawn by / checked by', () => {
     expect(html).toContain('SKM')
     expect(html).toContain('METARDU QA')
