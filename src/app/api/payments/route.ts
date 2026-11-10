@@ -12,6 +12,7 @@ import { db } from '@/lib/db'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
 import { getPlan, getTotalPrice, SUPPORTED_CURRENCIES } from '@/lib/subscription/catalog'
 import { resolveSeatSelection, seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
+import { sendPurchaseReceipt } from '@/lib/payments/receipt'
 
 // ─── Row types ────────────────────────────────────────────────────────────
 interface SubscriptionRow {
@@ -344,7 +345,24 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           }
 
           await activateSubscription({ planId: s.data.planId, payment_method: 'stripe', currency: stripeSession.currency as CurrencyCode, amount: Number(stripeSession.amountTotal ?? 0), transaction_id: stripeSession.id, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
-          return NextResponse.json({ status: 'completed' })
+          await sendPurchaseReceipt({
+            userId,
+            planId: s.data.planId,
+            amount: Number(stripeSession.amountTotal ?? 0),
+            currency: stripeSession.currency,
+            transactionId: stripeSession.id,
+            paymentMethod: 'stripe',
+            paymentId: s.data.paymentId,
+          })
+          return NextResponse.json({
+            status: 'completed',
+            receipt: {
+              amount: Number(stripeSession.amountTotal ?? 0),
+              currency: stripeSession.currency,
+              transactionId: stripeSession.id,
+              paidAt: new Date().toISOString(),
+            },
+          })
         }
         default:
           return NextResponse.json({ error: 'Unknown stripe action' }, { status: 400 })
@@ -419,7 +437,24 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           }
 
           await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: currencyCode, amount: Number(amountStr), transaction_id: s.data.orderId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
-          return NextResponse.json({ status: 'completed' })
+          await sendPurchaseReceipt({
+            userId,
+            planId: s.data.planId,
+            amount: Number(amountStr),
+            currency: currencyCode,
+            transactionId: s.data.orderId,
+            paymentMethod: 'paypal',
+            paymentId: s.data.paymentId,
+          })
+          return NextResponse.json({
+            status: 'completed',
+            receipt: {
+              amount: Number(amountStr),
+              currency: currencyCode,
+              transactionId: s.data.orderId,
+              paidAt: new Date().toISOString(),
+            },
+          })
         }
         case 'subscription-status': {
           const s = z.object({
@@ -444,7 +479,24 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
               const sub = await paypal.getSubscriptionStatus(subscriptionId)
               if (sub.status?.toLowerCase() === 'active') {
                 await activateSubscription({ planId: s.data.planId, payment_method: 'paypal', currency: (pay.currency as CurrencyCode) || 'USD', amount: Number(pay.amount), transaction_id: subscriptionId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
-                return NextResponse.json({ status: 'completed' })
+                await sendPurchaseReceipt({
+                  userId,
+                  planId: s.data.planId,
+                  amount: Number(pay.amount),
+                  currency: (pay.currency as string) || 'USD',
+                  transactionId: subscriptionId,
+                  paymentMethod: 'paypal',
+                  paymentId: s.data.paymentId,
+                })
+                return NextResponse.json({
+                  status: 'completed',
+                  receipt: {
+                    amount: Number(pay.amount),
+                    currency: (pay.currency as string) || 'USD',
+                    transactionId: subscriptionId,
+                    paidAt: new Date().toISOString(),
+                  },
+                })
               }
               if (['approval_pending', 'approved'].includes(sub.status?.toLowerCase() ?? '')) {
                 return NextResponse.json({ status: 'pending' })
@@ -490,9 +542,30 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           const result = await mpesa.checkTransactionStatus(s.data.checkoutRequestId)
           if (result.status === 'completed') {
             await activateSubscription({ planId: (pay.plan_id as PlanId) || 'pro', payment_method: 'mpesa', currency: (pay.currency as CurrencyCode) || 'KES', amount: Number(pay.amount) || 0, transaction_id: s.data.checkoutRequestId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata((pay.plan_id as PlanId) || 'pro', pay.metadata) })
+            await sendPurchaseReceipt({
+              userId,
+              planId: (pay.plan_id as string) || 'pro',
+              amount: Number(pay.amount) || 0,
+              currency: (pay.currency as string) || 'KES',
+              transactionId: s.data.checkoutRequestId,
+              paymentMethod: 'mpesa',
+              paymentId: s.data.paymentId,
+            })
           }
 
-          return NextResponse.json({ status: result.status === 'completed' ? 'completed' : 'pending' })
+          return NextResponse.json({
+            status: result.status === 'completed' ? 'completed' : 'pending',
+            ...(result.status === 'completed'
+              ? {
+                  receipt: {
+                    amount: Number(pay.amount) || 0,
+                    currency: (pay.currency as string) || 'KES',
+                    transactionId: s.data.checkoutRequestId,
+                    paidAt: new Date().toISOString(),
+                  },
+                }
+              : {}),
+          })
         }
         default:
           return NextResponse.json({ error: 'Unknown mpesa action' }, { status: 400 })
