@@ -116,12 +116,18 @@ export function computeSurveyFee(input: FeeQuoteInput): FeeQuoteResult {
 
   const billableHa = Math.max(1, areaHa)
   const areaAmountKes = billableHa * areaRatePerHaKes
+  // The minimum-charge policy bills at least 1 Ha. The line item must show the
+  // quantity it actually charged, otherwise the printed quote reads
+  // "0.25 Ha @ 6,000 = 6,000" and the arithmetic visibly does not add up.
+  const minimumApplied = areaHa < 1
 
   items.push({
     id: 'area_rate',
     label: 'Acreage Sliding Scale Fee',
-    description: `Sliding scale rate for ${areaHa.toFixed(2)} Ha (${areaAcres.toFixed(2)} Acres)`,
-    quantity: parseFloat(areaHa.toFixed(2)),
+    description: minimumApplied
+      ? `Sliding scale rate for ${areaHa.toFixed(2)} Ha (${areaAcres.toFixed(2)} Acres); 1.00 Ha minimum billing applies`
+      : `Sliding scale rate for ${areaHa.toFixed(2)} Ha (${areaAcres.toFixed(2)} Acres)`,
+    quantity: billableHa,
     unit: 'Ha',
     rate: areaRatePerHaKes * currencyRate,
     amount: areaAmountKes * currencyRate,
