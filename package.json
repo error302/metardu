@@ -24,6 +24,8 @@
     "docker:test": "docker-compose -f docker-compose.testing.yml up --build",
     "docker:test:down": "docker-compose -f docker-compose.testing.yml down -v",
     "docker:test:logs": "docker-compose -f docker-compose.testing.yml logs -f",
+    "deploy:app": "node scripts/deploy-app.mjs",
+    "smoke:production": "node scripts/smoke-production.mjs",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:engineering": "jest src/lib/engineering --coverage",
