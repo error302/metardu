@@ -3,6 +3,8 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
+import { checkProjectAccess } from '@/lib/security/projectAccess'
+import { can, effectiveRole } from '@/lib/security/projectPermissions'
 import {
   getWorkflowStatus,
   advanceWorkflow,
@@ -36,16 +38,18 @@ interface QcRow {
 export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 60000 } }, async (_req, ctx) => {
   const { id } = ctx.params
 
-  // Fetch project data
+  // Fetch project data — membership-aware: owners and invited members both
+  // see the workflow; everyone else gets the same 404 (no existence leak).
   const { rows } = await db.query<ProjectRow>(
     `SELECT p.id, p.name, p.survey_type, p.location, p.utm_zone, p.hemisphere,
             p.workflow_step, p.workflow_max_unlocked
      FROM projects p
-     WHERE p.id = $1 AND p.user_id = $2`,
-    [id, ctx.userId]
+     WHERE p.id = $1`,
+    [id]
   )
 
-  if (rows.length === 0) {
+  const access = rows.length > 0 ? await checkProjectAccess(ctx.userId, id) : null
+  if (rows.length === 0 || !access?.allowed) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
   }
 
@@ -114,17 +118,26 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   const { id } = ctx.params
   const body = ctx.body as { acknowledgeTolerance?: boolean } | undefined
 
-  // Fetch project data
+  // Fetch project data — membership-aware, but step changes are role-aware:
+  // viewers can read the workflow yet cannot advance it.
   const { rows } = await db.query<ProjectRow>(
     `SELECT p.id, p.name, p.survey_type, p.location, p.utm_zone, p.hemisphere,
             p.workflow_step, p.workflow_max_unlocked
      FROM projects p
-     WHERE p.id = $1 AND p.user_id = $2`,
-    [id, ctx.userId]
+     WHERE p.id = $1`,
+    [id]
   )
 
-  if (rows.length === 0) {
+  const access = rows.length > 0 ? await checkProjectAccess(ctx.userId, id) : null
+  if (rows.length === 0 || !access?.allowed) {
     return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+  }
+  const role = effectiveRole(access)
+  if (!can(role, 'workflow.advance')) {
+    return NextResponse.json(
+      { error: 'Viewers cannot advance the workflow. Ask the project owner for editor access.' },
+      { status: 403 }
+    )
   }
 
   const project = rows[0]

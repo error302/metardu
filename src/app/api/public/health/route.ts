@@ -50,6 +50,9 @@ export async function GET() {
     checks,
     latencyMs: Date.now() - start,
     version: process.env.npm_package_version ?? '1.0.1',
+    // Which build is serving — the deploy pipeline stamps METARDU_BUILD_SHA;
+    // 'unknown' means the image predates build stamping.
+    build: process.env.METARDU_BUILD_SHA || 'unknown',
     uptime: Math.round(process.uptime()),
     timestamp: new Date().toISOString(),
   }, { status: allOk ? 200 : 503 })

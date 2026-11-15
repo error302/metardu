@@ -59,7 +59,7 @@ export default function MobileNav() {
         role="navigation"
         aria-label="Primary mobile navigation"
       >
-        <div className="flex justify-around items-stretch">
+        <div className="flex justify-start items-stretch overflow-x-auto no-scrollbar">
           {mobileNavItems.slice(0, 4).map((item) => {
             const isActive = isNavItemActive(pathname, item.href)
             const iconName = item.icon || item.href.replace('/', '')
@@ -69,7 +69,7 @@ export default function MobileNav() {
                 key={item.href}
                 href={item.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-[64px] shrink-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -89,7 +89,7 @@ export default function MobileNav() {
                 key={reportsItem.href}
                 href={reportsItem.href}
                 aria-current={isActive ? 'page' : undefined}
-                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+                className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-[64px] shrink-0 flex-1 ${
                   isActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
                 }`}
               >
@@ -104,7 +104,7 @@ export default function MobileNav() {
             onClick={() => setShowMore(true)}
             aria-label="Show more navigation options"
             aria-expanded={showMore}
-            className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-0 flex-1 ${
+            className={`flex flex-col items-center justify-center gap-0.5 px-2 min-h-[48px] py-2 text-[10px] font-medium tracking-wide transition-colors min-w-[64px] shrink-0 flex-1 ${
               isMoreActive ? 'text-[var(--accent)]' : 'text-gray-400 hover:text-white'
             }`}
           >
