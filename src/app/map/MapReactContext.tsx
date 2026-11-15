@@ -52,6 +52,8 @@ export interface MapContextValue {
   stakeoutTarget: { e: number; n: number } | null
   stakeoutActive: boolean
   stakeoutState: StakeoutState | null
+  /** True while the surveyor is placing a stakeout target by tapping the map. */
+  stakeoutPicking: boolean
   audioMuted: boolean
   saveMsg: string
   setSaveMsg: React.Dispatch<React.SetStateAction<string>>
@@ -170,7 +172,8 @@ export interface MapContextValue {
   toggleAnnotations: () => void
   toggleBasemap: (mode: BasemapMode) => void
   toggleGPS: () => void
-  startStakeout: (target: { easting: number; northing: number }) => Promise<void>
+  startStakeout: (target: { easting: number; northing: number; name?: string }, options?: { allowFar?: boolean }) => Promise<void>
+  setStakeoutPicking: (v: boolean) => void
   toggleOsmBuildings: () => void
   deleteSelected: () => void
   sketchHistory: boolean

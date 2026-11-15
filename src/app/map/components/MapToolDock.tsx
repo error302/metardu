@@ -20,12 +20,12 @@ import {
   FolderOpen, Link2,
 } from 'lucide-react'
 import { useMapContext } from '@/app/map/MapReactContext'
+import { validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { CogoInfoPanel } from '@/app/map/components/CogoInfoPanel'
 import { CogoToolsPanel } from '@/app/map/components/CogoToolsPanel'
 import { BookmarkPanel } from '@/app/map/components/BookmarkPanel'
 import { GpsTrackPanel } from '@/app/map/components/GpsTrackPanel'
 import { InstantClosureFeedback } from '@/app/map/components/InstantClosureFeedback'
-import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { VertexEditToolbarContext } from '@/components/map/VertexEditToolbar'
 import { SchemeLayerPanel } from './SchemeLayerPanel'
 import { ManualPointEntry } from './ManualPointEntry'
@@ -403,12 +403,39 @@ export const ComputeContent = memo(function ComputeContent() {
   )
 })
 
-export const SetOutContent = memo(function SetOutContent() {
-  const { gpsTracking, toggleGPS, stakeoutActive, startStakeout, deactivateStakeout, currentSurveyCrs, schemeProjectId, hasFeature } = useMapContext()
+export const SetOutContent = memo(function SetOutContent({ onStakeoutStarted }: { onStakeoutStarted?: () => void } = {}) {
+  const { gpsTracking, toggleGPS, stakeoutActive, startStakeout, deactivateStakeout, currentSurveyCrs, schemeProjectId, hasFeature, stakeoutPicking, setStakeoutPicking } = useMapContext()
   const [target, setTarget] = useState({ easting: '', northing: '' })
   const [starting, setStarting] = useState(false)
   const [error, setError] = useState('')
+  const [warning, setWarning] = useState<{ easting: number; northing: number; messages: string[] } | null>(null)
   const canNavigate = hasFeature('gps_stakeout')
+
+  const beginStakeout = useCallback(async (easting: number, northing: number, name?: string, options?: { allowFar?: boolean }) => {
+    setError('')
+    setStarting(true)
+    try {
+      await startStakeout({ easting, northing, name }, options)
+      setTarget({ easting: '', northing: '' })
+      setWarning(null)
+      setStakeoutPicking(false)
+      // Navigation HUD lives at workspace level; free the map view.
+      onStakeoutStarted?.()
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Could not start navigation.')
+    } finally {
+      setStarting(false)
+    }
+  }, [startStakeout, setStakeoutPicking, onStakeoutStarted])
+
+  const rangeCheck = useCallback((easting: number, northing: number) => {
+    if (!currentSurveyCrs) return null
+    try {
+      return validateCoordinateRange(easting, northing, currentSurveyCrs)
+    } catch {
+      return null // unregistered grid: the engine re-checks on activation
+    }
+  }, [currentSurveyCrs])
 
   async function submitTarget(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -420,14 +447,16 @@ export const SetOutContent = memo(function SetOutContent() {
       return
     }
     setError('')
-    setStarting(true)
-    try {
-      await startStakeout({ easting, northing })
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'Could not start navigation.')
-    } finally {
-      setStarting(false)
+    const check = rangeCheck(easting, northing)
+    if (check && !check.valid) {
+      setError(check.errors.join(' '))
+      return
     }
+    if (check && check.warnings.length > 0) {
+      setWarning({ easting, northing, messages: check.warnings })
+      return
+    }
+    await beginStakeout(easting, northing)
   }
 
   return (
@@ -438,7 +467,7 @@ export const SetOutContent = memo(function SetOutContent() {
         : <p className="px-1 text-xs text-[var(--text-secondary)]">Open the map from a project to use its setout register.</p>}
 
       <SectionLabel>Device GPS navigation</SectionLabel>
-      <p className="px-1 pb-2 text-xs text-[var(--text-secondary)]">Navigate to a known grid coordinate. Verify position and tolerances with a survey instrument.</p>
+      <p className="px-1 pb-2 text-xs text-[var(--text-secondary)]">Navigate to a grid coordinate or tap it on the map. Verify position and tolerances with a survey instrument.</p>
       {stakeoutActive ? (
         <ActionBtn label="End navigation" icon={<Target className="h-4 w-4" />} isActive onClick={deactivateStakeout} />
       ) : (
@@ -451,16 +480,41 @@ export const SetOutContent = memo(function SetOutContent() {
                 <input required inputMode="decimal" value={target[axis]} onChange={event => {
                   setTarget(previous => ({ ...previous, [axis]: event.target.value }))
                   setError('')
+                  setWarning(null)
                 }} className="mt-1 min-h-11 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-card)] px-2 tabular-nums text-[var(--text-primary)]" />
               </label>
             ))}
+            <button type="button"
+              aria-pressed={stakeoutPicking}
+              disabled={!canNavigate || !currentSurveyCrs || starting}
+              onClick={() => { setError(''); setWarning(null); setStakeoutPicking(!stakeoutPicking) }}
+              className="btn btn-secondary col-span-2 min-h-11 data-[active=true]:border-[var(--accent)] data-[active=true]:text-[var(--accent)]"
+              data-active={stakeoutPicking}
+            >
+              <Crosshair className="mr-1.5 inline h-4 w-4" aria-hidden="true" />
+              {stakeoutPicking ? 'Picking — tap the map to cancel' : 'Pick on map'}
+            </button>
             <button type="submit" className="btn btn-secondary col-span-2 min-h-11">{starting ? 'Starting…' : 'Navigate to target'}</button>
           </fieldset>
+          {stakeoutPicking && <p role="status" className="px-1 text-xs text-[var(--accent)]">Tap the map to start navigation to that point.</p>}
           {!canNavigate && <p className="px-1 text-xs text-[var(--text-secondary)]">Device GPS navigation requires a Pro plan.</p>}
+          {warning && (
+            <div role="alert" className="rounded-lg border border-[color-mix(in_srgb,var(--warning)_45%,transparent)] bg-[color-mix(in_srgb,var(--warning)_12%,transparent)] p-2.5 text-xs text-[var(--text-primary)]">
+              <p className="mb-2">{warning.messages.join(' ')}</p>
+              <div className="flex gap-2">
+                <button type="button" className="btn btn-secondary min-h-9 flex-1" disabled={starting}
+                  onClick={() => { void beginStakeout(warning.easting, warning.northing, undefined, { allowFar: true }) }}>
+                  Start anyway
+                </button>
+                <button type="button" className="btn btn-secondary min-h-9 flex-1" onClick={() => setWarning(null)}>
+                  Edit coordinates
+                </button>
+              </div>
+            </div>
+          )}
           {error && <p role="alert" className="px-1 text-xs text-[var(--error)]">{error}</p>}
         </form>
       )}
-      <StakeoutPanel />
 
       <SectionLabel>GPS Track</SectionLabel>
       <ActionBtn
@@ -715,6 +769,7 @@ export const MapToolDock = memo(function MapToolDock({
     drawMode, editMode, measureMode, gpsTracking, stakeoutActive, schemeProjectId, currentSurveyCrs,
     hasTraverse, showAnnotations, undo, redo, canUndo, canRedo, sketchHistory,
     canFinishPath, finishPath, toggleDraw, toggleMeasure, measureResult,
+    stakeoutPicking, setStakeoutPicking,
   } = useMapContext()
   const finishLabel = measureMode === 'area' ? 'Finish area' : measureMode === 'distance' ? 'Finish distance'
     : drawMode === 'LineString' ? 'Finish line' : drawMode === 'Polygon' ? 'Finish polygon' : null
@@ -725,6 +780,12 @@ export const MapToolDock = memo(function MapToolDock({
     if (cat !== 'layers') onExpandedChange?.(true)
     setOpenPanel(previous => previous === cat ? null : cat)
   }, [onExpandedChange])
+
+  // Leaving the Set Out tab cancels a half-armed map pick so the next map tap
+  // reads as a normal identification click, not a surprise navigation start.
+  useEffect(() => {
+    if (openPanel !== 'setout' && stakeoutPicking) setStakeoutPicking(false)
+  }, [openPanel, stakeoutPicking, setStakeoutPicking])
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -757,7 +818,7 @@ export const MapToolDock = memo(function MapToolDock({
       case 'recon':   return <ReconContent onFitProject={onFitProject} />
       case 'capture': return <CaptureContent onPointSaved={onPointSaved} onSketchStart={closePanel} />
       case 'compute': return <ComputeContent />
-      case 'setout':  return <SetOutContent key={(schemeProjectId ?? '') + ':' + (currentSurveyCrs ?? '')} />
+      case 'setout':  return <SetOutContent key={(schemeProjectId ?? '') + ':' + (currentSurveyCrs ?? '')} onStakeoutStarted={closePanel} />
       case 'layers':  return <LayersContent />
       case 'export':  return <ExportContent />
     }

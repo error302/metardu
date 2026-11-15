@@ -1,5 +1,5 @@
-import { LoadingState } from '@/components/shared/LoadingState'
+import { FullPageLoading } from '@/components/shared/LoadingState'
 
 export default function FieldbookLoading() {
-  return <LoadingState message="Loading fieldbook" />
+  return <FullPageLoading message="Loading fieldbook" />
 }

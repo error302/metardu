@@ -125,7 +125,7 @@ test('failure to cache an acknowledged server draft keeps the current book open'
 test('retrying a transient session check preserves current edits and recovers project access',async()=>{
   mockClient.auth.getSession.mockResolvedValueOnce({data:{session:null},error:new Error('timeout')} as never)
   render(<Page/>);fireEvent.change(screen.getByLabelText('Book name'),{target:{value:'Keep through timeout'}})
-  await waitFor(()=>expect(workspace().projectsError).toMatch(/could not be confirmed/))
+  await waitFor(()=>expect(workspace().projectsError).toMatch(/Connection lost/))
   const retry=workspace().onRetryProjects
   if(!retry)throw new Error('Expected project retry to be available')
   await act(async()=>{retry()})

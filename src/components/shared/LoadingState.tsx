@@ -57,3 +57,16 @@ export function LoadingState({
     </div>
   )
 }
+
+/**
+ * Route-level loading: fills the viewport below the app bar so the brand
+ * screen never renders as a small floating box. Route boundaries should
+ * use this instead of a bare <LoadingState />.
+ */
+export function FullPageLoading({ message }: { message?: string }) {
+  return (
+    <div className="h-[calc(100dvh-4rem)] min-h-[24rem] w-full">
+      <LoadingState message={message} />
+    </div>
+  )
+}

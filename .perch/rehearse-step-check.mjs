@@ -1,0 +1,25 @@
+// Reproduce rehearse() step by step to find the failing assert
+import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
+const docker = (args) => { const r = spawnSync('docker', args, { encoding: 'utf8', windowsHide: true, timeout: 60000, maxBuffer: 16 * 1024 * 1024 }); if (r.status !== 0) throw new Error('docker ' + args[0]); return r.stdout.trim(); };
+const owned = JSON.parse(docker(['inspect', 'metardu-schema-rehearsal-20261008']))[0];
+assert.equal(owned.Id, 'ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0');
+assert.deepEqual(owned.NetworkSettings.Ports['5432/tcp'], [{ HostIp: '127.0.0.1', HostPort: '55433' }]);
+console.log('container assertions pass');
+const pg = (await import('pg')).default;
+const address = new URL('postgresql://release_verify:local_release_verify_only@127.0.0.1:55433/metardu_release_rehearsal');
+assert.equal(address.port, '55433');
+address.pathname = '/metardu_runtime_verify';
+const url = address.toString();
+const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 5000 });
+await client.connect();
+const marker = (await client.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=current_database()")).rows[0].marker;
+console.log('marker ok:', marker === 'METARDU synthetic beacon verification only 2026-10-08');
+const { computeDrift, collectFileMigrations } = await import('../scripts/verify-migrations.mjs');
+const files = collectFileMigrations('src/lib/db/migrations');
+const ledgerRows = (await client.query('SELECT version, checksum FROM schema_migrations ORDER BY version')).rows;
+const drift = computeDrift(files, ledgerRows);
+assert.equal(drift.mutated.length, 0); assert.equal(drift.ghost.length, 0);
+console.log('drift ok, missing:', drift.missing);
+await client.end();
+console.log('ALL rehearse pre-migration assertions pass');

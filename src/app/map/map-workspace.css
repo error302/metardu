@@ -263,7 +263,7 @@
 
 .map-mobile-tool-bar > button {
   width: 100%;
-  height: 46px;
+  height: 40px;
   border-radius: 6px;
   cursor: pointer;
 }
@@ -275,8 +275,8 @@
 .map-workspace .map-mobile-tool-panel {
   position: absolute;
   left: 8px;
-  bottom: max(56px, calc(var(--map-bottom-clearance) + 8px));
-  width: 380px;
+  bottom: max(52px, calc(var(--map-bottom-clearance) + 8px));
+  width: 340px;
   max-width: calc(100% - 16px);
   max-height: calc(100% - var(--map-bottom-clearance) - 132px);
   display: flex;
@@ -441,7 +441,7 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  bottom: calc(var(--map-bottom-clearance) + 40px);
+  bottom: calc(var(--map-bottom-clearance) + var(--map-center-clearance, 0px) + 40px);
   padding: 4px 8px;
   border-radius: 6px;
   background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
@@ -463,7 +463,7 @@
   position: absolute;
   left: 124px;
   right: auto;
-  bottom: calc(var(--map-bottom-clearance) + 40px);
+  bottom: calc(var(--map-bottom-clearance) + var(--map-center-clearance, 0px) + 40px);
   max-width: calc(100% - 340px);
   background: color-mix(in srgb, var(--bg-secondary) 85%, transparent);
   font-size: 9px;
@@ -566,12 +566,12 @@
     left: 8px !important;
   }
   .map-workspace .ol-scale-line {
-    bottom: calc(var(--map-bottom-clearance) + 60px);
+    bottom: calc(var(--map-bottom-clearance) + var(--map-center-clearance, 0px) + 60px);
     left: 50%;
     transform: translateX(-50%);
   }
   .map-workspace .ol-attribution {
-    bottom: calc(var(--map-bottom-clearance) + 60px);
+    bottom: calc(var(--map-bottom-clearance) + var(--map-center-clearance, 0px) + 60px);
     left: 116px;
     max-width: calc(100% - 250px);
   }
@@ -580,4 +580,206 @@
     width: auto;
     max-width: none;
   }
+}
+
+/* ── Stakeout HUD strip ──────────────────────────────────────────────────
+   Rendered at workspace level while navigation is active. One slim strip
+   centred above the status bar; everything else on the map (scale,
+   attribution) lifts by --map-center-clearance so nothing stacks. */
+.map-workspace .map-stakeout-strip {
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(var(--map-bottom-clearance) + 38px);
+  z-index: 30;
+  width: min(460px, calc(100% - 24px));
+  border: 1px solid color-mix(in srgb, var(--accent) 42%, transparent);
+  border-radius: 12px;
+  background: var(--map-surface);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.38);
+  overflow: hidden;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.map-workspace .map-stakeout-strip--green { border-color: rgba(34, 197, 94, 0.55); }
+.map-workspace .map-stakeout-strip--amber { border-color: rgba(245, 158, 11, 0.55); }
+
+.map-stakeout-far-alert {
+  padding: 6px 10px;
+  background: color-mix(in srgb, var(--error) 18%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--error) 40%, transparent);
+  color: var(--text-primary);
+  font-size: 10.5px;
+  line-height: 1.45;
+}
+
+.map-stakeout-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  min-height: 48px;
+}
+
+.map-stakeout-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent);
+  flex-shrink: 0;
+}
+
+.map-stakeout-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.map-stakeout-state {
+  font-size: 9.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.map-stakeout-readout {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-inline: auto 6px;
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-stakeout-distance {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+.map-stakeout-strip--green .map-stakeout-distance { color: #22c55e; }
+.map-stakeout-strip--amber .map-stakeout-distance { color: #f59e0b; }
+
+.map-stakeout-bearing {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.map-stakeout-waiting {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.map-stakeout-meta {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
+.map-stakeout-gps-btn {
+  flex-shrink: 0;
+  padding: 5px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.45);
+  background: color-mix(in srgb, var(--success) 18%, transparent);
+  color: var(--success);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.map-stakeout-controls {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.map-stakeout-icon-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-muted);
+}
+
+.map-stakeout-icon-btn[data-on="true"] {
+  color: var(--accent);
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+}
+
+.map-stakeout-icon-btn--stop {
+  color: var(--error);
+  border-color: color-mix(in srgb, var(--error) 40%, transparent);
+}
+
+.map-stakeout-sub {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 10px 8px;
+}
+
+.map-stakeout-coords {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.map-stakeout-progress {
+  position: relative;
+  flex: 1;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.map-stakeout-progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 999px;
+  background: var(--accent);
+  transition: width 0.3s ease;
+}
+
+.map-stakeout-strip--green .map-stakeout-progress-fill { background: #22c55e; }
+.map-stakeout-strip--amber .map-stakeout-progress-fill { background: #f59e0b; }
+
+.map-stakeout-note {
+  padding: 0 10px 8px;
+  font-size: 10.5px;
+  color: color-mix(in srgb, var(--warning) 85%, var(--text-primary));
+}
+
+@media (max-width: 767px) {
+  .map-workspace .map-stakeout-strip {
+    bottom: calc(var(--map-bottom-clearance) + 54px);
+    width: min(420px, calc(100% - 16px));
+  }
+  .map-stakeout-row {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .map-stakeout-distance { font-size: 20px; }
+}
+
+/* Crosshair while placing a stakeout target on the map */
+.map-workspace .map-picking-cursor {
+  cursor: crosshair;
 }

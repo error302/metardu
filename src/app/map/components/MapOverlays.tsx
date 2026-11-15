@@ -12,17 +12,7 @@ import React, { memo } from 'react'
 import { useMapContext } from '@/app/map/MapReactContext'
 
 export const MapOverlays = memo(function MapOverlays() {
-  const {
-    panelOpen,
-    setPanelOpen,
-    gpsTracking,
-    stakeoutActive,
-    stakeoutTarget,
-    stakeoutInfo,
-    deactivateStakeout,
-    toggleGPS,
-    isMobile,
-  } = useMapContext()
+  const { panelOpen, setPanelOpen, isMobile } = useMapContext()
 
   return (
     <>
@@ -37,47 +27,6 @@ export const MapOverlays = memo(function MapOverlays() {
           <span className="text-sm">{'\u2039'}</span>
         </button>
       )}
-
-
-      {/* Stakeout HUD (simplified — full panel is in StakeoutPanel component) */}
-      {stakeoutActive && stakeoutTarget && (() => {
-        const info = stakeoutInfo()
-        return (
-          <div
-            className="absolute z-30 bg-[color-mix(in_srgb,var(--bg-secondary)_95%,transparent)] backdrop-blur-xl border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] rounded-xl px-4 py-3 shadow-2xl"
-            style={{ bottom: 'calc(var(--map-bottom-clearance) + 60px)', right: '68px', width: isMobile ? '180px' : '220px' }}
-          >
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] text-[var(--accent)] uppercase tracking-[0.15em] font-bold">Device GPS navigation</span>
-              <button onClick={deactivateStakeout} className="text-[10px] text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">Stop</button>
-            </div>
-            <div className="text-[10px] text-[var(--text-muted)] mb-1">Target</div>
-            <div className="text-[11px] text-[var(--text-primary)] font-mono mb-2">E: {stakeoutTarget.e.toFixed(1)} N: {stakeoutTarget.n.toFixed(1)}</div>
-            {info ? (
-              <>
-                <div className="text-[10px] text-[var(--text-muted)] mb-1">Distance / Bearing</div>
-                <div className="text-lg font-bold text-[var(--accent)] font-mono">{info.distance.toFixed(1)} m</div>
-                <div className="text-sm text-[var(--primary-blue)] font-mono">{info.bearing.toFixed(2)}{'\u00B0'}</div>
-                <div className="mt-1.5 text-[10px] text-[var(--text-muted)]">
-                  dE: {info.dE.toFixed(1)} | dN: {info.dN.toFixed(1)}
-                </div>
-              </>
-            ) : (
-              <div className="text-[10px] text-[var(--text-muted)]">Waiting for GPS position...</div>
-            )}
-            {!gpsTracking && (
-              <button
-                onClick={toggleGPS}
-                className="mt-2 w-full py-1.5 rounded-lg bg-[color-mix(in_srgb,var(--success)_20%,transparent)] border border-green-500/30 text-[var(--success)] text-[10px] font-medium hover:bg-[color-mix(in_srgb,var(--success)_30%,transparent)] transition-colors"
-              >
-                Enable GPS
-              </button>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* Project count moved to MapStatusBar to fix collision with MapCoordSearch */}
     </>
   )
 })

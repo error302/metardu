@@ -29,7 +29,8 @@ import { downloadDXF } from '@/lib/export/generateDXF'
 import { mapGeometryToDxfEntities, type MapDxfGeometryLike } from '@/lib/export/mapGeometryToDxf'
 import { downloadLandXML, type LandXMLProject } from '@/lib/export/generateLandXML'
 import { mapDrawingToLandXML } from '@/lib/export/mapDrawingLandXml'
-import { describeCrs, validateCoordinateRange } from '@/lib/spatial/projectCrs'
+import { describeCrs, geodesicDistanceWgs84, validateCoordinateRange } from '@/lib/spatial/projectCrs'
+import { registerProjectProjection } from '@/lib/map/projection'
 import { reportCrs } from '@/lib/generators/reportCrs'
 import type { ProjectReferenceSystemRecord } from '@/lib/spatial/projectReferenceSystem'
 import {
@@ -56,6 +57,14 @@ import { zoomToSurveyPointCluster } from '@/lib/surveyMapEngine/ol/pointLoading'
 import { createSketchStyle, type SketchAppearance } from '@/app/map/utils/sketchAppearance'
 import { attachSketchHistory, emptySketchHistory } from '@/app/map/utils/sketchHistory'
 
+/** Raised when a stakeout target is implausibly far from the current view. */
+export class StakeoutFarTargetError extends Error {
+  constructor(message: string, readonly distanceM: number) {
+    super(message)
+    this.name = 'StakeoutFarTargetError'
+  }
+}
+
 interface UseMapInteractionsParams {
   mapInstance: React.MutableRefObject<Map | null>
   drawSourceRef: React.MutableRefObject<VectorSource | null>
@@ -76,6 +85,8 @@ interface UseMapInteractionsParams {
   gpsTracking: boolean
   stakeoutActive: boolean
   stakeoutTarget: { e: number; n: number } | null
+  /** True while the surveyor is placing a stakeout target by tapping the map. */
+  stakeoutPicking: boolean
   gpsPos: { lon: number; lat: number; accuracy: number } | null
   /** GPS position already transformed to the declared project CRS. */
   gpsPosInSurveyCrs: { easting: number; northing: number; accuracy: number } | null
@@ -92,6 +103,7 @@ interface UseMapInteractionsParams {
   setStakeoutTarget: (v: { e: number; n: number } | null) => void
   setStakeoutActive: (v: boolean) => void
   setStakeoutState: (v: StakeoutState | null) => void
+  setStakeoutPicking: (v: boolean) => void
   setShowAnnotations: (v: boolean) => void
   setSaveMsg: (s: string) => void
   /** Current project ID from URL params (null = no project linked) */
@@ -123,8 +135,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
     const handleClick = (evt: MapBrowserEvent) => {
       const onIdentify = p.onIdentify
-      // Don't interfere when drawing or measuring
-      if (p.drawMode !== 'none' || p.measureMode !== 'none') return
+      // Don't interfere when drawing, measuring, or picking a stakeout target.
+      if (p.drawMode !== 'none' || p.measureMode !== 'none' || p.stakeoutPicking) return
 
       const features: FeatureLike[] = []
       map.forEachFeatureAtPixel(evt.pixel, (f: FeatureLike) => {
@@ -198,7 +210,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
     map.on('singleclick', handleClick)
     return () => map.un('singleclick', handleClick)
-  }, [p.drawMode, p.measureMode, p.onIdentify, p.popupRef, p.mapInstance, p.drawSourceRef])
+  }, [p.drawMode, p.measureMode, p.stakeoutPicking, p.onIdentify, p.popupRef, p.mapInstance, p.drawSourceRef])
 
   // ── Stakeout overlay refs (persist across renders) ──
   const stakeoutOverlayRef = useRef<import('ol/Overlay').default | null>(null)
@@ -672,7 +684,11 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
   }, [p.gpsTracking, p.mapInstance, p.cleanupRef, p.setGpsTracking, p.setStakeoutActive])
 
   // ── STAKEOUT: Activate with full overlay ──
-  const activateStakeout = useCallback(async (target: StakeoutTarget) => {
+  // A walking-stakeout target is always near the area on screen. A target far
+  // outside the current view is almost always a grid/hemisphere blunder (the
+  // classic wrong-hemisphere northing), so it needs an explicit confirmation.
+  const FAR_TARGET_CONFIRM_M = 100_000
+  const activateStakeout = useCallback(async (target: StakeoutTarget, options: { allowFar?: boolean } = {}) => {
     const hasFeature = p.hasFeature
     if (!hasFeature('gps_stakeout')) throw new Error('Device GPS navigation requires a Pro plan.')
     const map = p.mapInstance.current
@@ -686,9 +702,28 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     await deactivateStakeout()
 
     try {
+      await registerProjectProjection(epsg)
       const { transform } = await import('ol/proj')
       const targetCoord = transform([target.easting, target.northing], epsg, map.getView().getProjection())
       if (!targetCoord.every(Number.isFinite)) throw new Error('Invalid projected target')
+
+      if (!options.allowFar) {
+        const viewCenter = map.getView().getCenter()
+        if (viewCenter) {
+          const targetLonLat = transform([target.easting, target.northing], epsg, 'EPSG:4326') as [number, number]
+          const centerLonLat = transform(viewCenter, map.getView().getProjection(), 'EPSG:4326') as [number, number]
+          if (targetLonLat.every(Number.isFinite) && centerLonLat.every(Number.isFinite)) {
+            const farM = geodesicDistanceWgs84(centerLonLat[0], centerLonLat[1], targetLonLat[0], targetLonLat[1])
+            if (Number.isFinite(farM) && farM > FAR_TARGET_CONFIRM_M) {
+              const gridName = describeCrs(epsg)?.name ?? epsg
+              throw new StakeoutFarTargetError(
+                `The target is about ${(farM / 1000).toFixed(0)} km from the current map view — a stakeout is a walking-distance task. Check that the easting and northing belong to ${gridName} before continuing.`,
+                farM,
+              )
+            }
+          }
+        }
+      }
 
       const { overlay, targetSource, targetLayer, directionSource, directionLayer } =
         await createStakeoutOverlay(target, epsg)
@@ -717,6 +752,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       map.getView().animate({ center: targetCoord, zoom: 18, duration: 800 })
     } catch (err) {
       await deactivateStakeout()
+      if (err instanceof StakeoutFarTargetError) throw err
       logger.error('[activateStakeout] Failed:', { error: err })
       throw new Error('Could not start navigation. Check the grid and target coordinate.')
     }
@@ -781,6 +817,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (!stakeoutDirectionSourceRef.current) return
 
     try {
+      await registerProjectProjection(epsg)
       const { transform } = await import('ol/proj')
       const [gpsE, gpsN] = transform(
         [p.gpsPos.lon, p.gpsPos.lat],
@@ -839,6 +876,47 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     if (bearing < 0) bearing += 360
     return { distance: dist, bearing, dE, dN }
   }, [p.stakeoutTarget, p.gpsPosInSurveyCrs, epsg])
+
+  // ── STAKEOUT: Tap-to-pick a target on the map ──
+  // The clicked view coordinate is already in the working display CRS, so a
+  // picked target is inherently valid for the selected grid — no range gate.
+  useEffect(() => {
+    const map = p.mapInstance.current
+    if (!map || !p.stakeoutPicking || !epsg) return
+
+    const handlePick = (evt: MapBrowserEvent) => {
+      // Only the primary button; ignore multi-touch pinch artefacts.
+      if (evt.type !== 'singleclick') return
+      const setStakeoutPicking = p.setStakeoutPicking
+      setStakeoutPicking(false)
+      void (async () => {
+        try {
+          await registerProjectProjection(epsg)
+          const { transform } = await import('ol/proj')
+          const viewProj = map.getView().getProjection()
+          const [easting, northing] = transform(evt.coordinate, viewProj, epsg) as [number, number]
+          if (!Number.isFinite(easting) || !Number.isFinite(northing)) {
+            p.setSaveMsg('That map position could not be read in the survey grid.')
+            setTimeout(() => p.setSaveMsg(''), 4000)
+            return
+          }
+          await activateStakeout({
+            easting,
+            northing,
+            name: `Picked E:${easting.toFixed(1)} N:${northing.toFixed(1)}`,
+          })
+        } catch (err) {
+          const message = err instanceof Error ? err.message : 'Could not start navigation from that point.'
+          p.setSaveMsg(message)
+          setTimeout(() => p.setSaveMsg(''), 6000)
+        }
+      })()
+    }
+
+    map.on('singleclick', handlePick)
+    return () => map.un('singleclick', handlePick)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.stakeoutPicking, p.mapInstance, p.setStakeoutPicking, p.setSaveMsg, epsg])
 
   // ── SAVE TO PROJECT — saves drawn features to current project (not throwaway) ──
   const drawingSaveInFlight = useRef(false)

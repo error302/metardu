@@ -1,5 +1,5 @@
-import { LoadingState } from '@/components/shared/LoadingState'
+import { FullPageLoading } from '@/components/shared/LoadingState'
 
 export default function Loading() {
-  return <LoadingState message="Loading METARDU" />
+  return <FullPageLoading message="Loading METARDU" />
 }

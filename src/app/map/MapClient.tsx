@@ -44,6 +44,7 @@ import { MapWorkspaceHeader } from '@/app/map/components/MapWorkspaceHeader'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
 import { MapToolDock } from '@/app/map/components/MapToolDock'
 import { MapInteractionToggle } from '@/app/map/components/MapInteractionToggle'
+import { StakeoutPanel } from '@/components/map/StakeoutPanel'
 import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/IdentifyPanel'
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { OsmBuildingsLayer } from '@/app/map/components/OsmBuildingsLayer'
@@ -254,6 +255,7 @@ function MapWorkspace() {
   const [stakeoutTarget, setStakeoutTarget] = useState<{ e: number; n: number } | null>(null)
   const [stakeoutActive, setStakeoutActive] = useState(false)
   const [stakeoutState, setStakeoutState] = useState<StakeoutState | null>(null)
+  const [stakeoutPicking, setStakeoutPicking] = useState(false)
   const [audioMuted, setAudioMuted] = useState(false)
   const [saveMsg, setSaveMsg] = useState('')
   const [offlineDialogOpen, setOfflineDialogOpen] = useState(false)
@@ -462,6 +464,7 @@ function MapWorkspace() {
     measureMode,
     showAnnotations,
     gpsTracking,
+    stakeoutPicking,
     stakeoutActive,
     stakeoutTarget,
     gpsPos,
@@ -521,6 +524,7 @@ function MapWorkspace() {
     setStakeoutTarget,
     setStakeoutActive,
     setStakeoutState,
+    setStakeoutPicking,
     setShowAnnotations,
     setSaveMsg,
     pushHistory,
@@ -769,6 +773,7 @@ function MapWorkspace() {
     stakeoutTarget,
     stakeoutActive,
     stakeoutState,
+    stakeoutPicking,
     audioMuted,
     saveMsg,
     setSaveMsg,
@@ -828,7 +833,8 @@ function MapWorkspace() {
     toggleAnnotations: interactions.toggleAnnotations,
     toggleBasemap,
     toggleGPS,
-    startStakeout: interactions.activateStakeout,
+    startStakeout: (target, options) => interactions.activateStakeout(target, options),
+    setStakeoutPicking,
     deleteSelected: interactions.deleteSelected,
     sketchHistory: inSketchHistory,
     sketchAppearance,
@@ -877,7 +883,8 @@ function MapWorkspace() {
     unlinkedSurveyCrs, currentSurveyCrs, setSaveMsg, applyOneShotTool, showSheetLayout, isPrinting,
     paperSize, orientation, offlineMapExtent,
     hasFeature, canUndo, canRedo, inSketchHistory, sketchAppearance,
-    setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen,
+    stakeoutPicking,
+    setPanelOpen, setProjectSearch, setAudioMuted, setOfflineDialogOpen, setStakeoutPicking,
     setOrientation, setPaperSize,
     setVertexEditingEnabled, setSnapEnabled, setSnapTolerance, setShowSheetLayout,
     interactions, toggleBasemap, toggleGPS,
@@ -901,13 +908,17 @@ function MapWorkspace() {
       <div
         id="metardu-global-map"
         className="map-workspace h-[calc(100dvh-9rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
-        style={{ '--map-bottom-offset': isMobile ? '64px' : '0px', '--map-bottom-clearance': toolsExpanded ? '98px' : '0px' } as React.CSSProperties}
+        style={{
+          '--map-bottom-offset': isMobile ? '64px' : '0px',
+          '--map-bottom-clearance': toolsExpanded ? '98px' : '0px',
+          '--map-center-clearance': stakeoutActive ? '72px' : '0px',
+        } as React.CSSProperties}
         role="application"
         aria-label="Survey map — use arrow keys to pan, plus/minus to zoom. Press question mark for keyboard shortcuts."
       >
         {/* Map container */}
         <div className="map-canvas-area">
-          <div ref={mapRef} className="w-full h-full" aria-label="Interactive survey map" />
+          <div ref={mapRef} className={`w-full h-full${stakeoutPicking ? ' map-picking-cursor' : ''}`} aria-label="Interactive survey map" />
 
           {/* ── Overlays (only when map is ready) ── */}
           {mapReady && (
@@ -979,6 +990,10 @@ function MapWorkspace() {
               />
 
               <MapStatusBar />
+
+              {/* ── Stakeout navigation HUD (workspace-level: visible while
+                  navigating even when the tool panels are closed) ── */}
+              <StakeoutPanel />
 
               <MapNotifications />
 
