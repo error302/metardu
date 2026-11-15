@@ -176,6 +176,10 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        # Inlined into the client bundle; must be a public URL, never localhost.
+        NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN: ${NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN:-1}
+        NEXT_PUBLIC_WS_URL: ${NEXT_PUBLIC_WS_URL:-wss://metardu.space/ws/collaboration}
     container_name: metardu-app
     ports:
       - "3000:3000"   # Exposed to host for Caddy/reverse proxy
@@ -188,7 +192,8 @@ services:
       - AUTH_SECRET=${AUTH_SECRET:?AUTH_SECRET must be set}
       - NEXTAUTH_URL=${NEXTAUTH_URL:-http://localhost:3000}
       - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
-      - NEXT_PUBLIC_WS_URL=${NEXT_PUBLIC_WS_URL:-ws://localhost:3001/ws/collaboration}
+      # NEXT_PUBLIC_WS_URL is baked at build time (see build.args); a value here
+      # cannot reach the compiled bundle. Kept out to avoid implying otherwise.
       - PYTHON_COMPUTE_URL=http://metardu-worker:8000
       - WORKER_SECRET=${WORKER_SECRET}
       - REDIS_URL=redis://:${REDIS_PASSWORD:-metardu_redis_secret}@metardu-redis:6379

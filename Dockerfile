@@ -52,7 +52,16 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 ARG NEXT_PUBLIC_APP_URL="https://metardu.space"
 ARG NEXT_PUBLIC_PAYPAL_CLIENT_ID=""
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
-ENV NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN=1
+# Collaboration socket endpoint. NEXT_PUBLIC_* values are inlined into the
+# client bundle at build time, so they are build inputs — setting them only on
+# the running container does nothing. SAME_ORIGIN=1 makes the browser use
+# wss://<page host>/ws/collaboration, which next.config.js rewrites to
+# http://metardu-collaboration:3001 and the Cloudflare tunnel already carries.
+# The explicit URL is the fallback for builds that disable same-origin.
+ARG NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN=1
+ENV NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN=$NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN
+ARG NEXT_PUBLIC_WS_URL="wss://metardu.space/ws/collaboration"
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_PUBLIC_PAYPAL_CLIENT_ID=$NEXT_PUBLIC_PAYPAL_CLIENT_ID
 # AUDIT FIX (C10, 2026-07-02): Removed IGNORE_TYPE_ERRORS=true — TypeScript
 # errors now block production builds. tsc --noEmit passes clean as of
