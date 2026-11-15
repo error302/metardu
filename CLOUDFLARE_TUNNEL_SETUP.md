@@ -64,3 +64,48 @@
 - **Port conflict**: the tunnel forwards to `127.0.0.1:3000`; make sure no other process uses that port.
 
 Once the service is up, you can simply run `start-metardu.bat` to spin up the containers; the tunnel will stay active in the background.
+
+## WebSocket collaboration (verified 2026-11-14)
+
+The collaboration socket is same-origin: the browser opens
+`wss://metardu.space/ws/collaboration`, and `next.config.js` rewrites that path
+(only when the request carries `Upgrade: websocket` and
+`NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN=1`) to
+`http://metardu-collaboration:3001/ws/collaboration`.
+
+Consequences for the tunnel:
+
+- **No extra ingress rule is needed.** The existing hostname rule to
+  `http://127.0.0.1:3000` already carries the upgrade; the app container proxies
+  it to the collaboration container over the Docker network.
+- **Port 3001 must NOT be published or tunnelled.** It is `expose`d only, which
+  keeps the room service off the host and off the internet.
+- Verified end-to-end with a fake room ticket: the public socket reached the
+  collaboration server and was closed by its own check with `1008 Project room
+  access denied`. `/api/realtime/ticket` answers `401` when signed out.
+
+If you ever want the tunnel to reach the room service directly instead, you must
+do both of these (neither is currently done, and neither is required):
+
+1. publish the port in `docker-compose.yml` (`127.0.0.1:3001:3001`), and
+2. add an ingress rule above the catch-all in the Cloudflare dashboard:
+
+   ```yaml
+   - hostname: metardu.space
+     path: /ws/collaboration
+     service: http://127.0.0.1:3001
+   - hostname: metardu.space
+     service: http://127.0.0.1:3000
+   ```
+
+   That also means the Next rewrite should be removed so there is only one path.
+
+### Rebuild after changing any NEXT_PUBLIC_* value
+
+```bash
+docker compose build metardu-app
+docker compose up -d --no-deps metardu-app
+```
+
+`docker compose restart metardu-app` is not enough: the value lives in the
+compiled client bundle, so the image has to be rebuilt.

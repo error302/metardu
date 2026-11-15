@@ -313,7 +313,33 @@ export const POST = apiHandler({ auth: false, rateLimit: { max: 120, windowMs: 6
   }
 
   // ─── User-scoped row-level security ──────────────────────────
-  if (USER_SCOPED_TABLES.has(table as string) && userId) {
+  // A project row is owned by one user, so the blanket `user_id = me` filter
+  // is what hides a shared project from the surveyor it was shared with.
+  // Allow exactly one narrow exception: a SELECT pinned to a single project
+  // id that the caller owns OR is an invited member of. Nobody gets a list
+  // without the owner filter, and every write path below is untouched.
+  const singleProjectReadId = (() => {
+    if (table !== 'projects' || operation !== 'select' || !userId) return null
+    const idFilters = (Array.isArray(filters) ? (filters as DbFilter[]) : [])
+      .filter((f) => f.column === 'id')
+    // Require exactly one `eq` on id: `in`, `neq` or repeated ids would not
+    // pin the query to a single project and must keep the owner filter.
+    if (idFilters.length !== 1) return null
+    const [only] = idFilters
+    if (only.op !== 'eq' || typeof only.value !== 'string' || !only.value) return null
+    return only.value
+  })()
+
+  // Only an invited member bypasses the owner filter. Owners and callers with
+  // no access keep the original query (`id = X AND user_id = me`), so a denied
+  // read returns no rows exactly as before and reveals nothing about whether
+  // the project exists.
+  const access = userId && singleProjectReadId
+    ? await checkProjectAccess(userId, singleProjectReadId)
+    : null
+  const sharedProjectRead = Boolean(access?.allowed && !access.isOwner)
+
+  if (USER_SCOPED_TABLES.has(table as string) && userId && !sharedProjectRead) {
     qb = qb.eq('user_id', userId)
   }
 

@@ -1,5 +1,5 @@
 # METARDU Production Dockerfile
-# Multi-stage build: deps → build → minimal runtime
+# Multi-stage build: deps â†’ build â†’ minimal runtime
 FROM node:20-alpine AS deps
 WORKDIR /app
 # Install node-gyp and canvas dependencies for Alpine
@@ -30,15 +30,25 @@ ARG NEXT_PUBLIC_PAYPAL_CLIENT_ID=""
 ENV DATABASE_URL=$DATABASE_URL
 ENV AUTH_SECRET=$AUTH_SECRET
 ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+# Collaboration socket endpoint. NEXT_PUBLIC_* values are inlined into the
+# client bundle at build time, so they are build inputs â€” setting them only on
+# the running container does nothing. SAME_ORIGIN=1 makes the browser use
+# wss://<page host>/ws/collaboration, which next.config.js rewrites to
+# http://metardu-collaboration:3001 and the Cloudflare tunnel already carries.
+# The explicit URL is the fallback for builds that disable same-origin.
+ARG NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN=1
+ENV NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN=$NEXT_PUBLIC_COLLABORATION_SAME_ORIGIN
+ARG NEXT_PUBLIC_WS_URL="wss://metardu.space/ws/collaboration"
+ENV NEXT_PUBLIC_WS_URL=$NEXT_PUBLIC_WS_URL
 ENV NEXT_PUBLIC_PAYPAL_CLIENT_ID=$NEXT_PUBLIC_PAYPAL_CLIENT_ID
-# AUDIT FIX (C10, 2026-07-02): Removed IGNORE_TYPE_ERRORS=true — TypeScript
+# AUDIT FIX (C10, 2026-07-02): Removed IGNORE_TYPE_ERRORS=true â€” TypeScript
 # errors now block production builds. tsc --noEmit passes clean as of
 # this commit. If type errors are reintroduced, fix them; do not re-enable.
-# AUDIT FIX (2026-07-05): Removed `npx prisma generate` — the Prisma client
+# AUDIT FIX (2026-07-05): Removed `npx prisma generate` â€” the Prisma client
 # was dead code (src/lib/db/client.ts had 0 importers and has been deleted).
 # All DB access goes through src/lib/db.ts (raw pg Pool). This saves ~10s
 # of build time and ~50MB of image size.
-# T1.1 FIX (2026-07-09): Deleted prisma/schema.prisma entirely — it was
+# T1.1 FIX (2026-07-09): Deleted prisma/schema.prisma entirely â€” it was
 # deprecated dead code with zero importers, zero deps, and a deprecation
 # banner prescribing its own deletion. Raw SQL in src/lib/db/migrations/
 # is the single source of truth for the schema.
@@ -54,7 +64,7 @@ ENV PORT=3000
 # Install runtime canvas dependencies (for PDF/image generation)
 RUN apk add --no-cache cairo pango libjpeg-turbo giflib
 
-# NOTE: Python runtime removed — the Python worker runs in its own container.
+# NOTE: Python runtime removed â€” the Python worker runs in its own container.
 # If worker scripts are needed, call them via HTTP (PYTHON_COMPUTE_URL).
 
 # Non-root user for security
