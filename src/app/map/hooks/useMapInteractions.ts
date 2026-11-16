@@ -73,6 +73,7 @@ interface UseMapInteractionsParams {
   sketchAppearanceRef: { readonly current: SketchAppearance }
   selectInteractionRef: React.MutableRefObject<Select | null>
   modifyInteractionRef: React.MutableRefObject<RealInteraction | null>
+  translateInteractionRef: React.MutableRefObject<RealInteraction | null>
   measureInteractionRef: React.MutableRefObject<RealInteraction | null>
   measureSourceRef: React.MutableRefObject<VectorSource | null>
   measureLayerRef: React.MutableRefObject<VectorLayer | null>
@@ -80,6 +81,7 @@ interface UseMapInteractionsParams {
   cleanupRef: React.MutableRefObject<import('@/lib/map/olTypes').MapCleanupRefs | null>
   drawMode: DrawMode
   editMode: boolean
+  moveMode: boolean
   measureMode: MeasureMode
   showAnnotations: boolean
   gpsTracking: boolean
@@ -93,6 +95,7 @@ interface UseMapInteractionsParams {
   hasFeature: (feature: string) => boolean
   setDrawMode: (m: DrawMode) => void
   setEditMode: (m: boolean) => void
+  setMoveMode: (m: boolean) => void
   setMeasureMode: (m: MeasureMode) => void
   setMeasureResult: (s: string) => void
   setFeatureCount: (n: number) => void
@@ -248,6 +251,22 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     }
     p.mapInstance.current?.removeInteraction(draw)
   }, [p.mapInstance, p.measureInteractionRef])
+  /**
+   * Drop whichever geometry-editing interaction is active. Editing modes are
+   * exclusive: dragging a whole feature while vertex handles are live would
+   * move the line and its vertex in the same gesture.
+   */
+  const removeEditInteractions = useCallback(() => {
+    const map = p.mapInstance.current
+    if (p.modifyInteractionRef.current) {
+      map?.removeInteraction(p.modifyInteractionRef.current)
+      p.modifyInteractionRef.current = null
+    }
+    if (p.translateInteractionRef.current) {
+      map?.removeInteraction(p.translateInteractionRef.current)
+      p.translateInteractionRef.current = null
+    }
+  }, [p.mapInstance, p.modifyInteractionRef, p.translateInteractionRef])
   const undoSketch = useCallback(() => activeSketch.current?.undo() ?? false, [])
   const redoSketch = useCallback(() => activeSketch.current?.redo() ?? false, [])
 
@@ -267,12 +286,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       p.setMeasureMode('none')
       p.setMeasureResult('')
     }
-    if (p.editMode) {
-      if (p.modifyInteractionRef.current) {
-        map.removeInteraction(p.modifyInteractionRef.current)
-        p.modifyInteractionRef.current = null
-      }
+    if (p.editMode || p.moveMode) {
+      removeEditInteractions()
       p.setEditMode(false)
+      p.setMoveMode(false)
     }
 
     removeDrawInteraction()
@@ -350,12 +367,14 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     const request = ++toolRequest.current
 
     if (p.editMode) {
-      if (p.modifyInteractionRef.current) {
-        map.removeInteraction(p.modifyInteractionRef.current)
-        p.modifyInteractionRef.current = null
-      }
+      removeEditInteractions()
       p.setEditMode(false)
       return
+    }
+
+    if (p.moveMode) {
+      removeEditInteractions()
+      p.setMoveMode(false)
     }
 
     if (!epsg) {
@@ -388,7 +407,65 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.modifyInteractionRef.current = modify
     p.setEditMode(true)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction])
+  }, [p.editMode, p.moveMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction, removeEditInteractions])
+
+  // ── MOVE WHOLE FEATURE ──
+  /**
+   * Drag a finished sketch as a whole. Modify only reaches a vertex, which is
+   * why a line drawn in the wrong place could never be repositioned.
+   */
+  const toggleMove = useCallback(async () => {
+    const map = p.mapInstance.current
+    if (!map) return
+    const request = ++toolRequest.current
+
+    if (p.moveMode) {
+      removeEditInteractions()
+      p.setMoveMode(false)
+      return
+    }
+
+    if (!epsg) {
+      p.setSaveMsg('Set the project CRS before moving survey geometry.')
+      return
+    }
+
+    removeDrawInteraction()
+    p.setDrawMode('none')
+    if (p.editMode) {
+      removeEditInteractions()
+      p.setEditMode(false)
+    }
+    if (p.measureMode !== 'none') {
+      removeMeasureInteraction()
+      if (p.measureSourceRef.current) p.measureSourceRef.current.clear()
+      p.setMeasureMode('none')
+      p.setMeasureResult('')
+    }
+
+    const source = p.drawSourceRef.current
+    const drawLayer = p.drawLayerRef.current
+    if (!source || !drawLayer) return
+
+    const { default: Translate } = await import('ol/interaction/Translate')
+    if (request !== toolRequest.current || p.mapInstance.current !== map) return
+
+    const translate = new Translate({
+      // Scoped to the sketch layer so project geometry and imported layers
+      // cannot be dragged by accident.
+      layers: [drawLayer],
+      // Finger-sized tolerance: a 1 px stroke is otherwise impossible to grab.
+      hitTolerance: 14,
+    })
+    translate.on('translateend', () => {
+      p.pushHistory()
+      if (p.projectId) p.setSaveMsg('Sketch moved locally. Use Save drawing to write a checked project version; the local draft is retained.')
+    })
+    map.addInteraction(translate)
+    p.translateInteractionRef.current = translate
+    p.setMoveMode(true)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.moveMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction, removeEditInteractions])
 
   // ── DELETE SELECTED ──
   const deleteSelected = useCallback(() => {
@@ -421,12 +498,10 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
 
     removeDrawInteraction()
     p.setDrawMode('none')
-    if (p.editMode) {
-      if (p.modifyInteractionRef.current) {
-        map.removeInteraction(p.modifyInteractionRef.current)
-        p.modifyInteractionRef.current = null
-      }
+    if (p.editMode || p.moveMode) {
+      removeEditInteractions()
       p.setEditMode(false)
+      p.setMoveMode(false)
     }
 
     removeMeasureInteraction()
@@ -1198,6 +1273,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     redoSketch,
     toggleDraw,
     toggleEdit,
+    toggleMove,
     deleteSelected,
     toggleMeasure,
     exportFeatures,

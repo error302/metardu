@@ -94,6 +94,7 @@ export function useMapSchemeContext(): MapSchemeContextValue {
 interface MapDrawContextValue {
   drawMode: DrawMode
   editMode: boolean
+  moveMode: boolean
   measureMode: MeasureMode
   featureCount: number
   selectedFeature: import('ol/Feature').default | null
@@ -103,6 +104,7 @@ interface MapDrawContextValue {
   showAnnotations: boolean
   toggleDraw: (mode: DrawMode) => void
   toggleEdit: () => void
+  toggleMove: () => void
   toggleMeasure: (mode: MeasureMode) => void
   toggleAnnotations: () => void
   deleteSelected: () => void
@@ -123,6 +125,7 @@ export function MapDrawProvider({ children }: { children: React.ReactNode }) {
   const value: MapDrawContextValue = {
     drawMode: ctx.drawMode,
     editMode: ctx.editMode,
+    moveMode: ctx.moveMode,
     measureMode: ctx.measureMode,
     featureCount: ctx.featureCount,
     selectedFeature: ctx.selectedFeature,
@@ -132,6 +135,7 @@ export function MapDrawProvider({ children }: { children: React.ReactNode }) {
     showAnnotations: ctx.showAnnotations,
     toggleDraw: ctx.toggleDraw,
     toggleEdit: ctx.toggleEdit,
+    toggleMove: ctx.toggleMove,
     toggleMeasure: ctx.toggleMeasure,
     toggleAnnotations: ctx.toggleAnnotations,
     deleteSelected: ctx.deleteSelected,

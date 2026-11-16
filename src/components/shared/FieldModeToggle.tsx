@@ -2,7 +2,18 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { usePathname } from 'next/navigation'
+import { useTheme } from 'next-themes'
 import { Sun, Eye } from 'lucide-react'
+import { useLanguage } from '@/lib/i18n/LanguageContext'
+import {
+  applyDisplayModeDom,
+  isDisplayMode,
+  readLegacyDisplayMode,
+  readSensorOptIn,
+  switchDisplayMode,
+  writeSensorOptIn,
+  type DisplayMode,
+} from '@/lib/ui/displayMode'
 
 /* Invisible dismiss layer that does NOT block underlying UI: listens on the
    document instead of covering the screen, so the user's first click both
@@ -15,47 +26,8 @@ function TooltipDismiss({ onMouseDown }: { onMouseDown: () => void }) {
   }, [onMouseDown])
   return null
 }
-import { useUIStore } from '@/stores/uiStore'
-import { useLanguage } from '@/lib/i18n/LanguageContext'
 
 /* ── Types ─────────────────────────────────────────────────────────────── */
-type DisplayMode = 'dark' | 'field'
-
-const STORAGE_KEY = 'metardu_display_mode'
-const SENSOR_OPT_IN_KEY = 'metardu_auto_field_sensor'
-
-/* ── Helpers ───────────────────────────────────────────────────────────── */
-
-function getStoredMode(): DisplayMode {
-  if (typeof window === 'undefined') return 'dark'
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY)
-    if (stored === 'field' || stored === 'dark') return stored
-  } catch { /* ignore */ }
-  return 'dark'
-}
-
-function applyMode(mode: DisplayMode) {
-  const html = document.documentElement
-  // v0.3: set data-theme for new theming system + keep field-mode class for backward compat
-  if (mode === 'field') {
-    html.setAttribute('data-theme', 'field')
-    html.classList.add('field-mode')
-  } else {
-    html.setAttribute('data-theme', 'dark')
-    html.classList.remove('field-mode')
-  }
-}
-
-function isSensorOptIn(): boolean {
-  if (typeof window === 'undefined') return false
-  try {
-    return localStorage.getItem(SENSOR_OPT_IN_KEY) === 'true'
-  } catch { return false }
-}
-
-/* ── Component ─────────────────────────────────────────────────────────── */
-
 interface AmbientLightSensorInstance {
   illuminance?: number
   addEventListener: (event: string, callback: () => void) => void
@@ -64,25 +36,53 @@ interface AmbientLightSensorInstance {
   stop: () => void
 }
 
+/**
+ * Field Mode toggle.
+ *
+ * Theme state lives in next-themes so the correct attribute is present before
+ * first paint: switching to field mode on a bright site no longer flashes the
+ * dark theme on every navigation. The switch itself crossfades (see
+ * switchDisplayMode) instead of flipping the whole viewport in one frame, and
+ * it is silent — the button's own state (eye icon, accent fill, indicator dot)
+ * already communicates the result, so no toast interrupts field work.
+ */
 export default function FieldModeToggle() {
-  const [mode, setMode] = useState<DisplayMode>('dark')
   const [mounted, setMounted] = useState(false)
   const [showTooltip, setShowTooltip] = useState(false)
   const [sensorEnabled, setSensorEnabled] = useState(false)
   const sensorRef = useRef<AmbientLightSensorInstance | null>(null)
   const tooltipDismissed = useRef(false)
-  const addNotification = useUIStore((s) => s.addNotification)
+  const { theme, setTheme } = useTheme()
   const { t } = useLanguage()
   const pathname = usePathname()
 
+  const mode: DisplayMode = isDisplayMode(theme) ? theme : 'dark'
+
   /* ── Hydration-safe mount ───────────────────────────────────────────── */
   useEffect(() => {
-    const stored = getStoredMode()
-    setMode(stored)
-    applyMode(stored)
-    setSensorEnabled(isSensorOptIn())
+    // Adopt the mode from the pre-next-themes key once, so a surveyor already
+    // working in field mode keeps it after this update.
+    const legacy = readLegacyDisplayMode()
+    if (legacy) {
+      setTheme(legacy)
+      applyDisplayModeDom(legacy)
+      try { window.localStorage.removeItem('metardu_display_mode') } catch { /* ignore */ }
+    } else {
+      applyDisplayModeDom(isDisplayMode(theme) ? theme : 'dark')
+    }
+    setSensorEnabled(readSensorOptIn())
     setMounted(true)
+    // Intentionally mount-only: later theme changes are handled by the toggle
+    // and the sensor, which already write the DOM and the class.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  /* Keep the legacy class in step with external theme changes (e.g. another
+     tab, or the sensor firing while the panel is open). */
+  useEffect(() => {
+    if (!mounted) return
+    applyDisplayModeDom(isDisplayMode(theme) ? theme : 'dark')
+  }, [theme, mounted])
 
   /* ── First-use tooltip ──────────────────────────────────────────────── */
   useEffect(() => {
@@ -127,27 +127,10 @@ export default function FieldModeToggle() {
 
         // Auto-switch: bright sunlight is typically > 10,000 lux
         // Shade/overcast outdoor is 1,000–10,000; indoor is 100–500
-        const currentStored = getStoredMode()
-        if (lux > 10000 && currentStored === 'dark') {
-          setMode('field')
-          applyMode('field')
-          localStorage.setItem(STORAGE_KEY, 'field')
-          addNotification({
-            type: 'info',
-            title: t('fieldMode.autoActivated'),
-            message: t('fieldMode.autoActivatedDesc'),
-            duration: 4000,
-          })
-        } else if (lux < 3000 && currentStored === 'field') {
-          setMode('dark')
-          applyMode('dark')
-          localStorage.setItem(STORAGE_KEY, 'dark')
-          addNotification({
-            type: 'info',
-            title: t('fieldMode.darkRestored'),
-            message: t('fieldMode.darkRestoredDesc'),
-            duration: 4000,
-          })
+        if (lux > 10000 && mode === 'dark') {
+          switchDisplayMode('field', setTheme)
+        } else if (lux < 3000 && mode === 'field') {
+          switchDisplayMode('dark', setTheme)
         }
       })
 
@@ -164,22 +147,13 @@ export default function FieldModeToggle() {
       try { sensor?.stop?.() } catch { /* ignore */ }
       sensorRef.current = null
     }
-  }, [mounted, sensorEnabled, addNotification, t])
+  }, [mounted, sensorEnabled, setTheme, mode])
 
   /* ── Toggle handler ────────────────────────────────────────────────── */
   const toggleMode = useCallback(() => {
     const next: DisplayMode = mode === 'dark' ? 'field' : 'dark'
-    setMode(next)
-    applyMode(next)
-    localStorage.setItem(STORAGE_KEY, next)
-
-    addNotification({
-      type: next === 'field' ? 'success' : 'info',
-      title: next === 'field' ? t('fieldMode.fieldEnabled') : t('fieldMode.darkEnabled'),
-      message: next === 'field' ? t('fieldMode.fieldEnabledDesc') : t('fieldMode.darkEnabledDesc'),
-      duration: 3000,
-    })
-  }, [mode, addNotification, t])
+    switchDisplayMode(next, setTheme)
+  }, [mode, setTheme])
 
   /* ── Dismiss tooltip ───────────────────────────────────────────────── */
   const dismissTooltip = useCallback(() => {
@@ -192,7 +166,7 @@ export default function FieldModeToggle() {
   const toggleSensor = useCallback(() => {
     const next = !sensorEnabled
     setSensorEnabled(next)
-    try { localStorage.setItem(SENSOR_OPT_IN_KEY, String(next)) } catch { /* ignore */ }
+    writeSensorOptIn(next)
   }, [sensorEnabled])
 
   /* ── Prevent hydration mismatch ────────────────────────────────────── */
@@ -210,6 +184,7 @@ export default function FieldModeToggle() {
       <button
         onClick={toggleMode}
         aria-label={isField ? t('fieldMode.switchToDark') : t('fieldMode.switchToField')}
+        aria-pressed={isField}
         title={isField ? t('fieldMode.switchToDark') : t('fieldMode.tooltip')}
         className={`
           relative flex items-center justify-center

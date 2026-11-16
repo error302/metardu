@@ -121,6 +121,15 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/* Shared body font is local; other families load only when used. */}
         <link rel="preload" href="/fonts/19f9c92546aa300c.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        {/* One-time migration for surveyors who saved field mode before theme
+            state moved to next-themes. Running here (head, before the body's
+            ThemeProvider script) means the stored mode is applied before the
+            first paint instead of flashing dark, then switching. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{if(!localStorage.getItem('theme')){var legacy=localStorage.getItem('metardu_display_mode');if(legacy==='field'||legacy==='dark'){localStorage.setItem('theme',legacy);}}}catch(e){}})();`,
+          }}
+        />
       </head>
       <body className="antialiased" suppressHydrationWarning>
         {/* Skip link is rendered by AppShell's SkipToContent on every page —

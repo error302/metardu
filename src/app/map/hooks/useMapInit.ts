@@ -534,7 +534,7 @@ export function useMapInit(params: UseMapInitParams) {
           style: feature => feature instanceof Feature && drawSource.hasFeature(feature)
             ? selectedSketchStyle(feature)
             : selectedProjectStyle,
-          hitTolerance: 5,
+          hitTolerance: 14,
           layers: [clusterLayer, drawLayer],
         })
         selectInteractionRef.current = select

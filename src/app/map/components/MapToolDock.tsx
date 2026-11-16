@@ -11,7 +11,7 @@ import {
   Layers, Download,
   X,
   MapPin, PenTool, Hexagon, Circle,
-  Undo2, Redo2, Trash2, Edit3,
+  Undo2, Redo2, Trash2, Edit3, Move,
   Navigation,
   Ruler, Globe, Building2,
   Printer,
@@ -265,8 +265,21 @@ export const CaptureContent = memo(function CaptureContent({
       </div>
       {ctx.measureResult && (
         <div className="mt-1 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
-          <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.15em] font-semibold">Result</span>
-          <p className="text-sm text-[var(--text-primary)] font-mono mt-1">{ctx.measureResult}</p>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <span className="text-[10px] text-[var(--text-muted)] uppercase tracking-[0.15em] font-semibold">Result</span>
+              <p className="text-sm text-[var(--text-primary)] font-mono mt-1">{ctx.measureResult}</p>
+            </div>
+            {/* A finished measurement used to stay on the canvas forever: it is
+                drawn on its own source, so it is not selectable like a sketch. */}
+            <button
+              type="button"
+              onClick={() => ctx.toggleMeasure('none')}
+              className="shrink-0 rounded-md border border-white/10 px-2 py-1 text-[11px] font-medium text-[var(--text-secondary)] hover:text-[var(--text-primary)] hover:border-white/25"
+            >
+              Clear
+            </button>
+          </div>
         </div>
       )}
 
@@ -279,6 +292,7 @@ export const CaptureContent = memo(function CaptureContent({
       />
 
       <SectionLabel>Edit</SectionLabel>
+      <ActionBtn label="Move Sketch" icon={<Move className="w-4 h-4" />} isActive={ctx.moveMode} onClick={ctx.toggleMove} />
       <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} />
       <details className="py-2 text-xs text-[var(--text-secondary)]">
         <summary className="cursor-pointer py-2">Precision vertex controls</summary>
@@ -766,9 +780,9 @@ export const MapToolDock = memo(function MapToolDock({
 }: { expanded?: boolean; onExpandedChange?: (expanded: boolean) => void; onPointSaved: () => void; onFitProject: () => void }) {
   const [openPanel, setOpenPanel] = useState<DockCategory | null>(null)
   const {
-    drawMode, editMode, measureMode, gpsTracking, stakeoutActive, schemeProjectId, currentSurveyCrs,
+    drawMode, editMode, moveMode, measureMode, gpsTracking, stakeoutActive, schemeProjectId, currentSurveyCrs,
     hasTraverse, showAnnotations, undo, redo, canUndo, canRedo, sketchHistory,
-    canFinishPath, finishPath, toggleDraw, toggleMeasure, measureResult,
+    canFinishPath, finishPath, toggleDraw, toggleEdit, toggleMove, toggleMeasure, measureResult,
     stakeoutPicking, setStakeoutPicking,
   } = useMapContext()
   const finishLabel = measureMode === 'area' ? 'Finish area' : measureMode === 'distance' ? 'Finish distance'
@@ -806,7 +820,7 @@ export const MapToolDock = memo(function MapToolDock({
   const isActive = (cat: DockCategory) => {
     switch (cat) {
       case 'recon':   return gpsTracking
-      case 'capture': return drawMode !== 'none' || editMode || measureMode !== 'none' || showAnnotations
+      case 'capture': return drawMode !== 'none' || editMode || moveMode || measureMode !== 'none' || showAnnotations
       case 'compute': return hasTraverse
       case 'setout':  return stakeoutActive
       default:        return false
@@ -896,6 +910,20 @@ export const MapToolDock = memo(function MapToolDock({
                 if (measureMode !== 'none') toggleMeasure('none')
                 else toggleDraw('none')
               }}>Cancel sketch</button>
+            </div>
+          ) : moveMode ? (
+            <div className="flex flex-wrap items-center gap-x-2 border-t border-[var(--border-color)] px-2" role="group" aria-label="Move sketch">
+              <p className="flex-1 text-xs text-[var(--text-secondary)]" role="status">
+                Drag a sketch to reposition it, or press Delete to remove the selected one.
+              </p>
+              <button type="button" className="btn btn-secondary min-h-11" onClick={toggleMove}>Done moving</button>
+            </div>
+          ) : editMode ? (
+            <div className="flex flex-wrap items-center gap-x-2 border-t border-[var(--border-color)] px-2" role="group" aria-label="Edit sketch vertices">
+              <p className="flex-1 text-xs text-[var(--text-secondary)]" role="status">
+                Drag a vertex to reshape. Switch to Move Sketch to shift the whole line.
+              </p>
+              <button type="button" className="btn btn-secondary min-h-11" onClick={toggleEdit}>Done editing</button>
             </div>
           ) : measureResult && openPanel !== 'capture' && (
             <p role="status" className="border-t border-[var(--border-color)] px-3 py-2 text-xs font-mono">{measureResult}</p>

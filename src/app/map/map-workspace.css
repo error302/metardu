@@ -272,23 +272,69 @@
   font-size: 10px;
 }
 
+/* Tool panel — a drawer that slides in at the right edge. It used to be a
+   floating card over the middle of the canvas, which buried the very area the
+   surveyor was sketching in. Anchoring it to the edge keeps the cursor's
+   working space clear, and the navigation dock steps aside while it is open. */
 .map-workspace .map-mobile-tool-panel {
   position: absolute;
-  left: 8px;
-  bottom: max(52px, calc(var(--map-bottom-clearance) + 8px));
-  width: 340px;
-  max-width: calc(100% - 16px);
-  max-height: calc(100% - var(--map-bottom-clearance) - 132px);
+  top: 8px;
+  right: 8px;
+  bottom: calc(var(--map-bottom-clearance) + 56px);
+  left: auto;
+  width: min(360px, calc(100% - 16px));
+  max-width: none;
+  max-height: none;
   display: flex;
   flex-direction: column;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 14px;
-  background: color-mix(in srgb, var(--bg-secondary) 94%, transparent);
+  background: color-mix(in srgb, var(--bg-secondary) 96%, transparent);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
-  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+  box-shadow: -10px 0 34px rgba(0, 0, 0, 0.38);
   overflow: hidden;
   z-index: 40;
+  animation: map-tool-panel-in 200ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes map-tool-panel-in {
+  from { opacity: 0; transform: translateX(18px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@media (min-width: 641px) {
+  /* Keep zoom/GPS reachable: the dock slides left instead of hiding under the drawer. */
+  .map-workspace:has(.map-mobile-tool-panel) .map-navigation-dock {
+    right: calc(min(360px, 100% - 16px) + 16px);
+    transition: right 200ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+}
+
+@media (max-width: 640px) {
+  /* Phones: a half-height sheet, so the map stays visible above it. */
+  .map-workspace .map-mobile-tool-panel {
+    top: auto;
+    left: 8px;
+    right: 8px;
+    width: auto;
+    max-height: 56%;
+    border-radius: 14px 14px 0 0;
+    animation-name: map-tool-panel-up;
+  }
+}
+
+@keyframes map-tool-panel-up {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .map-workspace .map-mobile-tool-panel,
+  .map-workspace:has(.map-mobile-tool-panel) .map-navigation-dock {
+    animation: none;
+    transition: none;
+  }
 }
 
 .map-mobile-tool-panel > .map-mobile-panel-body {
@@ -577,7 +623,7 @@
   }
   .map-workspace .map-mobile-tool-panel {
     right: 8px;
-    width: auto;
+    width: min(340px, calc(100% - 16px));
     max-width: none;
   }
 }

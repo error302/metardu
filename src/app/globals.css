@@ -305,6 +305,33 @@ html.outdoor-mode .auth-page *:not(.lucide):not(svg):not(path) {
 }
 
 /* ========================================================================
+   1c-0. THEME SWITCH CROSSFADE (dark ↔ field)
+   Field mode changes the whole palette at once and thickens borders, so an
+   instantaneous swap reads as a broken frame. Chrome/Edge use a real
+   view-transition snapshot (src/lib/ui/displayMode.ts); this is the fallback
+   that crossfades colours for every other engine.
+   ======================================================================== */
+html.theme-crossfade,
+html.theme-crossfade *,
+html.theme-crossfade *::before,
+html.theme-crossfade *::after {
+  transition:
+    background-color 220ms ease,
+    color 220ms ease,
+    border-color 220ms ease,
+    fill 220ms ease,
+    stroke 220ms ease,
+    box-shadow 220ms ease !important;
+  transition-delay: 0s !important;
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: 200ms;
+  animation-timing-function: ease-out;
+}
+
+/* ========================================================================
     1c. FIELD MODE — pure white + pure black for direct sunlight
    Triggered by [data-theme="field"] on <html>
    ======================================================================== */

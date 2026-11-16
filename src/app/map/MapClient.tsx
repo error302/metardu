@@ -202,6 +202,7 @@ function MapWorkspace() {
   const drawInteractionRef = useRef<import('ol/interaction/Draw').default | null>(null)
   const selectInteractionRef = useRef<import('ol/interaction/Select').default | null>(null)
   const modifyInteractionRef = useRef<import('ol/interaction').Interaction | null>(null)
+  const translateInteractionRef = useRef<import('ol/interaction').Interaction | null>(null)
   const measureInteractionRef = useRef<import('ol/interaction').Interaction | null>(null)
   const measureSourceRef = useRef<import('ol/source/Vector').default | null>(null)
   const measureLayerRef = useRef<import('ol/layer/Vector').default | null>(null)
@@ -227,6 +228,7 @@ function MapWorkspace() {
   const [drawMode, setDrawMode] = useState<DrawMode>('none')
   const [measureMode, setMeasureMode] = useState<MeasureMode>('none')
   const [editMode, setEditMode] = useState(false)
+  const [moveMode, setMoveMode] = useState(false)
   const [mouseCoord, setMouseCoord] = useState<{
     lon: number
     lat: number
@@ -454,6 +456,7 @@ function MapWorkspace() {
     drawInteractionRef,
     selectInteractionRef,
     modifyInteractionRef,
+    translateInteractionRef,
     measureInteractionRef,
     measureSourceRef,
     measureLayerRef,
@@ -461,6 +464,7 @@ function MapWorkspace() {
     cleanupRef,
     drawMode,
     editMode,
+    moveMode,
     measureMode,
     showAnnotations,
     gpsTracking,
@@ -514,6 +518,7 @@ function MapWorkspace() {
     hasFeature,
     setDrawMode,
     setEditMode,
+    setMoveMode,
     setMeasureMode,
     setMeasureResult,
     setFeatureCount,
@@ -631,6 +636,7 @@ function MapWorkspace() {
         }
       } else if (e.key === 'Escape') {
         if (drawMode !== 'none') interactions.toggleDraw('none')
+        else if (moveMode) interactions.toggleMove()
         else if (editMode) interactions.toggleEdit()
         else if (measureMode !== 'none') interactions.toggleMeasure('none')
       }
@@ -638,7 +644,7 @@ function MapWorkspace() {
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, selectedFeature, drawMode, editMode, measureMode, interactions])
+  }, [undo, redo, selectedFeature, drawMode, editMode, moveMode, measureMode, interactions])
 
   useEffect(() => {
     const store = useSelectionStore.getState()
@@ -757,6 +763,7 @@ function MapWorkspace() {
     drawMode,
     measureMode,
     editMode,
+    moveMode,
     mouseCoord,
     gpsTracking,
     gpsPos,
@@ -829,6 +836,7 @@ function MapWorkspace() {
     canFinishPath: interactions.canFinishPath,
     finishPath: interactions.finishPath,
     toggleEdit: interactions.toggleEdit,
+    toggleMove: interactions.toggleMove,
     toggleMeasure: interactions.toggleMeasure,
     toggleAnnotations: interactions.toggleAnnotations,
     toggleBasemap,
@@ -871,7 +879,7 @@ function MapWorkspace() {
   }), [
     mapInstance, popupRef, mapReady, initError, projectCount, basemap, drawMode,
     activeDigitizingTool, offsetDistance, rotateAngle, snappingEnabled, showSnappingOptions,
-    measureMode, editMode, mouseCoord, gpsTracking, gpsPos, featureCount, projectPointsError, importMsg,
+    measureMode, editMode, moveMode, mouseCoord, gpsTracking, gpsPos, featureCount, projectPointsError, importMsg,
     panelOpen, dragHint, selectedFeature, selectedFeatures, featureName, measureResult, layerOpacity,
     stakeoutTarget, stakeoutActive, stakeoutState, audioMuted, saveMsg,
     offlineDialogOpen, showAnnotations, projectSearch, isMobile, showOsmBuildings,

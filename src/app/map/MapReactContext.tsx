@@ -36,6 +36,7 @@ export interface MapContextValue {
   drawMode: DrawMode
   measureMode: MeasureMode
   editMode: boolean
+  moveMode: boolean
   mouseCoord: { lon: number; lat: number; e: number | null; n: number | null; epsg: string | null } | null
   gpsTracking: boolean
   gpsPos: { lon: number; lat: number; accuracy: number } | null
@@ -168,6 +169,8 @@ export interface MapContextValue {
   canFinishPath: boolean
   finishPath: () => void
   toggleEdit: () => void
+  /** Whole-feature drag mode: move a finished sketch, not just its vertices. */
+  toggleMove: () => void
   toggleMeasure: (mode: MeasureMode) => void
   toggleAnnotations: () => void
   toggleBasemap: (mode: BasemapMode) => void
