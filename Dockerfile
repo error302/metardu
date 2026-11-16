@@ -60,6 +60,12 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
+# MEMORY: Node sizes its default old-space heap from total HOST memory, not
+# the container's cgroup limit — so in a memory-capped container V8 stays
+# lazy until the OOM killer arrives. Cap the heap explicitly; compose can
+# override via METARDU_NODE_MAX_OLD_SPACE (in MB). Default suits a 512-768MB
+# container budget (heap + native overhead + page cache).
+ENV NODE_OPTIONS="--max-old-space-size=400"
 
 # Install runtime canvas dependencies (for PDF/image generation)
 RUN apk add --no-cache cairo pango libjpeg-turbo giflib

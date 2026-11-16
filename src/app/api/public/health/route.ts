@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
+import redisCache from '@/lib/cache/redis'
 
 export const dynamic = 'force-dynamic'
 
@@ -17,12 +18,14 @@ export async function GET() {
   }
 
   // ── Redis check (if configured) ──
+  // Uses the shared singleton: creating a RedisCache per probe leaked one
+  // live socket per health check (Docker probes every 30s → thousands of
+  // permanently-open connections over days of uptime).
   if (process.env.REDIS_URL) {
     try {
-      const { RedisCache } = await import('@/lib/cache/redis')
-      const redis = new RedisCache()
       const redisStart = Date.now()
-      await redis.connect()
+      const ping = await redisCache.get('__health__')
+      void ping
       checks.redis = { status: 'ok', latencyMs: Date.now() - redisStart }
     } catch (err) {
       checks.redis = { status: 'error', error: String(err) }

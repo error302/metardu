@@ -17,13 +17,9 @@ export async function middleware(request: NextRequest) {
     return new NextResponse(null, { status: 204, headers: cors })
   }
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
-  })
-
-  const isAuthenticated = !!token?.email
-  const userId = (token as { id?: string })?.id
+  // ─── Route classification (before auth: identity is only fetched when a
+  // decision actually needs it) ───
+  const path = request.nextUrl.pathname
 
   // ─── Protected routes ───
   const protectedPaths = [
@@ -60,7 +56,23 @@ export async function middleware(request: NextRequest) {
     request.nextUrl.pathname.startsWith(path)
   )
 
-  // ─── API routes: let them handle auth themselves ───
+  // TTFB: identity costs one JWT verification per request. It is only needed
+  // for a redirect/authz decision (protected, admin, auth routes), a CSRF
+  // check (state-changing methods), or x-user-id on API routes. Anonymous
+  // traffic to public pages skips it entirely, and those responses stay free
+  // of per-user headers so a CDN can cache them.
+  const isStateChanging = ['POST', 'PUT', 'DELETE', 'PATCH'].includes(request.method)
+  const needsIdentity = isProtected || isAdminRoute || isAuthRoute || isStateChanging || path.startsWith('/api/')
+
+  const token = needsIdentity
+    ? await getToken({
+        req: request,
+        secret: process.env.AUTH_SECRET || process.env.NEXTAUTH_SECRET,
+      })
+    : null
+
+  const isAuthenticated = !!token?.email
+  const userId = (token as { id?: string })?.id
 
   // Redirect unauthenticated users from protected pages (skip public pages)
   if (isProtected && !isAuthenticated && !isPublicPage) {
@@ -86,8 +98,7 @@ export async function middleware(request: NextRequest) {
   }
 
   // ─── CSRF Protection for state-changing API routes ───
-  const stateChangingMethods = ['POST', 'PUT', 'DELETE', 'PATCH']
-  const isStateChanging = stateChangingMethods.includes(request.method)
+  // (isStateChanging was computed above, next to the identity fetch)
 
   // Skip CSRF for webhook routes and public API endpoints
   const csrfExemptPaths = ['/api/webhooks/', '/api/public/']
@@ -239,8 +250,10 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // Add user ID to headers for downstream API route use
-  if (isAuthenticated && userId) {
+  // Add user ID to headers for downstream API route use. Page responses
+  // never carry it: a per-user header would make the HTML uncacheable at a
+  // CDN and risks cache-poisoning one account's identity into shared pages.
+  if (isAuthenticated && userId && request.nextUrl.pathname.startsWith('/api/')) {
     response.headers.set('x-user-id', userId)
   }
 

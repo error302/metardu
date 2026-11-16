@@ -57,6 +57,20 @@ interface FreshRoleEntry {
 }
 const freshRoleCache = new Map<string, FreshRoleEntry>()
 
+// MEMORY: entries carry an expiry but were never deleted, so the map grew
+// with every distinct account that ever touched a role-gated route. Prune
+// expired entries once the map gets large; the natural bound is the number
+// of distinct accounts, but a hostile log-load should not pin old entries.
+const FRESH_ROLE_CACHE_PRUNE_THRESHOLD = 5_000
+
+function pruneFreshRoleCache(): void {
+  if (freshRoleCache.size < FRESH_ROLE_CACHE_PRUNE_THRESHOLD) return
+  const now = Date.now()
+  for (const [key, entry] of freshRoleCache) {
+    if (entry.expires <= now) freshRoleCache.delete(key)
+  }
+}
+
 async function getFreshRoleAndSuspension(
   userId: string
 ): Promise<{ role: string; suspended: boolean } | null> {
@@ -64,6 +78,7 @@ async function getFreshRoleAndSuspension(
   if (cached && cached.expires > Date.now()) {
     return { role: cached.role, suspended: cached.suspended }
   }
+  pruneFreshRoleCache()
 
   try {
     const { rows } = await db.query<{

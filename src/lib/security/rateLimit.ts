@@ -78,11 +78,45 @@ function warnOnceInMemoryFallback(): void {
 
 const _devStore = new Map<string, { count: number; resetTime: number }>()
 
+// MEMORY: the store is keyed by client IP on a public site, so without
+// eviction every scanner IP is a permanent entry and the map grows without
+// bound (observed: multi-day RSS growth on production). Two guards:
+//   1. a periodic sweep deletes expired entries, and
+//   2. a hard cap evicts the OLDEST entries once exceeded, so even a flood
+//      of unique IPs cannot grow the store past a fixed budget.
+const RATE_STORE_MAX_ENTRIES = 10_000
+const RATE_STORE_SWEEP_INTERVAL_MS = 5 * 60 * 1000
+
+let _sweepTimer: ReturnType<typeof setInterval> | null = null
+
+function ensureRateStoreSweep(): void {
+  if (_sweepTimer) return
+  _sweepTimer = setInterval(() => {
+    const now = Date.now()
+    for (const [key, record] of _devStore) {
+      if (now > record.resetTime) _devStore.delete(key)
+    }
+  }, RATE_STORE_SWEEP_INTERVAL_MS)
+  // The timer must never hold the process open on its own.
+  _sweepTimer.unref?.()
+}
+
+function evictOldestIfOverCap(): void {
+  let overflow = _devStore.size - RATE_STORE_MAX_ENTRIES
+  if (overflow <= 0) return
+  for (const key of _devStore.keys()) {
+    if (overflow-- <= 0) break
+    _devStore.delete(key)
+  }
+}
+
 function inMemoryRateLimit(
   identifier: string,
   maxRequests: number,
   windowMs: number
 ): { allowed: boolean; remaining: number } {
+  ensureRateStoreSweep()
+  evictOldestIfOverCap()
   const now = Date.now()
   const record = _devStore.get(identifier)
 
