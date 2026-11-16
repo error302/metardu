@@ -108,7 +108,7 @@ export const StakeoutPanel = memo(function StakeoutPanel() {
         </span>
 
         <span className="map-stakeout-meta" title="Reported device accuracy">
-          {gpsAccuracy === null ? '± — m' : `±${gpsAccuracy.toFixed(0)} m`}
+          {gpsAccuracy === null ? 'Unknown' : `±${gpsAccuracy.toFixed(0)} m`}
         </span>
 
         {!gpsTracking && (

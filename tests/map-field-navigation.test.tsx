@@ -154,6 +154,6 @@ test('unknown accuracy stays unknown and the navigation panel remains cancellabl
   act(() => jest.advanceTimersByTime(4000))
   mockContext = { ...mockContext, stakeoutState: { ...requiredValue(mockContext.stakeoutState) } }
   act(() => root.render(<StakeoutPanel />))
-  expect(container.querySelector('[aria-label="Cancel stakeout"]')).not.toBeNull()
+  expect(container.querySelector('[aria-label="Stop stakeout"]')).not.toBeNull()
   jest.useRealTimers()
 })

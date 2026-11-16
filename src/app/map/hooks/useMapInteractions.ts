@@ -358,7 +358,7 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     p.drawInteractionRef.current = draw
     p.setDrawMode(mode)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.drawMode, p.editMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction])
+  }, [p.drawMode, p.editMode, p.moveMode, p.measureMode, p.pushHistory, epsg, p.setSaveMsg, removeDrawInteraction, removeMeasureInteraction, removeEditInteractions])
 
   // ── EDIT / MODIFY ──
   const toggleEdit = useCallback(async () => {
