@@ -23,6 +23,7 @@ import ComputationLog from '@/components/workspace/ComputationLog';
 import WorkflowQualityGate from '@/components/shared/WorkflowQualityGate';
 import WorkflowOverviewPanel from '@/components/shared/WorkflowOverviewPanel';
 import { CollaborationPanel } from '@/components/realtime/CollaborationPanel';
+import { ProjectSharingPanel } from '@/components/realtime/ProjectSharingPanel';
 import { useCollaboration } from '@/lib/realtime/useCollaboration';
 import { QADashboard } from '@/components/dashboard/QADashboard';
 import { BatchParcelImport } from '@/components/parcels/BatchParcelImport';
@@ -447,6 +448,11 @@ export default function ProjectWorkspaceClient({ project, workflow, boundaryData
           connectionStatus={collaborationStatus}
           conflictWarnings={conflictWarnings}
         />
+      </div>
+
+      {/* Project Sharing */}
+      <div className="max-w-5xl mx-auto px-4 py-4">
+        <ProjectSharingPanel projectId={project.id} />
       </div>
 
       {/* QA Validation Dashboard */}

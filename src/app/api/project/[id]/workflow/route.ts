@@ -125,13 +125,15 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 30, windowMs: 600
   const role=await canAccessProject(ctx.userId,id)
   if(!role||role==='viewer')return NextResponse.json({error:'An editing project role is required.'},{status:403})
 
-  // Fetch project data
+  // Fetch project data. Access was verified above: an invited editing member
+  // advances the shared project, not only its creator. Filtering by
+  // p.user_id here made "Continue" silently 404 for every member.
   const { rows } = await db.query<ProjectRow>(
     `SELECT p.id, p.name, p.survey_type, p.location, p.utm_zone, p.hemisphere,
             p.workflow_step, p.workflow_max_unlocked, p.boundary_data
      FROM projects p
-     WHERE p.id = $1 AND p.user_id = $2`,
-    [id, ctx.userId]
+     WHERE p.id = $1`,
+    [id]
   )
 
   if (rows.length === 0) {

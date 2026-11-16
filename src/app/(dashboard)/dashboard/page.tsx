@@ -98,6 +98,24 @@ export default async function DashboardPage() {
     log({ level: 'error', message: 'Failed to load dashboard data', metadata: { error: err } })
   }
 
+  // Projects shared with this account (invited member, not owner). Kept as a
+  // separate register so shared work never masquerades as owned work.
+  let sharedProjects: ProjectCardProject[] = []
+  if (!userIsAdmin) {
+    try {
+      const sharedRes = await db.query<Record<string, unknown>>(
+        `SELECT p.* FROM projects p
+           JOIN project_members pm ON pm.project_id = p.id
+          WHERE pm.user_id = $1 AND p.user_id <> $1
+          ORDER BY p.created_at DESC`,
+        [user.id],
+      )
+      sharedProjects = (sharedRes.rows as unknown as ProjectCardProject[]) ?? []
+    } catch (err) {
+      log({ level: 'warn', message: 'Failed to load shared dashboard projects', metadata: { error: err } })
+    }
+  }
+
   const canCreateProject = !projectsLoadFailed && (
     userIsAdmin || (subscriptionLoadFailed ? projects.length < 1 : subscription?.plan_id !== 'free' || projects.length < 1)
   )
@@ -350,6 +368,22 @@ export default async function DashboardPage() {
               </div>
             </section>
           ) : null}
+          {sharedProjects.length > 0 && (
+            <section aria-label="Projects shared with you" className="mt-8">
+              <div className="mb-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--accent)]">Shared register</p>
+                <h2 className="mt-1 text-xl font-semibold tracking-tight text-[var(--text-primary)]">Shared with you</h2>
+                <p className="mt-1 text-sm text-[var(--text-muted)]">Projects other surveyors invited you to. Your access depends on the role they granted.</p>
+              </div>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+                {sharedProjects.map((project) => (
+                  <div key={project.id}>
+                    <ProjectCard project={project} openLabel={t('project.open')} />
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
 
         <aside className="space-y-5" aria-label="Survey workflow and activity">

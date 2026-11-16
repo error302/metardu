@@ -38,9 +38,11 @@ test('viewer cannot acknowledge tolerance or advance even when also recorded as 
  expect((await POST(request('POST'),context)).status).toBe(403)
  expect(db.query).not.toHaveBeenCalled()
 })
-test('shared editing role still cannot bypass the existing owner-only advancement check',async()=>{
+test('shared editing role reads the project without a creator filter before advancing',async()=>{
  jest.mocked(canAccessProject).mockResolvedValue('surveyor')
- expect((await POST(request('POST'),context)).status).toBe(404)
- expect(jest.mocked(db.query).mock.calls[0][0]).toContain('p.user_id = $2')
- expect(jest.mocked(db.query).mock.calls.every(([sql])=>sql.trimStart().startsWith('SELECT'))).toBe(true)
+ const result=await POST(request('POST'),context)
+ // The member must get past project loading (advance may still be blocked
+ // by workflow gates, which is a 400 with blockers — never a silent 404).
+ expect(result.status).not.toBe(404)
+ expect(jest.mocked(db.query).mock.calls[0][0]).not.toContain('p.user_id = $2')
 })
