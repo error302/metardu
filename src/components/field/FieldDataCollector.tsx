@@ -30,6 +30,7 @@ import { FieldMeasureButton } from './FieldMeasureButton'
 import { FieldObservationList } from './FieldObservationList'
 import { FieldStationSetup } from './FieldStationSetup'
 import { RoadFieldCodeSelector } from './RoadFieldCodeSelector'
+import { FeatureCodePicker } from './FeatureCodePicker'
 import { useFieldSessionState, useFieldSession } from '@/hooks/useFieldSessionState'
 import { ToleranceBadge } from '@/components/survey/ToleranceBadge'
 import { InstrumentConnectionPanel } from '@/components/InstrumentConnectionPanel'
@@ -37,7 +38,7 @@ import type { FieldInstrumentReading, FieldSessionState, SurveyType } from '@/li
 import { startFieldAutoDelivery } from '@/lib/field/autoDelivery'
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, resolveRoadFieldPlanCrsCode, roadFieldPlanCrsIsBoundToProject, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
-import { appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
+import { appendFieldPointCode, appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
 import { apiGet } from '@/lib/api/client'
 import { fieldProjectsSchema } from '@/lib/field/projectContext'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
@@ -282,7 +283,9 @@ export function FieldDataCollector({
     if (sessionState.measurements.some(measurement => measurement.pointId === pointId)) return false
     const captureNotes = roadSurvey
       ? `ROAD_CODE=${code ?? 'UNCODED'}; CHAINAGE_M=${activeRoadStation ?? 'UNSET'}`
-      : code
+      // `CODE=` (not bare text) so the office can read the code back and send
+      // the point to its CAD layer without guessing.
+      : appendFieldPointCode(undefined, code)
     const notes = appendFieldPointId(captureNotes, pointId)
     const measurement = await session.captureMeasurement({
       pointId,
@@ -606,31 +609,20 @@ export function FieldDataCollector({
               featureCode={activeFeatureCode}
             />
 
-            {/* Smart Feature Coding for non-road survey profiles */}
-            {!roadSurvey && <div className="mt-8 w-full max-w-md">
-              <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold text-[var(--text-secondary)]">Choose feature code</span>
+            {/* Feature coding for non-road survey profiles. The code decides the
+                CAD layer, so it is picked from the same table field-to-finish
+                uses — not from ad-hoc labels nothing downstream understands. */}
+            {!roadSurvey && (
+              <div className="mt-8 flex w-full justify-center">
+                <FeatureCodePicker
+                  value={activeFeatureCode}
+                  onChange={setActiveFeatureCode}
+                  surveyType={surveyType}
+                  sunlightMode={isSunlightMode}
+                  disabled={isLoadingMeasurements || measurementsLoadFailed}
+                />
               </div>
-              <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide w-full">
-                {['FENCE_START', 'FENCE_LINE', 'FENCE_END', 'TREE', 'WALL', 'BLDG', 'ROAD_EDGE'].map(code => (
-                  <button
-                    key={code}
-                    type="button"
-                    aria-pressed={activeFeatureCode === code}
-                    onClick={() => setActiveFeatureCode(code === activeFeatureCode ? '' : code)}
-                    className={`min-h-11 shrink-0 px-4 py-2 rounded-full text-xs font-bold border transition-colors ${
-                      activeFeatureCode === code
-                        ? 'bg-[var(--accent)] text-black border-[var(--accent)] shadow-md'
-                        : isSunlightMode 
-                          ? 'bg-white text-black border-black border-2 hover:bg-gray-100'
-                          : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] border-[var(--border-color)] hover:border-[var(--accent)]'
-                    }`}
-                  >
-                    {code}
-                  </button>
-                ))}
-              </div>
-            </div>}
+            )}
 
             {/* Instrument Connection CTA */}
             {!showInstrumentPanel && (
