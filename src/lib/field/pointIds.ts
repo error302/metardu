@@ -1,5 +1,6 @@
 const POINT_ID_MARKER = /(?:^|;\s*)METARDU_POINT_ID=([^;\s]+)/i
 const FEATURE_CODE_MARKER = /(?:^|;\s*)CODE=([A-Za-z0-9_.-]{1,32})/i
+const QUALITY_MARKER = /(?:^|;\s*)QC=([A-Za-z0-9_.-]{1,32})/i
 const ROAD_CODE_MARKER = /(?:^|;\s*)ROAD_CODE=([A-Za-z0-9_.-]{1,32})/i
 /** Field codes are a small controlled vocabulary; anything else is rejected. */
 const FEATURE_CODE_SHAPE = /^[A-Za-z][A-Za-z0-9_]{0,31}$/
@@ -45,6 +46,28 @@ export function appendFieldPointCode(notes: string | undefined, code: string | u
  */
 export function readFieldPointCode(notes: string | undefined): string {
   return (notes?.match(FEATURE_CODE_MARKER)?.[1] ?? notes?.match(ROAD_CODE_MARKER)?.[1] ?? '').toUpperCase()
+}
+
+/**
+ * Record the fix verdict (RTK Fixed, DGPS, autonomous…) with the point.
+ *
+ * Stored as a token rather than prose so the office can report on how each
+ * point was fixed without parsing free text.
+ */
+export function appendFieldQualityToken(notes: string | undefined, token: string | undefined): string {
+  const baseNotes = (notes ?? '')
+    .replace(/(?:^|;\s*)QC=[^;]*/i, '')
+    .replace(/^\s*;\s*|;\s*$/g, '')
+    .trim()
+  const trimmed = token?.trim()
+  if (!trimmed || !FEATURE_CODE_SHAPE.test(trimmed)) return baseNotes
+  const normalised = trimmed.toUpperCase()
+  return baseNotes ? `QC=${normalised}; ${baseNotes}` : `QC=${normalised}`
+}
+
+/** Read the recorded fix verdict, or an empty string when none was stored. */
+export function readFieldQuality(notes: string | undefined): string {
+  return (notes?.match(QUALITY_MARKER)?.[1] ?? '').toUpperCase()
 }
 
 export function nextFieldPointNumber(pointIdPrefix: string, pointIds: string[]): number {

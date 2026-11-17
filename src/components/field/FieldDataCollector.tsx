@@ -38,7 +38,10 @@ import type { FieldInstrumentReading, FieldSessionState, SurveyType } from '@/li
 import { startFieldAutoDelivery } from '@/lib/field/autoDelivery'
 import type { RoadFieldFeatureCode, RoadFieldPlan } from '@/types/engineering'
 import { buildRoadFieldStations, formatRoadChainage, parseRoadFieldPlan, resolveRoadFieldPlanCrsCode, roadFieldPlanCrsIsBoundToProject, summarizeRoadStationCaptures } from '@/lib/engineering/roadFieldPlan'
-import { appendFieldPointCode, appendFieldPointId, nextFieldPointNumber } from '@/lib/field/pointIds'
+import { appendFieldPointCode, appendFieldPointId, appendFieldQualityToken, nextFieldPointNumber } from '@/lib/field/pointIds'
+import { assessFieldFix, verdictToken } from '@/lib/field/fixVerdict'
+import { useInstrumentStore } from '@/stores/instrumentStore'
+import { FixVerdictBadge } from './FixVerdictBadge'
 import { apiGet } from '@/lib/api/client'
 import { fieldProjectsSchema } from '@/lib/field/projectContext'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
@@ -106,6 +109,10 @@ export function FieldDataCollector({
     () => nextFieldPointNumber(pointIdPrefix, sessionState.measurements.map(measurement => measurement.pointId)),
     [pointIdPrefix, sessionState.measurements],
   )
+  // Say whether this fix is good enough before the point is stored, not later
+  // in the office: the crew cannot re-walk a boundary from memory.
+  const latestReading = useInstrumentStore(state => state.latestPoint)
+  const fixAssessment = useMemo(() => assessFieldFix(latestReading), [latestReading])
 
   useEffect(() => {
     if (!roadSurvey) return
@@ -286,7 +293,10 @@ export function FieldDataCollector({
       // `CODE=` (not bare text) so the office can read the code back and send
       // the point to its CAD layer without guessing.
       : appendFieldPointCode(undefined, code)
-    const notes = appendFieldPointId(captureNotes, pointId)
+    // QC= records the fix verdict at capture time, so a stored point remains
+    // traceable to its GNSS quality instead of arriving uncoded in the office.
+    const codedNotes = appendFieldQualityToken(captureNotes || undefined, verdictToken(fixAssessment.verdict))
+    const notes = appendFieldPointId(codedNotes, pointId)
     const measurement = await session.captureMeasurement({
       pointId,
       notes,
@@ -294,7 +304,7 @@ export function FieldDataCollector({
       coordinateCrs: roadSurvey && roadInstrumentCrsConfirmed ? roadProjectCrsCode ?? undefined : undefined,
     })
     return measurement !== null
-  }, [session, sessionState.measurements, roadSurvey, activeRoadStation, roadProjectCrsCode, roadInstrumentCrsConfirmed])
+  }, [session, sessionState.measurements, roadSurvey, activeRoadStation, roadProjectCrsCode, roadInstrumentCrsConfirmed, fixAssessment])
 
   const handleImportPoints = useCallback(async (points: FieldInstrumentReading[]) => {
     if (isLoadingMeasurements || measurementsLoadFailed || !sessionState.setup) {
@@ -328,11 +338,14 @@ export function FieldDataCollector({
       const pointId = `${pointIdPrefix}${nextFieldPointNumber(pointIdPrefix, usedPointIds)}`
       const safeReadingId = point.id.replace(/[;\r\n]/g, ' ').slice(0, 100)
       const safePointName = point.pointName.replace(/[;\r\n]/g, ' ').slice(0, 100)
-      const roadNotes = roadSurvey
+      const captureNotes = roadSurvey
         ? `ROAD_CODE=${activeFeatureCode}; CHAINAGE_M=${activeRoadStation}`
-        : ''
+        : appendFieldPointCode(undefined, activeFeatureCode || undefined)
+      // Imported readings keep their own per-point fix verdict rather than the
+      // live instrument badge shown on the collector.
+      const codedNotes = appendFieldQualityToken(captureNotes || undefined, verdictToken(assessFieldFix(point).verdict))
       const notes = appendFieldPointId(
-        [roadNotes, `INSTRUMENT_READING_ID=${safeReadingId}`, `INSTRUMENT_POINT_NAME=${safePointName}`, `INSTRUMENT_SOURCE=${point.source}`]
+        [codedNotes, `INSTRUMENT_READING_ID=${safeReadingId}`, `INSTRUMENT_POINT_NAME=${safePointName}`, `INSTRUMENT_SOURCE=${point.source}`]
           .filter(Boolean)
           .join('; '),
         pointId,
@@ -600,6 +613,7 @@ export function FieldDataCollector({
               </div>
             )}
             {instrumentImportStatus && <p role="status" aria-live="polite" className="mb-3 max-w-md text-center text-sm text-[var(--text-secondary)]">{instrumentImportStatus}</p>}
+            {!roadSurvey && <FixVerdictBadge assessment={fixAssessment} sunlightMode={isSunlightMode} />}
             <FieldMeasureButton
               onCapture={(pointId) => handleCapture(pointId, activeFeatureCode || undefined)}
               disabled={isLoadingMeasurements || measurementsLoadFailed || (roadSurvey && (!roadFieldPlan || roadPlanLoading || !roadProjectCrsCode || activeRoadStation === null || !activeFeatureCode || (roadPlanSource === 'offline_cache' && !offlinePlanAcknowledged)))}

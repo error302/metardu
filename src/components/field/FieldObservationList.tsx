@@ -15,6 +15,8 @@
 import { memo } from 'react'
 import { Trash2, CloudCheck, CloudOff, Clock } from 'lucide-react'
 import type { FieldMeasurement } from '@/lib/field/fieldSession'
+import { findFieldCode } from '@/lib/field/fieldCodePicker'
+import { readFieldPointCode, readFieldQuality } from '@/lib/field/pointIds'
 
 interface FieldObservationListProps {
   measurements: FieldMeasurement[]
@@ -74,8 +76,22 @@ function ObservationRow({
   const isGNSS = measurement.instrumentType === 'gnss_rover'||measurement.instrumentType==='gnss_static'
   const hasGrid = measurement.easting != null && measurement.northing != null
   const hasGeographic = measurement.latitude != null && measurement.longitude != null
+  // CODE=/QC= are machine-readable capture metadata. Show them as survey
+  // language in the row instead of leaking raw tokens into the point log.
+  const featureCode = readFieldPointCode(measurement.notes)
+  const featureDefinition = findFieldCode(featureCode)
+  const qualityToken = readFieldQuality(measurement.notes)
+  const qualityLabel = ({
+    RTK_FIXED: 'RTK Fixed',
+    RTK_FLOAT: 'RTK Float',
+    DGPS: 'DGPS',
+    SINGLE: 'Autonomous GPS',
+    NO_FIX: 'No fix',
+    TOTAL_STATION: 'Total station',
+  } as Record<string, string>)[qualityToken] ?? qualityToken.replace(/_/g, ' ')
+
   const visibleNotes = measurement.notes?.split(';').map(note => note.trim())
-    .filter(note => note && !/^(?:METARDU_POINT_ID|INSTRUMENT_READING_ID|INSTRUMENT_SOURCE|INSTRUMENT_POINT_NAME)=/.test(note))
+    .filter(note => note && !/^(?:CODE|QC|ROAD_CODE|CHAINAGE_M|METARDU_POINT_ID|INSTRUMENT_READING_ID|INSTRUMENT_SOURCE|INSTRUMENT_POINT_NAME)=/.test(note))
     .join(' · ')
 
   return (
@@ -104,6 +120,13 @@ function ObservationRow({
           {hasGeographic && <p className="font-mono tabular-nums">Lat {measurement.latitude?.toFixed(7)} · Lon {measurement.longitude?.toFixed(7)} <span className="font-sans">({measurement.geographicCrs ?? 'geographic CRS unrecorded'})</span></p>}
           {measurement.elevation != null && <p className="font-mono tabular-nums">Recorded H {measurement.elevation.toFixed(3)} m</p>}
           {measurement.fixQuality && <p>Fix: {measurement.fixQuality.toUpperCase()}</p>}
+          {qualityToken && <p>Capture quality: {qualityLabel}</p>}
+          {featureCode && (
+            <p>
+              Code: <span className="font-mono font-semibold">{featureCode}</span>
+              {featureDefinition ? ` · ${featureDefinition.label} → layer ${featureDefinition.layer}` : ' · code not in the survey table'}
+            </p>
+          )}
           {measurement.instrumentType === null && <p>Instrument type unrecorded</p>}
         </div>
 
