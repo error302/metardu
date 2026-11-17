@@ -9,14 +9,15 @@ const mockUsePathname = jest.mocked(usePathname)
 
 beforeEach(() => mockUsePathname.mockReturnValue('/map'))
 
-it('keeps map, field book, CAD and tools in the compact primary dock', () => {
+it('puts field collection first in the compact primary dock', () => {
   render(<MobileNav />)
 
   const navigation = screen.getByRole('navigation', { name: 'Primary mobile navigation' })
   expect(navigation).toBeInTheDocument()
+  expect(screen.getByRole('link', { name: 'Collect' })).toHaveAttribute('href', '/field/collect')
   expect(screen.getByRole('link', { name: 'Map' })).toHaveAttribute('aria-current', 'page')
   expect(screen.getByRole('link', { name: 'Field Book' })).toHaveAttribute('href', '/fieldbook')
-  expect(screen.getByRole('link', { name: 'CAD editor' })).toHaveAttribute('href', '/tools/cad-editor')
+  expect(screen.queryByRole('link', { name: 'CAD editor' })).not.toBeInTheDocument()
   expect(screen.getByRole('link', { name: 'Tools' })).toHaveAttribute('href', '/tools')
   expect(screen.queryByRole('link', { name: 'Marketplace' })).not.toBeInTheDocument()
 })
@@ -45,7 +46,7 @@ it('cycles the dock to the other workspace pages and wraps back to field tools',
   expect(screen.getByRole('link',{name:'Projects'})).toHaveAttribute('href','/projects')
   expect(screen.getByRole('link',{name:'Import'})).toHaveAttribute('href','/import')
   fireEvent.click(next);fireEvent.click(next);fireEvent.click(next)
-  expect(screen.getByRole('link',{name:'CAD editor'})).toHaveAttribute('href','/tools/cad-editor')
+  expect(screen.getByRole('link',{name:'Collect'})).toHaveAttribute('href','/field/collect')
 })
 
 it('allows horizontal swipes without changing pages on a vertical scroll',()=>{
@@ -58,5 +59,5 @@ it('allows horizontal swipes without changing pages on a vertical scroll',()=>{
   fireEvent.touchEnd(dock,{changedTouches:[{clientX:190,clientY:160}]})
   expect(screen.getByRole('link',{name:'Projects'})).toBeInTheDocument()
   fireEvent.keyDown(dock,{key:'ArrowLeft'})
-  expect(screen.getByRole('link',{name:'CAD editor'})).toBeInTheDocument()
+  expect(screen.getByRole('link',{name:'Collect'})).toBeInTheDocument()
 })

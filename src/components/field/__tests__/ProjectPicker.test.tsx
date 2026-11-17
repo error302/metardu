@@ -105,6 +105,30 @@ describe('ProjectPicker offline road plans', () => {
     expect(screen.queryByRole('button', { name: /Road project/ })).not.toBeInTheDocument()
   })
 
+  it('opens the only available project automatically for a crew member', async () => {
+    setOnline(true)
+    const onPick = jest.fn()
+    jest.mocked(apiGet).mockResolvedValue({
+      projects: [{ id: projectId, name: 'Shared boundary job', survey_type: 'cadastral' }],
+      hasMore: false,
+    })
+
+    render(<ProjectPicker onPick={onPick} title="Field Data Collector" subtitle="Select a project" />)
+
+    await waitFor(() => expect(onPick).toHaveBeenCalledWith(projectId, 'cadastral', 'Shared boundary job'))
+  })
+
+  it('explains how a crew member gets access when no project is available', async () => {
+    setOnline(true)
+    jest.mocked(apiGet).mockResolvedValue({ projects: [], hasMore: false })
+
+    render(<ProjectPicker onPick={jest.fn()} title="Field Data Collector" subtitle="Select a project" />)
+
+    expect(await screen.findByText('No projects are available to this account yet')).toBeInTheDocument()
+    expect(screen.getByText(/Ask your surveyor to share the project with this account/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Create a project' })).toHaveAttribute('href', '/project/new')
+  })
+
   it('does not automatically resume a cached plan with conflicting grid declarations', async () => {
     const onPick = jest.fn()
     jest.mocked(listCachedRoadFieldPlans).mockResolvedValue([{ ...cachedPlan, plan: { ...cachedPlan.plan, projectCrs: `${fixtureCrs} / EPSG:21037` } }])

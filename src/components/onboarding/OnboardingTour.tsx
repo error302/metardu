@@ -4,8 +4,7 @@
  * OnboardingTour — Interactive guided walkthrough for new users
  *
  * Features:
- * - Step-by-step tour with spotlight overlay
- * - Highlights key UI elements with descriptions
+ * - Step-by-step walkthrough card
  * - Progress indicator (step X of Y)
  * - Skip / Next / Back navigation
  * - Persists completion in localStorage
@@ -35,7 +34,6 @@ interface TourStep {
   description: string
   icon: typeof LayoutDashboard
   href?: string
-  highlight?: string // CSS selector to highlight
 }
 
 const TOUR_STEPS: TourStep[] = [
@@ -52,27 +50,25 @@ const TOUR_STEPS: TourStep[] = [
   },
   {
     title: 'The Survey Map',
-    description: 'The map is where you draw parcels, measure distances, and run COGO computations. Use the floating dock on the left to access tools. On mobile, use two fingers to pan.',
+    description: 'Draw parcels, measure distances, and inspect survey geometry on the map. Use the tool bar at the bottom; panels open from the right so the working area stays visible. Drag to pan and pinch or use the controls to zoom.',
     icon: Map,
-    href: '/map',
   },
   {
-    title: 'Digital Field Book',
-    description: 'Capture traverse, leveling, and control observations directly in the field. Works offline — your data syncs when you\'re back online. On mobile, use the bottom bar to take measurements.',
+    title: 'Field Capture',
+    description: 'Open Collect, choose the project, set up the station, pick a feature code, and capture. The field book remains available for traverse, leveling, and control observations, including offline work.',
     icon: FileText,
-    href: '/fieldbook',
   },
   {
     title: 'Survey Tools',
-    description: '60+ calculation tools for every survey workflow: COGO, traverse adjustment, leveling, coordinate transformation, curves, areas, volumes, and more.',
+    description: 'Calculation tools for COGO, traverse adjustment, leveling, coordinate transformation, curves, areas, volumes, and more.',
     icon: Wrench,
-    href: '/tools/cogo',
+    href: '/tools',
   },
   {
     title: 'Document Generation',
-    description: 'Generate Kenya-compliant deed plans, Form C-22, beacon certificates, and traverse sheets. Free tier includes METARDU watermark; paid plans can add a company logo.',
+    description: 'Open a project\u2019s Deliver stage to prepare draft deed plans, Form C-22, computation sheets, and a client-ready package. A licensed surveyor must review and sign before filing; METARDU does not submit to a registry. Paid plans with an uploaded logo can brand the cover sheet.',
     icon: FileText,
-    href: '/documents',
+    href: '/reports',
   },
   {
     title: 'Surveyor Community',
@@ -107,11 +103,36 @@ export function OnboardingTour() {
     const completed = localStorage.getItem(STORAGE_KEY)
     const skipped = localStorage.getItem('metardu:onboarding-skipped')
     const checklistDismissed = localStorage.getItem('metardu_onboarding_dismissed')
-    if (!completed && !skipped && checklistDismissed) {
+    if (completed || skipped || !checklistDismissed) return
+
+    let cancelled = false
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const startTour = () => {
       // Only start the tour AFTER the checklist has been dismissed —
       // otherwise the user gets two onboarding overlays at once.
-      const timer = setTimeout(() => setActive(true), 1500)
-      return () => clearTimeout(timer)
+      timer = setTimeout(() => setActive(true), 1500)
+    }
+
+    // The POST side already records completion server-side. Honour that record
+    // on a new device instead of showing the tour again.
+    fetch('/api/user/onboarding', { credentials: 'include' })
+      .then(response => response.ok ? response.json() as Promise<{ completed?: boolean; skipped?: boolean }> : null)
+      .then(status => {
+        if (cancelled) return
+        if (status?.completed || status?.skipped) {
+          try {
+            localStorage.setItem(STORAGE_KEY, new Date().toISOString())
+            if (status.skipped) localStorage.setItem('metardu:onboarding-skipped', 'true')
+          } catch { /* local state is only a cache of the server record */ }
+          return
+        }
+        startTour()
+      })
+      .catch(() => { if (!cancelled) startTour() })
+
+    return () => {
+      cancelled = true
+      if (timer) clearTimeout(timer)
     }
   }, [])
 
@@ -141,7 +162,8 @@ export function OnboardingTour() {
       credentials: 'include',
     }).catch(() => { /* silent fail — localStorage is enough */ })
     setActive(false)
-  }, [])
+    router.push('/dashboard')
+  }, [router])
 
   const handleNext = useCallback(() => {
     const currentStep = TOUR_STEPS[step]

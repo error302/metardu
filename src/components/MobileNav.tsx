@@ -7,15 +7,15 @@ import { useSession } from 'next-auth/react'
 import {
   FolderKanban, LayoutDashboard, MapPinned, Wrench, FileText,
   CalendarDays, Radar, Store, ChevronRight, X,
-  BookOpen, Compass, MapPin, ShieldCheck, DraftingCompass, MoreHorizontal, Upload
+  BookOpen, Compass, Crosshair, MapPin, ShieldCheck, DraftingCompass, MoreHorizontal, Upload
 } from 'lucide-react'
 import { isNavItemActive } from '@/lib/navigation-shell'
 
-/** The dock keeps the four most-used survey destinations within thumb reach. */
+/** Field capture is the crew's primary job, so Collect leads the dock. */
 const PRIMARY_MOBILE_PAGES = [
+  { href: '/field/collect', label: 'Collect', icon: Crosshair },
   { href: '/map', label: 'Map', icon: MapPinned },
   { href: '/fieldbook', label: 'Field Book', icon: BookOpen },
-  { href: '/tools/cad-editor', label: 'CAD', icon: DraftingCompass },
   { href: '/tools', label: 'Tools', icon: Wrench },
 ]
 
@@ -33,6 +33,7 @@ const MORE_PAGES = [
   { href: '/projects', label: 'Projects', icon: FolderKanban, color: 'text-blue-400' },
   { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
   { href: '/reports', label: 'Documents & Reports', icon: FileText, color: 'text-purple-400' },
+  { href: '/tools/cad-editor', label: 'CAD Editor', icon: DraftingCompass, color: 'text-cyan-400' },
   { href: '/field', label: 'Field Mode', icon: Compass, color: 'text-cyan-400' },
   { href: '/beacons', label: 'Beacon Registry', icon: MapPin, color: 'text-amber-400' },
   { href: '/schedule', label: 'Job Schedule', icon: CalendarDays, color: 'text-blue-400' },

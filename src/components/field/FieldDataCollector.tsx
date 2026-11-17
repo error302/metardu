@@ -24,6 +24,7 @@
  */
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
+import Link from 'next/link'
 import { Settings, Target, List, Cloud, ChevronRight, X, Volume2, VolumeX, Check } from 'lucide-react'
 import { FieldConnectionBar } from './FieldConnectionBar'
 import { FieldMeasureButton } from './FieldMeasureButton'
@@ -45,6 +46,7 @@ import { FixVerdictBadge } from './FixVerdictBadge'
 import { apiGet } from '@/lib/api/client'
 import { fieldProjectsSchema } from '@/lib/field/projectContext'
 import { resolveStageReference } from '@/lib/workspaces/stageReference'
+import { markOnboardingStepComplete } from '@/components/shared/OnboardingChecklist'
 
 function isOfflinePlanFetchFailure(error: unknown): boolean {
   if (typeof navigator !== 'undefined' && !navigator.onLine) return true
@@ -113,6 +115,11 @@ export function FieldDataCollector({
   // in the office: the crew cannot re-walk a boundary from memory.
   const latestReading = useInstrumentStore(state => state.latestPoint)
   const fixAssessment = useMemo(() => assessFieldFix(latestReading), [latestReading])
+
+  // The checklist should reflect a real saved point, not an honour-system tick.
+  useEffect(() => {
+    if (sessionState.measurements.length > 0) markOnboardingStepComplete('add-survey-points')
+  }, [sessionState.measurements.length])
 
   useEffect(() => {
     if (!roadSurvey) return
@@ -646,16 +653,32 @@ export function FieldDataCollector({
         )}
 
         {activePanel === 'list' && (
-          <FieldObservationList
-            measurements={sessionState.measurements}
-            onDelete={async (id) => {
-              // Delete from IndexedDB
-              try {
-                const { deleteObservation } = await import('@/lib/offline/fieldBookDB')
-                await deleteObservation(id)
-              } catch {}
-            }}
-          />
+          <div>
+            {sessionState.measurements.length > 0 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--border-color)] px-4 py-3">
+                <p className="text-sm text-[var(--text-secondary)]">
+                  These points stay with this project for office review.
+                </p>
+                <Link
+                  href={`/project/${projectId}/deliver`}
+                  className="inline-flex min-h-11 items-center gap-1 text-sm font-semibold text-[var(--accent)] underline-offset-2 hover:underline"
+                >
+                  Review & create client package
+                  <ChevronRight className="h-4 w-4" aria-hidden="true" />
+                </Link>
+              </div>
+            )}
+            <FieldObservationList
+              measurements={sessionState.measurements}
+              onDelete={async (id) => {
+                // Delete from IndexedDB
+                try {
+                  const { deleteObservation } = await import('@/lib/offline/fieldBookDB')
+                  await deleteObservation(id)
+                } catch {}
+              }}
+            />
+          </div>
         )}
 
         {activePanel === 'stakeout' && stakeoutTarget && (
@@ -674,6 +697,7 @@ export function FieldDataCollector({
           <SyncPanel
             sessionState={sessionState}
             onSync={handleSync}
+            projectId={projectId}
           />
         )}
       </div>
@@ -925,9 +949,11 @@ function StakeoutPanel({
 function SyncPanel({
   sessionState,
   onSync,
+  projectId,
 }: {
   sessionState: FieldSessionState
   onSync: () => void
+  projectId: string
 }) {
   return (
     <div className="p-4 space-y-4">
@@ -974,6 +1000,15 @@ function SyncPanel({
       </button>
 
       {sessionState.syncMessage&&<p role="status" className="text-sm text-[var(--text-secondary)] break-words">{sessionState.syncMessage}</p>}
+      {sessionState.measurements.length > 0 && (
+        <Link
+          href={`/project/${projectId}/deliver`}
+          className="flex min-h-11 items-center justify-center gap-1 rounded-lg border border-[var(--border-color)] px-4 py-3 font-semibold text-[var(--accent)] hover:bg-[var(--bg-secondary)]"
+        >
+          Review & create client package
+          <ChevronRight className="h-4 w-4" aria-hidden="true" />
+        </Link>
+      )}
       <p className="text-xs text-[var(--text-muted)]">
         Keep this working tab open and save a device export before leaving it.
         Delivery needs a matching server receipt. Rejected readings stay on this

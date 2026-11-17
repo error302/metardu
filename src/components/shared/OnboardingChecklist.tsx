@@ -38,9 +38,9 @@ const STEPS: OnboardingStep[] = [
   },
   {
     id: 'add-survey-points',
-    title: 'Add survey points',
-    description: 'Import or manually enter survey points with coordinates into your project.',
-    href: '/project/new',
+    title: 'Capture or add survey points',
+    description: 'Open the field collector, choose the project and feature code, then capture points against the declared CRS.',
+    href: '/field/collect',
     estimatedTime: '3 min',
   },
   {
@@ -51,13 +51,6 @@ const STEPS: OnboardingStep[] = [
     estimatedTime: '5 min',
   },
   {
-    id: 'generate-deed-plan',
-    title: 'Generate a deed plan',
-    description: 'Create a professional deed plan with beacon descriptions, area, and diagram.',
-    href: '/deed-plan',
-    estimatedTime: '4 min',
-  },
-  {
     id: 'explore-field-book',
     title: 'Explore the field book',
     description: 'Record and manage traverse, leveling, and radiation field observations.',
@@ -65,10 +58,17 @@ const STEPS: OnboardingStep[] = [
     estimatedTime: '3 min',
   },
   {
+    id: 'generate-deed-plan',
+    title: 'Prepare a client-ready package',
+    description: 'Open a project, use its Deliver stage to review draft documents, then download the branded package for surveyor sign-off.',
+    href: '/projects',
+    estimatedTime: '4 min',
+  },
+  {
     id: 'review-compliance',
-    title: 'Review compliance standards',
-    description: 'Familiarize yourself with Survey Act requirements and RDM accuracy standards.',
-    href: '/docs/survey-act',
+    title: 'Read the 5-step quick start',
+    description: 'See the complete project, field, computation, review, and delivery workflow before your first paid job.',
+    href: '/docs/quick-start',
     estimatedTime: '5 min',
   },
 ]

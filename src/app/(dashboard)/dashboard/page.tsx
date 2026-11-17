@@ -244,7 +244,7 @@ export default async function DashboardPage() {
           </div>
         </div>
       </header>
-      <OnboardingWrapper compact />
+      <OnboardingWrapper compact={projectsWithCounts.length > 0} />
 
       <section aria-label="Workspace totals" className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         {dashboardMetrics.map(({ label, value, note, icon: Icon }) => (
@@ -326,6 +326,7 @@ export default async function DashboardPage() {
                   </p>
                   <div className="mt-6 flex flex-wrap gap-3">
                     <Link href="/project/new" prefetch={false} className="btn btn-primary inline-flex items-center gap-2">Create your first project <ArrowRight className="h-4 w-4" aria-hidden="true" /></Link>
+                    <Link href="/demo" prefetch={false} className="btn btn-secondary">Practice with the sample parcel (5 min)</Link>
                     <Link href="/fieldbook" prefetch={false} className="btn btn-secondary">Open field book</Link>
                   </div>
                 </div>

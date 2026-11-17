@@ -8,6 +8,7 @@
  */
 
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { FolderKanban, ChevronRight, Loader2, MapPin } from 'lucide-react'
 import { apiGet } from '@/lib/api/client'
 import { fieldProjectsSchema } from '@/lib/field/projectContext'
@@ -96,6 +97,12 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
         } else {
           setProjects(available)
           setError(null)
+          // A crew member usually has exactly one shared job. Do not make them
+          // solve a one-item list before they can start measuring.
+          if (available.length === 1) {
+            const onlyProject = available[0]
+            onPick(onlyProject.id, onlyProject.survey_type, onlyProject.name)
+          }
         }
       } catch (err) {
         logger.error('[project-picker] Failed to load projects:', { error: err })
@@ -181,10 +188,13 @@ export function ProjectPicker({ onPick, title, subtitle, initialProjectId, initi
         ) : projects.length === 0 ? (
           <div className="text-center py-12">
             <FolderKanban className="w-12 h-12 text-[var(--text-muted)] mx-auto mb-3" />
-            <p className="text-sm text-[var(--text-muted)]">No projects yet</p>
-            <p className="text-xs text-[var(--text-muted)] mt-1">
-              Create a project from the dashboard first
+            <p className="text-sm text-[var(--text-muted)]">No projects are available to this account yet</p>
+            <p className="mx-auto mt-1 max-w-sm text-xs leading-5 text-[var(--text-muted)]">
+              On a crew? Ask your surveyor to share the project with this account, then reopen Collect.
             </p>
+            <Link href="/project/new" className="btn btn-secondary mt-5 inline-flex min-h-11 items-center">
+              Create a project
+            </Link>
           </div>
         ) : (
           <div className="space-y-2">
