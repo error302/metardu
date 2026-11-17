@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { trackFieldbookSave } from '@/lib/analytics/events'
 
 // AUDIT FIX (H-003, 2026-07-27): useMemo to prevent infinite loop.
@@ -20,7 +20,8 @@ import { logger } from '@/lib/logger'
 import { bowditchAdjustment, forwardTraverse } from '@/lib/engine/traverse'
 import { bearingToString, normalizeBearing, parseFieldAngle } from '@/lib/engine/angles'
 import { polar3DWithHeights } from '@/lib/engine/polar'
-import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations } from '@/lib/offline/syncQueue'
+import { isOnline, getPendingOperations, setupOnlineListener, syncPendingOperations, type ConflictRecord } from '@/lib/offline/syncQueue'
+import { SyncConflictDialog } from '@/components/field/SyncConflictDialog'
 import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldbooks'
 import { persistWorkingBook } from '@/lib/offline/saveWorkingBook'
 import { listBookEdits, sendBookEdits, type BookSaveOrigin } from '@/lib/offline/bookEdits'
@@ -185,7 +186,24 @@ export default function DigitalFieldBookPage() {
   const [readSnapshotKey, setReadSnapshotKey] = useState(0)
   const [fieldbookId, setFieldbookId] = useState<string | null>(null)
   const [saveStatus, setSaveStatus] = useState<SaveStatus>({ kind: 'idle' })
-  const [syncStatus, setSyncStatus] = useState<{ synced: number; failed: number } | null>(null)
+  const [syncStatus, setSyncStatus] = useState<{ synced: number; failed: number; conflicts?: number; unresolved?: { table: string; recordId: string; projectId?: string; localTimestamp: string }[] } | null>(null)
+  // A conflict is a decision, not an error: hold the sync until the surveyor
+  // chooses a side, then hand the answer back to the queue.
+  const [conflictPrompt, setConflictPrompt] = useState<ConflictRecord | null>(null)
+  const conflictResolver = useRef<((resolution: 'local' | 'remote') => void) | null>(null)
+
+  /** Show the conflict and resolve once the surveyor picks a version. */
+  const askAboutConflict = useCallback((conflict: ConflictRecord) => new Promise<'local' | 'remote'>(resolve => {
+    conflictResolver.current = resolve
+    setConflictPrompt(conflict)
+  }), [])
+
+  const resolveConflict = useCallback((resolution: 'local' | 'remote') => {
+    setConflictPrompt(null)
+    const resolve = conflictResolver.current
+    conflictResolver.current = null
+    resolve?.(resolution)
+  }, [])
 
   const [openingRL, setOpeningRL] = useState('')
   const [closingRL, setClosingRL] = useState('')
@@ -362,11 +380,11 @@ export default function DigitalFieldBookPage() {
   useEffect(() => {
     return setupOnlineListener(async () => {
       try {
-        const r = await syncPendingOperations(dbClient)
+        const r = await syncPendingOperations(dbClient, { onConflict: askAboutConflict })
         setSyncStatus(r)
       } catch {}
     })
-  }, [dbClient])
+  }, [dbClient, askAboutConflict])
 
   const levelingComputed = useMemo(() => computeLevelBook({
     openingRL, closingRL, distanceKm, method: levelMethod, rows: levelRows,
@@ -595,7 +613,7 @@ export default function DigitalFieldBookPage() {
   async function handleSyncNow() {
     setSyncStatus(null)
     try {
-      const r = await syncPendingOperations(dbClient)
+      const r = await syncPendingOperations(dbClient, { onConflict: askAboutConflict })
       if (ownerId && projectId) {
         const edits = await listBookEdits(ownerId, projectId)
         const delivered = await sendBookEdits(ownerId, projectId, edits.filter(item => !item.result).map(item => item.edit.requestId))
@@ -1206,7 +1224,7 @@ export default function DigitalFieldBookPage() {
     onRetryProjects={() => setProjectLoadAttempt(value => value + 1)}
     name={name} onNameChange={setName} onProjectChange={changeProject}
     saving={saveStatus.kind === 'saving'} onSave={saveBeforeLeaving} onNew={newBook}
-    status={saveStatus.kind === 'error' ? saveStatus.message : syncStatus?.failed ? `Sync needs attention: ${syncStatus.failed} operation(s) remain on this device. Export JSON for a backup and retry after checking your account and connection.` : saveStatus.kind === 'saved' ? saveStatus.message ?? 'Saved.' : null}
+    status={saveStatus.kind === 'error' ? saveStatus.message : syncStatus?.unresolved?.length ? `Sync paused: ${syncStatus.unresolved.length} record(s) changed on another device. Your copy is kept on this device until you choose which version to save.` : syncStatus?.failed ? `Sync needs attention: ${syncStatus.failed} operation(s) remain on this device. Export JSON for a backup and retry after checking your account and connection.` : saveStatus.kind === 'saved' ? saveStatus.message ?? 'Saved.' : null}
     error={saveStatus.kind === 'error' || !!syncStatus?.failed}
     savedBooks={savedFieldbooks} activeBookId={fieldbookId} onOpen={openSavedFieldbook}
     onImport={importBook}
@@ -1217,6 +1235,7 @@ export default function DigitalFieldBookPage() {
     {ownerId && projectId && <FieldbookCaptureImport actorId={ownerId} projectId={projectId} onPrepare={prepareCaptureImport} onCreated={openCapturedBook} />}
     {sourceImport && <FieldbookSourceReferences key={`${projectId}:${fieldbookId}:${sourceImport.requestHash}`} imported={sourceImport}
       rows={type === 'leveling' ? levelRows : type === 'traverse' ? travRows : controlSetups.flatMap(setup => setup.rows)} />}
+    {conflictPrompt && <SyncConflictDialog conflict={conflictPrompt} onResolve={resolveConflict} />}
   </>
 
   if (isMobile) {

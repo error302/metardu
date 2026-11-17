@@ -67,7 +67,7 @@ test('a separate recovered book can be explicitly linked without retagging the o
 test('a verified recovered legacy source is retained without being counted as another failed replay', async () => {
   await retainBookEdit(actor, edit); await sendBookEdit(actor, project, edit.requestId); await confirmLegacyBookDelivery(actor, project, 7, edit.requestId, sha(operation as unknown as Parameters<typeof canonicalDeliveryJson>[0]))
   const result = await syncPendingOperations({ from: () => { throw new Error('Legacy source must not be replayed') }, auth: { getSession: async () => ({ data: { session: { user: { id: actor } } } }) } })
-  expect(result).toEqual({ synced: 0, failed: 0, conflicts: 0 })
+  expect(result).toEqual({ synced: 0, failed: 0, conflicts: 0, unresolved: [] })
   expect(await (await getDB()).count('sync_queue')).toBe(1)
 })
 test('a source mutation during confirmation cannot acquire a stale delivery link', async () => {

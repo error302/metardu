@@ -65,13 +65,22 @@ export async function removeSyncedOperation(id: number): Promise<void> {
   await db.delete('sync_queue', id)
 }
 
+/** A queued edit whose server copy moved on and nobody has chosen a winner yet. */
+export interface UnresolvedConflict {
+  table: string
+  recordId: string
+  projectId?: string
+  /** The device timestamp of the retained local edit. */
+  localTimestamp: string
+}
+
 // Enhanced sync with conflict resolution
 export async function syncPendingOperations(
   dbClient: SyncDbClient,
   options: { onConflict?: (conflict: ConflictRecord) => Promise<'local' | 'remote' | 'merged'> } = {}
-): Promise<{ synced: number; failed: number; conflicts: number }> {
+): Promise<{ synced: number; failed: number; conflicts: number; unresolved: UnresolvedConflict[] }> {
   const pending = await getPendingOperations()
-  const results = { synced: 0, failed: 0, conflicts: 0 }
+  const results = { synced: 0, failed: 0, conflicts: 0, unresolved: [] as UnresolvedConflict[] }
   let retainedOwner: string | undefined
   if (pending.some(op => op.table === 'fieldbooks' && op.fieldbookRecovery !== undefined)) {
     try { retainedOwner = (await dbClient.auth?.getSession())?.data.session?.user?.id } catch { /* An unconfirmed account keeps recovery pending. */ }
@@ -96,6 +105,22 @@ export async function syncPendingOperations(
       // Check for conflicts using timestamp
       const timestamp = op.data.updated_at || op.timestamp
       const existing = await checkRemoteVersion(dbClient, op.table, String(op.data.id), String(timestamp))
+
+      // No way to ask? Then do not answer for the surveyor. Upserting here used
+      // to overwrite a newer server copy with whichever device synced last, and
+      // nobody was ever told. Keep the local edit queued and report it instead:
+      // the work stays on the device until a person chooses a winner.
+      if (existing.hasConflict && !options.onConflict) {
+        results.conflicts++
+        results.unresolved.push({
+          table: op.table,
+          recordId: String(op.data.id),
+          projectId: op.projectId,
+          localTimestamp: String(timestamp),
+        })
+        continue
+      }
+
       if (existing.hasConflict && options.onConflict) {
         // AUDIT FIX (H4, 2026-07-02): Retrieve the base snapshot for
         // three-way merge. Without it, we can only do naive LWW.
