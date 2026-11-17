@@ -7,6 +7,8 @@ import { generateFullPackage } from '@/lib/generators/fullPackage'
 import { generateDocument } from '@/lib/submission/assembleDocument'
 import { uploadFile, getSignedUrl } from '@/lib/storage'
 import { db } from '@/lib/db'
+import { getSubscription } from '@/lib/subscription/subscriptionEngine'
+import { getWatermarkStrategy, resolveCompanyLogo } from '@/lib/documents/resolve-logo'
 
 const PackageRequestSchema = z.object({
   projectId: z.string().guid('Valid project ID is required'),
@@ -32,8 +34,16 @@ export const POST = apiHandler(
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
-    // 2. Generate full submission package buffer
-    const zipBuffer = await generateFullPackage(projectId, ctx.userId, generateDocument)
+    // 2. Generate the package with the surveyor's own document branding.
+    // Paid firms get their uploaded logo on the client cover sheet; the free
+    // plan keeps the METARDU mark defined by the existing logo policy.
+    const subscription = await getSubscription(ctx.userId, ctx.session?.user?.email ?? undefined)
+    const plan = subscription?.plan ?? 'free'
+    const logo = await resolveCompanyLogo(ctx.userId, plan)
+    const zipBuffer = await generateFullPackage(projectId, ctx.userId, generateDocument, {
+      logo,
+      brandingStrategy: getWatermarkStrategy(plan, logo),
+    })
     const filename = `submission-dossier-${projectId.slice(0, 8)}.zip`
     const storagePath = await uploadFile(zipBuffer, filename, 'application/zip', `submissions/${projectId}`)
     await db.query<never>(

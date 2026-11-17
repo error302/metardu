@@ -2,8 +2,19 @@ import JSZip from 'jszip';
 import db from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeDeedPlanGeometry } from './deedPlanGeometry';
-import { downloadFile } from '@/lib/storage';
+import { downloadFile, downloadFileBounded } from '@/lib/storage';
 import { requireSubmissionAdmission } from '@/lib/submission/submissionAdmission';
+import { fetchSurveyorProfile } from '@/lib/survey/fetchSurveyorProfile';
+import type { ResolvedLogo, WatermarkStrategy } from '@/lib/documents/resolve-logo';
+import {
+  buildPhotoIndexCsv,
+  buildSha256Manifest,
+  hashPackageFile,
+  renderClientCoverPdf,
+  safePackagePhotoName,
+  type ClientPackageFile,
+  type ClientPackagePhoto,
+} from './clientPackageExtras';
 
 interface DocRow {
   document_id: string;
@@ -12,10 +23,24 @@ interface DocRow {
 
 interface ProjectMetaRow {
   name: string | null;
+  client_name: string | null;
   survey_type: string | null;
   lr_number: string | null;
   parcel_number: string | null;
   county: string | null;
+  locality: string | null;
+}
+
+interface PhotoRow {
+  file_name: string | null;
+  file_url: string | null;
+  description: string | null;
+  taken_at: string | Date | null;
+}
+
+export interface FullPackageOptions {
+  logo?: ResolvedLogo | null;
+  brandingStrategy?: WatermarkStrategy;
 }
 
 /**
@@ -37,14 +62,44 @@ export type DocumentGeneratorFn = (input: {
   userId?: string;
 }) => Promise<{ fileUrl: string }>;
 
+const MAX_PACKAGE_PHOTO_BYTES = 25 * 1024 * 1024;
+
+async function loadPackagePhoto(projectId: string, fileUrl: string): Promise<Buffer> {
+  const url = new URL(fileUrl, 'http://storage.local');
+  const localPath = url.pathname === '/api/storage'
+    ? url.searchParams.get('path')
+    : fileUrl.startsWith('survey_photos/')
+      ? fileUrl
+      : null;
+
+  if (localPath) {
+    if (!localPath.startsWith(`survey_photos/${projectId}/`) || localPath.split('/').some(part => part === '..' || part === '.') || localPath.includes('\\')) {
+      throw new Error('Photo storage path does not belong to this project');
+    }
+    return downloadFileBounded(localPath, MAX_PACKAGE_PHOTO_BYTES);
+  }
+
+  if (!/^https?:\/\//i.test(fileUrl)) {
+    throw new Error('Photo location is not readable');
+  }
+  const response = await fetch(fileUrl, { signal: AbortSignal.timeout(30_000) });
+  if (!response.ok) throw new Error(`Photo download returned HTTP ${response.status}`);
+  const contentLength = Number(response.headers.get('content-length') ?? 0);
+  if (contentLength > MAX_PACKAGE_PHOTO_BYTES) throw new Error('Photo exceeds the package size limit');
+  const data = Buffer.from(await response.arrayBuffer());
+  if (data.byteLength > MAX_PACKAGE_PHOTO_BYTES) throw new Error('Photo exceeds the package size limit');
+  return data;
+}
+
 export async function generateFullPackage(
   projectId: string,
   userId?: string,
-  customGenerator?: DocumentGeneratorFn
+  customGenerator?: DocumentGeneratorFn,
+  options: FullPackageOptions = {}
 ): Promise<Buffer> {
   await requireSubmissionAdmission(projectId, 'full-package');
   const projRes = await db.query<ProjectMetaRow>(
-    'SELECT name, survey_type, lr_number, plot_parcel_number AS parcel_number, county FROM projects WHERE id = $1',
+    'SELECT name, client_name, survey_type, lr_number, plot_parcel_number AS parcel_number, county, locality FROM projects WHERE id = $1',
     [projectId]
   );
   const project = projRes.rows[0];
@@ -103,6 +158,7 @@ export async function generateFullPackage(
 
   // 2. Fetch and add each document file
   const includedFiles: string[] = [];
+  const packageFiles: ClientPackageFile[] = [];
   for (const doc of readyDocs) {
     if (!doc.file_url) throw new Error(`Cannot create complete package: ${doc.document_id} has no file.`);
     try {
@@ -122,8 +178,10 @@ export async function generateFullPackage(
       if (blob.byteLength === 0) throw new Error('Empty document');
       const ext = (localPath || url.pathname).split('.').pop() ?? 'bin';
       const name = `${doc.document_id}.${ext}`;
-      folder.file(name, blob);
+      const data = Buffer.isBuffer(blob) ? blob : Buffer.from(blob);
+      folder.file(name, data);
       includedFiles.push(name);
+      packageFiles.push(hashPackageFile(name, data));
     } catch {
       throw new Error(`Cannot create complete package: ${doc.document_id} could not be downloaded. Regenerate it and retry.`);
     }
@@ -139,15 +197,95 @@ export async function generateFullPackage(
           `"${st.station.replace(/"/g, '""')}",${st.easting.toFixed(3)},${st.northing.toFixed(3)},${typeof st.elevation === 'number' && Number.isFinite(st.elevation) ? st.elevation.toFixed(3) : ''},"${(st.monument || '').replace(/"/g, '""')}","${(st.markStatus || '').replace(/"/g, '""')}"`
         ),
       ];
-      folder.file('06_Beacon_Coordinates.csv', csvLines.join('\r\n'));
+      const csvData = Buffer.from(csvLines.join('\r\n'));
+      folder.file('06_Beacon_Coordinates.csv', csvData);
       includedFiles.push('06_Beacon_Coordinates.csv');
+      packageFiles.push(hashPackageFile('06_Beacon_Coordinates.csv', csvData));
     }
   } catch (csvErr) {
     logger.warn('[generateFullPackage] Failed to add beacon CSV:', { error: csvErr });
     throw new Error('Cannot create complete package: beacon coordinates could not be exported.');
   }
 
-  // 4. Dossier README Manifest
+  // 4. Add the recorded field photographs. A photo that cannot be retrieved
+  // is named in the index instead of disappearing from the deliverable.
+  const photoEntries: ClientPackagePhoto[] = [];
+  try {
+    const photosRes = await db.query<PhotoRow>(
+      'SELECT file_name, file_url, description, taken_at FROM survey_photos WHERE project_id = $1 ORDER BY created_at ASC LIMIT 100',
+      [projectId]
+    );
+    const usedPhotoNames = new Set<string>();
+    for (const photo of photosRes.rows) {
+      const originalName = photo.file_name || photo.file_url?.split('/').at(-1) || 'field-photo.jpg';
+      const takenAt = photo.taken_at instanceof Date ? photo.taken_at.toISOString() : photo.taken_at;
+      if (!photo.file_url) {
+        photoEntries.push({ originalName, description: photo.description, takenAt, included: false, reason: 'No readable photo location is recorded.' });
+        continue;
+      }
+      try {
+        const data = await loadPackagePhoto(projectId, photo.file_url);
+        if (data.byteLength === 0) throw new Error('Photo file is empty');
+        const packageName = safePackagePhotoName(originalName, usedPhotoNames);
+        const packagePath = `photos/${packageName}`;
+        folder.file(packagePath, data);
+        includedFiles.push(packagePath);
+        packageFiles.push(hashPackageFile(packagePath, data));
+        photoEntries.push({ originalName, packageName, description: photo.description, takenAt, included: true });
+      } catch (photoError) {
+        logger.warn('[generateFullPackage] A recorded field photo could not be added:', { error: photoError });
+        photoEntries.push({
+          originalName,
+          description: photo.description,
+          takenAt,
+          included: false,
+          reason: 'The photo file could not be retrieved from storage.',
+        });
+      }
+    }
+    if (photosRes.rows.length > 0) {
+      const indexData = Buffer.from(buildPhotoIndexCsv(photoEntries));
+      folder.file('photos/00_Photo_Index.csv', indexData);
+      includedFiles.push('photos/00_Photo_Index.csv');
+      packageFiles.push(hashPackageFile('photos/00_Photo_Index.csv', indexData));
+    }
+  } catch (photoRegisterError) {
+    logger.warn('[generateFullPackage] The field photo register could not be read:', { error: photoRegisterError });
+    photoEntries.push({
+      originalName: 'Survey photo register',
+      included: false,
+      reason: 'The recorded photo register could not be read.',
+    });
+  }
+
+  // 5. Client cover sheet and checksums. The cover makes the ZIP readable
+  // without opening every statutory file, while the checksums let a recipient
+  // prove the listed files are the ones that were generated.
+  const surveyorProfile = await fetchSurveyorProfile(projectId).catch(() => null);
+  const generatedAt = new Date().toISOString();
+  const coverData = renderClientCoverPdf({
+    projectName: project?.name || 'Cadastral Survey',
+    clientName: project?.client_name,
+    lrNumber: project?.lr_number,
+    parcelNumber: project?.parcel_number,
+    county: project?.county,
+    locality: project?.locality,
+    surveyType,
+    surveyorName: surveyorProfile?.surveyorName,
+    firmName: surveyorProfile?.firmName,
+    iskNumber: surveyorProfile?.iskNumber || surveyorProfile?.licenseNumber,
+    generatedAt,
+    files: packageFiles,
+    photos: photoEntries,
+    brandingStrategy: options.brandingStrategy ?? (options.logo ? 'company_logo' : 'metardu'),
+  }, options.logo);
+  folder.file('00_Client_Cover_Sheet.pdf', coverData);
+  includedFiles.push('00_Client_Cover_Sheet.pdf');
+  packageFiles.push(hashPackageFile('00_Client_Cover_Sheet.pdf', coverData));
+  folder.file('99_SHA256SUMS.txt', buildSha256Manifest(packageFiles));
+  includedFiles.push('99_SHA256SUMS.txt');
+
+  // 6. Dossier README Manifest
   folder.file('README_STATUTORY_DOSSIER.txt', [
     '====================================================================',
     'METARDU STATUTORY SURVEY SUBMISSION DOSSIER',
@@ -158,8 +296,15 @@ export async function generateFullPackage(
     `LR / Parcel: ${project?.lr_number || 'N/A'} / ${project?.parcel_number || 'N/A'}`,
     `County / Locality: ${project?.county || 'N/A'}`,
     `Survey Type: ${surveyType.toUpperCase()}`,
-    `Generated At: ${new Date().toISOString()}`,
+    `Generated At: ${generatedAt}`,
     `Total Dossier Files Included (excluding this manifest): ${includedFiles.length}`,
+    '',
+    'CLIENT DELIVERY:',
+    'Open 00_Client_Cover_Sheet.pdf first for the project summary, preparer and',
+    'file inventory. Use 99_SHA256SUMS.txt to verify that the listed files have',
+    'not changed after generation. Recorded field photographs are under photos/,',
+    'with photos/00_Photo_Index.csv naming any recorded photo that could not be',
+    'retrieved.',
     '',
     'DOSSIER INVENTORY:',
     ...includedFiles.map((name) => `  [x] ${name}`),
