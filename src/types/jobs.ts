@@ -5,7 +5,6 @@ export type JobType =
   | 'SETTING_OUT'
   | 'LEVELLING'
   | 'ROAD_DESIGN'
-  | 'HYDROGRAPHIC'
   | 'DRONE_SURVEY'
   | 'EXPERT_WITNESS'
   | 'OTHER'

@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "Kutoka kwa data ya uga hadi hati zilizokamilika"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Hali ya Uga",
     "fieldBook": "Kitabu cha Uga",
-    "fieldBookSubtitle": "Rekodi uchunguzi wa mfululizo wa upimaji, kupima kimo, mionzi, na bathymetri",
+    "fieldBookSubtitle": "Rekodi uchunguzi wa mzunguko, uleveledi, radiation, na maelezo ya kina",
     "syncOffline": "Landanisha Nje ya Mtandao",
     "fieldBookAI": "Kitabu cha Uga cha AI",
     "fieldBookName": "Jina la Kitabu cha Uga",

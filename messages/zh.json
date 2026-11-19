@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": ""
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "现场模式",
     "fieldBook": "现场记录簿",
-    "fieldBookSubtitle": "记录闭合、水准、辐射和测深观测",
+    "fieldBookSubtitle": "记录闭合、水准、辐射和碎部观测",
     "syncOffline": "离线同步",
     "fieldBookAI": "AI 现场记录簿",
     "fieldBookName": "记录簿名称",

@@ -19,6 +19,11 @@ export type TravRow = {
   vaDeg: string; vaMin: string; vaSec: string
   ih: string; th: string
   remarks: string
+  /** Rejected rows are struck through, excluded from computation, and kept in the audit trail. */
+  rejected?: boolean
+  rejectedReason?: string
+  rejectedAt?: string
+  rejectedBy?: string
 }
 
 /**
@@ -60,6 +65,8 @@ export function TraverseBook({
   setCloseN,
   travRows,
   setTravRows,
+  onReject,
+  onRestore,
   computed,
 }: {
   t: Translator
@@ -77,12 +84,16 @@ export function TraverseBook({
   setCloseN: Dispatch<SetStateAction<string>>
   travRows: TravRow[]
   setTravRows: Dispatch<SetStateAction<TravRow[]>>
+  onReject?: (rowId: string, reason: string) => void
+  onRestore?: (rowId: string) => void
   computed:
     | { ok: false; errors: string[] }
     | { ok: true; mode: 'open'; raw: { legs: Array<{ deltaN: number; deltaE: number; easting: number; northing: number }> } }
     | { ok: true; mode: 'closed' | 'link'; adjusted: { legs: Array<{ adjDeltaN: number; adjDeltaE: number; adjEasting: number; adjNorthing: number }>; closingErrorE: number; closingErrorN: number; linearError: number; totalDistance: number; precisionRatio: number } }
 }) {
   const [edmOpen, setEdmOpen] = useState(false)
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
 
   // Auto-compute bearing from FL/FR mean whenever travRows change
   useEffect(() => {
@@ -248,26 +259,26 @@ export function TraverseBook({
 
                 return (
                   <tr key={r.id}>
-                    <td className="text-left"><input aria-label="Station" className="input input-sm" value={r.station} onChange={(e) => upd({ station: e.target.value })} /></td>
+                    <td className="text-left"><input disabled={r.rejected} aria-label="Station" className="input input-sm" value={r.station} onChange={(e) => upd({ station: e.target.value })} /></td>
                     {/* HCL */}
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclDeg} onChange={(e) => upd({ hclDeg: e.target.value })} aria-label="HCL (Face Left) — Deg" placeholder="Deg" /></td>
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hclMin} onChange={(e) => upd({ hclMin: e.target.value })} aria-label="HCL (Face Left) — Min" placeholder="Min" /></td>
-                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hclSec} onChange={(e) => upd({ hclSec: e.target.value })} aria-label="HCL (Face Left) — Sec" placeholder="Sec" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" className="input input-sm font-mono w-14 text-center" value={r.hclDeg} onChange={(e) => upd({ hclDeg: e.target.value })} aria-label="HCL (Face Left) — Deg" placeholder="Deg" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" className="input input-sm font-mono w-14 text-center" value={r.hclMin} onChange={(e) => upd({ hclMin: e.target.value })} aria-label="HCL (Face Left) — Min" placeholder="Min" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hclSec} onChange={(e) => upd({ hclSec: e.target.value })} aria-label="HCL (Face Left) — Sec" placeholder="Sec" /></td>
                     {/* HCR */}
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrDeg} onChange={(e) => upd({ hcrDeg: e.target.value })} aria-label="HCR (Face Right) — Deg" placeholder="Deg" /></td>
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrMin} onChange={(e) => upd({ hcrMin: e.target.value })} aria-label="HCR (Face Right) — Min" placeholder="Min" /></td>
-                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hcrSec} onChange={(e) => upd({ hcrSec: e.target.value })} aria-label="HCR (Face Right) — Sec" placeholder="Sec" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrDeg} onChange={(e) => upd({ hcrDeg: e.target.value })} aria-label="HCR (Face Right) — Deg" placeholder="Deg" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" className="input input-sm font-mono w-14 text-center" value={r.hcrMin} onChange={(e) => upd({ hcrMin: e.target.value })} aria-label="HCR (Face Right) — Min" placeholder="Min" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.hcrSec} onChange={(e) => upd({ hcrSec: e.target.value })} aria-label="HCR (Face Right) — Sec" placeholder="Sec" /></td>
                     {/* Mean Bearing */}
                     <td className="text-center font-mono text-xs text-amber-400 whitespace-nowrap">{meanStr}</td>
                     {/* Slope Distance */}
-                    <td className="text-right"><input inputMode="decimal" className="input input-sm font-mono w-20 text-right" value={r.slopeDist} onChange={(e) => upd({ slopeDist: e.target.value })} aria-label="SD (m)" placeholder="100.000" /></td>
+                    <td className="text-right"><input disabled={r.rejected} inputMode="decimal" className="input input-sm font-mono w-20 text-right" value={r.slopeDist} onChange={(e) => upd({ slopeDist: e.target.value })} aria-label="SD (m)" placeholder="100.000" /></td>
                     {/* VA */}
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaDeg} onChange={(e) => upd({ vaDeg: e.target.value })} aria-label="VA (DMS) — Deg" placeholder="Deg" /></td>
-                    <td className="text-center"><input type="number" className="input input-sm font-mono w-14 text-center" value={r.vaMin} onChange={(e) => upd({ vaMin: e.target.value })} aria-label="VA (DMS) — Min" placeholder="Min" /></td>
-                    <td className="text-center"><input type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.vaSec} onChange={(e) => upd({ vaSec: e.target.value })} aria-label="VA (DMS) — Sec" placeholder="Sec" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" className="input input-sm font-mono w-14 text-center" value={r.vaDeg} onChange={(e) => upd({ vaDeg: e.target.value })} aria-label="VA (DMS) — Deg" placeholder="Deg" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" className="input input-sm font-mono w-14 text-center" value={r.vaMin} onChange={(e) => upd({ vaMin: e.target.value })} aria-label="VA (DMS) — Min" placeholder="Min" /></td>
+                    <td className="text-center"><input disabled={r.rejected} type="number" step="0.1" className="input input-sm font-mono w-16 text-center" value={r.vaSec} onChange={(e) => upd({ vaSec: e.target.value })} aria-label="VA (DMS) — Sec" placeholder="Sec" /></td>
                     {/* IH / TH */}
-                    <td className="text-right"><input aria-label="IH (m)" inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.ih} onChange={(e) => upd({ ih: e.target.value })} /></td>
-                    <td className="text-right"><input aria-label="TH (m)" inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.th} onChange={(e) => upd({ th: e.target.value })} /></td>
+                    <td className="text-right"><input disabled={r.rejected} aria-label="IH (m)" inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.ih} onChange={(e) => upd({ ih: e.target.value })} /></td>
+                    <td className="text-right"><input disabled={r.rejected} aria-label="TH (m)" inputMode="decimal" step="0.001" className="input input-sm font-mono w-14 text-right" value={r.th} onChange={(e) => upd({ th: e.target.value })} /></td>
                     {/* Computed columns */}
                     <td className="font-mono text-right text-xs">{lat !== null ? Number(lat).toFixed(4) : '—'}</td>
                     <td className="font-mono text-right text-xs">{dep !== null ? Number(dep).toFixed(4) : '—'}</td>
@@ -275,7 +286,13 @@ export function TraverseBook({
                     <td className="font-mono text-right text-xs">{nn !== null ? Number(nn).toFixed(4) : '—'}</td>
                     {/* Remarks */}
                     <td className="text-left"><input aria-label="Remarks" className="input input-sm" value={r.remarks} onChange={(e) => upd({ remarks: e.target.value })} /></td>
-                    <td><button className="btn btn-secondary text-xs" onClick={() => setTravRows((p) => p.filter((x) => x.id !== r.id))}>{t('common.remove')}</button></td>
+                    <td className="whitespace-nowrap">
+                      {r.rejected ? (
+                        <button className="btn btn-secondary text-xs" onClick={() => onRestore?.(r.id)}>{t('common.restore') ?? 'Restore'}</button>
+                      ) : (
+                        <button className="btn btn-secondary text-xs" onClick={() => { setRejectTarget(r.id); setRejectReason('') }}>{t('common.reject') ?? 'Reject'}</button>
+                      )}
+                    </td>
                   </tr>
                 )
               })}
@@ -286,6 +303,29 @@ export function TraverseBook({
         <button onClick={() => setTravRows((p) => [...p, makeEmptyRow(p.length)])} className="btn btn-secondary">
           {t('common.addRow')}
         </button>
+
+        {rejectTarget && (
+          <div className="p-3 border border-amber-500/40 bg-amber-500/5 rounded space-y-2" role="dialog" aria-label="Reject observation">
+            <p className="text-sm font-semibold">Reject this observation? It stays in the book, struck through, and is excluded from computation.</p>
+            <input
+              className="input input-sm"
+              placeholder="Reason (required)"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+              aria-label="Rejection reason"
+            />
+            <div className="flex gap-2">
+              <button
+                className="btn btn-primary text-xs"
+                disabled={!rejectReason.trim()}
+                onClick={() => { onReject?.(rejectTarget, rejectReason.trim()); setRejectTarget(null); setRejectReason('') }}
+              >
+                Confirm reject
+              </button>
+              <button className="btn btn-secondary text-xs" onClick={() => setRejectTarget(null)}>Cancel</button>
+            </div>
+          </div>
+        )}
 
         {/* EDM Corrections Panel */}
         {computed.ok && edmRows.length > 0 && (

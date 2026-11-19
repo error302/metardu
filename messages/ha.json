@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "Daga bayanan fili zuwa takardu na kammalawa"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Yanayin Fili",
     "fieldBook": "Littafin Fili",
-    "fieldBookSubtitle": "Rubuta abubuwan lura da jerin ma'auni, ma'aunin tsawo, hasken wutsiya, da ma'aunin ruwa",
+    "fieldBookSubtitle": "Rubuta abubuwan lura da jerin ma'auni, ma'aunin tsawo, hasken wutsiya, da cikakken bayani",
     "syncOffline": "Daidaita Bayan Layi",
     "fieldBookAI": "Littafin Fili na AI",
     "fieldBookName": "Sunan Littafin Fili",

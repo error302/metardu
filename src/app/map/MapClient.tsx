@@ -49,6 +49,7 @@ import { IdentifyPanel, type IdentifiedFeature } from '@/app/map/components/Iden
 import { SnappingOptions } from '@/app/map/components/SnappingOptions'
 import { OsmBuildingsLayer } from '@/app/map/components/OsmBuildingsLayer'
 import { resolveMapSurveyCrs } from '@/app/map/mapSurveyCrs'
+import { describeCrs } from '@/lib/spatial/projectCrs'
 import { useSelectionStore } from '@/lib/surveyMapEngine/ol/selection'
 import type { SnapMode, SnapType } from '@/lib/surveyMapEngine/ol/snapping'
 
@@ -329,7 +330,7 @@ function MapWorkspace() {
 
   // Project points API returns the saved project CRS even when there are no
   // points, so the map never infers survey mathematics from its display view.
-  const { projectPointsError, projectCrs, loadProjectPoints, fitProjectPoints } = useProjectPoints({ schemeProjectId, mapInstance, mapReady })
+  const { projectPointsError, projectCrs, zoneWarning, loadProjectPoints, fitProjectPoints } = useProjectPoints({ schemeProjectId, mapInstance, mapReady })
   const currentSurveyCrs = useMemo(() => resolveMapSurveyCrs({
     projectId: schemeProjectId,
     declaredProjectCrs: projectCrs,
@@ -572,6 +573,14 @@ function MapWorkspace() {
         declaredProjectCrs: null,
         selectedUnlinkedSurveyCrs: targetCrs,
       })
+      const info = describeCrs(targetCrs)
+      const confirmed = window.confirm(
+        `Switch the survey calculation grid to ${info?.name ?? targetCrs} (${targetCrs})?\n\n` +
+        'This recomputes: pointer coordinates, measure results, GNSS positions and any survey mathematics shown on this unlinked map.\n' +
+        'Raw observations are never modified — captured data keeps the CRS it was taken in.\n' +
+        'Map tiles and drawing geometry stay in EPSG:3857 (display only).',
+      )
+      if (!confirmed) return
       setUnlinkedSurveyCrs(targetCrs)
       setMeasureMode('none')
       setMeasureResult('')
@@ -769,6 +778,7 @@ function MapWorkspace() {
     gpsPos,
     featureCount,
     projectPointsError,
+    zoneWarning,
     importMsg,
     panelOpen,
     dragHint,

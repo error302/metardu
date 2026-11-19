@@ -42,6 +42,7 @@ export interface MapContextValue {
   gpsPos: { lon: number; lat: number; accuracy: number } | null
   featureCount: number
   projectPointsError: string | null
+  zoneWarning: string | null
   importMsg: string
   panelOpen: boolean
   dragHint: boolean

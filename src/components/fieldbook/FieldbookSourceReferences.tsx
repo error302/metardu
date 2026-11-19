@@ -4,7 +4,7 @@ import { useState } from 'react'
 import type { SourceImport } from '@/lib/fieldbook/captureDraft'
 import { captureReferenceColumns } from '@/lib/fieldbook/captureReferences'
 
-export function FieldbookSourceReferences({ imported, rows }: { imported: SourceImport; rows: Record<string, string>[] }) {
+export function FieldbookSourceReferences({ imported, rows }: { imported: SourceImport; rows: Array<Record<string, unknown>> }) {
   const [selected, setSelected] = useState(imported.sources[0].batchId)
   const source = imported.sources.find(item => item.batchId === selected) ?? imported.sources[0]
   const row = rows.find(item => item.id === source.rowId)

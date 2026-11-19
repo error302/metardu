@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "De données de terrain à des documents terminés"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Mode de champ",
     "fieldBook": "Livre de champ",
-    "fieldBookSubtitle": "Enregistrer les observations de traverse, nivellement, radiation et bathymétrie",
+    "fieldBookSubtitle": "Enregistrer les observations de traverse, nivellement, radiation et détails",
     "syncOffline": "Synchroniser hors ligne",
     "fieldBookAI": "Livre de champ AI",
     "fieldBookName": "Nom du livre de champ",

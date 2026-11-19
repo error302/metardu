@@ -47,6 +47,20 @@ describe('riseAndFall', () => {
     expect(approxEqual(r.allowableMisclosure, 0.010, 10 ** -4)).toBe(true)
   })
 
+  it('accepts a caller-supplied closure coefficient instead of the 10 default', () => {
+    // The coefficient is configurable: a stricter specification (e.g. 4√K mm)
+    // must actually change the allowable, not be ignored.
+    const r = riseAndFall({ ...LEVELING_INPUT, misclosureCoefficient: 4 })
+    expect(approxEqual(r.allowableMisclosure, 0.004, 10 ** -5)).toBe(true)
+  })
+
+  it('falls back to the documented default for an invalid coefficient', () => {
+    for (const misclosureCoefficient of [0, -3, Number.NaN]) {
+      const r = riseAndFall({ ...LEVELING_INPUT, misclosureCoefficient })
+      expect(approxEqual(r.allowableMisclosure, 0.010, 10 ** -4)).toBe(true)
+    }
+  })
+
   it('opening RL is first reduced level', () => {
     const r = riseAndFall(LEVELING_INPUT)
     const first = r.readings.find((x) => x.reducedLevel !== undefined)

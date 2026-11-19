@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { trackFieldbookSave } from '@/lib/analytics/events'
@@ -26,7 +26,11 @@ import { getOfflineFieldbooks, saveFieldbookOffline } from '@/lib/offline/fieldb
 import { persistWorkingBook } from '@/lib/offline/saveWorkingBook'
 import { listBookEdits, sendBookEdits, type BookSaveOrigin } from '@/lib/offline/bookEdits'
 import { prepareWorkingBook } from '@/lib/fieldbook/openWorkingBook'
-import type { SavedFieldbook } from './types'
+import type { ControlRow, ControlSetup, FieldbookAttachment, FieldbookSession, LevelRow, SavedFieldbook, TravRow } from './types'
+import { EMPTY_FIELDBOOK_SESSION } from './types'
+import { FieldbookSessionHeader } from '@/components/fieldbook/FieldbookSessionHeader'
+import { FieldbookAttachments } from '@/components/fieldbook/FieldbookAttachments'
+import type { LevelAuditEntry } from '@/components/fieldbook/LevelingBook'
 import { FieldbookRecovery, type RecoveryBook } from '@/components/fieldbook/FieldbookRecovery'
 import { FieldbookProjectPanel } from '@/components/fieldbook/FieldbookProjectPanel'
 import { FieldbookCaptureImport } from '@/components/fieldbook/FieldbookCaptureImport'
@@ -56,7 +60,7 @@ import { useAutoSave } from '@/hooks/useAutoSave'
 import { useNotifications } from '@/hooks/useNotifications'
 import { crossCheckAdjustedTraverse } from '@/lib/engine/calculationCrossCheck'
 
-/** useIsMobile — SSR-safe media-query hook (lg breakpoint = 1024px). */
+/** useIsMobile â€” SSR-safe media-query hook (lg breakpoint = 1024px). */
 function useIsMobile() {
   const [isMobile, setIsMobile] = useState(false)
   useEffect(() => {
@@ -78,22 +82,6 @@ function useIsMobile() {
 type FieldbookType = 'leveling' | 'traverse' | 'control'
 
 type SaveStatus = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved'; when: string; pending?: boolean; message?: string } | { kind: 'error'; message: string }
-
-type LevelRow = { id: string; station: string; bs: string; is: string; fs: string; remarks: string }
-type TravRow = {
-  id: string
-  station: string
-  bearing: string
-  hclDeg: string; hclMin: string; hclSec: string
-  hcrDeg: string; hcrMin: string; hcrSec: string
-  slopeDist: string
-  vaDeg: string; vaMin: string; vaSec: string
-  ih: string; th: string
-  remarks: string
-}
-import type { ControlSetup, Row } from '@/components/fieldbook/MobileFieldbookShell'
-
-type ControlRow = Row
 
 function downloadBlob(filename: string, blob: Blob) {
   const url = URL.createObjectURL(blob)
@@ -139,7 +127,7 @@ export default function DigitalFieldBookPage() {
   const dbClient = useMemo(() => createClient(), [])
   const isMobile = useIsMobile()
 
-  // ── AUDIT FIX (2026-07-05): Wire notifications ──
+  // â”€â”€ AUDIT FIX (2026-07-05): Wire notifications â”€â”€
   const { notify } = useNotifications()
 
   const [online, setOnline] = useState(true)
@@ -212,6 +200,21 @@ export default function DigitalFieldBookPage() {
   const [levelRows, setLevelRows] = useState<LevelRow[]>([
     { id: crypto.randomUUID(), station: '', bs: '', is: '', fs: '', remarks: '' },
   ])
+  // Field-book audit trail: rows are never deleted, only rejected with a
+  // reason. Every entry is timestamped and user-stamped.
+  const [levelAudit, setLevelAudit] = useState<LevelAuditEntry[]>([])
+  const [levelSignOff, setLevelSignOff] = useState<{ name: string; date: string; confirmed: boolean } | null>(null)
+  const [closureCoefficient, setClosureCoefficient] = useState('10')
+  // One session header is shared by all three observation pages; attachments
+  // are tagged with the page they belong to.
+  const [session, setSession] = useState<FieldbookSession>(() => ({
+    ...EMPTY_FIELDBOOK_SESSION,
+    date: new Date().toISOString().slice(0, 10),
+  }))
+  const [attachments, setAttachments] = useState<FieldbookAttachment[]>([])
+  const updateSession = useCallback((patch: Partial<FieldbookSession>) => {
+    setSession((previous) => ({ ...previous, ...patch }))
+  }, [])
 
   const [travMode, setTravMode] = useState<'open' | 'closed' | 'link'>('closed')
   const [startStation, setStartStation] = useState('')
@@ -334,7 +337,7 @@ export default function DigitalFieldBookPage() {
           if (!error && data) setProjects(data)
           else setProjectsError('Projects could not be loaded. Reconnect and reload before starting a new book.')
         }
-      } catch { if (isMounted) setProjectsError('Connection lost. Your open book stays saved on this device — reconnect and tap retry.') }
+      } catch { if (isMounted) setProjectsError('Connection lost. Your open book stays saved on this device â€” reconnect and tap retry.') }
     })()
     return () => {
       isMounted = false
@@ -387,8 +390,10 @@ export default function DigitalFieldBookPage() {
   }, [dbClient, askAboutConflict])
 
   const levelingComputed = useMemo(() => computeLevelBook({
-    openingRL, closingRL, distanceKm, method: levelMethod, rows: levelRows,
-  }), [openingRL, closingRL, distanceKm, levelMethod, levelRows])
+    openingRL, closingRL, distanceKm, method: levelMethod, closureCoefficient,
+    // Rejected rows stay in the book but are excluded from computation.
+    rows: levelRows.filter((r) => !r.rejected),
+  }), [openingRL, closingRL, distanceKm, levelMethod, closureCoefficient, levelRows])
 
   const traverseComputed = useMemo(() => {
     const startEasting = asNumber(startE)
@@ -397,11 +402,13 @@ export default function DigitalFieldBookPage() {
     if (!startStation.trim()) return { ok: false as const, errors: ['Start station name is required.'] }
 
     const errors: string[] = []
-    const stations = travRows.map((r) => r.station.trim())
+    // Rejected rows stay visible (struck through) but never enter the geometry.
+    const activeRows = travRows.filter((r) => !r.rejected)
+    const stations = activeRows.map((r) => r.station.trim())
     const distances: number[] = []
     const bearings: number[] = []
 
-    for (const r of travRows) {
+    for (const r of activeRows) {
       if (!r.station.trim()) errors.push('All traverse rows must have a station name.')
       const d = r.slopeDist.trim() ? asNumber(r.slopeDist) : null
       if (d === null || d <= 0) errors.push(`Invalid distance at ${r.station || '(blank)'}`)
@@ -447,18 +454,24 @@ export default function DigitalFieldBookPage() {
     if (e0 === null || n0 === null || z0 === null) return { ok: false as const, errors: ['Control station coordinates are required.'] }
 
     const errors: string[] = []
-    const rows = controlRows.map((r) => {
-      const b = asBearing(r.bearing)
-      const v = parseFieldAngle(r.verticalAngle)
-      const s = asNumber(r.slopeDistance)
-      const hi = asNumber(r.instrumentHeight)
-      const ht = asNumber(r.targetHeight)
-      if (!r.pointId.trim()) errors.push('Point ID is required.')
-      if (b === null) errors.push(`Invalid bearing at ${r.pointId || '(blank)'}`)
-      if (v === null) errors.push(`Invalid vertical angle at ${r.pointId || '(blank)'}`)
-      if (s === null || s <= 0) errors.push(`Invalid slope distance at ${r.pointId || '(blank)'}`)
-      if (hi === null || hi < 0) errors.push(`Invalid instrument height at ${r.pointId || '(blank)'}`)
-      if (ht === null || ht < 0) errors.push(`Invalid target height at ${r.pointId || '(blank)'}`)
+    const rows = controlRows.filter((r) => !r.rejected).map((r) => {
+      const bearingStr = typeof r.bearing === 'string' ? r.bearing : ''
+      const vaStr = typeof r.verticalAngle === 'string' ? r.verticalAngle : ''
+      const sdStr = typeof r.slopeDistance === 'string' ? r.slopeDistance : ''
+      const ihStr = typeof r.instrumentHeight === 'string' ? r.instrumentHeight : ''
+      const thStr = typeof r.targetHeight === 'string' ? r.targetHeight : ''
+      const pointIdStr = typeof r.pointId === 'string' ? r.pointId : ''
+      const b = asBearing(bearingStr)
+      const v = parseFieldAngle(vaStr)
+      const s = asNumber(sdStr)
+      const hi = asNumber(ihStr)
+      const ht = asNumber(thStr)
+      if (!pointIdStr.trim()) errors.push('Point ID is required.')
+      if (b === null) errors.push(`Invalid bearing at ${pointIdStr || '(blank)'}`)
+      if (v === null) errors.push(`Invalid vertical angle at ${pointIdStr || '(blank)'}`)
+      if (s === null || s <= 0) errors.push(`Invalid slope distance at ${pointIdStr || '(blank)'}`)
+      if (hi === null || hi < 0) errors.push(`Invalid instrument height at ${pointIdStr || '(blank)'}`)
+      if (ht === null || ht < 0) errors.push(`Invalid target height at ${pointIdStr || '(blank)'}`)
 
       const computed =
         b !== null && v !== null && s !== null && hi !== null && ht !== null
@@ -474,21 +487,77 @@ export default function DigitalFieldBookPage() {
   const qualitySummary = summarizeBookQuality(type === 'leveling' ? { type, computed: levelingComputed }
     : type === 'traverse' ? { type, computed: traverseComputed } : { type, computed: controlComputed })
 
-  // ── AUDIT FIX (2026-07-05): Auto-save + QC notifications (wired AFTER state) ──
+  /** Compact read-only values for the mobile cards; the desktop books show the same numbers. */
+  const mobileSummary = (() => {
+    if (type === 'leveling') {
+      if (!levelingComputed.ok) return { items: [], errors: levelingComputed.errors }
+      const calc = levelingComputed.calc
+      const hasForwardSight = calc.readings.slice(1).some((row) => row.is !== undefined || row.fs !== undefined)
+      return {
+        errors: [],
+        items: [
+          { label: 'Arithmetic', value: hasForwardSight ? (calc.arithmeticCheck ? 'Pass' : 'Fail') : 'Needs FS' },
+          { label: 'Misclosure', value: !calc.closingRLProvided || !hasForwardSight ? 'Closing RL required' : `${calc.misclosure.toFixed(4)} m` },
+          { label: 'Allowable', value: calc.allowableMisclosure === undefined ? 'Run length required' : `±${calc.allowableMisclosure.toFixed(4)} m` },
+          { label: 'Verdict', value: !calc.closingRLProvided || !hasForwardSight ? '—' : calc.isAcceptable ? 'Pass' : 'Fail' },
+        ],
+      }
+    }
+    if (type === 'traverse') {
+      if (!traverseComputed.ok) return { items: [], errors: traverseComputed.errors }
+      if (traverseComputed.mode === 'open') {
+        const legs = traverseComputed.raw.legs
+        const last = legs[legs.length - 1]
+        return {
+          errors: [],
+          items: [
+            { label: 'Mode', value: 'Open' },
+            { label: 'Legs', value: String(legs.length) },
+            { label: 'End E', value: last ? last.easting.toFixed(3) : '—' },
+            { label: 'End N', value: last ? last.northing.toFixed(3) : '—' },
+          ],
+        }
+      }
+      const adjusted = traverseComputed.adjusted
+      return {
+        errors: [],
+        items: [
+          { label: 'Linear misclosure', value: `${adjusted.linearError.toFixed(3)} m` },
+          { label: 'Precision', value: Number.isFinite(adjusted.precisionRatio) ? `1:${Math.round(adjusted.precisionRatio).toLocaleString()}` : '1:∞' },
+          { label: 'Grade', value: adjusted.precisionGrade },
+          { label: 'Perimeter', value: `${adjusted.totalDistance.toFixed(3)} m` },
+        ],
+      }
+    }
+    if (!controlComputed.ok) return { items: [], errors: controlComputed.errors }
+    return {
+      errors: [],
+      items: [
+        { label: 'Setup', value: controlStation.name || 'Unnamed' },
+        { label: 'Computed points', value: String(controlComputed.rows.length) },
+        { label: 'Rejected', value: String(controlRows.filter((row) => row.rejected).length) },
+        { label: 'Station E/N', value: `${controlStation.e || '—'} / ${controlStation.n || '—'}` },
+      ],
+    }
+  })()
+
+  // â”€â”€ AUDIT FIX (2026-07-05): Auto-save + QC notifications (wired AFTER state) â”€â”€
   // Content-based snapshot: include the actual editable state (not just row
   // counts) so edits *inside* a row trigger auto-save, not only add/remove.
   const autoSaveData = useMemo(() => ({
     type, name, projectId, sourceImport,
+    session, attachments, closureCoefficient,
     openingRL, closingRL, distanceKm, levelMethod, levelRows,
     travMode, startStation, startE, startN, closeE, closeN, travRows,
     controlSetups,
-  }), [type, name, projectId, sourceImport, openingRL, closingRL, distanceKm, levelMethod, levelRows, travMode, startStation, startE, startN, closeE, closeN, travRows, controlSetups])
+  }), [type, name, projectId, sourceImport, session, attachments, closureCoefficient, openingRL, closingRL, distanceKm, levelMethod, levelRows, travMode, startStation, startE, startN, closeE, closeN, travRows, controlSetups])
 
   const latestEditable = useRef(autoSaveData)
   latestEditable.current = autoSaveData
 
-  const rowHasContent = (row: Record<string, string>) => Object.entries(row).some(([key, value]) => key !== 'id' && typeof value === 'string' && value.trim())
-  const hasBookContent = !!fieldbookId || !!name.trim() || !!sourceImport || (type === 'leveling'
+  const rowHasContent = (row: Record<string, unknown>) => Object.entries(row).some(([key, value]) => key !== 'id' && typeof value === 'string' && value.trim())
+  const hasSessionContent = Object.entries(session).some(([key, value]) => key !== 'units' && key !== 'date' && typeof value === 'string' && value.trim())
+  const hasBookContent = !!fieldbookId || !!name.trim() || !!sourceImport || attachments.length > 0 || hasSessionContent || (type === 'leveling'
     ? [openingRL, closingRL, distanceKm].some(value => value.trim()) || levelRows.some(rowHasContent)
     : type === 'traverse' ? [startStation, startE, startN, closeE, closeN].some(value => value.trim()) || travRows.some(rowHasContent)
       : controlSetups.some(setup => Object.values(setup.station).some(value => value.trim()) || setup.rows.some(rowHasContent)))
@@ -508,15 +577,16 @@ export default function DigitalFieldBookPage() {
 
   function currentDataPayload() {
     const references = sourceImport ? { sourceImport } : {}
-    if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, rows: levelRows, ...references }
-    if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows, ...references }
-    return { activeSetupId: activeControlSetupId, setups: controlSetups, ...references }
+    const shared = { session, attachments, ...references }
+    if (type === 'leveling') return { method: levelMethod, openingRL, closingRL, distanceKm, closureCoefficient, rows: levelRows, ...shared }
+    if (type === 'traverse') return { mode: travMode, startStation, startE, startN, closeE, closeN, rows: travRows, ...shared }
+    return { activeSetupId: activeControlSetupId, setups: controlSetups, ...shared }
   }
 
   async function resetForType(next: FieldbookType) {
     if (next === type || saveInProgress.current) return
     if (projectId && !(await saveBeforeLeaving())) return
-    clearBook()
+    clearBook({ keepSession: true })
     setType(next)
     bookIdRef.current = null
     setFieldbookId(null)
@@ -536,6 +606,23 @@ export default function DigitalFieldBookPage() {
     setSaveStatus({ kind: 'idle' })
     setName(entry.name || '')
     const data: Record<string, unknown> = entry.data || {}
+
+    // Session header and attachments are shared by every observation page and
+    // survive switching tabs within the same book.
+    const savedSession = (data.session && typeof data.session === 'object' ? data.session : {}) as Partial<FieldbookSession>
+    setSession({
+      ...EMPTY_FIELDBOOK_SESSION,
+      ...Object.fromEntries(
+        Object.entries(savedSession).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      ),
+      units: savedSession.units === 'feet' ? 'feet' : 'metres',
+    })
+    const savedAttachments = Array.isArray(data.attachments) ? (data.attachments as FieldbookAttachment[]) : []
+    setAttachments(savedAttachments.filter((item) =>
+      item && typeof item === 'object' && typeof item.dataUrl === 'string' && typeof item.id === 'string'))
+    setClosureCoefficient(data.closureCoefficient !== undefined && data.closureCoefficient !== null
+      ? String(data.closureCoefficient)
+      : '10')
 
     // Hydrate a station object from unknown saved data, with per-field defaults.
     const controlStationFrom = (val: unknown) => {
@@ -716,14 +803,51 @@ export default function DigitalFieldBookPage() {
     setSaveStatus({ kind: 'idle' })
   }
 
-  function clearBook() {
-    setSourceImport(undefined)
+  // Rows are never deleted. Rejection requires a reason, excludes the row from
+  // computation, and appends to the audit trail. Restoration is audited too.
+  function rejectLevelRow(rowId: string, reason: string) {
+    const at = new Date().toISOString()
+    const by = ownerId ?? 'unknown'
+    setLevelRows((p) => p.map((x) => (x.id === rowId ? { ...x, rejected: true, rejectedReason: reason, rejectedAt: at, rejectedBy: by } : x)))
+    setLevelAudit((p) => [...p, { id: crypto.randomUUID(), rowId, at, by, action: 'rejected', reason }])
+  }
+
+  function restoreLevelRow(rowId: string) {
+    const at = new Date().toISOString()
+    const by = ownerId ?? 'unknown'
+    setLevelRows((p) => p.map((x) => (x.id === rowId ? { ...x, rejected: false, rejectedReason: undefined, rejectedAt: undefined, rejectedBy: undefined } : x)))
+    setLevelAudit((p) => [...p, { id: crypto.randomUUID(), rowId, at, by, action: 'restored' }])
+  }
+
+  const rejectionStamp = () => ({ at: new Date().toISOString(), by: ownerId ?? 'unknown' })
+
+  function rejectTravRow(rowId: string, reason: string) {
+    const { at, by } = rejectionStamp()
+    setTravRows((p) => p.map((x) => (x.id === rowId ? { ...x, rejected: true, rejectedReason: reason, rejectedAt: at, rejectedBy: by } : x)))
+  }
+
+  function restoreTravRow(rowId: string) {
+    setTravRows((p) => p.map((x) => (x.id === rowId ? { ...x, rejected: false, rejectedReason: undefined, rejectedAt: undefined, rejectedBy: undefined } : x)))
+  }
+
+  function rejectControlRow(rowId: string, reason: string) {
+    const { at, by } = rejectionStamp()
+    setControlRows((p) => p.map((x) => (x.id === rowId ? { ...x, rejected: true, rejectedReason: reason, rejectedAt: at, rejectedBy: by } : x)))
+  }
+
+  function restoreControlRow(rowId: string) {
+    setControlRows((p) => p.map((x) => (x.id === rowId ? { ...x, rejected: false, rejectedReason: undefined, rejectedAt: undefined, rejectedBy: undefined } : x)))
+  }
+
+  function clearBook(options: { keepSession?: boolean } = {}) {    setSourceImport(undefined)
     bookIdRef.current = null
     bookOrigin.current = { kind: 'new' }
     lastRetained.current = null
     setFieldbookId(null)
     setName('')
     setLevelRows([])
+    setLevelAudit([])
+    setLevelSignOff(null)
     setTravRows([])
     setOpeningRL('')
     setClosingRL('')
@@ -732,6 +856,11 @@ export default function DigitalFieldBookPage() {
     const setupId = crypto.randomUUID()
     setControlSetups([{ id: setupId, station: { name: '', e: '', n: '', z: '' }, rows: [] }])
     setActiveControlSetupId(setupId)
+    setClosureCoefficient('10')
+    if (!options.keepSession) {
+      setSession({ ...EMPTY_FIELDBOOK_SESSION, date: new Date().toISOString().slice(0, 10) })
+      setAttachments([])
+    }
     setSaveStatus({ kind: 'idle' })
   }
 
@@ -756,9 +885,9 @@ export default function DigitalFieldBookPage() {
   }
 
    async function exportCSV() {
-     let rows: Array<Record<string, string>> = []
+     let rows: Array<Record<string, string | boolean | undefined>> = []
      if (type === 'leveling') {
-       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, OpeningRL: openingRL, ClosingRL: closingRL, DistanceKm: distanceKm, Method: levelMethod, Remarks: r.remarks, ...captureReferenceColumns(sourceImport, r) }))
+       rows = levelRows.map((r) => ({ Station: r.station, BS: r.bs, IS: r.is, FS: r.fs, OpeningRL: openingRL, ClosingRL: closingRL, DistanceKm: distanceKm, Method: levelMethod, Remarks: r.remarks, ...(r.rejected ? { Rejected: true, RejectedReason: r.rejectedReason ?? '' } : {}), ...captureReferenceColumns(sourceImport, r) }))
      } else if (type === 'traverse') {
        rows = travRows.map((r) => ({ Station: r.station, Bearing: r.bearing, SlopeDist: r.slopeDist, FaceLeftDeg: r.hclDeg, FaceLeftMin: r.hclMin, FaceLeftSec: r.hclSec, FaceRightDeg: r.hcrDeg, FaceRightMin: r.hcrMin, FaceRightSec: r.hcrSec, VerticalDeg: r.vaDeg, VerticalMin: r.vaMin, VerticalSec: r.vaSec, IH: r.ih, TH: r.th, StartStation: startStation, StartE: startE, StartN: startN, CloseE: closeE, CloseN: closeN, Mode: travMode, Remarks: r.remarks, ...captureReferenceColumns(sourceImport, r) }))
      } else if (type === 'control') {
@@ -779,7 +908,7 @@ export default function DigitalFieldBookPage() {
        )
      }
 
-     if (!rows.some(row => (row.Station ?? row.PointID ?? '').trim())) throw new Error('Add an observation before exporting CSV. JSON can back up an empty setup.')
+     if (!rows.some(row => String(row.Station ?? row.PointID ?? '').trim())) throw new Error('Add an observation before exporting CSV. JSON can back up an empty setup.')
      const Papa = (await import('papaparse')).default
      const columns = Array.from(new Set(rows.flatMap(row => Object.keys(row))))
      downloadBlob(`metardu-fieldbook-${type}.csv`, new Blob([Papa.unparse(rows, { columns, escapeFormulae: true })], { type: 'text/csv' }))
@@ -797,13 +926,50 @@ export default function DigitalFieldBookPage() {
     doc.text(title, 14, 22)
     doc.setFontSize(9)
     doc.text(`Type: ${type}   Project: ${projectId || '—'}   Generated: ${new Date().toLocaleString()}`, 14, 28)
+    // Shared session header — recorded conditions, not a certification.
+    doc.text(`Date: ${session.date || '—'}   Party: ${session.party || '—'}   Weather: ${session.weather || '—'}`, 14, 34, { maxWidth: 180 })
+    doc.text(`Instrument: ${[session.instrumentMake, session.instrumentModel].filter(Boolean).join(' ') || '—'}   Serial: ${session.instrumentSerial || '—'}`, 14, 39, { maxWidth: 180 })
+    doc.text(`Calibration: ${session.calibrationDate || '—'} (${session.calibrationReference || 'no reference recorded'})   Units: ${session.units}   CRS: ${session.crs || 'project declared grid'}`, 14, 44, { maxWidth: 180 })
+    doc.text('Session details are declared field conditions, not a certification of accuracy.', 14, 49, { maxWidth: 180 })
+    const tableStartY = 54
 
     if (type === 'leveling') {
-      // The engine prepends one opening benchmark; an actual input station may also be named BM.
-      autoTable(doc, { startY: 32, head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']], body: levelingComputed.ok ? levelingComputed.calc.readings.slice(1).map((r, index) => [r.station, levelRows[index].bs, levelRows[index].is, levelRows[index].fs, r.rise ?? '', r.fall ?? '', r.reducedLevel ?? '', levelRows[index].remarks]) : [], styles: { fontSize: 8 }, columnStyles: { 7: { cellWidth: 65 } } })
+      // Pair active observations with results in book order; rejected rows never
+      // receive computed values even though they remain in the book.
+      const activeLevelRows = levelRows.filter((row) => !row.rejected)
+      const readings = levelingComputed.ok ? levelingComputed.calc.readings.slice(1) : []
+      autoTable(doc, {
+        startY: tableStartY,
+        head: [['Station', 'BS', 'IS', 'FS', 'Rise', 'Fall', 'RL', 'Remarks']],
+        body: activeLevelRows.map((row, index) => {
+          const result = readings[index]
+          return [row.station, row.bs, row.is, row.fs, result?.rise ?? '', result?.fall ?? '', result?.reducedLevel ?? '', row.remarks]
+        }),
+        styles: { fontSize: 8 },
+        columnStyles: { 7: { cellWidth: 65 } },
+      })
+      if (levelingComputed.ok) {
+        const calc = levelingComputed.calc
+        const y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableStartY) + 5
+        doc.setFontSize(9)
+        doc.text(
+          `Misclosure: ${calc.closingRLProvided ? `${calc.misclosure.toFixed(4)} m` : 'closing RL not provided'}   Allowable (±${closureCoefficient || '10'}√K mm, K in km): ${calc.allowableMisclosure === undefined ? 'run length required' : `${calc.allowableMisclosure.toFixed(4)} m`}   Verdict: ${!calc.closingRLProvided ? '—' : calc.isAcceptable ? 'PASS' : 'FAIL'}`,
+          14, y, { maxWidth: 180 },
+        )
+      }
+      const rejected = levelRows.filter((row) => row.rejected)
+      if (rejected.length) {
+        const y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableStartY) + 9
+        autoTable(doc, {
+          startY: y,
+          head: [['Rejected station', 'Reason', 'Rejected by', 'Rejected at']],
+          body: rejected.map((row) => [row.station || '—', row.rejectedReason ?? '—', row.rejectedBy ?? '—', row.rejectedAt ?? '—']),
+          styles: { fontSize: 7 },
+        })
+      }
     } else if (type === 'traverse') {
       autoTable(doc, {
-        startY: 32,
+        startY: tableStartY,
         head: [['Station', 'Bearing', 'Distance', 'Lat (ΔN)', 'Dep (ΔE)', 'Easting', 'Northing', 'Remarks']],
         body: (() => {
           if (!traverseComputed.ok) return []
@@ -812,8 +978,24 @@ export default function DigitalFieldBookPage() {
         })(),
         styles: { fontSize: 8 },
       })
+      if (traverseComputed.ok && traverseComputed.mode !== 'open') {
+        const adjusted = traverseComputed.adjusted
+        const y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableStartY) + 5
+        doc.setFontSize(9)
+        doc.text(`Linear misclosure: ${adjusted.linearError.toFixed(4)} m   Precision: ${Number.isFinite(adjusted.precisionRatio) ? `1:${Math.round(adjusted.precisionRatio)}` : '1:∞'}   Grade: ${adjusted.precisionGrade}`, 14, y, { maxWidth: 180 })
+      }
+      const rejected = travRows.filter((row) => row.rejected)
+      if (rejected.length) {
+        const y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? tableStartY) + 9
+        autoTable(doc, {
+          startY: y,
+          head: [['Rejected station', 'Reason', 'Rejected by', 'Rejected at']],
+          body: rejected.map((row) => [row.station || '—', row.rejectedReason ?? '—', row.rejectedBy ?? '—', row.rejectedAt ?? '—']),
+          styles: { fontSize: 7 },
+        })
+      }
     } else if (type === 'control') {
-      let y = 32
+      let y = tableStartY
       for (const setup of controlSetups) {
         const e0 = asNumber(setup.station.e)
         const n0 = asNumber(setup.station.n)
@@ -829,12 +1011,13 @@ export default function DigitalFieldBookPage() {
 
         const body = (() => {
           if (e0 === null || n0 === null || z0 === null) return []
-          return setup.rows.map((r) => {
-            const b = asBearing(r.bearing)
-            const v = asNumber(r.verticalAngle)
-            const s = asNumber(r.slopeDistance)
-            const hi = asNumber(r.instrumentHeight)
-            const ht = asNumber(r.targetHeight)
+          return setup.rows.filter((row) => !row.rejected).map((r) => {
+            const str = (v: unknown) => (typeof v === 'string' ? v : '')
+            const b = asBearing(str(r.bearing))
+            const v = asNumber(str(r.verticalAngle))
+            const s = asNumber(str(r.slopeDistance))
+            const hi = asNumber(str(r.instrumentHeight))
+            const ht = asNumber(str(r.targetHeight))
             const computed =
               b !== null && v !== null && s !== null && hi !== null && ht !== null
                 ? polar3DWithHeights({
@@ -848,16 +1031,16 @@ export default function DigitalFieldBookPage() {
                 : null
             const bearingOut = b !== null ? bearingToString(b) : r.bearing
             return [
-              r.pointId,
-              r.instrumentHeight,
-              r.targetHeight,
+              str(r.pointId),
+              str(r.instrumentHeight),
+              str(r.targetHeight),
               bearingOut,
-              r.verticalAngle,
-              r.slopeDistance,
+              str(r.verticalAngle),
+              str(r.slopeDistance),
               computed ? computed.easting : '',
               computed ? computed.northing : '',
               computed ? computed.elevation : '',
-              r.remarks,
+              str(r.remarks),
             ]
           })
         })()
@@ -865,7 +1048,7 @@ export default function DigitalFieldBookPage() {
         autoTable(doc, {
           startY: y,
           head: [['Point', 'IH', 'TH', 'Bearing', 'V.Ang', 'Slope', 'Easting', 'Northing', 'RL', 'Remarks']],
-          body,
+          body: body.map((row) => row.map((cell) => (cell === undefined ? '' : cell))),
           styles: { fontSize: 8 },
         })
 
@@ -876,7 +1059,64 @@ export default function DigitalFieldBookPage() {
           y = 20
         }
       }
+
+      // Rejected observations remain part of the record; list them with reasons.
+      const rejected = controlSetups.flatMap((setup) =>
+        setup.rows
+          .filter((row) => row.rejected)
+          .map((row) => [`${setup.station.name || 'Unnamed'} / ${row.pointId || '—'}`, row.rejectedReason ?? '—', row.rejectedBy ?? '—', row.rejectedAt ?? '—']),
+      )
+      if (rejected.length) {
+        autoTable(doc, {
+          startY: y,
+          head: [['Setup / rejected point', 'Reason', 'Rejected by', 'Rejected at']],
+          body: rejected,
+          styles: { fontSize: 7 },
+        })
+        y = ((doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? y) + 8
+      }
     }
+
+    // Attachment appendix: field evidence only, kept because rows/photos are
+    // never discarded from the book.
+    const pageAttachments = attachments.filter((item) => item.page === type)
+    const lastTableY = (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY
+    let attachmentsAddedPage = false
+    if (pageAttachments.length) {
+      doc.addPage()
+      attachmentsAddedPage = true
+      doc.setFontSize(11)
+      doc.text('Sketches and photos - field evidence, not survey control', 14, 18)
+      doc.setFontSize(9)
+      let imageY = 26
+      for (const item of pageAttachments) {
+        if (imageY > 220) {
+          doc.addPage()
+          imageY = 20
+        }
+        doc.text(`${item.kind}: ${item.note || item.name}  (${new Date(item.capturedAt).toLocaleString()}, ${item.capturedBy})`, 14, imageY, { maxWidth: 180 })
+        imageY += 5
+        try {
+          doc.addImage(item.dataUrl, 'JPEG', 14, imageY, 90, 68)
+        } catch {
+          doc.text('Image could not be embedded in this PDF; it is retained in the JSON backup.', 14, imageY + 4, { maxWidth: 180 })
+        }
+        imageY += 74
+      }
+    }
+
+    // Sign-off: a declaration of who recorded and checked the book, not a
+    // certification of accuracy.
+    const cursorY = attachmentsAddedPage ? 280 : typeof lastTableY === 'number' ? lastTableY + 12 : 60
+    if (cursorY > 250) {
+      doc.addPage()
+    }
+    const signOffY = cursorY > 250 ? 24 : cursorY
+    doc.setFontSize(9)
+    doc.text(`Recorded by: ${session.party || '________________'}    Signature: ____________________    Date: ${session.date || '____________'}`, 14, signOffY, { maxWidth: 180 })
+    doc.text('Checked by (field): ____________________    Signature: ____________________    Date: ____________', 14, signOffY + 6, { maxWidth: 180 })
+    doc.setFontSize(8)
+    doc.text('This page records field observations and who handled them. It is not a certification of accuracy or of survey control.', 14, signOffY + 14, { maxWidth: 180 })
 
     if (sourceImport) {
       doc.addPage()
@@ -891,10 +1131,10 @@ export default function DigitalFieldBookPage() {
     downloadBlob(`metardu-fieldbook-${type}.pdf`, doc.output('blob'))
   }
 
-  // ─── Build a "rows" array compatible with MobileFieldbookShell ─────────
+  // â”€â”€â”€ Build a "rows" array compatible with MobileFieldbookShell â”€â”€â”€â”€â”€â”€â”€â”€â”€
   // Each row is a string-keyed record so the mobile cards can render any
   // survey type with a single component.
-  const mobileRows: Array<{ id: string; [key: string]: string }> = (() => {
+  const mobileRows: Array<{ id: string; [key: string]: string | boolean | undefined }> = (() => {
     if (type === 'leveling') {
       return levelRows.map((r) => ({
         id: r.id,
@@ -903,6 +1143,8 @@ export default function DigitalFieldBookPage() {
         is: r.is,
         fs: r.fs,
         remarks: r.remarks,
+        rejected: r.rejected === true,
+        rejectedReason: r.rejectedReason,
       }))
     }
     if (type === 'traverse') {
@@ -911,10 +1153,12 @@ export default function DigitalFieldBookPage() {
         station: r.station,
         bearing: r.bearing,
         slopeDist: r.slopeDist,
-        vaDeg: `${r.vaDeg}°${r.vaMin}'${r.vaSec}"`,
+        vaDeg: `${r.vaDeg}Â°${r.vaMin}'${r.vaSec}"`,
         ih: r.ih,
         th: r.th,
         remarks: r.remarks,
+        rejected: r.rejected === true,
+        rejectedReason: r.rejectedReason,
       }))
     }
     if (type === 'control') {
@@ -927,6 +1171,8 @@ export default function DigitalFieldBookPage() {
         instrumentHeight: r.instrumentHeight,
         targetHeight: r.targetHeight,
         remarks: r.remarks,
+        rejected: r.rejected === true,
+        rejectedReason: r.rejectedReason,
       }))
     }
     return []
@@ -934,7 +1180,7 @@ export default function DigitalFieldBookPage() {
 
   /** Add a row produced by the mobile universal form to the active survey state. */
   async function handleMobileAddRow(row: Record<string, string>, photos: CapturedBeaconPhoto[] = []) {
-    // Guard: never store a completely blank station/point — prevents ghost #01 cards
+    // Guard: never store a completely blank station/point â€” prevents ghost #01 cards
     const hasStation = (row.station ?? row.pointId ?? '').trim() !== ''
     if (!hasStation) return
     if (photos.length > 0) {
@@ -1016,27 +1262,34 @@ export default function DigitalFieldBookPage() {
     }
   }
 
-  function handleMobileRemoveRow(id: string) {
-    if (type === 'leveling') setLevelRows((p) => p.filter((r) => r.id !== id))
-    else if (type === 'traverse') setTravRows((p) => p.filter((r) => r.id !== id))
-    else if (type === 'control') setControlRows((p) => p.filter((r) => r.id !== id))
+  /** Mobile rows are rejected with a reason, never deleted. */
+  function handleMobileRejectRow(id: string, reason: string) {
+    if (type === 'leveling') rejectLevelRow(id, reason)
+    else if (type === 'traverse') rejectTravRow(id, reason)
+    else if (type === 'control') rejectControlRow(id, reason)
   }
 
-  // ─── Handle measurement capture from MobileMeasurementCapture ─────
+  function handleMobileRestoreRow(id: string) {
+    if (type === 'leveling') restoreLevelRow(id)
+    else if (type === 'traverse') restoreTravRow(id)
+    else if (type === 'control') restoreControlRow(id)
+  }
+
+  // â”€â”€â”€ Handle measurement capture from MobileMeasurementCapture â”€â”€â”€â”€â”€
   function _handleMeasurementCapture(m: CapturedMeasurement) {
     if (m.type === 'gps') {
       if (type === 'control') {
         setControlRows((p) => [...p, {
           id: m.id, pointId: m.station || 'GPS', instrumentHeight: '1.5', targetHeight: '0',
           bearing: '', verticalAngle: '', slopeDistance: '',
-          remarks: `GPS: ${m.lat?.toFixed(6)}, ${m.lng?.toFixed(6)} ±${m.accuracy?.toFixed(1)}m` + (m.remarks ? ` | ${m.remarks}` : ''),
+          remarks: `GPS: ${m.lat?.toFixed(6)}, ${m.lng?.toFixed(6)} Â±${m.accuracy?.toFixed(1)}m` + (m.remarks ? ` | ${m.remarks}` : ''),
         }])
       } else if (type === 'traverse') {
         setTravRows((p) => [...p, {
           id: m.id, station: m.station || 'GPS', bearing: '',
           hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '',
           slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '0',
-          remarks: `GPS: ${m.lat?.toFixed(6)}, ${m.lng?.toFixed(6)} ±${m.accuracy?.toFixed(1)}m`,
+          remarks: `GPS: ${m.lat?.toFixed(6)}, ${m.lng?.toFixed(6)} Â±${m.accuracy?.toFixed(1)}m`,
         }])
       }
     } else if (m.type === 'bearing-distance') {
@@ -1046,7 +1299,7 @@ export default function DigitalFieldBookPage() {
           id: m.id, station: m.station || '', bearing: bearingStr,
           hclDeg: '', hclMin: '', hclSec: '', hcrDeg: '', hcrMin: '', hcrSec: '',
           slopeDist: m.distance?.toFixed(3) || '', vaDeg: '', vaMin: '', vaSec: '',
-          ih: '1.5', th: '1.5', remarks: m.remarks || `→ ${m.target}`,
+          ih: '1.5', th: '1.5', remarks: m.remarks || `â†’ ${m.target}`,
         }])
       } else if (type === 'control') {
         setControlRows((p) => [...p, {
@@ -1072,7 +1325,7 @@ export default function DigitalFieldBookPage() {
           hclDeg: String(deg), hclMin: String(min), hclSec: sec.toFixed(1),
           hcrDeg: String(rDeg), hcrMin: String(rMin), hcrSec: rSec.toFixed(1),
           slopeDist: '', vaDeg: '', vaMin: '', vaSec: '', ih: '1.5', th: '1.5',
-          remarks: m.remarks || `Mean: ${m.meanAngle?.toFixed(6)}° → ${m.target}`,
+          remarks: m.remarks || `Mean: ${m.meanAngle?.toFixed(6)}Â° â†’ ${m.target}`,
         }])
       }
     } else if (m.type === 'offset') {
@@ -1087,7 +1340,7 @@ export default function DigitalFieldBookPage() {
     handleSave()
   }
 
-  // ─── Mobile rendering: card-based shell with universal quick-add ─────
+  // â”€â”€â”€ Mobile rendering: card-based shell with universal quick-add â”€â”€â”€â”€â”€
   const instrumentPanel = (
         <ErrorBoundary
           fallback={
@@ -1244,13 +1497,17 @@ export default function DigitalFieldBookPage() {
         <div className="pb-8">
           {workspace}
           <div className="mx-4 my-5">{instrumentPanel}</div>
+          <div className="mx-4 mb-4">
+            <FieldbookSessionHeader compact session={session} onChange={updateSession} />
+          </div>
           <MobileFieldbookShell
             entryRequest={entryRequest}
             surveyType={type}
             onSurveyTypeChange={(t) => resetForType(t as FieldbookType)}
             rows={mobileRows}
             onAddRow={handleMobileAddRow}
-            onRemoveRow={handleMobileRemoveRow}
+            onRejectRow={handleMobileRejectRow}
+            onRestoreRow={handleMobileRestoreRow}
             online={online}
             lastSaved={saveStatus.kind === 'saved' ? saveStatus.when : null}
             unsyncedCount={pendingCount}
@@ -1258,12 +1515,16 @@ export default function DigitalFieldBookPage() {
             stationName={type === 'control' ? controlStation.name : undefined}
             onViewAuditLog={() => setAuditDrawerOpen(true)}
             qualitySummary={qualitySummary}
+            summaryItems={mobileSummary.items}
+            summaryErrors={mobileSummary.errors}
             openingRL={openingRL}
             setOpeningRL={setOpeningRL}
             closingRL={closingRL}
             setClosingRL={setClosingRL}
             distanceKm={distanceKm}
             setDistanceKm={setDistanceKm}
+            closureCoefficient={closureCoefficient}
+            setClosureCoefficient={setClosureCoefficient}
             levelMethod={levelMethod}
             setLevelMethod={setLevelMethod}
             travMode={travMode}
@@ -1285,6 +1546,15 @@ export default function DigitalFieldBookPage() {
             controlStation={controlStation}
             setControlStation={setControlStation}
           />
+          <div className="mx-4 mb-8">
+            <FieldbookAttachments
+              compact
+              page={type}
+              attachments={attachments}
+              onChange={setAttachments}
+              capturedBy={ownerId ?? 'unknown'}
+            />
+          </div>
         </div>
         <FieldbookAuditDrawer
           open={auditDrawerOpen}
@@ -1310,12 +1580,12 @@ export default function DigitalFieldBookPage() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-6">
-        {/* Left sidebar — organized into collapsible sections */}
+        {/* Left sidebar â€” organized into collapsible sections */}
         <div className="lg:col-span-3 space-y-3" ref={panelRef}>
           {workspace}
           {instrumentPanel}
 
-          {/* Quick actions — export, plan, sync */}
+          {/* Quick actions â€” export, plan, sync */}
           <div className="card p-3 space-y-2">
             <button onClick={handleDevelopFullPlan} disabled={planGenerating || !projectId}
               className="w-full btn bg-green-600 hover:bg-green-700 text-white border-green-600 disabled:opacity-50 text-sm">
@@ -1333,7 +1603,7 @@ export default function DigitalFieldBookPage() {
             <RealTimeQCPanel summary={qualitySummary} />
           </div>
 
-          {/* GNSS & NTRIP — collapsible to save space */}
+          {/* GNSS & NTRIP â€” collapsible to save space */}
           <details className="card p-3">
             <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">
               GNSS Rover & NTRIP
@@ -1342,7 +1612,7 @@ export default function DigitalFieldBookPage() {
               <ErrorBoundary
                 fallback={
                   <p className="text-xs text-amber-300/70">
-                    Connection module unavailable — reload to reconnect instrument.
+                    Connection module unavailable â€” reload to reconnect instrument.
                   </p>
                 }
               >
@@ -1352,7 +1622,7 @@ export default function DigitalFieldBookPage() {
             </div>
           </details>
 
-          {/* GNSS Quality — collapsible */}
+          {/* GNSS Quality â€” collapsible */}
           <details className="card p-3">
             <summary className="cursor-pointer text-xs font-semibold text-[var(--text-primary)] uppercase tracking-wider">
               GNSS Quality Report
@@ -1361,7 +1631,7 @@ export default function DigitalFieldBookPage() {
               <ErrorBoundary
                 fallback={
                   <p className="text-xs text-amber-300/70">
-                    Quality module unavailable — reload to view stats.
+                    Quality module unavailable â€” reload to view stats.
                   </p>
                 }
               >
@@ -1372,6 +1642,7 @@ export default function DigitalFieldBookPage() {
         </div>
 
         <div id="fieldbook-entry" className="lg:col-span-9 space-y-4">
+          <FieldbookSessionHeader session={session} onChange={updateSession} />
           <div className="flex gap-2 overflow-x-auto pb-1">
             <TabButton active={type === 'leveling'} onClick={() => resetForType('leveling')}>
               {t('leveling.title')}
@@ -1388,7 +1659,7 @@ export default function DigitalFieldBookPage() {
             const hasUserInput =
               (type === 'leveling' && levelRows.some((r) => r.station.trim() || r.bs.trim() || r.is.trim() || r.fs.trim())) ||
               (type === 'traverse' && (travRows.length > 1 || travRows.some((r) => r.station.trim()) || !!startE.trim() || !!startN.trim())) ||
-              (type === 'control' && controlRows.some((r) => r.pointId.trim() || r.bearing.trim() || r.slopeDistance.trim()))
+              (type === 'control' && controlRows.some((r) => String(r.pointId ?? '').trim() || String(r.bearing ?? '').trim() || String(r.slopeDistance ?? '').trim()))
             if (!hasUserInput) return null
             return (
               <div className="p-3 bg-red-900/15 border border-red-700 rounded text-sm text-red-300">
@@ -1410,9 +1681,16 @@ export default function DigitalFieldBookPage() {
               setClosingRL={setClosingRL}
               setDistanceKm={setDistanceKm}
               setLevelMethod={setLevelMethod}
+              closureCoefficient={closureCoefficient}
+              setClosureCoefficient={setClosureCoefficient}
               levelRows={levelRows}
               setLevelRows={setLevelRows}
               computed={levelingComputed}
+              audit={levelAudit}
+              onReject={rejectLevelRow}
+              onRestore={restoreLevelRow}
+              signOff={levelSignOff}
+              onSignOff={setLevelSignOff}
             />
           )}
 
@@ -1435,6 +1713,8 @@ export default function DigitalFieldBookPage() {
                 travRows={travRows}
                 setTravRows={setTravRows}
                 computed={traverseComputed}
+                onReject={rejectTravRow}
+                onRestore={restoreTravRow}
               />
 
             </>
@@ -1532,7 +1812,7 @@ export default function DigitalFieldBookPage() {
                 </div>
 
                 <div className="text-xs text-[var(--text-muted)]">
-                  A “setup” is one instrument station (HI) with multiple shots/points in the table below. Use <span className="text-[var(--text-primary)] font-semibold">Add Row</span> to record more than one control/detail point.
+                  A â€œsetupâ€ is one instrument station (HI) with multiple shots/points in the table below. Use <span className="text-[var(--text-primary)] font-semibold">Add Row</span> to record more than one control/detail point.
                 </div>
               </div>
 
@@ -1543,9 +1823,18 @@ export default function DigitalFieldBookPage() {
                 rows={controlRows}
                 setRows={setControlRows}
                 computed={controlComputed}
+                onReject={rejectControlRow}
+                onRestore={restoreControlRow}
               />
             </div>
           )}
+
+          <FieldbookAttachments
+            page={type}
+            attachments={attachments}
+            onChange={setAttachments}
+            capturedBy={ownerId ?? 'unknown'}
+          />
 
 
         </div>

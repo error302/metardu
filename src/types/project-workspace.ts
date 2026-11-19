@@ -18,8 +18,6 @@ export type SurveyType =
   | BoundarySurveyType
   | LevellingSurveyType
   | 'topographic'
-  | 'mining'
-  | 'hydrographic'
   | 'drone_uav';
 
 export type StepStatus = 'locked' | 'pending' | 'in_progress' | 'complete';
@@ -145,8 +143,6 @@ export const SURVEY_TYPE_LABELS: Record<SurveyType, string> = {
   benchmark_establishment: 'Benchmark Establishment',
   two_peg_test: 'Two Peg Test',
   topographic: 'Topographic Survey',
-  mining: 'Mining Survey',
-  hydrographic: 'Hydrographic Survey',
   drone_uav: 'Drone / UAV Survey',
 };
 

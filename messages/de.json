@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "Vom Felddaten zum fertigen Dokument"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Feldmodus",
     "fieldBook": "Feldbuch",
-    "fieldBookSubtitle": "Polygonzug-, Nivellement-, Strahl- und Bathymetrie-Beobachtungen erfassen",
+    "fieldBookSubtitle": "Polygonzug-, Nivellement-, Strahl- und Detailbeobachtungen erfassen",
     "syncOffline": "Offline synchronisieren",
     "fieldBookAI": "KI-Feldbuch",
     "fieldBookName": "Feldbuchname",

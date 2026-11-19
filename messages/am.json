@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "ከመስክ ውሂብ ወደ ዝግጁ ሰነዶች"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "የመስክ ሁነታ",
     "fieldBook": "የመስክ ደብተር",
-    "fieldBookSubtitle": "የትራቨርስ፣ የሌቭሊንግ፣ የራዲዬሽን እና የባቲሜትሪ ክትትሎችን መዝግብ",
+    "fieldBookSubtitle": "የትራቨርስ፣ የሌቭሊንግ፣ የራዲዬሽን እና የዝርዝር ክትትሎችን መዝግብ",
     "syncOffline": "ከመስመር ውጪ አስምር",
     "fieldBookAI": "AI የመስክ ደብተር",
     "fieldBookName": "የመስክ ደብተር ስም",

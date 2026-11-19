@@ -2,6 +2,7 @@
 
 import { memo, useState, useEffect } from 'react'
 import { useMapContext } from '@/app/map/MapReactContext'
+import { describeCrs } from '@/lib/spatial/projectCrs'
 
 export const MapStatusBar = memo(function MapStatusBar() {
   const { mouseCoord, projectCount, currentSurveyCrs, gpsTracking, gpsPos } = useMapContext()
@@ -14,6 +15,18 @@ export const MapStatusBar = memo(function MapStatusBar() {
     window.addEventListener('offline', offline)
     return () => { window.removeEventListener('online', online); window.removeEventListener('offline', offline) }
   }, [])
+
+  // Datum and transformation provenance for the active survey CRS. The
+  // registry is the single source of truth; the status bar never infers a
+  // datum from a code.
+  const surveyCrsInfo = currentSurveyCrs ? describeCrs(currentSurveyCrs) : null
+  const surveyLabel = surveyCrsInfo
+    ? `Survey CRS: ${surveyCrsInfo.code} · ${surveyCrsInfo.datum}`
+    : 'Survey CRS: not set'
+  const transformationNote = surveyCrsInfo?.notes
+    ? ` · ${surveyCrsInfo.notes}`
+    : ''
+
   return (
     <footer className="map-status-strip" aria-label="Map status">
       <div className="map-status-coordinates">
@@ -25,8 +38,12 @@ export const MapStatusBar = memo(function MapStatusBar() {
             <span className="text-[var(--accent)]"><abbr title="Northing in metres">N</abbr>{mouseCoord.n.toFixed(3)}</span>
           </> : null}
         </> : <span>Move the pointer for coordinates</span>}
-        <span>{currentSurveyCrs ? `Survey ${currentSurveyCrs}` : 'Survey CRS required'}</span>
-        <span className="hidden lg:inline">Display EPSG:3857</span>
+        <span title={`Survey CRS: ${surveyCrsInfo?.name ?? 'not set'}${transformationNote}`}>
+          {surveyLabel}
+        </span>
+        <span className="hidden lg:inline" title="Display CRS: WGS 84 / Pseudo-Mercator (Web Mercator). Display only — never used for survey mathematics.">
+          Display CRS: EPSG:3857
+        </span>
       </div>
       <div className="map-device-status">
         {!isOnline && <span>Offline</span>}

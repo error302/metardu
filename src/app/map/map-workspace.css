@@ -538,7 +538,7 @@
 }
 
 .map-workspace .map-notification {
-  top: 60px;
+  /* Positioning is owned by MapNotifications (a non-blocking flex stack). */
   z-index: 60;
   max-width: calc(100% - 32px);
 }

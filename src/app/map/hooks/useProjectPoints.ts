@@ -12,6 +12,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { createProjectPointsLayer } from '@/lib/surveyMapEngine/ol/pointLoading'
 import { logger } from '@/lib/logger'
+import { validateCoordinateRange } from '@/lib/spatial/projectCrs'
 
 export interface UseProjectPointsParams {
   schemeProjectId: string | null
@@ -25,6 +26,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
   const [projectPointsError, setProjectPointsError] = useState<string | null>(null)
   const [projectCrs, setProjectCrs] = useState<string | null>(null)
   const [projectCrsProjectId, setProjectCrsProjectId] = useState<string | null>(null)
+  const [zoneWarning, setZoneWarning] = useState<string | null>(null)
   const [showProjectPoints, setShowProjectPoints] = useState(true)
   const showProjectPointsRef = useRef(showProjectPoints)
   showProjectPointsRef.current = showProjectPoints
@@ -47,6 +49,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
     const requestId = ++requestIdRef.current
     setProjectPointsLoading(true)
     setProjectPointsError(null)
+    setZoneWarning(null)
     const sameProject = loadedProjectIdRef.current === schemeProjectId
     if (!sameProject) {
       setProjectCrs(null)
@@ -81,6 +84,56 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
       setProjectCrs(result.projectCrs)
       setProjectCrsProjectId(schemeProjectId)
       setProjectPointsCount(result.pointCount)
+      // Zone-straddle audit over the project's points. Read-only: never
+      // re-zones data, only warns and names the right zone.
+      setZoneWarning(null)
+      const crs = result.projectCrs
+      if (crs) {
+        try {
+          const extentRes = await fetch(
+            `/api/project/${encodeURIComponent(schemeProjectId)}/map-points?mode=extent`,
+          )
+          if (extentRes.ok) {
+            const extentPayload = await extentRes.json() as {
+              extent?: [number, number, number, number] | null
+              total?: number
+            }
+            if (extentPayload.extent && (extentPayload.total ?? 0) > 0) {
+              const [minE, minN, maxE, maxN] = extentPayload.extent
+              const res = await fetch(
+                `/api/project/${encodeURIComponent(schemeProjectId)}/map-points` +
+                  `?bbox=${minE},${minN},${maxE},${maxN}&clustered=false`,
+              )
+              if (res.ok) {
+                const payload = await res.json() as { points?: Array<{ easting?: unknown; northing?: unknown }> }
+                const suggestions = new Map<string, { count: number; name?: string }>()
+                let straddling = 0
+                for (const p of payload.points ?? []) {
+                  const e = typeof p.easting === 'number' ? p.easting : Number(p.easting)
+                  const n = typeof p.northing === 'number' ? p.northing : Number(p.northing)
+                  if (!Number.isFinite(e) || !Number.isFinite(n)) continue
+                  const v = validateCoordinateRange(e, n, crs)
+                  if (v.suggestedCrs) {
+                    straddling++
+                    const prev = suggestions.get(v.suggestedCrs) ?? { count: 0, name: v.suggestedCrsName }
+                    suggestions.set(v.suggestedCrs, { count: prev.count + 1, name: v.suggestedCrsName })
+                  }
+                }
+                if (straddling > 0) {
+                  const parts = [...suggestions.entries()].map(
+                    ([code, s]) => `${s.count} point${s.count === 1 ? '' : 's'} appear to belong in ${s.name ?? code} (${code})`,
+                  )
+                  setZoneWarning(
+                    `Zone check: ${parts.join('; ')}. The project CRS is unchanged — switch zones in Project Settings if the survey is in the other zone.`,
+                  )
+                }
+              }
+            }
+          }
+        } catch (warnErr) {
+          logger.warn('[useProjectPoints] Zone-straddle audit skipped:', { error: warnErr })
+        }
+      }
     } catch (err) {
       if (requestId !== requestIdRef.current || currentProjectIdRef.current !== schemeProjectId) return
       logger.error('[useProjectPoints] Failed to load project points:', { error: err })
@@ -114,6 +167,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
       setProjectCrsProjectId(null)
       setProjectPointsCount(0)
       setProjectPointsError(null)
+      setZoneWarning(null)
       setProjectPointsLoading(false)
       setShowProjectPoints(true)
       return
@@ -143,6 +197,7 @@ export function useProjectPoints({ schemeProjectId, mapInstance, mapReady }: Use
     projectPointsLoading,
     projectPointsError,
     projectCrs: projectCrsProjectId === schemeProjectId ? projectCrs : null,
+    zoneWarning,
     showProjectPoints,
     loadProjectPoints,
     fitProjectPoints,

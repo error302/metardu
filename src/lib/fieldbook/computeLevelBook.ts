@@ -13,14 +13,19 @@ function number(text: string): number | undefined {
 
 /** Validate a working copy without coercing or changing its retained observation strings. */
 export function computeLevelBook(input: { openingRL: string; closingRL: string; distanceKm: string;
-  method: 'rise_and_fall' | 'height_of_collimation'; rows: Row[] }): LevelBookComputation {
+  method: 'rise_and_fall' | 'height_of_collimation'; rows: Row[];
+  /** Allowable-misclosure coefficient in mm/√km; defaults to 10. */
+  closureCoefficient?: string }): LevelBookComputation {
   const errors: string[] = []
   const openingRL = number(input.openingRL)
   const closingRL = input.closingRL.trim() ? number(input.closingRL) : undefined
   const distanceKm = input.distanceKm.trim() ? number(input.distanceKm) : undefined
+  const coefficientText = input.closureCoefficient?.trim() ?? ''
+  const misclosureCoefficient = coefficientText ? number(coefficientText) : undefined
   if (openingRL === undefined) errors.push('Opening RL is required and must be a finite number.')
   if (input.closingRL.trim() && closingRL === undefined) errors.push('Closing RL must be a finite number.')
   if (input.distanceKm.trim() && (distanceKm === undefined || distanceKm <= 0)) errors.push('Run length must be a positive number, or blank if unknown.')
+  if (coefficientText && (misclosureCoefficient === undefined || misclosureCoefficient <= 0)) errors.push('Closure coefficient must be a positive number.')
   if (!input.rows.length) errors.push('Add a leveling observation before calculation.')
   const names = new Set<string>()
   const readings = input.rows.map((row, index) => {
@@ -39,8 +44,8 @@ export function computeLevelBook(input: { openingRL: string; closingRL: string; 
   })
   if (errors.length || openingRL === undefined) return { ok: false, errors }
   const calc = input.method === 'rise_and_fall'
-    ? riseAndFall({ readings, openingRL, closingRL, distanceKm, method: input.method })
-    : heightOfCollimation({ readings, openingRL, closingRL, distanceKm, method: input.method })
+    ? riseAndFall({ readings, openingRL, closingRL, distanceKm, method: input.method, misclosureCoefficient })
+    : heightOfCollimation({ readings, openingRL, closingRL, distanceKm, method: input.method, misclosureCoefficient })
   if (calc.readings.some(reading => Object.values(reading).some(value => typeof value === 'number' && !Number.isFinite(value)))
     || !Number.isFinite(calc.misclosure) || calc.allowableMisclosure !== undefined && !Number.isFinite(calc.allowableMisclosure)) {
     return { ok: false, errors: ['The leveling calculation produced a non-finite result. Review the observation magnitudes.'] }

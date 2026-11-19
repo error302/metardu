@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "De los datos de campo a los documentos terminados"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Modo de campo",
     "fieldBook": "Libro de campo",
-    "fieldBookSubtitle": "Grabar observaciones de recorrido, nivelación, radiación y batimetría",
+    "fieldBookSubtitle": "Grabar observaciones de recorrido, nivelación, radiación y detalles",
     "syncOffline": "Sincronizar offline",
     "fieldBookAI": "Libro de campo AI",
     "fieldBookName": "Nombre del libro de campo",

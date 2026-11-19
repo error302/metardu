@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "Dos dados de campo aos documentos concluídos"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Modo de Campo",
     "fieldBook": "Caderneta de Campo",
-    "fieldBookSubtitle": "Registar observações de poligonal, nivelamento, irradiação e batimetria",
+    "fieldBookSubtitle": "Registar observações de poligonal, nivelamento, radiação e detalhes",
     "syncOffline": "Sincronizar Offline",
     "fieldBookAI": "Caderneta de Campo IA",
     "fieldBookName": "Nome da Caderneta de Campo",

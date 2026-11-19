@@ -24,6 +24,18 @@ export interface LevelingInput {
   closingRL?: number;
   method: 'rise_and_fall' | 'height_of_collimation';
   distanceKm?: number;
+  /**
+   * Allowable-misclosure coefficient in mm per √km. Defaults to 10, the value
+   * in RDM 1.1 Kenya 2025 Table 5.1 for direct leveling. It is configurable
+   * because other specifications and instrument classes use different values;
+   * the caller is responsible for confirming the applicable standard.
+   */
+  misclosureCoefficient?: number;
+}
+
+/** Resolve the closure coefficient, falling back to the documented default. */
+function closureCoefficient(value: number | undefined): number {
+  return typeof value === 'number' && Number.isFinite(value) && value > 0 ? value : 10;
 }
 
 export function riseAndFall(input: LevelingInput): LevelingResult {
@@ -125,7 +137,7 @@ export function riseAndFall(input: LevelingInput): LevelingResult {
   const misclosure = closingRL !== undefined ? (lastComputedRL - closingRL) : 0;
 
   const allowableMisclosure = distanceKm !== undefined && distanceKm > 0
-    ? 10 * Math.sqrt(distanceKm) / 1000
+    ? closureCoefficient(input.misclosureCoefficient) * Math.sqrt(distanceKm) / 1000
     : undefined;
   const isAcceptable = closingRL !== undefined && allowableMisclosure !== undefined
     ? Math.abs(misclosure) <= allowableMisclosure
@@ -228,7 +240,7 @@ export function heightOfCollimation(input: LevelingInput): LevelingResult {
 
   const misclosure = closingRL !== undefined ? (lastComputedRL - closingRL) : 0;
   const allowableMisclosure = distanceKm !== undefined && distanceKm > 0
-    ? 10 * Math.sqrt(distanceKm) / 1000
+    ? closureCoefficient(input.misclosureCoefficient) * Math.sqrt(distanceKm) / 1000
     : undefined;
   const isAcceptable = closingRL !== undefined && allowableMisclosure !== undefined
     ? Math.abs(misclosure) <= allowableMisclosure

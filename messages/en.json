@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "From field data to finished documents"
@@ -57,7 +57,9 @@
     "exportCsv": "Export CSV",
     "exportJson": "Export JSON",
     "online": "Online",
-    "offline": "Offline"
+    "offline": "Offline",
+    "reject": "Reject",
+    "restore": "Restore"
   },
   "dashboard": {
     "title": "Dashboard",
@@ -77,7 +79,7 @@
   "field": {
     "fieldMode": "Field Mode",
     "fieldBook": "Field Book",
-    "fieldBookSubtitle": "Record traverse, leveling, radiation, and bathymetry observations",
+    "fieldBookSubtitle": "Record traverse, leveling, radiation, and detail observations",
     "syncOffline": "Sync Offline",
     "fieldBookAI": "AI Field Book",
     "fieldBookName": "Field Book Name",

@@ -817,6 +817,60 @@ export function suggestUtmCrs(latitude: number, longitude: number): UtmSuggestio
   return { code: `EPSG:32${hemisphere === 'S' ? 7 : 6}${nn}`, zone, hemisphere }
 }
 
+/** Nominal longitude bounds of a UTM zone: zone N covers [(N-1)*6−180, N*6−180). */
+export function zoneLongitudeBounds(zone: number): { west: number; east: number } {
+  const west = (zone - 1) * 6 - 180
+  return { west, east: west + 6 }
+}
+
+export interface DatumUtmSuggestion {
+  code: string
+  name: string
+  zone: number
+  hemisphere: 'N' | 'S'
+}
+
+function normaliseDatum(value: string): string {
+  return String(value ?? '').trim().toLowerCase().replace(/[\s_/]+/g, ' ').split(' / ')[0].trim()
+}
+
+/**
+ * Suggest the UTM zone CRS for a location **on the datum the project already
+ * uses**, falling back to the WGS 84 UTM family when no same-datum CRS for
+ * that zone is registered.
+ *
+ * `suggestUtmCrs` answers "which zone is this point in?" in pure mathematics.
+ * This function answers the professional question: "which *registered* CRS
+ * should this project be using?" A Mombasa project on Arc 1960 must be pointed
+ * at EPSG:21037 — suggesting EPSG:32737 would be correct mathematics for the
+ * wrong datum. Never auto-applied: callers must confirm with the surveyor.
+ */
+export function suggestDatumUtmCrs(
+  latitude: number,
+  longitude: number,
+  datum?: string,
+): DatumUtmSuggestion {
+  const zoneSuggestion = suggestUtmCrs(latitude, longitude)
+  const { west, east } = zoneLongitudeBounds(zoneSuggestion.zone)
+
+  if (datum) {
+    const wanted = normaliseDatum(datum)
+    for (const entry of registry.values()) {
+      const info = entry.info
+      if (!info.projected || info.displayOnly || info.zone !== zoneSuggestion.zone || info.hemisphere !== zoneSuggestion.hemisphere) continue
+      if (normaliseDatum(info.datum) !== wanted) continue
+      return { code: info.code, name: info.name, zone: info.zone, hemisphere: info.hemisphere }
+    }
+  }
+
+  return {
+    code: zoneSuggestion.code,
+    name: `WGS 84 / UTM zone ${zoneSuggestion.zone}${zoneSuggestion.hemisphere}`,
+    zone: zoneSuggestion.zone,
+    hemisphere: zoneSuggestion.hemisphere,
+  }
+}
+
 // ─── Coordinate formatting service (schedules, plans, inspectors) ────────────
 
 export interface FormatOptions {
@@ -918,6 +972,13 @@ export interface CoordinateValidationResult {
   valid: boolean
   errors: string[]
   warnings: string[]
+  /**
+   * When the coordinate looks like a wrong-zone blunder, the registered CRS the
+   * point most plausibly belongs in — for a one-click switch. Absent when the
+   * zone looks right or no better CRS is registered.
+   */
+  suggestedCrs?: string
+  suggestedCrsName?: string
 }
 
 function parseUtmFromDef(def: string): { zone: number; south: boolean } | null {
@@ -964,6 +1025,29 @@ export function validateCoordinateRange(
   }
 
   const [easting, northing] = [x, y]
+
+  // Where is this coordinate really? Inverse-project to longitude and compare
+  // with the zone's nominal bounds. A datum shift of tens of metres cannot
+  // move a point across a 6° zone boundary, so the WGS84 path is sound here.
+  let outOfZoneLon = false
+  let geo: [number, number] | null = null // [lon, lat] in WGS84
+  try {
+    const transformed = transformPoint(x, y, crs, WGS84_CRS)
+    geo = transformed
+    const { west, east } = zoneLongitudeBounds(utm.zone)
+    outOfZoneLon = transformed[0] < west || transformed[0] >= east
+  } catch {
+    // Unprojectable coordinate — the easting/domain checks below still apply.
+  }
+
+  // Same-datum suggestion for the zone the coordinate actually falls in, so
+  // the UI can offer a one-click switch instead of a dead-end warning.
+  let suggestion: DatumUtmSuggestion | undefined
+  if (geo && (outOfZoneLon || easting < 160_000 || easting > 840_000)) {
+    const candidate = suggestDatumUtmCrs(geo[1], geo[0], entry.info.datum)
+    if (candidate.code !== entry.info.code) suggestion = candidate
+  }
+
   if (easting < 1_000 || easting > 1_000_000) {
     // Sub-kilometre eastings are never valid UTM: the classic
     // degrees-loaded-as-metres blunder lands here.
@@ -973,6 +1057,13 @@ export function validateCoordinateRange(
       `Easting ${easting.toFixed(1)} lies outside the nominal UTM strip (160,000–840,000 m) — this is usually a wrong-zone coordinate. Expected zone ${utm.zone}${utm.south ? 'S' : 'N'}.`,
     )
   }
+  if (outOfZoneLon) {
+    const { west, east } = zoneLongitudeBounds(utm.zone)
+    warnings.push(
+      `The coordinate falls at a longitude outside zone ${utm.zone} (${west}°E to ${east}°E). ${suggestion ? `This point belongs in ${suggestion.name} (${suggestion.code}).` : 'Verify the zone against the point’s longitude.'}`,
+    )
+  }
+
   if (utm.south) {
     if (northing < 0 || northing > 10_000_000) {
       errors.push(
@@ -986,7 +1077,13 @@ export function validateCoordinateRange(
       errors.push(`Northing ${northing} is outside the northern-zone domain (0–10,000,000 m)`)
     }
   }
-  return { valid: errors.length === 0, errors, warnings }
+
+  const result: CoordinateValidationResult = { valid: errors.length === 0, errors, warnings }
+  if (suggestion) {
+    result.suggestedCrs = suggestion.code
+    result.suggestedCrsName = suggestion.name
+  }
+  return result
 }
 
 export interface CrsCompatibilityResult {

@@ -6,7 +6,8 @@
  * Enhances the mobile field book experience with gesture-based interactions:
  *
  *   - Swipe right on a row → reveal "Duplicate" action
- *   - Swipe left on a row  → reveal "Delete" action
+ *   - Swipe left on a row  → reveal "Reject" action (never deletes: a reason
+ *     is collected by the caller and the row stays in the book)
  *   - Long press on a row  → enter edit mode for that row
  *   - Pull down at top     → sync offline data
  *   - Shake device         → undo last entry (with confirmation)
@@ -24,7 +25,7 @@ import {
 } from 'react';
 import {
   Copy,
-  Trash2,
+  Ban,
   Pencil,
   RotateCcw,
   CloudUpload,
@@ -39,12 +40,14 @@ interface SwipeableRowProps {
   children: ReactNode;
   /** Called when the duplicate action is triggered */
   onDuplicate: (id: string) => void;
-  /** Called when the delete action is confirmed */
-  onDelete: (id: string) => void;
+  /** Called when the reject action is chosen; the caller collects a reason. */
+  onReject: (id: string) => void;
   /** Called when long-press triggers edit mode */
   onEdit: (id: string) => void;
   /** Whether this row is currently in edit mode */
   isEditing?: boolean;
+  /** Rejected rows stay visible (struck through) and expose restore elsewhere. */
+  isRejected?: boolean;
 }
 
 interface PullToSyncProps {
@@ -69,13 +72,13 @@ interface ShakeUndoProps {
 
 interface SwipeableListProps {
   /** List of row items */
-  rows: Array<{ id: string; [key: string]: string }>;
+  rows: Array<{ id: string; rejected?: boolean; [key: string]: string | boolean | undefined }>;
   /** Render function for each row's content */
-  renderRow: (row: { id: string; [key: string]: string }, index: number, isEditing: boolean) => ReactNode;
+  renderRow: (row: { id: string; rejected?: boolean; [key: string]: string | boolean | undefined }, index: number, isEditing: boolean) => ReactNode;
   /** Called when duplicate is triggered */
   onDuplicate: (id: string) => void;
-  /** Called when delete is confirmed */
-  onDelete: (id: string) => void;
+  /** Called when reject is chosen */
+  onReject: (id: string) => void;
   /** Called when edit mode is triggered */
   onEdit: (id: string) => void;
   /** Currently editing row ID */
@@ -109,9 +112,10 @@ function SwipeableRow({
   id,
   children,
   onDuplicate,
-  onDelete,
+  onReject,
   onEdit,
   isEditing = false,
+  isRejected = false,
 }: SwipeableRowProps) {
   const [offsetX, setOffsetX] = useState(0);
   const [startX, setStartX] = useState(0);
@@ -185,7 +189,7 @@ function SwipeableRow({
   }, [isEditing]);
 
   const showDuplicate = offsetX > SWIPE_THRESHOLD;
-  const showDelete = offsetX < -SWIPE_THRESHOLD;
+  const showReject = !isRejected && offsetX < -SWIPE_THRESHOLD;
 
   return (
     <div className="relative overflow-hidden rounded-xl">
@@ -215,24 +219,25 @@ function SwipeableRow({
         {/* Spacer */}
         <div className="flex-1" />
 
-        {/* Delete (swipe left → red on right side) */}
+        {/* Reject (swipe left → amber on right side). Rows are never deleted. */}
         <div
           className={[
             'flex items-center justify-center w-24 transition-opacity',
-            showDelete ? 'opacity-100' : 'opacity-0',
+            showReject ? 'opacity-100' : 'opacity-0',
+            isRejected ? 'invisible' : '',
           ].join(' ')}
-          style={{ backgroundColor: 'rgba(239, 68, 68, 0.15)' }}
+          style={{ backgroundColor: 'rgba(245, 158, 11, 0.18)' }}
         >
           <button
             onClick={() => {
-              onDelete(id);
+              onReject(id);
               setOffsetX(0);
             }}
-            className="flex flex-col items-center gap-0.5 text-red-400"
-            aria-label="Delete reading"
+            className="flex flex-col items-center gap-0.5 text-amber-400"
+            aria-label="Reject reading"
           >
-            <Trash2 className="w-5 h-5" />
-            <span className="text-[9px] uppercase tracking-wider font-semibold">Delete</span>
+            <Ban className="w-5 h-5" />
+            <span className="text-[9px] uppercase tracking-wider font-semibold">Reject</span>
           </button>
         </div>
       </div>
@@ -433,7 +438,7 @@ export function SwipeableList({
   rows,
   renderRow,
   onDuplicate,
-  onDelete,
+  onReject,
   onEdit,
   editingId,
   onSync,
@@ -464,9 +469,10 @@ export function SwipeableList({
                 key={row.id}
                 id={row.id}
                 onDuplicate={onDuplicate}
-                onDelete={onDelete}
+                onReject={onReject}
                 onEdit={onEdit}
                 isEditing={editingId === row.id}
+                isRejected={row.rejected === true}
               >
                 {renderRow(row, idx, editingId === row.id)}
               </SwipeableRow>

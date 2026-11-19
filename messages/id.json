@@ -1,4 +1,4 @@
-{
+﻿{
   "app": {
     "name": "METARDU",
     "tagline": "Dari data lapangan menjadi dokumen jadi"
@@ -77,7 +77,7 @@
   "field": {
     "fieldMode": "Mode Lapangan",
     "fieldBook": "Buku Lapangan",
-    "fieldBookSubtitle": "Catat pengamatan poligon, leveling, radiasi, dan batimetri",
+    "fieldBookSubtitle": "Catat pengamatan poligon, leveling, radiasi, dan detail",
     "syncOffline": "Sinkronisasi Luring",
     "fieldBookAI": "Buku Lapangan AI",
     "fieldBookName": "Nama Buku Lapangan",

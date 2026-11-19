@@ -109,7 +109,6 @@ export default function ProfilePage() {
     'Engineering',
     'Construction',
     'Mining',
-    'Hydrographic',
     'GNSS/GPS',
     'Control Networks',
     'Road/Highway',

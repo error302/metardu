@@ -94,15 +94,6 @@ const guideTypes: GuideType[] = [
     steps: 6
   },
   {
-    id: 'hydrographic',
-    name: 'Hydrographic Survey',
-    icon: '[Water]',
-    description: 'Bathymetry, tidal corrections, and chart datum conversions',
-    time: '3-6 hours',
-    difficulty: 'Advanced',
-    steps: 5
-  },
-  {
     id: 'drone',
     name: 'Drone/UAV Survey',
     icon: '',

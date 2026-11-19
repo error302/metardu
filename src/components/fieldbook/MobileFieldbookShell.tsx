@@ -1,18 +1,18 @@
-'use client';
+﻿'use client';
 
 /**
  * MobileFieldbookShell
  * ---------------------
  * Renders the active survey type as a list of touch-friendly cards
- * instead of wide desktop tables.  Designed for the field — where
+ * instead of wide desktop tables.  Designed for the field â€” where
  * the surveyor's primary device is a phone.
  *
  * Includes:
- *   • Online/offline status, sync and last-saved information
- *   • Survey type selector as horizontally scrollable chips
- *   • Card list of readings with swipe-to-delete
- *   • Quick-add control for a new reading
- *   • Pull-to-refresh-style sync affordance
+ *   â€¢ Online/offline status, sync and last-saved information
+ *   â€¢ Survey type selector as horizontally scrollable chips
+ *   â€¢ Card list of readings with swipe-to-reject (reason required, never deleted)
+ *   â€¢ Quick-add control for a new reading
+ *   â€¢ Pull-to-refresh-style sync affordance
  */
 
 import { useEffect, useState } from 'react'
@@ -23,14 +23,15 @@ import type { CapturedBeaconPhoto } from './BeaconPhotoCapture'
 import { OfflineCacheIndicator } from './MobileFieldUX'
 import { RealTimeQCPanel } from '@/components/survey/RealTimeQCPanel'
 import type { BookQualitySummary } from '@/lib/fieldbook/qualitySummary'
+import type { ControlRow, ControlSetup } from '@/app/fieldbook/types'
 import { SwipeableRow } from './FieldbookSwipeWrapper'
 import { logger } from '@/lib/logger'
 
-export type Row = { id: string; [key: string]: string }
+export type Row = { id: string; rejected?: boolean; rejectedReason?: string; [key: string]: string | boolean | undefined }
 
 type ControlStation = { name: string; e: string; n: string; z: string }
 
-export type ControlSetup = { id: string; station: ControlStation; rows: Row[] }
+export type { ControlSetup }
 
 interface MobileFieldbookShellProps {
   entryRequest?: number
@@ -38,7 +39,9 @@ interface MobileFieldbookShellProps {
   onSurveyTypeChange: (t: MobileSurveyType) => void
   rows: Row[]
   onAddRow: (row: Record<string, string>, photos: CapturedBeaconPhoto[]) => void | Promise<void>
-  onRemoveRow: (id: string) => void
+  /** Rows are never deleted: this marks the row rejected and keeps it visible. */
+  onRejectRow: (id: string, reason: string) => void
+  onRestoreRow: (id: string) => void
   online: boolean
   lastSaved?: string | null
   unsyncedCount?: number
@@ -51,6 +54,9 @@ interface MobileFieldbookShellProps {
 
   // --- Computations ---
   qualitySummary: BookQualitySummary
+  /** Read-only computed values for the active page (never mixed with inputs). */
+  summaryItems: Array<{ label: string; value: string }>
+  summaryErrors: string[]
 
   // --- Leveling setup props ---
   openingRL: string
@@ -59,6 +65,9 @@ interface MobileFieldbookShellProps {
   setClosingRL: (val: string) => void
   distanceKm: string
   setDistanceKm: (val: string) => void
+  /** Allowable-misclosure coefficient k in mm/√km (default 10, editable). */
+  closureCoefficient: string
+  setClosureCoefficient: (val: string) => void
   levelMethod: 'rise_and_fall' | 'height_of_collimation'
   setLevelMethod: (val: 'rise_and_fall' | 'height_of_collimation') => void
 
@@ -121,7 +130,8 @@ export function MobileFieldbookShell({
   onSurveyTypeChange,
   rows,
   onAddRow,
-  onRemoveRow,
+  onRejectRow,
+  onRestoreRow,
   online,
   lastSaved,
   unsyncedCount = 0,
@@ -130,12 +140,16 @@ export function MobileFieldbookShell({
   onPullInstrumentReading,
   onViewAuditLog,
   qualitySummary,
+  summaryItems,
+  summaryErrors,
   openingRL,
   setOpeningRL,
   closingRL,
   setClosingRL,
   distanceKm,
   setDistanceKm,
+  closureCoefficient,
+  setClosureCoefficient,
   levelMethod,
   setLevelMethod,
   travMode,
@@ -161,16 +175,29 @@ export function MobileFieldbookShell({
   const [editingRow, setEditingRow] = useState<Row | undefined>(undefined)
   useEffect(() => { if (entryRequest > 0) { setEditingRow(undefined); setShowForm(true) } }, [entryRequest])
   const [setupOpen, setSetupOpen] = useState(false)
+  // Rejection is a decision with a reason; it never deletes the observation.
+  const [rejectTarget, setRejectTarget] = useState<string | null>(null)
+  const [rejectReason, setRejectReason] = useState('')
+  const [rejectError, setRejectError] = useState('')
 
   const lastStation = rows.length > 0
-    ? (rows[rows.length - 1].station || rows[rows.length - 1].pointId || '')
+    ? String(rows[rows.length - 1].station || rows[rows.length - 1].pointId || '')
     : ''
+
+  // The form only accepts string values. Flags such as `rejected` are audit
+  // state, not observation input, so they stay on the stored row instead of
+  // being round-tripped through the form as text.
+  const editingValues: Record<string, string> | undefined = editingRow
+    ? Object.fromEntries(
+        Object.entries(editingRow).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+      )
+    : undefined
 
   const cardFields = CARD_FIELDS[surveyType]
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-3.5rem)] bg-[var(--bg-primary)]">
-      {/* ─── Capture status ─── */}
+      {/* â”€â”€â”€ Capture status â”€â”€â”€ */}
       <div className="bg-[var(--bg-secondary)] border-b border-[var(--border-color)] px-4 py-2.5 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <div className={[
@@ -221,7 +248,7 @@ export function MobileFieldbookShell({
         </div>
       </div>
 
-      {/* ─── Survey type chips ─── */}
+      {/* â”€â”€â”€ Survey type chips â”€â”€â”€ */}
       <div className="bg-[var(--bg-primary)] border-b border-[var(--border-color)] px-4 py-2.5">
         <div className="flex gap-2 overflow-x-auto no-scrollbar -mx-1 px-1 pb-1">
           {(Object.keys(TYPE_LABELS) as MobileSurveyType[]).map((t) => {
@@ -250,6 +277,29 @@ export function MobileFieldbookShell({
         <RealTimeQCPanel summary={qualitySummary} />
       </div>
 
+      {/* Computed values are read-only and separate from the observation cards. */}
+      <div className="mx-4 mb-3 rounded-xl border border-[var(--border-color)] bg-[color-mix(in_srgb,var(--bg-primary)_40%,transparent)] p-3">
+        <div className="text-[10px] uppercase tracking-wider font-semibold text-[var(--text-muted)]">
+          Computed · read-only
+        </div>
+        {summaryErrors.length > 0 ? (
+          <ul className="mt-1 space-y-0.5 text-xs text-red-300">
+            {summaryErrors.slice(0, 3).map((message, index) => <li key={`summary-error-${index}`}>{message}</li>)}
+          </ul>
+        ) : summaryItems.length > 0 ? (
+          <dl className="mt-1 grid grid-cols-2 gap-x-3 gap-y-1">
+            {summaryItems.map((item) => (
+              <div key={item.label} className="min-w-0">
+                <dt className="text-[10px] uppercase tracking-wider text-[var(--text-muted)] truncate">{item.label}</dt>
+                <dd className="font-mono text-sm text-[var(--text-primary)] truncate">{item.value}</dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mt-1 text-xs text-[var(--text-muted)]">Enter the setup and observations to compute.</p>
+        )}
+      </div>
+
       <OfflineCacheIndicator
         online={online}
         cachedReadings={rows.length}
@@ -257,7 +307,7 @@ export function MobileFieldbookShell({
         lastSync={lastSaved}
       />
 
-      {/* ─── Card list ─── */}
+      {/* â”€â”€â”€ Card list â”€â”€â”€ */}
       <div className="flex-1 overflow-y-auto px-4 py-3 pb-44">
         
         {/* Setup & Coordinates Panel */}
@@ -327,6 +377,24 @@ export function MobileFieldbookShell({
                       value={distanceKm}
                       onChange={(e) => setDistanceKm(e.target.value)}
                     />
+                  </div>
+                  <div className="col-span-2">
+                    <label htmlFor="mfs-closure-k" className="text-[10px] uppercase font-semibold text-[var(--text-muted)]">
+                      Closure coefficient k (mm/√km)
+                    </label>
+                    <input
+                      id="mfs-closure-k"
+                      type="number"
+                      inputMode="decimal"
+                      step="0.1"
+                      min="0"
+                      className="w-full min-h-12 px-3 py-2 text-base bg-[var(--bg-secondary)] border border-[var(--border-color)] rounded-lg text-[var(--text-primary)] focus:outline-none focus:border-[var(--accent)]"
+                      value={closureCoefficient}
+                      onChange={(e) => setClosureCoefficient(e.target.value)}
+                    />
+                    <p className="mt-1 text-[10px] text-[var(--text-muted)]">
+                      Default 10 from RDM 1.1 Kenya 2025 Table 5.1. Editable — confirm the value your specification requires.
+                    </p>
                   </div>
                 </div>
               )}
@@ -497,7 +565,7 @@ export function MobileFieldbookShell({
                           {
                             id,
                             station: { ...src.station, name: src.station.name ? `${src.station.name}_copy${suffix}` : `STN_copy${suffix}` },
-                            rows: src.rows.map((r: Row) => ({ ...r, id: crypto.randomUUID() })),
+                            rows: src.rows.map((r: ControlRow) => ({ ...r, id: crypto.randomUUID() })),
                           },
                         ])
                         setActiveControlSetupId(id)
@@ -505,20 +573,6 @@ export function MobileFieldbookShell({
                       className="flex-1 py-2 text-xs font-semibold bg-[var(--bg-secondary)] border border-[var(--border-color)] text-[var(--text-primary)] rounded-lg"
                     >
                       Duplicate Setup
-                    </button>
-                    <button
-                      disabled={controlSetups.length <= 1}
-                      onClick={() => {
-                        if (controlSetups.length <= 1) return
-                        if (!confirm('Remove this setup?')) return
-                        const next = controlSetups.filter((s) => s.id !== activeControlSetupId)
-                        const nextActive = next[0]?.id ?? controlSetups[0]?.id
-                        setControlSetups(next)
-                        if (nextActive) setActiveControlSetupId(nextActive)
-                      }}
-                      className="flex-1 py-2 text-xs font-semibold bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg disabled:opacity-50"
-                    >
-                      Delete Setup
                     </button>
                   </div>
                 </div>
@@ -549,7 +603,7 @@ export function MobileFieldbookShell({
             </div>
 
             {rows
-              .filter((row) => (row.station ?? row.pointId ?? '').trim() !== '')
+              .filter((row) => String(row.station ?? row.pointId ?? '').trim() !== '')
               .map((row, idx) => (
                 <SwipeableRow
                   key={row.id}
@@ -564,21 +618,25 @@ export function MobileFieldbookShell({
                       logger.error('Could not duplicate field reading:', { error })
                     })
                   }}
-                  onDelete={onRemoveRow}
+                  onReject={(id) => { setRejectTarget(id); setRejectReason(''); setRejectError('') }}
                   onEdit={() => { setEditingRow(row); setShowForm(true) }}
+                  isRejected={row.rejected === true}
                 >
                 <div
-                  className="relative bg-[var(--bg-card)] rounded-xl border border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)] transition-all overflow-hidden"
+                  className={[
+                    'relative bg-[var(--bg-card)] rounded-xl border transition-all overflow-hidden',
+                    row.rejected ? 'border-amber-500/40 opacity-75' : 'border-[var(--border-color)] hover:border-[color-mix(in_srgb,var(--accent)_30%,transparent)]',
+                  ].join(' ')}
                 >
                   <div className="flex items-stretch">
                     {/* Card body */}
-                    <div className="flex-1 p-3.5">
+                    <div className={`flex-1 p-3.5 ${row.rejected ? 'line-through decoration-amber-400/70' : ''}`}>
                       <div className="flex items-center justify-between mb-2">
                         <span className="text-xs font-semibold text-[var(--text-muted)]">
                           #{String(idx + 1).padStart(2, '0')}
                         </span>
                         <span className="text-[10px] text-[var(--text-muted)] font-mono">
-                          {row._timestamp ? new Date(row._timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+                          {row._timestamp ? new Date(String(row._timestamp)).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
                         </span>
                       </div>
                       <div className="grid grid-cols-2 gap-x-3 gap-y-2">
@@ -591,7 +649,7 @@ export function MobileFieldbookShell({
                                 'text-sm truncate',
                                 f.mono ? 'font-mono text-[var(--text-primary)]' : 'font-semibold text-[var(--accent)]',
                               ].join(' ')}>
-                                {val || '—'}
+                                {val || 'â€”'}
                               </div>
                             </div>
                           )
@@ -599,12 +657,21 @@ export function MobileFieldbookShell({
                       </div>
                       {row.remarks && (
                         <p className="mt-2 text-xs text-[var(--text-secondary)] italic line-clamp-2">
-                          “{row.remarks}”
+                          â€œ{row.remarks}â€
                         </p>
+                      )}
+                      {row.rejected && (
+                        <div className="mt-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2 py-1.5 text-xs text-amber-300 no-underline">
+                          Rejected — {row.rejectedReason || 'reason not recorded'}
+                        </div>
                       )}
                     </div>
 
-                    <button type="button" onClick={() => { setEditingRow(row); setShowForm(true) }} aria-label={`Edit reading ${row.station || row.pointId}`} className="min-h-12 min-w-12 px-3 text-xs font-semibold text-[var(--accent)]">Edit</button>
+                    {row.rejected ? (
+                      <button type="button" onClick={() => onRestoreRow(row.id)} aria-label={`Restore reading ${row.station || row.pointId}`} className="min-h-12 min-w-12 px-3 text-xs font-semibold text-amber-400">Restore</button>
+                    ) : (
+                      <button type="button" onClick={() => { setEditingRow(row); setShowForm(true) }} aria-label={`Edit reading ${row.station || row.pointId}`} className="min-h-12 min-w-12 px-3 text-xs font-semibold text-[var(--accent)]">Edit</button>
+                    )}
                     {/* Hint nudge */}
                     <div className="flex flex-col items-center justify-center w-6 bg-[color-mix(in_srgb,var(--bg-secondary)_50%,transparent)]">
                       <span className="text-[8px] text-[var(--text-muted)] [writing-mode:vertical-lr] opacity-40">swipe</span>
@@ -628,9 +695,53 @@ export function MobileFieldbookShell({
         <span>Add reading</span>
       </button>
 
+      {/* Reject-with-reason dialog. The observation is never deleted. */}
+      {rejectTarget && (
+        <div className="fixed inset-0 z-[75] flex items-end bg-black/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label="Reject observation">
+          <div className="w-full rounded-2xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4">
+            <h2 className="text-sm font-semibold text-[var(--text-primary)]">Reject this observation?</h2>
+            <p className="mt-1 text-xs text-[var(--text-secondary)]">
+              It stays in the book, struck through, is excluded from computation, and the rejection is recorded in the audit trail.
+            </p>
+            <label className="mt-3 block text-xs font-medium text-[var(--text-secondary)]">
+              Reason (required)
+              <textarea
+                value={rejectReason}
+                onChange={(event) => { setRejectReason(event.target.value); setRejectError('') }}
+                rows={2}
+                className="mt-1 block min-h-11 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-base text-[var(--text-primary)]"
+              />
+            </label>
+            {rejectError && <p role="alert" className="mt-1 text-xs text-red-400">{rejectError}</p>}
+            <div className="mt-3 flex gap-2">
+              <button
+                type="button"
+                className="flex-1 rounded-xl border border-amber-500/40 bg-amber-500/15 px-3 py-2.5 text-sm font-semibold text-amber-300"
+                onClick={() => {
+                  const reason = rejectReason.trim()
+                  if (!reason) { setRejectError('Enter the reason for rejecting this observation.'); return }
+                  onRejectRow(rejectTarget, reason)
+                  setRejectTarget(null)
+                  setRejectReason('')
+                }}
+              >
+                Reject observation
+              </button>
+              <button
+                type="button"
+                className="flex-1 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2.5 text-sm font-semibold text-[var(--text-secondary)]"
+                onClick={() => { setRejectTarget(null); setRejectReason(''); setRejectError('') }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showForm && (
         <UniversalMobileObservationForm
-          initialValues={editingRow}
+          initialValues={editingValues}
           surveyType={surveyType}
           stationName={stationName}
           lastStation={lastStation}
