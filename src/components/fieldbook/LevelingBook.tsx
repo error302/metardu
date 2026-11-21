@@ -44,8 +44,8 @@ export function LevelingBook({
   setClosingRL,
   setDistanceKm,
   setLevelMethod,
-  closureCoefficient,
-  setClosureCoefficient,
+  closureCoefficient = '10',
+  setClosureCoefficient = () => {},
   levelRows,
   setLevelRows,
   computed,
@@ -65,8 +65,8 @@ export function LevelingBook({
   setDistanceKm: Dispatch<SetStateAction<string>>
   setLevelMethod: Dispatch<SetStateAction<'rise_and_fall' | 'height_of_collimation'>>
   /** Allowable-misclosure coefficient k in mm/√km (default 10). */
-  closureCoefficient: string
-  setClosureCoefficient: Dispatch<SetStateAction<string>>
+  closureCoefficient?: string
+  setClosureCoefficient?: Dispatch<SetStateAction<string>>
   levelRows: LevelRow[]
   setLevelRows: Dispatch<SetStateAction<LevelRow[]>>
   computed: { ok: true; calc: LevelingResult } | { ok: false; errors: string[] }
