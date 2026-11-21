@@ -890,7 +890,7 @@ function MapWorkspace() {
   }), [
     mapInstance, popupRef, mapReady, initError, projectCount, basemap, drawMode,
     activeDigitizingTool, offsetDistance, rotateAngle, snappingEnabled, showSnappingOptions,
-    measureMode, editMode, moveMode, mouseCoord, gpsTracking, gpsPos, featureCount, projectPointsError, importMsg,
+    measureMode, editMode, moveMode, mouseCoord, gpsTracking, gpsPos, featureCount, projectPointsError, zoneWarning, importMsg,
     panelOpen, dragHint, selectedFeature, selectedFeatures, featureName, measureResult, layerOpacity,
     stakeoutTarget, stakeoutActive, stakeoutState, audioMuted, saveMsg,
     offlineDialogOpen, showAnnotations, projectSearch, isMobile, showOsmBuildings,
