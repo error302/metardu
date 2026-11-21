@@ -1,5 +1,6 @@
 /** @jest-environment node */
 import { NextRequest } from 'next/server'
+import type { QueryResult, QueryResultRow } from 'pg'
 import { GET, POST, PATCH, DELETE } from './route'
 import { db } from '@/lib/db'
 import { canAccessProject } from '@/lib/auth/rbac'
@@ -23,6 +24,11 @@ jest.mock('@/lib/apiHandler', () => ({
 const context = { params: Promise.resolve({ id: projectId }) }
 const mockQuery = jest.mocked(db.query)
 
+/** db.query returns a full QueryResult; the mock rows alone must satisfy it. */
+function result(rows: unknown[]): QueryResult<QueryResultRow> {
+  return { rows: rows as QueryResultRow[], command: '', rowCount: rows.length, oid: 0, fields: [] }
+}
+
 function request(method: string, body?: unknown, query = '') {
   return new NextRequest(`http://localhost/api/projects/${projectId}/members${query}`, {
     method,
@@ -35,24 +41,24 @@ beforeEach(() => {
   jest.clearAllMocks()
   mockQuery.mockImplementation(async (sql: string) => {
     if (sql.includes('organization_id FROM projects')) {
-      return { rows: [{ user_id: ownerId, organization_id: null }] }
+      return result([{ user_id: ownerId, organization_id: null }])
     }
     if (sql.includes('AS owner_id')) {
-      return { rows: [{ owner_id: ownerId, owner_name: 'Owner', owner_email: 'owner@example.com' }] }
+      return result([{ owner_id: ownerId, owner_name: 'Owner', owner_email: 'owner@example.com' }])
     }
     if (sql.includes('FROM project_members pm')) {
-      return { rows: [{ id: 'm1', user_id: memberId, role: 'surveyor', created_at: new Date(0), name: 'Member', email: 'member@example.com' }] }
+      return result([{ id: 'm1', user_id: memberId, role: 'surveyor', created_at: new Date(0), name: 'Member', email: 'member@example.com' }])
     }
     if (sql.includes('FROM users WHERE lower(email)')) {
-      return { rows: [{ id: memberId, email: 'member@example.com', full_name: 'Member' }] }
+      return result([{ id: memberId, email: 'member@example.com', full_name: 'Member' }])
     }
-    if (sql.includes('SELECT id FROM project_members WHERE')) return { rows: [] }
-    if (sql.includes('INSERT INTO project_members')) return { rows: [{ id: 'm1' }] }
-    if (sql.includes('UPDATE project_members')) return { rows: [{ id: 'm1' }] }
+    if (sql.includes('SELECT id FROM project_members WHERE')) return result([])
+    if (sql.includes('INSERT INTO project_members')) return result([{ id: 'm1' }])
+    if (sql.includes('UPDATE project_members')) return result([{ id: 'm1' }])
     if (sql.includes('DELETE FROM project_members')) {
-      return { rows: [{ id: 'm1', user_id: memberId, role: 'surveyor' }] }
+      return result([{ id: 'm1', user_id: memberId, role: 'surveyor' }])
     }
-    return { rows: [] }
+    return result([])
   })
 })
 
@@ -90,9 +96,9 @@ it('a viewer member cannot invite, change roles, or revoke', async () => {
   // Caller is a member here, not the owner in the scope row.
   mockQuery.mockImplementation(async (sql: string) => {
     if (sql.includes('organization_id FROM projects')) {
-      return { rows: [{ user_id: '99999999-9999-4999-8999-999999999999', organization_id: null }] }
+      return result([{ user_id: '99999999-9999-4999-8999-999999999999', organization_id: null }])
     }
-    return { rows: [] }
+    return result([])
   })
   expect((await POST(request('POST', { email: 'member@example.com', role: 'surveyor' }), context)).status).toBe(403)
   expect((await PATCH(request('PATCH', { userId: memberId, role: 'viewer' }), context)).status).toBe(403)
@@ -109,11 +115,11 @@ it('owner can change a role and revoke a membership', async () => {
 it('inviting the project owner is a conflict, not a shadow membership', async () => {
   jest.mocked(canAccessProject).mockResolvedValue('owner')
   mockQuery.mockImplementation(async (sql: string) => {
-    if (sql.includes('organization_id FROM projects')) return { rows: [{ user_id: ownerId, organization_id: null }] }
+    if (sql.includes('organization_id FROM projects')) return result([{ user_id: ownerId, organization_id: null }])
     if (sql.includes('FROM users WHERE lower(email)')) {
-      return { rows: [{ id: ownerId, email: 'owner@example.com', full_name: 'Owner' }] }
+      return result([{ id: ownerId, email: 'owner@example.com', full_name: 'Owner' }])
     }
-    return { rows: [] }
+    return result([])
   })
   const res = await POST(request('POST', { email: 'owner@example.com', role: 'viewer' }), context)
   expect(res.status).toBe(409)

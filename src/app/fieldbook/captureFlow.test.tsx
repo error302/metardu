@@ -65,7 +65,7 @@ test('project and saved-book reads retain the checked account precondition', asy
 })
 test('the actual Sync action delegates one bounded batch and reports work deferred on the device', async () => {
   await openPage()
-  jest.mocked(syncPendingOperations).mockResolvedValueOnce({ synced: 0, failed: 0, conflicts: 0 })
+  jest.mocked(syncPendingOperations).mockResolvedValueOnce({ synced: 0, failed: 0, conflicts: 0, unresolved: [] })
   jest.mocked(listBookEdits).mockResolvedValueOnce([{ edit: { requestId: book.id, projectId: project, bookId: book.id, type: book.type, name: book.name, data: {}, basis: { kind: 'new' } }, result: null }])
   jest.mocked(sendBookEdits).mockResolvedValueOnce({ synced: 20, failed: 0, deferred: 5, attempted: 20 })
   fireEvent.click(screen.getByRole('button', { name: 'field.syncOffline' }))
