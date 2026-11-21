@@ -10,6 +10,7 @@ import { MAX_POINT_IMPORT_BYTES, MAX_POINT_IMPORT_ROWS, preparePointImport, type
 import { validatePointImportReceipt } from '@/lib/import/pointImportClient'
 import { initialPointImportSubmission, pointImportSubmissionReducer } from '@/lib/import/pointImportSubmission'
 import { resolveDeclaredStageReference } from '@/lib/workspaces/stageReference'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 
 interface Project { id:string; name:string }
 interface Source { name:string; text:string; size:number; hash:string }
@@ -100,6 +101,16 @@ export default function ImportPage() {
     if(!draft)return 'Choose a file and project to begin.'
     try{preparePointImport(draft,reference);return ''}catch(error){return error instanceof Error?error.message:'Review the import settings.'}
   },[draft,reference])
+  // Auto-apply the declared project grid to an empty source-CRS field, once.
+  // The surveyor's own pick (or a deliberate clear) is never overwritten, and
+  // a source that differs from the project still needs the transformation
+  // approval checkbox below before anything is committed.
+  const sourceCrsUserRef=useRef(false)
+  useEffect(()=>{
+    if(sourceCrsUserRef.current)return
+    if(reference.code&&sourceCrs===''){setSourceCrs(reference.code);setConfirmTransformation(false)}
+  },[reference.code,sourceCrs])
+  const handleSourceCrsChange=(value:string)=>{sourceCrsUserRef.current=true;setSourceCrs(value);setConfirmTransformation(false)}
   async function readFile(file:File) {
     if (locked || reading || sending.current) return
     const generation = ++fileGeneration.current
@@ -196,7 +207,21 @@ export default function ImportPage() {
           {loadingContext&&<p role="status" className="text-sm">Reading the saved project reference…</p>}
           {contextError&&<div role="alert" className="text-sm"><p>{contextError}</p><button className={`${buttonClass} mt-2`} onClick={()=>void readContext(projectId).then(value=>{setContext(value);setContextError('')}).catch((error:unknown)=>setContextError(error instanceof Error?error.message:'Project reference could not load.'))}>Reload project reference</button></div>}
           {context&&<div className="rounded-md bg-[var(--bg-secondary)] p-3 text-sm"><p className="font-medium">{reference.code??'Project reference not declared'}</p><p className="mt-1 text-xs text-[var(--text-secondary)]">{reference.name} · Height datum: {reference.verticalDatum??'not declared'}</p><Link href={`/project/${projectId}/control`} className="mt-2 inline-flex min-h-11 items-center text-xs underline">Review project reference →</Link></div>}
-          <label className="block text-sm">Source horizontal CRS<input aria-label="Source horizontal CRS" aria-describedby="source-crs-help" className={inputClass} placeholder="For example EPSG:32737" value={sourceCrs} onChange={event=>{setSourceCrs(event.target.value);setConfirmTransformation(false)}} autoComplete="off" spellCheck={false}/><span id="source-crs-help" className="mt-2 block text-xs text-[var(--text-secondary)]">Read this from the export settings. The destination declaration does not establish the source CRS.</span></label>
+          {/* Selected from the registry, never typed: a mistyped source code
+              silently shifts every imported point. Pre-filled from the
+              project's declared reference, with the raw-data guardrail that
+              a differing source still needs the transformation approval. */}
+          <div className="text-sm">
+            <CrsPicker
+              id="source-crs"
+              label="Source horizontal CRS"
+              value={sourceCrs}
+              onChange={handleSourceCrsChange}
+              provenance={sourceCrs&&reference.code&&sourceCrs===reference.code?(reference.source==='declared'?'from the project\u2019s declared reference system':reference.source==='legacy'?'from the project\u2019s saved datum and zone fields':undefined):undefined}
+              hint={reference.code?'Pre-filled from the project declaration. Confirm it matches the controller export settings — a wrong source label silently shifts every point.':'The project has no declared reference; pick the CRS the controller file is in (read it from the export settings).'}
+            />
+            <span id="source-crs-help" className="sr-only">The destination declaration does not establish the source CRS.</span>
+          </div>
           {parsed?.normalizedMetres?<p className="rounded-md bg-[var(--bg-secondary)] p-3 text-sm">Encoded file units are converted to metres by the parser. No second unit conversion is applied.</p>:<div className="grid gap-4 sm:grid-cols-2"><label className="block text-sm">Horizontal units<select className={inputClass} value={coordinateUnit} onChange={event=>setCoordinateUnit(event.target.value as typeof coordinateUnit)}>{units.map(([value,label])=><option value={value} key={value}>{label}</option>)}<option value="degrees">Decimal degrees (longitude, latitude)</option></select></label><label className="block text-sm">Height units<select className={inputClass} value={heightUnit} onChange={event=>setHeightUnit(event.target.value as typeof heightUnit)}>{units.map(([value,label])=><option value={value} key={value}>{label}</option>)}</select></label></div>}
           <label className="flex min-h-12 items-start gap-3 text-sm leading-5"><input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[var(--accent)]" checked={confirmTransformation} onChange={event=>setConfirmTransformation(event.target.checked)}/><span>I approve the horizontal transformation from the declared source CRS to the project CRS, if they differ.</span></label>
           <label className="flex min-h-12 items-start gap-3 text-sm leading-5"><input type="checkbox" className="mt-1 h-5 w-5 shrink-0 accent-[var(--accent)]" checked={confirmVerticalDatum} onChange={event=>setConfirmVerticalDatum(event.target.checked)}/><span>Source heights use the declared project vertical datum. This import does not perform a height datum transformation.</span></label>

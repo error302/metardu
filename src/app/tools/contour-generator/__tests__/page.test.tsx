@@ -163,7 +163,8 @@ describe('contour survey observation integrity', () => {
     const download = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
     Object.assign(URL, { createObjectURL: jest.fn(() => 'blob:synthetic-pdf'), revokeObjectURL: jest.fn() })
     importSurvey()
-    fireEvent.change(screen.getByLabelText('Horizontal CRS / EPSG'), { target: { value: fixtureCrs } })
+    // The CRS is selected from the registry picker, not typed into a field.
+    fireEvent.change(screen.getByLabelText('Horizontal CRS (survey plane)'), { target: { value: fixtureCrs } })
     fireEvent.change(screen.getByLabelText('Vertical datum / height source'), { target: { value: 'SYNTHETIC BM' } })
     fireEvent.click(screen.getByRole('checkbox'))
     await generate(); fireEvent.click(screen.getByRole('button', { name: 'Export' }))

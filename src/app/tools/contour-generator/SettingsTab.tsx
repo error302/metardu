@@ -8,6 +8,8 @@ import type { ContourLine, TINSurface } from '@/lib/engine/contours';
 import type { Bounds, VolumeResult } from './types';
 import { fmt, formatContourHeight } from './helpers';
 import { contourElevationAtIndex } from '@/lib/topo/tinContours';
+import { contourIntervalGuidance } from '@/lib/topo/contourAccuracy';
+import { CrsPicker } from '@/components/spatial/CrsPicker';
 
 interface SettingsTabProps {
   contourInterval: number;
@@ -20,6 +22,11 @@ interface SettingsTabProps {
   setHorizontalCrs: (v: string) => void;
   verticalDatum: string;
   setVerticalDatum: (v: string) => void;
+  /** Declared source vertical RMSE text (metres). Empty = not assessed. */
+  sourceVerticalRmseText: string;
+  setSourceVerticalRmseText: (v: string) => void;
+  /** Provenance shown when the CRS was auto-applied from the project declaration. */
+  crsProvenance?: string;
   heightsInMetres: boolean;
   setHeightsInMetres: (value: boolean) => void;
   points: { length: number } & unknown;
@@ -48,6 +55,9 @@ export function SettingsTab({
   setHorizontalCrs,
   verticalDatum,
   setVerticalDatum,
+  sourceVerticalRmseText,
+  setSourceVerticalRmseText,
+  crsProvenance,
   heightsInMetres,
   setHeightsInMetres,
   points,
@@ -67,6 +77,9 @@ export function SettingsTab({
   const heightUnits = heightsInMetres ? 'm' : 'source units';
   let indexSpacing = 'unavailable';
   try { if (indexMultiplier >= 1) indexSpacing = formatContourHeight(contourElevationAtIndex(contourInterval, indexMultiplier)); } catch { /* Invalid settings remain editable; generation explains the error. */ }
+  // Interval legitimacy is checked against the DECLARED source accuracy.
+  // METARDU never invents an RMSE — the warning only exists when declared.
+  const intervalGuidance = contourIntervalGuidance({ contourIntervalM: contourInterval, sourceVerticalRmseText });
   return (
     <div className="space-y-6">
       <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
@@ -84,10 +97,15 @@ export function SettingsTab({
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white focus:outline-none focus:border-[var(--accent)]" />
           </div>
           <div>
-            <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-horizontal-crs">Horizontal CRS / EPSG</label>
-            <input id="contour-horizontal-crs" value={horizontalCrs} onChange={event => setHorizontalCrs(event.target.value)} maxLength={120}
-              placeholder="EPSG:21037 (use your source CRS)"
-              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]" />
+            <CrsPicker
+              id="contour-horizontal-crs"
+              label="Horizontal CRS (survey plane)"
+              value={horizontalCrs}
+              onChange={setHorizontalCrs}
+              required
+              provenance={crsProvenance}
+              hint="Select the CRS the source coordinates are in. Coordinates are exported as entered — no transformation is applied."
+            />
           </div>
           <div>
             <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-vertical-datum">Vertical datum / height source</label>
@@ -96,6 +114,39 @@ export function SettingsTab({
               className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]" />
           </div>
         </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-3">
+          <div>
+            <label className="block text-sm text-[var(--text-secondary)] mb-1" htmlFor="contour-vertical-rmse">
+              Source vertical RMSE (m) — from your control report
+            </label>
+            <input id="contour-vertical-rmse" aria-label="Source vertical RMSE in metres"
+              type="number" step="0.001" min="0" inputMode="decimal"
+              value={sourceVerticalRmseText}
+              onChange={e => setSourceVerticalRmseText(e.target.value)}
+              placeholder="Leave empty if not assessed"
+              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder:text-zinc-500 focus:outline-none focus:border-[var(--accent)]"
+            />
+            <p className="text-xs text-zinc-500 mt-1">
+              Declared, never assumed: METARDU does not guess the accuracy of your source data.
+            </p>
+          </div>
+          <div aria-live="polite">
+            {intervalGuidance.rmseInvalid ? (
+              <p role="alert" className="text-xs text-red-300">{intervalGuidance.warning}</p>
+            ) : intervalGuidance.warning ? (
+              <p role="alert" className="rounded-lg border border-amber-400/30 bg-amber-400/10 p-3 text-xs text-amber-200">{intervalGuidance.warning}</p>
+            ) : intervalGuidance.nmasEquivalentCiM != null ? (
+              <p className="text-xs text-[var(--text-secondary)]">
+                Guideline interval for the declared source accuracy: {intervalGuidance.nmasEquivalentCiM.toFixed(3)} m (3.29 × RMSEv; ASPRS 1990 Class 1: {intervalGuidance.asprs1990Class1CiM?.toFixed(3)} m). The basis is printed with exports.
+              </p>
+            ) : (
+              <p className="text-xs text-[var(--text-muted)]">
+                Declare the source vertical RMSE to check the contour interval against the source accuracy (guideline ≈ 3.29 × RMSEv, ASPRS Ed. 2 Table B.6).
+              </p>
+            )}
+          </div>
+        </div>
+
         <label className="mb-3 flex min-h-11 items-center gap-3 text-sm text-[var(--text-secondary)]">
           <input type="checkbox" checked={heightsInMetres} onChange={event => setHeightsInMetres(event.target.checked)} />
           I confirm that the source height values are in metres.

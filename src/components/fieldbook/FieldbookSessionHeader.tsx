@@ -7,20 +7,55 @@
  * printed with the export.
  */
 
+import { useEffect, useRef } from 'react'
 import { ChevronDown } from 'lucide-react'
 import type { FieldbookSession } from '@/app/fieldbook/types'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
+import { applyDeclaredCrsIfEmpty, useProjectReferenceCrs } from '@/components/spatial/useProjectReferenceCrs'
 
 type Props = {
   session: FieldbookSession
   onChange: (patch: Partial<FieldbookSession>) => void
   /** Mobile renders the same fields with larger touch targets. */
   compact?: boolean
+  /**
+   * When set, the project's declared reference system is auto-applied to an
+   * empty session CRS — one less choice to get wrong in the field. The
+   * surveyor can still pick a different grid for the book.
+   */
+  projectId?: string
 }
 
 const inputClass =
   'mt-1 block min-h-11 w-full min-w-0 rounded-md border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-2 text-base md:text-sm'
 
-export function FieldbookSessionHeader({ session, onChange, compact = false }: Props) {
+export function FieldbookSessionHeader({ session, onChange, compact = false, projectId }: Props) {
+  const declared = useProjectReferenceCrs(projectId)
+  // Once the surveyor picks a CRS (or clears the field), auto-apply stands
+  // down for this header — the tool never fights the user's choice.
+  const userPickedRef = useRef(false)
+
+  // Auto-apply the declared project grid while the session CRS is empty.
+  // A value the surveyor picked is never overwritten.
+  useEffect(() => {
+    if (userPickedRef.current) return
+    const applied = applyDeclaredCrsIfEmpty(session.crs, declared)
+    if (applied) onChange({ crs: applied })
+  }, [session.crs, declared, onChange])
+
+  const handleCrsChange = (crs: string) => {
+    userPickedRef.current = true
+    onChange({ crs })
+  }
+
+  const provenance = session.crs && session.crs === declared.crs
+    ? declared.source === 'declared'
+      ? 'from the project\u2019s declared reference system'
+      : declared.source === 'legacy'
+        ? 'from the project\u2019s saved datum and zone fields'
+        : undefined
+    : undefined
+
   const summaryParts = [
     session.date ? `Date ${session.date}` : 'Date not set',
     session.party.trim() || 'Party not set',
@@ -141,16 +176,18 @@ export function FieldbookSessionHeader({ session, onChange, compact = false }: P
           </select>
         </label>
 
-        <label className="text-xs font-medium text-[var(--text-secondary)]">
-          CRS / survey grid
-          <input
-            type="text"
-            className={inputClass}
-            placeholder="e.g. EPSG:32637 — as declared"
+        {/* The survey grid is selected from the registry, never typed: a
+            mistyped EPSG code silently moves every recorded observation. */}
+        <div className="text-xs font-medium text-[var(--text-secondary)]">
+          <CrsPicker
+            id="fieldbook-session-crs"
+            label="CRS / survey grid"
             value={session.crs}
-            onChange={(event) => onChange({ crs: event.target.value })}
+            onChange={handleCrsChange}
+            provenance={provenance}
+            hint="Recorded with the book and printed with exports."
           />
-        </label>
+        </div>
       </div>
 
       <p className="mt-3 text-xs text-[var(--text-muted)]">

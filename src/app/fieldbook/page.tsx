@@ -1498,7 +1498,7 @@ export default function DigitalFieldBookPage() {
           {workspace}
           <div className="mx-4 my-5">{instrumentPanel}</div>
           <div className="mx-4 mb-4">
-            <FieldbookSessionHeader compact session={session} onChange={updateSession} />
+            <FieldbookSessionHeader compact session={session} onChange={updateSession} projectId={projectId} />
           </div>
           <MobileFieldbookShell
             entryRequest={entryRequest}
@@ -1642,7 +1642,7 @@ export default function DigitalFieldBookPage() {
         </div>
 
         <div id="fieldbook-entry" className="lg:col-span-9 space-y-4">
-          <FieldbookSessionHeader session={session} onChange={updateSession} />
+          <FieldbookSessionHeader session={session} onChange={updateSession} projectId={projectId} />
           <div className="flex gap-2 overflow-x-auto pb-1">
             <TabButton active={type === 'leveling'} onClick={() => resetForType('leveling')}>
               {t('leveling.title')}

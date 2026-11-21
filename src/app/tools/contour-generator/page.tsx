@@ -6,6 +6,7 @@ import { Mountain } from 'lucide-react';
 import { useSearchParams } from 'next/navigation';
 import { useSession } from 'next-auth/react';
 import { contourElevationAtIndex } from '@/lib/topo/tinContours';
+import { applyDeclaredCrsIfEmpty, useProjectReferenceCrs } from '@/components/spatial/useProjectReferenceCrs';
 import {
   computeVolumeFromTIN,
   type SpotHeight,
@@ -94,7 +95,26 @@ function ContourWorkspace({ projectId, userId }: { projectId: string | null; use
   const [mapTitle, setMapTitle] = useState('Topographic Contour Plan')
   const [horizontalCrs, setHorizontalCrs] = useState('')
   const [verticalDatum, setVerticalDatum] = useState('')
+  // Declared source vertical RMSE (metres) as entered; empty = not assessed.
+  const [sourceVerticalRmseText, setSourceVerticalRmseText] = useState('')
   const [heightsInMetres, setHeightsInMetres] = useState(false)
+  // Auto-apply the project's declared grid to an empty CRS field. A value
+  // the surveyor picked wins and auto-apply stands down (userCrsRef).
+  const declaredReference = useProjectReferenceCrs(projectId)
+  const userCrsRef = useRef(false)
+  const handleHorizontalCrsChange = useCallback((v: string) => { userCrsRef.current = true; setHorizontalCrs(v) }, [])
+  useEffect(() => {
+    if (userCrsRef.current) return
+    const applied = applyDeclaredCrsIfEmpty(horizontalCrs, declaredReference)
+    if (applied) setHorizontalCrs(applied)
+  }, [horizontalCrs, declaredReference])
+  const crsProvenance = horizontalCrs && horizontalCrs === declaredReference.crs
+    ? declaredReference.source === 'declared'
+      ? 'from the project\u2019s declared reference system'
+      : declaredReference.source === 'legacy'
+        ? 'from the project\u2019s saved datum and zone fields'
+        : undefined
+    : undefined
   const [exportError, setExportError] = useState('')
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState('');
@@ -160,6 +180,7 @@ function ContourWorkspace({ projectId, userId }: { projectId: string | null; use
         setRawText(text); setPoints(parsed.points); setParseErrors(parsed.errors);
         setSourceReference(parsed.reference ?? null);
         setHorizontalCrs(parsed.reference?.horizontalCrs ?? ''); setVerticalDatum(parsed.reference?.verticalDatum ?? '');
+        setSourceVerticalRmseText('');
         setImportStats({ delimiter: 'project CSV', hasHeader: true }); setProjectSource(true);
         if (!Array.isArray(json.data) || json.data.length === 0) setProjectError('This project has no available point observations. No terrain was assumed.');
       } catch (error) {
@@ -176,7 +197,7 @@ function ContourWorkspace({ projectId, userId }: { projectId: string | null; use
     setRawText(text); setPoints([]); setBreaklines([]); setGeneration(null);
     setParseErrors([]); setImportStats(null); setFileName(''); setProjectSource(false);
     setProjectLoading(false); setProjectError(''); setIsParsing(false);
-    setSourceReference(null); setHorizontalCrs(''); setVerticalDatum(''); setHeightsInMetres(false);
+    setSourceReference(null); setHorizontalCrs(''); setVerticalDatum(''); setSourceVerticalRmseText(''); setHeightsInMetres(false);
     setGenerateError(''); setExportError('');
   }, []);
 
@@ -203,7 +224,8 @@ function ContourWorkspace({ projectId, userId }: { projectId: string | null; use
     verticalDatum,
     contourInterval,
     heightsInMetres,
-  }), [mapTitle, horizontalCrs, verticalDatum, contourInterval, heightsInMetres])
+    sourceVerticalRmseM: sourceVerticalRmseText,
+  }), [mapTitle, horizontalCrs, verticalDatum, contourInterval, heightsInMetres, sourceVerticalRmseText])
   const referenceIssue = useMemo(() => {
     const issue = contourExportReferenceIssue(exportMetadata)
     if (issue) return issue
@@ -228,6 +250,7 @@ function ContourWorkspace({ projectId, userId }: { projectId: string | null; use
       const result = parseXYZText(text);
       setSourceReference(result.reference ?? null);
       if (result.reference) { setHorizontalCrs(result.reference.horizontalCrs ?? ''); setVerticalDatum(result.reference.verticalDatum ?? ''); setHeightsInMetres(false); }
+      setSourceVerticalRmseText('');
       const spotHeights: SpotHeight[] = result.points.map(p => ({
         name: p.name,
         easting: p.easting,
@@ -555,9 +578,12 @@ function ContourWorkspace({ projectId, userId }: { projectId: string | null; use
           mapTitle={mapTitle}
           setMapTitle={setMapTitle}
           horizontalCrs={horizontalCrs}
-          setHorizontalCrs={setHorizontalCrs}
+          setHorizontalCrs={handleHorizontalCrsChange}
+          crsProvenance={crsProvenance}
           verticalDatum={verticalDatum}
           setVerticalDatum={setVerticalDatum}
+          sourceVerticalRmseText={sourceVerticalRmseText}
+          setSourceVerticalRmseText={setSourceVerticalRmseText}
           heightsInMetres={heightsInMetres}
           setHeightsInMetres={setHeightsInMetres}
           points={points}

@@ -2,6 +2,7 @@ import { contourLabelMidpoint, type ContourLine, type SpotHeight } from '@/lib/e
 import type { Bounds } from './types'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
 import { formatContourHeight } from './helpers'
+import { contourAccuracyBasisLine } from '@/lib/topo/contourAccuracy'
 
 export interface ContourExportMetadata {
   title: string
@@ -9,16 +10,22 @@ export interface ContourExportMetadata {
   verticalDatum: string
   contourInterval: number
   heightsInMetres: boolean
+  /** Declared source vertical RMSE in metres, as entered. Empty = not assessed. */
+  sourceVerticalRmseM?: string
 }
 
 export function validateContourExportReference(metadata: ContourExportMetadata): void {
   const code = metadata.horizontalCrs.trim().split('/')[0].trim()
-  if (!code) throw new RangeError('Enter a registered projected metre CRS (EPSG code) in Settings before exporting.')
+  if (!code) throw new RangeError('Select a registered projected metre CRS in Settings before exporting.')
   const crs = assertProjectedCrs(code)
   if (crs.units !== 'metres') throw new RangeError('Contour exports require a projected metre CRS; source coordinates are not converted.')
   if (!metadata.verticalDatum.trim()) throw new RangeError('Record the vertical datum or site benchmark in Settings before exporting.')
   if (metadata.heightsInMetres !== true) throw new RangeError('Confirm that source heights are in metres in Settings before exporting. No unit conversion is applied.')
   if (!Number.isFinite(metadata.contourInterval) || metadata.contourInterval <= 0) throw new RangeError('The contour interval must be finite and positive.')
+  const rmse = metadata.sourceVerticalRmseM?.trim().replace(',', '.') ?? ''
+  if (rmse && (!Number.isFinite(Number(rmse)) || Number(rmse) <= 0)) {
+    throw new RangeError('The declared source vertical RMSE must be a positive number of metres, or left empty when not assessed.')
+  }
 }
 
 export function contourExportReferenceIssue(metadata: ContourExportMetadata): string | null {
@@ -110,6 +117,9 @@ export function generateDXF(
     '999', `METARDU horizontal CRS: ${clean(metadata.horizontalCrs)}`,
     '999', `METARDU vertical datum: ${clean(metadata.verticalDatum)}`,
     '999', `METARDU contour interval: ${metadata.contourInterval} m; coordinates exported in metres`,
+    ...(contourAccuracyBasisLine(metadata.sourceVerticalRmseM ?? '', metadata.contourInterval)
+      ? ['999', contourAccuracyBasisLine(metadata.sourceVerticalRmseM ?? '', metadata.contourInterval)]
+      : []),
     '0', 'SECTION', '2', 'TABLES',
     '0', 'TABLE', '2', 'LAYER', '5', '1', '330', '0', '100', 'AcDbSymbolTable', '70', String(uniqueElevations.length),
   ]
@@ -293,10 +303,13 @@ export async function generateContourPDF(
   pdf.circle(panelX + 11.5, frame.y + 32, 0.55, 'F')
   pdf.text('Source spot height', panelX + 21, frame.y + 33)
 
+  const accuracyBasis = contourAccuracyBasisLine(metadata.sourceVerticalRmseM ?? '', metadata.contourInterval)
   const metadataRows = [
     ['Contour interval', `${metadata.contourInterval} m`],
     ['Horizontal CRS', crs],
     ['Vertical datum', verticalDatum],
+    ...(metadata.sourceVerticalRmseM?.trim() ? [['Source vertical RMSE (declared)', `${metadata.sourceVerticalRmseM.trim()} m`]] : []),
+    ...(accuracyBasis ? [['Contour interval basis', accuracyBasis.replace(/^METARDU /, '')]] : []),
     ['Source points', String(points.length)],
     ['Contour lines', String(contours.length)],
     ['Elevation range', `${bounds.minZ.toFixed(2)} - ${bounds.maxZ.toFixed(2)} m`],
@@ -312,7 +325,9 @@ export async function generateContourPDF(
     pdf.setTextColor(25, 37, 49)
     const wrapped = pdf.splitTextToSize(value, panelW - 12) as string[]
     pdf.text(wrapped, panelX + 6, rowY + 4)
-    rowY += label === 'Horizontal CRS' && value.length > 36 ? 16 : 12
+    // Row height follows the wrapped value so long provenance lines (the
+    // contour-interval accuracy basis) never overlap the next label.
+    rowY += 8 + wrapped.length * 4
   }
 
   const footerY = 256

@@ -7,6 +7,7 @@
 import type { Bounds, VolumeResult } from './types';
 import { fmt } from './helpers';
 import type { ContourExportMetadata } from './generators';
+import { CONTOUR_INTERVAL_BASIS, contourIntervalGuidance } from '@/lib/topo/contourAccuracy';
 
 interface ExportTabProps {
   exportDXF: () => void;
@@ -33,6 +34,10 @@ export function ExportTab({
   exportError,
   pdfExporting = false,
 }: ExportTabProps) {
+  const intervalGuidance = contourIntervalGuidance({
+    contourIntervalM: metadata.contourInterval,
+    sourceVerticalRmseText: metadata.sourceVerticalRmseM ?? '',
+  });
   return (
     <div className="space-y-6">
       <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-lg p-6">
@@ -134,6 +139,17 @@ export function ExportTab({
         <div className="mt-4 rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 text-xs text-[var(--text-secondary)]">
           <p><strong>Horizontal CRS:</strong> {metadata.horizontalCrs.trim() || 'Not specified in source data'}</p>
           <p className="mt-1"><strong>Vertical datum:</strong> {metadata.verticalDatum.trim() || 'Not specified in source data'}</p>
+          {metadata.sourceVerticalRmseM?.trim() ? (
+            <>
+              <p className="mt-1"><strong>Source vertical RMSE (declared):</strong> {metadata.sourceVerticalRmseM.trim()} m</p>
+              <p className="mt-1"><strong>Contour interval accuracy basis:</strong> {CONTOUR_INTERVAL_BASIS}</p>
+              {intervalGuidance.warning && (
+                <p role="alert" className="mt-2 text-amber-300">{intervalGuidance.warning}</p>
+              )}
+            </>
+          ) : (
+            <p className="mt-1"><strong>Source vertical RMSE:</strong> not declared — the contour interval is not checked against any source accuracy.</p>
+          )}
           <p className="mt-2 text-amber-300">GeoJSON export is withheld until a verified WGS 84 coordinate transformation is available. Projected Easting/Northing must not be labelled as RFC 7946 longitude/latitude.</p>
         </div>
       </div>
