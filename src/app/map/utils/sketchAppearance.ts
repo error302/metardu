@@ -38,7 +38,9 @@ export function createSketchStyle(
 ) {
   const draft = variant === 'draft'
   const selected = variant === 'selected'
-  const stroke = new Stroke({ width: selected ? 3 : draft ? 2 : 2.5, lineDash: draft ? [8, 4] : undefined })
+  // Sketches are dashed in every state so they can never be mistaken for
+  // surveyed boundaries (solid). Selected sketches stay dashed, just heavier.
+  const stroke = new Stroke({ width: selected ? 3 : draft ? 2 : 2.5, lineDash: [8, 4] })
   const image = new CircleStyle({
     radius: defaultSketchAppearance.pointSize / 2,
     fill: new Fill({ color: '#D17B47' }),

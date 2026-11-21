@@ -22,6 +22,7 @@
 
 import { readSketchPointDetails, updateSketchPointDetails, type SketchPointEditor } from '@/app/map/utils/sketchPointDetails'
 import { applySketchStrokeOpacity, createSketchStyle, type SketchAppearance } from '@/app/map/utils/sketchAppearance'
+import { isSketchFeature } from '@/app/map/utils/sketchFeatures'
 import { useEffect, useRef } from 'react'
 import { logger } from '@/lib/logger'
 import type { MapCleanupRefs } from '@/lib/map/olTypes'
@@ -228,6 +229,9 @@ export function useMapInit(params: UseMapInitParams) {
           source: drawSource,
           // Use a style function that adapts to feature type + zoom
           style: (feature: import('ol/Feature').FeatureLike, resolution: number) => {
+            // Sketches always render as sketches (dashed sienna) — a finished
+            // polygon sketch must never look like a registered parcel.
+            if (isSketchFeature(feature as InstanceType<typeof Feature>)) return sketchStyle(feature)
             // For drawn features, use the enhanced SoK style
             const geomType = feature.getGeometry()?.getType()
             if (geomType === 'Polygon') {

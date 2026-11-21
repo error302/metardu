@@ -11,6 +11,7 @@ import type VectorSource from 'ol/source/Vector'
 import type Select from 'ol/interaction/Select'
 import { SRID_3857 } from '@/lib/map/projection'
 import { logger } from '@/lib/logger'
+import { inheritSketchTag, isSketchFeature, tagSketchFeature } from '@/app/map/utils/sketchFeatures'
 
 export type DigitizingTool = 'draw' | 'split' | 'merge' | 'reshape' | 'rotate' | 'offset'
 type Coordinate = [number, number]
@@ -178,6 +179,7 @@ export function useDigitizingTools({
               new FeatureCtor({ geometry: new Polygon([polygon1]), source: 'split' }),
               new FeatureCtor({ geometry: new Polygon([polygon2]), source: 'split' }),
             ]
+            replacements.forEach((replacement) => inheritSketchTag(targetFeature, replacement))
             drawSource.removeFeature(targetFeature)
             drawSource.addFeatures(replacements)
             selectInteractionRef.current?.clearSelection()
@@ -188,6 +190,7 @@ export function useDigitizingTools({
           } else {
             const reshaped = (result as Coordinate[]).map(([e, n]) => transform([e, n], currentSurveyCrs, SRID_3857))
             const replacement = new FeatureCtor({ geometry: new Polygon([reshaped]), source: 'reshape' })
+            inheritSketchTag(targetFeature, replacement)
             drawSource.removeFeature(targetFeature)
             drawSource.addFeature(replacement)
             selectInteractionRef.current?.clearSelection()
@@ -291,6 +294,7 @@ export function useDigitizingTools({
           source: 'merge',
           mergedFeatureCount: polygons.length,
         })
+        if (polygons.some((feature) => isSketchFeature(feature))) tagSketchFeature(mergedFeature)
         polygons.forEach((feature) => drawSource.removeFeature(feature))
         drawSource.addFeature(mergedFeature)
         selectInteractionRef.current?.clearSelection()
@@ -386,11 +390,13 @@ export function useDigitizingTools({
       const newGeometry = isPolygon
         ? new (await import('ol/geom/Polygon')).default([offset3857])
         : new (await import('ol/geom/LineString')).default(offset3857)
-      drawSource.addFeature(new FeatureCtor({
+      const offsetFeature = new FeatureCtor({
         geometry: newGeometry,
         source: 'offset',
         offsetDistance,
-      }))
+      })
+      inheritSketchTag(selectedFeature, offsetFeature)
+      drawSource.addFeature(offsetFeature)
       pushHistory()
       report(setSaveMsg, `Created ${Math.abs(offsetDistance)} m offset.`, 3500)
     } catch (error) {

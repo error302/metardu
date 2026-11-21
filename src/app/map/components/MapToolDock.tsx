@@ -32,6 +32,7 @@ import { ManualPointEntry } from './ManualPointEntry'
 import { MapBasemapBar } from './MapWorkspaceHeader'
 import { MapCoordSearch } from './MapCoordSearch'
 import { MapCaptureBranding } from './MapCaptureBranding'
+import { getCaptureAvailability } from '@/app/map/utils/captureAvailability'
 import { useVisibleBasemap } from '../hooks/useVisibleBasemap'
 import { TopologyGuardrail } from '@/components/survey/TopologyGuardrail'
 import { useSearchParams } from 'next/navigation'
@@ -116,24 +117,30 @@ function ActionBtn({ label, icon, isActive, onClick, danger, shortcut, disabled,
   )
 }
 
-function ToolBtn({ label, icon, isActive, onClick }: {
+function ToolBtn({ label, icon, isActive, onClick, disabled, disabledReason }: {
   label: string
   icon: React.ReactNode
   isActive: boolean
   onClick: () => void
+  disabled?: boolean
+  disabledReason?: string
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-        aria-pressed={isActive}
-      title={label}
+      disabled={disabled}
+      aria-pressed={isActive}
+      aria-disabled={disabled || undefined}
+      title={disabled && disabledReason ? `${label} — ${disabledReason}` : label}
       className={`
         flex flex-col items-center justify-center gap-1 rounded-xl transition-all duration-150
         w-full min-h-[50px] shrink-0 relative
-        ${isActive
-          ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'
-          : 'bg-white/[0.02] border border-white/[0.05] text-[var(--text-secondary)] hover:bg-white/[0.05] hover:text-[var(--text-primary)]'}
+        ${disabled
+          ? 'opacity-40 cursor-not-allowed bg-white/[0.02] border border-white/[0.05] text-[var(--text-muted)]'
+          : isActive
+            ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)] border border-[color-mix(in_srgb,var(--accent)_30%,transparent)] text-[var(--accent)]'
+            : 'bg-white/[0.02] border border-white/[0.05] text-[var(--text-secondary)] hover:bg-white/[0.05] hover:text-[var(--text-primary)]'}
       `}
     >
       <span className="w-5 h-5">{icon}</span>
@@ -229,11 +236,72 @@ export const ReconContent = memo(function ReconContent({ onFitProject }: { onFit
   )
 })
 
+/**
+ * Project picker shown in Capture when no project is linked. Capture tools
+ * stay disabled (with the reason) until a project is active — a register
+ * needs a project, and sketches without one have nowhere durable to live.
+ */
+function CaptureProjectPicker() {
+  const [projects, setProjects] = useState<Array<{ id: string; name: string }>>([])
+  const [selected, setSelected] = useState('')
+  const [loadError, setLoadError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/projects')
+      .then((response) => (response.ok ? response.json() : Promise.reject(new Error(`Projects request failed (${response.status})`))))
+      .then((data: unknown) => {
+        if (cancelled) return
+        const rows = (data as { data?: unknown })?.data
+        const list = Array.isArray(rows)
+          ? rows.flatMap((row) => {
+              const item = row as { id?: unknown; name?: unknown }
+              return typeof item?.id === 'string' && typeof item?.name === 'string' ? [{ id: item.id, name: item.name }] : []
+            })
+          : []
+        setProjects(list)
+      })
+      .catch(() => { if (!cancelled) setLoadError('Projects could not be loaded. Check your connection and sign-in, then reopen Capture.') })
+    return () => { cancelled = true }
+  }, [])
+
+  return (
+    <div className="grid gap-2" data-testid="capture-project-picker">
+      <label htmlFor="capture-project-picker" className="text-xs font-medium text-[var(--text-secondary)]">
+        Link a project to start capturing
+      </label>
+      <select
+        id="capture-project-picker"
+        value={selected}
+        onChange={(event) => setSelected(event.target.value)}
+        className="min-h-12 w-full rounded-lg border border-white/[0.08] bg-white/[0.03] px-3 text-sm text-[var(--text-primary)]"
+      >
+        <option value="">Choose a project…</option>
+        {projects.map((project) => (
+          <option key={project.id} value={project.id}>{project.name}</option>
+        ))}
+      </select>
+      {loadError && <p role="alert" className="text-xs text-red-300">{loadError}</p>}
+      {!loadError && projects.length === 0 && (
+        <p className="text-xs text-[var(--text-muted)]">No projects found yet. Create one from Projects, then return here.</p>
+      )}
+      <Link
+        href={selected ? `/map?projectId=${encodeURIComponent(selected)}` : '#'}
+        aria-disabled={!selected || undefined}
+        className={`btn btn-secondary min-h-12 ${selected ? '' : 'pointer-events-none opacity-40'}`}
+      >
+        Open project map
+      </Link>
+    </div>
+  )
+}
+
 export const CaptureContent = memo(function CaptureContent({
   onPointSaved, onSketchStart,
 }: { onPointSaved: () => void; onSketchStart: () => void }) {
   const ctx = useMapContext()
   const { selectedFeature, currentSurveyCrs, schemeProjectId } = ctx
+  const availability = getCaptureAvailability({ projectId: schemeProjectId, surveyCrs: currentSurveyCrs })
   const viewCrs = ctx.mapInstance.current?.getView().getProjection().getCode() ?? null
   const geometryRevision = selectedFeature?.getGeometry()?.getRevision() ?? 0
   const polygonVertices: SurveyPoint[] = useMemo(() => {
@@ -244,24 +312,38 @@ export const CaptureContent = memo(function CaptureContent({
   return (
     <div className="space-y-0.5">
       <SectionLabel>Project points</SectionLabel>
+      {availability.reason && (
+        <p role="status" className="mb-2 rounded-lg border border-amber-400/30 bg-amber-400/10 px-3 py-2 text-xs text-amber-200">
+          {availability.reason}
+        </p>
+      )}
       <div className="grid gap-2">
-        {schemeProjectId ? <ManualPointEntry projectId={schemeProjectId} onSaved={onPointSaved} /> : <p className="px-1 text-xs text-[var(--text-secondary)]">Open the survey map from a project to key in points to its register.</p>}
-        <Link href={schemeProjectId ? `/field/collect?projectId=${encodeURIComponent(schemeProjectId)}` : '/field/collect'} prefetch={false} className="btn btn-secondary min-h-11">Measure with instrument</Link>
-        <Link href={schemeProjectId ? `/import?projectId=${encodeURIComponent(schemeProjectId)}` : '/import'} prefetch={false} className="btn btn-secondary min-h-11">Import controller file</Link>
+        {schemeProjectId ? <ManualPointEntry projectId={schemeProjectId} onSaved={onPointSaved} /> : <CaptureProjectPicker />}
+        {availability.canRegisterPoints ? (
+          <>
+            <Link href={schemeProjectId ? `/field/collect?projectId=${encodeURIComponent(schemeProjectId)}` : '/field/collect'} prefetch={false} className="btn btn-secondary min-h-11">Measure with instrument</Link>
+            <Link href={schemeProjectId ? `/import?projectId=${encodeURIComponent(schemeProjectId)}` : '/import'} prefetch={false} className="btn btn-secondary min-h-11">Import controller file</Link>
+          </>
+        ) : (
+          <>
+            <button type="button" disabled title={availability.reason ?? undefined} className="btn btn-secondary min-h-11 opacity-40 cursor-not-allowed">Measure with instrument</button>
+            <button type="button" disabled title={availability.reason ?? undefined} className="btn btn-secondary min-h-11 opacity-40 cursor-not-allowed">Import controller file</button>
+          </>
+        )}
       </div>
       <SectionLabel>Map sketch</SectionLabel>
-      <p className="px-1 pb-1 text-xs text-[var(--text-secondary)]">Sketches stay in the drawing. Use Project points for field records.</p>
+      <p className="px-1 pb-1 text-xs text-[var(--text-secondary)]">Sketches (dashed) stay in the drawing and are excluded from survey exports. Use Project points for field records.</p>
       <div className="grid grid-cols-3 gap-1.5">
-        <ToolBtn label="Sketch point"   icon={<MapPin className="w-5 h-5" />}  isActive={ctx.drawMode === 'Point'}      onClick={() => ctx.toggleDraw('Point')}      />
-        <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => { ctx.toggleDraw('LineString'); onSketchStart() }} />
-        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => { ctx.toggleDraw('Polygon'); onSketchStart() }}    />
-        <ToolBtn label="Circle"  icon={<Circle className="w-5 h-5" />}  isActive={ctx.drawMode === 'Circle'}     onClick={() => ctx.toggleDraw('Circle')}     />
+        <ToolBtn label="Sketch point"   icon={<MapPin className="w-5 h-5" />}  isActive={ctx.drawMode === 'Point'}      onClick={() => ctx.toggleDraw('Point')}      disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Line"    icon={<PenTool className="w-5 h-5" />} isActive={ctx.drawMode === 'LineString'} onClick={() => { ctx.toggleDraw('LineString'); onSketchStart() }} disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Polygon" icon={<Hexagon className="w-5 h-5" />} isActive={ctx.drawMode === 'Polygon'}    onClick={() => { ctx.toggleDraw('Polygon'); onSketchStart() }}    disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Circle"  icon={<Circle className="w-5 h-5" />}  isActive={ctx.drawMode === 'Circle'}     onClick={() => ctx.toggleDraw('Circle')}     disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
       </div>
 
       <SectionLabel>Measure</SectionLabel>
       <div className="grid grid-cols-2 gap-1.5">
-        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />}  isActive={ctx.measureMode === 'distance'} onClick={() => { ctx.toggleMeasure('distance'); onSketchStart() }} />
-        <ToolBtn label="Area"     icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'}     onClick={() => { ctx.toggleMeasure('area'); onSketchStart() }}         />
+        <ToolBtn label="Distance" icon={<Ruler className="w-5 h-5" />}  isActive={ctx.measureMode === 'distance'} onClick={() => { ctx.toggleMeasure('distance'); onSketchStart() }} disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Area"     icon={<Hexagon className="w-5 h-5" />} isActive={ctx.measureMode === 'area'}     onClick={() => { ctx.toggleMeasure('area'); onSketchStart() }}         disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
       </div>
       {ctx.measureResult && (
         <div className="mt-1 p-2.5 rounded-lg bg-white/[0.02] border border-white/[0.06]">
@@ -292,8 +374,8 @@ export const CaptureContent = memo(function CaptureContent({
       />
 
       <SectionLabel>Edit</SectionLabel>
-      <ActionBtn label="Move Sketch" icon={<Move className="w-4 h-4" />} isActive={ctx.moveMode} onClick={ctx.toggleMove} />
-      <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} />
+      <ActionBtn label="Move Sketch" icon={<Move className="w-4 h-4" />} isActive={ctx.moveMode} onClick={ctx.toggleMove} disabled={!availability.canSketch} />
+      <ActionBtn label="Modify Vertices" icon={<Edit3 className="w-4 h-4" />} isActive={ctx.editMode} onClick={ctx.toggleEdit} disabled={!availability.canSketch} />
       <details className="py-2 text-xs text-[var(--text-secondary)]">
         <summary className="cursor-pointer py-2">Precision vertex controls</summary>
         <VertexEditToolbarContext />
@@ -302,11 +384,11 @@ export const CaptureContent = memo(function CaptureContent({
 
       <SectionLabel>Advanced</SectionLabel>
       <div className="grid grid-cols-3 gap-1">
-        <ToolBtn label="Split"   icon={<Scissors className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'split'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'split'   ? null : 'split')}   />
-        <ToolBtn label="Merge"   icon={<GitMerge className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'merge'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'merge'   ? null : 'merge')}   />
-        <ToolBtn label="Reshape" icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'reshape'} onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'reshape' ? null : 'reshape')} />
-        <ToolBtn label="Rotate"  icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'rotate'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'rotate'  ? null : 'rotate')}  />
-        <ToolBtn label="Offset"  icon={<Ruler className="w-4 h-4" />}     isActive={ctx.activeDigitizingTool === 'offset'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'offset'  ? null : 'offset')}  />
+        <ToolBtn label="Split"   icon={<Scissors className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'split'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'split'   ? null : 'split')}   disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Merge"   icon={<GitMerge className="w-4 h-4" />}  isActive={ctx.activeDigitizingTool === 'merge'}   onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'merge'   ? null : 'merge')}   disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Reshape" icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'reshape'} onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'reshape' ? null : 'reshape')} disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Rotate"  icon={<RefreshCw className="w-4 h-4" />} isActive={ctx.activeDigitizingTool === 'rotate'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'rotate'  ? null : 'rotate')}  disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
+        <ToolBtn label="Offset"  icon={<Ruler className="w-4 h-4" />}     isActive={ctx.activeDigitizingTool === 'offset'}  onClick={() => ctx.setActiveDigitizingTool(ctx.activeDigitizingTool === 'offset'  ? null : 'offset')}  disabled={!availability.canSketch} disabledReason={availability.reason ?? undefined} />
       </div>
 
       {ctx.activeDigitizingTool === 'offset' && (
@@ -779,6 +861,7 @@ export const MapToolDock = memo(function MapToolDock({
   expanded = true, onExpandedChange, onPointSaved, onFitProject,
 }: { expanded?: boolean; onExpandedChange?: (expanded: boolean) => void; onPointSaved: () => void; onFitProject: () => void }) {
   const [openPanel, setOpenPanel] = useState<DockCategory | null>(null)
+  const [sheetSnap, setSheetSnap] = useState<'peek' | 'half' | 'full'>('half')
   const {
     drawMode, editMode, moveMode, measureMode, gpsTracking, stakeoutActive, schemeProjectId, currentSurveyCrs,
     hasTraverse, showAnnotations, undo, redo, canUndo, canRedo, sketchHistory,
@@ -793,6 +876,9 @@ export const MapToolDock = memo(function MapToolDock({
   const togglePanel = useCallback((cat: DockCategory) => {
     if (cat !== 'layers') onExpandedChange?.(true)
     setOpenPanel(previous => previous === cat ? null : cat)
+    // Reopening always starts at the half sheet: a peek that hides every
+    // control would look broken, and a full sheet would hide the map.
+    setSheetSnap('half')
   }, [onExpandedChange])
 
   // Leaving the Set Out tab cancels a half-armed map pick so the next map tap
@@ -864,12 +950,20 @@ export const MapToolDock = memo(function MapToolDock({
         return (
           <div
             id={`map-tools-${cat}`}
-            className="map-mobile-tool-panel bg-[var(--bg-secondary)] shadow-xl"
+            className={`map-mobile-tool-panel map-sheet-snap-${sheetSnap} bg-[var(--bg-secondary)] shadow-xl`}
             role="region"
             aria-label={`${catDef.label} tools`}
           >
-            <div className="flex justify-center pt-2 pb-1">
-              <div className="w-8 h-1 rounded-full bg-white/[0.12]" />
+            <div className="flex justify-center pt-1 pb-1">
+              <button
+                type="button"
+                className="map-sheet-handle"
+                aria-label={`Resize ${catDef.label} panel. Current height: ${sheetSnap}. Tap to cycle peek, half and full.`}
+                title="Tap to resize: peek, half, full"
+                onClick={() => setSheetSnap(previous => previous === 'peek' ? 'half' : previous === 'half' ? 'full' : 'peek')}
+              >
+                <span className="w-10 h-1.5 rounded-full bg-white/[0.25]" />
+              </button>
             </div>
             <div
               className="flex items-center justify-between px-4 pb-2 border-b border-white/[0.06]"

@@ -56,6 +56,7 @@ import { encodeMapDrawing } from '@/lib/mapDrawing/codec'
 import { zoomToSurveyPointCluster } from '@/lib/surveyMapEngine/ol/pointLoading'
 import { createSketchStyle, type SketchAppearance } from '@/app/map/utils/sketchAppearance'
 import { attachSketchHistory, emptySketchHistory } from '@/app/map/utils/sketchHistory'
+import { surveyExportFeatures, tagSketchFeature } from '@/app/map/utils/sketchFeatures'
 
 /** Raised when a stakeout target is implausibly far from the current view. */
 export class StakeoutFarTargetError extends Error {
@@ -320,6 +321,9 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
     }
 
     draw.on('drawend', (e: DrawEvent) => {
+      // Everything from the sketch tools is a sketch: tagged once here so
+      // styling, legend and survey-export filtering all agree.
+      if (e.feature) tagSketchFeature(e.feature)
       // Compute live area/perimeter for the drawn feature — measured in the
       // project CRS (survey plane maths), never in Web Mercator display units.
       if (p.onDrawEnd && e.feature) {
@@ -601,7 +605,12 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         return
       }
 
-      const features = drawSourceRef.current.getFeatures()
+      const allFeatures = drawSourceRef.current.getFeatures()
+      const features = surveyExportFeatures(allFeatures)
+      if (features.length === 0) {
+        setSaveMsg('Only sketches are on the map. Sketches are excluded from survey DXF exports — save the drawing to the project instead.')
+        return
+      }
       const { transform } = await import('ol/proj')
       const coordinateWarnings = new Set<string>()
       let mapEntities
@@ -629,7 +638,8 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
       }
       downloadDXF({ projectName: `metardu-${projectId}-map`, points: [], mapEntities })
       const rangeNote = coordinateWarnings.size ? ` Check the project extent: ${[...coordinateWarnings].join(' ')}` : ''
-      setSaveMsg(`DXF exported in ${crs.crsName} (${crs.epsg}). DXF does not retain CRS metadata; keep the CRS with the file.${rangeNote}`)
+      const sketchNote = allFeatures.length > features.length ? ` ${allFeatures.length - features.length} sketch feature(s) excluded.` : ''
+      setSaveMsg(`DXF exported in ${crs.crsName} (${crs.epsg}). DXF does not retain CRS metadata; keep the CRS with the file.${rangeNote}${sketchNote}`)
       return
     }
 
@@ -674,8 +684,13 @@ export function useMapInteractions(p: UseMapInteractionsParams) {
         metadata:{evidenceStatus:'map_drawing_unverified',heightStatus:'source_ordinates_unverified',
           projectVerticalDatum:declared.verticalDatum??'undeclared',projectVerticalReference:declared.verticalReference??'undeclared'},
       }
+      const landXmlFeatures = surveyExportFeatures(drawSourceRef.current.getFeatures())
+      if (landXmlFeatures.length === 0) {
+        setSaveMsg('Only sketches are on the map. Sketches are excluded from LandXML survey exports — save the drawing to the project instead.')
+        return
+      }
       try {
-        const exported=mapDrawingToLandXML(encodeMapDrawing(drawSourceRef.current.getFeatures()),crs.epsgCode)
+        const exported=mapDrawingToLandXML(encodeMapDrawing(landXmlFeatures),crs.epsgCode)
         downloadLandXML(project,exported.points,exported.planFeatures)
         setSaveMsg(`LandXML exported: ${exported.points.length} coordinates and ${exported.planFeatures.length} plan features in ${crs.epsgCode}. Map drawings and source heights remain unverified.`)
       } catch (error) {

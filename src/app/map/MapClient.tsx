@@ -39,6 +39,7 @@ import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapRightDock } from '@/app/map/components/MapRightDock'
+import { MapLegend } from '@/app/map/components/MapLegend'
 import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
 import { MapWorkspaceHeader } from '@/app/map/components/MapWorkspaceHeader'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
@@ -1006,6 +1007,8 @@ function MapWorkspace() {
                   router.push(`/project/${targetProjectId}/reports?type=form3&parcel=${parcelParam}`)
                 }}
               />
+
+              <MapLegend />
 
               <MapStatusBar />
 
