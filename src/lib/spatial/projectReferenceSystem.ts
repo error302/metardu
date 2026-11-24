@@ -564,6 +564,92 @@ export function resolveDeclaredReference(
   }
 }
 
+/**
+ * A CRS resolved for a deliverable that is NOT tied to a stored project row —
+ * a standalone tool, a one-off certificate. The surveyor selected it from the
+ * registry, so the label is the registry's own metadata.
+ */
+export interface PrintableCrs {
+  /** Canonical registry code, e.g. 'EPSG:21037'. */
+  code: string
+  /** Printable statement, e.g. 'Arc 1960 / UTM Zone 37S (EPSG:21037)'. */
+  label: string
+  /** Registry display name, e.g. 'Arc 1960 / UTM zone 37S'. */
+  name: string
+  /** Registry datum name, e.g. 'Arc 1960'. */
+  datum: string
+  units: 'metres'
+  zone?: number
+  hemisphere?: 'N' | 'S'
+}
+
+export type PrintableCrsResult =
+  | { ok: true; crs: PrintableCrs }
+  | { ok: false; message: string }
+
+/**
+ * Resolve the coordinate reference a standalone deliverable may print.
+ *
+ * Selection only: the code must already be in the registry. A geographic or
+ * display-only CRS is refused because a survey certificate states plane
+ * coordinates, and an unregistered code is refused because METARDU never
+ * guesses a datum (blueprint §2.4).
+ */
+export function resolvePrintableCrs(code: string | null | undefined): PrintableCrsResult {
+  const trimmed = (code ?? '').trim()
+  if (!trimmed) {
+    return {
+      ok: false,
+      message:
+        'Select a coordinate reference from the CRS registry before issuing this deliverable. METARDU never assumes a datum, zone, or projection.',
+    }
+  }
+
+  const info = describeCrs(trimmed)
+  if (!info) {
+    return {
+      ok: false,
+      message: `"${trimmed}" is not in the CRS registry. Register it explicitly with verified parameters, or select a registered CRS.`,
+    }
+  }
+  if (info.displayOnly) {
+    return {
+      ok: false,
+      message: `${info.code} (${info.name}) is display-only and may never be printed as a survey coordinate reference.`,
+    }
+  }
+  if (!info.projected) {
+    return {
+      ok: false,
+      message: `${info.code} is geographic. A survey deliverable must state a projected CRS measured in metres.`,
+    }
+  }
+  if (info.units !== 'metres') {
+    return {
+      ok: false,
+      message: `${info.code} is measured in ${info.units}. A survey deliverable must state a projected CRS measured in metres.`,
+    }
+  }
+
+  const label =
+    info.zone !== undefined && info.hemisphere !== undefined
+      ? `${info.datum} / UTM Zone ${info.zone}${info.hemisphere} (${info.code})`
+      : `${info.name} (${info.code})`
+
+  return {
+    ok: true,
+    crs: {
+      code: info.code,
+      label,
+      name: info.name,
+      datum: info.datum,
+      units: 'metres',
+      zone: info.zone,
+      hemisphere: info.hemisphere,
+    },
+  }
+}
+
 /** Where a resolved reference came from, so the UI can state its provenance. */
 export type ProjectReferenceSource = 'project-reference-system' | 'project-settings'
 

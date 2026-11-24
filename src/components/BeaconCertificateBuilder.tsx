@@ -1,11 +1,15 @@
 'use client';
 
-import { useState, useCallback, useId } from 'react'
+import { useState, useCallback, useId, useMemo } from 'react'
 import { Download } from 'lucide-react'
 import { printBeaconCertificate } from '@/lib/print/beaconCertificate'
 import type { BeaconEntry, BeaconCondition, MonumentType } from '@/lib/print/beaconCertificate'
 import { PrintMetaPanel, defaultPrintMeta } from '@/components/shared/PrintMetaPanel'
 import type { PrintMeta } from '@/components/shared/PrintMetaPanel'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
+import { resolvePrintableCrs } from '@/lib/spatial/projectReferenceSystem'
+import { useCountry, ALL_COUNTRIES } from '@/lib/country'
+import type { SurveyingCountry } from '@/lib/country'
 import { downloadCSV, toCSV } from '@/lib/export/helpers'
 
 // ── Constants ──────────────────────────────────────────────────────────────
@@ -63,9 +67,11 @@ function makeBeacon(): BeaconEntry {
 
 export default function BeaconCertificateBuilder() {
   const uid = useId()
+  const { country, setCountry, getBeacon } = useCountry()
   const [beacons, setBeacons]       = useState<BeaconEntry[]>(() => [makeBeacon()])
   const [expandedId, setExpandedId] = useState<string | null>(beacons[0]?.id ?? null)
-  const [coordinateReference, setCoordinateReference] = useState('')
+  const [crsCode, setCrsCode]       = useState('')
+  const [verticalDatum, setVerticalDatum] = useState('')
   const [printMeta, setPrintMeta]   = useState<PrintMeta>(defaultPrintMeta)
   const [location, setLocation]     = useState({
     parcelRef:   '',
@@ -101,9 +107,23 @@ export default function BeaconCertificateBuilder() {
     && Number.isFinite(Number(beacon.easting)) && Number.isFinite(Number(beacon.northing))
     && (!beacon.elevation.trim() || Number.isFinite(Number(beacon.elevation))))
   const hasIncomplete = beacons.some(beacon => [beacon.name, beacon.easting, beacon.northing, beacon.elevation, beacon.description, beacon.adjacentFeatures].some(value => value.trim()) && !completed.includes(beacon))
-  const canExport = Boolean(coordinateReference.trim() && completed.length && !hasIncomplete)
+
+  // The printable coordinate reference comes from the CRS registry, never from
+  // typed text — an unregistered or unusable CRS blocks the export outright.
+  const reference = useMemo(() => resolvePrintableCrs(crsCode), [crsCode])
+  const jurisdictionRegulation = getBeacon().regulation
+
+  const canExport = Boolean(reference.ok && completed.length && !hasIncomplete)
   const handlePrint = () => {
-    if (canExport) printBeaconCertificate({ meta: printMeta, location, coordinateReference: coordinateReference.trim(), beacons: completed })
+    if (!canExport || !reference.ok) return
+    printBeaconCertificate({
+      meta: printMeta,
+      location,
+      horizontalCrs: reference.crs.code,
+      verticalDatum: verticalDatum.trim(),
+      jurisdictionRegulation,
+      beacons: completed,
+    })
   }
 
   const stats = {
@@ -382,14 +402,66 @@ export default function BeaconCertificateBuilder() {
               <p> Beacon summary (set / found / disturbed / destroyed counts)</p>
               <p> Full beacon description table — coordinates to 3dp, monument type, condition</p>
               <p> Description and adjacent features for each beacon</p>
-              <p> 6 standard notes (coordinate system, datum, definitions)</p>
-              <p> Surveyor&apos;s Certificate — Survey Regulations 1994, Regulation 3(2)</p>
+              <p> 6 notes (coordinate reference, vertical datum, definitions, jurisdictional rule)</p>
+              <p> Draft watermark (not certified) with reviewer and signature placeholders</p>
             </div>
-            <label className="mt-3 block text-sm">Coordinate reference
-              <input className="input mt-1 w-full" value={coordinateReference} onChange={event => setCoordinateReference(event.target.value)} placeholder="Enter the EPSG code or local grid name" />
-            </label>
-            {!canExport && <p className="mt-2 text-xs text-[var(--text-secondary)]">Enter the coordinate reference and complete each started beacon record before exporting.</p>}
           </div>
+
+          {/* Reference system — selected from the registry, never typed */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="md:col-span-2">
+              <CrsPicker
+                id={`${uid}-crs`}
+                label="Coordinate reference"
+                value={crsCode}
+                onChange={setCrsCode}
+                required
+                hint="The grid the easting and northing on this certificate were observed in. METARDU never assumes a datum."
+              />
+              {reference.ok ? (
+                <p data-testid="beacon-crs-print-label" className="mt-1 text-xs text-[var(--text-secondary)]">
+                  Will print: {reference.crs.label}
+                </p>
+              ) : (
+                <p role="alert" className="mt-1 text-xs text-amber-300">{reference.message}</p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor={`${uid}-vertical-datum`} className="block text-xs text-[var(--text-muted)] mb-1">
+                Vertical datum / height reference
+              </label>
+              <input id={`${uid}-vertical-datum`}
+                className="input w-full"
+                value={verticalDatum}
+                onChange={event => setVerticalDatum(event.target.value)}
+                placeholder="e.g. Orthometric — local benchmark BM 12"
+              />
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                Left blank, the certificate records the reduced levels as NOT DECLARED — no vertical datum is assumed.
+              </p>
+            </div>
+
+            <div>
+              <label htmlFor={`${uid}-jurisdiction`} className="block text-xs text-[var(--text-muted)] mb-1">
+                Jurisdiction
+              </label>
+              <select id={`${uid}-jurisdiction`}
+                className="input w-full"
+                value={country}
+                onChange={event => setCountry(event.target.value as SurveyingCountry)}
+              >
+                {ALL_COUNTRIES.map(option => (
+                  <option key={option.id} value={option.id}>{option.name}</option>
+                ))}
+              </select>
+              <p className="mt-1 text-xs text-[var(--text-muted)]">
+                The beacon rule printed on the certificate comes from the configured standard for this jurisdiction.
+              </p>
+            </div>
+          </div>
+
+          {!canExport && <p className="text-xs text-[var(--text-secondary)]">Select the coordinate reference and complete each started beacon record before exporting.</p>}
 
           <div className="flex items-center gap-3">
             <button
@@ -401,13 +473,13 @@ export default function BeaconCertificateBuilder() {
             </button>
             <button
               onClick={() => {
-                if (!canExport) return
+                if (!canExport || !reference.ok) return
                 const csv = toCSV(
                   ['No', 'Beacon ID', 'Monument Type', 'Condition', 'Easting (m)', 'Northing (m)', 'RL (m)', 'Description', 'Adjacent Features', 'Coordinate reference'],
                   completed.map((b, i) => [
                     String(i + 1), b.name, b.monumentType, b.condition,
                     b.easting, b.northing, b.elevation,
-                    b.description, b.adjacentFeatures, coordinateReference.trim(),
+                    b.description, b.adjacentFeatures, reference.crs.label,
                   ]),
                 )
                 downloadCSV(csv, 'beacon-certificate-data')

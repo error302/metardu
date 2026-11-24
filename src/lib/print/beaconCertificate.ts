@@ -1,5 +1,7 @@
 // Draft beacon description and coordinate schedule.
 import { buildPrintDocument, openPrint } from './buildPrintDocument'
+import { CrsError } from '@/lib/spatial/projectCrs'
+import { resolvePrintableCrs } from '@/lib/spatial/projectReferenceSystem'
 
 // ── Re-export shared meta type so callers have one source of truth ────────────
 // PrintMeta from PrintMetaPanel (all string fields, non-optional)
@@ -55,7 +57,19 @@ export interface BeaconCertificateInput {
     subLocation: string
     surveyJobNo: string        // DoLS job number
   }
-  coordinateReference?: string
+  /**
+   * Registry CRS code selected for this certificate (e.g. 'EPSG:21037').
+   * The printed coordinate reference is derived from the registry — a
+   * certificate never carries a typed, remembered datum.
+   */
+  horizontalCrs: string
+  /** Vertical datum / height reference for the reduced levels, when declared. */
+  verticalDatum?: string
+  /**
+   * The jurisdictional beacon rule that applies (from the country standards
+   * configuration). Absent → the certificate states that no rule is configured.
+   */
+  jurisdictionRegulation?: string
   beacons: BeaconEntry[]
 }
 
@@ -89,6 +103,16 @@ function fmtCoord(value: string): string {
 
 export function generateBeaconCertificate(input: BeaconCertificateInput): string {
   const { meta, location, beacons } = input
+
+  // The coordinate reference is the registry's own metadata. A certificate
+  // that cannot name its CRS is not issued at all.
+  const reference = resolvePrintableCrs(input.horizontalCrs)
+  if (!reference.ok) {
+    throw new CrsError('CRS_INVALID', reference.message)
+  }
+
+  const verticalDatum = (input.verticalDatum ?? '').trim()
+  const jurisdictionRegulation = (input.jurisdictionRegulation ?? '').trim()
 
   const setCount       = beacons.filter(b => b.condition === 'SET').length
   const foundCount     = beacons.filter(b => b.condition === 'FOUND').length
@@ -195,12 +219,14 @@ export function generateBeaconCertificate(input: BeaconCertificateInput): string
 <div class="summary-box" style="margin-top:12px;">
   <div style="font-size:8pt;font-weight:bold;margin-bottom:4px;letter-spacing:0.5px;text-transform:uppercase;">Notes</div>
   <div style="font-size:8pt;line-height:1.65;color:#333;">
-    1. Coordinate reference: ${esc(input.coordinateReference || 'Unrecorded')}.<br>
-    2. Reduced levels (RL) are relative to Mean Sea Level datum unless otherwise stated.<br>
+    1. Coordinate reference: ${esc(reference.crs.label)}.<br>
+    2. Vertical datum / height reference: ${esc(verticalDatum || 'NOT DECLARED')}. Reduced levels are reproduced as observed &mdash; no vertical datum is assumed.<br>
     3. Monument types and conditions are recorded as observed in the field on the date of survey.<br>
     4. &ldquo;SET&rdquo; = new beacon placed during this survey. &ldquo;FOUND&rdquo; = existing beacon verified in-situ.<br>
-    5. Adjacent feature distances are approximate (&plusmn;50mm) and for site-identification purposes only.<br>
-    6. Disturbed or destroyed beacons must be reported to the Director of Surveys, Ministry of Lands.
+    5. Adjacent features are recorded for site identification only. The distances quoted are as measured in the field and are not a positional tolerance.<br>
+    6. ${jurisdictionRegulation
+      ? `Beacon referencing and reporting follow the jurisdictional standard selected for this survey (${esc(jurisdictionRegulation)}).`
+      : 'Beacon referencing and reporting follow the jurisdictional standard selected for this survey. No jurisdictional rule is configured for this draft.'}
   </div>
 </div>`
 
@@ -216,6 +242,8 @@ export function generateBeaconCertificate(input: BeaconCertificateInput): string
     observer:     meta.observer,
     submissionNo: meta.submissionNo,
     reference:    'Draft for professional review',
+    // A METARDU draft is never a certified survey: the reviewer signs it.
+    reviewOnly:   true,
   })
 }
 
