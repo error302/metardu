@@ -1,5 +1,9 @@
-import { resolveEpsg } from '@/lib/spatial/projectCrs'
-import { fromReferenceSystemRow, horizontalCrsFor, toReferenceSystemRow, type ProjectReferenceSystemRecord } from '@/lib/spatial/projectReferenceSystem'
+import {
+  fromReferenceSystemRow,
+  resolveProjectReference,
+  toReferenceSystemRow,
+  type ProjectReferenceSystemRecord,
+} from '@/lib/spatial/projectReferenceSystem'
 
 export type StageReference =
   | { code: string; name: string; source: 'declared' | 'legacy'; hemisphere: 'N' | 'S' | null; verticalDatum: string | null; distanceMode: 'grid' | 'ground' | null }
@@ -34,19 +38,25 @@ export function resolveStageReference(
   row: Record<string, unknown> | null | undefined,
   project: LegacyProjectReference,
 ): StageReference {
+  // ONE resolution core: src/lib/spatial/projectReferenceSystem.ts decides what
+  // a project may use and how it was derived. This adapter only adds the
+  // stage-specific extras (vertical datum, distance mode) and the wording.
   if (row) {
     try {
       const record = fromReferenceSystemRow(row)
       if (!record) return MISSING
-      const info = resolveEpsg(record.prs.horizontalCrs)
-      if (!info.projected || info.displayOnly || info.units !== 'metres') return MISSING
-      if (record.prs.zone != null && info.zone != null && record.prs.zone !== info.zone) return MISSING
-      if (record.prs.hemisphere && info.hemisphere && record.prs.hemisphere !== info.hemisphere) return MISSING
+      const resolution = resolveProjectReference({ declaredCrs: record.prs.horizontalCrs })
+      if (!resolution.ok) return MISSING
+      const reference = resolution.reference
+      // A declaration whose stored zone/hemisphere contradicts the authority
+      // is corrupt, not a reason to fall back to a guessed zone.
+      if (record.prs.zone != null && reference.zone !== record.prs.zone) return MISSING
+      if (record.prs.hemisphere && reference.hemisphere !== record.prs.hemisphere) return MISSING
       return {
-        code: info.code,
-        name: info.name,
+        code: reference.horizontalCrs,
+        name: reference.name,
         source: 'declared',
-        hemisphere: info.hemisphere ?? null,
+        hemisphere: reference.hemisphere,
         verticalDatum: record.prs.verticalDatum ?? null,
         distanceMode: record.prs.distanceMode,
       }
@@ -56,21 +66,20 @@ export function resolveStageReference(
     }
   }
 
-  const { datum, utm_zone: zone, hemisphere } = project
-  if (!datum || zone == null || (hemisphere !== 'N' && hemisphere !== 'S')) return MISSING
-  try {
-    const info = resolveEpsg(horizontalCrsFor(datum, zone, hemisphere))
-    if (!info.projected || info.displayOnly || info.units !== 'metres') return MISSING
-    return {
-      code: info.code,
-      name: info.name,
-      source: 'legacy',
-      hemisphere: info.hemisphere ?? null,
-      verticalDatum: null,
-      distanceMode: null,
-    }
-  } catch {
-    return MISSING
+  const resolution = resolveProjectReference({
+    zone: project.utm_zone,
+    hemisphere: project.hemisphere,
+    datum: project.datum,
+  })
+  if (!resolution.ok) return MISSING
+  const reference = resolution.reference
+  return {
+    code: reference.horizontalCrs,
+    name: reference.name,
+    source: 'legacy',
+    hemisphere: reference.hemisphere,
+    verticalDatum: null,
+    distanceMode: null,
   }
 }
 

@@ -6,7 +6,7 @@ import { db, setRlsContext } from '@/lib/db'
 import { checkProjectLimit } from '@/lib/subscription/subscriptionEngine'
 import { createProjectSchema } from '@/lib/validation/projectCreation'
 import { logger } from '@/lib/logger'
-import { horizontalCrsFor } from '@/lib/spatial/projectReferenceSystem'
+import { horizontalCrsFor, buildProjectReferenceSystem, toReferenceSystemRow } from '@/lib/spatial/projectReferenceSystem'
 import { measureMapGridDrawing } from '@/lib/mapDrawing/metrics'
 
 interface ProjectRow {
@@ -66,6 +66,38 @@ export const POST = apiHandler({
         throw new AppError('Project creation was not confirmed', 500, 'PROJECT_CREATE_FAILED')
       }
       const project = projectResult.rows[0]
+
+      // The project declares its reference system at creation. The canonical
+      // project_reference_systems row is written in the SAME transaction, so
+      // the declaration exists from birth instead of being inferred later -
+      // and the surveyor can still change it in Project Settings afterwards.
+      if (validated.datum && validated.utm_zone != null && validated.hemisphere) {
+        let prs: ReturnType<typeof buildProjectReferenceSystem>
+        try {
+          prs = buildProjectReferenceSystem({
+            datum: validated.datum,
+            utmZone: validated.utm_zone,
+            hemisphere: validated.hemisphere,
+          })
+        } catch (error) {
+          throw new AppError(
+            error instanceof Error ? error.message : 'The declared reference system is not valid',
+            400,
+            'CRS_INVALID',
+          )
+        }
+        const referenceRow = toReferenceSystemRow(project.id, { prs }, ctx.userId)
+        const referenceColumns = Object.keys(referenceRow)
+        if (!referenceColumns.every((column) => /^[a-z_]+$/.test(column))) {
+          throw new AppError('Unexpected reference-system column name', 500, 'CRS_PERSIST_FAILED')
+        }
+        const placeholders = referenceColumns.map((_, index) => `$${index + 1}`).join(', ')
+        await client.query(
+          `INSERT INTO project_reference_systems (${referenceColumns.join(', ')})
+           VALUES (${placeholders})`,
+          referenceColumns.map((column) => referenceRow[column]),
+        )
+      }
       if (validated.project_type === 'scheme') {
         const scheme = await client.query<{ project_id: string }>(
           `INSERT INTO scheme_details (project_id, scheme_number, county, sub_county, ward,

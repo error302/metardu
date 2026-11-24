@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { beaconTypes, surveyStatuses } from './types';
 import type { RimState } from './useRimState';
+import { resolveProjectReference } from '@/lib/spatial/projectReferenceSystem';
 
 // ────────────────────────────────────────────────────────────────
 // SectionEditor — the active RIM section editor (metadata form +
@@ -50,6 +51,32 @@ export function SectionEditor({ rim }: { rim: RimState }) {
     setNewBeacon,
     handleAddBeacon,
   } = rim;
+
+  // A section is drawn in the project's own grid. The declared reference
+  // system is auto-filled into the form; it is never a national default.
+  const selectedProject = rim.projects.find((project) => project.id === rim.selectedProjectId);
+  const projectReference = resolveProjectReference({
+    zone: selectedProject?.utm_zone ?? null,
+    hemisphere: selectedProject?.hemisphere ?? null,
+    datum: selectedProject?.datum ?? null,
+  });
+  const declaredDatum = projectReference.ok ? projectReference.reference.datum : '';
+  const declaredProjection = projectReference.ok
+    ? `UTM Zone ${projectReference.reference.zone}${projectReference.reference.hemisphere}`
+    : '';
+  const datumOptions = [
+    ...new Set(
+      [
+        declaredDatum,
+        'Arc 1960',
+        'WGS 84',
+        'Clarke 1880 (RGS)',
+        'Clarke 1880 (Modified)',
+        'Cape Datum',
+        'Adindan',
+      ].filter(Boolean),
+    ),
+  ];
 
   if (!activeSection) return null;
 
@@ -214,10 +241,11 @@ export function SectionEditor({ rim }: { rim: RimState }) {
             </label>
             <select id="datum"
               className="input"
-              value={sectionForm.datum || 'Arc 1960'}
+              value={sectionForm.datum || declaredDatum || ''}
               onChange={(e) => setSectionForm((prev) => ({ ...prev, datum: e.target.value }))}
             >
-              {['Arc 1960', 'WGS 84', 'Clarke 1880 (RGS)', 'Clarke 1880 (Modified)', 'Cape Datum', 'Adindan'].map(
+              {!sectionForm.datum && !declaredDatum && <option value="">Not declared</option>}
+              {datumOptions.map(
                 (d) => (
                   <option key={d} value={d}>
                     {d}
@@ -234,21 +262,11 @@ export function SectionEditor({ rim }: { rim: RimState }) {
             </label>
             <select id="projection"
               className="input"
-              value={sectionForm.projection || 'UTM Zone 37S'}
+              value={sectionForm.projection || declaredProjection || ''}
               onChange={(e) => setSectionForm((prev) => ({ ...prev, projection: e.target.value }))}
             >
-              {[
-                'UTM Zone 36S',
-                'UTM Zone 36N',
-                'UTM Zone 37S',
-                'UTM Zone 37N',
-                'UTM Zone 38S',
-                'UTM Zone 38N',
-                'UTM Zone 35S',
-                'UTM Zone 35N',
-                'Kenya Modified UTM',
-                'Local Grid',
-              ].map((p) => (
+              {!sectionForm.projection && !declaredProjection && <option value="">Not declared</option>}
+              {[...new Set([declaredProjection, 'UTM Zone 36S', 'UTM Zone 36N', 'UTM Zone 37S', 'UTM Zone 37N', 'UTM Zone 38S', 'UTM Zone 38N', 'UTM Zone 35S', 'UTM Zone 35N', 'Kenya Modified UTM', 'Local Grid'].filter(Boolean))].map((p) => (
                 <option key={p} value={p}>
                   {p}
                 </option>

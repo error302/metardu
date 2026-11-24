@@ -48,12 +48,15 @@ describe('resolveDeclaredReference', () => {
   })
 
   it('rejects geographic and display-only codes for survey mathematics', () => {
-    for (const code of ['EPSG:4326', 'EPSG:3857']) {
-      const result = resolveDeclaredReference(code)
-      expect(result.ok).toBe(false)
-      if (result.ok) throw new Error('expected failure')
-      expect(result.message).toMatch(/not a projected UTM CRS/i)
-    }
+    const geographic = resolveDeclaredReference('EPSG:4326')
+    expect(geographic.ok).toBe(false)
+    if (geographic.ok) throw new Error('expected failure')
+    expect(geographic.message).toMatch(/measured in degrees/i)
+
+    const displayOnly = resolveDeclaredReference('EPSG:3857')
+    expect(displayOnly.ok).toBe(false)
+    if (displayOnly.ok) throw new Error('expected failure')
+    expect(displayOnly.message).toMatch(/display-only/i)
   })
 
   it('rejects an unregistered code instead of guessing its meaning', () => {
@@ -122,7 +125,7 @@ describe('resolveProjectReference', () => {
     })
     expect(result.ok).toBe(false)
     if (result.ok) throw new Error('expected failure')
-    expect(result.message).toMatch(/not a projected UTM CRS/i)
+    expect(result.message).toMatch(/measured in degrees/i)
   })
 
   it('refuses an unregistered legacy combination rather than coercing it', () => {

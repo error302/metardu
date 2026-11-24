@@ -6,6 +6,9 @@ import { KRDM2017, KeRRA, getCarriagewayWidth } from '@/lib/standards/engineerin
 import type { RoadClass } from '@/types/engineering'
 import type { EngineeringProject } from '../shared'
 import { ROAD_CLASSES } from '../shared'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
+import { describeCrs } from '@/lib/spatial/projectCrs'
+import { resolveProjectReference } from '@/lib/spatial/projectReferenceSystem'
 
 /**
  * Step 1 — Project Setup.
@@ -14,7 +17,7 @@ import { ROAD_CLASSES } from '../shared'
  * Same props, same behavior.
  */
 export function Step1Setup({
-  project: _project,
+  project,
   data,
   onSave,
   mode,
@@ -31,8 +34,39 @@ export function Step1Setup({
   const [designSpeed, setDesignSpeed] = useState(data?.designSpeed || 60)
   const [roadClass, setRoadClass] = useState<string>(data?.roadClass || 'C')
   const [standard, setStandard] = useState<EngineeringStandard>(data?.standard || 'KRDM2017')
-  const [datum, setDatum] = useState(data?.datum || 'Arc 1960')
-  const [coordSys, setCoordSys] = useState(data?.coordinateSystem || 'UTM Zone 37S')
+
+  // The design's coordinate system is the project's own declaration, auto-
+  // filled: the surveyor's declared reference system, or the project's stored
+  // datum/zone. Nothing is invented, and the surveyor can still change it.
+  const declaredResolution = resolveProjectReference({
+    zone: project.utm_zone,
+    hemisphere: project.hemisphere,
+    datum: project.datum,
+  })
+  const declaredCode =
+    project.projectReferenceSystem?.code ??
+    (declaredResolution.ok ? declaredResolution.reference.horizontalCrs : '')
+  const declaredInfo = declaredCode ? describeCrs(declaredCode) : null
+  const declaredZoneLabel =
+    declaredInfo?.zone != null && declaredInfo.hemisphere
+      ? `UTM Zone ${declaredInfo.zone}${declaredInfo.hemisphere}`
+      : declaredInfo?.name ?? ''
+
+  const [crsCode, setCrsCode] = useState(declaredCode)
+  const [datum, setDatum] = useState(data?.datum || declaredInfo?.datum || '')
+  const [coordSys, setCoordSys] = useState(data?.coordinateSystem || declaredZoneLabel)
+
+  const handleCrsChange = (code: string) => {
+    setCrsCode(code)
+    const info = code ? describeCrs(code) : null
+    if (!info) return
+    setDatum(info.datum)
+    setCoordSys(
+      info.zone != null && info.hemisphere
+        ? `UTM Zone ${info.zone}${info.hemisphere}`
+        : info.name,
+    )
+  }
 
   const standardObj = standard === 'KRDM2017' ? KRDM2017 : KeRRA
   const speedRange = standardObj.designSpeeds[roadClass as keyof typeof standardObj.designSpeeds]
@@ -52,6 +86,10 @@ export function Step1Setup({
     }
     if (designSpeed <= 0) {
       setError('Design speed must be greater than 0')
+      return
+    }
+    if (!crsCode) {
+      setError('Declare the project reference system in Project Settings before saving the design setup.')
       return
     }
     setError(null)
@@ -181,31 +219,19 @@ export function Step1Setup({
           />
         </div>
 
-        <div>
-          <label htmlFor="datum" className="block text-sm text-zinc-400 mb-1">Datum</label>
-          <select
-            id="datum"
-            value={datum}
-            onChange={e => setDatum(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
-          >
-            <option value="Arc 1960">Arc 1960</option>
-            <option value="WGS84">WGS84</option>
-          </select>
-        </div>
-
-        <div>
-          <label htmlFor="coordSys" className="block text-sm text-zinc-400 mb-1">Coordinate System</label>
-          <select
-            id="coordSys"
-            value={coordSys}
-            onChange={e => setCoordSys(e.target.value)}
-            className="w-full bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 text-white"
-          >
-            <option value="UTM Zone 37S">UTM Zone 37S</option>
-            <option value="UTM Zone 36S">UTM Zone 36S</option>
-            <option value="UTM Zone 38S">UTM Zone 38S</option>
-          </select>
+        <div className="md:col-span-2">
+          <CrsPicker
+            id="engineering-project-crs"
+            label="Coordinate system (project reference)"
+            value={crsCode}
+            onChange={handleCrsChange}
+            provenance={
+              declaredCode
+                ? 'Auto-filled from the project declaration — change it if the design uses another grid.'
+                : undefined
+            }
+            hint="The design uses the project reference system; declaring it here keeps the design, the set-out and the deliverable in one grid."
+          />
         </div>
       </div>
       </>

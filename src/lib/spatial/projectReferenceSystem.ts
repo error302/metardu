@@ -478,6 +478,8 @@ export interface DeclaredCoordinateReference {
   horizontalCrs: string
   /** Registry datum name, e.g. 'Arc 1960' or 'WGS 84'. */
   datum: string
+  /** Registry display name, e.g. 'Arc 1960 / UTM zone 37S'. */
+  name: string
   /** Datum selector value used by the settings form. */
   datumSelection: DatumSelection
   zone: number
@@ -518,6 +520,18 @@ export function resolveDeclaredReference(
       message: `The declared reference system "${code}" is not in the CRS registry. Re-declare the project reference system.`,
     }
   }
+  if (info.displayOnly) {
+    return {
+      ok: false,
+      message: `The declared reference system "${info.code}" is display-only and may never be used for survey mathematics. Declare a projected survey CRS.`,
+    }
+  }
+  if (info.units !== 'metres') {
+    return {
+      ok: false,
+      message: `The declared reference system "${info.code}" is measured in ${info.units}. Survey mathematics and deliverables require a projected CRS in metres.`,
+    }
+  }
   if (!info.projected || info.zone === undefined || info.hemisphere === undefined) {
     return {
       ok: false,
@@ -540,6 +554,7 @@ export function resolveDeclaredReference(
     reference: {
       horizontalCrs: info.code,
       datum: info.datum,
+      name: info.name,
       datumSelection,
       zone: info.zone,
       hemisphere: info.hemisphere,

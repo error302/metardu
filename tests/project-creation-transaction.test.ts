@@ -1,6 +1,7 @@
 /** @jest-environment node */
 import { NextRequest, NextResponse } from 'next/server'
 import { db, setRlsContext } from '@/lib/db'
+import { horizontalCrsFor } from '@/lib/spatial/projectReferenceSystem'
 import { checkProjectLimit } from '@/lib/subscription/subscriptionEngine'
 import { POST } from '@/app/api/projects/route'
 const mockQuery = jest.fn<Promise<{rows:unknown[];rowCount:number}>,[sql:string,values?:unknown[]]>()
@@ -49,6 +50,36 @@ test('map drawing features and their coordinate provenance survive canonical cre
   const boundary = insert[1]?.find(value => typeof value === 'string' && value.includes('"drawnFeatures"'))
   expect(JSON.parse(String(boundary)) as unknown).toMatchObject(drawing)
   expect(JSON.parse(String(boundary)) as unknown).toHaveProperty('mapDrawing.referenceSource','selected_grid_preview')
+})
+test('creation records the declared reference system in the same transaction', async () => {
+  expect((await invoke({ ...base, datum: 'ARC1960', utm_zone: 37, hemisphere: 'S' } as typeof base)).status).toBe(201)
+  const insert = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO project_reference_systems'))
+  if (!insert) throw new Error('Expected the canonical reference-system declaration')
+  const [sql, values] = insert
+  const columns = sql.match(/INSERT INTO project_reference_systems \(([^)]+)\)/)?.[1].split(',').map((column) => column.trim())
+  if (!columns) throw new Error('Expected the declared reference-system columns')
+  const row = Object.fromEntries(columns.map((column, index) => [column, values?.[index]]))
+  expect(row.horizontal_crs).toBe(horizontalCrsFor('ARC1960', 37, 'S'))
+  expect(row.datum_name).toBe('Arc 1960')
+  expect(row.zone).toBe(37)
+  expect(row.hemisphere).toBe('S')
+  expect(row.units).toBe('metres')
+  expect(row.declared_by).toBe('owner')
+})
+test('a WGS 84 declaration records its own UTM code, not an Arc 1960 one', async () => {
+  expect((await invoke({ ...base, datum: 'WGS84', utm_zone: 37, hemisphere: 'S' } as typeof base)).status).toBe(201)
+  const insert = mockQuery.mock.calls.find(([sql]) => sql.includes('INSERT INTO project_reference_systems'))
+  if (!insert) throw new Error('Expected the canonical reference-system declaration')
+  const [sql, values] = insert
+  const columns = sql.match(/INSERT INTO project_reference_systems \(([^)]+)\)/)?.[1].split(',').map((column) => column.trim())
+  if (!columns) throw new Error('Expected the declared reference-system columns')
+  const row = Object.fromEntries(columns.map((column, index) => [column, values?.[index]]))
+  expect(row.horizontal_crs).toBe(horizontalCrsFor('WGS84', 37, 'S'))
+  expect(row.datum_name).toBe('WGS 84')
+})
+test('a project created without a reference records no declaration', async () => {
+  expect((await invoke()).status).toBe(201)
+  expect(mockQuery.mock.calls.some(([sql]) => sql.includes('INSERT INTO project_reference_systems'))).toBe(false)
 })
 test('plan denial rolls back before inserting a project', async () => {
   jest.mocked(checkProjectLimit).mockResolvedValue({ allowed: false, reason: 'Limit reached' })

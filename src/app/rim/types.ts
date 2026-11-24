@@ -37,6 +37,14 @@ export interface Project {
   name: string;
   survey_type?: string;
   location?: string;
+  /**
+   * The project's declared reference system. The projects list returns these
+   * columns, and the RIM editor auto-fills them so a section is never drawn
+   * in an invented national default.
+   */
+  utm_zone?: number | null;
+  hemisphere?: string | null;
+  datum?: string | null;
 }
 
 export interface RimSection {

@@ -8,8 +8,8 @@ export interface Project {
   name: string
   survey_type: string
   location: string
-  utm_zone: number
-  hemisphere: 'N' | 'S'
+  utm_zone: number | null
+  hemisphere: 'N' | 'S' | null
   project_type: 'small' | 'scheme'
   client_name?: string | null
   surveyor_name?: string | null
@@ -130,8 +130,8 @@ export function useCreateProject() {
           name: newProject.name,
           survey_type: newProject.survey_type,
           location: newProject.location ?? '',
-          utm_zone: newProject.utm_zone ?? 37,
-          hemisphere: newProject.hemisphere ?? 'S',
+          utm_zone: newProject.utm_zone ?? null,
+          hemisphere: newProject.hemisphere ?? null,
           project_type: newProject.project_type ?? 'small',
           client_name: newProject.client_name ?? null,
           surveyor_name: newProject.surveyor_name ?? null,
