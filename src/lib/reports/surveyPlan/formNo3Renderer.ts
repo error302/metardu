@@ -822,9 +822,9 @@ function drawTitleBlock(s: RenderState, data: MutationPlanData): string {
     ` font-family="${FONT_FORM}" font-size="${smallFontSize}" fill="#555">Survey Act Cap. 299</text>`
   cy += mmToPx(3.5)
 
-  // Datum & zone
-  const datum = p.datum || 'ARC1960'
-  const zone = `${p.utmZone || 37}${p.hemisphere || 'S'}`
+  // Datum & zone — stated only when declared; never a national default.
+  const datum = p.datum?.trim() || 'NOT DECLARED'
+  const zone = p.utmZone ? `${p.utmZone}${p.hemisphere ?? ''}` : 'NOT DECLARED'
   svg += `<text x="${centreSectionX + (rightSectionX - centreSectionX) / 2}" y="${cy}" text-anchor="middle"` +
     ` font-family="${FONT_FORM}" font-size="${smallFontSize}" fill="#555">${escapeXml(datum)} / UTM Zone ${escapeXml(zone)}</text>`
   cy += mmToPx(3.5)

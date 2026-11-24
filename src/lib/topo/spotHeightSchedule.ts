@@ -41,6 +41,8 @@ export interface SpotHeightScheduleOptions {
   surveyorLicense?: string
   datum?: string
   utmZone?: number
+  /** Hemisphere of the declared UTM zone; omitted means not declared. */
+  hemisphere?: 'N' | 'S'
   benchmark?: string
   benchmarkRL?: number
 }
@@ -85,9 +87,11 @@ export async function generateSpotHeightSchedule(
   ws.getCell('A5').value = 'License:'
   ws.getCell('B5').value = options.surveyorLicense || '—'
   ws.getCell('A6').value = 'Datum:'
-  ws.getCell('B6').value = options.datum || 'Arc 1960'
+  ws.getCell('B6').value = options.datum || 'NOT DECLARED'
   ws.getCell('A7').value = 'UTM Zone:'
-  ws.getCell('B7').value = `${options.utmZone || 37}S`
+  ws.getCell('B7').value = options.utmZone
+    ? `${options.utmZone}${options.hemisphere ?? ''}`
+    : 'NOT DECLARED'
   ws.getCell('A8').value = 'Benchmark:'
   ws.getCell('B8').value = options.benchmark || '—'
   ws.getCell('C8').value = 'BM RL:'

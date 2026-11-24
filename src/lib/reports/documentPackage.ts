@@ -703,8 +703,8 @@ export function generateControlSubmission(
   <h2>Submission Details</h2>
   <div class="grid2">
     <div class="box"><div class="label">Network / Order</div><div class="value">${ex.network || 'Third Order'}</div></div>
-    <div class="box"><div class="label">Datum</div><div class="value">${ex.datum || 'Arc 1960'}</div></div>
-    <div class="box"><div class="label">UTM Zone</div><div class="value">Zone ${project.utm_zone}${project.hemisphere}</div></div>
+    <div class="box"><div class="label">Datum</div><div class="value">${ex.datum || 'NOT DECLARED'}</div></div>
+    <div class="box"><div class="label">UTM Zone</div><div class="value">${project.utm_zone ? `Zone ${project.utm_zone}${project.hemisphere ?? ''}` : 'NOT DECLARED'}</div></div>
     <div class="box"><div class="label">Adjustment method</div><div class="value">${ex.method || 'Bowditch Rule'}</div></div>
     <div class="box"><div class="label">Precision achieved</div><div class="value">${ex.precision || '—'}</div></div>
     <div class="box"><div class="label">Date observed</div><div class="value">${ex.dateObserved || '—'}</div></div>

@@ -18,6 +18,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { log } from '@/lib/logger'
 import { generateSignedPdf, type SignedPdfResult } from '@/lib/reports/surveyPlan/signedPdfExport'
+import { resolveDeclaredReference } from '@/lib/spatial/projectReferenceSystem'
 import type { SurveyPlanData, MonumentType, FenceOffset, AdjacentLot, ControlPoint } from '@/lib/reports/surveyPlan/types'
 import { z } from 'zod'
 
@@ -134,6 +135,21 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
 
   const project = projectRows[0]
 
+  // ── Declared reference system ──
+  // A signed plan states the CRS it was computed in. Never fall back to a
+  // national default: an undeclared project must declare one first.
+  const { rows: referenceRows } = await db.query<{ horizontal_crs: string | null }>(
+    'SELECT horizontal_crs FROM project_reference_systems WHERE project_id = $1',
+    [projectId],
+  )
+  const declared = resolveDeclaredReference(referenceRows[0]?.horizontal_crs)
+  if (!declared.ok) {
+    return NextResponse.json(
+      { error: declared.message, code: 'CRS_NOT_DECLARED' },
+      { status: 409 },
+    )
+  }
+
   // ── Load boundary points ──
   const { rows: boundaryRows } = await db.query<BoundaryPointRow>(
     `SELECT name, easting, northing, elevation, monument_type, beacon_description
@@ -179,9 +195,9 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
       name: project.name || 'Untitled Project',
       location: project.location || '',
       municipality: project.municipality || undefined,
-      utm_zone: project.utm_zone || 37,
-      hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
-      datum: (project.datum || 'ARC1960') as 'ARC1960' | 'WGS84' | 'WGS84Geographic',
+      utm_zone: declared.reference.zone,
+      hemisphere: declared.reference.hemisphere,
+      datum: declared.reference.datumSelection,
       client_name: project.client_name || undefined,
       surveyor_name: project.surveyor_name || profile?.full_name || '',
       surveyor_licence: project.surveyor_licence || '',

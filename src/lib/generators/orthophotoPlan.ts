@@ -249,7 +249,13 @@ function drawBottomPanel(
     legendX,
     infoTop + 40
   );
-  doc.text(`UTM Zone ${project.utm_zone || 37}${project.hemisphere || 'S'}`, legendX, infoTop + 46);
+  doc.text(
+    project.utm_zone
+      ? `UTM Zone ${project.utm_zone}${project.hemisphere ?? ''}`
+      : 'UTM Zone NOT DECLARED',
+    legendX,
+    infoTop + 46,
+  );
 
   drawNorthArrow(doc, x + prepW + clientW + legendW + arrowW / 2, infoTop + 24);
 

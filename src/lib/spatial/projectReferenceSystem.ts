@@ -20,6 +20,7 @@ import {
   CrsError,
   WGS84_CRS,
   createProjectReferenceSystem,
+  describeCrs,
   transformPoint,
   type ProjectReferenceSystem,
 } from './projectCrs'
@@ -464,4 +465,86 @@ export function fromReferenceSystemRow(
     record.csfReference = { easting, northing, height }
   }
   return record
+}
+
+// ─── Declared reference for deliverables ─────────────────────────────────────
+
+/**
+ * What a deliverable may state about the project's coordinate reference.
+ * Every field comes from the CRS registry, never from a remembered constant.
+ */
+export interface DeclaredCoordinateReference {
+  /** Authority code exactly as declared, e.g. 'EPSG:21037'. */
+  horizontalCrs: string
+  /** Registry datum name, e.g. 'Arc 1960' or 'WGS 84'. */
+  datum: string
+  /** Datum selector value used by the settings form. */
+  datumSelection: DatumSelection
+  zone: number
+  hemisphere: 'N' | 'S'
+  units: 'metres'
+  /** Printable statement, e.g. 'Arc 1960 / UTM Zone 37S (EPSG:21037)'. */
+  label: string
+}
+
+export type DeclaredReferenceResult =
+  | { ok: true; reference: DeclaredCoordinateReference }
+  | { ok: false; message: string }
+
+/**
+ * Resolve the ONE coordinate reference a project may print on a deliverable.
+ *
+ * Input is the declared `project_reference_systems.horizontal_crs` value.
+ * There is deliberately no fallback: a project that never declared a
+ * reference system has no correct CRS to print, and inventing a national
+ * default would put a false datum on a signed document (blueprint 2.4).
+ */
+export function resolveDeclaredReference(
+  horizontalCrs: string | null | undefined,
+): DeclaredReferenceResult {
+  const code = (horizontalCrs ?? '').trim()
+  if (!code) {
+    return {
+      ok: false,
+      message:
+        'This project has no declared reference system. Declare the horizontal CRS in Project Settings before issuing this deliverable.',
+    }
+  }
+
+  const info = describeCrs(code)
+  if (!info) {
+    return {
+      ok: false,
+      message: `The declared reference system "${code}" is not in the CRS registry. Re-declare the project reference system.`,
+    }
+  }
+  if (!info.projected || info.zone === undefined || info.hemisphere === undefined) {
+    return {
+      ok: false,
+      message: `The declared reference system "${info.code}" is not a projected UTM CRS in metres. Survey mathematics and deliverables require a projected CRS.`,
+    }
+  }
+
+  let datumSelection: DatumSelection
+  try {
+    datumSelection = normalizeDatumSelection(info.datum)
+  } catch {
+    return {
+      ok: false,
+      message: `The datum "${info.datum}" of the declared reference system "${info.code}" has no settings selector. Register the datum before issuing this deliverable.`,
+    }
+  }
+
+  return {
+    ok: true,
+    reference: {
+      horizontalCrs: info.code,
+      datum: info.datum,
+      datumSelection,
+      zone: info.zone,
+      hemisphere: info.hemisphere,
+      units: 'metres',
+      label: `${info.datum} / UTM Zone ${info.zone}${info.hemisphere} (${info.code})`,
+    },
+  }
 }
