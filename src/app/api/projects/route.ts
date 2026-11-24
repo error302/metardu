@@ -92,7 +92,7 @@ export const POST = apiHandler({
           throw new AppError('Unexpected reference-system column name', 500, 'CRS_PERSIST_FAILED')
         }
         const placeholders = referenceColumns.map((_, index) => `$${index + 1}`).join(', ')
-        await client.query(
+        await client.query<Record<string, unknown>>(
           `INSERT INTO project_reference_systems (${referenceColumns.join(', ')})
            VALUES (${placeholders})`,
           referenceColumns.map((column) => referenceRow[column]),
