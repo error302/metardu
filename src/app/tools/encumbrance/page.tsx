@@ -1,6 +1,7 @@
 'use client'
 import { useRef, useState } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { EncumbranceCoverageDrawing } from '@/components/cadastral/EncumbranceCoverageDrawing'
 import { parseEncumbranceCoordinates, reviewEncumbranceRecords } from '@/lib/cadastral/encumbranceRecords'
 import type { Encumbrance, EncumbranceParcel, EncumbranceResult, EncumbranceType } from '@/lib/cadastral/encumbranceRecords'
@@ -68,7 +69,15 @@ export default function EncumbrancePage() {
     <p className="text-sm text-zinc-400">Record source information and assess spatial footprints against a measured parcel. This page does not register an interest, search a registry or verify title restrictions. Missing records, dates and geometry remain unknown.</p>
     <div className="grid gap-4 sm:grid-cols-2">
       <label className="text-sm text-zinc-400">Source parcel area (m², optional)<input type="number" step="any" value={sourceArea} onChange={e => { invalidate(); setSourceArea(e.target.value) }} className={inputClass} /></label>
-      <label className="text-sm text-zinc-400">Declared projected CRS<input value={crsCode} onChange={e => { invalidate(); setCrsCode(e.target.value) }} placeholder="Enter the project's registered EPSG code" className={inputClass} /></label>
+      <div className="text-sm text-zinc-400">
+        <CrsPicker
+          id="encumbrance-crs"
+          label="Declared projected CRS"
+          value={crsCode}
+          onChange={value => { invalidate(); setCrsCode(value) }}
+          hint="Enter the project's registered EPSG code as declared by project control."
+        />
+      </div>
     </div>
     <label className="block text-sm text-zinc-400">Parcel boundary coordinates<textarea rows={5} value={boundaryText} onChange={e => { invalidate(); setBoundaryText(e.target.value) }} className={inputClass + ' font-mono'} /></label>
     <p className="text-xs text-zinc-400">Easting,northing in metres, one pair per line. The first ring is the outer parcel boundary. Separate optional hole rings with a blank line. Enter the same CRS for every supplied geometry. A source/title area does not replace boundary coordinates.</p>

@@ -4,6 +4,7 @@ import { useMemo, useState } from 'react'
 import type { FormEvent } from 'react'
 import Link from 'next/link'
 import { ArrowLeft, Download, FileSpreadsheet } from 'lucide-react'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { parseSettingOutSheetCsv } from '@/lib/documents/settingOutSheetCsv'
 
 const inputClass = 'h-11 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-3 text-sm text-[var(--text-primary)] outline-none focus:border-[var(--accent)]'
@@ -60,6 +61,10 @@ export default function SettingOutSheetPage() {
     }
     if (!parsed.points.length) {
       setError('Paste at least one design point before generating the sheet.')
+      return
+    }
+    if (!metadata.projection.trim()) {
+      setError('Select the declared project CRS before generating the sheet.')
       return
     }
 
@@ -138,11 +143,16 @@ export default function SettingOutSheetPage() {
               <span>Registration / licence <span aria-hidden="true" className="text-red-400">*</span></span>
               <input className={inputClass} value={metadata.surveyorLicense} maxLength={80} required onChange={event => update('surveyorLicense', event.target.value)} />
             </label>
-            <label className="space-y-1.5 text-sm">
-              <span>Declared project CRS <span aria-hidden="true" className="text-red-400">*</span></span>
-              <input className={inputClass} value={metadata.projection} maxLength={80} required placeholder="Registered EPSG code" onChange={event => update('projection', event.target.value)} />
-              <span className="block text-xs leading-5 text-[var(--text-muted)]">Only registered projected metre systems are accepted. Coordinates are range-checked, never transformed.</span>
-            </label>
+            <div className="space-y-1.5 text-sm">
+              <CrsPicker
+                id="setting-out-sheet-crs"
+                label="Declared project CRS"
+                value={metadata.projection}
+                onChange={value => update('projection', value)}
+                required
+                hint="Only registered projected metre systems are accepted. Coordinates are range-checked, never transformed."
+              />
+            </div>
             <label className="space-y-1.5 text-sm">
               <span>Reference station</span>
               <input className={inputClass} value={metadata.referenceStation} maxLength={80} onChange={event => update('referenceStation', event.target.value)} />

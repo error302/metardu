@@ -343,13 +343,19 @@ test('coordinate reference settings preserve known controls through a scale chan
   expect(screen.getByLabelText('Metres per canvas unit')).toHaveValue('0.5')
 })
 
-test('the reference form rejects display-only CRS without changing the local draft', async () => {
+test('the reference form never offers a display-only CRS', async () => {
   await gridDrawing()
   const before = localStorage.getItem('metardu-standalone-cad')
   fireEvent.click(screen.getByText('Coordinate reference', { selector: 'summary' }))
-  fireEvent.change(screen.getByLabelText('Project CRS code'), { target: { value: 'EPSG:3857' } })
+  // The registry picker replaces free text: Web Mercator cannot be selected
+  // at all, which is stronger than rejecting it after the fact.
+  const select = screen.getByLabelText('Project CRS code') as HTMLSelectElement
+  expect(Array.from(select.options).some(option => option.value === 'EPSG:3857')).toBe(false)
+  expect(Array.from(select.options).some(option => option.value === 'EPSG:4326')).toBe(false)
+  // With no CRS selected the apply must fail closed and leave the draft alone.
+  fireEvent.change(select, { target: { value: '' } })
   fireEvent.click(screen.getByRole('button', { name: 'Apply reference' }))
-  expect(await screen.findByRole('alert')).toHaveTextContent(/display|survey/i)
+  expect(await screen.findByRole('alert')).toHaveTextContent(/supported projected project CRS/i)
   expect(localStorage.getItem('metardu-standalone-cad')).toBe(before)
 })
 

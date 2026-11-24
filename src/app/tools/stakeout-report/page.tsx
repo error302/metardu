@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import {
   Target,
   Download,
@@ -441,13 +442,12 @@ export default function StakeoutReportPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-[10px] text-[var(--text-secondary)] block mb-1">Projected metre CRS (EPSG code)</label>
-                  <input
-                    className="w-full rounded-xl border border-[var(--border-color)] bg-black/20 px-3 py-1.5 text-xs focus:outline-none focus:border-[var(--accent)]"
+                  <CrsPicker
+                    id="stakeout-report-crs"
+                    label="Projected metre CRS"
                     value={crs}
-                    aria-label="Projected metre CRS"
-                    placeholder="Enter the job EPSG code"
-                    onChange={(e) => setCrs(e.target.value)}
+                    onChange={setCrs}
+                    hint="Enter the job EPSG code as declared for the site."
                   />
                 </div>
                 <label className="text-xs text-[var(--text-secondary)]">Vertical datum / benchmark

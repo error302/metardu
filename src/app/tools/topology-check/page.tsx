@@ -2,6 +2,7 @@
 
 import { useState, useCallback } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { validateCadastralBoundary, type ValidationResult, type ValidationIssue } from '@/lib/compute/topologyValidator'
 
 interface CoordRow {
@@ -160,14 +161,12 @@ export default function TopologyCheckPage() {
               <span className="label">Coordinate reference declaration</span>
             </div>
             <div className="card-body space-y-3">
-              <label className="block text-sm" htmlFor="topology-crs">Projected CRS identifier</label>
-              <input
+              <CrsPicker
                 id="topology-crs"
-                className="input font-mono text-sm"
+                label="Projected CRS identifier"
                 value={coordinateReference}
-                onChange={(event) => { setCoordinateReference(event.target.value); setResult(null) }}
-                placeholder="Enter the project's declared CRS (for example, an EPSG code)"
-                autoComplete="off"
+                onChange={(event) => { setCoordinateReference(event); setResult(null) }}
+                hint="Enter the project's declared CRS as a registered code; coordinates are analysed as supplied."
               />
               <label className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
                 <input

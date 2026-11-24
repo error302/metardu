@@ -8,6 +8,7 @@ import {
   PinCushionResult,
 } from '@/lib/survey/pinCushionAnalysis'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -389,14 +390,12 @@ export default function PinCushionPage() {
         )}
 
         <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4 space-y-3">
-          <label className="block text-sm font-medium" htmlFor="pin-cushion-crs">Declared projected CRS</label>
-          <input
+          <CrsPicker
             id="pin-cushion-crs"
+            label="Declared projected CRS"
             value={coordinateReference}
-            onChange={(event) => setCoordinateReference(event.target.value)}
-            placeholder="Enter the project's declared CRS (for example, an EPSG code)"
-            autoComplete="off"
-            className="w-full max-w-xl rounded-lg border border-[var(--border-color)] bg-black/20 px-3 py-2 text-sm font-mono"
+            onChange={(event) => setCoordinateReference(event)}
+            hint="Recovery coordinates are compared as supplied; METARDU does not transform them."
           />
           <label className="flex items-start gap-2 text-xs text-[var(--text-muted)]">
             <input type="checkbox" checked={coordinatesConfirmed} onChange={(event) => setCoordinatesConfirmed(event.target.checked)} className="mt-0.5" />

@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { PageHeader } from '@/components/shared/PageHeader'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import {
   generateSubdivision,
   KENYA_PLOT_PRESETS,
@@ -190,17 +191,14 @@ export default function SubdivisionGeneratorPage() {
                 Enter boundary vertices in order in the project’s registered projected metre CRS. Survey control points alone are not a parcel boundary.
               </p>
               <div className="mb-4">
-                <label className="font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase block mb-1" htmlFor="project-crs">Project CRS (required)</label>
-                <input
+                <CrsPicker
                   id="project-crs"
-                  className="input font-mono text-sm"
+                  label="Project CRS (required)"
                   value={projectCrs}
-                  onChange={event => { setResult(null); setProjectCrs(event.target.value) }}
-                  placeholder="EPSG:21037"
-                  autoCapitalize="characters"
-                  spellCheck={false}
+                  onChange={event => { setResult(null); setProjectCrs(event) }}
+                  required
+                  hint="Use the code declared by project control or the source plan. EPSG:3857 and geographic-degree systems are not accepted for survey area calculations."
                 />
-                <p className="text-[10px] text-[var(--text-muted)] mt-1">Use the exact code declared by project control or the source plan. EPSG:3857 and geographic-degree systems are not accepted for survey area calculations.</p>
               </div>
               <div className="space-y-2">
                 <div className="grid grid-cols-[40px_1fr_1fr_32px] gap-2 items-center font-mono text-[10px] text-[var(--text-muted)] tracking-[0.06em] uppercase">

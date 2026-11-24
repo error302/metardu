@@ -1,5 +1,6 @@
 'use client'
 import { useRef, useState } from 'react'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { RegistryProjectField, type RegistryProject } from './RegistryProjectField'
 
 export function BeaconReestablishmentForm({ beacon, onClose, onSaved }: {
@@ -40,7 +41,16 @@ export function BeaconReestablishmentForm({ beacon, onClose, onSaved }: {
       <label className="text-xs">Observed northing (m)<input required type="number" step="any" value={northing} onChange={event => setNorthing(event.target.value)} className="input mt-1 w-full" /></label>
       <label className="text-xs">Observed height (m, optional)<input type="number" step="any" value={elevation} onChange={event => setElevation(event.target.value)} className="input mt-1 w-full" /></label>
     </div>
-    <label className="block text-xs">Original coordinate grid<input required value={originalCrs} onChange={event => setOriginalCrs(event.target.value)} placeholder="EPSG code from the original record" className="input mt-1 w-full" /></label>
+    <div className="block text-xs">
+      <CrsPicker
+        id="beacon-original-crs"
+        label="Original coordinate grid"
+        value={originalCrs}
+        onChange={setOriginalCrs}
+        required
+        hint="EPSG code from the original record; select the registered grid it was recorded in."
+      />
+    </div>
     <label className="block text-xs">Observation date and time (device local time)<input required type="datetime-local" value={date} onChange={event => setDate(event.target.value)} className="input mt-1 w-full" /></label>
     <label className="block text-xs">Instrument and serial/reference<input required value={instrument} onChange={event => setInstrument(event.target.value)} className="input mt-1 w-full" /></label>
     <label className="block text-xs">Observed ties to control<textarea required value={ties} onChange={event => setTies(event.target.value)} className="input mt-1 w-full" /></label>

@@ -48,7 +48,8 @@ describe('general setting-out sheet page', () => {
     fireEvent.change(screen.getByLabelText('Sheet date'), { target: { value: '2026-10-12' } })
     fireEvent.change(screen.getByLabelText(/Surveyor name/), { target: { value: 'Surveyor Example' } })
     fireEvent.change(screen.getByLabelText(/Registration \/ licence/), { target: { value: 'LS-123' } })
-    fireEvent.change(screen.getByLabelText(/Declared project CRS/), { target: { value: fixtureCrs32737 } })
+    // Exact label: the registry picker's filter box shares a longer label.
+    fireEvent.change(screen.getByLabelText('Declared project CRS'), { target: { value: fixtureCrs32737 } })
     fireEvent.change(screen.getByLabelText('CSV / TSV point rows'), { target: { value: 'P-01,500010,9900000,,,0.1,0.2,,Foundation corner' } })
     fireEvent.click(screen.getByRole('button', { name: 'Generate draft PDF' }))
 

@@ -6,6 +6,9 @@ const fixtureCrs = 'EPSG:32737'
 // Cold dynamic imports can exceed Testing Library's 1s default under parallel CI.
 const geometryLoadWait = { timeout: 5000 }
 
+// These tests were already racing jest's 5s default against inner waits of
+// up to 5s (see geometryLoadWait below); give them explicit headroom so a
+// loaded CI worker reports a real assertion failure instead of a bare timeout.
 it('starts without fictional records, parcel areas or registration dates', async () => {
   render(<EncumbrancePage />)
   expect(screen.getByLabelText('Source parcel area (m², optional)')).toHaveValue(null)
@@ -13,7 +16,7 @@ it('starts without fictional records, parcel areas or registration dates', async
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
   await waitFor(() => expect(screen.getByLabelText('Complete supplied-record coverage')).toHaveTextContent('Not assessed'))
   expect(screen.getByText(/not a registry search/i)).toBeInTheDocument()
-})
+}, 15000)
 const fill = () => {
   fireEvent.change(screen.getByLabelText('Declared projected CRS'), { target: { value: fixtureCrs } })
   fireEvent.change(screen.getByLabelText('Parcel boundary coordinates'), { target: { value: '500000,9799950\n500100,9799950\n500100,9800050\n500000,9800050' } })
@@ -34,15 +37,15 @@ it('computes clipped coverage, preserves unknown dates and invalidates stale exp
   fireEvent.change(screen.getByLabelText('Record 1 full corridor width (m)'), { target: { value: '' } })
   expect(screen.queryByRole('button', { name: 'Download coverage DXF' })).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
-  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/width/i))
-})
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/width/i), geometryLoadWait)
+}, 15000)
 it('rejects a partial coordinate row without silently moving it to zero', async () => {
   render(<EncumbrancePage />); fill()
   fireEvent.change(screen.getByLabelText('Record 1 coordinates'), { target: { value: '499950,\n500150,9800000' } })
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
-  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/row 1.*complete finite/i))
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/row 1.*complete finite/i), geometryLoadWait)
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
-})
+}, 15000)
 it('does not publish an outdated calculation after the inputs change during module loading', async () => {
   render(<EncumbrancePage />); fill()
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
@@ -51,4 +54,4 @@ it('does not publish an outdated calculation after the inputs change during modu
   expect(screen.queryByRole('img')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Assess supplied records' }))
   await waitFor(() => expect(screen.getByLabelText('Complete supplied-record coverage')).toHaveTextContent('2000.000'), geometryLoadWait)
-})
+}, 15000)

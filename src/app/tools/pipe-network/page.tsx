@@ -24,6 +24,7 @@ import {
   validateLinearPipeRoute,
 } from '@/lib/engineering/pipeNetworkEngine'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { coverBelowMinimum } from '@/lib/engineering/pipeGeometry'
 import { createPipeNetworkProjectData, type PipeNetworkProjectData } from '@/lib/engineering/pipeNetworkPersistence'
 import { PageHeader } from '@/components/shared/PageHeader'
@@ -876,17 +877,16 @@ export default function PipeNetworkPage() {
 
           {!demoMode && (
             <div className="grid min-w-0 grid-cols-1 sm:grid-cols-2 gap-3">
-              <label className="text-[11px] text-[var(--text-secondary)]">
-                Project CRS (registered projected metres)
-                <input
-                  type="text"
+              <div className="text-[11px] text-[var(--text-secondary)]">
+                <CrsPicker
+                  id="pipe-network-crs"
+                  label="Project CRS (registered projected metres)"
                   value={projectCrs}
-                  onChange={(e) => setProjectCrs(e.target.value)}
-                  placeholder="e.g. EPSG:21037"
-                  aria-label="Project coordinate reference system"
-                  className="mt-1 w-full rounded-lg border border-[var(--border-color)] bg-black/30 px-3 py-2 text-xs font-mono text-[var(--text-primary)]"
+                  onChange={setProjectCrs}
+                  required
+                  hint="Registered projected metre CRS only; saved coordinates keep their recorded CRS."
                 />
-              </label>
+              </div>
               <label className="text-[11px] text-[var(--text-secondary)]">
                 Minimum crown cover from project specification (m)
                 <input

@@ -4,6 +4,7 @@ import { useEffect, useId, useState } from 'react'
 import type { CADDocument } from './CADEditor'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { applyCadReferenceFrame, hasCadReferenceFrame, cadReferenceErrorMessage } from '@/lib/cad/cadReferenceFrame'
 import { parseCadGridCoordinate } from '@/lib/cad/cadDocumentValidation'
 
@@ -53,9 +54,15 @@ export function CadReferenceSettings({ document: doc, onApply }: { document: CAD
           setStatus('Reference applied. Supplied point coordinates were preserved.')
         } catch (failure) { setError(cadReferenceErrorMessage(failure)) }
       }}>
-        <div>
-          <label htmlFor={`${id}-crs`} className="block mb-1 text-gray-400">Project CRS code</label>
-          <Input id={`${id}-crs`} value={crs} onChange={event => setCrs(event.target.value)} placeholder="Enter the project EPSG code" className={fieldClass} />
+        <div className="text-gray-400">
+          <CrsPicker
+            id={`${id}-crs`}
+            label="Project CRS code"
+            value={crs}
+            onChange={event => { setCrs(event); setStatus('') }}
+            required
+            hint="Select the project EPSG code the drawing is anchored to."
+          />
         </div>
         <div>
           <label htmlFor={`${id}-scale`} className="block mb-1 text-gray-400">Metres per canvas unit</label>

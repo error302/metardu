@@ -8,6 +8,7 @@ import { computeSettingOut, type SettingOutResult, type InstrumentStation, type 
 import { extractDesignPointsFromDXF } from '@/lib/survey/dxfDesignExtractor'
 import { compareAsBuiltToDesign, parseAsBuiltCsv, type ComparisonReport } from '@/lib/survey/asBuiltComparison'
 import { assertProjectedCrs, validateCoordinateRange } from '@/lib/spatial/projectCrs'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 
 export default function SettingOutPage() {
   const [dxfContent, setDxfContent] = useState('')
@@ -167,7 +168,16 @@ export default function SettingOutPage() {
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="station-rl">Station RL (m)</label><input id="station-rl" value={stationRL} onChange={e => setStationRL(e.target.value)} className={inputCls} placeholder="Required" /></div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="ih">Instrument height (m)</label><input id="ih" value={instrumentHeight} onChange={e => setInstrumentHeight(e.target.value)} className={inputCls} placeholder="Required" /></div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="target-height">Target height (m)</label><input id="target-height" value={targetHeight} onChange={e => setTargetHeight(e.target.value)} className={inputCls} placeholder="Required" /></div>
-            <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="coordinate-frame">Coordinate frame / EPSG</label><input id="coordinate-frame" value={coordinateFrame} onChange={e => setCoordinateFrame(e.target.value)} className={inputCls} placeholder="EPSG:32737" /></div>
+            <div className="text-[var(--text-primary)]">
+              <CrsPicker
+                id="coordinate-frame"
+                label="Coordinate frame / EPSG"
+                value={coordinateFrame}
+                onChange={setCoordinateFrame}
+                required
+                hint="Operator declaration for the untransformed DXF. Registered projected metre CRS only."
+              />
+            </div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="backsight-e">Backsight E</label><input id="backsight-e" value={backsightE} onChange={e => setBacksightE(e.target.value)} className={inputCls} /></div>
             <div><label className="text-[10px] text-[var(--text-muted)] block mb-1" htmlFor="backsight-n">Backsight N</label><input id="backsight-n" value={backsightN} onChange={e => setBacksightN(e.target.value)} className={inputCls} /></div>
           </div>

@@ -4,6 +4,7 @@ import { useState, useCallback, useRef } from 'react';
 import { AlertTriangle } from 'lucide-react'
 import { PageHeader } from '@/components/shared/PageHeader';
 import { ComputeLimitNotice } from '@/components/tools/ComputeLimitNotice';
+import { CrsPicker } from '@/components/spatial/CrsPicker';
 import {
   analyzeSlopeFromPoints,
   computeCutFillDatum,
@@ -907,23 +908,21 @@ export default function PointCloudImportPage() {
                     <p className="text-sm text-[var(--text-secondary)]">
                       This file has no machine-readable CRS. Enter the source CRS and confirm the source metadata; this declaration does not transform coordinates.
                     </p>
-                    <label className="block text-xs text-[var(--text-secondary)]" htmlFor="pointcloud-source-crs">
-                      Source CRS identifier
-                    </label>
-                    <input
-                      id="pointcloud-source-crs"
-                      value={sourceCrsDeclaration}
-                      onChange={event => {
-                        setSourceCrsDeclaration(event.target.value)
-                        setCoordinateBasisConfirmed(false)
-                        setSlopeResult(null)
-                        setTinTriangles(null)
-                        setCutFillResult(null)
-                      }}
-                      placeholder="For example, EPSG:32737"
-                      className="input w-full max-w-sm"
-                      maxLength={120}
-                    />
+                    <div className="text-xs text-[var(--text-secondary)]">
+                      <CrsPicker
+                        id="pointcloud-source-crs"
+                        label="Source CRS identifier"
+                        value={sourceCrsDeclaration}
+                        onChange={event => {
+                          setSourceCrsDeclaration(event)
+                          setCoordinateBasisConfirmed(false)
+                          setSlopeResult(null)
+                          setTinTriangles(null)
+                          setCutFillResult(null)
+                        }}
+                        hint="This declaration does not transform coordinates; confirm the source metadata."
+                      />
+                    </div>
                     {!importTruncated && points.length > 0 && (
                       <label className="flex items-start gap-2 text-sm text-[var(--text-primary)]">
                         <input
