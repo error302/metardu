@@ -3,6 +3,7 @@ import { useRef, useState, useEffect } from 'react'
 import { generatePileGrid, computeSettingOut, generatePileGridDXF, pileGridToCSV, formatBearingDMS, type PileGridDefinition, type PileGridResult, type PileSettingOutData, type PileInstrumentOptions } from '@/lib/engineering/pileGrid'
 import { engineeringScheduleCsv } from '@/lib/engineering/engineeringScheduleCsv'
 import { assertProjectedCrs } from '@/lib/spatial/projectCrs'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { EMPTY_SETOUT_TOLERANCE_PROFILE, resolveSetoutToleranceProfile, type SetoutToleranceProfileDraft } from '@/lib/engineering/setoutToleranceProfile'
 import { SetoutToleranceProfileFields } from '@/components/field/SetoutToleranceProfileFields'
 
@@ -140,7 +141,7 @@ export default function PileGridPanel({ projectId, crsCode, heightReference }: {
     <fieldset disabled={saving} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
       <label className="text-sm text-zinc-400">Grid name<input aria-label="Grid name" className={controls} value={draft.name} onChange={e=>update({name:e.target.value})}/></label>
       <label className="text-sm text-zinc-400">Element type<select aria-label="Element type" className={controls} value={draft.pileType} onChange={e=>update({pileType:e.target.value as PileGridDefinition['pileType']})}>{['pile','column','pier','abutment'].map(k=><option key={k}>{k}</option>)}</select></label>
-      <label className="text-sm text-zinc-400">Declared projected metre CRS<input aria-label="Coordinate system" className={controls} disabled={!!projectId} value={crs} onChange={e=>update({coordinateSystem:e.target.value})} placeholder="Declared EPSG code"/></label>
+      <div className="text-sm text-zinc-400"><CrsPicker id="pile-grid-crs" label="Declared projected metre CRS" value={crs} onChange={value=>update({coordinateSystem:value})} disabled={!!projectId} required hint="Project work uses the project's declared CRS; standalone grids need an explicit selection."/></div>
       <label className="text-sm text-zinc-400">Declared height reference<input aria-label="Declared height reference" className={controls} disabled={!!projectId} value={height} onChange={e=>{invalidate();setLocalHeight(e.target.value)}} placeholder="Datum or benchmark reference"/></label>
       {fields.map(([key,label,aria])=><label className="text-sm text-zinc-400" key={key}>{label}<input aria-label={aria} type="number" step="any" className={controls} value={draft[key]} onChange={e=>update({[key]:e.target.value})}/></label>)}
       {(['labelRowsAs','labelColumnsAs'] as const).map(key=><label key={key} className="text-sm text-zinc-400">{key==='labelRowsAs'?'Row':'Column'} label format<select aria-label={key} className={controls} value={draft[key]} onChange={e=>update({[key]:e.target.value})}><option value="alpha">Letters</option><option value="numeric">Numbers</option></select></label>)}

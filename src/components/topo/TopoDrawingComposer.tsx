@@ -5,6 +5,7 @@ import { useSession } from 'next-auth/react'
 import { coordinateNumber } from '@/lib/import/totalStation/coordinateNumber'
 import { readDrawingCsv, readProjectDrawingSource, drawingReferenceIssue, MAX_DRAWING_POINTS } from '@/lib/topo/drawingSource'
 import { resolveEpsg } from '@/lib/spatial/projectCrs'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import { resolveDeclaredStageReference } from '@/lib/workspaces/stageReference'
 import {
   Upload,
@@ -538,7 +539,16 @@ function DrawingWorkspace({ projectId }: TopoDrawingComposerProps) {
         <button className="ml-4 underline" disabled={projectLoading || exporting} onClick={() => setLoadAttempt(value => value + 1)}>Reload project points</button>
       </div> : <div className="space-y-3 rounded-lg border border-zinc-700 p-4 text-sm text-zinc-300">
         <p>Local draft. Importing CSV replaces this local set. Use id, easting, northing, elevation and code headers; no measurements are transformed here.</p>
-        <label className="block">Horizontal CRS (projected metres)<Input value={horizontalCrs} onChange={event => setHorizontalCrs(event.target.value)} placeholder="EPSG code" /></label>
+        <div className="block">
+          <CrsPicker
+            id="topo-horizontal-crs"
+            label="Horizontal CRS (projected metres)"
+            value={horizontalCrs}
+            onChange={event => setHorizontalCrs(event)}
+            required
+            hint="Local drafts need an explicit projected metre grid before export."
+          />
+        </div>
         <label className="block">Height reference<Input value={verticalDatum} onChange={event => setVerticalDatum(event.target.value)} /></label>
         <label className="flex items-center gap-2"><input type="checkbox" checked={metresConfirmed} onChange={event => setMetresConfirmed(event.target.checked)} />Horizontal coordinates and measured heights are in metres.</label>
       </div>}

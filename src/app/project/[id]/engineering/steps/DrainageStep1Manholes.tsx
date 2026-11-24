@@ -12,6 +12,7 @@ import {
 } from '@/lib/engineering/drainageAlignment'
 import type { ProjectMapDrainageAlignment } from '@/lib/engineering/projectMapDrainageAlignments'
 import { resolveEpsg } from '@/lib/spatial/projectCrs'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 import {
   EMPTY_SETOUT_TOLERANCE_PROFILE,
   type SetoutToleranceProfileDraft,
@@ -277,8 +278,17 @@ export function DrainageStep1Manholes({
 
       <section className="grid grid-cols-1 gap-3 rounded-lg border border-zinc-700 bg-zinc-900/50 p-4 sm:grid-cols-2 xl:grid-cols-4">
         <div className="sm:col-span-2">
-          <label htmlFor="drainage-project-crs" className="mb-1 block text-xs text-zinc-400">Project CRS for coordinates</label>
-          <input id="drainage-project-crs" value={projectCrs} onChange={event => { setProjectCrs(event.target.value); markEdited() }} disabled={saving} placeholder="EPSG:21037" className="w-full rounded border border-zinc-700 bg-zinc-800 px-2 py-1.5 text-sm text-white" />
+          <div className="text-xs text-zinc-400">
+            <CrsPicker
+              id="drainage-project-crs"
+              label="Project CRS for coordinates"
+              value={projectCrs}
+              onChange={event => { setProjectCrs(event); markEdited() }}
+              disabled={saving}
+              required
+              hint="Use the project's declared projected CRS in metres."
+            />
+          </div>
           <p className="mt-1 text-[11px] text-zinc-500">Use the project’s declared projected CRS in metres. Manhole coordinates you enter are used as entered; saved map lines are transformed from WGS84 and flagged for field review.</p>
         </div>
         <div>

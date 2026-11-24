@@ -12,6 +12,7 @@ import {
   Download, Table, Layers, Users,
 } from 'lucide-react'
 import { parseCsvRecords } from '@/lib/parcel/csvRecords'
+import { CrsPicker } from '@/components/spatial/CrsPicker'
 
 interface GeoJSONParcelProps {
   parcel_number?: string
@@ -379,20 +380,21 @@ MWAVUMBO/002,534860.000,9574230.000,Jane Smith,87654321,LR/12345/679,0.7500`
       {parcels.length > 0 && (
         <div className="rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)] p-4 space-y-3">
           <div>
-            <label htmlFor="parcel-source-crs" className="block text-xs font-semibold text-[var(--text-primary)]">
-              Source coordinate system
-            </label>
-            <p className="mt-1 text-xs text-gray-400">
-              Enter the EPSG code used by the file. GeoJSON defaults to EPSG:4326 longitude/latitude.
+            <p className="text-xs text-gray-400">
+              GeoJSON defaults to EPSG:4326 longitude/latitude; a CSV grid is whatever the file declares.
             </p>
           </div>
-          <input
-            id="parcel-source-crs"
-            value={sourceCrs}
-            onChange={(event) => { setSourceCrs(event.target.value); setConfirmTransformation(false) }}
-            placeholder="EPSG:21037"
-            className="w-full max-w-xs rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-3 py-2 text-sm text-[var(--text-primary)]"
-          />
+          <div className="max-w-xs">
+            <CrsPicker
+              id="parcel-source-crs"
+              label="Source coordinate system"
+              value={sourceCrs}
+              onChange={(event) => { setSourceCrs(event); setConfirmTransformation(false) }}
+              allowGeographic
+              provenance="from the file's embedded CRS metadata"
+              hint="Select the EPSG code the file itself uses."
+            />
+          </div>
           <label className="flex items-start gap-2 text-xs text-gray-400">
             <input
               type="checkbox"
