@@ -18,6 +18,11 @@ test('a real station named BM retains its own computed RL without shifting subse
     setOpeningRL={jest.fn()} setClosingRL={jest.fn()} setDistanceKm={jest.fn()} setLevelMethod={jest.fn()} levelRows={rows} setLevelRows={jest.fn()}
     computed={{ ok: true, calc: riseAndFall({ readings: [{ station: 'BM', bs: 1.5 }, { station: 'TP1', fs: 1.25 }], openingRL: 100, method: 'rise_and_fall' }) }} />)
   const renderedRows = screen.getAllByRole('row')
+  // Header + BM + TP1 — and BM keeps the opening RL while TP1 carries its own
+  // computed RL (the synthetic opening row is not rendered as a survey row).
+  expect(renderedRows).toHaveLength(3)
+  expect(within(renderedRows[1]).getByText('100.0000')).toBeInTheDocument()
+  expect(within(renderedRows[2]).getByText('100.2500')).toBeInTheDocument()
 })
 
 test('a backsight alone cannot appear as a measured zero closure or arithmetic pass', () => {
@@ -44,10 +49,12 @@ test('rejecting a row requires a reason, strikes it through, and keeps it in the
     onReject={jest.fn()} onRestore={jest.fn()} signOff={null} onSignOff={jest.fn()} />)
   // Rejected row renders struck-through with no computed values
   const rejectedRow = screen.getAllByRole('row').find(row => row.getAttribute('data-rejected') === 'true')
-  expect(within(rejectedRow!).getAllByText('—').length).toBeGreaterThan(0)
+  expect(rejectedRow).toBeDefined()
+  if (!rejectedRow) throw new Error('rejected leveling row was not rendered')
+  expect(within(rejectedRow).getAllByText('—').length).toBeGreaterThan(0)
   // Audit trail is visible with the rejection reason
   expect(screen.getByText(/staff not on same point/)).toBeInTheDocument()
   // Restore button is offered instead of delete; no delete button exists
-  expect(within(rejectedRow!).getByText('common.restore')).toBeInTheDocument()
+  expect(within(rejectedRow).getByText('common.restore')).toBeInTheDocument()
   expect(screen.queryByText('common.remove')).not.toBeInTheDocument()
 })

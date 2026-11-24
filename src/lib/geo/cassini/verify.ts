@@ -2,7 +2,7 @@
  * Cassini ↔ UTM — Verification & WGS84 Output
  */
 
-import { proj4, WGS84_DEF, ARC1960_UTM37S_DEF, ARC1960_UTM36S_DEF } from './constants'
+import { proj4, WGS84_DEF, ARC1960_UTM37S_DEF, ARC1960_UTM36S_DEF, KENYA_UTM_ZONE } from './constants'
 import type { TopoSheetParams, VerificationResult } from './types'
 import { assertProjectedCrs, transformPoint, validateCoordinateRange } from '@/lib/spatial/projectCrs'
 import { cassiniFeetToUTM } from './helmert'
@@ -26,7 +26,7 @@ export function verifyWithCommonPoints(params: TopoSheetParams): VerificationRes
   })
 }
 
-export function utmToWGS84(utmE: number, utmN: number, zone: number = 37): { lat: number; lon: number } {
+export function utmToWGS84(utmE: number, utmN: number, zone: number = KENYA_UTM_ZONE): { lat: number; lon: number } {
   const utmDef = zone === 36 ? ARC1960_UTM36S_DEF : ARC1960_UTM37S_DEF
   const [lon, lat] = proj4(utmDef, WGS84_DEF, [utmE, utmN])
   return { lat, lon }

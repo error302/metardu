@@ -17,7 +17,8 @@ interface ProjectForm4Row {
   planned_parcels: number | null
   survey_type: string | null
   datum: string | null
-  utm_zone: string | null
+  utm_zone: number | null
+  hemisphere: string | null
 }
 
 interface ParcelForm4Row {
@@ -90,8 +91,8 @@ export const GET = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 6000
     ['Total Parcels', String(project.planned_parcels || parcels.length)],
     ['Project Name', project.name],
     ['Survey Type', project.survey_type || '-'],
-    ['Datum', project.datum || 'ARC 1960'],
-    ['UTM Zone', `${project.utm_zone || '37S'}`],
+    ['Datum', project.datum || 'NOT DECLARED'],
+    ['UTM Zone', project.utm_zone ? `${project.utm_zone}${project.hemisphere ?? ''}` : 'NOT DECLARED'],
   ]
 
   doc.setFontSize(9)

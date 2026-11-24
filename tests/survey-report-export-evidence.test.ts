@@ -58,5 +58,7 @@ test('keeps the saved report and explains a figure on the Word cover cannot be i
   ] }] })
   const response = await invokeMockApi(POST, context)
   expect(response.status).toBe(422)
-  expect(await response.json()).toMatchObject({ error: expect.stringContaining('figures or attachments') })
+  const body = (await response.json()) as { error?: unknown }
+  expect(typeof body.error).toBe('string')
+  expect(String(body.error)).toContain('figures or attachments')
 })

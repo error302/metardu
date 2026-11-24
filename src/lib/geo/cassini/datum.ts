@@ -14,6 +14,8 @@ import {
   CLARKE_1880_B_M,
   CLARKE_1880_F,
   FT_TO_M,
+  KENYA_CASSINI_CENTRAL_MERIDIAN_DEG,
+  KENYA_UTM_ZONE,
 } from './constants'
 import type {
   BursaWolfParams,
@@ -197,9 +199,9 @@ export function deriveMolodenskyParams(
   commonPoints: CommonPoint[],
   options?: { zone?: number; centralMeridianDeg?: number; cassiniMeridianDeg?: number },
 ): MolodenskyParams {
-  const zone = options?.zone ?? 37
+  const zone = options?.zone ?? KENYA_UTM_ZONE
   const utmLon0 = ((options?.centralMeridianDeg ?? (6 * zone - 183)) * Math.PI) / 180
-  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? 37) * Math.PI) / 180
+  const cassiniLon0 = ((options?.cassiniMeridianDeg ?? KENYA_CASSINI_CENTRAL_MERIDIAN_DEG) * Math.PI) / 180
   const k0 = 0.9996
   const FE = 500_000
   const FN = 10_000_000

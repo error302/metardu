@@ -851,7 +851,6 @@ export function suggestDatumUtmCrs(
   datum?: string,
 ): DatumUtmSuggestion {
   const zoneSuggestion = suggestUtmCrs(latitude, longitude)
-  const { west, east } = zoneLongitudeBounds(zoneSuggestion.zone)
 
   if (datum) {
     const wanted = normaliseDatum(datum)

@@ -299,7 +299,7 @@ export default function WorkingDiagramClient({ project, entries, projectId }: Pr
             <TraverseSVG data={data} width={520} height={460} />
             <div className="mt-2 flex gap-4 text-xs text-gray-500">
               <span>UTM Zone {project.utm_zone}{project.hemisphere}</span>
-              <span>{project.datum ?? 'Arc 1960'}</span>
+              <span>{project.datum ?? 'NOT DECLARED'}</span>
               {project.lr_number && <span>LR: {project.lr_number}</span>}
             </div>
           </div>

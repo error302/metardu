@@ -29,6 +29,7 @@ export interface CreateProjectInput {
   datum?: string
   projection?: string
   zone?: number
+  hemisphere?: 'N' | 'S'
   surveyorName: string
   surveyorLicense: string
 }
@@ -144,9 +145,11 @@ export async function createProject(input: CreateProjectInput) {
       input.surveyorName, // stored in client_name (closest column)
       input.lrNumber ?? null,
       input.county ?? null,
-      input.zone ?? 37,
-      'S',
-      input.datum ?? 'Arc 1960',
+      // No silent CRS default: a project that declared no reference system
+      // stores NULL and every exporter fails closed until it is declared.
+      input.zone ?? null,
+      input.hemisphere ?? null,
+      input.datum ?? null,
       userId,
     ]
   )

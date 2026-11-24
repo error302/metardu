@@ -93,13 +93,13 @@ export function drawTitleBlock(
   drawLabelValue(doc, col2X, currentY, 'Surveyor:', data.surveyorName, labelWidth);
   drawLabelValue(doc, col2X, currentY + ROW_HEIGHT, 'License:', data.surveyorLicense, labelWidth);
   drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 2, 'Date:', data.date, labelWidth);
-  drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 3, 'Datum:', data.datum ?? 'Arc 1960', labelWidth);
+  drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 3, 'Datum:', data.datum ?? 'NOT DECLARED', labelWidth);
   if (data.controlClass) {
     drawLabelValue(doc, col2X, currentY + ROW_HEIGHT * 4, 'Class:', data.controlClass, labelWidth);
   }
 
   const utmLabel = data.projection?.includes('37') ? 'UTM Z37S' : 'UTM Z36S';
-  drawLabelValue(doc, col3X, currentY, 'Datum:', data.datum ?? 'Arc 1960', labelWidth);
+  drawLabelValue(doc, col3X, currentY, 'Datum:', data.datum ?? 'NOT DECLARED', labelWidth);
   drawLabelValue(doc, col3X, currentY + ROW_HEIGHT, 'Proj.:', utmLabel, labelWidth);
   if (data.scaleFactor !== undefined) {
     drawLabelValue(doc, col3X, currentY + ROW_HEIGHT * 2, 'SF:', data.scaleFactor.toFixed(6), labelWidth);

@@ -1107,6 +1107,20 @@ export function getCountryByISO(isoCode: string): CountrySurveyStandard | undefi
   return Object.values(COUNTRY_REGISTRY).find((c) => c.isoCode === isoCode.toUpperCase())
 }
 
+/**
+ * The regulatory citation a jurisdiction-configured computation sheet prints.
+ *
+ * Taken from the jurisdiction's own area-precision rule — the same source the
+ * area/precision rules themselves come from — so a sheet never cites a statute
+ * that belongs to another jurisdiction. Jurisdictions without a specific rule
+ * fall back to the generic "Apply national standard" text rather than to a
+ * remembered Kenyan citation.
+ */
+export function getAreaRegulationCitation(country: SurveyingCountry): string {
+  const std = getCountryStandard(country)
+  return std.areaPrecision[0]?.regulation ?? 'Apply national standard'
+}
+
 export type SurveyEnvironment =
   | 'urban' | 'rural' | 'transmission_line' | 'detail' | 'default'
   | 'first_order' | 'geodetic'

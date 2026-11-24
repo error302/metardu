@@ -11,12 +11,26 @@ async function testRenderer() {
   const { resolveDocumentEvidence } = await import('../src/lib/reports/documentEvidence');
   const { SurveyPlanRenderer } = await import('../src/lib/reports/surveyPlan/renderer');
   const { shoelaceArea, shoelacePerimeter, bearingFromDelta, distance, formatBearingDegMinSec } = await import('../src/lib/reports/surveyPlan/geometry');
+  const { resolveProjectReference } = await import('../src/lib/spatial/projectReferenceSystem');
 
   const projectId = '0e7f1a12-2e1f-4b33-91ba-27dca290426c';
   const projRes = await db.query<DocumentProject>('SELECT * FROM projects WHERE id = $1', [projectId]);
   const project = projRes.rows[0];
   const ptsRes = await db.query<PointData>('SELECT * FROM survey_points WHERE project_id = $1 ORDER BY created_at', [projectId]);
   const evidence = resolveDocumentEvidence(project, ptsRes.rows);
+
+  // The plan states the project's declared reference system or it is not
+  // rendered — an assumed zone/datum would put a false authority on the plan.
+  const reference = resolveProjectReference({
+    zone: project.utm_zone,
+    hemisphere: project.hemisphere,
+    datum: project.datum,
+  });
+  if (!reference.ok) {
+    throw new Error(
+      `Project ${projectId} has no usable declared reference system: ${reference.message}`,
+    );
+  }
 
   const boundaryPts = evidence.boundaryPoints;
   const bearingSchedule = boundaryPts.map((pt, i) => {
@@ -35,9 +49,9 @@ async function testRenderer() {
     project: {
       name: project.name,
       location: project.location || '',
-      utm_zone: project.utm_zone || 37,
-      hemisphere: (project.hemisphere || 'S') as 'N' | 'S',
-      datum: project.datum as 'ARC1960' | 'WGS84',
+      utm_zone: reference.reference.zone,
+      hemisphere: reference.reference.hemisphere,
+      datum: reference.reference.datumSelection,
       client_name: project.client_name || undefined,
       drawing_no: 'MD-TEST',
       plan_title: 'DRAFT Boundary Identification Plan',

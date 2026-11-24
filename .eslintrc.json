@@ -63,6 +63,7 @@
     "no-useless-escape": "warn",
     "metardu/no-placeholder-as-aria-label": "error",
     "metardu/no-hardcoded-srid-default": "warn",
+    "metardu/no-hardcoded-crs-default": "warn",
     "metardu/no-web-mercator-measure": "warn",
     "no-restricted-syntax": [
       "error",

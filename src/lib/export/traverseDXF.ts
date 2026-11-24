@@ -661,7 +661,7 @@ export function generateTraverseDXF(options: TraverseDXFOptions): string {
   // Top row — Col 3: Coordinate System
   addT('TITLE_BLOCK', 'COORD SYSTEM',
     (col2R + col3R) / 2, rowDivY + tbH * 0.60, smallH)
-  const cs = projectInfo.datum || 'Arc 1960 / UTM Zone 37S'
+  const cs = projectInfo.datum || 'NOT DECLARED'
   addT('TITLE_BLOCK', cs,
     (col2R + col3R) / 2, rowDivY + tbH * 0.25, bodyH)
 

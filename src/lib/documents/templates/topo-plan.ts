@@ -381,7 +381,7 @@ function drawTopoTitleBlock(
   drawLabelValue(doc, col1X, currentY, 'Project:', data.projectName, labelWidth);
   drawLabelValue(doc, col1X, currentY + rowHeight, 'Scale:', `1:${data.scale}`, labelWidth);
   drawLabelValue(doc, col1X, currentY + rowHeight * 2, 'County:', data.county ?? '', labelWidth);
-  drawLabelValue(doc, col1X, currentY + rowHeight * 3, 'Datum:', data.datum ?? 'Arc 1960', labelWidth);
+  drawLabelValue(doc, col1X, currentY + rowHeight * 3, 'Datum:', data.datum ?? 'NOT DECLARED', labelWidth);
 
   // Right column
   drawLabelValue(doc, col2X, currentY, 'Surveyor:', data.surveyorName, labelWidth);

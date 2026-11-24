@@ -21,6 +21,27 @@ export const ARC1960_UTM37S_DEF = '+proj=utm +zone=37 +south +a=6378249.145 +b=6
 /** UTM Zone 36 South — Arc 1960 datum (for sheets near zone boundary) */
 export const ARC1960_UTM36S_DEF = '+proj=utm +zone=36 +south +a=6378249.145 +b=6356514.87 +towgs84=-160,-6,-302,0,0,0,0 +units=m +no_defs'
 
+/**
+ * Kenyan UTM zone — the projection zone of the Kenyan Cassini-Soldner
+ * network that this whole module converts into.
+ *
+ * This is a NAMED JURISDICTION CONSTANT, not a silent default: the Cassini
+ * subsystem is explicitly the Kenyan sheet network, whose western 105/3
+ * sheet group is the only exception (zone 36 — see `getUtmZone()` in
+ * `sheets.ts`, which callers use to pass the right zone explicitly).
+ *
+ * Naming the constant keeps the jurisdiction visible in the code and is
+ * what `metardu/no-hardcoded-crs-default` requires: a bare `?? 37` is a
+ * silent default, a named constant is configuration.
+ */
+export const KENYA_UTM_ZONE = 37
+
+/**
+ * Central meridian of the Kenyan Cassini-Soldner network, in degrees east.
+ * Named for the same reason as {@link KENYA_UTM_ZONE}.
+ */
+export const KENYA_CASSINI_CENTRAL_MERIDIAN_DEG = 37
+
 export { proj4 }
 
 // ─── Ellipsoid Constants ──────────────────────────────────────────────────

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { generateTraverseDXF } from '@/lib/export/traverseDXF'
+import { reportCrs } from '@/lib/generators/reportCrs'
 
 interface TraverseProjectRow {
   id: string
@@ -11,6 +12,8 @@ interface TraverseProjectRow {
   surveyor_name: string
   scheme_number: string | null
   datum: string | null
+  utm_zone: number | null
+  hemisphere: string | null
   county: string | null
 }
 
@@ -78,7 +81,8 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const { rows: projects } = await db.query<TraverseProjectRow>(
     `SELECT p.id, p.name, p.location, p.project_type,
             p.surveyor_name,
-            sd.scheme_number, sd.datum, sd.county
+            p.datum, p.utm_zone, p.hemisphere,
+            sd.scheme_number, sd.county
      FROM projects p
      LEFT JOIN scheme_details sd ON sd.project_id = p.id
      WHERE p.id = $1 AND p.user_id = $2`,
@@ -224,8 +228,15 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
     totalAngularMisclosure = bearingSum - theoreticalSum
   }
 
-  // ── Determine datum string ──────────────────────────────────────────────
-  const datum = project.datum || 'Arc 1960 / UTM Zone 37S'
+  // ── Determine the coordinate reference statement ───────────────────────────
+  // The declared CRS, or NOT DECLARED — a DXF title block never claims a
+  // remembered datum for a project that did not declare one.
+  const crs = reportCrs({
+    utmZone: project.utm_zone ?? undefined,
+    hemisphere: project.hemisphere ?? undefined,
+    datum: project.datum ?? undefined,
+  })
+  const datum = crs.verified ? `${crs.crsName} (${crs.epsgCode})` : 'NOT DECLARED'
 
   // ── Generate DXF ───────────────────────────────────────────────────────
   const dxfString = generateTraverseDXF({

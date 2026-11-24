@@ -470,7 +470,7 @@ function drawDeedPlanTitleBlock(
   drawLabelValue(doc, col2X, currentY, 'Surveyor:', data.surveyorName, labelWidth);
   drawLabelValue(doc, col2X, currentY + rowHeight, 'License:', data.surveyorLicense, labelWidth);
   drawLabelValue(doc, col2X, currentY + rowHeight * 2, 'Date:', data.date, labelWidth);
-  drawLabelValue(doc, col2X, currentY + rowHeight * 3, 'Datum:', data.datum ?? 'Arc 1960', labelWidth);
+  drawLabelValue(doc, col2X, currentY + rowHeight * 3, 'Datum:', data.datum ?? 'NOT DECLARED', labelWidth);
   if (data.registry) {
     drawLabelValue(doc, col2X, currentY + rowHeight * 4, 'Registry:', data.registry, labelWidth);
   }

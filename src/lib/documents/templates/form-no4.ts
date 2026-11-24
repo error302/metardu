@@ -187,7 +187,7 @@ async function generateFormNo4Pdf(
 
   drawField(doc, mx, y, 'Projection:', data.projection ?? 'UTM');
   y += 7;
-  drawField(doc, mx, y, 'Datum:', data.datum ?? 'Arc 1960');
+  drawField(doc, mx, y, 'Datum:', data.datum ?? 'NOT DECLARED');
   y += 9;
 
   // ─── Deed Plans ─────────────────────────────────────────────
