@@ -548,3 +548,74 @@ export function resolveDeclaredReference(
     },
   }
 }
+
+/** Where a resolved reference came from, so the UI can state its provenance. */
+export type ProjectReferenceSource = 'project-reference-system' | 'project-settings'
+
+export interface ProjectReferenceDeclaration {
+  /** `project_reference_systems.horizontal_crs`, when the project has declared one. */
+  declaredCrs?: string | null
+  /** Project-level zone (projects.utm_zone) - the creation-time declaration. */
+  zone?: number | null
+  hemisphere?: string | null
+  /** Project-level datum spelling (projects.datum). */
+  datum?: string | null
+}
+
+export type ProjectReferenceResolution =
+  | { ok: true; reference: DeclaredCoordinateReference; source: ProjectReferenceSource }
+  | { ok: false; message: string }
+
+/**
+ * Recognise the project's reference system the way a surveyor expects: take
+ * the declared project reference system when it exists, otherwise derive it
+ * from the project's own stored zone/datum declaration. Both are declarations
+ * the surveyor made; neither is inferred from geography.
+ *
+ * Only a project that declared nothing at all fails, and then the message
+ * tells the surveyor where to declare it. An explicit but invalid declaration
+ * is reported as invalid - it is never masked by falling back to the legacy
+ * fields, which could silently change the datum on a signed document.
+ */
+export function resolveProjectReference(
+  declaration: ProjectReferenceDeclaration,
+): ProjectReferenceResolution {
+  const declared = (declaration.declaredCrs ?? '').trim()
+  if (declared) {
+    const resolved = resolveDeclaredReference(declared)
+    if (!resolved.ok) return resolved
+    return { ok: true, reference: resolved.reference, source: 'project-reference-system' }
+  }
+
+  const zone = declaration.zone
+  const hemisphere = declaration.hemisphere
+  const datum = (declaration.datum ?? '').trim()
+
+  if (zone === null || zone === undefined || !hemisphere || !datum) {
+    return {
+      ok: false,
+      message:
+        'This project has no reference system yet. Choose the horizontal CRS in Project Settings; METARDU fills it from the declared datum and UTM zone.',
+    }
+  }
+  if (hemisphere !== 'N' && hemisphere !== 'S') {
+    return {
+      ok: false,
+      message: `The project's stored hemisphere "${hemisphere}" is not N or S. Re-declare the reference system in Project Settings.`,
+    }
+  }
+
+  let code: string
+  try {
+    code = horizontalCrsFor(datum, zone, hemisphere)
+  } catch (error) {
+    return {
+      ok: false,
+      message: error instanceof Error ? error.message : String(error),
+    }
+  }
+
+  const resolved = resolveDeclaredReference(code)
+  if (!resolved.ok) return resolved
+  return { ok: true, reference: resolved.reference, source: 'project-settings' }
+}

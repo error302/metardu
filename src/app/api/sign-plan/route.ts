@@ -18,7 +18,7 @@ import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import { log } from '@/lib/logger'
 import { generateSignedPdf, type SignedPdfResult } from '@/lib/reports/surveyPlan/signedPdfExport'
-import { resolveDeclaredReference } from '@/lib/spatial/projectReferenceSystem'
+import { resolveProjectReference } from '@/lib/spatial/projectReferenceSystem'
 import type { SurveyPlanData, MonumentType, FenceOffset, AdjacentLot, ControlPoint } from '@/lib/reports/surveyPlan/types'
 import { z } from 'zod'
 
@@ -136,13 +136,19 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 60, windowMs: 600
   const project = projectRows[0]
 
   // ── Declared reference system ──
-  // A signed plan states the CRS it was computed in. Never fall back to a
-  // national default: an undeclared project must declare one first.
+  // Take the project reference system when declared; otherwise derive it from
+  // the project's own stored zone/datum declaration. Only a project that
+  // declared nothing at all is refused - a signed plan never states a guess.
   const { rows: referenceRows } = await db.query<{ horizontal_crs: string | null }>(
     'SELECT horizontal_crs FROM project_reference_systems WHERE project_id = $1',
     [projectId],
   )
-  const declared = resolveDeclaredReference(referenceRows[0]?.horizontal_crs)
+  const declared = resolveProjectReference({
+    declaredCrs: referenceRows[0]?.horizontal_crs,
+    zone: project.utm_zone,
+    hemisphere: project.hemisphere,
+    datum: project.datum,
+  })
   if (!declared.ok) {
     return NextResponse.json(
       { error: declared.message, code: 'CRS_NOT_DECLARED' },

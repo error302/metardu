@@ -1,7 +1,18 @@
+/**
+ * Original A4 survey-report generator (research-clone era).
+ *
+ * STATUS: retained, not deleted. The live report pipeline is the section-based
+ * one behind /api/survey-report/generate; nothing imports this module today,
+ * so it is kept as the reference implementation of the printed report layout
+ * rather than removed. Its CRS statements are derived from the project's
+ * declared reference, so reusing it can no longer label a WGS 84 project as
+ * Arc 1960 / EPSG:210xx.
+ */
 import jsPDF from 'jspdf'
 import autoTable from 'jspdf-autotable'
 import { bearingToString } from '@/lib/engine/angles'
 import { computeTraverseAccuracy } from '@/lib/reports/traverseAccuracy'
+import { resolveProjectReference } from '@/lib/spatial/projectReferenceSystem'
 
 import type {
   SurveyReportData,
@@ -27,6 +38,34 @@ let _currentPage = 1
 function reset() {
   _yPos = 20
   _currentPage = 1
+}
+
+/**
+ * The reference a report sheet may print. Derived from the project's declared
+ * zone/datum through the CRS registry; when the project declared nothing, the
+ * sheet says so instead of asserting a national default.
+ */
+function declaredReference(data: SurveyReportData): {
+  datum: string
+  zone: string
+  epsg: string
+  kenya: boolean
+} {
+  const resolved = resolveProjectReference({
+    zone: data.project.utm_zone,
+    hemisphere: data.project.hemisphere,
+    datum: data.project.datum,
+  })
+  if (!resolved.ok) {
+    return { datum: 'NOT DECLARED', zone: 'NOT DECLARED', epsg: 'NOT DECLARED', kenya: false }
+  }
+  const reference = resolved.reference
+  return {
+    datum: reference.datum,
+    zone: `${reference.zone}${reference.hemisphere}`,
+    epsg: reference.horizontalCrs,
+    kenya: reference.datumSelection === 'ARC1960',
+  }
 }
 
 function newPage(doc: jsPDF, minY = 260): void {
@@ -100,6 +139,7 @@ function labelValue(doc: jsPDF, label: string, value: string, indent = 15): void
 }
 
 function coverPage(doc: jsPDF, data: SurveyReportData, opts: SurveyReportOptions): void {
+  const reference = declaredReference(data)
   doc.setFillColor(...DARK)
   doc.rect(0, 0, 210, 50, 'F')
   doc.setTextColor(...AMBER)
@@ -139,7 +179,7 @@ function coverPage(doc: jsPDF, data: SurveyReportData, opts: SurveyReportOptions
     ['Location', data.project.location],
     ['Client', data.project.client_name || '—'],
     ['Survey Date', data.project.survey_date || new Date().toLocaleDateString('en-GB')],
-    ['Datum', `${data.project.datum || 'ARC1960'} / UTM Zone ${data.project.utm_zone}${data.project.hemisphere || 'S'}`],
+    ['Datum', `${reference.datum} / UTM Zone ${reference.zone}`],
     ['Scale', `1:${(opts.scale || data.project.scale || 1000).toLocaleString()}`],
     ['Survey Type', data.project.survey_type || 'Cadastral / Boundary'],
     ['Parcel Ref.', opts.parcelRef || data.project.parcel_ref || '—'],
@@ -232,13 +272,15 @@ function introductionSection(doc: jsPDF, data: SurveyReportData, opts: SurveyRep
   bodyText(doc, opts.customIntroduction || defaultIntro)
 
   _yPos += 2
-  // T1.5 FIX (2026-07-09): Derive EPSG from the project's actual UTM zone,
-  // not a hardcoded 'EPSG:21037'. A Zone 36 project would show the wrong EPSG.
   {
-    const z = data.project.utm_zone || 37
-    const h = data.project.hemisphere || 'S'
-    const epsg = `EPSG:210${z < 10 ? '0' + z : z}`
-    bodyText(doc, `Standards applied: Survey conducted in accordance with the Survey Act Cap. 299, RDM 1.1 and the Geodetic Reference System for Kenya (GRS80 / ARC1960). Coordinates are referenced to UTM Zone ${z}${h} (${epsg}).`)
+    const reference = declaredReference(data)
+    const standards = reference.kenya
+      ? 'Survey conducted in accordance with the Survey Act Cap. 299, RDM 1.1 and the Geodetic Reference System for Kenya (GRS80 / ARC1960).'
+      : "Survey conducted under the project's declared standards."
+    bodyText(
+      doc,
+      `Standards applied: ${standards} Coordinates are referenced to ${reference.datum} / UTM Zone ${reference.zone} (${reference.epsg}).`,
+    )
   }
 
   if (data.parcel) {
@@ -250,19 +292,16 @@ function introductionSection(doc: jsPDF, data: SurveyReportData, opts: SurveyRep
 
 function methodologySection(doc: jsPDF, data: SurveyReportData): void {
   sectionTitle(doc, 'Survey Methodology', '2')
-  // T1.5 FIX (2026-07-09): Derive EPSG from the project's actual UTM zone.
+  // Reference statements come from the project's declared zone/datum.
   {
-    const z = data.project.utm_zone || 37
-    const h = data.project.hemisphere || 'S'
-    const epsg = `EPSG:210${z < 10 ? '0' + z : z}`
-    bodyText(doc, `Field observations were carried out using a total station or GNSS receiver. Traverse computation was performed using the Bowditch Rule for closed traverses. All computations were reduced to ARC1960 / UTM Zone ${z}${h} (${epsg}) as required by the Survey of Kenya.`)
+    const reference = declaredReference(data)
+    const requirement = reference.kenya ? ' as required by the Survey of Kenya' : ''
+    bodyText(doc, `Field observations were carried out using a total station or GNSS receiver. Traverse computation was performed using the Bowditch Rule for closed traverses. All computations were reduced to ${reference.datum} / UTM Zone ${reference.zone} (${reference.epsg})${requirement}.`)
   }
   _yPos += 2
   {
-    const z = data.project.utm_zone || 37
-    const h = data.project.hemisphere || 'S'
-    const epsg = `EPSG:210${z < 10 ? '0' + z : z}`
-    labelValue(doc, 'Coordinate System', `ARC1960 / UTM Zone ${z}${h} (${epsg})`)
+    const reference = declaredReference(data)
+    labelValue(doc, 'Coordinate System', `${reference.datum} / UTM Zone ${reference.zone} (${reference.epsg})`)
   }
   labelValue(doc, 'Reduction Method', data.traverse ? 'Bowditch Rule' : 'Coordinate Computation')
   labelValue(doc, 'Area Method', 'Coordinate (Shoelace Formula)')

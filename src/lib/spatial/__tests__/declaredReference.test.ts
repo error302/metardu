@@ -1,4 +1,4 @@
-import { resolveDeclaredReference } from '../projectReferenceSystem'
+import { resolveDeclaredReference, resolveProjectReference } from '../projectReferenceSystem'
 
 /**
  * Deliverables must state the CRS the project declared, or refuse to state
@@ -61,5 +61,74 @@ describe('resolveDeclaredReference', () => {
     expect(result.ok).toBe(false)
     if (result.ok) throw new Error('expected failure')
     expect(result.message).toMatch(/not in the CRS registry/i)
+  })
+})
+
+describe('resolveProjectReference', () => {
+  it('recognises the declared project reference system and ignores the legacy fields', () => {
+    const result = resolveProjectReference({
+      declaredCrs: 'EPSG:32636',
+      zone: 37,
+      hemisphere: 'S',
+      datum: 'Arc 1960',
+    })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.message)
+    expect(result.source).toBe('project-reference-system')
+    expect(result.reference.horizontalCrs).toBe('EPSG:32636')
+    expect(result.reference.hemisphere).toBe('N')
+  })
+
+  it('auto-fills from the project zone/datum when no reference system row exists', () => {
+    const result = resolveProjectReference({ zone: 37, hemisphere: 'S', datum: 'Arc 1960' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.message)
+    expect(result.source).toBe('project-settings')
+    expect(result.reference).toMatchObject({
+      horizontalCrs: 'EPSG:21037',
+      datumSelection: 'ARC1960',
+      zone: 37,
+      hemisphere: 'S',
+    })
+  })
+
+  it('auto-fills the WGS 84 family from the stored zone and hemisphere', () => {
+    const result = resolveProjectReference({ zone: 36, hemisphere: 'N', datum: 'WGS 84' })
+    expect(result.ok).toBe(true)
+    if (!result.ok) throw new Error(result.message)
+    expect(result.reference.horizontalCrs).toBe('EPSG:32636')
+    expect(result.reference.datumSelection).toBe('WGS84')
+  })
+
+  it('asks the surveyor to declare only when the project stored nothing at all', () => {
+    const result = resolveProjectReference({})
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected failure')
+    expect(result.message).toMatch(/no reference system yet/i)
+    expect(result.message).toMatch(/Project Settings/i)
+  })
+
+  it('does not invent a hemisphere that was never stored', () => {
+    const result = resolveProjectReference({ zone: 37, datum: 'Arc 1960' })
+    expect(result.ok).toBe(false)
+  })
+
+  it('reports an invalid declaration instead of falling back to the legacy fields', () => {
+    const result = resolveProjectReference({
+      declaredCrs: 'EPSG:4326',
+      zone: 37,
+      hemisphere: 'S',
+      datum: 'Arc 1960',
+    })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected failure')
+    expect(result.message).toMatch(/not a projected UTM CRS/i)
+  })
+
+  it('refuses an unregistered legacy combination rather than coercing it', () => {
+    const result = resolveProjectReference({ zone: 38, hemisphere: 'S', datum: 'Arc 1960' })
+    expect(result.ok).toBe(false)
+    if (result.ok) throw new Error('expected failure')
+    expect(result.message).toMatch(/not registered/i)
   })
 })
