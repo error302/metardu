@@ -22,8 +22,13 @@ Cloudflare Edge (HTTPS termination, DDoS protection)
     ↓ (cloudflared tunnel)
 Your Local Machine (Docker)
     ↓
-localhost:3000 → METARDU Next.js App
+127.0.0.1:3000 → METARDU Next.js App
 ```
+
+> The origin is the **explicit IPv4 loopback address**. `localhost` is
+> ambiguous on Windows (it also resolves to `::1`), and resolving to the
+> IPv6 address can hand the public hostname to an unrelated process that
+> holds the IPv6 socket on that port. See Step 6.
 
 ---
 
@@ -60,7 +65,7 @@ chmod +x /usr/local/bin/cloudflared
 brew install cloudflared
 
 # Run quick tunnel (gives you a random trycloudflare.com URL)
-cloudflared tunnel --url http://localhost:3000
+cloudflared tunnel --url http://127.0.0.1:3000
 ```
 
 This gives you a URL like `https://random-words.trycloudflare.com` — great for testing but the URL changes every time.
@@ -126,13 +131,30 @@ credentials-file: /root/.cloudflared/<TUNNEL_ID>.json
 
 ingress:
   - hostname: metardu.space
-    service: http://localhost:3000
+    service: http://127.0.0.1:3000
   
   # Catch-all rule (required)
   - service: http_status:404
 ```
 
 Replace `<TUNNEL_ID>` with your actual tunnel ID from Step 5.
+
+> **Use the explicit IPv4 address `127.0.0.1`, never `localhost`.**
+> `localhost` is not a single address: on Windows it resolves to `::1`
+> (IPv6) as well as `127.0.0.1` (IPv4), and the resolver's choice decides
+> which process answers. Docker publishes METARDU on IPv4 loopback only, so
+> a tunnel pointed at `localhost` can reach some *other* process that
+> happens to hold the IPv6 socket on port 3000. This happened in
+> production: `metardu.space` served an unrelated application because a
+> second project's dev server was listening on `[::1]:3000`, while
+> `127.0.0.1:3000` served METARDU correctly. See
+> `../PUBLIC_HOSTNAME_INCIDENT_2026-11-24.md`.
+>
+> The same rule applies to a **remotely managed** tunnel: the ingress rules
+> live in the Cloudflare dashboard, not in the local `config.yml`, and the
+> token-based connector loads the remote rules. Check the tunnel's ingress
+> in the dashboard (or the API) rather than assuming the local file is what
+> runs.
 
 ---
 
@@ -233,8 +255,9 @@ volumes:
 
 | Problem | Solution |
 |---------|----------|
-| Tunnel not connecting | `cloudflared tunnel info metardu` then `curl http://localhost:3000` |
+| Tunnel not connecting | `cloudflared tunnel info metardu` then `curl http://127.0.0.1:3000` |
 | DNS not resolving | `dig metardu.space CNAME` then re-run route command |
+| Public hostname serves the wrong app | The origin address is ambiguous — see Step 6. Check the **remote** ingress rules (dashboard/API) and pin the service to `http://127.0.0.1:3000`. Also check whether another process holds the IPv6 socket on port 3000. |
 | OAuth redirect issues | Ensure `NEXTAUTH_URL` is set correctly, update Google/Azure redirect URIs |
 | Docker not accessible | `docker compose ps` then `docker compose logs app` |
 
