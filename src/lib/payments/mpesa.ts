@@ -9,6 +9,7 @@ export interface MpesaConfig {
   consumerKey: string
   consumerSecret: string
   shortCode: string
+  tillNumber?: string
   initiatorName: string
   securityCredential: string
   environment: 'sandbox' | 'production'
@@ -61,6 +62,7 @@ export class MpesaService {
   private consumerKey: string
   private consumerSecret: string
   private shortCode: string
+  private tillNumber: string
   private initiatorName: string
   private securityCredential: string
   private environment: 'sandbox' | 'production'
@@ -69,6 +71,7 @@ export class MpesaService {
     this.consumerKey = config.consumerKey
     this.consumerSecret = config.consumerSecret
     this.shortCode = config.shortCode
+    this.tillNumber = config.tillNumber || config.shortCode
     this.initiatorName = config.initiatorName
     this.securityCredential = config.securityCredential
     this.environment = config.environment
@@ -84,6 +87,7 @@ export class MpesaService {
     const credentials = Buffer.from(`${this.consumerKey}:${this.consumerSecret}`).toString('base64')
 
     const response = await fetch(`${this.baseUrl}/oauth/v1/generate?grant_type=client_credentials`, {
+      signal: AbortSignal.timeout(15000),
       headers: {
         'Authorization': `Basic ${credentials}`
       }
@@ -91,13 +95,12 @@ export class MpesaService {
 
     if (!response.ok) {
       // AUDIT FIX (M15, 2026-07-02): Actionable error message.
-      const errorBody = await response.text().catch(() => 'unknown')
       throw new Error(
         'Could not obtain M-Pesa access token from Safaricom Daraja API. ' +
         'Check: (1) MPESA_CONSUMER_KEY and MPESA_CONSUMER_SECRET are set correctly, ' +
         '(2) MPESA_ENV is "sandbox" or "production" and matches your credentials, ' +
         '(3) Safaricom Daraja API is reachable (check network/firewall). ' +
-        `HTTP ${response.status}: ${errorBody}`
+        `HTTP ${response.status}.`
       )
     }
 
@@ -106,6 +109,10 @@ export class MpesaService {
   }
 
   async initiateSTKPush(params: STKPushParams): Promise<{ checkoutRequestId: string; responseCode: string }> {
+    const phoneNumber = params.phoneNumber.trim().replace(/[\s()-]/g, '').replace(/^\+/, '').replace(/^0/, '254')
+    if (!/^254[17]\d{8}$/.test(phoneNumber)) {
+      throw new Error('Enter a valid Kenyan mobile number, such as 0712345678 or +254712345678.')
+    }
     const accessToken = await this.getAccessToken()
 
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
@@ -123,9 +130,9 @@ export class MpesaService {
         Timestamp: timestamp,
         TransactionType: 'CustomerBuyGoodsOnline',
         Amount: Math.round(params.amount),
-        PartyA: params.phoneNumber,
-        PartyB: this.shortCode,
-        PhoneNumber: params.phoneNumber,
+        PartyA: phoneNumber,
+        PartyB: this.tillNumber,
+        PhoneNumber: phoneNumber,
         CallBackURL: params.callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/mpesa/callback`,
         AccountReference: params.reference,
         TransactionDesc: params.description || 'METARDU Payment'
@@ -142,12 +149,15 @@ export class MpesaService {
         'DS090.301.BF00005': 'Transaction timed out — the user did not respond to the STK prompt within 60 seconds',
       }
       const translated = error.errorMessage
-        ? safaricomErrors[error.errorMessage] ?? `Safaricom error: ${error.errorMessage}`
+        ? safaricomErrors[error.errorMessage] ?? 'Safaricom could not accept the payment request. Check the server M-Pesa configuration.'
         : 'STK Push failed — Safaricom did not accept the payment request'
       throw new Error(translated)
     }
 
     const data = (await response.json()) as StkPushResponse
+    if (data.ResponseCode !== '0' || !data.CheckoutRequestID) {
+      throw new Error('Safaricom did not accept the payment request. Please try again.')
+    }
     return {
       checkoutRequestId: data.CheckoutRequestID,
       responseCode: data.ResponseCode
@@ -162,6 +172,7 @@ export class MpesaService {
 
     const response = await fetch(`${this.baseUrl}/mpesa/stkpushquery/v1/query`, {
       method: 'POST',
+      signal: AbortSignal.timeout(15000),
       headers: {
         'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json'
@@ -176,9 +187,8 @@ export class MpesaService {
 
     if (!response.ok) {
       // AUDIT FIX (CRITICAL 2, 2026-07-02): Actionable error message.
-      const errBody = await response.text().catch(() => 'unknown')
       throw new Error(
-        `Failed to check M-Pesa transaction status (HTTP ${response.status}). ${errBody}. ` +
+        `Failed to check M-Pesa transaction status (HTTP ${response.status}). ` +
         `Check MPESA_CONSUMER_KEY/SECRET and MPESA_PASSKEY are correct.`
       )
     }
@@ -190,7 +200,7 @@ export class MpesaService {
     // ResultCode: 0 = success, anything else = failure.
     // Reference: Safaricom Daraja API docs — STK Push Query
     return {
-      status: data.ResultCode === 0 ? 'completed' : 'failed',
+      status: typeof data.ResultCode !== 'number' ? 'pending' : data.ResultCode === 0 ? 'completed' : 'failed',
       amount: data.Amount ? parseFloat(data.Amount) : undefined,
       phone: data.PhoneNumber,
       resultCode: data.ResultCode,
@@ -295,8 +305,14 @@ export class AirtelMoneyService {
 export function getMpesaService(): MpesaService | null {
   const consumerKey = process.env.MPESA_CONSUMER_KEY
   const consumerSecret = process.env.MPESA_CONSUMER_SECRET
+  const shortCode = process.env.MPESA_SHORT_CODE
+  const passkey = process.env.MPESA_PASSKEY
+  const environment = process.env.MPESA_ENV || 'sandbox'
+  const tillNumber = process.env.MPESA_TILL_NUMBER
 
-  if (!consumerKey || !consumerSecret) return null
+  if (!consumerKey || !consumerSecret || !shortCode || !passkey) return null
+  if (environment !== 'sandbox' && environment !== 'production') return null
+  if (environment === 'production' && !tillNumber) return null
 
   // AUDIT FIX (HIGH 10, 2026-07-02): Use MPESA_ENV, not NODE_ENV.
   // NODE_ENV=production does NOT mean M-Pesa is in production mode —
@@ -305,9 +321,10 @@ export function getMpesaService(): MpesaService | null {
   return new MpesaService({
     consumerKey,
     consumerSecret,
-    shortCode: process.env.MPESA_SHORT_CODE || '',
+    shortCode,
+    tillNumber,
     initiatorName: process.env.MPESA_INITIATOR_NAME || '',
     securityCredential: process.env.MPESA_SECURITY_CREDENTIAL || '',
-    environment: (process.env.MPESA_ENV as 'sandbox' | 'production') || 'sandbox'
+    environment
   })
 }
