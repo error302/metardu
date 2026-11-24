@@ -61,7 +61,7 @@ test('all archive generation controls are blocked while validation is pending, i
   jest.mocked(apiGet).mockImplementation(() => new Promise(() => {}))
   const ready = { document_id: 'synthetic-doc', status: 'ready', file_url: '/synthetic.pdf' }
   render(<SubmissionClient {...props('project-a')} existingDocs={[ready as never]} />)
-  expect(screen.getByRole('button', { name: /Download Full Package/i })).toBeDisabled()
+  expect(screen.getByRole('button', { name: /Download Client-Ready Package/i })).toBeDisabled()
   expect(screen.getByRole('button', { name: 'Generate Submission Package' })).toBeDisabled()
   for (const button of screen.getAllByRole('button', { name: /Generate.*ZIP/i })) expect(button).toBeDisabled()
 })
