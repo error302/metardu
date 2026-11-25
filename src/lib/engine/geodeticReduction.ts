@@ -107,9 +107,11 @@ export function calculateMeanRadiusOfCurvature(
 }
 
 /**
- * Approximate latitude from UTM northing (valid for equatorial zones e.g. Kenya -5° to +5°)
+ * Approximate latitude from UTM northing (valid for equatorial zones e.g. Kenya -5° to +5°).
+ * The hemisphere is required: it selects whether the northing counts up from the
+ * equator (N) or down from 10,000,000 m (S), so it must be the declared one.
  */
-export function approximateLatitudeFromNorthing(northing: number, hemisphere: 'N' | 'S' = 'S'): number {
+export function approximateLatitudeFromNorthing(northing: number, hemisphere: 'N' | 'S'): number {
   // In Southern Hemisphere UTM, Equator is at Northing 10,000,000 m
   const distFromEquator = hemisphere === 'S' ? 10000000 - northing : northing
   const latDeg = (distFromEquator / 111132.95) * (hemisphere === 'S' ? -1 : 1)

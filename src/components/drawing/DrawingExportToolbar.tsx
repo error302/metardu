@@ -27,9 +27,13 @@ interface DrawingExportToolbarProps {
   points: ExportPoint[]
   legs?: ExportLeg[]
   className?: string
-  /** UTM zone (default 37 for Kenya) */
+  /**
+   * Declared UTM zone of the project's reference system. GeoJSON conversion
+   * needs the SOURCE CRS: with no declared zone the export is blocked rather
+   * than assuming a remembered zone.
+   */
   utmZone?: number
-  /** UTM hemisphere (default 'S' for Kenya) */
+  /** Declared hemisphere of the project's reference system (see utmZone). */
   hemisphere?: 'N' | 'S'
 }
 
@@ -137,9 +141,15 @@ function utmToLatLon(
 function exportGeoJSON(
   projectName: string,
   points: ExportPoint[],
-  utmZone = 37,
-  hemisphere: 'N' | 'S' = 'S',
+  utmZone: number | undefined,
+  hemisphere: 'N' | 'S' | undefined,
 ): void {
+  // GeoJSON (RFC 7946) is WGS84, so the source CRS must be known to convert.
+  // A project that declared no reference system has no zone to convert from —
+  // refuse instead of assuming a remembered one.
+  if (utmZone === undefined || hemisphere === undefined) {
+    throw new Error('Coordinate reference system not declared — select the project CRS before exporting GeoJSON')
+  }
   // Convert UTM coordinates to WGS84 (RFC 7946 requires WGS84)
   const wgs84Coords = points.map(p => {
     const ll = utmToLatLon(p.easting, p.northing, utmZone, hemisphere)
@@ -246,11 +256,13 @@ export default function DrawingExportToolbar({
   points,
   legs,
   className = '',
-  utmZone = 37,
-  hemisphere = 'S',
+  utmZone,
+  hemisphere,
 }: DrawingExportToolbarProps) {
   const [loading, setLoading] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
+  // GeoJSON needs the declared source CRS; without it the export is blocked.
+  const crsDeclared = utmZone !== undefined && hemisphere !== undefined
 
   async function handleDXF() {
     setLoading('dxf')
@@ -321,9 +333,9 @@ export default function DrawingExportToolbar({
       {/* GeoJSON */}
       <button
         onClick={handleGeoJSON}
-        disabled={loading !== null || points.length === 0}
+        disabled={loading !== null || points.length === 0 || !crsDeclared}
         className={`${btnBase} bg-emerald-700 hover:bg-emerald-600 text-white`}
-        title="Export GeoJSON"
+        title={crsDeclared ? 'Export GeoJSON' : 'Coordinate reference system not declared — select the project CRS first'}
       >
         {loading === 'geojson' ? (
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
