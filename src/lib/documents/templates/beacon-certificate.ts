@@ -19,6 +19,14 @@ import {
 import type { DocumentTemplate, TemplateGenerateOptions } from './registry';
 import type { ResolvedLogo } from '../resolve-logo';
 import type { PlanId } from '@/lib/subscription/catalog';
+import {
+  ALL_COUNTRIES,
+  getBeaconRule,
+  getCountryStandard,
+  type SurveyingCountry,
+} from '@/lib/country/standards';
+import { CrsError } from '@/lib/spatial/projectCrs';
+import { resolvePrintableCrs } from '@/lib/spatial/projectReferenceSystem';
 
 export interface BeaconCertificateData {
   beaconName: string;
@@ -28,8 +36,12 @@ export interface BeaconCertificateData {
   easting: number;
   northing: number;
   elevation?: number;
-  datum: string;
-  projection: string;
+  /** Jurisdiction selected for the certificate; statutory text is derived from its registry entry. */
+  country: SurveyingCountry;
+  /** Registry CRS code selected for the certificate (e.g. 'EPSG:21037'). */
+  horizontalCrs: string;
+  /** Vertical datum / height reference, when declared. */
+  verticalDatum?: string;
   description: string;
   /** Date the beacon was established or found */
   dateOfEstablishment: string;
@@ -47,6 +59,16 @@ async function generateBeaconCertificatePdf(
   const companyLogo: ResolvedLogo | null = options?.companyLogo ?? null;
   const pageW = PAPER_SIZES.A4.width;
   const pageH = PAPER_SIZES.A4.height;
+
+  const reference = resolvePrintableCrs(data.horizontalCrs);
+  if (!reference.ok) {
+    throw new CrsError('CRS_INVALID', reference.message);
+  }
+  if (!ALL_COUNTRIES.some(country => country.id === data.country)) {
+    throw new Error(`Unrecognised jurisdiction "${String(data.country)}". Select a jurisdiction from the country standards registry.`);
+  }
+  const jurisdiction = getCountryStandard(data.country);
+  const beaconRule = getBeaconRule(data.country);
 
   const doc = createSurveyDocument({
     paperSize: 'A4',
@@ -82,17 +104,21 @@ async function generateBeaconCertificatePdf(
     drawCompanyLogo(doc, companyLogo.data, mx, y, 30, 10);
     y += 3;
   }
-  drawText(doc, 'REPUBLIC OF KENYA', mx, y, 4, { bold: true, align: 'center' });
+  drawText(doc, jurisdiction.name.toUpperCase(), mx, y, 4, { bold: true, align: 'center' });
   y += 7;
   drawText(doc, 'BEACON PRESERVATION CERTIFICATE', mx, y, 5, { bold: true, align: 'center' });
-  y += 10;
+  y += 7;
+  drawText(doc, 'DRAFT — NOT CERTIFIED', mx, y, 3.5, { bold: true, align: 'center', color: '#8a1c1c' });
+  y += 8;
   drawLine(doc, mx, y, 210 - mx, y, LINE_WEIGHTS.titleBorder);
   y += 8;
 
   // ─── Certificate Text ────────────────────────────────────
-  drawText(doc, 'This is to certify that the beacon described below has been established', mx, y, 2.5);
+  drawText(doc, 'This draft records the beacon described below for professional review.', mx, y, 2.5);
   y += 5;
-  drawText(doc, 'and preserved in accordance with the Survey Act.', mx, y, 2.5);
+  drawText(doc, 'It is not a certified survey until signed and authenticated in the applicable jurisdiction.', mx, y, 2.5);
+  y += 6;
+  drawText(doc, `Jurisdictional beacon rule: ${beaconRule.regulation}`, mx, y, 2.2);
   y += 10;
 
   // ─── Beacon Details ─────────────────────────────────────
@@ -103,8 +129,8 @@ async function generateBeaconCertificatePdf(
     { label: 'Easting:', value: data.easting.toFixed(3) + ' m' },
     { label: 'Northing:', value: data.northing.toFixed(3) + ' m' },
     { label: 'Elevation:', value: data.elevation != null ? data.elevation.toFixed(3) + ' m' : 'Not determined' },
-    { label: 'Datum:', value: data.datum },
-    { label: 'Projection:', value: data.projection },
+    { label: 'Coordinate reference:', value: reference.crs.label },
+    { label: 'Vertical datum:', value: data.verticalDatum?.trim() || 'NOT DECLARED' },
     { label: 'Date of Establishment:', value: data.dateOfEstablishment },
     { label: 'Description:', value: data.description },
     { label: 'Project Reference:', value: data.projectReference },
@@ -136,11 +162,11 @@ async function generateBeaconCertificatePdf(
   drawText(doc, 'Date', mx + 90, y + 2, TEXT_SIZES.small);
   drawText(doc, data.date, mx + 90, y + 5, TEXT_SIZES.small);
 
-  // Director of Surveys approval
+  // Jurisdictional approval, where the selected authority requires one.
   y += 15;
   drawLine(doc, mx, y, 210 - mx, y, LINE_WEIGHTS.titleBorder);
   y += 5;
-  drawText(doc, 'FOR DIRECTOR OF SURVEYS', mx, y, TEXT_SIZES.coordinate, { bold: true });
+  drawText(doc, 'JURISDICTIONAL APPROVAL (IF REQUIRED)', mx, y, TEXT_SIZES.coordinate, { bold: true });
   y += 8;
   drawLine(doc, mx + 90, y, 210 - mx, y, 0.2);
   drawText(doc, 'Approved / Date', mx + 90, y + 2, TEXT_SIZES.small);
