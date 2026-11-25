@@ -75,6 +75,14 @@ test('isolated batches preserve real typed findings, overrides, ignores and exac
     assert.ifError(run.error)
     assert.equal(run.status, 1, run.stdout + run.stderr)
     assert.match(run.stderr, /[1-9]\d* ESLint errors/)
+
+    // A deleted tracked file may remain in Git's changed-path inventory. It
+    // must not be handed to ESLint as an explicit, unmatched file pattern.
+    const runWithDeletedPath = spawnSync(process.execPath, [cli, '--scope', 'src/,src/missing.ts'], { cwd, encoding: 'utf8', windowsHide: true, timeout: 30000 })
+    assert.ifError(runWithDeletedPath.error)
+    assert.equal(runWithDeletedPath.status, 1, runWithDeletedPath.stdout + runWithDeletedPath.stderr)
+    assert.doesNotMatch(runWithDeletedPath.stderr, /No files matching/)
+    assert.match(runWithDeletedPath.stderr, /[1-9]\d* ESLint errors/)
   } finally {
     for (const file of created.reverse()) unlinkSync(file)
     try { rmdirSync(path.join(cwd, 'scripts')) } catch (error) { if (error.code !== 'ENOENT') throw error }

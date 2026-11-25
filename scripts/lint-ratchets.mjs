@@ -105,9 +105,10 @@ const SCOPE = scopeIdx >= 0 && args[scopeIdx + 1] ? args[scopeIdx + 1].split(','
   : [...new Set(execFileSync('git', ['-c', 'core.fsmonitor=false', 'ls-files', '--cached', '--others', '--exclude-standard', '-z'], { encoding: 'utf8', windowsHide: true })
     .split('\0').filter(file => /\.(?:[cm]?[jt]s|[jt]sx)$/.test(file) && !/^(?:\.claude|docs)\//.test(file)))]
 
-// Some scoped runs (tests) operate in a partial checkout that may lack
-// middleware.ts — drop scope entries that don't exist instead of failing.
-const EXISTING_SCOPE = SCOPE.filter((p) => existsSync(p) || /[/*?]/.test(p))
+// Git's changed-path inventory can include deleted tracked files. Keep glob
+// patterns (which may still match existing files) but drop absent literal paths
+// instead of passing unmatched files to ESLint.
+const EXISTING_SCOPE = SCOPE.filter((p) => existsSync(p) || /[*?[\]{}]/.test(p))
 if (EXISTING_SCOPE.length !== SCOPE.length) {
   console.error(`[lint-ratchets] note: ${SCOPE.length - EXISTING_SCOPE.length} scope path(s) not present in this checkout, linting ${EXISTING_SCOPE.join(', ')}`)
 }
