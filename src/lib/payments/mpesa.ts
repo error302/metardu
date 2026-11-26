@@ -4,6 +4,33 @@
  */
 
 import { mpesaBreaker } from '@/lib/resilience/circuitBreaker'
+import { AppError } from '@/lib/api/errors'
+
+/**
+ * 400 — the customer can correct the M-Pesa phone number and retry.
+ * The message is deliberately customer-safe and never contains raw provider text.
+ */
+export class MpesaPhoneNumberError extends AppError {
+  constructor(
+    message = 'Enter a valid Kenyan mobile number, such as 0712345678 or +254712345678.',
+  ) {
+    super(message, 400, 'MPESA_INVALID_PHONE')
+  }
+}
+
+/**
+ * 502 — Daraja could not accept the request for a reason the customer cannot fix.
+ * Provider payloads are never returned to the browser.
+ */
+export class MpesaProviderError extends AppError {
+  constructor(
+    message = 'M-Pesa could not accept this payment request. Please try again or choose another payment method.',
+    cause?: unknown,
+  ) {
+    super(message, 502, 'MPESA_UNAVAILABLE')
+    if (cause !== undefined) this.cause = cause
+  }
+}
 
 export interface MpesaConfig {
   consumerKey: string
@@ -111,52 +138,91 @@ export class MpesaService {
   async initiateSTKPush(params: STKPushParams): Promise<{ checkoutRequestId: string; responseCode: string }> {
     const phoneNumber = params.phoneNumber.trim().replace(/[\s()-]/g, '').replace(/^\+/, '').replace(/^0/, '254')
     if (!/^254[17]\d{8}$/.test(phoneNumber)) {
-      throw new Error('Enter a valid Kenyan mobile number, such as 0712345678 or +254712345678.')
+      throw new MpesaPhoneNumberError()
     }
-    const accessToken = await this.getAccessToken()
+    let accessToken: string
+    try {
+      accessToken = await this.getAccessToken()
+    } catch (cause) {
+      throw new MpesaProviderError(
+        'M-Pesa is temporarily unavailable. Please try again or choose another payment method.',
+        cause,
+      )
+    }
 
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
     const password = Buffer.from(`${this.shortCode}${process.env.MPESA_PASSKEY || ''}${timestamp}`).toString('base64')
 
-    const response = await mpesaBreaker.execute(() => fetch(`${this.baseUrl}/mpesa/stkpush/v1/processrequest`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        BusinessShortCode: this.shortCode,
-        Password: password,
-        Timestamp: timestamp,
-        TransactionType: 'CustomerBuyGoodsOnline',
-        Amount: Math.round(params.amount),
-        PartyA: phoneNumber,
-        PartyB: this.tillNumber,
-        PhoneNumber: phoneNumber,
-        CallBackURL: params.callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/mpesa/callback`,
-        AccountReference: params.reference,
-        TransactionDesc: params.description || 'METARDU Payment'
-      })
-    }))
-
-    if (!response.ok) {
-      const error = (await response.json()) as DarajaErrorResponse
-      // AUDIT FIX (M15, 2026-07-02): Translate Safaricom internal error codes.
-      const safaricomErrors: Record<string, string> = {
-        'DS090.301.BF00002': 'Invalid phone number — the phone must be a registered M-Pesa number in the format 2547XXXXXXXX',
-        'DS090.301.BF00003': 'Insufficient funds — the user does not have enough M-Pesa balance',
-        'DS090.301.BF00004': 'Transaction cancelled by user',
-        'DS090.301.BF00005': 'Transaction timed out — the user did not respond to the STK prompt within 60 seconds',
-      }
-      const translated = error.errorMessage
-        ? safaricomErrors[error.errorMessage] ?? 'Safaricom could not accept the payment request. Check the server M-Pesa configuration.'
-        : 'STK Push failed — Safaricom did not accept the payment request'
-      throw new Error(translated)
+    let response: Response
+    try {
+      response = await mpesaBreaker.execute(() => fetch(`${this.baseUrl}/mpesa/stkpush/v1/processrequest`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          BusinessShortCode: this.shortCode,
+          Password: password,
+          Timestamp: timestamp,
+          TransactionType: 'CustomerBuyGoodsOnline',
+          Amount: Math.round(params.amount),
+          PartyA: phoneNumber,
+          PartyB: this.tillNumber,
+          PhoneNumber: phoneNumber,
+          CallBackURL: params.callbackUrl || `${process.env.NEXT_PUBLIC_APP_URL}/api/payments/mpesa/callback`,
+          AccountReference: params.reference,
+          TransactionDesc: params.description || 'METARDU Payment'
+        })
+      }))
+    } catch (cause) {
+      throw new MpesaProviderError(
+        'M-Pesa is temporarily unavailable. Please try again or choose another payment method.',
+        cause,
+      )
     }
 
-    const data = (await response.json()) as StkPushResponse
+    if (!response.ok) {
+      let providerMessage = ''
+      try {
+        const error = await response.json() as unknown
+        if (error && typeof error === 'object' && typeof (error as DarajaErrorResponse).errorMessage === 'string') {
+          providerMessage = (error as DarajaErrorResponse).errorMessage as string
+        }
+      } catch {
+        throw new MpesaProviderError()
+      }
+      // Customer-safe translation of Daraja failures. Raw provider payloads are
+      // never returned to the browser.
+      if (providerMessage === 'DS090.301.BF00002' || /invalid\s*phone\s*number/i.test(providerMessage)) {
+        throw new MpesaPhoneNumberError(
+          'This M-Pesa number is not valid or not registered for M-Pesa. Use a Kenyan mobile number registered for M-Pesa.',
+        )
+      }
+      if (providerMessage === 'DS090.301.BF00003') {
+        throw new MpesaProviderError('There is not enough M-Pesa balance for this payment.')
+      }
+      if (providerMessage === 'DS090.301.BF00004') {
+        throw new MpesaProviderError('The M-Pesa payment request was cancelled.')
+      }
+      if (providerMessage === 'DS090.301.BF00005') {
+        throw new MpesaProviderError('The M-Pesa payment request timed out. Please try again.')
+      }
+      throw new MpesaProviderError()
+    }
+
+    let data: StkPushResponse
+    try {
+      const parsed = await response.json() as unknown
+      if (!parsed || typeof parsed !== 'object') throw new Error('Invalid M-Pesa response')
+      data = parsed as StkPushResponse
+    } catch {
+      throw new MpesaProviderError()
+    }
     if (data.ResponseCode !== '0' || !data.CheckoutRequestID) {
-      throw new Error('Safaricom did not accept the payment request. Please try again.')
+      throw new MpesaProviderError(
+        'M-Pesa did not accept the payment request. Please try again or choose another payment method.',
+      )
     }
     return {
       checkoutRequestId: data.CheckoutRequestID,

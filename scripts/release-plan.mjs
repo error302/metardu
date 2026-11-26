@@ -1,9 +1,34 @@
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import path from 'node:path'
 import {computeDrift} from './verify-migrations.mjs'
 import {SCHEDULE_UPGRADE_VERSION,assertScheduleUpgradeProof} from './schedule-upgrade-contract.mjs'
 import {WORKFLOW_UPGRADE_VERSIONS,assertWorkflowUpgradeProof} from './workflow-upgrade-contract.mjs'
 import {COLLABORATION_UPGRADE_VERSIONS,assertCollaborationUpgradeProof} from './collaboration-upgrade-contract.mjs'
+import {assertRecoveryProofSourceHashes} from './rehearsal-database.mjs'
+import {assertLegacyPreflightAdmission,collectLegacyPreflightLiveEvidence} from './legacy-image-preflight-contract.mjs'
+
+export {collectLegacyPreflightLiveEvidence}
+
+export const UNIFIED_RELEASE_CONTRACT_TESTS=Object.freeze([
+  'tests/migration-logic-isolation.test.mjs',
+  'tests/release-plan.test.mjs',
+  'tests/release-build-retry.test.mjs',
+  'tests/survey-upgrade.test.mjs',
+  'tests/workflow-upgrade.test.mjs',
+  'tests/release-row-snapshot.test.mjs',
+  'scripts/worker-runtime-contract.test.mjs',
+  'tests/recovery-scripts.test.mjs',
+  'tests/legacy-migration-entrypoint.test.mjs',
+  'tests/schedule-release-contract.test.mjs',
+  'tests/field-observation-contract.test.mjs',
+  'tests/lint-batches.test.mjs',
+  'tests/collaboration-release.test.mjs',
+  'tests/rollback-registry-cleanup.test.mjs',
+  'tests/legacy-image-preflight.test.mjs',
+  'tests/rehearsal-service-identity.test.mjs',
+  'tests/isolated-rehearsal-role-ownership.test.mjs',
+])
 
 export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles',...COLLABORATION_UPGRADE_VERSIONS,...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
 export function pinnedReleaseArguments(argv,root) {
@@ -17,6 +42,7 @@ export function pinnedReleaseArguments(argv,root) {
 
 export function compatibleRollbackRegistry(source,ledger) {
   assert.ok(ledger.length>0,'A rollback must not verify against an empty ledger.')
+  for(const row of ledger)assert.match(row?.checksum??'',/^[a-f0-9]{64}$/,`Applied migration ${row?.version??'unknown'} requires a valid SHA-256 checksum.`)
   const drift=computeDrift(source,ledger)
   assert.equal(drift.mutated.length,0,'Applied hashes differ from the pinned source.')
   assert.equal(drift.ghost.length,0,'Unknown applied migrations cannot be declared compatible.')
@@ -53,6 +79,18 @@ export function rollbackService(image,revision,registryDirectory) {
     volumes:[{type:'bind',source:registryDirectory,target:'/app/rollback-migration-registry',read_only:true}]}
 }
 
+export function establishRollbackTag({rollbackImage,rollbackTag,existingTagImage,preservePriorRollback,tagImage,inspectTag}) {
+  assert.match(rollbackImage,/^sha256:[a-f0-9]{64}$/,'Rollback-current must resolve to an exact image id.')
+  assert.equal(rollbackTag,'metardu-metardu-app:rollback-current')
+  assert.ok(existingTagImage===null||/^sha256:[a-f0-9]{64}$/.test(existingTagImage),'The existing rollback tag must be absent or an exact image id.')
+  let action='retained'
+  if(existingTagImage===null)action='created'
+  else if(existingTagImage!==rollbackImage){preservePriorRollback(existingTagImage);action='replaced'}
+  tagImage(rollbackImage,rollbackTag)
+  assert.equal(inspectTag(rollbackTag),rollbackImage,'Rollback-current must resolve to the exact inspected production image.')
+  return {action,rollbackImage,rollbackTag}
+}
+
 // A restored production app can depend on a strict forward migration registry.
 // Preserve that exact read-only bind during the next promotion. The candidate
 // still verifies its own packaged registry; no old MIGRATIONS_DIR is inherited.
@@ -85,6 +123,33 @@ export function assertBuildSpace(freeBytes,reserveBytes=8*1024**3) {
   assert.ok(Number.isFinite(freeBytes)&&freeBytes>=reserveBytes,'Host free space is below the 8 GiB build reserve.')
 }
 
+export function assertRecoveryProof(proof,revision,sourceRegistry,expectedProofSourceSha256) {
+  assert.equal(proof?.revision,revision,'Recovery evidence belongs to a different candidate revision.')
+  assert.equal(proof?.status,'passed','Recovery evidence must have passed.')
+  assert.deepEqual(proof?.sourceRegistry,sourceRegistry,'Recovery evidence must use the exact candidate migration registry.')
+  assert.equal(proof?.sourceRegistrySha256,createHash('sha256').update(JSON.stringify(sourceRegistry)).digest('hex'),'Recovery evidence registry digest must match the candidate registry.')
+  assertRecoveryProofSourceHashes(proof?.proofSourceSha256,expectedProofSourceSha256)
+  assert.match(proof?.archiveSha256?.database??'',/^[a-f0-9]{64}$/,'Recovery evidence must identify the restored database archive.')
+  assert.match(proof?.archiveSha256?.uploads??'',/^[a-f0-9]{64}$/,'Recovery evidence must identify the restored uploads archive.')
+  assert.ok(proof?.cleanup && Object.keys(proof.cleanup).length>0 && Object.values(proof.cleanup).every(value=>value===true),'Recovery evidence must prove complete cleanup.')
+  assert.ok(proof?.checks?.length>0 && proof.checks.every(check=>check?.passed===true),'Recovery evidence must contain only passing checks.')
+  return proof
+}
+
+export function assertRehearsalProof(proof,revision,sourceRegistry) {
+  assert.equal(proof?.revision,revision,'Rehearsal evidence belongs to a different candidate revision.')
+  assert.deepEqual(proof?.sourceRegistry,sourceRegistry,'Rehearsal evidence must use the exact candidate migration registry.')
+  assert.equal(proof?.passed,true,'The candidate rehearsal must pass.')
+  assert.equal(proof?.customerDataCopied,false,'Rehearsal evidence must not copy customer data.')
+  assert.equal(proof?.existingContainer,true,'Rehearsal evidence must use the existing isolated service.')
+  return proof
+}
+
+export function assertCandidateRehearsalProof(proof,revision,plannedRegistry,candidateRegistry) {
+  assert.deepEqual(candidateRegistry,plannedRegistry,'Pinned candidate source registry differs from the planned receipt registry.')
+  return assertRehearsalProof(proof,revision,plannedRegistry)
+}
+
 export function assertSyntheticUpgradeProof(proof,revision,expected) {
   assert.equal(proof.revision,revision)
   assert.equal(proof.status,'passed')
@@ -113,20 +178,38 @@ export function assertSyntheticUpgradeProof(proof,revision,expected) {
   assert.ok(proof.checks?.length>=5&&proof.checks.every(check=>check.passed===true),'A completed forward upgrade and preservation check is required.')
 }
 
-// Resolve rollback source from the exact inspected running image. An unknown
-// runtime value cannot replace its immutable, validated OCI revision label.
-export function deployedAppRevision(app,image) {
+// Resolve rollback source from the exact inspected running image. New images
+// require an immutable OCI revision. The one known legacy image may proceed
+// only with fresh image-bound, read-only migration and runtime-role preflight.
+export function deployedAppRevision(app,image,legacyPreflight,legacyAdmission={}) {
   assert.equal(app.Name,'/metardu-app')
   assert.equal(app.Config.Labels['com.docker.compose.service'],'metardu-app')
   assert.match(app.Image,/^sha256:[a-f0-9]{64}$/)
   assert.equal(image.Id,app.Image,'The revision must belong to the running image.')
-  const revision=image.Config.Labels?.['org.opencontainers.image.revision']
-  assert.match(revision??'',/^[a-f0-9]{40}$/,'The running image requires a full immutable source revision.')
   const entries=app.Config.Env.filter(value=>value.startsWith('METARDU_BUILD_SHA='))
   assert.ok(entries.length<=1,'Ambiguous runtime release identity.')
   const runtimeRevision=entries[0]?.slice('METARDU_BUILD_SHA='.length)??''
-  assert.ok(runtimeRevision===''||runtimeRevision==='unknown'||runtimeRevision===revision,'Runtime and image release identities disagree.')
-  return {revision,imageId:image.Id,source:'org.opencontainers.image.revision',runtimeRevision}
+  const labels=image.Config.Labels??{}
+  const hasOciRevision=Object.hasOwn(labels,'org.opencontainers.image.revision')
+  const revision=labels['org.opencontainers.image.revision']
+  if(hasOciRevision) {
+    assert.match(revision??'',/^[a-f0-9]{40}$/,'The running image requires a full immutable source revision.')
+    assert.ok(runtimeRevision===''||runtimeRevision==='unknown'||runtimeRevision===revision,'Runtime and image release identities disagree.')
+    return {revision,imageId:image.Id,source:'org.opencontainers.image.revision',runtimeRevision}
+  }
+  assert.ok(legacyPreflight,'An unlabeled running image requires exact image-bound migration preflight.')
+  assertLegacyPreflightAdmission(legacyPreflight,legacyAdmission.liveEvidence,{
+    expectedImageId:legacyAdmission.expectedImageId,
+    expectedContainerId:legacyAdmission.expectedContainerId,
+    expectedRuntimeRevision:legacyAdmission.expectedRuntimeRevision,
+    expectedCandidateRevision:legacyAdmission.expectedCandidateRevision,
+    expectedProducerSha256:legacyAdmission.expectedProducerSha256,
+    now:legacyAdmission.now,
+  })
+  assert.equal(legacyAdmission.expectedImageId,image.Id,'Legacy admission must bind the exact running image.')
+  assert.equal(legacyAdmission.expectedContainerId,app.Id,'Legacy admission must bind the exact running container.')
+  assert.equal(legacyAdmission.expectedRuntimeRevision,runtimeRevision,'Legacy admission must bind the exact runtime revision.')
+  return {revision:runtimeRevision,imageId:image.Id,source:'legacy-image-bound-preflight',runtimeRevision,legacyImage:true}
 }
 
 // A failed candidate is retried explicitly, without resetting its receipt to planned.

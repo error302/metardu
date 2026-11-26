@@ -10,8 +10,9 @@ import {assertSurveyPushEnvironment} from './survey-push-environment.mjs'
 import {readScheduleSchemaContract,assertScheduleSchemaContract} from './schedule-schema-contract.mjs'
 import {SCHEDULE_UPGRADE_VERSION} from './schedule-upgrade-contract.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
-import { rehearsalDatabaseConfig, pinnedRehearsalIdentity } from './rehearsal-database.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, assertCompleteRehearsalLedger, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission } from './release-plan.mjs'
+import { rehearsalDatabaseConfig, pinnedRehearsalIdentity, parseRehearsalServiceIdentity, assertRehearsalServiceIdentity, recoveryProofSourceHashes, createIsolatedRehearsalRoleOwnership, isolatedRehearsalCompatibilityRoleDefinitions, recordIsolatedRehearsalCompatibilityRoles, cleanupIsolatedRehearsalRoles, RECOVERY_PROOF_SOURCE_FILES } from './rehearsal-database.mjs'
+import { canonicalSourceSha256, legacyPreflightReceiptEvidence, LEGACY_PREFLIGHT_PRODUCER_PATH } from './legacy-image-preflight-contract.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, assertCompleteRehearsalLedger, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, collectLegacyPreflightLiveEvidence, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission, assertRecoveryProof, assertRehearsalProof, assertCandidateRehearsalProof, establishRollbackTag } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
@@ -30,6 +31,7 @@ const requested = legacy ? { revision:'c1591bda793e415d300f7f58176e1ced8c020f6b'
 const directory = requested.directory
 const receiptPath = join(directory, 'promotion.json')
 const revision = requested.revision
+const rehearsalIdentityPath = resolve(process.env.METARDU_REHEARSAL_IDENTITY_FILE || '.cache/release-verify/rehearsal-service.json')
 const candidateTag = 'metardu-metardu-app:candidate'
 const rollbackTag = 'metardu-metardu-app:rollback-current'
 const names = ['metardu-app','metardu-postgres','metardu-redis','metardu-worker','metardu-collaboration','metardu-ntrip','metardu-backup']
@@ -47,8 +49,43 @@ function command(binary,args,options={}) {
 const docker = (args,options) => command('docker',args,options)
 const git = (args,options) => command('git',['-c','core.fsmonitor=false',...args],options)
 const envOf = container => Object.fromEntries(container.Config.Env.map(value => {const i=value.indexOf('=');return[value.slice(0,i),value.slice(i+1)]}))
+function candidateLegacyPreflightProducerSha256() {
+  return canonicalSourceSha256(git(['show',`${revision}:${LEGACY_PREFLIGHT_PRODUCER_PATH}`],{rawOutput:true}))
+}
+async function deployedProductionIdentity(app,{applied,drift}={}) {
+  const image=JSON.parse(docker(['image','inspect',app.Image]))[0]
+  const labels=image.Config.Labels??{}
+  if(Object.hasOwn(labels,'org.opencontainers.image.revision'))return {identity:deployedAppRevision(app,image),preflight:null,preflightEvidence:null}
+  const runtimeRevision=envOf(app).METARDU_BUILD_SHA
+  assert.match(runtimeRevision??'',/^[a-f0-9]{40}$/,'An unlabeled legacy image requires a full runtime release identity.')
+  const override=process.env.METARDU_LEGACY_IMAGE_PREFLIGHT_FILE??null
+  const preflightPath=resolve(override||`.cache/release-verify/mpesa-production/${runtimeRevision}/migration-preflight.json`)
+  assert.ok(existsSync(preflightPath),'Inspect the exact legacy image migration preflight before planning.')
+  const preflight=JSON.parse(readFileSync(preflightPath,'utf8'))
+  const executeDocker=args=>({exitStatus:0,stdout:docker(args)})
+  const liveEvidence=collectLegacyPreflightLiveEvidence({
+    app,
+    image,
+    runtimeRevision,
+    ledger:applied,
+    drift,
+    executeDocker,
+  })
+  const identity=deployedAppRevision(app,image,preflight,{
+    expectedImageId:image.Id,
+    expectedContainerId:app.Id,
+    expectedRuntimeRevision:runtimeRevision,
+    expectedCandidateRevision:revision,
+    expectedProducerSha256:candidateLegacyPreflightProducerSha256(),
+    liveEvidence,
+  })
+  return {identity,preflight,preflightEvidence:legacyPreflightReceiptEvidence(preflightPath,override,preflight)}
+}
 const mounts = c => c.Mounts.map(m=>({type:m.Type,name:m.Name??null,source:m.Source,destination:m.Destination,rw:m.RW})).sort((a,b)=>a.destination.localeCompare(b.destination))
 const describe = c => ({name:c.Name.slice(1),id:c.Id,image:c.Image,startedAt:c.State.StartedAt,mounts:mounts(c)})
+function rehearsalServiceIdentity() {
+  return parseRehearsalServiceIdentity(JSON.parse(readFileSync(rehearsalIdentityPath,'utf8')))
+}
 const save = receipt => writeFileSync(receiptPath,JSON.stringify(receipt,null,2)+'\n')
 const load = () => { const receipt=JSON.parse(readFileSync(receiptPath,'utf8'));assert.equal(receipt.revision,revision,'The receipt belongs to a different pinned source revision.');return receipt }
 const inspect = () => JSON.parse(docker(['inspect',...names]))
@@ -73,6 +110,18 @@ function sourceMigrations() {
     const content=git(['show',`${revision}:${path}`],{rawOutput:true})
     return {version:path.split('/').at(-1).replace(/\.sql$/,''),path,content,...migrationChecksums(Buffer.from(content))}
   })
+}
+function candidateRecoveryProofSourceHashes() {
+  const contents={}
+  for(const file of RECOVERY_PROOF_SOURCE_FILES)contents[file]=git(['show',`${revision}:${file}`],{rawOutput:true})
+  return recoveryProofSourceHashes(contents)
+}
+function imageIdForTag(tag) {
+  const ids=docker(['image','ls','--quiet','--no-trunc',tag]).split('\n').map(value=>value.trim()).filter(Boolean)
+  if(ids.length===0)return null
+  assert.equal(ids.length,1,`Image tag ${tag} must resolve to exactly one image.`)
+  assert.match(ids[0],/^sha256:[a-f0-9]{64}$/,`Image tag ${tag} must resolve to an exact image id.`)
+  return ids[0]
 }
 function databaseConfig(containers) {
   const postgres=containers.find(c=>c.Name==='/metardu-postgres'), environment=envOf(postgres)
@@ -120,19 +169,23 @@ async function plan() {
   const config=composeConfig();const pushEnvironment=assertEnvironment(before,config)
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
+  compatibleRollbackRegistry(files,applied)
   const drift=legacy?computeDrift(files,applied):assertSurveyReleaseDrift(files,applied)
   assert.equal(drift.mutated.length,0,'Applied migration hashes must remain unchanged')
   assert.equal(drift.ghost.length,0,'No applied migration may be omitted')
+  const sourceRegistry=files.map(file=>({version:file.version,checksum:file.checksum}))
+  const expectedProofSourceSha256=candidateRecoveryProofSourceHashes()
   const recovery=JSON.parse(readFileSync('test-results/recovery-proof/verification.json','utf8'))
-  assert.equal(recovery.status,'passed')
-  assert.ok(Object.values(recovery.cleanup).every(value=>value===true))
+  assertRecoveryProof(recovery,revision,sourceRegistry,expectedProofSourceSha256)
   const app=before.find(c=>c.Name==='/metardu-app'), image=app.Image
-  const rollbackIdentity=deployedAppRevision(app,JSON.parse(docker(['image','inspect',image]))[0])
+  const deployed=await deployedProductionIdentity(app,{applied,drift})
+  const rollbackIdentity={...deployed.identity,...(deployed.preflight?{legacyPreflight:deployed.preflight}:{})}
   assert.equal(git(['rev-parse',rollbackIdentity.revision]),rollbackIdentity.revision,'The rollback revision must exist in this repository.')
   const result={revision,status:'planned',candidateTag,rollbackTag,before:before.map(describe),project:before.find(c=>c.Name==='/metardu-app').Config.Labels['com.docker.compose.project'],
     pushEnvironment,migrationBefore:applied,pending:drift.missing,rollbackImage:image,priorRevision:rollbackIdentity.revision,rollbackIdentity,
-    sourceRegistry:files.map(file=>({version:file.version,checksum:file.checksum})),
-    recoveryEvidence:{status:recovery.status,archiveSha256:recovery.archiveSha256,cleanup:recovery.cleanup},phases:[]}
+    legacyPreflightEvidence:deployed.preflightEvidence,
+    sourceRegistry,
+    recoveryEvidence:{revision:recovery.revision,status:recovery.status,sourceRegistry:recovery.sourceRegistry,sourceRegistrySha256:recovery.sourceRegistrySha256,proofSourceSha256:recovery.proofSourceSha256,archiveSha256:recovery.archiveSha256,cleanup:recovery.cleanup},phases:[]}
   if(!legacy) {
     assertBuildSpace(hostFreeBytes())
     const parsed=await withAdmin(before,async client=>{
@@ -187,7 +240,8 @@ async function buildCandidate(retry) {
     })
     retryAdmission={checkedAt:new Date().toISOString(),priorProcessesAbsent:true,retainedLogs,runnerSha256:createHash('sha256').update(readFileSync(new URL(import.meta.url))).digest('hex')}
   }
-  assert.equal(receipt.rehearsal?.passed,true,'Pending SQL must first succeed on the existing synthetic database')
+  const candidateRegistry=sourceMigrations().map(file=>({version:file.version,checksum:file.checksum}))
+  assertCandidateRehearsalProof(receipt.rehearsal,revision,receipt.sourceRegistry,candidateRegistry)
   if(!legacy){const proof=JSON.parse(readFileSync(join(directory,'source-checks.json'),'utf8'));assert.equal(proof.revision,revision);assert.equal(proof.status,'passed');receipt.sourceChecks=proof.checks}
   if(!legacy)assert.equal(receipt.rehearsal.rollbackVerifier?.passed,true,'The current image startup verifier must accept the pinned forward registry in the existing synthetic database.')
   if(!legacy&&receipt.pending.length){const proof=JSON.parse(readFileSync(join(directory,'upgrade-checks.json'),'utf8'));assertSyntheticUpgradeProof(proof,revision,{pending:receipt.pending,sourceRegistry:receipt.sourceRegistry});receipt.syntheticUpgrade=proof}
@@ -199,28 +253,34 @@ async function buildCandidate(retry) {
   assert.equal(before.find(c=>c.Name==='/metardu-app').Image,receipt.rollbackImage)
   if(retry) {
     const app=before.find(c=>c.Name==='/metardu-app')
-    const identity=deployedAppRevision(app,JSON.parse(docker(['image','inspect',app.Image]))[0])
-    assert.equal(identity.revision,receipt.priorRevision,'Production identity changed after the failed build.')
     const files=sourceMigrations(),applied=await withAdmin(before,ledger)
+    compatibleRollbackRegistry(files,applied)
+    const drift=legacy?computeDrift(files,applied):assertSurveyReleaseDrift(files,applied)
+    const identity=(await deployedProductionIdentity(app,{applied,drift})).identity
+    assert.equal(identity.revision,receipt.priorRevision,'Production identity changed after the failed build.')
     assert.deepEqual(files.map(file=>({version:file.version,checksum:file.checksum})),receipt.sourceRegistry,'Pinned source registry differs from planned evidence.')
     assert.deepEqual(applied,receipt.migrationBefore,'Production migration ledger changed after the failed build.')
-    assert.deepEqual(assertSurveyReleaseDrift(files,applied).missing,receipt.pending)
+    assert.deepEqual(drift.missing,receipt.pending)
     retryAdmission.productionImage=app.Image
     retryAdmission.productionRevision=identity.revision
     retryAdmission.applied=applied.length
   }
   assertBuildSpace(hostFreeBytes())
-  const priorTag=JSON.parse(docker(['image','inspect',rollbackTag]))[0].Id
-  if(priorTag!==receipt.rollbackImage){
-    // Preserve the previous rollback by content, without overwriting the older
-    // rollback-prior-current alias or allocating another image layer.
-    const alias=`metardu-metardu-app:rollback-${priorTag.replace('sha256:','').slice(0,16)}`
-    const probe=spawnSync('docker',['image','inspect',alias,'--format','{{.Id}}'],{encoding:'utf8',windowsHide:true})
-    assert.ok(probe.status!==0||probe.stdout.trim()===priorTag,'Preserve an existing prior rollback alias before reusing it.')
-    docker(['image','tag',priorTag,alias]);receipt.preservedPriorRollback={image:priorTag,tag:alias}
-  }
-  docker(['image','tag',receipt.rollbackImage,rollbackTag])
-  assert.equal(docker(['image','inspect',rollbackTag,'--format','{{.Id}}']),receipt.rollbackImage)
+  establishRollbackTag({
+    rollbackImage:receipt.rollbackImage,
+    rollbackTag,
+    existingTagImage:imageIdForTag(rollbackTag),
+    preservePriorRollback:priorImage=>{
+      // Preserve the previous rollback by content, without overwriting the older
+      // rollback-prior-current alias or allocating another image layer.
+      const alias=`metardu-metardu-app:rollback-${priorImage.replace('sha256:','').slice(0,16)}`
+      const probe=spawnSync('docker',['image','inspect',alias,'--format','{{.Id}}'],{encoding:'utf8',windowsHide:true})
+      assert.ok(probe.status!==0||probe.stdout.trim()===priorImage,'Preserve an existing prior rollback alias before reusing it.')
+      docker(['image','tag',priorImage,alias]);receipt.preservedPriorRollback={image:priorImage,tag:alias}
+    },
+    tagImage:(image,tag)=>docker(['image','tag',image,tag]),
+    inspectTag:tag=>docker(['image','inspect',tag,'--format','{{.Id}}']),
+  })
   const config=composeConfig();assert.deepEqual(assertEnvironment(before,config),receipt.pushEnvironment,'Reviewed push setup changed after planning')
   if (receipt.collaboration) {
     const app=before.find(c=>c.Name==='/metardu-app'), collab=before.find(c=>c.Name==='/metardu-collaboration')
@@ -266,14 +326,16 @@ async function verifyRehearsedSchema(receipt,client,runtimeRole) {
   receipt.rehearsal.constraints=constraints.rows
 }
 
-async function rehearseIsolatedBaseline(receipt,owned,settings) {
+async function rehearseIsolatedBaseline(receipt,owned,settings,service) {
   const upgrading = receipt.pending.length > 0
   if (upgrading) assert.deepEqual(receipt.pending,COLLABORATION_UPGRADE_VERSIONS,'This isolated upgrade expects exactly the two collaboration migrations.')
   assert.equal(owned.Config.Labels['metardu.purpose'],'schema-rehearsal')
   const identity=pinnedRehearsalIdentity(revision)
+  const roleOwnership=createIsolatedRehearsalRoleOwnership(identity.runtimeRole)
+  let compatibilityBefore=null,databaseRemoved=false,runtimeRoleAbsentBefore=false
   const controlAddress=new URL(settings.adminUrl)
   assert.equal(controlAddress.hostname,'127.0.0.1');assert.equal(controlAddress.port,'55433')
-  controlAddress.pathname='/metardu_runtime_verify'
+  controlAddress.pathname='/' + service.database
   const control=new pg.Client({connectionString:controlAddress.href,connectionTimeoutMillis:5000})
   const admin=new URL(controlAddress);admin.pathname=`/${identity.database}`
   const runtime=new URL(admin);runtime.username=identity.runtimeRole;runtime.password=randomBytes(32).toString('hex')
@@ -294,11 +356,18 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
   let created=false,client
   await control.connect()
   const readMarker=async database=>(await control.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=$1",[database])).rows[0]?.marker
+  const compatibilityRoleNames=isolatedRehearsalCompatibilityRoleDefinitions().map(definition=>definition.name)
+  const listIsolatedRoles=async()=> (await control.query(
+    'SELECT rolname,rolcanlogin,rolsuper,rolbypassrls FROM pg_roles WHERE rolname = ANY($1::text[]) ORDER BY rolname',
+    [[...compatibilityRoleNames,identity.runtimeRole]],
+  )).rows
   try {
-    assert.equal(await readMarker('metardu_runtime_verify'),'METARDU synthetic beacon verification only 2026-10-08')
+    assert.equal(await readMarker(service.database),service.marker)
     assert.equal((await control.query('SELECT 1 FROM pg_database WHERE datname=$1',[identity.database])).rowCount,0,'Inspect any existing rehearsal artifact before reuse.')
     assert.equal((await control.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[identity.runtimeRole])).rowCount,0)
-    receipt.rehearsal={database:identity.database,customerDataCopied:false,existingContainer:true,isolatedBaseline:true,pending:receipt.pending,passed:false}
+    runtimeRoleAbsentBefore=true
+    compatibilityBefore=recordIsolatedRehearsalCompatibilityRoles(await listIsolatedRoles())
+    receipt.rehearsal={revision,sourceRegistry:receipt.sourceRegistry,database:identity.database,customerDataCopied:false,existingContainer:true,isolatedBaseline:true,pending:receipt.pending,passed:false,roleCleanup:{compatibilityRolesBefore:compatibilityBefore.existing,compatibilityRolesMissingBefore:compatibilityBefore.missing,completed:false}}
     save(receipt)
     await control.query(`CREATE DATABASE "${identity.database}" TEMPLATE template0`);created=true
     await control.query(`COMMENT ON DATABASE "${identity.database}" IS '${identity.marker}'`)
@@ -355,7 +424,7 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
     }
     await verifyRehearsedSchema(receipt,client,identity.runtimeRole)
     receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
-      registry:join(staging,'src/lib/db/migrations'),revision,runtimeUrl:runtime.href,isolatedBaseline:true})
+      registry:join(staging,'src/lib/db/migrations'),revision,runtimeUrl:runtime.href,isolatedBaseline:true,service})
     receipt.rehearsal.applied=(await ledger(client)).length
     if (upgrading) check('previous-image-startup')
   }finally{
@@ -364,13 +433,30 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
       if(created){
         assert.equal(await readMarker(identity.database),identity.marker,'Refusing to remove a fixture without its exact marker.')
         await control.query(`DROP DATABASE "${identity.database}"`)
-        await control.query(`DROP ROLE IF EXISTS "${identity.runtimeRole}"`)
-        if(receipt.rehearsal)receipt.rehearsal.isolatedFixtureRemoved=true
-        if (proof) {
-          proof.cleanup.syntheticDatabaseRemoved=await readMarker(identity.database)===undefined
-          proof.cleanup.syntheticRoleRemoved=(await control.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[identity.runtimeRole])).rowCount===0
+        databaseRemoved=(await control.query('SELECT 1 FROM pg_database WHERE datname=$1',[identity.database])).rowCount===0
+        if(receipt.rehearsal)receipt.rehearsal.isolatedFixtureRemoved=databaseRemoved
+        if(proof)proof.cleanup.syntheticDatabaseRemoved=databaseRemoved
+      }
+      if(compatibilityBefore&&runtimeRoleAbsentBefore){
+        const roleCleanup=await cleanupIsolatedRehearsalRoles({
+          ownership:roleOwnership,
+          before:compatibilityBefore,
+          databaseCreated:created,
+          databaseRemoved,
+          runtimeRoleAbsentBefore,
+          listRoles:listIsolatedRoles,
+          dropRole:async role=>{
+            assert.match(role, /^[a-z_][a-z0-9_]{0,62}$/i,'Isolated rehearsal cleanup requires a simple PostgreSQL role name.')
+            await control.query(`DROP ROLE IF EXISTS "${role}"`)
+          },
+        })
+        if(receipt.rehearsal)receipt.rehearsal.roleCleanup={...roleCleanup,compatibilityRolesBefore:compatibilityBefore.existing,compatibilityRolesMissingBefore:compatibilityBefore.missing,completed:databaseRemoved}
+        if(proof){
+          proof.cleanup.syntheticRoleRemoved=roleCleanup.removed.includes(identity.runtimeRole)
+          for(const role of roleCleanup.removed)proof.cleanup[`${role}Removed`]=true
         }
       }
+      if(created)assert.equal(databaseRemoved,true,'The isolated rehearsal database must be removed before its run-owned compatibility roles can be cleaned.')
     }finally{await control.end();if(receipt.rehearsal)save(receipt)}
   }
   if (proof) {
@@ -378,31 +464,32 @@ async function rehearseIsolatedBaseline(receipt,owned,settings) {
     assertSyntheticUpgradeProof(proof,revision,{pending:receipt.pending,sourceRegistry:receipt.sourceRegistry})
     writeFileSync(join(directory,'upgrade-checks.json'),JSON.stringify(proof,null,2)+'\n',{flag:'wx'})
   }
-  receipt.rehearsal.passed=true;save(receipt);console.log(JSON.stringify(receipt.rehearsal))
+  receipt.rehearsal.passed=true;assertRehearsalProof(receipt.rehearsal,revision,receipt.sourceRegistry);save(receipt);console.log(JSON.stringify(receipt.rehearsal))
 }
 
 async function rehearse() {
   const receipt=load();assert.equal(receipt.status,'planned')
-  const owned=JSON.parse(docker(['inspect','metardu-schema-rehearsal-20261008']))[0]
-  assert.equal(owned.Id,'ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0')
-  assert.deepEqual(owned.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'55433'}])
+  const service=rehearsalServiceIdentity()
+  const owned=JSON.parse(docker(['inspect',service.container]))[0]
+  assertRehearsalServiceIdentity(service,owned)
   const settings=rehearsalDatabaseConfig()
+  assert.equal(settings.database,service.database,'The rehearsal database configuration must match the inspected service identity.')
   if(process.env.METARDU_REHEARSE_PINNED_BASELINE==='1'||receipt.pending.some(version=>COLLABORATION_UPGRADE_VERSIONS.includes(version))){
     assert.equal(process.argv[4],'--unified','An isolated baseline requires the unified release namespace.')
-    await rehearseIsolatedBaseline(receipt,owned,settings);return
+    await rehearseIsolatedBaseline(receipt,owned,settings,service);return
   }
   const address=new URL(settings.adminUrl)
   assert.equal(address.port,'55433')
-  address.pathname='/metardu_runtime_verify'
+  address.pathname='/' + service.database
   const url=address.toString()
   const runtimeAddress=new URL(settings.runtimeUrl);runtimeAddress.pathname=address.pathname
   const client=new pg.Client({connectionString:url,connectionTimeoutMillis:5000});await client.connect()
   const files=sourceMigrations()
   try {
     const marker=(await client.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=current_database()")).rows[0].marker
-    assert.equal(marker,'METARDU synthetic beacon verification only 2026-10-08')
+    assert.equal(marker,service.marker)
     const drift=computeDrift(files,await ledger(client));assert.equal(drift.mutated.length,0);assert.equal(drift.ghost.length,0)
-    receipt.rehearsal={database:'metardu_runtime_verify',pending:drift.missing,customerDataCopied:false,existingContainer:true}
+    receipt.rehearsal={revision,sourceRegistry:receipt.sourceRegistry,database:service.database,pending:drift.missing,customerDataCopied:false,existingContainer:true}
     const result=legacy?runMigrations(stageMigrations(files),url):runProvisionedMigrations(stageMigrations(files),url,runtimeAddress.href)
     if(result.error||result.status!==0) {
       receipt.rehearsal.failedAt=(result.stdout||'').match(/Applying: ([^\r\n]+)/g)?.at(-1)||'preflight'
@@ -412,8 +499,8 @@ async function rehearse() {
     const after=await ledger(client);assert.ok(computeDrift(files,after).ok)
     await verifyRehearsedSchema(receipt,client,settings.runtimeRole)
     if(!legacy)receipt.rehearsal.rollbackVerifier=verifyRollbackRegistry({app:inspect().find(c=>c.Name==='/metardu-app'),fixture:JSON.parse(docker(['inspect',owned.Id]))[0],
-      registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:runtimeAddress.href})
-    receipt.rehearsal.passed=true;receipt.rehearsal.applied=after.length;save(receipt)
+      registry:join(stageMigrations(files),'src/lib/db/migrations'),revision,runtimeUrl:runtimeAddress.href,service})
+    receipt.rehearsal.passed=true;receipt.rehearsal.applied=after.length;assertRehearsalProof(receipt.rehearsal,revision,receipt.sourceRegistry);save(receipt)
     console.log(JSON.stringify(receipt.rehearsal))
   }finally{await client.end()}
 }
@@ -453,6 +540,7 @@ async function migrateAndPromote() {
   assert.deepEqual(assertEnvironment(before,composeConfig()),receipt.pushEnvironment,'Reviewed push setup changed after planning')
   const files=sourceMigrations()
   const applied=await withAdmin(before,ledger)
+  compatibleRollbackRegistry(files,applied)
   if(!legacy)assertSurveyReleaseDrift(files,applied)
   assert.deepEqual(applied,resuming?receipt.migrationAfter:receipt.migrationBefore)
   receipt.importContractBefore=await withAdmin(before,async client=>assertImportSchemaContract(await readImportSchemaContract(client,oldEnv.DB_USER),{allowPendingObservationExtension:receipt.pending.includes(OBSERVATION_COMPATIBILITY_VERSION)}))

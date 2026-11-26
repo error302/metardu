@@ -115,18 +115,23 @@ export const POST = apiHandler(
     } catch (mpesaError) {
       logger.error('M-Pesa error:', { error: mpesaError })
 
-      await db.query<never>(
-        `UPDATE payment_intents SET status = 'failed', updated_at = NOW() WHERE id = $1`,
-        [paymentIntentId]
-      )
+      try {
+        await db.query<never>(
+          `UPDATE payment_intents SET status = 'failed', updated_at = NOW() WHERE id = $1`,
+          [paymentIntentId]
+        )
+      } catch (intentCleanupError) {
+        // Cleanup failure must not replace the provider-boundary contract. Log
+        // only the error type so database messages and query details stay out
+        // of both the internal record and the customer response.
+        logger.error('M-Pesa intent cleanup failed after provider-boundary error.', {
+          errorType: intentCleanupError instanceof Error ? intentCleanupError.name : 'UnknownError',
+        })
+      }
 
-      return NextResponse.json(
-        {
-          error:
-            mpesaError instanceof Error ? mpesaError.message : 'M-Pesa payment failed',
-        },
-        { status: 500 }
-      )
+      // Let apiHandler map AppError subclasses to their declared safe status
+      // and code. Unknown failures are reduced to the generic 500 contract.
+      throw mpesaError
     }
   }
 )

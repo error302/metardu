@@ -3,26 +3,68 @@
 // No SQL/customer file content, filenames, credentials or row identities are logged.
 import assert from 'node:assert/strict'
 import { spawn, spawnSync } from 'node:child_process'
-import { randomBytes, randomUUID } from 'node:crypto'
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { randomBytes, randomUUID, createHash } from 'node:crypto'
+import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 import pg from 'pg'
-import { rehearsalDatabaseConfig } from './rehearsal-database.mjs'
-import { RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
+import { rehearsalDatabaseConfig, parseRehearsalServiceIdentity, assertRehearsalServiceIdentity, parseRecoveryArchivePair, recoveryArchiveRoleDefinitions, expectedToleranceProfileAdditions, createRecoveryRoleOwnership, ownRecoveryRole, recoveryRolesForCleanup, recoveryProofSourceHashes, recoveryMigrationsDirectory, recoveryChildEnvironment, recoveryStatusAfterCleanup, resolveRecoveryPython, RECOVERY_PROOF_SOURCE_FILES, RECOVERY_REPORT_SCOPE } from './rehearsal-database.mjs'
+import { RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure, collectFileMigrations, migrationChecksums } from './verify-migrations.mjs'
 
-const rehearsal='metardu-schema-rehearsal-20261008'
-const expectedId='ae6f62341c072b0d3ec16797afbf7ed3f541e8973583ee2f6dea8c366d65b4b0'
+const rehearsalIdentityPath=resolve(process.env.METARDU_REHEARSAL_IDENTITY_FILE || '.cache/release-verify/rehearsal-service.json')
+const recoveryArchivesPath=resolve(process.env.METARDU_RECOVERY_ARCHIVE_PAIR_FILE || '.cache/release-verify/recovery-archives.json')
+const revisionIndex=process.argv.indexOf('--revision')
+const revision=revisionIndex>=0?process.argv[revisionIndex+1]:null
+assert.match(revision??'',/^[a-f0-9]{40}$/,'Supply the exact candidate revision with --revision.')
+const service=parseRehearsalServiceIdentity(JSON.parse(readFileSync(rehearsalIdentityPath,'utf8')))
+const {databaseArchive:dbArchive,uploadsArchive:uploadsArchive}=parseRecoveryArchivePair(JSON.parse(readFileSync(recoveryArchivesPath,'utf8')))
 const database='metardu_recovery_verify'
-const runtimeRole='metardu_recovery_app'
-const dbArchive='/backups/db_20261009_221125.sql.gz'
-const uploadsArchive='/backups/uploads_20261009_221125.tar.gz'
+const roleOwnership=createRecoveryRoleOwnership(randomUUID().replaceAll('-',''))
+const runtimeRole=roleOwnership.runtimeRole
 const uploadsDirectory=`/tmp/metardu-recovery-uploads-${randomUUID()}`
 const marker='METARDU fresh-archive recovery verification 2026-10-10'
 const qid=value=>`"${value.replaceAll('"','""')}"`
 const qstr=value=>`'${value.replaceAll("'","''")}'`
-const report={scope:'Actual named backup recovery and upgrade in existing rehearsal; production is read-only',customerPayloadLogged:false,customerFilesWrittenToWorkspace:false,checks:[],cleanup:{},status:'prepared'}
-let createdDatabase=false, createdOwnerRole=false, createdUploadsDirectory=false, recoveryNetworkConnected=false, runtimeClient
+function gitText(args) {
+  const result=spawnSync('git',['-c','core.fsmonitor=false',...args],{encoding:'utf8',windowsHide:true,maxBuffer:16*1024*1024})
+  assert.equal(result.status,0,'Git source inspection failed; diagnostics suppressed.')
+  return result.stdout
+}
+function sourceRegistryForRevision(candidateRevision) {
+  assert.equal(gitText(['rev-parse',candidateRevision]).trim(),candidateRevision,'The candidate revision must exist in this repository.')
+  return gitText(['ls-tree','-r','--name-only',candidateRevision,'src/lib/db/migrations']).split('\n').filter(Boolean).sort().map(path=>{
+    const content=gitText(['show',`${candidateRevision}:${path}`])
+    return {version:path.split('/').at(-1).replace(/\.sql$/,''),checksum:migrationChecksums(Buffer.from(content)).checksum}
+  })
+}
+function proofSourceHashesForRevision(candidateRevision) {
+  const contents={}
+  for(const file of RECOVERY_PROOF_SOURCE_FILES)contents[file]=gitText(['show',`${candidateRevision}:${file}`])
+  return recoveryProofSourceHashes(contents)
+}
+function workingTreeProofSourceHashes() {
+  const contents={}
+  for(const file of RECOVERY_PROOF_SOURCE_FILES)contents[file]=readFileSync(file)
+  return recoveryProofSourceHashes(contents)
+}
+function assertCandidateCheckout(candidateRevision,sourceRegistry,expectedProofSourceSha256) {
+  const diff=spawnSync('git',['-c','core.fsmonitor=false','diff','--quiet',candidateRevision,'--','src/lib/db/migrations'],{windowsHide:true})
+  assert.equal(diff.status,0,'Recovery migration files must match the exact candidate revision.')
+  assert.deepEqual(workingTreeProofSourceHashes(),expectedProofSourceSha256,'Recovery proof source files must match the exact candidate revision.')
+  const working=collectFileMigrations(recoveryMigrationsDirectory())
+  assert.deepEqual(working.map(file=>file.version),sourceRegistry.map(file=>file.version))
+  for(const [index,file] of working.entries()) {
+    const candidateChecksum=sourceRegistry[index].checksum
+    assert.ok([file.checksum,...file.equivalentChecksums].includes(candidateChecksum),'Recovery migration checksum differs from the candidate revision.')
+  }
+}
+const sourceRegistry=sourceRegistryForRevision(revision)
+const sourceRegistrySha256=createHash('sha256').update(JSON.stringify(sourceRegistry)).digest('hex')
+const proofSourceSha256=proofSourceHashesForRevision(revision)
+const report={scope:RECOVERY_REPORT_SCOPE,revision,sourceRegistry,sourceRegistrySha256,proofSourceSha256,customerPayloadLogged:false,customerFilesWrittenToWorkspace:false,checks:[],cleanup:{},status:'prepared'}
+let createdDatabase=false, createdUploadsDirectory=false, recoveryNetworkConnected=false, runtimeClient
 let originalToleranceIds
 const config=rehearsalDatabaseConfig()
+assert.equal(config.database,service.database,'The recovery database configuration must match the inspected rehearsal service.')
 const adminAddress=new URL(config.adminUrl)
 assert.equal(adminAddress.hostname,'127.0.0.1')
 assert.equal(adminAddress.port,'55433')
@@ -62,7 +104,7 @@ function productionSnapshot(catalog) {
   return docker(['exec','-i','metardu-postgres','sh','-c','exec psql -X -qAt -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"'],sql).trim().split('\n').filter(Boolean).map(JSON.parse)
 }
 function runSource(script,env) {
-  const result=spawnSync(process.execPath,[script],{env:{...process.env,...env},encoding:'utf8',windowsHide:true,timeout:120_000,maxBuffer:5*1024*1024})
+  const result=spawnSync(process.execPath,[script],{env:recoveryChildEnvironment(env),encoding:'utf8',windowsHide:true,timeout:120_000,maxBuffer:5*1024*1024})
   if(result.error || result.status!==0) {
     const migration=result.stdout?.match(/Applying: (\d+_[a-z_]+)/g)?.at(-1) ?? null
     const diagnostics=result.stderr ?? ''
@@ -78,15 +120,15 @@ async function restoreDatabase() {
   // Use the existing matching 16.11 client. Do not strip the dump's \restrict
   // safety directives to accommodate the older 15.4 client in rehearsal.
   const backupBefore=JSON.parse(docker(['inspect','metardu-backup']))[0]
-  assert.ok(!backupBefore.NetworkSettings.Networks['metardu-release-rehearsal-20261008'])
-  docker(['network','connect','metardu-release-rehearsal-20261008','metardu-backup']);recoveryNetworkConnected=true
-  const target=spawn('docker',['exec','-e',`PGPASSWORD=${decodeURIComponent(adminAddress.password)}`,'metardu-backup','bash','-o','pipefail','-c',`gzip -dc ${dbArchive} | psql -X -q -v ON_ERROR_STOP=1 --single-transaction -h ${rehearsal} -p 5432 -U ${decodeURIComponent(adminAddress.username)} -d ${database}`],{windowsHide:true,stdio:['ignore','ignore','pipe']})
+  assert.ok(!backupBefore.NetworkSettings.Networks[service.network])
+  docker(['network','connect',service.network,'metardu-backup']);recoveryNetworkConnected=true
+  const target=spawn('docker',['exec','-e',`PGPASSWORD=${decodeURIComponent(adminAddress.password)}`,'metardu-backup','bash','-o','pipefail','-c',`gzip -dc ${dbArchive} | psql -X -q -v ON_ERROR_STOP=1 --single-transaction -h ${service.container} -p 5432 -U ${decodeURIComponent(adminAddress.username)} -d ${database}`],{windowsHide:true,stdio:['ignore','ignore','pipe']})
   let targetDiagnostics=''
   target.stderr.on('data',chunk=>{if(targetDiagnostics.length<16384) targetDiagnostics+=chunk.toString()})
   const targetExit=new Promise((resolve,reject)=>{target.on('error',reject);target.on('close',resolve)})
   const timer=setTimeout(()=>target.kill(),60_000)
   let status
-  try{status=await targetExit}finally{clearTimeout(timer);docker(['network','disconnect','metardu-release-rehearsal-20261008','metardu-backup']);recoveryNetworkConnected=false}
+  try{status=await targetExit}finally{clearTimeout(timer);docker(['network','disconnect',service.network,'metardu-backup']);recoveryNetworkConnected=false}
   const backupAfter=JSON.parse(docker(['inspect','metardu-backup']))[0]
   assert.deepEqual(backupAfter.NetworkSettings.Networks,backupBefore.NetworkSettings.Networks)
   report.restoreClient='existing backup psql 16.11, unchanged archive safety directives'
@@ -97,28 +139,40 @@ async function restoreDatabase() {
 }
 
 try {
-  const container=JSON.parse(docker(['inspect',rehearsal]))[0]
-  assert.equal(container.Id,expectedId)
-  assert.equal(container.Config.Labels['metardu.purpose'],'schema-rehearsal')
-  assert.ok(!container.NetworkSettings.Networks.metardu_default)
-  assert.deepEqual(container.NetworkSettings.Ports['5432/tcp'],[{HostIp:'127.0.0.1',HostPort:'55433'}])
-  assert.equal(container.Mounts.length,1)
-  assert.equal(container.Mounts[0].Name,'99e70f5a5b09ef69aea09e09b20ceede9507cf329142c8457b3f802bf8a311a4')
+  const container=JSON.parse(docker(['inspect',service.container]))[0]
+  assertRehearsalServiceIdentity(service,container)
   checked('existing rehearsal identity, loopback port and isolated mount')
+  assertCandidateCheckout(revision,sourceRegistry,proofSourceSha256)
+  checked('candidate revision, proof-source closure and migration registry match executed source',{sourceRegistrySha256,proofSourceFiles:RECOVERY_PROOF_SOURCE_FILES.length})
   report.archiveSha256={database:docker(['exec','metardu-backup','sha256sum',dbArchive]).split(/\s/)[0],uploads:docker(['exec','metardu-backup','sha256sum',uploadsArchive]).split(/\s/)[0]}
   const uploads= docker(['exec','metardu-backup','cat',uploadsArchive],undefined,null)
-  const manifestResult=spawnSync('C:\\Users\\user\\.cache\\codex-runtimes\\codex-primary-runtime\\dependencies\\python\\python.exe',['scripts/recovery-archive-manifest.py'],{input:uploads,encoding:'utf8',windowsHide:true,maxBuffer:1024*1024})
+  const recoveryPython=resolveRecoveryPython()
+  const manifestResult=spawnSync(recoveryPython,['scripts/recovery-archive-manifest.py'],{input:uploads,encoding:'utf8',windowsHide:true,maxBuffer:1024*1024})
   assert.equal(manifestResult.status,0,'Native archive inspection must pass; diagnostics intentionally suppressed.')
   const manifest=JSON.parse(manifestResult.stdout)
   checked('native upload archive path/type validation',{fileCount:Object.keys(manifest).length})
   if(!process.argv.includes('--execute')) { report.status='prepared';save();console.log('Prepared only. --execute is required for the explicitly requested recovery copy.');process.exit(0) }
   await admin.connect()
+  const controlMarker=(await admin.query("SELECT shobj_description(oid,'pg_database') AS marker FROM pg_database WHERE datname=$1",[service.database])).rows[0]?.marker
+  assert.equal(controlMarker,service.marker,'The rehearsal control database marker does not match the inspected identity.')
   assert.equal((await admin.query('SELECT 1 FROM pg_database WHERE datname=$1',[database])).rowCount,0,'Never overwrite an existing database.')
   assert.equal((await admin.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[runtimeRole])).rowCount,0,'Never overwrite an existing role.')
-  if((await admin.query("SELECT 1 FROM pg_roles WHERE rolname='metardu'")).rowCount===0) {
-    // Match the original object-owner semantics without creating a usable login.
-    await admin.query('CREATE ROLE metardu NOLOGIN SUPERUSER');createdOwnerRole=true
-  } else throw new Error('Original owner role unexpectedly exists; inspect before recovery.')
+  for(const definition of recoveryArchiveRoleDefinitions()) {
+    const existing=await admin.query('SELECT rolcanlogin,rolsuper,rolbypassrls FROM pg_roles WHERE rolname=$1',[definition.name])
+    if(existing.rowCount===0) {
+      const attributes=definition.superuser
+        ? 'NOLOGIN SUPERUSER'
+        : 'NOLOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION NOBYPASSRLS'
+      await admin.query(`CREATE ROLE ${qid(definition.name)} ${attributes}`)
+      ownRecoveryRole(roleOwnership,definition.name)
+    } else {
+      const role=existing.rows[0]
+      assert.equal(role.rolcanlogin,definition.login,`Recovery compatibility role ${definition.name} must not be a login.`)
+      assert.equal(role.rolsuper,definition.superuser,`Recovery compatibility role ${definition.name} has unexpected superuser attributes.`)
+      assert.equal(role.rolbypassrls,definition.bypassRls,`Recovery compatibility role ${definition.name} has unexpected RLS bypass attributes.`)
+    }
+  }
+  checked('archive compatibility roles have the reviewed non-login attributes')
   await admin.query(`CREATE DATABASE ${qid(database)} TEMPLATE template0`);createdDatabase=true
   await admin.query(`COMMENT ON DATABASE ${qid(database)} IS ${qstr(marker)}`)
   await admin.query(`REVOKE ALL ON DATABASE ${qid(database)} FROM PUBLIC`)
@@ -148,7 +202,8 @@ try {
   originalToleranceIds=(await runtimeClient.query('SELECT id::text FROM public.tolerance_profiles')).rows.map(row=>row.id)
   await runtimeClient.end();runtimeClient=null
   const runtimePassword=randomBytes(32).toString('hex')
-  const env={MIGRATION_DB_HOST:'127.0.0.1',MIGRATION_DB_PORT:'55433',MIGRATION_DB_NAME:database,MIGRATION_DB_USER:decodeURIComponent(adminAddress.username),MIGRATION_DB_PASSWORD:decodeURIComponent(adminAddress.password),APP_DB_HOST:'127.0.0.1',APP_DB_PORT:'55433',APP_DB_NAME:database,APP_DB_USER:runtimeRole,APP_DB_PASSWORD:runtimePassword,NODE_ENV:'production',DATABASE_URL:''}
+  const env={MIGRATION_DB_HOST:'127.0.0.1',MIGRATION_DB_PORT:'55433',MIGRATION_DB_NAME:database,MIGRATION_DB_USER:decodeURIComponent(adminAddress.username),MIGRATION_DB_PASSWORD:decodeURIComponent(adminAddress.password),APP_DB_HOST:'127.0.0.1',APP_DB_PORT:'55433',APP_DB_NAME:database,APP_DB_USER:runtimeRole,APP_DB_PASSWORD:runtimePassword,NODE_ENV:'production',DATABASE_URL:'',MIGRATIONS_DIR:''}
+  ownRecoveryRole(roleOwnership,runtimeRole)
   runSource('scripts/provision-runtime-db-role.mjs',env)
   checked('ordinary source migration/role provisioner succeeds on actual restored records')
   runtimeClient=new pg.Client({connectionString:recoveryAddress});await runtimeClient.connect()
@@ -159,8 +214,12 @@ try {
   const originalCustomerRows=restored.filter(table=>table.name!=='schema_migrations')
   const upgraded=await snapshot(runtimeClient,customerCatalog,true)
   const newToleranceRows=(await runtimeClient.query('SELECT count(*)::integer AS count FROM public.tolerance_profiles WHERE NOT(id::text=ANY($1::text[]))',[originalToleranceIds])).rows[0].count
-  assert.equal(newToleranceRows,1,'Only the reviewed migration 068 reference-profile seed is expected.')
-  report.upgradePreservation={differences:originalCustomerRows.filter((t,i)=>JSON.stringify(t)!==JSON.stringify(upgraded[i])).map(t=>t.name),tableCount:customerCatalog.length,historicalHashesUnchanged:true,expectedAddedMigrationRows:afterLedger.length-beforeLedger.length,expectedAddedReferenceProfiles:newToleranceRows}
+  const expectedAddedReferenceProfiles=expectedToleranceProfileAdditions(
+    collectFileMigrations(recoveryMigrationsDirectory()).map(file=>file.version),
+    beforeLedger.map(row=>row.version),
+  )
+  assert.equal(newToleranceRows,expectedAddedReferenceProfiles,'Unexpected reference-profile seed rows were added during the upgrade.')
+  report.upgradePreservation={differences:originalCustomerRows.filter((t,i)=>JSON.stringify(t)!==JSON.stringify(upgraded[i])).map(t=>t.name),tableCount:customerCatalog.length,historicalHashesUnchanged:true,expectedAddedMigrationRows:afterLedger.length-beforeLedger.length,expectedAddedReferenceProfiles}
   assert.equal(report.upgradePreservation.differences.length,0,'Historical customer columns changed; investigate before promotion.')
   checked('historical customer-column counts/fingerprints and applied hashes survive upgrade',{appliedBefore:beforeLedger.length,appliedAfter:afterLedger.length,pendingApplied:afterLedger.length-beforeLedger.length})
   const roleAddress=new URL(recoveryAddress);roleAddress.username=runtimeRole;roleAddress.password=runtimePassword
@@ -176,7 +235,7 @@ try {
   console.error(`Recovery check stopped: ${report.failure.message}`)
   process.exitCode=1
 } finally {
-  if(recoveryNetworkConnected) { try{docker(['network','disconnect','metardu-release-rehearsal-20261008','metardu-backup']);report.cleanup.backupNetworkDisconnected=true}catch{report.cleanup.backupNetworkDisconnected=false;process.exitCode=1} }
+  if(recoveryNetworkConnected) { try{docker(['network','disconnect',service.network,'metardu-backup']);report.cleanup.backupNetworkDisconnected=true}catch{report.cleanup.backupNetworkDisconnected=false;process.exitCode=1} }
   try{if(runtimeClient) await runtimeClient.end()}catch{}
   if(createdDatabase) {
     try {
@@ -186,15 +245,16 @@ try {
       report.cleanup.databaseRemoved=(await admin.query('SELECT 1 FROM pg_database WHERE datname=$1',[database])).rowCount===0
     }catch{report.cleanup.databaseRemoved=false;process.exitCode=1}
   }
-  for(const role of [runtimeRole,...(createdOwnerRole?['metardu']:[])]) {
+  for(const role of recoveryRolesForCleanup(roleOwnership,{databaseCreated:createdDatabase,databaseRemoved:report.cleanup.databaseRemoved===true})) {
     try {
-      if((createdDatabase && report.cleanup.databaseRemoved) || (role==='metardu' && createdOwnerRole && !createdDatabase)) await admin.query(`DROP ROLE IF EXISTS ${qid(role)}`)
-      if(createdDatabase || (role==='metardu' && createdOwnerRole)) report.cleanup[`${role}Removed`]=(await admin.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[role])).rowCount===0
+      await admin.query(`DROP ROLE IF EXISTS ${qid(role)}`)
+      report.cleanup[`${role}Removed`]=(await admin.query('SELECT 1 FROM pg_roles WHERE rolname=$1',[role])).rowCount===0
     }catch{report.cleanup[`${role}Removed`]=false;process.exitCode=1}
   }
   try{await admin.end()}catch{}
   if(createdUploadsDirectory) {
     try{assert.match(uploadsDirectory,/^\/tmp\/metardu-recovery-uploads-[0-9a-f-]{36}$/);docker(['exec','metardu-backup','rm','-rf','--',uploadsDirectory]);docker(['exec','metardu-backup','test','!','-e',uploadsDirectory]);report.cleanup.uploadsCopyRemoved=true}catch{report.cleanup.uploadsCopyRemoved=false;process.exitCode=1}
   }
+  report.status=recoveryStatusAfterCleanup(report.status,report.cleanup)
   save()
 }

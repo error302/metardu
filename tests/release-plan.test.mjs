@@ -1,12 +1,304 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import path from 'node:path'
+import {readFileSync} from 'node:fs'
 import {pinnedReleaseArguments,compatibleRollbackRegistry,assertCompleteRehearsalLedger,assertSurveyReleaseDrift,rollbackService,forwardPromotionService,deployedAppRevision,assertBuildSpace,assertSyntheticUpgradeProof} from '../scripts/release-plan.mjs'
+import * as releasePlan from '../scripts/release-plan.mjs'
 import {pinnedRehearsalIdentity} from '../scripts/rehearsal-database.mjs'
+import * as rehearsalDatabase from '../scripts/rehearsal-database.mjs'
 import {migrationChecksums} from '../scripts/verify-migrations.mjs'
 import { COLLABORATION_UPGRADE_CHECKS, COLLABORATION_UPGRADE_VERSIONS } from '../scripts/collaboration-upgrade-contract.mjs'
 
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
+const recoveryProofSourceFiles=[
+  'scripts/verify-fresh-recovery.mjs',
+  'scripts/rehearsal-database.mjs',
+  'scripts/verify-migrations.mjs',
+  'scripts/provision-runtime-db-role.mjs',
+  'scripts/migrate-unified.mjs',
+  'scripts/verify-organization-project-rls.mjs',
+  'scripts/recovery-archive-manifest.py',
+]
+const recoveryProofSourceContents=Object.fromEntries(recoveryProofSourceFiles.map((file,index)=>[file,`candidate source ${index}\n`]))
+const recoveryProofSourceSha256=rehearsalDatabase.recoveryProofSourceHashes?.(recoveryProofSourceContents)
+const rehearsalIdentity={
+  container:'metardu-release-rehearsal',
+  containerId:'a'.repeat(64),
+  purpose:'schema-rehearsal',
+  network:'metardu-release-rehearsal',
+  hostIp:'127.0.0.1',
+  hostPort:55433,
+  database:'metardu_release_rehearsal',
+  marker:'METARDU synthetic release rehearsal only',
+  volume:'metardu_release_rehearsal_data',
+}
+const rehearsalContainer={
+  Id:rehearsalIdentity.containerId,
+  Name:'/'+rehearsalIdentity.container,
+  State:{Running:true},
+  Config:{Labels:{'metardu.purpose':'schema-rehearsal'}},
+  NetworkSettings:{
+    Networks:{[rehearsalIdentity.network]:{}},
+    Ports:{'5432/tcp':[{HostIp:'127.0.0.1',HostPort:'55433'}]},
+  },
+  Mounts:[{Type:'volume',Name:rehearsalIdentity.volume,Destination:'/var/lib/postgresql/data'}],
+}
+function requiredFunction(name){
+  const value=rehearsalDatabase[name]
+  assert.equal(typeof value,'function',`Missing release rehearsal contract: ${name}`)
+  return value
+}
+
+test('recovery role cleanup owns only roles created by the current run',()=>{
+  const createOwnership=requiredFunction('createRecoveryRoleOwnership')
+  const ownRole=requiredFunction('ownRecoveryRole')
+  const cleanupRoles=requiredFunction('recoveryRolesForCleanup')
+  const runId='a'.repeat(32)
+  const ownership=createOwnership(runId)
+  assert.equal(ownership.runtimeRole,'metardu_recovery_app_'+runId)
+  assert.deepEqual([...ownership.ownedRoles],[])
+  ownRole(ownership,'metardu')
+  ownRole(ownership,ownership.runtimeRole)
+  assert.deepEqual(cleanupRoles(ownership,{databaseCreated:false,databaseRemoved:false}),[ownership.runtimeRole,'metardu'])
+  assert.deepEqual(cleanupRoles(ownership,{databaseCreated:true,databaseRemoved:false}),[ownership.runtimeRole])
+  assert.deepEqual(cleanupRoles(ownership,{databaseCreated:true,databaseRemoved:true}),[ownership.runtimeRole,'metardu'])
+  assert.notEqual(createOwnership('b'.repeat(32)).runtimeRole,ownership.runtimeRole)
+})
+
+test('the recovery report confines temporary state without claiming stack immutability',()=>{
+  const scope=rehearsalDatabase.RECOVERY_REPORT_SCOPE
+  assert.equal(typeof scope,'string')
+  assert.match(scope,/customer production data and uploads are read-only/i)
+  assert.match(scope,/temporary recovery state is confined to the isolated rehearsal\/backup service/i)
+  assert.doesNotMatch(scope,/stack.*immutable|production is read-only/i)
+})
+
+test('the executed recovery proof binds an explicit canonical text-source closure',()=>{
+  assert.deepEqual(rehearsalDatabase.RECOVERY_PROOF_SOURCE_FILES,recoveryProofSourceFiles)
+  assert.equal(typeof rehearsalDatabase.recoveryProofSourceHashes,'function')
+  assert.ok(recoveryProofSourceSha256)
+  const crlfContents={...recoveryProofSourceContents,'scripts/recovery-archive-manifest.py':recoveryProofSourceContents['scripts/recovery-archive-manifest.py'].replaceAll('\n','\r\n')}
+  assert.deepEqual(rehearsalDatabase.recoveryProofSourceHashes(crlfContents),recoveryProofSourceSha256)
+  assert.throws(()=>rehearsalDatabase.recoveryProofSourceHashes({...recoveryProofSourceContents,'scripts/unreviewed.mjs':'x'}))
+})
+
+test('the unified committed-source gate runs the rollback registry cleanup regression',()=>{
+  const contracts=releasePlan.UNIFIED_RELEASE_CONTRACT_TESTS
+  assert.ok(Array.isArray(contracts))
+  assert.ok(contracts.includes('tests/rollback-registry-cleanup.test.mjs'))
+  assert.ok(contracts.includes('tests/legacy-image-preflight.test.mjs'))
+})
+
+test('the first build establishes rollback-current from the exact production image when absent',()=>{
+  const establish=releasePlan.establishRollbackTag
+  assert.equal(typeof establish,'function')
+  const rollbackImage='sha256:'+'a'.repeat(64)
+  const calls=[]
+  const result=establish({
+    rollbackImage,
+    rollbackTag:'metardu-metardu-app:rollback-current',
+    existingTagImage:null,
+    preservePriorRollback:()=>calls.push('preserve'),
+    tagImage:(image,tag)=>calls.push(['tag',image,tag]),
+    inspectTag:tag=>{calls.push(['inspect',tag]);return rollbackImage},
+  })
+  assert.equal(result.action,'created')
+  assert.deepEqual(calls,[['tag',rollbackImage,'metardu-metardu-app:rollback-current'],['inspect','metardu-metardu-app:rollback-current']])
+})
+
+test('a prior rollback tag is preserved by content before rollback-current is replaced',()=>{
+  const establish=releasePlan.establishRollbackTag
+  assert.equal(typeof establish,'function')
+  const rollbackImage='sha256:'+'a'.repeat(64),priorImage='sha256:'+'b'.repeat(64)
+  const calls=[]
+  const result=establish({
+    rollbackImage,
+    rollbackTag:'metardu-metardu-app:rollback-current',
+    existingTagImage:priorImage,
+    preservePriorRollback:image=>calls.push(['preserve',image]),
+    tagImage:(image,tag)=>calls.push(['tag',image,tag]),
+    inspectTag:tag=>{calls.push(['inspect',tag]);return rollbackImage},
+  })
+  assert.equal(result.action,'replaced')
+  assert.deepEqual(calls,[['preserve',priorImage],['tag',rollbackImage,'metardu-metardu-app:rollback-current'],['inspect','metardu-metardu-app:rollback-current']])
+})
+
+test('the locally configured rehearsal service must match the exact inspected loopback container',()=>{
+  const parse=requiredFunction('parseRehearsalServiceIdentity')
+  const assertIdentity=requiredFunction('assertRehearsalServiceIdentity')
+  assert.deepEqual(parse(rehearsalIdentity),rehearsalIdentity)
+  assert.deepEqual(assertIdentity(rehearsalIdentity,rehearsalContainer),rehearsalIdentity)
+  const mutations=[
+    value=>({...value,purpose:'production'}),
+    value=>({...value,hostIp:'0.0.0.0'}),
+    value=>({...value,hostPort:5432}),
+    value=>({...value,database:'metardu'}),
+    value=>({...value,marker:'customer recovery'}),
+    value=>({...value,container:'metardu-app'}),
+    value=>({...value,network:'metardu_default'}),
+  ]
+  for(const mutate of mutations)assert.throws(()=>parse(mutate(rehearsalIdentity)))
+  const containerMutations=[
+    container=>({...container,Id:'b'.repeat(64)}),
+    container=>({...container,State:{Running:false}}),
+    container=>({...container,Config:{Labels:{}}}),
+    container=>({...container,NetworkSettings:{...container.NetworkSettings,Networks:{metardu_default:{},[rehearsalIdentity.network]:{}}}}),
+    container=>({...container,NetworkSettings:{...container.NetworkSettings,Ports:{'5432/tcp':[{HostIp:'0.0.0.0',HostPort:'55433'}]}}}),
+    container=>({...container,Mounts:[{Type:'volume',Name:'other-volume',Destination:'/var/lib/postgresql/data'}]}),
+    container=>({...container,Mounts:[]}),
+  ]
+  for(const mutate of containerMutations)assert.throws(()=>assertIdentity(rehearsalIdentity,mutate(rehearsalContainer)))
+})
+
+test('the recovery Python resolver honors an explicit override and fails closed with actionable guidance',()=>{
+  const resolveRecoveryPython=requiredFunction('resolveRecoveryPython')
+  const probes=[]
+  const override=resolveRecoveryPython({
+    env:{METARDU_RECOVERY_PYTHON:'C:/synthetic/python.exe'},
+    platform:'win32',
+    probe:command=>{probes.push(command);return true},
+  })
+  assert.equal(override,'C:/synthetic/python.exe')
+  assert.deepEqual(probes,['C:/synthetic/python.exe'])
+  assert.throws(()=>resolveRecoveryPython({
+    env:{METARDU_RECOVERY_PYTHON:'C:/synthetic/missing-python.exe'},
+    platform:'win32',
+    probe:()=>false,
+  }),/METARDU_RECOVERY_PYTHON/)
+  assert.equal(resolveRecoveryPython({
+    env:{},
+    platform:'linux',
+    probe:command=>command==='python3',
+  }),'python3')
+  assert.throws(()=>resolveRecoveryPython({
+    env:{},
+    platform:'linux',
+    probe:()=>false,
+  }),/METARDU_RECOVERY_PYTHON/)
+})
+
+test('recovery archive compatibility roles are explicit and never privileged logins',()=>{
+  const roles=requiredFunction('recoveryArchiveRoleDefinitions')()
+  assert.deepEqual(roles,[
+    {name:'metardu',login:false,superuser:true,bypassRls:false},
+    {name:'metardu_app',login:false,superuser:false,bypassRls:false},
+    {name:'authenticated',login:false,superuser:false,bypassRls:false},
+    {name:'anon',login:false,superuser:false,bypassRls:false},
+    {name:'service_role',login:false,superuser:false,bypassRls:false},
+  ])
+})
+
+test('recovery child migration discovery is pinned and cannot inherit an ambient registry',()=>{
+  const childEnvironment=rehearsalDatabase.recoveryChildEnvironment
+  const migrationsDirectory=rehearsalDatabase.recoveryMigrationsDirectory
+  const recoveryStatusAfterCleanup=rehearsalDatabase.recoveryStatusAfterCleanup
+  assert.equal(typeof childEnvironment,'function')
+  assert.equal(typeof migrationsDirectory,'function')
+  assert.equal(typeof recoveryStatusAfterCleanup,'function')
+  const child=childEnvironment({MIGRATIONS_DIR:'/ambient/registry'},{BASE:'kept'})
+  assert.equal(child.MIGRATIONS_DIR,'')
+  assert.equal(child.BASE,'kept')
+  assert.equal(migrationsDirectory('/reviewed/root'),path.resolve('/reviewed/root/src/lib/db/migrations'))
+  assert.equal(recoveryStatusAfterCleanup('passed',{databaseRemoved:true}),'passed')
+  assert.equal(recoveryStatusAfterCleanup('passed',{databaseRemoved:false}),'cleanup-failed')
+  assert.equal(recoveryStatusAfterCleanup('failed',{databaseRemoved:false}),'cleanup-failed')
+  const source=readFileSync(new URL('../scripts/verify-fresh-recovery.mjs',import.meta.url),'utf8')
+  assert.match(source,/MIGRATIONS_DIR:\s*''/)
+  assert.match(source,/collectFileMigrations\(recoveryMigrationsDirectory\(\)\)/)
+  assert.doesNotMatch(source,/collectFileMigrations\(\s*\)/)
+})
+
+test('reference-profile seed delta is derived from the source registry and pre-upgrade ledger',()=>{
+  const expectedAdditions=requiredFunction('expectedToleranceProfileAdditions')
+  const migration='068_background_jobs_and_observation_batches'
+  assert.equal(expectedAdditions([migration],[]),1)
+  assert.equal(expectedAdditions([migration],[migration]),0)
+  assert.equal(expectedAdditions([],[]),0)
+})
+
+test('recovery archives must be one explicitly selected matching database and uploads pair',()=>{
+  const parse=requiredFunction('parseRecoveryArchivePair')
+  const pair={databaseArchive:'/backups/db_20261126_120000.sql.gz',uploadsArchive:'/backups/uploads_20261126_120000.tar.gz'}
+  assert.deepEqual(parse(pair),pair)
+  for(const unsafe of [
+    {...pair,databaseArchive:'/backups/db_20261126_120001.sql.gz'},
+    {...pair,uploadsArchive:'/backups/uploads_20261127_120000.tar.gz'},
+    {...pair,databaseArchive:'/tmp/db_20261126_120000.sql.gz'},
+    {...pair,uploadsArchive:'/backups/uploads_20261126_120000.zip'},
+    {...pair,databaseArchive:'/backups/db_20261126_120000.sql.gz/../other'},
+  ])assert.throws(()=>parse(unsafe))
+})
+
+test('recovery evidence is bound to the exact candidate revision and migration registry',()=>{
+  const assertRecoveryProof=releasePlan.assertRecoveryProof
+  assert.equal(typeof assertRecoveryProof,'function','Missing exact-revision recovery evidence contract')
+  const sourceRegistry=[{version:'001_initial',checksum:'a'.repeat(64)}]
+  const proof={
+    revision:sha,
+    status:'passed',
+    sourceRegistry,
+    sourceRegistrySha256:'997e1f05ed0f72e0b8ab7170f692dbd15a2c80a7936a70f5802cd135dce8226b',
+    proofSourceSha256:recoveryProofSourceSha256,
+    archiveSha256:{database:'b'.repeat(64),uploads:'c'.repeat(64)},
+    cleanup:{databaseRemoved:true,uploadsCopyRemoved:true},
+    checks:[{name:'restore',passed:true}],
+  }
+  assert.throws(()=>assertRecoveryProof(proof,sha,sourceRegistry),'Recovery admission must require candidate-derived proof-source hashes.')
+  assertRecoveryProof(proof,sha,sourceRegistry,recoveryProofSourceSha256)
+  for(const changed of [
+    {revision:'d'.repeat(40)},
+    {status:'failed'},
+    {sourceRegistry:[{version:'001_initial',checksum:'e'.repeat(64)}]},
+    {sourceRegistrySha256:'e'.repeat(64)},
+    {proofSourceSha256:{...recoveryProofSourceSha256,'scripts/verify-migrations.mjs':'f'.repeat(64)}},
+    {cleanup:{databaseRemoved:false,uploadsCopyRemoved:true}},
+    {archiveSha256:{database:'b'.repeat(64)}},
+    {checks:[{name:'restore',passed:false}]},
+  ])assert.throws(()=>assertRecoveryProof({...proof,...changed},sha,sourceRegistry,recoveryProofSourceSha256))
+})
+
+test('recovery admission rejects evidence when a transitive proof dependency changed',()=>{
+  const assertRecoveryProof=releasePlan.assertRecoveryProof
+  const sourceRegistry=[{version:'001_initial',checksum:'a'.repeat(64)}]
+  const proof={
+    revision:sha,
+    status:'passed',
+    sourceRegistry,
+    sourceRegistrySha256:'997e1f05ed0f72e0b8ab7170f692dbd15a2c80a7936a70f5802cd135dce8226b',
+    proofSourceSha256:recoveryProofSourceSha256,
+    archiveSha256:{database:'b'.repeat(64),uploads:'c'.repeat(64)},
+    cleanup:{databaseRemoved:true,uploadsCopyRemoved:true},
+    checks:[{name:'restore',passed:true}],
+  }
+  const changedCandidate=rehearsalDatabase.recoveryProofSourceHashes({...recoveryProofSourceContents,'scripts/migrate-unified.mjs':'changed transitive dependency\n'})
+  assert.throws(()=>assertRecoveryProof(proof,sha,sourceRegistry,changedCandidate))
+})
+
+test('rehearsal evidence is bound to the exact candidate revision and migration registry',()=>{
+  const assertRehearsalProof=releasePlan.assertRehearsalProof
+  assert.equal(typeof assertRehearsalProof,'function','Missing exact-revision rehearsal evidence contract')
+  const sourceRegistry=[{version:'001_initial',checksum:'a'.repeat(64)}]
+  const proof={revision:sha,sourceRegistry,passed:true,customerDataCopied:false,existingContainer:true}
+  assertRehearsalProof(proof,sha,sourceRegistry)
+  for(const changed of [
+    {revision:'d'.repeat(40)},
+    {sourceRegistry:[{version:'001_initial',checksum:'e'.repeat(64)}]},
+    {passed:false},
+    {customerDataCopied:true},
+    {existingContainer:false},
+  ])assert.throws(()=>assertRehearsalProof({...proof,...changed},sha,sourceRegistry))
+})
+
+test('build-time rehearsal admission independently compares the pinned candidate source registry',()=>{
+  const assertCandidateRehearsalProof=releasePlan.assertCandidateRehearsalProof
+  assert.equal(typeof assertCandidateRehearsalProof,'function','Missing candidate-registry rehearsal admission contract')
+  const planned=[{version:'001_initial',checksum:'a'.repeat(64)}]
+  const candidate=[{version:'001_initial',checksum:'a'.repeat(64)}]
+  const proof={revision:sha,sourceRegistry:planned,passed:true,customerDataCopied:false,existingContainer:true}
+  assertCandidateRehearsalProof(proof,sha,planned,candidate)
+  assert.throws(()=>assertCandidateRehearsalProof(proof,sha,planned,[{version:'001_initial',checksum:'b'.repeat(64)}]))
+  assert.throws(()=>assertCandidateRehearsalProof({...proof,sourceRegistry:[{version:'001_initial',checksum:'b'.repeat(64)}]},sha,planned,candidate))
+})
 
 test('isolated rehearsal identity uses only the complete pinned revision',()=>{
   const identity=pinnedRehearsalIdentity(sha)
@@ -16,7 +308,7 @@ test('isolated rehearsal identity uses only the complete pinned revision',()=>{
   assert.match(identity.marker,new RegExp(sha+'$'))
   for(const unsafe of ['HEAD',sha.slice(0,8),sha+';'])assert.throws(()=>pinnedRehearsalIdentity(unsafe))
 })
-const source=[{version:'107_existing',path:'src/lib/db/migrations/107_existing.sql',checksum:'old',equivalentChecksums:[]},{version:'108_pipeline_asbuilt_history',path:'src/lib/db/migrations/108_pipeline_asbuilt_history.sql',checksum:'new',equivalentChecksums:[]}]
+const source=[{version:'107_existing',path:'src/lib/db/migrations/107_existing.sql',checksum:'a'.repeat(64),equivalentChecksums:[]},{version:'108_pipeline_asbuilt_history',path:'src/lib/db/migrations/108_pipeline_asbuilt_history.sql',checksum:'b'.repeat(64),equivalentChecksums:[]}]
 test('release commands require a pinned commit and stay in one reusable namespace',()=>{
   assert.equal(pinnedReleaseArguments(['build',sha],process.cwd()).revision,sha)
   assert.equal(pinnedReleaseArguments(['build',sha,'--unified'],process.cwd()).directory,path.resolve('.cache/release-verify/unified-release',sha))
@@ -25,9 +317,12 @@ test('release commands require a pinned commit and stay in one reusable namespac
   for(const args of [['build','HEAD'],['build','main'],['build',sha,'extra'],['prune',sha]])assert.throws(()=>pinnedReleaseArguments(args,process.cwd()))
 })
 test('rollback validates every applied migration and includes only reviewed completed versions',()=>{
-  assert.equal(compatibleRollbackRegistry(source,[{version:'107_existing',checksum:'old'}]).length,1)
-  assert.equal(compatibleRollbackRegistry(source,[{version:'107_existing',checksum:'old'},{version:'108_pipeline_asbuilt_history',checksum:'new'}]).length,2)
-  for(const ledger of [[],[{version:'unknown',checksum:'x'}],[{version:'107_existing',checksum:'changed'}],[{version:'107_existing',checksum:'old'},{version:'107_existing',checksum:'old'}]])assert.throws(()=>compatibleRollbackRegistry(source,ledger))
+  assert.equal(compatibleRollbackRegistry(source,[{version:'107_existing',checksum:'a'.repeat(64)}]).length,1)
+  assert.equal(compatibleRollbackRegistry(source,[{version:'107_existing',checksum:'a'.repeat(64)},{version:'108_pipeline_asbuilt_history',checksum:'b'.repeat(64)}]).length,2)
+  for(const ledger of [[],[{version:'unknown',checksum:'x'.repeat(64)}],[{version:'107_existing',checksum:'c'.repeat(64)}],[{version:'107_existing',checksum:'a'.repeat(64)},{version:'107_existing',checksum:'a'.repeat(64)}]])assert.throws(()=>compatibleRollbackRegistry(source,ledger))
+  for(const checksum of [undefined,null,'','not-a-checksum','a'.repeat(63),'g'.repeat(64)]){
+    assert.throws(()=>compatibleRollbackRegistry(source,[{version:'107_existing',checksum}]),/checksum/i)
+  }
 })
 test('complete rehearsals accept only checked equivalent line endings for historical hashes', () => {
   const sql = 'SELECT 1;\nSELECT 2;\n'
@@ -43,8 +338,8 @@ test('complete rehearsals accept only checked equivalent line endings for histor
 })
 
 test('a newly discovered migration cannot silently enter the reviewed release',()=>{
-  assert.deepEqual(assertSurveyReleaseDrift(source,[{version:'107_existing',checksum:'old'}]).missing,['108_pipeline_asbuilt_history'])
-  assert.throws(()=>assertSurveyReleaseDrift([...source,{version:'111_unreviewed',path:'src/lib/db/migrations/111_unreviewed.sql',checksum:'x'}],[{version:'107_existing',checksum:'old'}]))
+  assert.deepEqual(assertSurveyReleaseDrift(source,[{version:'107_existing',checksum:'a'.repeat(64)}]).missing,['108_pipeline_asbuilt_history'])
+  assert.throws(()=>assertSurveyReleaseDrift([...source,{version:'111_unreviewed',path:'src/lib/db/migrations/111_unreviewed.sql',checksum:'c'.repeat(64)}],[{version:'107_existing',checksum:'a'.repeat(64)}]))
 })
 test('rollback retains strict verification through a read-only registry mount',()=>{
   const service=rollbackService('metardu-metardu-app:rollback-current',sha,path.resolve('.cache/release-verify/survey-release/rollback-registry'))
@@ -131,6 +426,21 @@ test('rollback revision is pinned to the exact running image when runtime identi
     assert.deepEqual(deployedAppRevision(app,image),{revision:sha,imageId:image.Id,source:'org.opencontainers.image.revision',runtimeRevision:runtime??''})
   }
 })
+test('an unlabeled legacy image rejects the former self-attested preflight shape',()=>{
+  const image={Id:'sha256:'+'a'.repeat(64),Config:{Labels:{}}}
+  const app={Name:'/metardu-app',Image:image.Id,Config:{Labels:{'com.docker.compose.service':'metardu-app'},Env:['METARDU_BUILD_SHA='+sha]}}
+  const preflight={status:'passed',readOnly:true,runtimeRolePassed:true,baseImage:image.Id,baseRelease:sha,appliedMigrations:131,missing:[],mutated:0,ghost:[]}
+  assert.throws(()=>deployedAppRevision(app,image,preflight,{
+    expectedImageId:image.Id,
+    expectedRuntimeRevision:sha,
+    expectedCandidateRevision:sha,
+    expectedProducerSha256:'b'.repeat(64),
+    liveEvidence:{imageId:image.Id,runtimeRevision:sha,ledgerSha256:'c'.repeat(64),appliedMigrationCount:131,runtimeRolePassed:true,drift:{missing:[],mutated:[],ghost:[]}},
+    now:Date.parse('2026-11-26T18:00:00.000Z'),
+  }))
+  assert.throws(()=>deployedAppRevision(app,image))
+})
+
 test('conflicting, missing, malformed or foreign deployed identities block release planning',()=>{
   const mutations=[
     ({app})=>app.Name='/other',
