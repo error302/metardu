@@ -33,6 +33,12 @@ import { pathToFileURL } from 'node:url'
 
 const MIGRATIONS_DIR = resolveMigrationsDir()
 
+/** Return the SQL migration source paths in deterministic registry order. */
+export function migrationSourcePaths(paths) {
+  if (!Array.isArray(paths)) throw new TypeError('Migration source paths must be an array.')
+  return paths.filter(path => typeof path === 'string' && path.endsWith('.sql')).sort()
+}
+
 /** Preserve legacy raw hashes while tolerating only Git LF/CRLF conversion. */
 export function migrationChecksums(content) {
   const hash = value => createHash('sha256').update(value).digest('hex')

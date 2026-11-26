@@ -7,6 +7,7 @@ import * as releasePlan from '../scripts/release-plan.mjs'
 import {pinnedRehearsalIdentity} from '../scripts/rehearsal-database.mjs'
 import * as rehearsalDatabase from '../scripts/rehearsal-database.mjs'
 import {migrationChecksums} from '../scripts/verify-migrations.mjs'
+import * as migrationVerifier from '../scripts/verify-migrations.mjs'
 import { COLLABORATION_UPGRADE_CHECKS, COLLABORATION_UPGRADE_VERSIONS } from '../scripts/collaboration-upgrade-contract.mjs'
 
 const sha='eac2835e377f59dd0d1b1ff98cb3fbc311401f22'
@@ -80,6 +81,18 @@ test('the executed recovery proof binds an explicit canonical text-source closur
   const crlfContents={...recoveryProofSourceContents,'scripts/recovery-archive-manifest.py':recoveryProofSourceContents['scripts/recovery-archive-manifest.py'].replaceAll('\n','\r\n')}
   assert.deepEqual(rehearsalDatabase.recoveryProofSourceHashes(crlfContents),recoveryProofSourceSha256)
   assert.throws(()=>rehearsalDatabase.recoveryProofSourceHashes({...recoveryProofSourceContents,'scripts/unreviewed.mjs':'x'}))
+})
+
+test('candidate migration registries exclude non-SQL migration sources',()=>{
+  assert.equal(typeof migrationVerifier.migrationSourcePaths,'function')
+  assert.deepEqual(migrationVerifier.migrationSourcePaths([
+    'src/lib/db/migrations/README.md',
+    'src/lib/db/migrations/002_second.sql',
+    'src/lib/db/migrations/001_first.sql',
+  ]),[
+    'src/lib/db/migrations/001_first.sql',
+    'src/lib/db/migrations/002_second.sql',
+  ])
 })
 
 test('the unified committed-source gate runs the rollback registry cleanup regression',()=>{

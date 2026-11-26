@@ -8,7 +8,7 @@ import { mkdirSync, writeFileSync, readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import pg from 'pg'
 import { rehearsalDatabaseConfig, parseRehearsalServiceIdentity, assertRehearsalServiceIdentity, parseRecoveryArchivePair, recoveryArchiveRoleDefinitions, expectedToleranceProfileAdditions, createRecoveryRoleOwnership, ownRecoveryRole, recoveryRolesForCleanup, recoveryProofSourceHashes, recoveryMigrationsDirectory, recoveryChildEnvironment, recoveryStatusAfterCleanup, resolveRecoveryPython, RECOVERY_PROOF_SOURCE_FILES, RECOVERY_REPORT_SCOPE } from './rehearsal-database.mjs'
-import { RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure, collectFileMigrations, migrationChecksums } from './verify-migrations.mjs'
+import { RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure, collectFileMigrations, migrationChecksums, migrationSourcePaths } from './verify-migrations.mjs'
 
 const rehearsalIdentityPath=resolve(process.env.METARDU_REHEARSAL_IDENTITY_FILE || '.cache/release-verify/rehearsal-service.json')
 const recoveryArchivesPath=resolve(process.env.METARDU_RECOVERY_ARCHIVE_PAIR_FILE || '.cache/release-verify/recovery-archives.json')
@@ -31,7 +31,7 @@ function gitText(args) {
 }
 function sourceRegistryForRevision(candidateRevision) {
   assert.equal(gitText(['rev-parse',candidateRevision]).trim(),candidateRevision,'The candidate revision must exist in this repository.')
-  return gitText(['ls-tree','-r','--name-only',candidateRevision,'src/lib/db/migrations']).split('\n').filter(Boolean).sort().map(path=>{
+  return migrationSourcePaths(gitText(['ls-tree','-r','--name-only',candidateRevision,'src/lib/db/migrations']).split('\n').map(path=>path.trim()).filter(Boolean)).map(path=>{
     const content=gitText(['show',`${candidateRevision}:${path}`])
     return {version:path.split('/').at(-1).replace(/\.sql$/,''),checksum:migrationChecksums(Buffer.from(content)).checksum}
   })
