@@ -31,6 +31,40 @@ export const UNIFIED_RELEASE_CONTRACT_TESTS=Object.freeze([
 ])
 
 export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles',...COLLABORATION_UPGRADE_VERSIONS,...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
+
+const promotionBackupRoot='/backups'
+const promotionBackupDatabasePattern=/^db_(\d{8}_\d{6})\.sql\.gz$/
+const promotionBackupUploadsPattern=/^uploads_(\d{8}_\d{6})\.tar\.gz$/
+function promotionBackupInventory(inventory,label) {
+  assert.ok(Array.isArray(inventory),`${label} must be an array.`)
+  const archives=new Set()
+  for(const archive of inventory) {
+    assert.equal(typeof archive,'string',`${label} must contain only archive paths.`)
+    assert.ok(archive.startsWith(promotionBackupRoot+'/'),`${label} contains a path outside ${promotionBackupRoot}.`)
+    const name=archive.slice(promotionBackupRoot.length+1)
+    assert.ok(promotionBackupDatabasePattern.test(name)||promotionBackupUploadsPattern.test(name),`${label} contains an unexpected archive path.`)
+    assert.ok(!archives.has(archive),`${label} contains a duplicate archive path.`)
+    archives.add(archive)
+  }
+  return archives
+}
+export function assertPromotionBackupCheckpoint({output,beforeInventory,afterInventory}) {
+  assert.equal(typeof output,'string','Promotion backup output must be text.')
+  assert.ok(output.includes('Database and uploads archive integrity verified.'),'Promotion backup is missing current archive integrity evidence.')
+  assert.ok(output.includes('Backup complete.'),'Promotion backup is missing completion evidence.')
+  const before=promotionBackupInventory(beforeInventory,'Before promotion backup inventory')
+  const after=promotionBackupInventory(afterInventory,'After promotion backup inventory')
+  for(const archive of before)assert.ok(after.has(archive),'Promotion backup removed a prior archive.')
+  const newDatabases=[...after].filter(archive=>promotionBackupDatabasePattern.test(archive.slice(promotionBackupRoot.length+1))&&!before.has(archive))
+  const newUploads=[...after].filter(archive=>promotionBackupUploadsPattern.test(archive.slice(promotionBackupRoot.length+1))&&!before.has(archive))
+  assert.equal(newDatabases.length,1,'Promotion backup must publish exactly one new database archive.')
+  assert.equal(newUploads.length,1,'Promotion backup must publish exactly one new uploads archive.')
+  const databaseTimestamp=promotionBackupDatabasePattern.exec(newDatabases[0].slice(promotionBackupRoot.length+1))[1]
+  const uploadsTimestamp=promotionBackupUploadsPattern.exec(newUploads[0].slice(promotionBackupRoot.length+1))[1]
+  assert.equal(uploadsTimestamp,databaseTimestamp,'Promotion backup database and uploads archives must share one timestamp.')
+  return {database:newDatabases[0],uploads:newUploads[0]}
+}
+
 export function pinnedReleaseArguments(argv,root) {
   assert.ok(argv.length===2||(argv.length===3&&argv[2]==='--unified'),'Supply an action and the full reviewed commit SHA; only --unified is an optional namespace.')
   const [action,revision]=argv

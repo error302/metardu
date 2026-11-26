@@ -487,3 +487,85 @@ test('collaboration admission requires the full exact 129-to-131 forward proof',
   }
   assert.throws(()=>assertSyntheticUpgradeProof(proof,sha,{...expected,pending:pending.slice(1)}))
 })
+
+const promotionBackupOutput=`[2026-11-26T15:12:35Z] Starting database backup...
+[2026-11-26T15:12:35Z] Archiving uploads...
+[2026-11-26T15:12:35Z] Database and uploads archive integrity verified.
+[2026-11-26T15:12:36Z] Pruning archives older than 36500 days...
+[2026-11-26T15:12:36Z] Backup complete. Verified database and uploads archives retained in /backups.`
+const promotionBackupBefore=[
+  '/backups/db_20261125_020000.sql.gz',
+  '/backups/uploads_20261125_020000.tar.gz',
+]
+const promotionBackupAfter=[
+  ...promotionBackupBefore,
+  '/backups/db_20261126_151235.sql.gz',
+  '/backups/uploads_20261126_151235.tar.gz',
+]
+function promotionBackupCheckpointContract(){
+  const validate=releasePlan.assertPromotionBackupCheckpoint
+  assert.equal(typeof validate,'function','Missing promotion backup checkpoint contract')
+  return validate
+}
+
+test('promotion backup checkpoint accepts the current backup contract and identifies the exact new pair',()=>{
+  const validate=promotionBackupCheckpointContract()
+  assert.deepEqual(validate({output:promotionBackupOutput,beforeInventory:promotionBackupBefore,afterInventory:promotionBackupAfter}),{
+    database:'/backups/db_20261126_151235.sql.gz',
+    uploads:'/backups/uploads_20261126_151235.tar.gz',
+  })
+})
+
+test('promotion backup checkpoint requires the current integrity and completion markers',()=>{
+  const validate=promotionBackupCheckpointContract()
+  for(const output of [
+    '[2026-11-26T15:12:35Z] Backup integrity verified.\n[2026-11-26T15:12:36Z] Backup complete.',
+    '[2026-11-26T15:12:35Z] Database and uploads archive integrity verified.',
+    '[2026-11-26T15:12:36Z] Backup complete. Verified database and uploads archives retained in /backups.',
+  ])assert.throws(()=>validate({output,beforeInventory:promotionBackupBefore,afterInventory:promotionBackupAfter}))
+})
+
+test('promotion backup checkpoint rejects absent, partial or ambiguous new archive pairs',()=>{
+  const validate=promotionBackupCheckpointContract()
+  const cases=[
+    {afterInventory:promotionBackupBefore},
+    {afterInventory:[...promotionBackupAfter,'/backups/db_20261126_151236.sql.gz']},
+    {afterInventory:[...promotionBackupAfter,'/backups/uploads_20261126_151236.tar.gz']},
+    {afterInventory:[...promotionBackupBefore,'/backups/db_20261126_151235.sql.gz']},
+    {afterInventory:[...promotionBackupBefore,'/backups/uploads_20261126_151236.tar.gz']},
+  ]
+  for(const change of cases)assert.throws(()=>validate({output:promotionBackupOutput,beforeInventory:promotionBackupBefore,...change}))
+})
+
+test('promotion backup checkpoint rejects a complete new pair with mismatched timestamps',()=>{
+  const validate=promotionBackupCheckpointContract()
+  const afterInventory=[
+    ...promotionBackupBefore,
+    '/backups/db_20261126_151235.sql.gz',
+    '/backups/uploads_20261126_151236.tar.gz',
+  ]
+  assert.throws(()=>validate({output:promotionBackupOutput,beforeInventory:promotionBackupBefore,afterInventory}),error=>{
+    assert.equal(error.message.split('\n')[0],'Promotion backup database and uploads archives must share one timestamp.')
+    return true
+  })
+})
+
+test('promotion backup checkpoint rejects a removed prior archive',()=>{
+  const validate=promotionBackupCheckpointContract()
+  const afterInventory=promotionBackupAfter.filter(archive=>archive!=='/backups/db_20261125_020000.sql.gz')
+  assert.throws(()=>validate({output:promotionBackupOutput,beforeInventory:promotionBackupBefore,afterInventory}))
+})
+
+test('promotion backup checkpoint rejects malformed names, unexpected files and non-canonical paths',()=>{
+  const validate=promotionBackupCheckpointContract()
+  const cases=[
+    {beforeInventory:['/backups/db_20261126_15123.sql.gz']},
+    {afterInventory:[...promotionBackupAfter,'/backups/uploads_20261126_151235.zip']},
+    {afterInventory:[...promotionBackupAfter,'/backups/db_20261126_151235.sql.gz.gpg']},
+    {afterInventory:[...promotionBackupAfter,'/backups/notes.txt']},
+    {beforeInventory:['/tmp/db_20261126_151235.sql.gz']},
+    {afterInventory:[...promotionBackupAfter,'/backups/../tmp/db_20261126_151235.sql.gz']},
+    {afterInventory:[...promotionBackupAfter,'/backups/db_20261126_151235.sql.gz/../other']},
+  ]
+  for(const change of cases)assert.throws(()=>validate({output:promotionBackupOutput,beforeInventory:promotionBackupBefore,...change}))
+})

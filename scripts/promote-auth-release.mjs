@@ -12,7 +12,7 @@ import {SCHEDULE_UPGRADE_VERSION} from './schedule-upgrade-contract.mjs'
 import { computeDrift, migrationChecksums, RUNTIME_ROLE_QUERY, runtimeDatabaseRoleFailure } from './verify-migrations.mjs'
 import { rehearsalDatabaseConfig, pinnedRehearsalIdentity, parseRehearsalServiceIdentity, assertRehearsalServiceIdentity, recoveryProofSourceHashes, createIsolatedRehearsalRoleOwnership, isolatedRehearsalCompatibilityRoleDefinitions, recordIsolatedRehearsalCompatibilityRoles, cleanupIsolatedRehearsalRoles, RECOVERY_PROOF_SOURCE_FILES } from './rehearsal-database.mjs'
 import { canonicalSourceSha256, legacyPreflightReceiptEvidence, LEGACY_PREFLIGHT_PRODUCER_PATH } from './legacy-image-preflight-contract.mjs'
-import { pinnedReleaseArguments, assertSurveyReleaseDrift, assertCompleteRehearsalLedger, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, collectLegacyPreflightLiveEvidence, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission, assertRecoveryProof, assertRehearsalProof, assertCandidateRehearsalProof, establishRollbackTag } from './release-plan.mjs'
+import { pinnedReleaseArguments, assertSurveyReleaseDrift, assertCompleteRehearsalLedger, compatibleRollbackRegistry, rollbackService, forwardPromotionService, deployedAppRevision, collectLegacyPreflightLiveEvidence, assertBuildSpace, assertSyntheticUpgradeProof, assertCandidateBuildAdmission, assertRecoveryProof, assertRehearsalProof, assertCandidateRehearsalProof, establishRollbackTag, assertPromotionBackupCheckpoint } from './release-plan.mjs'
 import { verifyRollbackRegistry } from './verify-rollback-registry.mjs'
 import { commandFailureDetails, collectFailedAppDiagnostics } from './release-failure-diagnostics.mjs'
 import { readImportSchemaContract, assertImportSchemaContract, OBSERVATION_COMPATIBILITY_VERSION } from './import-schema-contract.mjs'
@@ -89,6 +89,10 @@ function rehearsalServiceIdentity() {
 const save = receipt => writeFileSync(receiptPath,JSON.stringify(receipt,null,2)+'\n')
 const load = () => { const receipt=JSON.parse(readFileSync(receiptPath,'utf8'));assert.equal(receipt.revision,revision,'The receipt belongs to a different pinned source revision.');return receipt }
 const inspect = () => JSON.parse(docker(['inspect',...names]))
+function backupArchiveInventory() {
+  const output=docker(['exec','metardu-backup','find','/backups','-maxdepth','1','-type','f','(','-name','*.sql.gz','-o','-name','*.tar.gz',')','-print'])
+  return output.split('\n').filter(Boolean).sort()
+}
 function stageMigrations(files, name='migration-source') {
   const staging=join(directory,name)
   for(const file of files){const destination=join(staging,file.path);mkdirSync(resolve(destination,'..'),{recursive:true});writeFileSync(destination,file.content)}
@@ -595,10 +599,11 @@ async function migrateAndPromote() {
     const logArchive='/backups/app-before-auth-'+revision.slice(0,8)+(resuming?'-resume-'+receipt.resumeAttempts.length:'')+'.log'
     docker(['exec','-i','metardu-backup','bash','-c',`set -o noclobber; umask 077; cat > ${logArchive}`],{input:priorLogs.stdout+priorLogs.stderr})
     receipt.previousApplicationLogArchive=logArchive;save(receipt)
+    const backupInventoryBefore=backupArchiveInventory()
     const backup=docker(['exec','-e','BACKUP_RETENTION=36500','metardu-backup','/app/scripts/backup.sh'],{timeout:120_000})
-    assert.ok(backup.includes('Backup integrity verified.') && backup.includes('Backup complete.'))
-    receipt.checkpoint={database:backup.match(/Database backup: (\/backups\/db_[0-9_]+\.sql\.gz)/)?.[1],uploads:backup.match(/Uploads backup: (\/backups\/uploads_[0-9_]+\.tar\.gz)/)?.[1]}
-    assert.ok(receipt.checkpoint.database&&receipt.checkpoint.uploads);save(receipt)
+    const backupInventoryAfter=backupArchiveInventory()
+    receipt.checkpoint=assertPromotionBackupCheckpoint({output:backup,beforeInventory:backupInventoryBefore,afterInventory:backupInventoryAfter})
+    save(receipt)
     console.log('Fresh database and upload checkpoint verified; existing archives preserved.')
     receipt.existingRecordsBefore=await withAdmin(before,client=>snapshotExistingRows(client))
     const collaborationRowsBefore=collaboration ? await withAdmin(before,snapshotCollaborationRows) : null
