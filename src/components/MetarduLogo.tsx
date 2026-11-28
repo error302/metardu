@@ -30,7 +30,7 @@ export default function MetarduLogo({
         alt=""
         width={size}
         height={size}
-        className="shrink-0 rounded"
+        className="shrink-0 rounded object-contain"
         priority
       />
 

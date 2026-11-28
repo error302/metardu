@@ -102,6 +102,12 @@ test('the unified committed-source gate runs the rollback registry cleanup regre
   assert.ok(contracts.includes('tests/legacy-image-preflight.test.mjs'))
 })
 
+test('the unified release-contract gate runs the working-tree recovery proof suite',()=>{
+  const contracts=releasePlan.UNIFIED_RELEASE_CONTRACT_TESTS
+  assert.ok(Array.isArray(contracts))
+  assert.ok(contracts.includes('tests/working-tree-recovery-proof.test.mjs'))
+})
+
 test('the first build establishes rollback-current from the exact production image when absent',()=>{
   const establish=releasePlan.establishRollbackTag
   assert.equal(typeof establish,'function')

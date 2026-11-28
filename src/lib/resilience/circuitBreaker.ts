@@ -156,7 +156,6 @@ export function getAllCircuitStates() {
 
 // ─── Pre-configured Breakers ────────────────────────────────────────────────
 
-export const stripeBreaker = getCircuitBreaker('stripe', { failureThreshold: 5, cooldownMs: 30000, timeoutMs: 15000 })
 export const mpesaBreaker = getCircuitBreaker('mpesa', { failureThreshold: 5, cooldownMs: 60000, timeoutMs: 30000 })
 export const paypalBreaker = getCircuitBreaker('paypal', { failureThreshold: 5, cooldownMs: 30000, timeoutMs: 15000 })
 export const nlimsBreaker = getCircuitBreaker('nlims', { failureThreshold: 3, cooldownMs: 300000, timeoutMs: 30000 })

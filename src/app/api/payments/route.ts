@@ -3,10 +3,27 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { getPublicAppUrl } from '@/lib/site'
-import { getStripeService } from '@/lib/payments/stripe'
 import { getPayPalService, getPayPalPlanId, resolvePayPalCurrency } from '@/lib/payments/paypal'
 import { validatePayPalBillingPlan } from '@/lib/payments/paypalPlanValidation'
-import { getMpesaService } from '@/lib/payments/mpesa'
+import {
+  classifyMpesaResultCode,
+  getMpesaService,
+  MpesaPhoneNumberError,
+  MpesaProviderError,
+  normalizeMpesaPhoneNumber,
+} from '@/lib/payments/mpesa'
+import {
+  completeMpesaPayment,
+  type MpesaCompletionRecord,
+} from '@/lib/payments/mpesaCompletion'
+import {
+  createPaymentUnavailableReason,
+  normalizeCountryCode,
+  quoteEligiblePaymentMethodsWithReason,
+  resolvePaymentEligibility,
+  type PaymentUnavailableReason,
+  type QuotedPaymentMethod,
+} from '@/lib/payments/eligibility'
 import { apiHandler } from '@/lib/apiHandler'
 import { db } from '@/lib/db'
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
@@ -21,11 +38,14 @@ interface SubscriptionRow {
 
 interface PaymentHistoryRow {
   id: string
+  user_id: string
   plan_id: string | null
   currency: string | null
-  amount: number | null
+  amount: number | string | null
   transaction_id: string | null
   status: string | null
+  checkout_request_id: string | null
+  phone_number: string | null
   metadata?: unknown
 }
 
@@ -44,7 +64,7 @@ interface PayPalCapture {
 export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 60000 } }, async (req, ctx) => {
   const body = ctx.body as Record<string, unknown>
   const schema = z.object({
-    provider: z.enum(['stripe', 'paypal', 'mpesa']),
+    provider: z.enum(['paypal', 'mpesa']),
     action: z.string(),
   })
   const parsed = schema.safeParse(body)
@@ -128,9 +148,10 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
   if (action === 'start-subscription') {
     const startSchema = z.object({
       planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']),
-      currency: z.string().min(3).max(3),
+      currency: z.string().length(3).transform(value => value.toUpperCase()),
       email: z.string().email().optional(),
       phoneNumber: z.string().optional(),
+      countryCode: z.string().optional(),
       country: z.string().optional(),
       seatCount: z.number().int().optional(),
     })
@@ -140,6 +161,38 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     }
 
     const { planId, currency } = start.data
+    const countryCode = normalizeCountryCode(start.data.countryCode ?? start.data.country)
+    if (!countryCode) {
+      return NextResponse.json({
+        error: 'A valid country is required before starting payment.',
+        code: 'COUNTRY_REQUIRED',
+      }, { status: 400 })
+    }
+
+    const regionalEligibility = resolvePaymentEligibility({
+      countryCode,
+      currency: currency as CurrencyCode,
+      configured: { mpesa: true, paypal: true },
+    })
+    if (!regionalEligibility.ok) {
+      return NextResponse.json({
+        error: regionalEligibility.message,
+        code: regionalEligibility.code,
+      }, { status: 400 })
+    }
+
+    const eligibleMethod = regionalEligibility.methods.find(
+      method => method.provider === provider
+    )
+    if (!eligibleMethod) {
+      return NextResponse.json({
+        error: provider === 'mpesa'
+          ? 'M-Pesa is available only for customers in Kenya.'
+          : 'PayPal is available for international customers only.',
+        code: 'PAYMENT_METHOD_NOT_ELIGIBLE',
+      }, { status: 409 })
+    }
+
     const seatSelection = resolveSeatSelection(planId, start.data.seatCount)
     if (!seatSelection.ok) return NextResponse.json({ error: seatSelection.error }, { status: 400 })
     const seatCount = seatSelection.totalSeats
@@ -155,7 +208,6 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     }
 
     let paypalService: ReturnType<typeof getPayPalService> = null
-    let stripeService: ReturnType<typeof getStripeService> = null
     let mpesaService: ReturnType<typeof getMpesaService> = null
     let mpesaPhoneNumber: string | null = null
     let paypalPlanId: string | null = null
@@ -164,7 +216,7 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
     if (provider === 'paypal') {
       if (seatSelection.extraSeats > 0) {
         return NextResponse.json({
-          error: 'PayPal recurring plans currently support the included seats only. Choose card or M-Pesa to pay for additional seats.',
+          error: 'PayPal recurring plans currently support the included seats only. Contact support for additional seats.',
           code: 'PAYPAL_EXTRA_SEATS_UNAVAILABLE',
         }, { status: 409 })
       }
@@ -197,53 +249,45 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
       }
     }
 
-    if (provider === 'stripe') {
-      stripeService = getStripeService()
-      if (!stripeService) return NextResponse.json({ error: 'Stripe is not configured.' }, { status: 503 })
-    }
-
     if (provider === 'mpesa') {
+      if (priced.currency !== 'KES') return NextResponse.json({ error: 'M-Pesa payments must be in KES.' }, { status: 400 })
+      mpesaPhoneNumber = normalizeMpesaPhoneNumber(start.data.phoneNumber ?? '')
+      if (!mpesaPhoneNumber) {
+        const phoneError = new MpesaPhoneNumberError()
+        return NextResponse.json(
+          { error: phoneError.message, code: 'MPESA_INVALID_PHONE' },
+          { status: 400 },
+        )
+      }
       mpesaService = getMpesaService()
       if (!mpesaService) return NextResponse.json({ error: 'M-Pesa is not configured.' }, { status: 503 })
-      if (priced.currency !== 'KES') return NextResponse.json({ error: 'M-Pesa payments must be in KES.' }, { status: 400 })
-      mpesaPhoneNumber = start.data.phoneNumber?.trim() || null
-      if (!mpesaPhoneNumber) return NextResponse.json({ error: 'Phone number required for M-Pesa.' }, { status: 400 })
     }
 
-    const { rows } = await db.query<Pick<PaymentHistoryRow, 'id'>>(
-      `INSERT INTO payment_history (user_id, amount, currency, status, payment_method, plan_id, metadata)
-       VALUES ($1, $2, $3, 'pending', $4, $5, $6) RETURNING id`,
-      [userId, priced.amount, priced.currency, provider, planId, JSON.stringify({ seatCount, extraSeats: seatSelection.extraSeats })]
-    )
+    const paymentMetadata = JSON.stringify({
+      seatCount,
+      extraSeats: seatSelection.extraSeats,
+      ...(provider === 'mpesa' && mpesaPhoneNumber
+        ? { phoneNumber: mpesaPhoneNumber }
+        : {}),
+    })
+    const { rows } = provider === 'mpesa'
+      ? await db.query<Pick<PaymentHistoryRow, 'id'>>(
+        `INSERT INTO payment_history
+           (user_id, amount, currency, status, payment_method, plan_id,
+            checkout_request_id, phone_number, metadata)
+         VALUES ($1, $2, $3, 'pending', 'mpesa', $4, NULL, $5, $6)
+         RETURNING id`,
+        [userId, priced.amount, priced.currency, planId, mpesaPhoneNumber, paymentMetadata],
+      )
+      : await db.query<Pick<PaymentHistoryRow, 'id'>>(
+        `INSERT INTO payment_history (user_id, amount, currency, status, payment_method, plan_id, metadata)
+         VALUES ($1, $2, $3, 'pending', $4, $5, $6) RETURNING id`,
+        [userId, priced.amount, priced.currency, provider, planId, paymentMetadata],
+      )
     if (!rows[0]?.id) throw new Error('No ID returned from payment_history insert')
     const paymentId = rows[0].id as string
 
     const appUrl = getPublicAppUrl()
-
-    if (provider === 'stripe') {
-      const stripe = stripeService
-      if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
-
-      const stripeSession = await stripe.createCheckoutSession({
-        mode: 'payment',
-        amount: priced.amount,
-        currency: priced.currency,
-        name: `METARDU ${priced.plan.name}`,
-        successUrl: `${appUrl}/subscription/success?provider=stripe&paymentId=${paymentId}&planId=${planId}&session_id={CHECKOUT_SESSION_ID}`,
-        cancelUrl: `${appUrl}/subscription/cancel?provider=stripe&paymentId=${paymentId}&planId=${planId}`,
-        metadata: { payment_id: paymentId, user_id: userId, plan_id: planId, currency: priced.currency, seat_count: String(seatCount) },
-      })
-
-      if (!stripeSession?.id || !stripeSession?.url) {
-        return NextResponse.json({ error: 'Stripe returned an invalid session' }, { status: 502 })
-      }
-
-      await db.query<never>(
-        'UPDATE payment_history SET transaction_id = $1 WHERE id = $2 AND user_id = $3',
-        [stripeSession.id, paymentId, userId]
-      )
-      return NextResponse.json({ kind: 'redirect', provider: 'stripe', url: stripeSession.url, paymentId })
-    }
 
     if (provider === 'paypal') {
       if (!paypalService || !paypalPlanId) return NextResponse.json({ error: 'PayPal is not configured.' }, { status: 503 })
@@ -279,26 +323,71 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
 
     if (provider === 'mpesa') {
       const mpesa = mpesaService
-      if (!mpesa || !mpesaPhoneNumber) return NextResponse.json({ error: 'M-Pesa configuration or phone number is unavailable.' }, { status: 500 })
-
-      const callbackUrl = `${appUrl}/api/payments/mpesa/callback?paymentId=${paymentId}&planId=${planId}`
-      const result = await mpesa.initiateSTKPush({
-        phoneNumber: mpesaPhoneNumber,
-        amount: priced.amount,
-        reference: paymentId,
-        description: `METARDU ${priced.plan.name} subscription`,
-        callbackUrl,
-      })
-
-      if (!result?.checkoutRequestId) {
-        return NextResponse.json({ error: 'M-Pesa returned an invalid response' }, { status: 502 })
+      if (!mpesa || !mpesaPhoneNumber) {
+        throw new MpesaProviderError('M-Pesa could not accept this payment request. Please try again or choose another payment method.')
       }
 
-      await db.query<never>(
-        'UPDATE payment_history SET transaction_id = $1 WHERE id = $2 AND user_id = $3',
-        [result.checkoutRequestId, paymentId, userId]
-      )
-      return NextResponse.json({ kind: 'mpesa', provider: 'mpesa', paymentId, checkoutRequestId: result.checkoutRequestId })
+      const callbackUrl = `${appUrl}/api/payments/mpesa/callback?paymentId=${paymentId}&planId=${planId}`
+      let acceptedCheckoutRequestId: string | null = null
+      try {
+        const result = await mpesa.initiateSTKPush({
+          phoneNumber: mpesaPhoneNumber,
+          amount: priced.amount,
+          reference: paymentId,
+          description: `METARDU ${priced.plan.name} subscription`,
+          callbackUrl,
+        })
+
+        if (!result?.checkoutRequestId) {
+          throw new MpesaProviderError('M-Pesa did not accept the payment request. Please try again or choose another payment method.')
+        }
+        acceptedCheckoutRequestId = result.checkoutRequestId
+
+        const checkoutUpdate = await db.query<never>(
+          `UPDATE payment_history
+           SET checkout_request_id = $1, updated_at = NOW()
+           WHERE id = $2 AND user_id = $3 AND checkout_request_id IS NULL
+             AND status IN ('pending', 'processing', 'pending_review')`,
+          [result.checkoutRequestId, paymentId, userId],
+        )
+        if ((checkoutUpdate.rowCount ?? 0) === 0) {
+          throw new Error('M-Pesa checkout identity could not be persisted.')
+        }
+
+        return NextResponse.json({
+          kind: 'mpesa',
+          provider: 'mpesa',
+          paymentId,
+          checkoutRequestId: result.checkoutRequestId,
+        })
+      } catch (cause) {
+        if (acceptedCheckoutRequestId) {
+          // Daraja already accepted the STK request and may have prompted the
+          // customer. A later identity-write failure must not terminally fail
+          // the checkout. Keep it pending so the callback can bind the
+          // accepted CheckoutRequestID through the server payment id.
+          return NextResponse.json({
+            kind: 'mpesa',
+            provider: 'mpesa',
+            paymentId,
+            checkoutRequestId: acceptedCheckoutRequestId,
+            status: 'pending',
+          }, { status: 202 })
+        }
+
+        await db.query<never>(
+          `UPDATE payment_history
+           SET status = 'failed', metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+               updated_at = NOW()
+           WHERE id = $1 AND status <> 'completed'`,
+          [paymentId, JSON.stringify({ mpesaInitiation: 'failed' })],
+        ).catch(() => undefined)
+
+        if (cause instanceof MpesaPhoneNumberError || cause instanceof MpesaProviderError) {
+          throw cause
+        }
+        throw new MpesaProviderError(undefined, cause)
+      }
     }
 
     return NextResponse.json({ error: 'Unknown provider' }, { status: 400 })
@@ -306,69 +395,6 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
 
   // ─── Provider action switches ────────────────────────────────────────────
   switch (provider) {
-    case 'stripe': {
-      const stripe = getStripeService()
-      if (!stripe) return NextResponse.json({ error: 'Stripe not configured' }, { status: 500 })
-
-      switch (action) {
-        case 'confirm-session': {
-          const s = z.object({
-            sessionId: z.string().min(1),
-            paymentId: z.string().guid(),
-            planId: z.enum(['free', 'pro', 'team', 'firm', 'enterprise']),
-          }).safeParse(params)
-          if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
-
-          const { rows: payRows } = await db.query<PaymentHistoryRow>(
-            'SELECT id, plan_id, currency, amount, transaction_id, status, metadata FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
-            [s.data.paymentId, userId]
-          )
-          const pay = payRows[0] ?? null
-          if (!pay) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
-          if (pay.plan_id !== s.data.planId) return NextResponse.json({ error: 'Plan mismatch.' }, { status: 400 })
-          if (pay.transaction_id && pay.transaction_id !== s.data.sessionId) return NextResponse.json({ error: 'Transaction mismatch.' }, { status: 400 })
-          if (pay.status === 'completed') return NextResponse.json({ status: 'completed' })
-          if (pay.status === 'failed') return NextResponse.json({ status: 'failed' })
-
-          const stripeSession = await stripe.getCheckoutSession(s.data.sessionId)
-
-          if (!stripeSession?.paymentStatus || !stripeSession?.currency) {
-            return NextResponse.json({ error: 'Stripe returned invalid session data' }, { status: 502 })
-          }
-
-          if (stripeSession.paymentStatus !== 'paid') return NextResponse.json({ status: 'pending' })
-
-          if (String(pay.currency ?? '').toUpperCase() !== String(stripeSession.currency).toUpperCase() ||
-              Number(pay.amount) !== Number(stripeSession.amountTotal ?? 0)) {
-            await activateSubscription({ planId: s.data.planId, payment_method: 'stripe', currency: (pay.currency as CurrencyCode) || 'USD', amount: Number(pay.amount) || 0, transaction_id: stripeSession.id, status: 'failed', paymentId: s.data.paymentId })
-            return NextResponse.json({ status: 'failed' })
-          }
-
-          await activateSubscription({ planId: s.data.planId, payment_method: 'stripe', currency: stripeSession.currency as CurrencyCode, amount: Number(stripeSession.amountTotal ?? 0), transaction_id: stripeSession.id, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata(s.data.planId, pay.metadata) })
-          await sendPurchaseReceipt({
-            userId,
-            planId: s.data.planId,
-            amount: Number(stripeSession.amountTotal ?? 0),
-            currency: stripeSession.currency,
-            transactionId: stripeSession.id,
-            paymentMethod: 'stripe',
-            paymentId: s.data.paymentId,
-          })
-          return NextResponse.json({
-            status: 'completed',
-            receipt: {
-              amount: Number(stripeSession.amountTotal ?? 0),
-              currency: stripeSession.currency,
-              transactionId: stripeSession.id,
-              paidAt: new Date().toISOString(),
-            },
-          })
-        }
-        default:
-          return NextResponse.json({ error: 'Unknown stripe action' }, { status: 400 })
-      }
-    }
-
     case 'paypal': {
       const paypal = getPayPalService()
       if (!paypal) return NextResponse.json({ error: 'PayPal not configured' }, { status: 500 })
@@ -530,42 +556,175 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
           }).safeParse(params)
           if (!s.success) return NextResponse.json({ error: 'Invalid request.' }, { status: 400 })
 
-          const { rows: payRows } = await db.query<Pick<PaymentHistoryRow, 'id' | 'plan_id' | 'currency' | 'amount' | 'status' | 'metadata'>>(
-            'SELECT id, plan_id, currency, amount, status, metadata FROM payment_history WHERE id = $1 AND user_id = $2 LIMIT 1',
-            [s.data.paymentId, userId]
+          const { rows: payRows } = await db.query<PaymentHistoryRow>(
+            `SELECT id, user_id, plan_id, currency, amount, status,
+                    checkout_request_id, phone_number, transaction_id, metadata
+             FROM payment_history
+             WHERE id = $1 AND user_id = $2 AND payment_method = 'mpesa'
+             LIMIT 1`,
+            [s.data.paymentId, userId],
           )
           const pay = payRows[0] ?? null
           if (!pay) return NextResponse.json({ error: 'Payment not found.' }, { status: 404 })
+
+          const storedCheckoutRequestId = pay.checkout_request_id?.trim() || null
+          if (!storedCheckoutRequestId) {
+            return NextResponse.json({
+              error: 'This M-Pesa checkout has no stored provider identity.',
+              code: 'MPESA_CHECKOUT_ID_MISSING',
+            }, { status: 400 })
+          }
+          if (s.data.checkoutRequestId.trim() !== storedCheckoutRequestId) {
+            return NextResponse.json({
+              error: 'The M-Pesa checkout identity does not match this payment.',
+              code: 'MPESA_CHECKOUT_MISMATCH',
+            }, { status: 400 })
+          }
+
           if (pay.status === 'completed') return NextResponse.json({ status: 'completed' })
           if (pay.status === 'failed') return NextResponse.json({ status: 'failed' })
 
-          const result = await mpesa.checkTransactionStatus(s.data.checkoutRequestId)
-          if (result.status === 'completed') {
-            await activateSubscription({ planId: (pay.plan_id as PlanId) || 'pro', payment_method: 'mpesa', currency: (pay.currency as CurrencyCode) || 'KES', amount: Number(pay.amount) || 0, transaction_id: s.data.checkoutRequestId, status: 'completed', paymentId: s.data.paymentId, seatCount: seatCountFromPaymentMetadata((pay.plan_id as PlanId) || 'pro', pay.metadata) })
-            await sendPurchaseReceipt({
-              userId,
-              planId: (pay.plan_id as string) || 'pro',
-              amount: Number(pay.amount) || 0,
-              currency: (pay.currency as string) || 'KES',
-              transactionId: s.data.checkoutRequestId,
-              paymentMethod: 'mpesa',
-              paymentId: s.data.paymentId,
-            })
+          let result: Awaited<ReturnType<typeof mpesa.checkTransactionStatus>>
+          try {
+            result = await mpesa.checkTransactionStatus(storedCheckoutRequestId)
+          } catch (cause) {
+            // A query outage is not proof that the customer declined. Keep the
+            // checkout pending and expose only a customer-safe provider error.
+            throw new MpesaProviderError(undefined, cause)
           }
 
-          return NextResponse.json({
-            status: result.status === 'completed' ? 'completed' : 'pending',
-            ...(result.status === 'completed'
-              ? {
-                  receipt: {
-                    amount: Number(pay.amount) || 0,
-                    currency: (pay.currency as string) || 'KES',
-                    transactionId: s.data.checkoutRequestId,
-                    paidAt: new Date().toISOString(),
-                  },
-                }
-              : {}),
-          })
+          const resultClassification = classifyMpesaResultCode(result.resultCode)
+          if (resultClassification === 'definitive_failure') {
+            const failureUpdate = await db.query<never>(
+              `UPDATE payment_history
+               SET status = 'failed', metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+                   updated_at = NOW()
+               WHERE id = $1 AND user_id = $3 AND payment_method = 'mpesa'
+                 AND status IN ('pending', 'processing', 'pending_review')`,
+              [
+                pay.id,
+                JSON.stringify({
+                  mpesaResultCode: result.resultCode ?? null,
+                  mpesaResultDesc: result.resultDesc ?? null,
+                  mpesaResultStatus: 'failed',
+                }),
+                userId,
+              ],
+            )
+            if ((failureUpdate.rowCount ?? 0) === 0) {
+              // A callback may have completed the row while the provider query
+              // was in flight. Report the authoritative stored status instead
+              // of claiming failure after the entitlement was activated.
+              const { rows: storedRows } = await db.query<{ status: string | null }>(
+                `SELECT status
+                   FROM payment_history
+                  WHERE id = $1 AND user_id = $2 AND payment_method = 'mpesa'
+                  LIMIT 1`,
+                [pay.id, userId],
+              )
+              const storedStatus = storedRows[0]?.status
+              return NextResponse.json({
+                status: storedStatus === 'completed'
+                  ? 'completed'
+                  : storedStatus === 'failed'
+                    ? 'failed'
+                    : 'pending',
+              })
+            }
+            return NextResponse.json({ status: 'failed' })
+          }
+
+          if (resultClassification === 'ambiguous') {
+            if (result.resultCode !== undefined || result.resultDesc !== undefined) {
+              await db.query<never>(
+                `UPDATE payment_history
+                 SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+                     updated_at = NOW()
+                 WHERE id = $1 AND user_id = $3 AND payment_method = 'mpesa'
+                   AND status <> 'completed'`,
+                [
+                  pay.id,
+                  JSON.stringify({
+                    mpesaResultCode: result.resultCode ?? null,
+                    mpesaResultDesc: result.resultDesc ?? null,
+                    mpesaResultStatus: 'ambiguous',
+                  }),
+                  userId,
+                ],
+              )
+            }
+            return NextResponse.json({ status: 'pending' })
+          }
+
+          if (result.status === 'completed') {
+            const record: MpesaCompletionRecord = {
+              id: pay.id,
+              user_id: pay.user_id,
+              plan_id: pay.plan_id,
+              amount: Number(pay.amount),
+              currency: pay.currency,
+              status: pay.status,
+              checkout_request_id: pay.checkout_request_id,
+              phone_number: pay.phone_number,
+              transaction_id: pay.transaction_id,
+              metadata: pay.metadata,
+            }
+            const completion = await completeMpesaPayment({
+              record,
+              evidence: {
+                source: 'polling',
+                checkoutRequestId: storedCheckoutRequestId,
+                amount: result.amount,
+                phone: result.phone,
+                resultCode: result.resultCode,
+              },
+            })
+
+            if (completion.outcome === 'rejected') {
+              await db.query<never>(
+                `UPDATE payment_history
+                 SET status = 'pending_review',
+                     metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+                     updated_at = NOW()
+                 WHERE id = $1 AND user_id = $3 AND payment_method = 'mpesa'
+                   AND status <> 'completed'`,
+                [
+                  pay.id,
+                  JSON.stringify({
+                    mpesaReviewReason: completion.reason,
+                    reviewReason: completion.reason,
+                  }),
+                  userId,
+                ],
+              )
+              return NextResponse.json({ status: 'pending' })
+            }
+
+            if (completion.outcome === 'not_completed') {
+              return NextResponse.json({
+                status: completion.status === 'failed' ? 'failed' : 'pending',
+              })
+            }
+
+            if (completion.outcome === 'already_completed') {
+              return NextResponse.json({ status: 'completed' })
+            }
+
+            if (completion.activated) {
+              await sendPurchaseReceipt({
+                userId: pay.user_id,
+                planId: pay.plan_id as string,
+                amount: Number(pay.amount),
+                currency: pay.currency as string,
+                transactionId: storedCheckoutRequestId,
+                paymentMethod: 'mpesa',
+                paymentId: pay.id,
+              })
+            }
+            return NextResponse.json({ status: 'completed' })
+          }
+
+          return NextResponse.json({ status: 'pending' })
         }
         default:
           return NextResponse.json({ error: 'Unknown mpesa action' }, { status: 400 })
@@ -577,30 +736,126 @@ export const POST = apiHandler({ auth: true, rateLimit: { max: 10, windowMs: 600
   }
 })
 
-export const GET = apiHandler({ auth: false, rateLimit: { max: 30, windowMs: 60000 } }, async () => {
-  // AUDIT FIX (M-08, 2026-08-30): this endpoint discloses which payment
-  // providers are live. The information is inherently public (the pricing
-  // page shows the same buttons), but the endpoint was an unlimited free
-  // configuration probe — it is now rate-limited so it cannot be used for
-  // cheap recon sweeps.
-  const isReal = (key: string | undefined) => !!key && !key.includes('mockup') && !key.includes('Mock')
-  const stripe = isReal(process.env.STRIPE_SECRET_KEY)
-  const paypal = isReal(process.env.PAYPAL_CLIENT_ID)
-    && isReal(process.env.PAYPAL_CLIENT_SECRET)
-    && (['pro', 'team', 'firm'] as const).every((planId) => Boolean(getPayPalPlanId(planId)))
-  const mpesa = isReal(process.env.MPESA_CONSUMER_KEY)
-  // AUDIT FIX (HIGH, 2026-07-02): Airtel Money service exists but has no
-  // route handler in the unified payments API. Don't advertise it until wired.
-  // const airtel = isReal(process.env.AIRTEL_CLIENT_ID)
+export const GET = apiHandler({ auth: false, rateLimit: { max: 30, windowMs: 60000 } }, async (req) => {
+  // This endpoint discloses live provider configuration and the eligible
+  // method for the requested market. Availability remains contextual: a
+  // configured provider is not offered when the market policy excludes it.
+  const url = new URL(req.url)
+  const invalidRequest = (code: string, error: string) => (
+    NextResponse.json({ error, code }, { status: 400 })
+  )
+
+  const requestedCountry = url.searchParams.get('countryCode') ?? url.searchParams.get('country')
+  const countryCode = normalizeCountryCode(requestedCountry)
+  if (!countryCode) {
+    return invalidRequest(
+      'COUNTRY_REQUIRED',
+      'A valid country is required before starting payment.',
+    )
+  }
+
+  const requestedCurrency = url.searchParams.get('currency')?.trim().toUpperCase()
+  const currency = SUPPORTED_CURRENCIES.includes(requestedCurrency as CurrencyCode)
+    ? requestedCurrency as CurrencyCode
+    : null
+  if (!currency) {
+    return invalidRequest(
+      'CURRENCY_REQUIRED',
+      'A supported currency is required before starting payment.',
+    )
+  }
+
+  const requestedPlanId = url.searchParams.get('planId')
+  const planId = (['free', 'pro', 'team', 'firm', 'enterprise'] as const).includes(
+    requestedPlanId as PlanId
+  ) ? requestedPlanId as PlanId : null
+  if (!planId || planId === 'enterprise') {
+    return invalidRequest(
+      'INVALID_PLAN',
+      'Choose a valid self-serve plan before checking payment methods.',
+    )
+  }
+
+  if (!url.searchParams.has('seatCount')) {
+    return invalidRequest(
+      'INVALID_SEATS',
+      'Choose a valid number of seats before checking payment methods.',
+    )
+  }
+  const requestedSeatCount = Number(url.searchParams.get('seatCount'))
+  const seatSelection = resolveSeatSelection(planId, requestedSeatCount)
+  if (!seatSelection.ok) {
+    return invalidRequest(
+      'INVALID_SEATS',
+      'Choose a valid number of seats before checking payment methods.',
+    )
+  }
+
+  if (countryCode === 'KE' && currency !== 'KES') {
+    return invalidRequest(
+      'COUNTRY_CURRENCY_MISMATCH',
+      'Kenya checkout must be priced in KES.',
+    )
+  }
+
+  const paypal = Boolean(getPayPalService())
+  const mpesa = Boolean(getMpesaService())
+  const eligibility = resolvePaymentEligibility({
+    countryCode,
+    currency,
+    configured: { paypal, mpesa },
+  })
+  if (!eligibility.ok) {
+    return invalidRequest(eligibility.code, eligibility.message)
+  }
+
+  let reason: PaymentUnavailableReason | undefined
+  let quotedMethods: QuotedPaymentMethod[] = []
+  if (eligibility.methods.length === 0) {
+    reason = createPaymentUnavailableReason('PROVIDER_UNAVAILABLE')
+  } else {
+    const quote = quoteEligiblePaymentMethodsWithReason({
+      methods: eligibility.methods,
+      planId,
+      totalSeats: seatSelection.totalSeats,
+    })
+    const paypalCurrency = resolvePayPalCurrency(currency)
+    const paypalPlanConfigured = countryCode !== 'KE'
+      && Boolean(getPayPalPlanId(planId, paypalCurrency))
+
+    if (!quote.ok) {
+      reason = quote.reason.code === 'PAYPAL_EXTRA_SEATS_UNAVAILABLE'
+        ? quote.reason
+        : countryCode !== 'KE' && !paypalPlanConfigured
+          ? createPaymentUnavailableReason('PLAN_UNAVAILABLE')
+          : quote.reason
+    } else if (countryCode !== 'KE' && !paypalPlanConfigured) {
+      reason = createPaymentUnavailableReason('PLAN_UNAVAILABLE')
+    } else {
+      quotedMethods = quote.methods
+    }
+  }
+
+  const authoritativeEligibility = {
+    ok: true as const,
+    market: eligibility.market,
+    currency: eligibility.currency,
+    methods: quotedMethods,
+    ...(reason ? { reason } : {}),
+  }
 
   return NextResponse.json({
-    providers: { stripe, paypal, mpesa },
+    providers: { paypal, mpesa },
     currencies: SUPPORTED_CURRENCIES,
-    paymentMethods: [
-      ...(stripe || paypal ? [{ id: 'card', name: 'Credit/Debit Card', providers: [stripe && 'stripe', paypal && 'paypal'].filter(Boolean) }] : []),
-      ...(mpesa ? [{ id: 'mpesa', name: 'M-Pesa', providers: ['mpesa'] }] : []),
-      // ...(airtel ? [{ id: 'airtel_money', name: 'Airtel Money', providers: ['airtel'] }] : []),
-      ...(paypal ? [{ id: 'paypal', name: 'PayPal', providers: ['paypal'] }] : []),
-    ],
+    eligibility: authoritativeEligibility,
+    paymentMethods: quotedMethods.map(method => ({
+      id: method.id,
+      provider: method.provider,
+      label: method.label,
+      name: method.label,
+      providers: [method.provider],
+      chargeCurrency: method.chargeCurrency,
+      chargeAmount: method.chargeAmount,
+    })),
   })
 })

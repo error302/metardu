@@ -3,13 +3,13 @@
  *
  * One funnel for every payment provider so a successful subscription purchase
  * always produces the same branded receipt email, regardless of whether the
- * money arrived by M-Pesa STK push, Stripe Checkout, or a PayPal subscription.
+ * money arrived by M-Pesa STK push or a PayPal subscription.
  *
  * Design rules:
  *   - Never throw. A mail failure must never roll back or fail a completed
  *     payment. Callers treat this as best-effort and log the outcome.
- *   - Idempotent per payment. The success page can poll `confirm-session` or
- *     `subscription-status` repeatedly; each payment row is emailed once.
+ *   - Idempotent per payment. Provider status polling can repeat; each
+ *     payment row is emailed once.
  *   - The receipt is sent only after the subscription is actually activated.
  */
 
@@ -22,7 +22,6 @@ import { logger } from '@/lib/logger'
 /** Human-readable payment method labels shown on the receipt. */
 const PAYMENT_METHOD_LABELS: Record<string, string> = {
   mpesa: 'M-Pesa STK Push (Till 3370347)',
-  stripe: 'Card payment (Stripe)',
   paypal: 'PayPal subscription',
   free: 'Free plan',
 }
@@ -37,7 +36,7 @@ export interface SendPurchaseReceiptInput {
   currency: string
   /** Provider transaction / session / subscription identifier. */
   transactionId: string
-  /** Provider key: 'mpesa' | 'stripe' | 'paypal'. */
+  /** Provider key: 'mpesa' | 'paypal'. */
   paymentMethod: string
   /** Payment history row id, used as the idempotency key. */
   paymentId?: string
@@ -98,9 +97,8 @@ export async function sendPurchaseReceipt(
       subject: receipt.subject,
       html: receipt.html,
       text: receipt.text,
-      // The success page polls the confirm endpoints, so the same payment can
-      // reach this function more than once. The provider idempotency key makes
-      // the retries collapse into a single delivered email.
+      // Provider status polling can reach this function more than once. The
+      // idempotency key makes those retries collapse into one delivered email.
       idempotencyKey: input.paymentId
         ? `purchase-receipt:${input.paymentId}`
         : `purchase-receipt:${input.paymentMethod}:${input.transactionId}`,

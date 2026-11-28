@@ -25,9 +25,6 @@ export const appConfig = {
   /** Base URL (public) */
   baseUrl: getPublicAppUrl(),
 
-  /** Stripe publishable key */
-  stripePublishableKey: process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY || '',
-
   /** WhatsApp number for support */
   whatsappNumber: process.env.NEXT_PUBLIC_WHATSAPP_NUMBER || '',
 

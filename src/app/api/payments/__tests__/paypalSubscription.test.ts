@@ -94,7 +94,8 @@ describe('POST /api/payments PayPal subscription start', () => {
       provider: 'paypal',
       action: 'start-subscription',
       planId: 'pro',
-      currency: 'KES',
+      currency: 'UGX',
+      countryCode: 'UG',
       seatCount: 1,
       email: 'surveyor@example.com',
     })
@@ -106,7 +107,7 @@ describe('POST /api/payments PayPal subscription start', () => {
     expect(mockGetBillingPlan).toHaveBeenCalledWith(PAYPAL_PLAN_ID)
     expect(mockDbQuery).toHaveBeenNthCalledWith(1,
       expect.stringContaining('INSERT INTO payment_history'),
-      [USER_ID, getTotalPrice('pro', 'KES', 1), 'KES', 'paypal', 'pro', JSON.stringify({ seatCount: 1, extraSeats: 0 })],
+      [USER_ID, getTotalPrice('pro', 'UGX', 1), 'UGX', 'paypal', 'pro', JSON.stringify({ seatCount: 1, extraSeats: 0 })],
     )
     expect(mockDbQuery).toHaveBeenNthCalledWith(2,
       expect.stringContaining('UPDATE payment_history SET amount = $1, currency = $2'),
@@ -126,7 +127,7 @@ describe('POST /api/payments PayPal subscription start', () => {
     mockGetBillingPlan.mockResolvedValue(activeMonthlyBillingPlan(getTotalPrice('pro', 'USD', 1) + 1))
 
     const response = await startSubscription({
-      provider: 'paypal', action: 'start-subscription', planId: 'pro', currency: 'KES', seatCount: 1,
+      provider: 'paypal', action: 'start-subscription', planId: 'pro', currency: 'UGX', countryCode: 'UG', seatCount: 1,
     })
 
     expect(response.status).toBe(409)
@@ -139,7 +140,7 @@ describe('POST /api/payments PayPal subscription start', () => {
     mockGetBillingPlan.mockRejectedValue(new Error('provider unavailable'))
 
     const response = await startSubscription({
-      provider: 'paypal', action: 'start-subscription', planId: 'pro', currency: 'KES', seatCount: 1,
+      provider: 'paypal', action: 'start-subscription', planId: 'pro', currency: 'UGX', countryCode: 'UG', seatCount: 1,
     })
 
     expect(response.status).toBe(503)
@@ -152,7 +153,7 @@ describe('POST /api/payments PayPal subscription start', () => {
 
   it('rejects extra seats before contacting PayPal or writing a payment row', async () => {
     const response = await startSubscription({
-      provider: 'paypal', action: 'start-subscription', planId: 'team', currency: 'KES', seatCount: 4,
+      provider: 'paypal', action: 'start-subscription', planId: 'team', currency: 'UGX', countryCode: 'UG', seatCount: 4,
     })
 
     expect(response.status).toBe(409)

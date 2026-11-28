@@ -23,7 +23,7 @@ const sections = [
   },
   {
     title: 'Third-party services',
-    body: 'The following third-party services may set their own cookies when you interact with them: Payment providers — Stripe, PayPal, and M-Pesa may set cookies during the checkout process on their own domains. These are governed by their respective privacy policies; Map tiles — OpenStreetMap, ArcGIS, and CartoCDN serve map tiles and may log tile requests with IP addresses; Fonts — Google Fonts may set cookies when loading web fonts. We minimize third-party cookie usage and do not integrate advertising or social media tracking.',
+    body: 'The following third-party services may set their own cookies when you interact with them: Payment providers — PayPal and M-Pesa may set cookies during the checkout process on their own domains. These are governed by their respective privacy policies; Map tiles — OpenStreetMap, ArcGIS, and CartoCDN serve map tiles and may log tile requests with IP addresses; Fonts — Google Fonts may set cookies when loading web fonts. We minimize third-party cookie usage and do not integrate advertising or social media tracking.',
   },
   {
     title: 'Managing cookies',

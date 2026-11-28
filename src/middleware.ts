@@ -85,7 +85,7 @@ export async function middleware(request: NextRequest) {
   )
 
   // ─── Public pages (accessible without auth) ───
-  // /subscription/success must be public so returning PayPal/Stripe users can access it
+  // /subscription/success must be public so returning payment provider users can access it
   const publicPages = ['/subscription/success', '/organization/invitations/accept']
   const isPublicPage = publicPages.some(path =>
     path === '/organization/invitations/accept'

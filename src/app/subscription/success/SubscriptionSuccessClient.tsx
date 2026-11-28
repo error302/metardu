@@ -7,13 +7,11 @@ import { getPlan } from '@/lib/subscription/catalog'
 
 type Status = 'processing' | 'completed' | 'failed'
 
-/** Provider keys that can appear in the return URL. */
-type Provider = 'stripe' | 'paypal' | 'mpesa'
+/** The international subscription return page verifies PayPal only. */
+type Provider = 'paypal'
 
 const PROVIDER_LABELS: Record<Provider, string> = {
-  stripe: 'Card payment',
   paypal: 'PayPal',
-  mpesa: 'M-Pesa',
 }
 
 function formatAmount(amount: number, currency: string): string {
@@ -38,7 +36,6 @@ export default function SubscriptionSuccessPage({
   const provider = String(searchParams.provider || '')
   const paymentId = String(searchParams.paymentId || '')
   const planId = String(searchParams.planId || '')
-  const stripeSessionId = String(searchParams.session_id || '')
   const paypalOrderId = String(searchParams.token || searchParams.orderId || searchParams.subscription_id || '')
 
   const [status, setStatus] = useState<Status>('processing')
@@ -54,10 +51,8 @@ export default function SubscriptionSuccessPage({
 
   const canVerify = useMemo(() => {
     if (!provider || !paymentId || !planId) return false
-    if (provider === 'stripe') return !!stripeSessionId
-    if (provider === 'paypal') return true // webhook confirms; poll status until done
-    return false
-  }, [provider, paymentId, planId, stripeSessionId])
+    return provider === 'paypal'
+  }, [provider, paymentId, planId])
 
   useEffect(() => {
     if (!canVerify) {
@@ -68,10 +63,12 @@ export default function SubscriptionSuccessPage({
 
     const run = async () => {
       try {
-        const payload =
-          provider === 'stripe'
-            ? { provider: 'stripe', action: 'confirm-session', sessionId: stripeSessionId, paymentId, planId }
-            : { provider: 'paypal', action: 'subscription-status', paymentId, planId }
+        const payload = {
+          provider: 'paypal',
+          action: 'subscription-status',
+          paymentId,
+          planId,
+        }
 
         const res = await fetch('/api/payments', {
           method: 'POST',
@@ -92,7 +89,6 @@ export default function SubscriptionSuccessPage({
             params.set('provider', provider)
             params.set('paymentId', paymentId)
             params.set('planId', planId)
-            if (stripeSessionId) params.set('session_id', stripeSessionId)
             if (paypalOrderId) params.set('token', paypalOrderId)
             const callbackUrl = `/subscription/success?${params.toString()}`
             setStatus('failed')
@@ -137,7 +133,7 @@ export default function SubscriptionSuccessPage({
     }
 
     run()
-  }, [canVerify, provider, paymentId, planId, stripeSessionId, paypalOrderId])
+  }, [canVerify, provider, paymentId, planId, paypalOrderId])
 
   const isCompleted = status === 'completed'
   const isFailed = status === 'failed'

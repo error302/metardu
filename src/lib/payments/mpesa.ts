@@ -5,6 +5,43 @@
 
 import { mpesaBreaker } from '@/lib/resilience/circuitBreaker'
 import { AppError } from '@/lib/api/errors'
+import { logger } from '@/lib/logger'
+
+/**
+ * The structured logger serialises an Error as `{}` because Error properties
+ * are non-enumerable. Provider failures were therefore recorded only as the
+ * customer-safe wrapper message, with no way to diagnose the real transport
+ * error. Return a plain, credential-free summary that can be logged safely.
+ *
+ * Only diagnostic fields are included: never the request, token, phone or
+ * any provider payload.
+ */
+export function providerFailureDetails(cause: unknown): Record<string, unknown> {
+  if (cause === null || cause === undefined) return { kind: typeof cause }
+  if (cause instanceof Error) {
+    const details = cause as Error & {
+      code?: unknown
+      errno?: unknown
+      syscall?: unknown
+      address?: unknown
+      port?: unknown
+    }
+    return {
+      kind: 'Error',
+      name: cause.name,
+      message: cause.message.slice(0, 300),
+      code: typeof details.code === 'string' || typeof details.code === 'number' ? details.code : null,
+      errno: typeof details.errno === 'number' ? details.errno : null,
+      syscall: typeof details.syscall === 'string' ? details.syscall : null,
+      address: typeof details.address === 'string' ? details.address : null,
+      port: typeof details.port === 'number' ? details.port : null,
+    }
+  }
+  if (typeof cause === 'object') {
+    return { kind: 'object', keys: Object.keys(cause as object).slice(0, 20).sort() }
+  }
+  return { kind: typeof cause }
+}
 
 /**
  * 400 — the customer can correct the M-Pesa phone number and retry.
@@ -85,6 +122,35 @@ interface AirtelPaymentResponse {
   message?: string
 }
 
+/** Normalize a Kenyan mobile number to Safaricom's 254XXXXXXXX form. */
+export function normalizeMpesaPhoneNumber(value: string): string | null {
+  const compact = value.trim().replace(/[\s()-]/g, '').replace(/^\+/, '')
+  if (/^0[17]\d{8}$/.test(compact)) return `254${compact.slice(1)}`
+  if (/^254[17]\d{8}$/.test(compact)) return compact
+  return null
+}
+
+export type MpesaResultClassification = 'success' | 'definitive_failure' | 'ambiguous'
+
+/**
+ * Classify Daraja STK result codes without guessing at undocumented values.
+ *
+ * Safaricom may add result codes over time. Only the documented codes in
+ * `DEFINITIVE_STK_FAILURE_CODES` prove that the STK attempt failed. Every
+ * other non-zero or missing code remains ambiguous and therefore pending.
+ */
+const DEFINITIVE_STK_FAILURE_CODES = new Set([1, 1019, 1032, 1037, 2001])
+
+export function classifyMpesaResultCode(
+  resultCode: number | null | undefined,
+): MpesaResultClassification {
+  if (resultCode === 0) return 'success'
+  if (typeof resultCode === 'number' && DEFINITIVE_STK_FAILURE_CODES.has(resultCode)) {
+    return 'definitive_failure'
+  }
+  return 'ambiguous'
+}
+
 export class MpesaService {
   private consumerKey: string
   private consumerSecret: string
@@ -136,14 +202,18 @@ export class MpesaService {
   }
 
   async initiateSTKPush(params: STKPushParams): Promise<{ checkoutRequestId: string; responseCode: string }> {
-    const phoneNumber = params.phoneNumber.trim().replace(/[\s()-]/g, '').replace(/^\+/, '').replace(/^0/, '254')
-    if (!/^254[17]\d{8}$/.test(phoneNumber)) {
+    const phoneNumber = normalizeMpesaPhoneNumber(params.phoneNumber)
+    if (!phoneNumber) {
       throw new MpesaPhoneNumberError()
     }
     let accessToken: string
     try {
       accessToken = await this.getAccessToken()
     } catch (cause) {
+      logger.error('M-Pesa access-token request failed', {
+        phase: 'mpesa-access-token',
+        failure: providerFailureDetails(cause),
+      })
       throw new MpesaProviderError(
         'M-Pesa is temporarily unavailable. Please try again or choose another payment method.',
         cause,
@@ -176,6 +246,10 @@ export class MpesaService {
         })
       }))
     } catch (cause) {
+      logger.error('M-Pesa STK push request failed', {
+        phase: 'mpesa-stk-push',
+        failure: providerFailureDetails(cause),
+      })
       throw new MpesaProviderError(
         'M-Pesa is temporarily unavailable. Please try again or choose another payment method.',
         cause,
@@ -262,11 +336,16 @@ export class MpesaService {
     const data = (await response.json()) as StkQueryResponse
     // AUDIT FIX (CRITICAL 2, 2026-07-02): Check ResultCode, not ResponseCode.
     // ResponseCode === '0' means the *query API call* succeeded — it does NOT
-    // mean the payment was completed. The actual payment status is in
-    // ResultCode: 0 = success, anything else = failure.
-    // Reference: Safaricom Daraja API docs — STK Push Query
+    // mean the payment was completed. Only result code 0 proves success, and
+    // only the documented definitive-failure allow-list proves failure.
+    // Undocumented and missing codes remain pending for a later retry.
+    const classification = classifyMpesaResultCode(data.ResultCode)
     return {
-      status: typeof data.ResultCode !== 'number' ? 'pending' : data.ResultCode === 0 ? 'completed' : 'failed',
+      status: classification === 'success'
+        ? 'completed'
+        : classification === 'definitive_failure'
+          ? 'failed'
+          : 'pending',
       amount: data.Amount ? parseFloat(data.Amount) : undefined,
       phone: data.PhoneNumber,
       resultCode: data.ResultCode,
@@ -303,12 +382,17 @@ export class MpesaService {
     const getValue = (name: string): string | number | undefined =>
       items.find((i) => i.Name === name)?.Value
 
+    const classification = classifyMpesaResultCode(body.stkCallback.ResultCode)
     return {
       transactionId: String(getValue('MpesaReceiptNumber') || ''),
       amount: Number(getValue('Amount')) || 0,
       phone: String(getValue('PhoneNumber') || ''),
       reference: String(getValue('AccountReference') || ''),
-      status: body.stkCallback.ResultCode === 0 ? 'completed' : 'failed',
+      status: classification === 'success'
+        ? 'completed'
+        : classification === 'definitive_failure'
+          ? 'failed'
+          : 'pending',
       timestamp: new Date().toISOString()
     }
   }

@@ -52,7 +52,7 @@ const faqs = [
       },
       {
         q: 'How do I upgrade to Pro?',
-        a: 'Go to /pricing, select Pro, choose your currency, and complete payment via M-Pesa or card. Your upgrade is instant.'
+        a: 'Go to /pricing, select a plan and your currency, then complete payment with M-Pesa in Kenya or PayPal internationally. Your upgrade activates after confirmation.'
       },
       {
         q: 'Can I cancel anytime?',

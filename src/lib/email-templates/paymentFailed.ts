@@ -1,8 +1,7 @@
 /**
  * Payment failed email — sent when a subscription payment is declined.
  *
- * Triggered by: PayPal webhook BILLING.SUBSCRIPTION.PAYMENT.FAILED,
- * M-Pesa callback with non-success result, or Stripe invoice.payment_failed.
+ * Triggered by a payment provider webhook or callback when a payment fails.
  */
 
 import { renderEmailLayout } from './layout'
@@ -52,7 +51,7 @@ export const paymentFailedEmail = {
       ${Divider()}
       ${Paragraph('Other options:', { small: true, muted: true })}
       <ul style="margin:0 0 16px;padding-left:22px;color:#cccccc;font-size:14px;line-height:1.6;">
-        <li style="margin-bottom:6px;">Switch to ${Link(`${APP_URL}/pricing`, 'M-Pesa')} (no card required)</li>
+        <li style="margin-bottom:6px;">Switch to ${Link(`${APP_URL}/pricing`, 'M-Pesa')}</li>
         <li style="margin-bottom:6px;">${Link(`${APP_URL}/help`, 'Contact the METARDU Help Centre')} if you need help with payment options</li>
         <li style="margin-bottom:6px;">${Link(`${APP_URL}/pricing`, 'Downgrade to Free')} — keep your data, lose Pro features</li>
       </ul>

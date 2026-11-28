@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
  * POST /api/emails/payment-receipt
  *
  * Internal endpoint for sending payment receipt emails after a successful
- * M-Pesa STK push, PayPal capture, or Stripe invoice.payment_succeeded.
+ * payment through a supported provider.
  *
  * Auth: Bearer API_ADMIN_KEY (called from payment webhooks, not user-facing).
  */

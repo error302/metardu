@@ -27,7 +27,7 @@ const sections = [
   },
   {
     title: '7. Subscriptions and Payments',
-    body: `Certain features of the Platform require a paid subscription or one-time payment. Subscription plans, pricing, and feature availability are described on our pricing page and may be updated from time to time with 30 days' prior notice. All prices are listed in the applicable currency and exclude applicable taxes unless stated otherwise. Payments may be processed through Stripe, PayPal, or M-Pesa (Safaricom Daraja API) as selected by you at the time of payment. By providing payment information, you represent and warrant that you are authorized to use the designated payment method. Subscriptions automatically renew at the end of each billing period unless you cancel before the renewal date. We reserve the right to change our pricing upon 30 days' prior notice; such changes will take effect at the start of the next billing period. For refund and cancellation policies, please refer to our Refund Policy at /docs/refund.`,
+    body: `Certain features of the Platform require a paid subscription or one-time payment. Subscription plans, pricing, and feature availability are described on our pricing page and may be updated from time to time with 30 days' prior notice. All prices are listed in the applicable currency and exclude applicable taxes unless stated otherwise. Payments may be processed through PayPal or M-Pesa (Safaricom Daraja API) as selected by you at the time of payment. By providing payment information, you represent and warrant that you are authorized to use the designated payment method. Subscriptions automatically renew at the end of each billing period unless you cancel before the renewal date. We reserve the right to change our pricing upon 30 days' prior notice; such changes will take effect at the start of the next billing period. For refund and cancellation policies, please refer to our Refund Policy at /docs/refund.`,
   },
   {
     title: '8. Limitation of Liability',
@@ -59,7 +59,7 @@ const sections = [
   },
   {
     title: '15. Third-Party Services',
-    body: `The Platform integrates with third-party services, including but not limited to: payment processors (Stripe, PayPal, M-Pesa), mapping tile providers (OpenStreetMap, Esri, CartoDB), cloud storage providers, error monitoring services (Sentry), and AI computation services. Your use of these third-party services is subject to their respective terms and privacy policies. METARDU is not responsible for the availability, accuracy, or practices of any third-party service. Any disputes with third-party providers are solely between you and that provider. Changes to third-party services beyond our control may affect Platform functionality.`,
+    body: `The Platform integrates with third-party services, including but not limited to: payment processors (PayPal, M-Pesa), mapping tile providers (OpenStreetMap, Esri, CartoDB), cloud storage providers, error monitoring services (Sentry), and AI computation services. Your use of these third-party services is subject to their respective terms and privacy policies. METARDU is not responsible for the availability, accuracy, or practices of any third-party service. Any disputes with third-party providers are solely between you and that provider. Changes to third-party services beyond our control may affect Platform functionality.`,
   },
   {
     title: '16. Governing Law and Dispute Resolution',

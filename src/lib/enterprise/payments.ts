@@ -7,98 +7,35 @@
  */
 
 import type { CurrencyCode, PlanId } from '@/lib/subscription/catalog'
-import { getMpesaTillNumber } from '@/lib/payments/mpesaConfig'
 
-export interface PaymentMethod {
-  id: string
-  type: PaymentProvider | 'card'
-  name: string
-  enabled: boolean
-  countries: string[]
-}
-
-export type PaymentProvider = 'stripe' | 'paypal' | 'mpesa'
+export type PaymentProvider = 'mpesa' | 'paypal'
 
 export type StartSubscriptionResult =
   | { kind: 'activated'; planId: PlanId }
-  | { kind: 'redirect'; provider: 'stripe' | 'paypal'; url: string; paymentId: string }
+  | { kind: 'redirect'; provider: 'paypal'; url: string; paymentId: string }
   | { kind: 'mpesa'; provider: 'mpesa'; paymentId: string; checkoutRequestId: string }
-
-export function getPaymentMethods(country?: string): PaymentMethod[] {
-  const paymentMethods: PaymentMethod[] = [
-    { id: 'mpesa', type: 'mpesa', name: `M-Pesa (Buy Goods Till ${getMpesaTillNumber()} / STK Push)`, enabled: true, countries: ['Kenya'] },
-    { id: 'paypal', type: 'paypal', name: 'PayPal / International Cards', enabled: true, countries: ['*'] },
-    { id: 'card', type: 'card', name: 'Direct Card Checkout', enabled: true, countries: ['*'] },
-  ]
-  if (!country) return paymentMethods.filter((p) => p.enabled)
-  return paymentMethods.filter(
-    (p) => p.enabled && (p.countries.includes('*') || p.countries.includes(country))
-  )
-}
-
-export function getCurrencyForCountry(country: string): CurrencyCode {
-  const currencies: Record<string, CurrencyCode> = {
-    Kenya: 'KES',
-    Uganda: 'UGX',
-    Tanzania: 'TZS',
-    Nigeria: 'NGN',
-    Ghana: 'GHS',
-    'South Africa': 'ZAR',
-    India: 'INR',
-    Indonesia: 'IDR',
-    Brazil: 'BRL',
-    Australia: 'AUD',
-    UK: 'GBP',
-    Germany: 'EUR',
-    France: 'EUR',
-    US: 'USD',
-  }
-  return currencies[country] || 'USD'
-}
-
-export function getCountryForCurrency(currency: CurrencyCode): string {
-  const countries: Record<CurrencyCode, string> = {
-    KES: 'Kenya',
-    UGX: 'Uganda',
-    TZS: 'Tanzania',
-    NGN: 'Nigeria',
-    GHS: 'Ghana',
-    ZAR: 'South Africa',
-    INR: 'India',
-    IDR: 'Indonesia',
-    BRL: 'Brazil',
-    AUD: 'Australia',
-    GBP: 'UK',
-    EUR: 'Germany',
-    USD: 'US',
-  }
-  return countries[currency]
-}
 
 export async function startSubscriptionPayment(input: {
   planId: PlanId
   currency: CurrencyCode
-  method: PaymentMethod['type']
+  method: PaymentProvider
   seatCount: number
   email: string
   phoneNumber?: string
-  country?: string
+  countryCode: string
 }): Promise<StartSubscriptionResult> {
-  const provider: PaymentProvider =
-    input.method === 'mpesa' ? 'mpesa' : input.method === 'paypal' ? 'paypal' : 'stripe'
-
   const res = await fetch('/api/payments', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      provider,
+      provider: input.method,
       action: 'start-subscription',
       planId: input.planId,
       currency: input.currency,
       seatCount: input.seatCount,
       email: input.email,
       phoneNumber: input.phoneNumber,
-      country: input.country,
+      countryCode: input.countryCode,
     }),
   })
 
@@ -132,4 +69,3 @@ export async function checkMpesaPaymentStatus(input: {
 
   return data as { status: 'pending' | 'completed' | 'failed' }
 }
-

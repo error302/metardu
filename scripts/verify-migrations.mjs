@@ -27,9 +27,9 @@
  * DATABASE_URL) — wired into .github/workflows/deploy.yml.
  */
 import { createHash } from 'node:crypto'
-import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { existsSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
+import { join, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
 const MIGRATIONS_DIR = resolveMigrationsDir()
 
@@ -269,8 +269,36 @@ async function main() {
   )
 }
 
-// Run only when invoked directly (not when imported by tests).
-if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+/**
+ * Compare two paths after resolving symlinks. Node resolves `import.meta.url`
+ * to the real path of the module while `process.argv[1]` keeps the path the
+ * operator typed, so a symlinked entry point must still be recognised as a
+ * direct execution instead of exiting 0 without verifying anything.
+ */
+export function resolvedPathMatches(candidatePath, referencePath, { realpath = realpathSync } = {}) {
+  if (typeof candidatePath !== 'string' || typeof referencePath !== 'string') return false
+  if (candidatePath === '' || referencePath === '') return false
+  const resolveOne = value => {
+    const absolute = resolve(value)
+    try {
+      return realpath(absolute)
+    } catch {
+      return absolute
+    }
+  }
+  const left = resolveOne(candidatePath)
+  const right = resolveOne(referencePath)
+  if (left === right) return true
+  if (process.platform === 'win32') return left.toLowerCase() === right.toLowerCase()
+  return false
+}
+
+// Run only when invoked directly (not when imported by tests or release helpers).
+// The comparison resolves real paths so a symlinked entry point still runs the
+// verification instead of exiting 0 without verifying anything.
+const invokedPath = process.argv[1] ? resolve(process.argv[1]) : ''
+const modulePath = fileURLToPath(import.meta.url)
+if (invokedPath !== '' && resolvedPathMatches(invokedPath, modulePath)) {
   main().catch((e) => {
     console.error(`verify-migrations: FAIL — ${e.message}`)
     process.exit(1)

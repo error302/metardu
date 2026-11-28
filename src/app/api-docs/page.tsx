@@ -99,10 +99,9 @@ const API_GROUPS = [
   {
     title: 'Payments',
     routes: [
+      { method: 'GET/POST', path: '/api/payments', desc: 'Start or query a supported subscription payment.' },
       { method: 'POST', path: '/api/payments/mpesa/initiate', desc: 'Initiate M-Pesa STK Push.' },
       { method: 'POST', path: '/api/payments/mpesa/callback', desc: 'M-Pesa callback handler (called by Safaricom).' },
-      { method: 'POST', path: '/api/payments', desc: 'Create a payment intent (Stripe/PayPal).' },
-      { method: 'POST', path: '/api/webhooks/stripe', desc: 'Stripe webhook handler.' },
       { method: 'POST', path: '/api/webhooks/paypal', desc: 'PayPal webhook handler.' },
     ],
   },

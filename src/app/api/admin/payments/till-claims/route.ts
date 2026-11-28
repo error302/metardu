@@ -44,9 +44,10 @@ const ActionSchema = z.object({
 /**
  * GET /api/admin/payments/till-claims
  *
- * SECURITY (audit C-03, 2026-08-30): lists M-Pesa Till claims waiting for
- * manual review. Claims are created by /api/payments/mpesa/verify-till in
- * status 'pending_review' and grant nothing until approved here.
+ * SECURITY (audit C-03, 2026-08-30): lists legacy M-Pesa Till claims waiting
+ * for manual review. The retired customer manual-till endpoint no longer
+ * creates new claims; existing rows with status 'pending_review' grant
+ * nothing until approved here.
  */
 export const GET = apiHandler(
   { auth: true, roles: ['super_admin', 'admin'], rateLimit: { max: 60, windowMs: 60000 } },

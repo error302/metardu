@@ -6,7 +6,7 @@ export type PaymentPurpose =
   | 'CPD_CERTIFICATE'
   | 'PARCEL_SEARCH'
 
-export type PaymentMethod = 'MPESA' | 'STRIPE_CARD' | 'PAYPAL'
+export type PaymentMethod = 'MPESA' | 'PAYPAL'
 
 export type PaymentStatus =
   | 'PENDING'

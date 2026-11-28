@@ -265,7 +265,7 @@ const secretScanFiles = [
 
 const LIVE_SECRET_PATTERNS = [
   { name: 'Google OAuth Client Secret', regex: /GOCSPX-[A-Za-z0-9_-]{20,}/ },
-  { name: 'Stripe Live Secret Key', regex: /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/ },
+  { name: 'Live payment-provider secret key', regex: /\b(?:sk|rk)_live_[A-Za-z0-9]{20,}\b/ },
   { name: 'Resend Live API Key', regex: /\bre_[A-Za-z0-9_]{24,}\b/ },
   { name: 'PEM Private Key', regex: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/ },
 ]

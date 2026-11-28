@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic'
  * POST /api/emails/payment-failed
  *
  * Internal endpoint for sending payment-failed emails. Called by payment
- * webhooks (PayPal, M-Pesa, Stripe) when a charge is declined.
+ * payment provider callbacks when a charge is declined.
  *
  * Auth: Bearer API_ADMIN_KEY.
  */

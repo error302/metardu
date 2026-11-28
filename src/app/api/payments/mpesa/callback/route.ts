@@ -3,11 +3,18 @@ export const dynamic = 'force-dynamic'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 import db, { setCurrentRlsServiceRole, setCurrentUserId, setRlsContext } from '@/lib/db'
-import { getMpesaService } from '@/lib/payments/mpesa'
+import {
+  classifyMpesaResultCode,
+  getMpesaService,
+  normalizeMpesaPhoneNumber,
+} from '@/lib/payments/mpesa'
+import {
+  completeMpesaPayment,
+  type MpesaCompletionRecord,
+} from '@/lib/payments/mpesaCompletion'
 import { getPlan } from '@/lib/subscription/catalog'
 import { seatCountFromPaymentMetadata } from '@/lib/subscription/seatSelection'
-import { sendEmail } from '@/lib/email'
-import { paymentReceiptEmail } from '@/lib/email-templates/paymentReceipt'
+import { sendPurchaseReceipt } from '@/lib/payments/receipt'
 import { logger } from '@/lib/logger'
 
 interface PaymentIntentRow {
@@ -17,6 +24,9 @@ interface PaymentIntentRow {
   amount: number
   currency: string
   status: string
+  checkout_request_id?: string | null
+  phone_number?: string | null
+  transaction_id?: string | null
   metadata?: unknown
 }
 
@@ -99,6 +109,10 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
+  // Establish the provider RLS context before any payment lookup. Unified
+  // payment_history rows are otherwise invisible to an anonymous callback.
+  setCurrentRlsServiceRole('payment_provider')
+
   const mpesa = getMpesaService()
   if (!mpesa) {
     return NextResponse.json({ error: 'M-Pesa not configured' }, { status: 500 })
@@ -112,6 +126,7 @@ export async function POST(request: NextRequest) {
   const stk = payload?.Body?.stkCallback as Record<string, unknown> | undefined
   const checkoutRequestId = stk?.CheckoutRequestID as string | undefined
   const resultCode = stk?.ResultCode as number | undefined
+  const resultDesc = typeof stk?.ResultDesc === 'string' ? stk.ResultDesc : null
 
   if (!checkoutRequestId) {
     return NextResponse.json({ error: 'Missing CheckoutRequestID' }, { status: 400 })
@@ -125,21 +140,30 @@ export async function POST(request: NextRequest) {
   let paymentRow: PaymentIntentRow | null = null
   let paymentSource: 'payment_intent' | 'payment_history' | null = null
 
+  // Legacy payment_intents has no transaction_id column: selecting it here
+  // raises 42703 and aborts the callback before the payment_history fallback
+  // can ever run. The receipt column exists only on payment_history, so keep
+  // it out of every payment_intents projection.
   const byCheckout = await db.query<PaymentIntentRow>(
-    `SELECT id, user_id, plan_id, amount, currency, status, metadata
+    `SELECT id, user_id, plan_id, amount, currency, status,
+            checkout_request_id, phone_number, metadata
      FROM payment_intents
      WHERE checkout_request_id = $1 AND payment_method = 'mpesa'`,
     [checkoutRequestId]
   )
+  if (byCheckout.rows.length > 1) {
+    return NextResponse.json({ error: 'Ambiguous M-Pesa payment identity' }, { status: 409 })
+  }
   paymentRow = byCheckout.rows[0] ?? null
   if (paymentRow) paymentSource = 'payment_intent'
 
   if (!paymentRow && paymentIdParam && z.string().guid().safeParse(paymentIdParam).success) {
     const result = await db.query<PaymentIntentRow>(
-      `SELECT id, user_id, plan_id, amount, currency, status, metadata
+      `SELECT id, user_id, plan_id, amount, currency, status,
+              checkout_request_id, phone_number, metadata
        FROM payment_intents
-       WHERE id = $1 AND payment_method = 'mpesa'`,
-      [paymentIdParam]
+       WHERE id = $1 AND payment_method = 'mpesa' AND checkout_request_id = $2`,
+      [paymentIdParam, checkoutRequestId]
     )
     paymentRow = result.rows[0] ?? null
     if (paymentRow) paymentSource = 'payment_intent'
@@ -149,25 +173,38 @@ export async function POST(request: NextRequest) {
   // keep accepting payment_intents for the legacy STK initiation endpoint.
   if (!paymentRow) {
     const byHistoryCheckout = await db.query<PaymentIntentRow>(
-      `SELECT id, user_id, plan_id, amount, currency, status, metadata
+      `SELECT id, user_id, plan_id, amount, currency, status,
+              checkout_request_id, phone_number, transaction_id, metadata
        FROM payment_history
-       WHERE transaction_id = $1 AND payment_method = 'mpesa'
-       LIMIT 1`,
+       WHERE checkout_request_id = $1 AND payment_method = 'mpesa'`,
       [checkoutRequestId]
     )
+    if (byHistoryCheckout.rows.length > 1) {
+      return NextResponse.json({ error: 'Ambiguous M-Pesa payment identity' }, { status: 409 })
+    }
     paymentRow = byHistoryCheckout.rows[0] ?? null
     if (paymentRow) paymentSource = 'payment_history'
   }
 
   if (!paymentRow && paymentIdParam && z.string().guid().safeParse(paymentIdParam).success) {
-    const result = await db.query<PaymentIntentRow>(
-      `SELECT id, user_id, plan_id, amount, currency, status, metadata
-       FROM payment_history
-       WHERE id = $1 AND payment_method = 'mpesa'
-       LIMIT 1`,
-      [paymentIdParam]
+    // Recovery path for a provider-accepted checkout whose identity write
+    // failed after Daraja returned the CheckoutRequestID. Bind only the
+    // server-generated payment id, only while the immutable identity is null,
+    // and only while the row is still recoverable.
+    const bound = await db.query<PaymentIntentRow>(
+      `UPDATE payment_history
+       SET checkout_request_id = $1, updated_at = NOW()
+       WHERE id = $2 AND payment_method = 'mpesa'
+         AND checkout_request_id IS NULL
+         AND status IN ('pending', 'processing', 'pending_review')
+       RETURNING id, user_id, plan_id, amount, currency, status,
+                 checkout_request_id, phone_number, transaction_id, metadata`,
+      [checkoutRequestId, paymentIdParam]
     )
-    paymentRow = result.rows[0] ?? null
+    if (bound.rows.length > 1) {
+      return NextResponse.json({ error: 'Ambiguous M-Pesa payment identity' }, { status: 409 })
+    }
+    paymentRow = bound.rows[0] ?? null
     if (paymentRow) paymentSource = 'payment_history'
   }
 
@@ -178,42 +215,164 @@ export async function POST(request: NextRequest) {
   // The callback is verified and the payment intent supplies the trusted
   // owner ID, so all subsequent payment-history and subscription work can
   // pass the same per-user RLS policies as interactive requests.
-  setCurrentRlsServiceRole('payment_provider')
   setCurrentUserId(String(paymentRow.user_id))
 
-  // Already completed — idempotent response
-  if (paymentRow.status === 'completed') {
+  // Legacy intents are terminal once completed. Unified payment_history rows
+  // remain eligible for receipt enrichment when a real Safaricom callback
+  // arrives after client polling completed the row.
+  if (paymentRow.status === 'completed' && paymentSource === 'payment_intent') {
     return NextResponse.json({ ok: true })
   }
 
   // 4. Plan comes from the intent row ONLY (audit C-05)
   const planId = paymentRow.plan_id as 'free' | 'pro' | 'team' | 'firm' | 'enterprise'
 
-  // 5. Handle failure result code
-  if (typeof resultCode === 'number' && resultCode !== 0) {
+  // 5. Only documented definitive failures are terminal. Unknown, retryable,
+  // and missing result codes remain pending and are retained for diagnostics.
+  const resultClassification = classifyMpesaResultCode(resultCode)
+  if (resultClassification === 'definitive_failure') {
     if (paymentSource === 'payment_history') {
       await db.query<never>(
         `UPDATE payment_history
          SET status = 'failed', provider = 'safaricom', provider_id = $1,
              metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
          WHERE id = $3 AND status <> 'completed'`,
-        [checkoutRequestId, JSON.stringify({ callbackResultCode: resultCode }), paymentRow.id]
+        [
+          checkoutRequestId,
+          JSON.stringify({
+            callbackResultCode: resultCode,
+            callbackResultDesc: resultDesc,
+          }),
+          paymentRow.id,
+        ]
       )
     } else {
       await db.query<never>(
         `UPDATE payment_intents
-         SET status = 'failed', provider_id = $1, updated_at = NOW()
-         WHERE id = $2`,
-        [checkoutRequestId, paymentRow.id]
+         SET status = 'failed', provider_id = $1,
+             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $3 AND status IN ('pending', 'processing')`,
+        [
+          checkoutRequestId,
+          JSON.stringify({
+            callbackResultCode: resultCode,
+            callbackResultDesc: resultDesc,
+          }),
+          paymentRow.id,
+        ]
       )
     }
     return NextResponse.json({ ok: true })
   }
 
-  // 6. Parse callback metadata to get the ACTUAL paid amount + receipt number
+  if (resultClassification === 'ambiguous') {
+    if (paymentSource === 'payment_history') {
+      await db.query<never>(
+        `UPDATE payment_history
+         SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $1 AND status <> 'completed'`,
+        [
+          paymentRow.id,
+          JSON.stringify({
+            callbackResultCode: resultCode ?? null,
+            callbackResultDesc: resultDesc,
+            callbackResultStatus: 'ambiguous',
+          }),
+        ]
+      )
+    } else {
+      await db.query<never>(
+        `UPDATE payment_intents
+         SET metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $1 AND status IN ('pending', 'processing')`,
+        [
+          paymentRow.id,
+          JSON.stringify({
+            callbackResultCode: resultCode ?? null,
+            callbackResultDesc: resultDesc,
+            callbackResultStatus: 'ambiguous',
+          }),
+        ]
+      )
+    }
+    return NextResponse.json({ ok: true })
+  }
+
+  // 6. Parse callback metadata to get the ACTUAL paid amount, phone and receipt.
   const parsed = mpesa.parseCallback(payload as Record<string, unknown>)
   const paidAmount = parsed?.amount ?? 0
-  const receiptNumber = parsed?.transactionId ?? checkoutRequestId
+  const paidPhone = parsed?.phone ?? null
+  const receiptNumber = parsed?.transactionId?.trim() || null
+
+  // Unified payment_history checkouts use the shared transactional completion
+  // contract. The service validates the immutable quote, plan, amount, phone,
+  // checkout identity and real receipt before its conditional row claim.
+  if (paymentSource === 'payment_history') {
+    const record: MpesaCompletionRecord = {
+      id: paymentRow.id,
+      user_id: paymentRow.user_id,
+      plan_id: paymentRow.plan_id,
+      amount: Number(paymentRow.amount),
+      currency: paymentRow.currency,
+      status: paymentRow.status,
+      checkout_request_id: paymentRow.checkout_request_id ?? null,
+      phone_number: paymentRow.phone_number ?? null,
+      transaction_id: paymentRow.transaction_id,
+      metadata: paymentRow.metadata,
+    }
+
+    let completion: Awaited<ReturnType<typeof completeMpesaPayment>>
+    try {
+      completion = await completeMpesaPayment({
+        record,
+        evidence: {
+          source: 'callback',
+          checkoutRequestId: checkoutRequestId,
+          amount: paidAmount,
+          phone: paidPhone,
+          receiptNumber,
+          resultCode,
+        },
+      })
+    } catch (error) {
+      logger.error('[mpesa-callback] Shared completion failed:', { error })
+      return NextResponse.json({ error: 'Callback processing failed' }, { status: 500 })
+    }
+
+    if (completion.outcome === 'rejected') {
+      await db.query<never>(
+        `UPDATE payment_history
+         SET status = 'pending_review',
+             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb,
+             updated_at = NOW()
+         WHERE id = $1 AND status <> 'completed'`,
+        [
+          paymentRow.id,
+          JSON.stringify({
+            mpesaReviewReason: completion.reason,
+            reviewReason: completion.reason,
+            callbackResultCode: resultCode ?? null,
+            paidAmount,
+            expectedAmount: Number(paymentRow.amount),
+          }),
+        ],
+      )
+      return NextResponse.json({ ok: true })
+    }
+
+    if (completion.activated) {
+      await sendPurchaseReceipt({
+        userId: paymentRow.user_id,
+        planId: paymentRow.plan_id,
+        amount: Number(paymentRow.amount),
+        currency: paymentRow.currency,
+        transactionId: completion.receiptNumber ?? receiptNumber ?? checkoutRequestId,
+        paymentMethod: 'mpesa',
+        paymentId: paymentRow.id,
+      })
+    }
+    return NextResponse.json({ ok: true })
+  }
 
   // 7. Verify the paid amount matches the expected price — FAIL CLOSED
   //    (audit C-05). A callback that arrives without CallbackMetadata has
@@ -221,6 +380,48 @@ export async function POST(request: NextRequest) {
   //    skipped whenever paidAmount was falsy, which allowed forged
   //    "success" callbacks carrying no metadata at all.
   const plan = getPlan(planId)
+  if (!plan || plan.contactSales) {
+    await db.query<never>(
+      `UPDATE payment_intents
+       SET status = 'failed', provider_id = $1,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+       WHERE id = $3 AND status IN ('pending', 'processing')`,
+      [
+        checkoutRequestId,
+        JSON.stringify({ fraudFlag: 'invalid_plan', planId }),
+        paymentRow.id,
+      ],
+    )
+    return NextResponse.json({ ok: true })
+  }
+
+  // Legacy intents that recorded an initiating phone must also prove that the
+  // paid phone matches. Missing or mismatched evidence fails closed.
+  const storedPhone = paymentRow.phone_number?.trim() || null
+  if (storedPhone) {
+    const expectedPhone = normalizeMpesaPhoneNumber(storedPhone)
+    const callbackPhone = paidPhone ? normalizeMpesaPhoneNumber(paidPhone) : null
+    const phoneFailure = !callbackPhone
+      ? 'missing_phone'
+      : !expectedPhone || expectedPhone !== callbackPhone
+        ? 'phone_mismatch'
+        : null
+    if (phoneFailure) {
+      await db.query<never>(
+        `UPDATE payment_intents
+         SET status = 'failed', provider_id = $1,
+             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+         WHERE id = $3 AND status IN ('pending', 'processing')`,
+        [
+          checkoutRequestId,
+          JSON.stringify({ fraudFlag: phoneFailure }),
+          paymentRow.id,
+        ],
+      )
+      return NextResponse.json({ ok: true })
+    }
+  }
+
   const totalSeats = seatCountFromPaymentMetadata(planId, paymentRow.metadata)
   const extraSeats = plan?.isPerSeat ? Math.max(0, totalSeats - plan.includedSeats) : 0
   // The server-created intent records the price actually quoted at checkout.
@@ -241,24 +442,29 @@ export async function POST(request: NextRequest) {
       paidAmount,
       expectedAmount,
     })
-    if (paymentSource === 'payment_history') {
-      await db.query<never>(
-        `UPDATE payment_history
-         SET status = 'failed', provider = 'safaricom', provider_id = $1,
-             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
-         WHERE id = $3 AND status <> 'completed'`,
-        [checkoutRequestId, failureMetadata, paymentRow.id]
-      )
-    } else {
-      await db.query<never>(
-        `UPDATE payment_intents
-         SET status = 'failed', provider_id = $1,
-             metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
-         WHERE id = $3`,
-        [checkoutRequestId, failureMetadata, paymentRow.id]
-      )
-    }
+    await db.query<never>(
+      `UPDATE payment_intents
+       SET status = 'failed', provider_id = $1,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+       WHERE id = $3 AND status IN ('pending', 'processing')`,
+      [checkoutRequestId, failureMetadata, paymentRow.id]
+    )
     return NextResponse.json({ ok: true, error: 'Amount verification failed' })
+  }
+
+  if (!receiptNumber || receiptNumber === checkoutRequestId) {
+    await db.query<never>(
+      `UPDATE payment_intents
+       SET status = 'failed', provider_id = $1,
+           metadata = COALESCE(metadata, '{}'::jsonb) || $2::jsonb, updated_at = NOW()
+       WHERE id = $3 AND status IN ('pending', 'processing')`,
+      [
+        checkoutRequestId,
+        JSON.stringify({ fraudFlag: 'missing_receipt' }),
+        paymentRow.id,
+      ],
+    )
+    return NextResponse.json({ ok: true })
   }
 
   // 8-10. Complete the intent, write the audit row and activate the
@@ -272,21 +478,12 @@ export async function POST(request: NextRequest) {
 
     // Conditional completion: rowCount 0 means another callback instance
     // already completed (or concurrently completes) this intent.
-    const completeRes = paymentSource === 'payment_history'
-      ? await client.query<never>(
-        `UPDATE payment_history
-         SET status = 'completed', provider = 'safaricom', provider_id = $1,
-             transaction_id = $2,
-             metadata = COALESCE(metadata, '{}'::jsonb) || $3::jsonb, updated_at = NOW()
-         WHERE id = $4 AND status IN ('pending', 'processing')`,
-        [checkoutRequestId, receiptNumber, JSON.stringify({ callbackResultCode: resultCode, totalSeats, extraSeats }), paymentRow.id]
-      )
-      : await client.query<never>(
-        `UPDATE payment_intents
-         SET status = 'completed', provider_id = $1, updated_at = NOW()
-         WHERE id = $2 AND status <> 'completed'`,
-        [checkoutRequestId, paymentRow.id]
-      )
+    const completeRes = await client.query<never>(
+      `UPDATE payment_intents
+       SET status = 'completed', provider_id = $1, updated_at = NOW()
+       WHERE id = $2 AND status IN ('pending', 'processing')`,
+      [checkoutRequestId, paymentRow.id]
+    )
     if ((completeRes.rowCount ?? 0) === 0) {
       await client.query<never>('ROLLBACK')
       return NextResponse.json({ ok: true })
@@ -349,39 +546,16 @@ export async function POST(request: NextRequest) {
     client.release()
   }
 
-  // 11. Send automated branded HTML email receipt (outside the transaction —
-  //     a mail failure must never roll back a completed payment)
   if (activated) {
-    try {
-      const userRes = await db.query<{ email: string; name?: string }>(
-        'SELECT email, name FROM users WHERE id = $1',
-        [paymentRow.user_id]
-      )
-      const user = userRes.rows[0]
-      if (user?.email) {
-        const plan = getPlan(planId)
-        const planName = plan?.name ? `${plan.name} Plan` : 'Pro Plan'
-        const receipt = paymentReceiptEmail.render({
-          to: user.email,
-          name: user.name || 'Surveyor',
-          planName,
-          amount: paidAmount,
-          currency: 'KES',
-          paidAt: new Date().toISOString(),
-          transactionId: receiptNumber || checkoutRequestId,
-          paymentMethod: 'M-Pesa STK Push (Till 3370347)',
-        })
-
-        await sendEmail({
-          to: user.email,
-          subject: receipt.subject,
-          html: receipt.html,
-          text: receipt.text,
-        })
-      }
-    } catch (emailErr) {
-      logger.warn('[mpesa-callback] Failed to send email receipt:', { error: emailErr })
-    }
+    await sendPurchaseReceipt({
+      userId: paymentRow.user_id,
+      planId,
+      amount: paidAmount,
+      currency: paymentRow.currency,
+      transactionId: receiptNumber,
+      paymentMethod: 'mpesa',
+      paymentId: paymentRow.id,
+    })
   }
 
   return NextResponse.json({ ok: true })

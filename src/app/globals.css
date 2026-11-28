@@ -1354,7 +1354,7 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   filter: grayscale(1) invert(1) brightness(0.85);
 }
 
-/* Shared METARDU loading identity: charcoal ground, sienna ASCII wave, one logo. */
+/* Shared METARDU loading identity: a quiet theme-aware surface and brand lockup. */
 .metardu-loading-screen {
   position: relative;
   display: grid;
@@ -1363,74 +1363,15 @@ html.outdoor-mode [class*="text-red"], html.outdoor-mode [class*="text-purple"] 
   width: 100%;
   height: 100%;
   min-height: min(28rem, 70dvh);
-  isolation: isolate;
   background: var(--bg-primary, #050505);
   color: var(--text-primary, #fff);
 }
 
-.metardu-loading-ascii {
-  position: absolute;
-  inset: -5% -20%;
-  display: grid;
-  grid-template-rows: repeat(18, minmax(0, 1fr));
-  align-items: center;
-  overflow: hidden;
-  opacity: 0.22;
-  pointer-events: none;
-  font: 500 clamp(0.85rem, 1.3vw, 1.1rem) / 1 var(--font-mono);
-  letter-spacing: 0.28em;
-  text-shadow: 0 0 16px rgba(209, 123, 71, 0.18);
-  mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
-  -webkit-mask-image: radial-gradient(ellipse at center, #000 15%, transparent 78%);
-}
-
-.metardu-loading-ascii-row {
-  width: max-content;
-  white-space: pre;
-  animation: metardu-loading-wave 6s ease-in-out infinite;
-  animation-delay: var(--wave-delay, 0ms);
-  color: var(--accent, #D17B47);
-}
-
-.metardu-loading-ascii-row:nth-child(3n + 1) { color: #D17B47; }
-.metardu-loading-ascii-row:nth-child(3n + 2) { color: #B35C2B; }
-.metardu-loading-ascii-row:nth-child(3n) { color: #E5B89B; }
-.metardu-loading-ascii-row:nth-child(even) { justify-self: end; }
-
-.metardu-loading-scrim {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  pointer-events: none;
-  background: radial-gradient(ellipse at center, rgba(5, 5, 5, 0.1) 0%, rgba(5, 5, 5, 0.48) 52%, #050505 100%);
-}
-
 .metardu-loading-brand {
-  position: relative;
-  z-index: 2;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
-  animation: metardu-loading-brand-breathe 3.2s ease-in-out infinite;
-}
-
-@keyframes metardu-loading-wave {
-  0%, 100% { transform: translate3d(-0.65rem, 0.25rem, 0); opacity: 0.48; }
-  50% { transform: translate3d(0.65rem, -0.25rem, 0); opacity: 1; }
-}
-
-@keyframes metardu-loading-brand-breathe {
-  0%, 100% { opacity: 0.94; }
-  50% { opacity: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .metardu-loading-ascii-row,
-  .metardu-loading-brand {
-    animation: none;
-  }
-  .metardu-loading-ascii-row { opacity: 0.65; }
 }
 
 /* Project-map attribution stays readable without depending on another route

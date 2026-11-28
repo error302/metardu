@@ -1,9 +1,45 @@
+/**
+ * `scripts/verify-migrations.mjs` proves it is the running module with an
+ * exact `import.meta.url` comparison. The CommonJS Jest runtime cannot keep
+ * `import.meta`, so the URL is rewritten to the transformed module's own file
+ * URL; the comparison itself stays exact.
+ */
+function transformImportMetaUrl({ types: t }) {
+  const moduleUrl = () => t.memberExpression(
+    t.callExpression(
+      t.memberExpression(
+        t.callExpression(t.identifier('require'), [t.stringLiteral('node:url')]),
+        t.identifier('pathToFileURL'),
+      ),
+      [t.identifier('__filename')],
+    ),
+    t.identifier('href'),
+  )
+  return {
+    name: 'metardu-transform-import-meta-url',
+    visitor: {
+      MemberExpression(path) {
+        const { object, property, computed } = path.node
+        if (computed) return
+        if (!t.isMetaProperty(object)) return
+        if (object.meta.name !== 'import' || object.property.name !== 'meta') return
+        if (!t.isIdentifier(property, { name: 'url' })) return
+        path.replaceWith(moduleUrl())
+      },
+    },
+  }
+}
+
 module.exports = {
   preset: 'ts-jest',
   testEnvironment: 'jsdom',
   coverageProvider: 'v8',
   roots: ['<rootDir>/src', '<rootDir>/tests'],
   transform: {
+    '^.+\\.mjs$': ['babel-jest', {
+      presets: [['@babel/preset-env', { targets: { node: 'current' } }]],
+      plugins: [transformImportMetaUrl],
+    }],
     '^.+\\.tsx?$': ['ts-jest', {
       tsconfig: {
         module: 'commonjs',
@@ -42,7 +78,7 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
-  testMatch: ['**/*.test.ts', '**/*.test.tsx'],
+  testMatch: ['**/*.test.ts', '**/*.test.tsx', '**/working-tree-release.test.mjs'],
   collectCoverageFrom: [
     // AUDIT FIX (M11, 2026-07-02): Expanded coverage collection from
     // just src/lib/engineering/ to include all critical lib modules.

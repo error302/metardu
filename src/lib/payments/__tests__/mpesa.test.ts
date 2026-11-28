@@ -79,6 +79,22 @@ describe('P0-4: M-Pesa callback parsing + amount verification', () => {
       expect(defined(result).status).toBe('completed')
     })
 
+    test('classifies an unknown callback result code as pending', () => {
+      const unknownResultPayload = {
+        ...successPayload,
+        Body: {
+          stkCallback: {
+            ...successPayload.Body.stkCallback,
+            ResultCode: 1001,
+            ResultDesc: 'Synthetic retryable provider result',
+          },
+        },
+      }
+      const result = mpesa.parseCallback(unknownResultPayload)
+      expect(result).not.toBeNull()
+      expect(defined(result).status).toBe('pending')
+    })
+
     test('returns null for failed callback (no CallbackMetadata)', () => {
       const result = mpesa.parseCallback(failedPayload)
       expect(result).toBeNull()

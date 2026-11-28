@@ -142,7 +142,7 @@ export default function RegisterPage() {
           ) : (
             <>
               <h2 className="text-2xl font-bold text-[var(--text-primary)]">Create your account</h2>
-              <p className="text-[var(--text-secondary)] mb-8">Start your free trial. No credit card required.</p>
+              <p className="text-[var(--text-secondary)] mb-8">Start your free trial and upgrade when you&apos;re ready.</p>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (

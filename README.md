@@ -62,7 +62,7 @@ Every project follows the same workflow:
 ### Integration
 - Kenya NLIMS, Uganda NLIS, Tanzania Land Registry
 - Professional body integration (ISK, EBK)
-- M-Pesa, PayPal, Stripe payment
+- M-Pesa and PayPal payment
 
 ## Tech Stack
 

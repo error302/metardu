@@ -118,7 +118,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="color-scheme" content="dark light" />
         <link rel="icon" href="/metardu-icon.webp" type="image/webp" sizes="128x128" />
-        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        <link rel="apple-touch-icon" href="/icons/apple-touch-icon-ee62bb1ce2fe.png" />
         {/* Shared body font is local; other families load only when used. */}
         <link rel="preload" href="/fonts/19f9c92546aa300c.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         {/* One-time migration for surveyors who saved field mode before theme

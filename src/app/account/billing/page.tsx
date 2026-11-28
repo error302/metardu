@@ -6,6 +6,7 @@ import type { PlanId } from '@/lib/subscription/catalog'
 import type { CurrencyCode } from '@/lib/subscription/catalog'
 import { z } from 'zod'
 import { apiGet, apiPost, ApiError } from '@/lib/api/client'
+import { resolveBillingMutationProvider } from '@/lib/payments/billingProvider'
 
 // ---------------------------------------------------------------------------
 // Schemas
@@ -111,11 +112,14 @@ export default function BillingPage() {
   }, [loadData])
 
   async function handleCancel() {
+    const provider = resolveBillingMutationProvider(subscription?.payment_method)
+    if (!provider) {
+      setMessage('This subscription uses an unsupported payment provider. Please contact METARDU support to change it.')
+      return
+    }
     if (!confirm('Are you sure you want to cancel your subscription? You will retain access until the end of the billing period.')) return
     setCancelling(true)
     setMessage('')
-
-    const provider = subscription?.payment_method || 'stripe'
 
     try {
       await apiPost(
@@ -136,10 +140,13 @@ export default function BillingPage() {
   }
 
   async function handleReactivate() {
+    const provider = resolveBillingMutationProvider(subscription?.payment_method)
+    if (!provider) {
+      setMessage('This subscription uses an unsupported payment provider. Please contact METARDU support to change it.')
+      return
+    }
     setCancelling(true)
     setMessage('')
-
-    const provider = subscription?.payment_method || 'stripe'
 
     try {
       await apiPost(

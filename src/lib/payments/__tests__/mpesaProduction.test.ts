@@ -173,6 +173,30 @@ describe('Daraja production collection configuration', () => {
     expect(await configuredService().checkTransactionStatus('test-checkout')).toMatchObject({ status: 'pending' })
   })
 
+  test('classifies a known definitive STK query failure as failed', async () => {
+    fetchMock
+      .mockResolvedValueOnce(Response.json({ access_token: 'test-token' }))
+      .mockResolvedValueOnce(Response.json({ ResultCode: 1032, ResultDesc: 'Request cancelled by user' }))
+
+    expect(await configuredService().checkTransactionStatus('test-checkout')).toMatchObject({
+      status: 'failed',
+      resultCode: 1032,
+      resultDesc: 'Request cancelled by user',
+    })
+  })
+
+  test.each([1001, 4999])('keeps unknown or retryable STK query result code %s pending', async resultCode => {
+    fetchMock
+      .mockResolvedValueOnce(Response.json({ access_token: 'test-token' }))
+      .mockResolvedValueOnce(Response.json({ ResultCode: resultCode, ResultDesc: 'Synthetic ambiguous result' }))
+
+    expect(await configuredService().checkTransactionStatus('test-checkout')).toMatchObject({
+      status: 'pending',
+      resultCode,
+      resultDesc: 'Synthetic ambiguous result',
+    })
+  })
+
   test('rejects a refused STK response even when HTTP succeeds', async () => {
     fetchMock
       .mockResolvedValueOnce(Response.json({ access_token: 'test-token' }))

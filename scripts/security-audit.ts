@@ -135,9 +135,9 @@ async function checkEnvironmentVariables(): Promise<void> {
     if (fs.existsSync(envFile)) {
       const content = fs.readFileSync(envFile, 'utf-8')
       
-      // Check for real-looking secrets
+      // Check for real-looking live payment-provider keys
       if (content.includes('sk_live_') || content.includes('pk_live_')) {
-        console.log(`  ❌ ${envFile}: Contains live Stripe keys!`)
+        console.log(`  ❌ ${envFile}: Contains live payment-provider keys!`)
         hasExposedSecrets = true
       }
       

@@ -75,7 +75,7 @@ const changelog: ChangelogEntry[] = [
     date: '2024-12',
     items: [
       'Full subscription engine with plan catalog',
-      'Stripe, PayPal, M-Pesa payment integration',
+      'PayPal and M-Pesa payment integration',
       'Feature gating based on subscription tier',
       'Billing management & invoice history',
       'Trial management with expiry warnings',

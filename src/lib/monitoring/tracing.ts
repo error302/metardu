@@ -7,7 +7,7 @@
  * --------------
  * 1. Generates a trace ID for every incoming request (if not from upstream)
  * 2. Propagates the trace ID to the Python worker via X-Trace-Id header
- * 3. Propagates the trace ID to outbound fetch calls (Stripe, M-Pesa, etc.)
+ * 3. Propagates the trace ID to outbound fetch calls (payment providers, etc.)
  * 4. The Python worker logs the trace ID, enabling end-to-end request tracing
  * 5. Sentry is configured with the same trace ID for cross-referencing
  *
@@ -19,7 +19,7 @@
  * // In API routes:
  * import { getTraceContext, traceFetch } from '@/lib/monitoring/tracing'
  * const trace = getTraceContext(request)
- * const response = await traceFetch('https://api.stripe.com/...', { ... }, trace)
+ * const response = await traceFetch('https://api.payment-provider.example/...', { ... }, trace)
  *
  * // In Python worker calls:
  * const response = await traceFetch(`${PYTHON_WORKER_URL}/osm/features`, { ... }, trace)
@@ -106,7 +106,7 @@ export function getTraceHeaders(trace: TraceContext): Record<string, string> {
  *
  * Usage:
  *   const trace = getTraceContext(request)
- *   const res = await traceFetch('https://api.stripe.com/...', { method: 'POST', ... }, trace)
+ *   const res = await traceFetch('https://api.payment-provider.example/...', { method: 'POST', ... }, trace)
  */
 export async function traceFetch(
   url: string,

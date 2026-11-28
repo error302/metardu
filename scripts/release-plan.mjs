@@ -28,6 +28,7 @@ export const UNIFIED_RELEASE_CONTRACT_TESTS=Object.freeze([
   'tests/legacy-image-preflight.test.mjs',
   'tests/rehearsal-service-identity.test.mjs',
   'tests/isolated-rehearsal-role-ownership.test.mjs',
+  'tests/working-tree-recovery-proof.test.mjs',
 ])
 
 export const SURVEY_RELEASE_PENDING = ['108_pipeline_asbuilt_history','109_surveyor_profile_privileges','110_alignment_input_persistence','111_personal_project_reader_rls','112_project_reader_snapshot_lock','113_observation_batch_compatibility','114_field_observation_roles',...COLLABORATION_UPGRADE_VERSIONS,...WORKFLOW_UPGRADE_VERSIONS,SCHEDULE_UPGRADE_VERSION]
