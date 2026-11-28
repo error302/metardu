@@ -389,14 +389,11 @@ export async function executeSchemeExport(
         )
         return receipt
       }
-      if (
-        format === 'dxf' &&
-        !(await checkFeatureAccess(actor, 'dxf_export')).allowed
-      )
-        throw fail(
-          'Generating a new DXF requires an active Pro plan or higher.',
-          403,
-        )
+      if (format === 'dxf') {
+        const access = await checkFeatureAccess(actor, 'dxf_export', undefined, { reserveTrialExport: true })
+        if (access.trialExportLimitReached) throw fail(access.reason ?? 'Trial export limit reached.', 429)
+        if (!access.allowed) throw fail('Generating a new DXF requires an active Pro plan or higher.', 403)
+      }
       const source = await lockSource(actor, project, body.parcelIds, client)
       if (hashSchemeValue(source) !== body.sourceHash)
         throw fail(

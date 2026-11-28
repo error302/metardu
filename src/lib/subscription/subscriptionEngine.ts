@@ -39,6 +39,7 @@ export interface UsageInfo {
 export interface AccessCheck {
   allowed: boolean
   reason?: string
+  trialExportLimitReached?: boolean
   upgradeTo?: PlanId
   /** If true, the user can resolve by adding seats instead of upgrading. */
   canAddSeats?: boolean
@@ -99,7 +100,7 @@ export async function getSubscription(userId: string, email?: string, reader: Pi
   let effectiveStatus = sub.status as SubscriptionInfo['status']
 
   if (sub.status === 'trial') {
-    if (trialEndMs !== null && trialEndMs < now) {
+    if (trialEndMs === null || !Number.isFinite(trialEndMs) || trialEndMs <= now) {
       effectivePlan = 'free'
       effectiveStatus = 'expired'
     }
@@ -150,7 +151,8 @@ export async function getUsage(userId: string, reader: Pick<typeof db, 'query'> 
 export async function checkFeatureAccess(
   userId: string,
   feature: FeatureKey,
-  email?: string
+  email?: string,
+  options?: { reserveTrialExport: boolean },
 ): Promise<AccessCheck> {
   // Admin always has access
   if (isAdminEmail(email)) {
@@ -176,7 +178,18 @@ export async function checkFeatureAccess(
   if (!canAccess(sub.plan, feature)) {
     return { allowed: false, reason: `${feature} requires a higher plan`, upgradeTo: 'team' }
   }
+  if (options?.reserveTrialExport && !await reserveTrialExport(sub)) {
+    return { allowed: false, trialExportLimitReached: true, reason: TRIAL_EXPORT_LIMIT_MESSAGE }
+  }
   return { allowed: true }
+}
+
+export const TRIAL_EXPORT_LIMIT_MESSAGE = 'The Pro trial export limit has been reached. Try again after 00:00 UTC or compare paid plans.'
+
+export async function reserveTrialExport(subscription: Pick<SubscriptionInfo, 'status'>): Promise<boolean> {
+  if (subscription.status !== 'trial') return true
+  const { rows } = await db.query<{ allowed: boolean }>('SELECT public.metardu_consume_trial_export() AS allowed')
+  return rows[0]?.allowed === true
 }
 
 export async function checkProjectLimit(userId: string, email?: string, reader: Pick<typeof db, 'query'> = db): Promise<AccessCheck> {

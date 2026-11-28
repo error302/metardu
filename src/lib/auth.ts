@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs'
 import { db, setCurrentUserId } from '@/lib/db'
 import { checkLoginAllowed, recordFailedLogin, recordSuccessfulLogin, getFailedAttemptCount } from '@/lib/security/loginLimiter'
 import { logger } from '@/lib/logger'
+import { activateTrialForVerifiedSignIn } from '@/lib/auth/trialActivation'
 
 /** Sentinel password hash for OAuth-only users (no password login possible) */
 const OAUTH_NO_PASSWORD = 'OAUTH_NO_PASSWORD'
@@ -419,7 +420,8 @@ export const authOptions: AuthOptions = {
         // email_verified alone can reflect old ownership of a third-party
         // mailbox. Other addresses require a separate account-owner challenge
         // before linking. Previously linked subjects can still sign in.
-        const emailDomain = user.email.trim().toLowerCase().split('@').pop()
+        const emailAtProvider = user.email.trim().toLowerCase()
+        const emailDomain = emailAtProvider.split('@').pop()
         const hostedDomain = typeof oauthProfile?.hd === 'string' ? oauthProfile.hd.toLowerCase() : ''
         const providerEmailVerified = account.provider === 'google'
           && oauthProfile?.email_verified === true
@@ -458,6 +460,12 @@ export const authOptions: AuthOptions = {
           } catch (profileErr) {
             logger.error('[auth] OAuth suspension check failed — denying sign-in:', { error: profileErr })
             return false
+          }
+
+          if (providerEmailVerified && oauthUser.email === emailAtProvider) {
+            await activateTrialForVerifiedSignIn(oauthUser).catch(error => {
+              logger.error('[auth] Verified trial activation needs a retry.', { error })
+            })
           }
 
           return true

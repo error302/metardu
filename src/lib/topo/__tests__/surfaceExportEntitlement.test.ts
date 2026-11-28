@@ -22,9 +22,9 @@ beforeEach(()=>{
 })
 test('uses the existing entitlement policy with the server-authenticated email',async()=>{
  await expect(run(body,userId,false,'synthetic-owner@example.invalid')).rejects.toThrow('DXF export requires an active Pro plan')
- expect(checkFeatureAccess).toHaveBeenCalledWith(userId,'dxf_export','synthetic-owner@example.invalid')
+ expect(checkFeatureAccess).toHaveBeenCalledWith(userId,'dxf_export','synthetic-owner@example.invalid',{reserveTrialExport:true})
 })
 test('does not invent an email or grant when server identity is absent',async()=>{
  await expect(run(body,userId)).rejects.toThrow('DXF export requires an active Pro plan')
- expect(checkFeatureAccess).toHaveBeenCalledWith(userId,'dxf_export',undefined)
+ expect(checkFeatureAccess).toHaveBeenCalledWith(userId,'dxf_export',undefined,{reserveTrialExport:true})
 })

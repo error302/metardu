@@ -21,7 +21,8 @@ export const GET=apiHandler({auth:true},async(req,ctx)=>{
       WHERE s.project_id=$1 AND p.user_id=$2 ORDER BY r.computed_at DESC,r.id LIMIT 201`,[projectId,access.projectUserId])
     return reply({data:{projectId,viewerId:ctx.userId,revisions:rows.slice(0,200),limited:rows.length>200}})
   }
-  const feature=await checkFeatureAccess(ctx.userId,'landxml',ctx.session?.user?.email??undefined)
+  const feature=await checkFeatureAccess(ctx.userId,'landxml',ctx.session?.user?.email??undefined,{reserveTrialExport:true})
+  if(feature.trialExportLimitReached)return reply({error:feature.reason,code:'TRIAL_EXPORT_LIMIT'},429)
   if(!feature.allowed)return reply({error:'LandXML export requires an active eligible plan.'},403)
   const {rows}=await db.query<Record<string, unknown>>(`SELECT r.id AS revision_id,s.id AS surface_id,s.project_id,p.user_id,p.name AS project_name,s.name,r.revision,r.crs,
       r.point_count,r.triangle_count,r.input_hash,r.parameters,r.result

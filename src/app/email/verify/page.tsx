@@ -25,7 +25,7 @@ function VerifyEmailContent() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ token }),
     }).then(async (response) => {
-      const data = await response.json().catch(() => ({})) as { error?: string }
+      const data = await response.json().catch(() => ({})) as { error?: string; trialStarted?: boolean }
       if (!active) return
       if (!response.ok) {
         setStatus('error')
@@ -33,7 +33,7 @@ function VerifyEmailContent() {
         return
       }
       setStatus('verified')
-      setMessage('Your email is verified. Your METARDU account is ready.')
+      setMessage(data.trialStarted ? 'Your email is verified. Your 14-day Pro trial has started.' : 'Your email is verified. Your METARDU account is ready.')
     }).catch(() => {
       if (!active) return
       setStatus('error')

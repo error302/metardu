@@ -142,7 +142,7 @@ export default function RegisterPage() {
           ) : (
             <>
               <h2 className="text-2xl font-bold text-[var(--text-primary)]">Create your account</h2>
-              <p className="text-[var(--text-secondary)] mb-8">Start your free trial and upgrade when you&apos;re ready.</p>
+              <p className="text-[var(--text-secondary)] mb-8">Verify your email to start 14 days of Pro. Your account moves to Free unless you subscribe.</p>
 
               <form onSubmit={handleSubmit} className="space-y-5">
                 {error && (

@@ -50,7 +50,8 @@ export async function executeSurfaceExport(body: SurfaceExportRequest, userId: s
       // A retained owner download does not create another paid artifact.
       if (recovered) return recovered
       if (recoverOnly) throw new NotFoundError('No committed export was found for this request.')
-      const feature = await checkFeatureAccess(userId, body.format==='pdf'?'full_pdf':'dxf_export', authenticatedEmail)
+      const feature = await checkFeatureAccess(userId, body.format==='pdf'?'full_pdf':'dxf_export', authenticatedEmail, { reserveTrialExport: true })
+      if (feature.trialExportLimitReached) throw new AppError(feature.reason ?? 'Trial export limit reached.', 429, 'TRIAL_EXPORT_LIMIT', { requestOutcome: 'rejected', requestId: body.requestId, payloadHash })
       if (!feature.allowed) throw new AppError((body.format==='pdf'?'PDF':'DXF')+' export requires an active Pro plan or higher.', 403, 'SURFACE_EXPORT_PLAN_REQUIRED', { requestOutcome: 'rejected', requestId: body.requestId, payloadHash })
       const source = await loadSurfaceRevision(body.projectId, body.surfaceRevisionId, client)
       const drawing = buildSurfaceRevisionDrawing(source), pdf=body.format==='pdf'

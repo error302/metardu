@@ -6,7 +6,7 @@ import { authOptions } from '@/lib/auth'
 import { db, setCurrentUserId } from '@/lib/db'
 import { createEmailVerificationToken } from '@/lib/auth/emailVerification'
 import { sendTemplatedEmail } from '@/lib/email-templates'
-import { rateLimit } from '@/lib/security/rateLimit'
+import { limitAccountSetup } from '@/lib/security/accountSetupLimit'
 import { getPublicAppUrl } from '@/lib/site'
 
 interface VerificationAccountRow {
@@ -22,7 +22,7 @@ export async function POST() {
     const email = session?.user?.email
     if (!userId || !email) return NextResponse.json({ error: 'Sign in to request email verification.' }, { status: 401 })
 
-    const limit = await rateLimit(`email-verification:${userId}`, 3, 60 * 60 * 1000)
+    const limit = await limitAccountSetup(`email-verification:${userId}`, 3, 60 * 60 * 1000)
     if (!limit.allowed) return NextResponse.json({ error: 'Please wait before requesting another verification email.' }, { status: 429 })
 
     setCurrentUserId(String(userId))

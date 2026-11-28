@@ -3,6 +3,7 @@ import { createEmailVerificationToken } from '@/lib/auth/emailVerification'
 import { sendTemplatedEmail } from '@/lib/email-templates'
 import { getPublicAppUrl } from '@/lib/site'
 import { logger } from '@/lib/logger'
+import { activateVerifiedTrial, sendTrialWelcome } from '@/lib/auth/trialActivation'
 
 /** Called only after account creation or an authenticated onboarding request. */
 export async function completeAccountOnboarding(userId: string) {
@@ -12,16 +13,6 @@ export async function completeAccountOnboarding(userId: string) {
   )
   const account = accountResult.rows[0]
   if (!account) throw new Error('Onboarding account not found')
-  const now = new Date()
-  const trialEnd = new Date(now.getTime() + 14 * 24 * 60 * 60 * 1000).toISOString()
-  const subscription = await db.query<{ trial_ends_at: string }>(
-    `INSERT INTO user_subscriptions (user_id, plan_id, status, trial_ends_at, current_period_start, current_period_end)
-     VALUES ($1, 'pro', 'trial', $2, $3, $2)
-     ON CONFLICT (user_id) DO NOTHING RETURNING trial_ends_at`,
-    [userId, trialEnd, now.toISOString()],
-  )
-
-  // Both deliveries share the request, but neither waits for the other provider call.
   const verificationDelivery = async (): Promise<boolean | null> => {
     if (account.email_verified) return null
     try {
@@ -34,17 +25,10 @@ export async function completeAccountOnboarding(userId: string) {
       return false
     }
   }
-  const welcomeDelivery = async (): Promise<boolean | null> => {
-    if (subscription.rows.length === 0) return null
-    try {
-      return (await sendTemplatedEmail('welcome', {
-        to: account.email, name: account.full_name || '', trialEndsAt: trialEnd,
-      }, { idempotencyKey: `welcome:${userId}` })).success
-    } catch {
-      return false
-    }
-  }
-  const [verificationEmailSent, welcomeEmailSent] = await Promise.all([verificationDelivery(), welcomeDelivery()])
+  const trialEndsAt = account.email_verified ? await activateVerifiedTrial() : null
+  const [verificationEmailSent, welcomeEmailSent] = await Promise.all([
+    verificationDelivery(), sendTrialWelcome({ id: userId, ...account }, trialEndsAt),
+  ])
   if (verificationEmailSent === false || welcomeEmailSent === false) {
     logger.warn('[onboarding] An account email was not accepted by the email provider.', { userId })
   }

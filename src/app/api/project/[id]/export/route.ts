@@ -30,7 +30,7 @@ import { resolveEpsg } from '@/lib/spatial/projectCrs'
 import { parseCadGridCoordinate } from '@/lib/cad/cadDocumentValidation'
 import { logger } from '@/lib/logger'
 import { canAccess, type FeatureKey } from '@/lib/subscription/featureGates'
-import { getSubscription } from '@/lib/subscription/subscriptionEngine'
+import { getSubscription, reserveTrialExport, TRIAL_EXPORT_LIMIT_MESSAGE } from '@/lib/subscription/subscriptionEngine'
 
 export const dynamic = 'force-dynamic'
 
@@ -136,8 +136,8 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
     : format === 'landxml'
       ? 'landxml'
       : null
+  const subscription = requiredFeature ? await getSubscription(ctx.userId, ctx.session?.user?.email ?? undefined) : null
   if (requiredFeature) {
-    const subscription = await getSubscription(ctx.userId, ctx.session?.user?.email ?? undefined)
     if (!subscription || !canAccess(subscription.plan, requiredFeature)) {
       return NextResponse.json(
         { error: `This export requires the ${requiredFeature === 'landxml' ? 'LandXML' : 'DXF'} feature on a Pro plan or higher.` },
@@ -224,6 +224,9 @@ export const GET = apiHandler({ auth: true }, async (req, ctx) => {
   const base = safeFileBase(project.name)
   const dataRevision = await resolveDataRevision(projectId);
   const projectCrsCode = reference.code
+  if (subscription?.status === 'trial' && !await reserveTrialExport(subscription)) {
+    return NextResponse.json({ error: TRIAL_EXPORT_LIMIT_MESSAGE, code: 'TRIAL_EXPORT_LIMIT' }, { status: 429 })
+  }
 
   /**
    * Issue one artifact: register it in the deliverable register (revision,
