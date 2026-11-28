@@ -11,7 +11,10 @@ const mockPlatformAdmin = jest.fn<Promise<boolean>, []>()
 jest.mock('next/navigation', () => ({ redirect: (href: string) => { throw new Error(`REDIRECT:${href}`) } }))
 jest.mock('@/lib/auth/session', () => ({ getAuthUser: () => mockUser(), isPlatformAdmin: () => mockPlatformAdmin() }))
 jest.mock('@/lib/api-client/server', () => ({ createClient: async () => ({ from: (table: string) => mockFrom(table) }) }))
-jest.mock('@/lib/db', () => ({ db: { query: async () => ({ rows: [{ email_verified: true }] }) }, setCurrentUserId: jest.fn() }))
+jest.mock('@/lib/db', () => ({
+  db: { query: async (sql: string) => ({ rows: sql.includes('email_verified') ? [{ email_verified: true }] : [] }) },
+  setCurrentUserId: jest.fn(),
+}))
 jest.mock('@/lib/logger', () => ({ log: jest.fn() }))
 jest.mock('@/lib/subscription/subscriptionEngine', () => ({ getSubscription: (...args: unknown[]) => mockSubscription(...args) }))
 jest.mock('@/lib/i18n/server', () => ({ getServerTranslator: async () => (key: string) => ({
@@ -82,7 +85,10 @@ it('leaves projects usable when a count query fails without inventing totals', a
   expect(within(metrics[0]).getByText('1')).toBeInTheDocument()
   expect(within(metrics[1]).getByText('—')).toBeInTheDocument()
   expect(within(metrics[2]).getByText('—')).toBeInTheDocument()
-  expect(screen.getByRole('link', { name: project.name })).toHaveAttribute('href', '/project/p1')
+  const fieldWorkspace = within(screen.getByRole('region', { name: 'Field workspace' }))
+  const surveyProjects = within(screen.getByRole('region', { name: 'Your survey projects' }))
+  expect(fieldWorkspace.getByRole('link', { name: project.name })).toHaveAttribute('href', '/field/collect?projectId=p1')
+  expect(surveyProjects.getByRole('link', { name: project.name })).toHaveAttribute('href', '/project/p1')
   expect(screen.getByRole('status')).toHaveTextContent('totals could not be refreshed')
 })
 
@@ -108,7 +114,7 @@ it('keeps existing project access and avoids an upsell when subscription lookup 
   mockSubscription.mockRejectedValue(new Error('Subscription temporarily unavailable'))
   render(await DashboardPage())
   expect(screen.getByRole('status')).toHaveTextContent('Subscription details could not be refreshed')
-  expect(screen.getByRole('link', { name: project.name })).toBeInTheDocument()
+  expect(within(screen.getByRole('region', { name: 'Your survey projects' })).getByRole('link', { name: project.name })).toBeInTheDocument()
   expect(screen.queryByRole('link', { name: 'Upgrade to create more' })).not.toBeInTheDocument()
 })
 

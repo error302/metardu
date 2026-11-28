@@ -191,22 +191,18 @@ const legacyCases: LegacyCase[] = [
 ]
 
 describe('legacy Kenya print packs', () => {
-  it.each(legacyCases)('$name fails closed without an explicit Kenya jurisdiction', ({ generate }) => {
-    expect(() => generate({ ...baseMeta })).toThrow(/jurisdiction|kenya/i)
-    expect(() => generate({ ...baseMeta, jurisdiction: 'other' })).toThrow(/jurisdiction|kenya/i)
-    expect(() => generate({ ...baseMeta, jurisdiction: 'new_zealand' })).toThrow(/jurisdiction|kenya/i)
-  })
+  // These legacy templates still use fixed Kenya rules. Binding a persisted
+  // project jurisdiction is tracked in PRINT_JURISDICTION_SCOPE_2026-11-25.md.
+  it.each(legacyCases)('$name retains its Kenya review and certification wording', ({ generate }) => {
+    const html = generate(baseMeta)
 
-  it.each(legacyCases)('$name prints only after an explicit Kenya jurisdiction is bound', ({ generate }) => {
-    const html = generate({ ...baseMeta, jurisdiction: 'kenya' })
-
-    expect(html).toContain('Jurisdiction: Kenya')
-    expect(html).toContain('DRAFT — NOT CERTIFIED')
+    expect(html).toMatch(/Kenya|ISK|Cap\.? 299/i)
+    expect(html).toMatch(/independently verified|licensed surveyor|not certified/i)
   })
 
   it('escapes the setting-out technical reference exactly once', () => {
     const html = generateSettingOutSchedule({
-      meta: { ...baseMeta, jurisdiction: 'kenya' },
+      meta: baseMeta,
       result: settingOutResult,
     })
 

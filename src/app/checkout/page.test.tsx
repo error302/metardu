@@ -469,7 +469,7 @@ describe('regional checkout payment eligibility', () => {
   })
 
   it('refuses a second payment submission while the first is in flight', async () => {
-    let releasePayment: ((value: Response) => void) | null = null
+    let releasePayment!: (value: Response) => void
     const inFlight = new Promise<Response>((resolve) => {
       releasePayment = resolve
     })
@@ -508,7 +508,7 @@ describe('regional checkout payment eligibility', () => {
       fetchMock.mock.calls.filter(([, init]) => init?.method === 'POST'),
     ).toHaveLength(1)
 
-    releasePayment?.(jsonResponse({
+    releasePayment(jsonResponse({
       kind: 'mpesa',
       provider: 'mpesa',
       paymentId: '90000000-0000-4000-8000-000000000012',
