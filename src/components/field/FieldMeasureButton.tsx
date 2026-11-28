@@ -4,7 +4,7 @@
  * FieldMeasureButton — large one-tap measurement capture button
  *
  * Designed for field use:
- *   - Large touch target (min 120×120px) — works with gloves
+ *   - Full-width phone control and large circular desktop control
  *   - High contrast — visible in sunlight
  *   - Haptic feedback on press (vibration)
  *   - Audio cue on successful capture
@@ -133,7 +133,7 @@ export function FieldMeasureButton({
   }, [isDisabled, onCapture, pointId])
 
   // Button styles based on state
-  const baseClass = 'relative w-32 h-32 rounded-full flex flex-col items-center justify-center gap-1 transition-all duration-150 select-none font-bold'
+  const baseClass = 'relative flex min-h-16 w-full select-none items-center justify-center gap-3 rounded-xl font-bold transition-colors sm:h-32 sm:w-32 sm:flex-col sm:gap-1 sm:rounded-full'
 
   let buttonClass = baseClass
   let icon = <Crosshair className="w-8 h-8" />

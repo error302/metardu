@@ -1,17 +1,12 @@
 'use client'
 
 import { memo, useCallback } from 'react'
-import { Plus, Minus, LocateFixed, LocateOff } from 'lucide-react'
+import { Plus, Minus, LocateFixed, LocateOff, Printer } from 'lucide-react'
 import { useMapContext } from '@/app/map/MapReactContext'
 import { NorthArrowOverlay } from './NorthArrowOverlay'
 
-/**
- * Map navigation dock. Print lives in the Export panel — the map controls
- * carry only navigation (zoom, north, locate) so a surveyor can never
- * download an unbranded sheet by tapping the wrong icon beside the map.
- */
 export const MapRightDock = memo(function MapRightDock() {
-  const { mapInstance, gpsTracking, gpsPos, toggleGPS } = useMapContext()
+  const { mapInstance, gpsTracking, gpsPos, toggleGPS, printMap, isPrinting, paperSize, orientation } = useMapContext()
   const zoom = useCallback((step: number) => {
     const view = mapInstance.current?.getView()
     if (!view) return
@@ -34,7 +29,7 @@ export const MapRightDock = memo(function MapRightDock() {
       : `Device location ±${Math.round(gpsPos?.accuracy ?? 0)} m. Not an RTK/GNSS solution.`
 
   return (
-    <div className="map-navigation-dock absolute z-30 flex flex-col items-end gap-2 select-none" role="region" aria-label="Map navigation controls">
+    <div className="map-navigation-dock absolute z-30 flex flex-col items-end gap-2 select-none" role="region" aria-label="Map controls">
       <div className="map-zoom-buttons" role="group" aria-label="Map zoom controls">
         <button type="button" onClick={() => zoom(1)} aria-label="Zoom in" title="Zoom in"><Plus className="h-4 w-4" /></button>
         <button type="button" onClick={() => zoom(-1)} aria-label="Zoom out" title="Zoom out"><Minus className="h-4 w-4" /></button>
@@ -51,6 +46,16 @@ export const MapRightDock = memo(function MapRightDock() {
         {gpsTracking ? <LocateFixed className={`h-4 w-4${locateState === 'searching' ? ' animate-pulse' : ''}`} /> : <LocateOff className="h-4 w-4" />}
       </button>
       <span className="map-locate-readout" role="status" aria-live="polite">{locateLabel}</span>
+      <button
+        type="button"
+        className="map-print-button"
+        onClick={() => void printMap({ paperSize, orientation })}
+        disabled={isPrinting}
+        aria-label={isPrinting ? 'Preparing map PDF' : 'Print current map'}
+        title="Download a print-ready PDF of the current map"
+      >
+        <Printer className="h-4 w-4" aria-hidden="true" />
+      </button>
     </div>
   )
 })

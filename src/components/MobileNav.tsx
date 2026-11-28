@@ -1,286 +1,98 @@
-'use client';
+'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useSession } from 'next-auth/react'
-import {
-  FolderKanban, LayoutDashboard, MapPinned, Wrench, FileText,
-  CalendarDays, Radar, Store, ChevronRight, X,
-  BookOpen, Compass, Crosshair, MapPin, ShieldCheck, DraftingCompass, MoreHorizontal, Upload
-} from 'lucide-react'
-import { isNavItemActive } from '@/lib/navigation-shell'
+import { BookOpen, CalendarDays, ChevronRight, Crosshair, MapPin, MapPinned, MoreHorizontal, Radar, Store, Target, Wrench } from 'lucide-react'
+import { Sheet, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
+import { isNavItemActive, PHONE_DOCK_LINKS, PHONE_MORE_LINKS } from '@/lib/navigation-shell'
 
-/** Field capture is the crew's primary job, so Collect leads the dock. */
-const PRIMARY_MOBILE_PAGES = [
-  { href: '/field/collect', label: 'Collect', icon: Crosshair },
-  { href: '/map', label: 'Map', icon: MapPinned },
-  { href: '/fieldbook', label: 'Field Book', icon: BookOpen },
-  { href: '/tools', label: 'Tools', icon: Wrench },
-]
+const icons = {
+  '/field/collect': Crosshair,
+  '/field/setout': Target,
+  '/map': MapPinned,
+  '/schedule': CalendarDays,
+  '/fieldbook': BookOpen,
+  '/equipment': Radar,
+  '/marketplace': Store,
+  '/beacons': MapPin,
+  '/field/tools': Wrench,
+}
 
-/** Deliberate paging, never a timer: controls stay put while the user works. */
-const MOBILE_PAGE_GROUPS = [PRIMARY_MOBILE_PAGES,
-  [{href:'/projects',label:'Projects',icon:FolderKanban},{href:'/dashboard',label:'Dashboard',icon:LayoutDashboard},{href:'/import',label:'Import',icon:Upload},{href:'/reports',label:'Reports',icon:FileText}],
-  [{href:'/equipment',label:'Equipment',icon:Radar},{href:'/field',label:'Field mode',icon:Compass},{href:'/beacons',label:'Beacons',icon:MapPin},{href:'/marketplace',label:'Marketplace',icon:Store}],
-  [{href:'/schedule',label:'Schedule',icon:CalendarDays},{href:'/docs',label:'Docs',icon:BookOpen},{href:'/account',label:'Account',icon:ShieldCheck},{href:'/pricing',label:'Plans',icon:FileText}],
-]
-
-/** Pages hidden from the bottom tab bar — shown in the "More" drawer */
-const MORE_PAGES = [
-  { href: '/import', label: 'Import field data', icon: Upload, color: 'text-[var(--accent)]' },
-  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-400' },
-  { href: '/projects', label: 'Projects', icon: FolderKanban, color: 'text-blue-400' },
-  { href: '/equipment', label: 'Equipment Tracker', icon: Radar, color: 'text-green-400' },
-  { href: '/reports', label: 'Documents & Reports', icon: FileText, color: 'text-purple-400' },
-  { href: '/tools/cad-editor', label: 'CAD Editor', icon: DraftingCompass, color: 'text-cyan-400' },
-  { href: '/field', label: 'Field Mode', icon: Compass, color: 'text-cyan-400' },
-  { href: '/beacons', label: 'Beacon Registry', icon: MapPin, color: 'text-amber-400' },
-  { href: '/schedule', label: 'Job Schedule', icon: CalendarDays, color: 'text-blue-400' },
-  { href: '/marketplace', label: 'Marketplace', icon: Store, color: 'text-purple-400' },
-]
+const dockItem = 'flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[11px] font-medium leading-none'
 
 export default function MobileNav() {
   const pathname = usePathname()
-  const [mounted, setMounted] = useState(false)
   const [showMore, setShowMore] = useState(false)
-  const [dockPage,setDockPage]=useState(0)
-  const touchStart=useRef<{x:number;y:number}|null>(null)
-  const moreButtonRef = useRef<HTMLButtonElement>(null)
-  const closeButtonRef = useRef<HTMLButtonElement>(null)
-  const moreDialogRef = useRef<HTMLDivElement>(null)
-  const { data: session } = useSession()
-  const isAuthenticated = !!session
-
-  useEffect(() => { setMounted(true) }, [])
-
-  useEffect(() => {
-    if (showMore) closeButtonRef.current?.focus()
-  }, [showMore])
+  const moreActive = PHONE_MORE_LINKS.some(item => isNavItemActive(pathname, item.href))
 
   useEffect(() => { setShowMore(false) }, [pathname])
-  useEffect(()=>{
-    const page=MOBILE_PAGE_GROUPS.findIndex(group=>group.some(item=>isNavItemActive(pathname,item.href)))
-    setDockPage(page<0?0:page)
-  },[pathname])
-  const turnDock=(direction:number)=>setDockPage(page=>(page+direction+MOBILE_PAGE_GROUPS.length)%MOBILE_PAGE_GROUPS.length)
-
-  // Check if current page is in the "More" drawer (for active highlighting)
-  const isMoreActive = MORE_PAGES.some(p => pathname === p.href || pathname.startsWith(p.href + '/'))
-
-  const handleMoreKeyDown = (event: React.KeyboardEvent) => {
-    if (event.key === 'Escape') {
-      setShowMore(false)
-      moreButtonRef.current?.focus()
-      return
+  useEffect(() => {
+    const desktop = window.matchMedia('(min-width: 768px)')
+    const closeOnDesktop = (event: MediaQueryListEvent) => {
+      if (event.matches) setShowMore(false)
     }
-    if (event.key !== 'Tab') return
-
-    const focusable = moreDialogRef.current?.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
-    if (!focusable?.length) return
-    const first = focusable[0]
-    const last = focusable[focusable.length - 1]
-    if (event.shiftKey && document.activeElement === first) {
-      event.preventDefault()
-      last.focus()
-    } else if (!event.shiftKey && document.activeElement === last) {
-      event.preventDefault()
-      first.focus()
-    }
-  }
+    desktop.addEventListener('change', closeOnDesktop)
+    return () => desktop.removeEventListener('change', closeOnDesktop)
+  }, [])
 
   return (
-    <>
-      <nav
-        className="fixed left-1/2 z-50 -translate-x-1/2 rounded-2xl border bg-[var(--bg-primary)] shadow-[0_12px_40px_rgba(0,0,0,0.36)] backdrop-blur-xl md:hidden"
-        style={{
-          bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)',
-          width: 'min(26rem, calc(100vw - 1rem))',
-          backgroundColor: 'color-mix(in srgb, var(--bg-primary) 91%, transparent)',
-          borderColor: 'color-mix(in srgb, var(--accent) 20%, var(--border-color))',
-        }}
-        role="navigation"
-        aria-label="Primary mobile navigation"
-      >
-        <div className="flex items-center gap-1 p-1.5">
-          <div role="group" aria-label="Swipe navigation pages" className="flex min-w-0 flex-1 touch-pan-y items-center" onKeyDown={event=>{if(event.key==='ArrowRight'||event.key==='ArrowLeft'){event.preventDefault();turnDock(event.key==='ArrowRight'?1:-1)}}}
-            onTouchStart={event=>{const touch=event.touches[0];if(touch)touchStart.current={x:touch.clientX,y:touch.clientY}}}
-            onTouchCancel={()=>{touchStart.current=null}}
-            onTouchEnd={event=>{const start=touchStart.current,end=event.changedTouches[0];touchStart.current=null;if(!start||!end)return;const dx=end.clientX-start.x,dy=end.clientY-start.y;if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5)turnDock(dx<0?1:-1)}}>
-          {MOBILE_PAGE_GROUPS[dockPage].map((item) => {
-            const isActive = isNavItemActive(pathname, item.href)
-            const Icon = item.icon
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-label={item.href === '/tools/cad-editor' ? 'CAD editor' : undefined}
-                aria-current={isActive ? 'page' : undefined}
-                className={`flex min-h-12 min-w-0 flex-1 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
-                  isActive ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-gray-400 hover:text-[var(--text-primary)]'
-                }`}
-              >
-                <Icon className={`h-5 w-5 transition-transform duration-200 motion-reduce:transition-none ${isActive ? 'text-[var(--accent)]' : ''}`} strokeWidth={1.9} />
-                <span className="truncate">{item.label}</span>
-              </Link>
-            )
-          })}
-          </div>
-          <button type="button" aria-label={`Next navigation pages (${dockPage+1} of ${MOBILE_PAGE_GROUPS.length})`} title="Swipe or tap to turn navigation pages" onClick={()=>turnDock(1)} className="flex min-h-12 w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-xl text-[var(--text-secondary)] hover:bg-[var(--bg-tertiary)]">
-            <ChevronRight className="h-5 w-5" aria-hidden="true"/>
-            <span aria-hidden="true" className="flex gap-0.5">{MOBILE_PAGE_GROUPS.map((_,index)=><span key={index} className={`h-1 w-1 rounded-full ${index===dockPage?'bg-[var(--accent)]':'bg-[var(--text-muted)]'}`}/>)}</span>
-          </button>
-          <span className="sr-only" role="status">Navigation page {dockPage+1} of {MOBILE_PAGE_GROUPS.length}</span>
-
-          {/* More button */}
+    <nav
+      aria-label="Primary mobile navigation"
+      className="fixed left-1/2 z-50 flex w-[min(26rem,calc(100%-1rem))] -translate-x-1/2 items-center gap-1 rounded-2xl border border-[var(--border-color)] bg-[var(--bg-primary)] p-1.5 shadow-lg md:hidden"
+      style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 0.75rem)' }}
+    >
+      {PHONE_DOCK_LINKS.map(({ href, label }) => {
+        const Icon = icons[href]
+        const active = isNavItemActive(pathname, href)
+        return (
+          <Link
+            key={href}
+            href={href}
+            prefetch={false}
+            aria-current={active ? 'page' : undefined}
+            className={dockItem + (active ? ' bg-[var(--accent-subtle)] text-[var(--accent)]' : ' text-[var(--text-secondary)]')}
+          >
+            <Icon size={20} aria-hidden="true" />
+            <span className="truncate">{label}</span>
+          </Link>
+        )
+      })}
+      <Sheet open={showMore} onOpenChange={setShowMore}>
+        <SheetTrigger asChild>
           <button
-            ref={moreButtonRef}
-            onClick={() => setShowMore((open) => !open)}
-            aria-label="Show more navigation options"
-            aria-expanded={showMore}
-            aria-controls="mobile-nav-more"
-            aria-haspopup="dialog"
-            className={`flex min-h-12 w-11 shrink-0 flex-col items-center justify-center gap-1 rounded-xl px-1 py-2 text-[9px] font-medium leading-none tracking-wide transition-colors duration-200 motion-reduce:transition-none ${
-              isMoreActive ? 'bg-[color-mix(in_srgb,var(--accent)_12%,transparent)] text-[var(--accent)]' : 'text-gray-400 hover:text-[var(--text-primary)]'
-            }`}
+            type="button"
+            className={dockItem + (moreActive ? ' bg-[var(--accent-subtle)] text-[var(--accent)]' : ' text-[var(--text-secondary)]')}
           >
-            <MoreHorizontal
-              className={`h-5 w-5 transition-transform duration-200 motion-reduce:transition-none ${showMore ? 'rotate-90' : ''} ${isMoreActive ? 'text-[var(--accent)]' : ''}`}
-              strokeWidth={1.9}
-            />
-            <span>More</span>
+            <MoreHorizontal size={20} aria-hidden="true" />
+            More
           </button>
-        </div>
-      </nav>
-
-      {/* More Drawer */}
-      {showMore && (
-        <div className="fixed inset-0 z-[60] flex flex-col justify-end md:hidden" onKeyDown={handleMoreKeyDown}>
-          {/* Backdrop */}
-          <button type="button" aria-label="Close menu" tabIndex={-1} className="absolute inset-0 bg-black/60 cursor-pointer border-0 p-0" onClick={() => { setShowMore(false); moreButtonRef.current?.focus() }} />
-
-          {/* Panel slides up from bottom */}
-          <div
-            ref={moreDialogRef}
-            id="mobile-nav-more"
-            role="dialog"
-            aria-modal="true"
-            aria-label="More navigation options"
-            className="relative w-full bg-[var(--bg-primary)] border-t border-[var(--border-color)] rounded-t-2xl max-h-[70dvh] overflow-y-auto animate-slide-up"
-            onClick={e => e.stopPropagation()}
-          >
-            {/* Handle bar */}
-            <div className="flex justify-center pt-3 pb-1">
-              <div className="w-10 h-1 rounded-full bg-[color-mix(in_srgb,var(--text-muted)_30%,transparent)]" />
-            </div>
-
-            {/* Header */}
-            <div className="flex items-center justify-between px-5 py-3 border-b border-[var(--border-color)]">
-              <h2 className="text-base font-semibold text-[var(--text-primary)]">More</h2>
-              <button ref={closeButtonRef} onClick={() => { setShowMore(false); moreButtonRef.current?.focus() }} aria-label="Close more navigation" className="p-1 text-[var(--text-muted)] hover:text-[var(--text-primary)]">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Quick Actions Section */}
-            <div className="px-5 pt-4 pb-2">
-              <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Workspace</p>
-              <div className="space-y-1">
-                {MORE_PAGES.map((page) => {
-                  const isActive = pathname === page.href || pathname.startsWith(page.href + '/')
-                  return (
-                    <Link
-                      key={page.href}
-                      href={page.href}
-                      onClick={() => setShowMore(false)}
-                      className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
-                        isActive
-                          ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'
-                          : 'hover:bg-[var(--bg-tertiary)] border border-transparent'
-                      }`}
-                    >
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                        isActive ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : 'bg-[var(--bg-tertiary)]'
-                      }`}>
-                        <page.icon className={`w-4.5 h-4.5 ${isActive ? 'text-[var(--accent)]' : page.color}`} strokeWidth={1.8} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className={`text-sm font-medium ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
-                          {page.label}
-                        </span>
-                      </div>
-                      <ChevronRight className={`w-4 h-4 ${isActive ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} />
-                    </Link>
-                  )
-                })}
-              </div>
-            </div>
-
-            {/* Admin Section (only for admin users) */}
-            {mounted && isAuthenticated && (() => {
-              const userRole = (session?.user as { role?: string })?.role
-              const isAdmin = userRole === 'super_admin' || userRole === 'admin' || userRole === 'org_admin'
-              if (!isAdmin) return null
+        </SheetTrigger>
+        <SheetContent side="bottom" aria-describedby={undefined} className="z-[60] mx-auto max-h-[75dvh] max-w-lg gap-2 overflow-y-auto rounded-t-2xl border-[var(--border-color)] bg-[var(--bg-primary)] px-5 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))] md:hidden">
+          <SheetTitle className="pr-10 text-base text-[var(--text-primary)]">More</SheetTitle>
+          <ul className="divide-y divide-[var(--border-color)]">
+            {PHONE_MORE_LINKS.map(({ href, label }) => {
+              const Icon = icons[href]
+              const active = isNavItemActive(pathname, href)
               return (
-                <div className="px-5 pt-4 pb-2">
-                  <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Administration</p>
-                  <div className="space-y-1">
-                    <Link
-                      href="/admin"
-                      onClick={() => setShowMore(false)}
-                      className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${
-                        pathname === '/admin' || pathname.startsWith('/admin/')
-                          ? 'bg-[color-mix(in_srgb,var(--accent)_10%,transparent)] border border-[color-mix(in_srgb,var(--accent)_20%,transparent)]'
-                          : 'hover:bg-[var(--bg-tertiary)] border border-transparent'
-                      }`}
-                    >
-                      <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${
-                        pathname === '/admin' ? 'bg-[color-mix(in_srgb,var(--accent)_15%,transparent)]' : 'bg-[var(--bg-tertiary)]'
-                      }`}>
-                        <ShieldCheck className={`w-4.5 h-4.5 ${pathname === '/admin' ? 'text-[var(--accent)]' : 'text-[var(--accent)]'}`} strokeWidth={1.8} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <span className={`text-sm font-medium ${pathname === '/admin' ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}>
-                          Admin Dashboard
-                        </span>
-                      </div>
-                      <ChevronRight className={`w-4 h-4 ${pathname === '/admin' ? 'text-[var(--accent)]' : 'text-[var(--text-muted)]'}`} />
-                    </Link>
-                  </div>
-                </div>
-              )
-            })()}
-
-            {/* Settings Section */}
-            <div className="px-5 pt-4 pb-6">
-              <p className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-[0.15em] mb-2">Settings</p>
-              <div className="space-y-1">
-                {[
-                { href: '/account', label: 'Account & Billing', icon: 'account' },
-                  { href: '/docs', label: 'Documentation', icon: 'docs' },
-                ].map((item) => (
+                <li key={href}>
                   <Link
-                    key={item.href}
-                    href={item.href}
+                    href={href}
+                    prefetch={false}
                     onClick={() => setShowMore(false)}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-[var(--bg-tertiary)] transition-all"
+                    aria-current={active ? 'page' : undefined}
+                    className={`flex min-h-12 items-center gap-3 rounded-lg px-2 text-sm font-medium ${active ? 'text-[var(--accent)]' : 'text-[var(--text-primary)]'}`}
                   >
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center bg-[var(--bg-tertiary)]">
-                      <svg className="w-4 h-4 text-[var(--text-muted)]" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={1.8}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.324.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.24-.438.613-.431.992a6.759 6.759 0 010 .255c-.007.378.138.75.43.99l1.005.828c.424.35.534.954.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.57 6.57 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.28c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.02-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.992a6.932 6.932 0 010-.255c.007-.378-.138-.75-.43-.99l-1.004-.828a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.087.22-.128.332-.183.582-.495.644-.869l.214-1.281z" />
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                      </svg>
-                    </div>
-                    <span className="flex-1 text-sm text-[var(--text-primary)]">{item.label}</span>
-                    <ChevronRight className="w-4 h-4 text-[var(--text-muted)]" />
+                    <Icon size={19} className="text-[var(--accent)]" aria-hidden="true" />
+                    <span className="flex-1">{label}</span>
+                    <ChevronRight size={16} className="text-[var(--text-muted)]" aria-hidden="true" />
                   </Link>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-    </>
+                </li>
+              )
+            })}
+          </ul>
+        </SheetContent>
+      </Sheet>
+    </nav>
   )
 }

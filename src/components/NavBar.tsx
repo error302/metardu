@@ -13,13 +13,12 @@ import { useLanguage, languages } from '@/lib/i18n/LanguageContext'
 import MetarduLogo from '@/components/MetarduLogo'
 import SubscriptionBadge from '@/components/SubscriptionBadge'
 import type { PlanId } from '@/lib/subscription/catalog'
-import { APP_DESKTOP_NAV, APP_SHELL_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isWebsiteRoute, isNavGroupActive, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
+import { APP_DESKTOP_NAV, APP_SHELL_LINKS, PHONE_DOCK_LINKS, PHONE_MORE_LINKS, PUBLIC_SHELL_LINKS, isExplicitPublicRoute, isWebsiteRoute, isNavGroupActive, isNavItemActive, type PrimaryNavItem } from '@/lib/navigation-shell'
 import FieldModeToggle from '@/components/shared/FieldModeToggle'
 
 const LANDING_NAV_LINKS: PrimaryNavItem[] = [
   { href: '/#workflow', label: 'How it works' },
   { href: '/demo', label: 'Product demo' },
-  { href: '/pricing', label: 'Pricing' },
 ]
 
 // ── Schemas ────────────────────────────────────────────────────────────────
@@ -196,7 +195,7 @@ export function SearchTrigger({ t }: { t: Translator }) {
   )
 }
 
-export default function NavBar() {
+export default function NavBar({ hasMobileDock = false }: { hasMobileDock?: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [openDropdown, setOpenDropdown] = useState<string | null>(null)
   const [userPlan, setUserPlan] = useState<PlanId>('free')
@@ -248,6 +247,8 @@ export default function NavBar() {
   // Resolve dynamic sub-page titles using searchablePages definitions
   const pageTitle = useMemo(() => {
     if (pathname === '/offline') return 'Connection help'
+    if (pathname === '/field/tools') return 'Field tools'
+    if (pathname === '/field/setout') return 'Set out'
     if (pathname === '/project/new') return 'New project'
     const matchedPage = searchablePages.find(p => p.href === pathname)
     if (matchedPage) return t(matchedPage.labelKey)
@@ -351,6 +352,7 @@ export default function NavBar() {
   const desktopLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
   const mobileLinks = landingPage ? LANDING_NAV_LINKS : shellLinks
   const useGroupedDesktopNav = shellVariant === 'app' && !landingPage
+  const phoneLinks = useGroupedDesktopNav && !hasMobileDock ? [...PHONE_DOCK_LINKS, ...PHONE_MORE_LINKS] : []
 
   return (
     <nav aria-label="Primary navigation" className="border-b border-[var(--border-color)] bg-[var(--bg-primary)] sticky top-0 z-50 pt-[env(safe-area-inset-top,0px)]">
@@ -734,7 +736,7 @@ export default function NavBar() {
                   href={item.href}
                   prefetch={false}
                   aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
-                  className={`block px-4 py-2 transition-colors ${
+                  className={`px-4 py-2 transition-colors ${useGroupedDesktopNav ? 'hidden md:block' : 'block'} ${
                     isNavItemActive(pathname, item.href)
                       ? 'text-[var(--accent)]'
                       : 'text-[var(--text-primary)] hover:text-[var(--accent)]'
@@ -744,8 +746,16 @@ export default function NavBar() {
                 </Link>
               ))}
 
+              {phoneLinks.map(item => (
+                <Link key={item.href} href={item.href} prefetch={false} onClick={() => setMobileMenuOpen(false)}
+                  aria-current={isNavItemActive(pathname, item.href) ? 'page' : undefined}
+                  className="flex min-h-11 items-center px-4 text-sm text-[var(--text-primary)] aria-[current=page]:text-[var(--accent)] md:hidden">
+                  {item.label}
+                </Link>
+              ))}
+
               {shellVariant === 'app' && (
-                <>
+                <div className="hidden md:block">
                   <div className="border-t border-[var(--border-color)] my-2"></div>
                   <div className="px-4 py-1">
                     <span className="text-[10px] font-semibold text-[var(--text-muted)] uppercase tracking-wider">Field Operations</span>
@@ -768,7 +778,7 @@ export default function NavBar() {
                   <Link href="/docs" className="block px-4 py-2 text-[var(--text-primary)] hover:text-[var(--accent)]">
                     Documentation
                   </Link>
-                </>
+                </div>
               )}
               
               {isAuthenticated && (
@@ -779,10 +789,10 @@ export default function NavBar() {
                   </Link>
                   {isAdminUser && (
                     <>
-                      <Link href="/admin" className="block px-4 py-2 text-[var(--accent)] font-medium">
+                      <Link href="/admin" className="hidden px-4 py-2 font-medium text-[var(--accent)] md:block">
                         Admin Dashboard
                       </Link>
-                      <Link href="/admin/users" className="block px-4 py-2 text-[var(--accent)]">
+                      <Link href="/admin/users" className="hidden px-4 py-2 text-[var(--accent)] md:block">
                         User Management
                       </Link>
                     </>

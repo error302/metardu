@@ -15,7 +15,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import ColumnPlumbCollector from '@/components/field/ColumnPlumbCollector'
-import { useSearchParams } from 'next/navigation'
+import { ProjectPicker } from '@/components/field/ProjectPicker'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { ArrowLeft, Check, ChevronRight, Radio, Ruler, TriangleAlert } from 'lucide-react'
 import {
   cacheSetoutDefinitionList,
@@ -86,8 +87,12 @@ export default function FieldSetOutPage() {
 
 function PointSetOutCollector() {
   const params = useSearchParams()
+  const router = useRouter()
   const projectId = params?.get('projectId') ?? ''
   const requestedDefinitionId = params?.get('definitionId') ?? ''
+  const chooseProject = useCallback((id: string) => {
+    router.replace('/field/setout?projectId=' + encodeURIComponent(id))
+  }, [router])
 
   const [definitions, setDefinitions] = useState<Definition[]>([])
   const [definitionId, setDefinitionId] = useState<string>('')
@@ -460,11 +465,7 @@ function PointSetOutCollector() {
   }, [projectId, definitionId, currentDefinition?.crs, target, verdict, observed, accuracy,levelAccuracy,observedHeightReference,toleranceProfile, index, points, register, loadRegister, loadDefinition, refreshPending, usingOfflinePlan, offlinePlanConfirmed])
 
   if (!projectId) {
-    return (
-      <div className="min-h-screen p-4 text-sm text-[var(--text-muted)]">
-        Open this screen from a project’s engineering step so the set-out definition is known.
-      </div>
-    )
+    return <ProjectPicker title="Set out" subtitle="Choose a project with an issued set-out plan." onPick={chooseProject} />
   }
 
   if (loading) {

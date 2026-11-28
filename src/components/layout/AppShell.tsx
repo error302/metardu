@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { ReactNode } from 'react'
+import { Fragment, type ReactNode } from 'react'
 import dynamic from 'next/dynamic'
 import NavBar from '@/components/NavBar'
 import { isWebsiteRoute } from '@/lib/navigation-shell'
@@ -71,6 +71,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const auth = isAuthRoute(pathname)
   const mapPage = isMapRoute(pathname)
   const fieldbookPage = isFieldbookRoute(pathname)
+  const collectorPage = pathname === '/field/collect'
   const marketing = isMarketingRoute(pathname)
   const cadPage=isCadWorkspaceRoute(pathname)
   // Map and fieldbook are full-data-entry surfaces. Keep the global mobile
@@ -205,8 +206,16 @@ export default function AppShell({ children }: { children: ReactNode }) {
   }
 
   // Default: full app shell
+  // Give the map the space left after the actual navigation and banner heights.
+  // The mobile dock is fixed, so reserve its space inside the map's main area.
+  const ShellFrame = mapPage ? 'div' : Fragment
+  const frameProps = mapPage ? { className: 'flex h-dvh min-w-0 flex-col overflow-hidden' } : {}
+  const showMobileDock = !fieldbookPage && !collectorPage
+  const mainClass = mapPage
+    ? 'min-h-0 min-w-0 flex-1 overflow-hidden pb-[calc(5.5rem+env(safe-area-inset-bottom,0px))] md:pb-0'
+    : 'min-h-screen max-w-full overflow-x-hidden' + (showMobileDock ? ' mobile-nav-spacer' : '')
   return (
-    <>
+    <ShellFrame {...frameProps}>
       <SkipToContent />
       <AppUpdateBanner />
       <OfflineIndicator />
@@ -223,21 +232,21 @@ export default function AppShell({ children }: { children: ReactNode }) {
                 sibling content on /project/new (breadcrumb link never renders,
                 E2E project-crud shard fails). NavBar's SSR bailout recovers
                 fine client-side without it. */}
-            <NavBar />
-            <main id="main-content" className={'min-h-screen max-w-full overflow-x-hidden'+(pathname==='/schedule'?'':' pb-40 md:pb-0 mobile-nav-spacer')}>
+            <NavBar hasMobileDock={showMobileDock} />
+            <main id="main-content" className={mainClass}>
               {['/','/dashboard','/projects','/account','/fieldbook'].includes(pathname) && <ChatGPTNoticeBanner />}
               {children}
             </main>
             {!hideGlobalOverlays && <Footer />}
             {!hideGlobalOverlays && <FeedbackWidget />}
             {!hideGlobalOverlays && <HotkeyHelpOverlay />}
-            {!fieldbookPage && pathname !== '/schedule' && <MobileNav />}
+            {showMobileDock && <MobileNav />}
             <CommandPalette />
             <NotificationToast />
             {!hideGlobalOverlays && <OnboardingTour />}
           </SubscriptionProvider>
         </CountryProvider>
       </LanguageProvider>
-    </>
+    </ShellFrame>
   )
 }

@@ -32,6 +32,21 @@ export const PRIMARY_NAV_ITEMS: PrimaryNavItem[] = [
  */
 export const APP_SHELL_LINKS: PrimaryNavItem[] = PRIMARY_NAV_ITEMS
 
+export const PHONE_DOCK_LINKS = [
+  { href: '/field/collect', label: 'Collect' },
+  { href: '/field/setout', label: 'Set out' },
+  { href: '/map', label: 'Map' },
+  { href: '/schedule', label: 'Schedule' },
+] as const
+
+export const PHONE_MORE_LINKS = [
+  { href: '/fieldbook', label: 'Field book' },
+  { href: '/equipment', label: 'Equipment tracker' },
+  { href: '/marketplace', label: 'Marketplace' },
+  { href: '/beacons', label: 'Beacon registry' },
+  { href: '/field/tools', label: 'Field tools' },
+] as const
+
 export type NavMenuItem = PrimaryNavItem & { description?: string }
 export type NavGroup = { id: string; label: string; items: NavMenuItem[] }
 export type DesktopNavEntry = { kind: 'link'; item: PrimaryNavItem } | { kind: 'group'; group: NavGroup }

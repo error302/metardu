@@ -418,7 +418,10 @@ export function FieldDataCollector({
           onSyncClick={handleSync}
         />
         <div className="flex-1 overflow-y-auto p-4 max-w-2xl mx-auto w-full">
-          {projectName && <p className="mb-4 break-words text-sm font-semibold">{projectName}</p>}
+          <div className="mb-3 flex items-center justify-between gap-3">
+            {projectName && <p className="break-words text-sm font-semibold">{projectName}</p>}
+            {sessionState.setup && <button type="button" onClick={() => setShowSetup(false)} className="min-h-11 shrink-0 text-sm font-semibold text-[var(--accent)]">Back to collection</button>}
+          </div>
           <FieldStationSetup
             onComplete={handleSetupComplete}
             initialSetup={sessionState.setup}
@@ -431,7 +434,6 @@ export function FieldDataCollector({
   // ─── Main Collector UI ───────────────────────────────────────────────────
   return (
     <div className={`min-h-screen flex flex-col ${isSunlightMode ? 'bg-white text-black font-bold border-b-4 border-black' : 'bg-[var(--bg-primary)]'}`}>
-      {projectName && <p className="break-words border-b border-[var(--border-color)] px-4 py-3 text-sm font-semibold">{projectName}</p>}
       {/* Connection Bar */}
       <FieldConnectionBar
         isOnline={sessionState.isOnline}
@@ -441,32 +443,36 @@ export function FieldDataCollector({
       />
 
       {/* Station Info Bar */}
-      <div className={`flex flex-wrap items-center gap-3 px-4 py-2 border-b ${isSunlightMode ? 'bg-yellow-300 text-black border-black border-b-2 font-black' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
-        <div className="min-w-0 flex-1 flex flex-wrap items-center gap-3">
+      <div className={`flex items-center gap-2 px-4 py-2 border-b ${isSunlightMode ? 'bg-yellow-300 text-black border-black border-b-2 font-black' : 'bg-[var(--bg-secondary)] border-[var(--border-color)]'}`}>
+        <div className="min-w-0 flex-1">
+          {projectName && <p className="truncate text-sm font-semibold" title={projectName}>{projectName}</p>}
           <span className={`text-sm font-mono font-bold ${isSunlightMode ? 'text-black underline' : 'text-[var(--accent)]'}`}>
             {sessionState.setup?.stationName}
           </span>
-          <span className="text-xs opacity-70">
+          <span className="ml-2 hidden text-xs opacity-70 sm:inline">
             IH: {sessionState.setup?.instrumentHeight}m | TH: {sessionState.setup?.targetHeight}m
           </span>
         </div>
 
         <button
           onClick={() => setIsSunlightMode(!isSunlightMode)}
-          className={`px-3 py-1 text-xs rounded font-bold border transition ${
+          type="button"
+          aria-pressed={isSunlightMode}
+          className={`min-h-11 shrink-0 px-2 text-xs rounded font-bold border transition ${
             isSunlightMode ? 'bg-black text-white border-black shadow-lg' : 'bg-black/10 dark:bg-white/10 text-foreground border-white/20'
           }`}
           title="Toggle Sunlight High-Contrast Outdoor Mode"
         >
-          {isSunlightMode ? 'Sunlight Mode ON' : 'Outdoor Mode'}
+          Outdoor
         </button>
         <button
           onClick={() => setShowSetup(true)}
-          className={`flex items-center gap-1 text-xs transition-colors ${
+          type="button"
+          className={`flex min-h-11 shrink-0 items-center gap-1 px-1 text-xs transition-colors ${
             isSunlightMode ? 'text-black hover:text-gray-700' : 'text-[var(--text-secondary)] hover:text-[var(--accent)]'
           }`}
         >
-          <Settings className="w-3 h-3" /> Edit
+          <Settings className="w-4 h-4" aria-hidden /> Setup
         </button>
       </div>
 
@@ -597,9 +603,9 @@ export function FieldDataCollector({
       )}
 
       {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pb-[calc(4.5rem+env(safe-area-inset-bottom))] md:pb-0">
         {activePanel === 'measure' && (
-          <div className="flex flex-col items-center py-8 px-4 w-full">
+          <div className="flex w-full flex-col items-center px-4 py-4 sm:py-8">
             {roadSurvey && roadFieldPlan && (
               <div className="mb-5 w-full flex justify-center">
                 <RoadFieldCodeSelector
@@ -634,7 +640,7 @@ export function FieldDataCollector({
                 CAD layer, so it is picked from the same table field-to-finish
                 uses — not from ad-hoc labels nothing downstream understands. */}
             {!roadSurvey && (
-              <div className="mt-8 flex w-full justify-center">
+              <div className="mt-4 flex w-full justify-center sm:mt-8">
                 <FeatureCodePicker
                   value={activeFeatureCode}
                   onChange={setActiveFeatureCode}
@@ -693,6 +699,16 @@ export function FieldDataCollector({
           />
         )}
 
+        {activePanel === 'stakeout' && !stakeoutTarget && (
+          <div className="mx-auto max-w-md space-y-3 px-4 py-5">
+            <h2 className="text-lg font-semibold">Set out project points</h2>
+            <p className="text-sm text-[var(--text-secondary)]">Open Set Out to choose a target and review the live offsets.</p>
+            <Link href={`/field/setout?projectId=${encodeURIComponent(projectId)}`} className="btn btn-primary inline-flex min-h-11 items-center gap-2">
+              Open Set Out <ChevronRight className="h-4 w-4" aria-hidden />
+            </Link>
+          </div>
+        )}
+
         {activePanel === 'sync' && (
           <SyncPanel
             sessionState={sessionState}
@@ -703,7 +719,7 @@ export function FieldDataCollector({
       </div>
 
       {/* Bottom Navigation */}
-      <div className="flex items-center justify-around border-t border-[var(--border-color)] bg-[var(--bg-secondary)]">
+      <nav aria-label="Collector actions" className="fixed inset-x-0 bottom-0 z-30 flex items-center justify-around border-t border-[var(--border-color)] bg-[var(--bg-secondary)] pb-[env(safe-area-inset-bottom)] md:static">
         <NavButton
           active={activePanel === 'measure'}
           onClick={() => setActivePanel('measure')}
@@ -714,8 +730,7 @@ export function FieldDataCollector({
           active={activePanel === 'stakeout'}
           onClick={() => setActivePanel('stakeout')}
           icon={<Crosshair className="w-5 h-5" />}
-          label="Stakeout"
-          disabled={!sessionState.setup}
+          label="Set out"
         />
         <NavButton
           active={activePanel === 'list'}
@@ -730,7 +745,7 @@ export function FieldDataCollector({
           label={sessionState.isOnline ? 'Sync' : 'Offline'}
           badge={sessionState.pendingSyncCount > 0 ? sessionState.pendingSyncCount : undefined}
         />
-      </div>
+      </nav>
 
       {/* Instrument Connection Modal */}
       {showInstrumentPanel && (
@@ -777,8 +792,10 @@ function NavButton({
 }) {
   return (
     <button
+      type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-current={active ? 'page' : undefined}
       className={`flex-1 flex flex-col items-center gap-0.5 py-2 transition-colors disabled:opacity-30 ${
         active
           ? 'text-[var(--accent)]'

@@ -65,6 +65,7 @@ export default function NewProjectPage() {
     }
   }
   const [error, setError] = useState('')
+  const [planLimitReached, setPlanLimitReached] = useState(false)
   const [loading, setLoading] = useState(false)
   const [detecting, setDetecting] = useState(false)
 
@@ -100,6 +101,7 @@ export default function NewProjectPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setPlanLimitReached(false)
     setLoading(true)
 
     try {
@@ -137,9 +139,10 @@ export default function NewProjectPage() {
         body: JSON.stringify(payload),
       })
 
-      const json = (await res.json()) as { error?: string; data?: { id: string } }
+      const json = (await res.json()) as { error?: string; code?: string; data?: { id: string } }
 
       if (!res.ok) {
+        setPlanLimitReached(res.status === 402 && json.code === 'PLAN_LIMIT_REACHED')
         setError(json.error || 'Failed to create project')
         setLoading(false)
         return
@@ -251,7 +254,10 @@ export default function NewProjectPage() {
               ? 'bg-green-900/20 border-green-500/30 text-green-400'
               : 'bg-red-900/20 border-red-500/30 text-red-400'
           }`}>
-            {error}
+            <div>
+              <p>{error}</p>
+              {planLimitReached && <Link href="/pricing" className="mt-2 inline-block font-semibold underline underline-offset-2">Compare plans for more projects</Link>}
+            </div>
           </div>
         )}
 

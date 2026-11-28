@@ -1,8 +1,6 @@
 import Link from 'next/link'
 import Image from 'next/image'
 import { ChevronDown } from 'lucide-react'
-import { PricingSection } from '@/components/landing/PricingSection'
-import { PLAN_CATALOG } from '@/lib/subscription/catalog'
 import styles from './landing.module.css'
 
 const WORKFLOW_STEPS = [
@@ -36,20 +34,17 @@ const FAQS = [
     q: 'Which coordinate reference systems are available?',
     a: 'METARDU includes Arc 1960 / UTM 36S and 37S, registered WGS 84 / UTM grids, and selected Cassini-Soldner conversions. Availability depends on a supported CRS definition. Verify the job grid, datum, and units before computing.',
   },
+  {
+    q: 'Can I use METARDU outside Kenya?',
+    a: 'You can run field capture, traverse, levelling, and mapping workflows in a supported project grid. Confirm the coordinate reference, vertical datum, instrument and export format for the job. For cadastral submission, verify the applicable local requirements with the responsible authority.',
+  },
 ]
-
-const proPriceKes = (() => {
-  const plan = PLAN_CATALOG.find((item) => item.id === 'pro')
-  if (!plan) throw new Error('Pro plan is missing from the subscription catalog')
-  return plan.prices.KES
-})()
 
 export default function LandingPage() {
   return (
     <div className={styles.landing}>
       <HeroSection />
       <WorkflowSection />
-      <PricingSection />
       <FAQSection />
       <script
         type="application/ld+json"
@@ -60,13 +55,6 @@ export default function LandingPage() {
             name: 'METARDU',
             applicationCategory: 'BusinessApplication',
             operatingSystem: 'Web',
-            offers: {
-              '@type': 'Offer',
-              price: proPriceKes.toString(),
-              priceCurrency: 'KES',
-              url: 'https://metardu.space/checkout?plan=pro',
-            },
-            areaServed: 'KE',
             featureList: [
               'Survey project and field record management',
               'Survey computation and review workflows',
@@ -91,21 +79,21 @@ function HeroSection() {
             Keep observations, traverse and levelling computations, maps, and draft outputs together in one survey project, from control to checked deliverable.
           </p>
           <div className={styles.heroActions}>
-            <Link href="/register" prefetch={false} className={styles.primaryAction}>
+            <Link href="/demo" prefetch={false} className={styles.primaryAction}>
+              Try the guided demo <span aria-hidden>↗</span>
+            </Link>
+            <Link href="/register" prefetch={false} className={styles.secondaryAction}>
               Create an account <span aria-hidden>↗</span>
             </Link>
-            <Link href="/install" prefetch={false} className={styles.secondaryAction}>
-              Install the app <span aria-hidden>↗</span>
-            </Link>
           </div>
-          <p className={styles.heroNote}><Link href="/demo" prefetch={false} className="underline underline-offset-4">Try the interactive sample</Link> with synthetic data before signing in.</p>
+          <p className={styles.heroNote}>Try a sample parcel without an account. <Link href="/install" prefetch={false} className="underline underline-offset-4">Install METARDU</Link></p>
         </div>
 
         <figure className={styles.heroPhoto}>
           <div className={styles.heroPhotoFrame}>
             <Image
-              src="/landing/product-map.webp"
-              alt="The METARDU survey map workspace showing the survey toolbar, coordinate search, and East Africa map view."
+              src="/landing/product-survey-review.webp"
+              alt="METARDU's adjusted boundary view with five labeled beacons, a north arrow, and a scale bar."
               fill
               priority
               fetchPriority="high"
@@ -114,7 +102,7 @@ function HeroSection() {
             />
           </div>
           <figcaption className={styles.photoCredit}>
-            Actual METARDU interface. Map tiles © OpenStreetMap contributors.
+            Adjusted boundary in METARDU’s guided practice survey.
           </figcaption>
         </figure>
       </div>
@@ -189,6 +177,7 @@ function FAQSection() {
           ))}
         </ul>
       </div>
+      <div className={styles.planLink}><Link href="/pricing" prefetch={false}>View plans and pricing</Link></div>
     </section>
   )
 }

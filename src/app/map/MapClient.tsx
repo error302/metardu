@@ -39,7 +39,6 @@ import { MapStatusBar } from '@/app/map/components/MapStatusBar'
 import { MapLoadingOverlay } from '@/app/map/components/MapLoadingOverlay'
 import { MapNotifications } from '@/app/map/components/MapNotifications'
 import { MapRightDock } from '@/app/map/components/MapRightDock'
-import { MapLegend } from '@/app/map/components/MapLegend'
 import { MapOverlayProvider } from '@/app/map/components/MapOverlayManager'
 import { MapWorkspaceHeader } from '@/app/map/components/MapWorkspaceHeader'
 import { KeyboardShortcutsHelp } from '@/app/map/components/KeyboardShortcutsHelp'
@@ -926,7 +925,7 @@ function MapWorkspace() {
       <MapOverlayProvider>
       <div
         id="metardu-global-map"
-        className="map-workspace h-[calc(100dvh-9rem-env(safe-area-inset-bottom,0px))] md:h-[calc(100dvh-4rem)] bg-[var(--bg-primary)] relative overflow-hidden"
+        className="map-workspace relative h-full overflow-hidden bg-[var(--bg-primary)]"
         style={{
           '--map-bottom-offset': isMobile ? '64px' : '0px',
           '--map-bottom-clearance': toolsExpanded ? '98px' : '0px',
@@ -1008,8 +1007,6 @@ function MapWorkspace() {
                 }}
               />
 
-              <MapLegend />
-
               <MapStatusBar />
 
               {/* ── Stakeout navigation HUD (workspace-level: visible while
@@ -1018,7 +1015,6 @@ function MapWorkspace() {
 
               <MapNotifications />
 
-              {/* ── Unified Collapsible Right Dock (Zoom, Projection, North Arrow, Print) ── */}
               <MapRightDock />
 
               {/* OSM Buildings Overlay Layer */}

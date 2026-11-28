@@ -100,6 +100,8 @@ export function OnboardingTour() {
   // the tour doesn't fire before the user has seen the checklist.
   useEffect(() => {
     if (typeof window === 'undefined') return
+    const desktop = window.matchMedia('(min-width: 768px)')
+    if (!desktop.matches) return
     const completed = localStorage.getItem(STORAGE_KEY)
     const skipped = localStorage.getItem('metardu:onboarding-skipped')
     const checklistDismissed = localStorage.getItem('metardu_onboarding_dismissed')
@@ -110,7 +112,9 @@ export function OnboardingTour() {
     const startTour = () => {
       // Only start the tour AFTER the checklist has been dismissed —
       // otherwise the user gets two onboarding overlays at once.
-      timer = setTimeout(() => setActive(true), 1500)
+      timer = setTimeout(() => {
+        if (desktop.matches) setActive(true)
+      }, 1500)
     }
 
     // The POST side already records completion server-side. Honour that record

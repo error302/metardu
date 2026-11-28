@@ -1,6 +1,4 @@
 'use client';
-import Link from 'next/link'
-
 export default function SubscriptionStatus({ subscription }: { subscription: Record<string, unknown> | null }) {
   const plan = (subscription?.plan_id as string | undefined) || 'free'
   const isTrialing = subscription?.status === 'trial'
@@ -53,14 +51,6 @@ export default function SubscriptionStatus({ subscription }: { subscription: Rec
       <div className="flex items-center gap-3">
         {getBadge()}
       </div>
-      {plan === 'free' && (
-        <Link
-          href="/pricing"
-          className="text-sm text-amber-400 hover:text-amber-300"
-        >
-          Upgrade →
-        </Link>
-      )}
     </div>
   )
 }

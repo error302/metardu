@@ -2,9 +2,17 @@ import React, { act } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
 import FieldSetOutPage from '../page'
 
+let mockSearch = 'projectId=project-1&definitionId=definition-1'
+const mockReplace = jest.fn()
 jest.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams('projectId=project-1&definitionId=definition-1'),
-  useRouter: () => ({ push: jest.fn() }),
+  useSearchParams: () => new URLSearchParams(mockSearch),
+  useRouter: () => ({ replace: mockReplace }),
+}))
+
+jest.mock('@/components/field/ProjectPicker', () => ({
+  ProjectPicker: ({ onPick }: { onPick: (id: string) => void }) => (
+    <button type="button" onClick={() => onPick('project-1')}>Choose set-out job</button>
+  ),
 }))
 
 jest.mock('next/link', () => ({
@@ -52,6 +60,8 @@ let container: HTMLDivElement
 let root: Root
 
 beforeEach(() => {
+  mockSearch = 'projectId=project-1&definitionId=definition-1'
+  mockReplace.mockClear()
   const queue = jest.requireMock('@/lib/field/setoutQueue') as { listQueuedShots: jest.Mock }
   queue.listQueuedShots.mockReset().mockResolvedValue([])
   const planCache = jest.requireMock('@/lib/field/setoutQueue') as {
@@ -397,4 +407,16 @@ test('a 3D preview needs level uncertainty and matching reference even when hori
   expect(recordButton().disabled).toBe(false)
   await enter('Observed height reference','Other BM')
   expect(recordButton().disabled).toBe(true)
+})
+
+it('opens a project from the standalone set-out entry point', async () => {
+  mockSearch = ''
+  container = document.createElement('div')
+  document.body.appendChild(container)
+  root = createRoot(container)
+  await act(async () => root.render(<FieldSetOutPage />))
+  const button = Array.from(container.querySelectorAll('button')).find(item => item.textContent === 'Choose set-out job')
+  expect(button).toBeDefined()
+  await act(async () => button?.click())
+  expect(mockReplace).toHaveBeenCalledWith('/field/setout?projectId=project-1')
 })

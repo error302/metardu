@@ -207,8 +207,36 @@ export default async function DashboardPage() {
     { href: '/process', title: 'Process survey data', detail: 'Import notes and run a supported workflow', icon: Ruler },
   ]
 
+  const phoneProjects = [...projects, ...sharedProjects].slice(0, 3)
+
   return (
-    <div className="mx-auto max-w-[1440px] space-y-6 px-4 py-5 sm:px-6 md:py-8 lg:px-8">
+    <>
+    <section className="mx-auto max-w-xl px-4 py-6 md:hidden" aria-labelledby="phone-workspace-title">
+      <h1 id="phone-workspace-title" className="text-2xl font-semibold tracking-tight">Field workspace</h1>
+      <div className="mt-4 grid grid-cols-2 gap-2">
+        <Link href="/field/collect" prefetch={false} className="btn btn-primary min-h-12 justify-center">Collect points</Link>
+        <Link href="/schedule" prefetch={false} className="btn btn-secondary min-h-12 justify-center">Job schedule</Link>
+      </div>
+      <h2 className="mb-2 mt-6 text-sm font-semibold">Field jobs</h2>
+      {projectsLoadFailed && <p role="status" className="text-sm text-[var(--text-secondary)]">Some projects could not be loaded. Open Collect to retry the field job list.</p>}
+      {phoneProjects.length > 0 ? (
+        <ul className="divide-y divide-[var(--border-color)] rounded-xl border border-[var(--border-color)] bg-[var(--bg-card)]">
+          {phoneProjects.map(project => (
+            <li key={project.id}>
+              <Link href={'/field/collect?projectId=' + encodeURIComponent(project.id)} prefetch={false} className="flex min-h-12 items-center gap-3 px-3 py-2.5">
+                <FolderKanban className="h-4 w-4 shrink-0 text-[var(--accent)]" aria-hidden="true" />
+                <span className="min-w-0 flex-1 break-words text-sm font-medium">{project.name}</span>
+                <ArrowRight className="h-4 w-4 shrink-0 text-[var(--text-muted)]" aria-hidden="true" />
+              </Link>
+            </li>
+          ))}
+        </ul>
+      ) : !projectsLoadFailed && (
+        <p className="text-sm text-[var(--text-secondary)]">Set up a project or ask your crew lead to share a job with your account.</p>
+      )}
+      {emailVerified === false && <div className="mt-5"><EmailVerificationNotice email={user.email} /></div>}
+    </section>
+    <div className="mx-auto hidden max-w-[1440px] space-y-6 px-4 py-5 sm:px-6 md:block md:py-8 lg:px-8">
       <header className="relative overflow-hidden rounded-2xl border border-[var(--border-color)] border-l-2 border-l-[var(--accent)] bg-[color-mix(in_srgb,var(--accent)_5%,var(--bg-card))] px-5 py-6 sm:px-7 sm:py-7">
         <div className="pointer-events-none absolute -right-8 -top-10 opacity-[0.045]" aria-hidden="true">
           <Ruler className="h-56 w-56 rotate-[-24deg]" strokeWidth={0.8} />
@@ -271,7 +299,7 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {subscription?.status === 'trial' && daysLeft !== null && (
+      {subscription?.status === 'trial' && daysLeft !== null && daysLeft <= 3 && (
         <div className="flex items-center gap-3 rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3 text-sm">
           <svg className="w-4 h-4 text-green-400 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
@@ -417,5 +445,6 @@ export default async function DashboardPage() {
         </aside>
       </div>
     </div>
+    </>
   )
 }
